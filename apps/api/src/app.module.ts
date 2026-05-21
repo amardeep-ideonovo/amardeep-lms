@@ -10,6 +10,7 @@ import { MembersModule } from './members/members.module';
 import { BillingModule } from './billing/billing.module';
 import { LmsModule } from './lms/lms.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     SettingsModule,
     MailchimpModule,
     // Feature modules.
+    HealthModule,
     AuthModule,
     BillingModule,
     LevelsModule,
