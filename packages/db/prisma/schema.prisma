@@ -1,0 +1,194 @@
+// Membership LMS data model.
+// Keystone decisions baked in here:
+//  - UserLevel join carries `source` (stripe|manual) and `status`, so a manual
+//    grant and a paid subscription for the same level coexist without conflict.
+//  - A course unlocks if the user holds ANY active UserLevel among the course's
+//    assigned levels (CourseLevel join).
+//  - mailchimpTag (not a separate audience) per level — one audience, tag per level.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Identity ----------
+
+model User {
+  id               String          @id @default(cuid())
+  email            String          @unique
+  username         String          @unique
+  passwordHash     String
+  wpId             Int?            @unique // original WordPress user ID, for migration reconciliation
+  stripeCustomerId String?         @unique // cus_… on the SAME Stripe account
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  emailOptOut      Boolean         @default(false) // set by Mailchimp unsubscribe webhook
+
+  levels    UserLevel[]
+  progress  LessonProgress[]
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  EDITOR // can manage courses/lessons but not billing keys
+}
+
+model Admin {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  role         AdminRole @default(ADMIN)
+  createdAt    DateTime  @default(now())
+}
+
+// ---------- Membership levels ----------
+
+enum LevelType {
+  PAID
+  FREE
+  MANUAL
+}
+
+model Level {
+  id              String      @id @default(cuid())
+  name            String
+  type            LevelType   @default(PAID)
+  mailchimpTag    String?     // tag name within the single Mailchimp audience
+  stripeProductId String?     // prod_… for PAID levels
+  createdAt       DateTime    @default(now())
+
+  prices      Price[]
+  userLevels  UserLevel[]
+  courseLevels CourseLevel[]
+}
+
+model Price {
+  id            String   @id @default(cuid())
+  levelId       String
+  level         Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  stripePriceId String   @unique // price_…
+  interval      String   // "month" | "year"
+  amount        Int      // minor units (cents)
+  currency      String   @default("usd")
+  active        Boolean  @default(true)
+}
+
+enum UserLevelSource {
+  STRIPE
+  MANUAL
+}
+
+enum UserLevelStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+model UserLevel {
+  id                  String          @id @default(cuid())
+  userId              String
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  levelId             String
+  level               Level           @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  source              UserLevelSource
+  status              UserLevelStatus @default(ACTIVE)
+  stripeSubItemId     String?         // si_… when source = STRIPE
+  expiresAt           DateTime?       // for manual grants or period-end access
+  grantedAt           DateTime        @default(now())
+
+  @@unique([userId, levelId, source])
+  @@index([userId])
+  @@index([levelId])
+}
+
+// ---------- LMS content ----------
+
+model Category {
+  id      String   @id @default(cuid())
+  name    String
+  order   Int      @default(0)
+  courses Course[]
+}
+
+model Course {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  categoryId  String?
+  category    Category?     @relation(fields: [categoryId], references: [id])
+  order       Int           @default(0)
+  createdAt   DateTime      @default(now())
+
+  lessons      Lesson[]
+  courseLevels CourseLevel[]
+}
+
+// Many-to-many: a course is accessible to any of these levels.
+model CourseLevel {
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  levelId  String
+  level    Level  @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, levelId])
+}
+
+model Lesson {
+  id          String           @id @default(cuid())
+  courseId    String
+  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  content     String?          // markdown / rich text
+  muxAssetId  String?          // managed video; playback via signed URL
+  order       Int              @default(0)
+  createdAt   DateTime         @default(now())
+
+  progress LessonProgress[]
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+
+  @@unique([userId, lessonId])
+}
+
+// ---------- Billing mirror & settings ----------
+
+enum SubStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  UNPAID
+  INCOMPLETE
+}
+
+// Local mirror of Stripe subscriptions, kept current by webhooks.
+model SubscriptionMirror {
+  id                 String    @id @default(cuid())
+  stripeSubId        String    @unique // sub_…
+  stripeCustomerId   String
+  status             SubStatus
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean   @default(false)
+  updatedAt          DateTime  @updatedAt
+}
+
+// Encrypted integration secrets (Stripe/Mailchimp). Values stored encrypted at
+// rest; never returned to any client — admin UI is write-only for secrets.
+model Setting {
+  key       String   @id // e.g. "stripe.secretKey", "stripe.webhookSecret", "mailchimp.apiKey"
+  value     String   // ciphertext
+  updatedAt DateTime @updatedAt
+}

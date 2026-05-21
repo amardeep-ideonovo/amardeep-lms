@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "LMS",
+    "slug": "lms-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "lms",
+    "newArchEnabled": false,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0f172a"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lms.mobile"
+    },
+    "android": {
+      "package": "com.lms.mobile"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
