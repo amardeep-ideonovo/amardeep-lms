@@ -1,0 +1,288 @@
+"use client";
+
+import { FormEvent, useEffect, useState } from "react";
+import type { CreateLevelInput, LevelDTO, LevelType } from "@lms/types";
+import { ApiError, api } from "@/lib/api";
+
+type PriceForm = { interval: "month" | "year"; amount: string };
+
+const LEVEL_TYPES: LevelType[] = ["PAID", "FREE", "MANUAL"];
+
+function emptyPrice(): PriceForm {
+  return { interval: "month", amount: "" };
+}
+
+export default function LevelsPage() {
+  const [levels, setLevels] = useState<LevelDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // create/edit form state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [type, setType] = useState<LevelType>("PAID");
+  const [mailchimpTag, setMailchimpTag] = useState("");
+  const [prices, setPrices] = useState<PriceForm[]>([emptyPrice()]);
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      setLevels(await api.listLevels());
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load levels");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  function resetForm() {
+    setEditingId(null);
+    setName("");
+    setType("PAID");
+    setMailchimpTag("");
+    setPrices([emptyPrice()]);
+  }
+
+  function startEdit(level: LevelDTO) {
+    setEditingId(level.id);
+    setName(level.name);
+    setType(level.type);
+    setMailchimpTag(level.mailchimpTag ?? "");
+    setPrices(
+      level.prices.length
+        ? level.prices.map((p) => ({
+            interval: p.interval,
+            amount: (p.amount / 100).toString(),
+          }))
+        : [emptyPrice()]
+    );
+  }
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const cleanedPrices = prices
+        .filter((p) => p.amount.trim() !== "")
+        .map((p) => ({
+          interval: p.interval,
+          amount: Math.round(parseFloat(p.amount) * 100), // dollars -> cents
+        }));
+      const input: CreateLevelInput = {
+        name: name.trim(),
+        type,
+        mailchimpTag: mailchimpTag.trim() || undefined,
+        prices: type === "PAID" ? cleanedPrices : [],
+      };
+      if (editingId) await api.updateLevel(editingId, input);
+      else await api.createLevel(input);
+      resetForm();
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function onDelete(id: string) {
+    if (!window.confirm("Delete this level?")) return;
+    try {
+      await api.deleteLevel(id);
+      if (editingId === id) resetForm();
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Delete failed");
+    }
+  }
+
+  function updatePrice(i: number, patch: Partial<PriceForm>) {
+    setPrices((prev) =>
+      prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p))
+    );
+  }
+
+  return (
+    <div>
+      <div className="page-header">
+        <h1>Levels</h1>
+        <p className="subtitle">
+          Membership tiers. Each level maps to a Mailchimp tag and (if PAID)
+          Stripe prices.
+        </p>
+      </div>
+
+      <div className="card">
+        <h2>{editingId ? "Edit level" : "Create level"}</h2>
+        <form onSubmit={onSubmit}>
+          <div className="form-row">
+            <div className="field">
+              <label>Name</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="field">
+              <label>Type</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as LevelType)}
+              >
+                {LEVEL_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Mailchimp tag</label>
+              <input
+                value={mailchimpTag}
+                onChange={(e) => setMailchimpTag(e.target.value)}
+                placeholder="e.g. gold-members"
+              />
+            </div>
+          </div>
+
+          {type === "PAID" && (
+            <div className="field">
+              <label>Prices</label>
+              {prices.map((p, i) => (
+                <div className="form-row" key={i} style={{ marginBottom: 8 }}>
+                  <select
+                    value={p.interval}
+                    onChange={(e) =>
+                      updatePrice(i, {
+                        interval: e.target.value as "month" | "year",
+                      })
+                    }
+                  >
+                    <option value="month">Monthly</option>
+                    <option value="year">Yearly</option>
+                  </select>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Amount (USD)"
+                    value={p.amount}
+                    onChange={(e) => updatePrice(i, { amount: e.target.value })}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={() =>
+                      setPrices((prev) =>
+                        prev.length > 1
+                          ? prev.filter((_, idx) => idx !== i)
+                          : prev
+                      )
+                    }
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => setPrices((prev) => [...prev, emptyPrice()])}
+              >
+                + Add price
+              </button>
+            </div>
+          )}
+
+          {error && <p className="error">{error}</p>}
+          <div className="row-actions">
+            <button className="btn" type="submit" disabled={saving}>
+              {saving ? "Saving…" : editingId ? "Update level" : "Create level"}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                className="btn btn--ghost"
+                onClick={resetForm}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+
+      <div className="card">
+        <h2>All levels</h2>
+        {loading ? (
+          <p className="muted">Loading…</p>
+        ) : levels.length === 0 ? (
+          <p className="muted">No levels yet.</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Mailchimp tag</th>
+                <th>Prices</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {levels.map((lvl) => (
+                <tr key={lvl.id}>
+                  <td>{lvl.name}</td>
+                  <td>{lvl.type}</td>
+                  <td>{lvl.mailchimpTag ?? <span className="muted">—</span>}</td>
+                  <td>
+                    {lvl.prices.length === 0 ? (
+                      <span className="muted">—</span>
+                    ) : (
+                      <div className="chips">
+                        {lvl.prices.map((p) => (
+                          <span key={p.id} className="chip chip--muted">
+                            {(p.amount / 100).toLocaleString(undefined, {
+                              style: "currency",
+                              currency: p.currency || "USD",
+                            })}
+                            /{p.interval}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <div className="row-actions">
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => startEdit(lvl)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn--danger btn--sm"
+                        onClick={() => onDelete(lvl.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}

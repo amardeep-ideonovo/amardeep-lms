@@ -1,0 +1,85 @@
+name: BDD
+
+# Gates merges into main: BDD scenarios must pass on every PR targeting main.
+# Also runs on pushes to amardeepLMS for fast feedback while developing.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [amardeepLMS]
+
+jobs:
+  bdd:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lms
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lms?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-test-jwt-secret
+      # CI-only test key (not a real secret). 32 bytes, base64.
+      SETTINGS_ENC_KEY: /hPDRHx7skUjWVQVblkIExEjY1+Ldpk3TJGycbOKtmc=
+      PORT: "3000"
+      API_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate --schema packages/db/prisma/schema.prisma
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+
+      - name: Seed database
+        run: npm run -w @lms/db seed
+
+      - name: Build API
+        run: npm run -w @lms/api build
+
+      - name: Start API
+        run: |
+          node apps/api/dist/apps/api/src/main.js &
+          echo $! > /tmp/api.pid
+
+      - name: Wait for API
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/auth/login" \
+              -H 'Content-Type: application/json' -d '{"email":"x","password":"y"}' || true)
+            if [ "$code" != "000" ]; then echo "API responding ($code)"; exit 0; fi
+            sleep 1
+          done
+          echo "API failed to start"; exit 1
+
+      - name: Run BDD scenarios
+        run: npm run -w @lms/bdd test
+
+      - name: Stop API
+        if: always()
+        run: kill "$(cat /tmp/api.pid)" 2>/dev/null || true

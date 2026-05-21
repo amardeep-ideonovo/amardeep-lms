@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@lms/types": ["../../packages/types/index.ts"]
+    }
+  },
+  "include": ["**/*.ts", "**/*.tsx"]
+}
