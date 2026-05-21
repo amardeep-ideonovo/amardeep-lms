@@ -29,6 +29,21 @@ The four apps are stubs — each needs its framework scaffold (commands in each
 All four apps are scaffolded and compile/build clean. Next: the WordPress
 migration tooling.
 
+## Deployment (pre-prod → prod)
+Auto-deploys from `main`; no custom middleware needed.
+
+- **Frontends (admin, member web) → Vercel.** Two Vercel projects, each with
+  **Root Directory** = `apps/admin` / `apps/web`. Vercel auto-builds on push to
+  `main` and gives a preview deploy per PR. Set `NEXT_PUBLIC_API_URL` per project.
+- **API + Postgres + Redis → Render** via [`render.yaml`](render.yaml) (Blueprint).
+  Render provisions the DB + Redis, builds [`apps/api/Dockerfile`](apps/api/Dockerfile),
+  runs `prisma migrate deploy`, and redeploys on push to `main`. Health check: `/health`.
+  Secrets (`SETTINGS_ENC_KEY`, Stripe/Mailchimp keys, `WEB_APP_URL`, `CORS_ORIGIN`)
+  are set in the Render dashboard, never committed.
+- The shared Plesk host (static/PHP only) is **not** used for the app — DNS can
+  point your domain/subdomains at Vercel + Render.
+- Mobile (Expo) ships via TestFlight/Play, not web deploy.
+
 ## Branching & BDD gate
 - Work lands on **`amardeepLMS`** first, then merges to **`main`** via PR.
 - The BDD suite (`packages/bdd`, Cucumber.js, API-level) runs on every PR to
