@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0f172a"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lms.mobile"
@@ -21,6 +23,12 @@
     },
     "web": {
       "bundler": "metro"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0f8efe5e-4424-495d-b4f3-2fe852ff9e90"
+      }
+    },
+    "owner": "amardeeplms"
   }
 }
