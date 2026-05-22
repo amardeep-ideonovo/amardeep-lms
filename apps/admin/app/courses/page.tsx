@@ -257,6 +257,7 @@ function CourseLessons({
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
   const [muxAssetId, setMuxAssetId] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -285,10 +286,12 @@ function CourseLessons({
       await api.createLesson(courseId, {
         title: title.trim(),
         content: content.trim() || undefined,
+        videoUrl: videoUrl.trim() || undefined,
         muxAssetId: muxAssetId.trim() || undefined,
       });
       setTitle("");
       setContent("");
+      setVideoUrl("");
       setMuxAssetId("");
       await load();
     } catch (err) {
@@ -350,6 +353,17 @@ function CourseLessons({
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
+          />
+        </div>
+        <div className="field">
+          <label>
+            Video URL{" "}
+            <span className="muted">(direct MP4/HLS; plays without Mux)</span>
+          </label>
+          <input
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            placeholder="https://… .mp4 (optional)"
           />
         </div>
         <div className="field">

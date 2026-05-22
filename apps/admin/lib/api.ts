@@ -157,7 +157,12 @@ export const api = {
     request<LessonDTO[]>("GET", `/courses/${courseId}/lessons`),
   createLesson: (
     courseId: string,
-    input: { title: string; content?: string; muxAssetId?: string }
+    input: {
+      title: string;
+      content?: string;
+      videoUrl?: string;
+      muxAssetId?: string;
+    }
   ) => request<LessonDTO>("POST", `/courses/${courseId}/lessons`, input),
 
   // settings
@@ -185,4 +190,40 @@ export const api = {
     request<PostCategoryDTO[]>("GET", "/blog/categories"),
   createPostCategory: (name: string, order?: number) =>
     request<PostCategoryDTO>("POST", "/admin/blog/categories", { name, order }),
+  deletePostCategory: (id: string) =>
+    request<void>("DELETE", `/admin/blog/categories/${id}`),
+
+  // Multipart upload (can't go through `request`, which forces JSON).
+  uploadImage: async (
+    file: File
+  ): Promise<{ url: string; filename: string }> => {
+    const token = getToken();
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(`${BASE_URL}/admin/blog/upload`, {
+      method: "POST",
+      // No Content-Type: the browser sets the multipart boundary itself.
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    if (res.status === 401 && typeof window !== "undefined") {
+      clearToken();
+      if (window.location.pathname !== "/login")
+        window.location.href = "/login";
+    }
+    if (!res.ok) {
+      let message = `Upload failed (${res.status})`;
+      try {
+        const data = await res.json();
+        if (data?.message)
+          message = Array.isArray(data.message)
+            ? data.message.join(", ")
+            : String(data.message);
+      } catch {
+        /* non-JSON error body */
+      }
+      throw new ApiError(res.status, message);
+    }
+    return res.json();
+  },
 };
