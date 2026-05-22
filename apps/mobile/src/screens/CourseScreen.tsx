@@ -1,7 +1,14 @@
 import React, { useCallback, useState } from "react";
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import type { LessonDTO } from "@lms/types";
+import type { CourseCard, LessonDTO } from "@lms/types";
 
 import { api } from "../api";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
@@ -12,6 +19,7 @@ import { colors, spacing } from "../theme";
 export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
   const { courseId } = route.params;
   const [lessons, setLessons] = useState<LessonDTO[]>([]);
+  const [course, setCourse] = useState<CourseCard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,6 +34,11 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
     } finally {
       setLoading(false);
     }
+    // Cover image / title are decorative — best effort, never blocks lessons.
+    api
+      .courses()
+      .then((cs) => setCourse(cs.find((c) => c.id === courseId) ?? null))
+      .catch(() => {});
   }, [courseId]);
 
   // Reload on focus so completing a lesson and returning updates progress.
@@ -50,9 +63,18 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
       data={lessons}
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
-        <View style={styles.progressHeader}>
-          <Text style={styles.progressTitle}>Course progress</Text>
-          <ProgressBar completed={completed} total={lessons.length} />
+        <View>
+          {course?.coverImageUrl ? (
+            <Image
+              source={{ uri: course.coverImageUrl }}
+              style={styles.cover}
+              resizeMode="cover"
+            />
+          ) : null}
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressTitle}>Course progress</Text>
+            <ProgressBar completed={completed} total={lessons.length} />
+          </View>
         </View>
       }
       renderItem={({ item, index }) => (
@@ -66,9 +88,16 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
             })
           }
         >
-          <View style={styles.numberBadge}>
-            <Text style={styles.numberText}>{index + 1}</Text>
-          </View>
+          {item.thumbnailUrl ? (
+            <Image
+              source={{ uri: item.thumbnailUrl }}
+              style={styles.rowThumb}
+            />
+          ) : (
+            <View style={styles.numberBadge}>
+              <Text style={styles.numberText}>{index + 1}</Text>
+            </View>
+          )}
           <Text style={styles.rowTitle} numberOfLines={2}>
             {item.title}
           </Text>
@@ -82,6 +111,13 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
 const styles = StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
+  cover: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceMuted,
+    marginBottom: spacing.sm,
+  },
   progressHeader: {
     backgroundColor: colors.surface,
     borderRadius: 12,
@@ -107,6 +143,13 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   numberText: { color: colors.text, fontWeight: "700" },
+  rowThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    marginRight: spacing.md,
+    backgroundColor: colors.surfaceMuted,
+  },
   rowTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "500" },
   check: { color: colors.primary, fontSize: 18, fontWeight: "700" },
 });

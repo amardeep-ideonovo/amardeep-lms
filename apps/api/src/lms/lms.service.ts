@@ -1,22 +1,30 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import type {
   CategoryDTO,
   CourseCard,
   LessonDTO,
+  LessonNoteDTO,
 } from '@lms/types';
+import type { LessonNote } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccessService } from './access.service';
 import { MuxService } from './mux.service';
 import { isCourseLocked } from '../common/access.util';
+import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
+import { LESSON_NOTES_DIR } from './upload.config';
 import {
   CreateCategoryDto,
   CreateCourseDto,
   CreateLessonDto,
   UpdateCourseDto,
+  UpdateLessonDto,
 } from './dto/lms.dto';
 
 @Injectable()
@@ -33,14 +41,42 @@ export class LmsService {
     const cats = await this.prisma.category.findMany({
       orderBy: { order: 'asc' },
     });
-    return cats.map((c) => ({ id: c.id, name: c.name, order: c.order }));
+    return cats.map((c) => ({
+      id: c.id,
+      name: c.name,
+      thumbnailUrl: c.thumbnailUrl,
+      order: c.order,
+    }));
   }
 
   async createCategory(dto: CreateCategoryDto): Promise<CategoryDTO> {
     const cat = await this.prisma.category.create({
-      data: { name: dto.name, order: dto.order ?? 0 },
+      data: {
+        name: dto.name,
+        thumbnailUrl: dto.thumbnailUrl ?? null,
+        order: dto.order ?? 0,
+      },
     });
-    return { id: cat.id, name: cat.name, order: cat.order };
+    return {
+      id: cat.id,
+      name: cat.name,
+      thumbnailUrl: cat.thumbnailUrl,
+      order: cat.order,
+    };
+  }
+
+  async deleteCategory(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.category.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Category not found');
+    // Detach courses (they become uncategorized), then remove the category.
+    await this.prisma.$transaction([
+      this.prisma.course.updateMany({
+        where: { categoryId: id },
+        data: { categoryId: null },
+      }),
+      this.prisma.category.delete({ where: { id } }),
+    ]);
+    return { ok: true };
   }
 
   // ---------- Courses ----------
@@ -74,7 +110,10 @@ export class LmsService {
         id: c.id,
         title: c.title,
         description: c.description,
+        thumbnailUrl: c.thumbnailUrl,
+        coverImageUrl: c.coverImageUrl,
         categoryId: c.categoryId,
+        levelIds: assigned,
         locked,
         lessonCount: c._count.lessons,
         completedCount: completedByCourse?.get(c.id) ?? 0,
@@ -87,6 +126,8 @@ export class LmsService {
       data: {
         title: dto.title,
         description: dto.description ?? null,
+        thumbnailUrl: dto.thumbnailUrl ?? null,
+        coverImageUrl: dto.coverImageUrl ?? null,
         categoryId: dto.categoryId ?? null,
         order: dto.order ?? 0,
         courseLevels: dto.levelIds?.length
@@ -98,7 +139,10 @@ export class LmsService {
       id: course.id,
       title: course.title,
       description: course.description,
+      thumbnailUrl: course.thumbnailUrl,
+      coverImageUrl: course.coverImageUrl,
       categoryId: course.categoryId,
+      levelIds: dto.levelIds ?? [],
       locked: false,
       lessonCount: 0,
       completedCount: 0,
@@ -115,6 +159,8 @@ export class LmsService {
         data: {
           title: dto.title ?? undefined,
           description: dto.description ?? undefined,
+          thumbnailUrl: dto.thumbnailUrl ?? undefined,
+          coverImageUrl: dto.coverImageUrl ?? undefined,
           categoryId: dto.categoryId ?? undefined,
           order: dto.order ?? undefined,
         },
@@ -132,15 +178,40 @@ export class LmsService {
       return updated;
     });
 
+    const levels = await this.prisma.courseLevel.findMany({
+      where: { courseId: id },
+      select: { levelId: true },
+    });
+
     return {
       id: course.id,
       title: course.title,
       description: course.description,
+      thumbnailUrl: course.thumbnailUrl,
+      coverImageUrl: course.coverImageUrl,
       categoryId: course.categoryId,
+      levelIds: levels.map((l) => l.levelId),
       locked: false,
       lessonCount: 0,
       completedCount: 0,
     };
+  }
+
+  async deleteCourse(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.course.findUnique({
+      where: { id },
+      include: {
+        lessons: { include: { notes: { select: { filename: true } } } },
+      },
+    });
+    if (!existing) throw new NotFoundException('Course not found');
+    // DB cascades lessons/levels/notes; clean up the note files on disk too.
+    const files = existing.lessons.flatMap((l) =>
+      l.notes.map((n) => n.filename),
+    );
+    await this.prisma.course.delete({ where: { id } });
+    this.unlinkNoteFiles(files);
+    return { ok: true };
   }
 
   // ---------- Lessons ----------
@@ -153,7 +224,10 @@ export class LmsService {
       where: { id: courseId },
       include: {
         courseLevels: { select: { levelId: true } },
-        lessons: { orderBy: { order: 'asc' } },
+        lessons: {
+          orderBy: { order: 'asc' },
+          include: { notes: { orderBy: { order: 'asc' } } },
+        },
       },
     });
     if (!course) throw new NotFoundException('Course not found');
@@ -182,8 +256,11 @@ export class LmsService {
       courseId: l.courseId,
       title: l.title,
       content: l.content,
+      thumbnailUrl: l.thumbnailUrl,
+      videoUrl: l.videoUrl,
       order: l.order,
       completed: userId ? completedIds.has(l.id) : undefined,
+      notes: l.notes.map((n) => this.toNoteDTO(n)),
     }));
   }
 
@@ -200,6 +277,7 @@ export class LmsService {
         courseId,
         title: dto.title,
         content: dto.content ?? null,
+        thumbnailUrl: dto.thumbnailUrl ?? null,
         muxAssetId: dto.muxAssetId ?? null,
         videoUrl: dto.videoUrl ?? null,
         order: dto.order ?? 0,
@@ -210,9 +288,48 @@ export class LmsService {
       courseId: lesson.courseId,
       title: lesson.title,
       content: lesson.content,
+      thumbnailUrl: lesson.thumbnailUrl,
       videoUrl: lesson.videoUrl,
       order: lesson.order,
     };
+  }
+
+  async updateLesson(id: string, dto: UpdateLessonDto): Promise<LessonDTO> {
+    const existing = await this.prisma.lesson.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Lesson not found');
+    const lesson = await this.prisma.lesson.update({
+      where: { id },
+      data: {
+        title: dto.title ?? undefined,
+        content: dto.content ?? undefined,
+        thumbnailUrl: dto.thumbnailUrl ?? undefined,
+        muxAssetId: dto.muxAssetId ?? undefined,
+        videoUrl: dto.videoUrl ?? undefined,
+        order: dto.order ?? undefined,
+      },
+      include: { notes: { orderBy: { order: 'asc' } } },
+    });
+    return {
+      id: lesson.id,
+      courseId: lesson.courseId,
+      title: lesson.title,
+      content: lesson.content,
+      thumbnailUrl: lesson.thumbnailUrl,
+      videoUrl: lesson.videoUrl,
+      order: lesson.order,
+      notes: lesson.notes.map((n) => this.toNoteDTO(n)),
+    };
+  }
+
+  async deleteLesson(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.lesson.findUnique({
+      where: { id },
+      include: { notes: { select: { filename: true } } },
+    });
+    if (!existing) throw new NotFoundException('Lesson not found');
+    await this.prisma.lesson.delete({ where: { id } });
+    this.unlinkNoteFiles(existing.notes.map((n) => n.filename));
+    return { ok: true };
   }
 
   /**
@@ -227,6 +344,7 @@ export class LmsService {
         course: {
           include: { courseLevels: { select: { levelId: true } } },
         },
+        notes: { orderBy: { order: 'asc' } },
       },
     });
     if (!lesson) throw new NotFoundException('Lesson not found');
@@ -250,10 +368,12 @@ export class LmsService {
       courseId: lesson.courseId,
       title: lesson.title,
       content: lesson.content,
+      thumbnailUrl: lesson.thumbnailUrl,
       muxPlaybackToken,
       videoUrl: lesson.videoUrl,
       order: lesson.order,
       completed: !!completed,
+      notes: lesson.notes.map((n) => this.toNoteDTO(n)),
     };
   }
 
@@ -284,5 +404,149 @@ export class LmsService {
       update: { completedAt: new Date() },
     });
     return { ok: true };
+  }
+
+  // ---------- Lesson notes (downloadable attachments) ----------
+
+  private toNoteDTO(n: LessonNote): LessonNoteDTO {
+    return {
+      id: n.id,
+      lessonId: n.lessonId,
+      originalName: n.originalName,
+      mimeType: n.mimeType,
+      size: n.size,
+      order: n.order,
+      // Relative API path; clients prepend their API base and send the token
+      // (Authorization header on web; ?token= when opened via the browser).
+      downloadUrl: `/lessons/${n.lessonId}/notes/${n.id}/download`,
+    };
+  }
+
+  /** Admin: attach uploaded files to a lesson as downloadable notes. */
+  async addNotes(
+    lessonId: string,
+    files: Express.Multer.File[],
+  ): Promise<LessonNoteDTO[]> {
+    const lesson = await this.prisma.lesson.findUnique({
+      where: { id: lessonId },
+    });
+    if (!lesson) {
+      // Don't leave orphaned uploads on disk if the lesson is gone.
+      this.unlinkNoteFiles((files ?? []).map((f) => f.filename));
+      throw new NotFoundException('Lesson not found');
+    }
+    if (!files?.length) {
+      throw new BadRequestException('No files provided');
+    }
+    const existing = await this.prisma.lessonNote.count({
+      where: { lessonId },
+    });
+    await this.prisma.$transaction(
+      files.map((f, i) =>
+        this.prisma.lessonNote.create({
+          data: {
+            lessonId,
+            filename: f.filename,
+            originalName: f.originalname,
+            mimeType: f.mimetype,
+            size: f.size,
+            order: existing + i,
+          },
+        }),
+      ),
+    );
+    const notes = await this.prisma.lessonNote.findMany({
+      where: { lessonId },
+      orderBy: { order: 'asc' },
+    });
+    return notes.map((n) => this.toNoteDTO(n));
+  }
+
+  /** Admin: remove a note (db row + the file on disk). */
+  async deleteNote(lessonId: string, noteId: string): Promise<{ ok: true }> {
+    const note = await this.prisma.lessonNote.findUnique({
+      where: { id: noteId },
+    });
+    if (!note || note.lessonId !== lessonId) {
+      throw new NotFoundException('Note not found');
+    }
+    await this.prisma.lessonNote.delete({ where: { id: noteId } });
+    this.unlinkNoteFiles([note.filename]);
+    return { ok: true };
+  }
+
+  /** Admin: rename a note's display/download filename (stored file untouched). */
+  async renameNote(
+    lessonId: string,
+    noteId: string,
+    originalName: string,
+  ): Promise<LessonNoteDTO> {
+    const note = await this.prisma.lessonNote.findUnique({
+      where: { id: noteId },
+    });
+    if (!note || note.lessonId !== lessonId) {
+      throw new NotFoundException('Note not found');
+    }
+    // Sanitize: strip CR/LF/quotes (Content-Disposition safety) + cap length.
+    const clean =
+      originalName.trim().replace(/[\r\n"]/g, '').slice(0, 200) ||
+      note.originalName;
+    const updated = await this.prisma.lessonNote.update({
+      where: { id: noteId },
+      data: { originalName: clean },
+    });
+    return this.toNoteDTO(updated);
+  }
+
+  /**
+   * Resolve a note for download under the SAME access gate as getLesson:
+   * admins pass through; members must hold an active level for the lesson's
+   * course (open courses always allowed). Returns the absolute path + metadata
+   * for streaming.
+   */
+  async getDownloadableNote(
+    lessonId: string,
+    noteId: string,
+    principal: AuthenticatedPrincipal,
+  ): Promise<{ absPath: string; originalName: string; mimeType: string }> {
+    const note = await this.prisma.lessonNote.findUnique({
+      where: { id: noteId },
+      include: {
+        lesson: {
+          include: {
+            course: {
+              include: { courseLevels: { select: { levelId: true } } },
+            },
+          },
+        },
+      },
+    });
+    if (!note || note.lessonId !== lessonId) {
+      throw new NotFoundException('Note not found');
+    }
+    if (!principal.isAdmin) {
+      const assigned = note.lesson.course.courseLevels.map((cl) => cl.levelId);
+      const activeLevels = await this.access.activeLevelIds(principal.sub);
+      if (isCourseLocked(assigned, activeLevels)) {
+        throw new ForbiddenException('You do not have access to this lesson');
+      }
+    }
+    const absPath = path.join(LESSON_NOTES_DIR, note.filename);
+    if (!fs.existsSync(absPath)) {
+      throw new NotFoundException('File missing on server');
+    }
+    return { absPath, originalName: note.originalName, mimeType: note.mimeType };
+  }
+
+  // Best-effort removal of note files from disk (DB rows are handled by the
+  // caller / cascade). Never throws — a missing file is fine.
+  private unlinkNoteFiles(filenames: string[]): void {
+    for (const name of filenames) {
+      try {
+        fs.unlinkSync(path.join(LESSON_NOTES_DIR, name));
+      } catch {
+        /* already gone — ignore */
+      }
+    }
   }
 }

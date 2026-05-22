@@ -2,6 +2,7 @@
 // Talks to the NestJS API; auth via member JWT stored in localStorage.
 import type {
   AuthUser,
+  CourseCard,
   DashboardResponse,
   LessonDTO,
   LevelDTO,
@@ -96,6 +97,7 @@ export const api = {
   dashboard: () => request<DashboardResponse>("/dashboard"),
 
   // lms
+  courses: () => request<CourseCard[]>("/courses"),
   courseLessons: (courseId: string) =>
     request<LessonDTO[]>(`/courses/${courseId}/lessons`),
   lesson: (lessonId: string) => request<LessonDTO>(`/lessons/${lessonId}`),
@@ -103,6 +105,27 @@ export const api = {
     request<LessonDTO | void>(`/lessons/${lessonId}/complete`, {
       method: "POST",
     }),
+
+  // Download a lesson note. The endpoint is access-checked on the server; we
+  // fetch it with the member's token and save the blob via a temp <a download>.
+  downloadNote: async (note: { downloadUrl: string; originalName: string }) => {
+    const token = getToken();
+    const res = await fetch(`${API_BASE}${note.downloadUrl}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      cache: "no-store",
+    });
+    if (!res.ok)
+      throw new ApiError(res.status, `Download failed (${res.status})`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = note.originalName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
 
   // levels (for the subscribe flow)
   levels: () => request<LevelDTO[]>("/levels"),

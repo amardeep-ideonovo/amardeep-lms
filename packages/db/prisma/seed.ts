@@ -13,17 +13,37 @@ const prisma = new PrismaClient();
 // Production videos are hosted on Vimeo; this is a public Vimeo test video.
 const SAMPLE_VIDEO = "https://vimeo.com/1043569034";
 
+// Deterministic sample images (picsum): square thumbnail + wide cover + a
+// lesson thumbnail. Lets the new course/lesson images show out of the box.
+const thumb = (key: string) => `https://picsum.photos/seed/${key}-thumb/600/600`;
+const cover = (key: string) => `https://picsum.photos/seed/${key}-cover/1200/630`;
+const lessonThumb = (key: string) =>
+  `https://picsum.photos/seed/${key}-lt/640/400`;
+
 async function ensureCourse(
   id: string,
   title: string,
   description: string,
   categoryId: string,
-  order: number
+  order: number,
+  images?: { thumbnailUrl?: string; coverImageUrl?: string }
 ) {
   return prisma.course.upsert({
     where: { id },
-    update: {},
-    create: { id, title, description, categoryId, order },
+    // Apply images on re-seed too (undefined fields are left untouched).
+    update: {
+      thumbnailUrl: images?.thumbnailUrl,
+      coverImageUrl: images?.coverImageUrl,
+    },
+    create: {
+      id,
+      title,
+      description,
+      categoryId,
+      order,
+      thumbnailUrl: images?.thumbnailUrl ?? null,
+      coverImageUrl: images?.coverImageUrl ?? null,
+    },
   });
 }
 
@@ -33,12 +53,21 @@ async function ensureLesson(
   title: string,
   content: string,
   order: number,
-  videoUrl?: string
+  videoUrl?: string,
+  thumbnailUrl?: string
 ) {
   return prisma.lesson.upsert({
     where: { id },
-    update: {},
-    create: { id, courseId, title, content, order, videoUrl: videoUrl ?? null },
+    update: { thumbnailUrl },
+    create: {
+      id,
+      courseId,
+      title,
+      content,
+      order,
+      videoUrl: videoUrl ?? null,
+      thumbnailUrl: thumbnailUrl ?? null,
+    },
   });
 }
 
@@ -140,26 +169,30 @@ async function main() {
   // Course A: open to everyone (no level assignments) -> always unlocked.
   const openCourse = await prisma.course.upsert({
     where: { id: "seed-course-open" },
-    update: {},
+    update: { thumbnailUrl: thumb("open"), coverImageUrl: cover("open") },
     create: {
       id: "seed-course-open",
       title: "Welcome & Orientation",
       description: "Free intro course, open to all members.",
       categoryId: category.id,
       order: 0,
+      thumbnailUrl: thumb("open"),
+      coverImageUrl: cover("open"),
     },
   });
 
   // Course B: requires the Pro level -> locked unless the viewer holds Pro.
   const proCourse = await prisma.course.upsert({
     where: { id: "seed-course-pro" },
-    update: {},
+    update: { thumbnailUrl: thumb("pro"), coverImageUrl: cover("pro") },
     create: {
       id: "seed-course-pro",
       title: "Pro Masterclass",
       description: "Premium content for Pro members.",
       categoryId: category.id,
       order: 1,
+      thumbnailUrl: thumb("pro"),
+      coverImageUrl: cover("pro"),
     },
   });
   await prisma.courseLevel.upsert({
@@ -211,7 +244,8 @@ async function main() {
     "Watch: a quick tour (video)",
     "A short sample video showing how a video lesson plays.",
     1,
-    SAMPLE_VIDEO
+    SAMPLE_VIDEO,
+    lessonThumb("open2")
   );
 
   // Fundamentals → two open courses with content; the first has a video.
@@ -220,9 +254,10 @@ async function main() {
     "Productivity Basics",
     "Build momentum with simple, repeatable habits.",
     fundamentals.id,
-    0
+    0,
+    { thumbnailUrl: thumb("prod"), coverImageUrl: cover("prod") }
   );
-  await ensureLesson("seed-lesson-prod-1", prodCourse.id, "Plan your week (video)", "Start each week by writing down your top 3 outcomes.", 0, SAMPLE_VIDEO);
+  await ensureLesson("seed-lesson-prod-1", prodCourse.id, "Plan your week (video)", "Start each week by writing down your top 3 outcomes.", 0, SAMPLE_VIDEO, lessonThumb("prod1"));
   await ensureLesson("seed-lesson-prod-2", prodCourse.id, "Time-blocking", "Reserve focused blocks for deep work and protect them.", 1);
   await ensureLesson("seed-lesson-prod-3", prodCourse.id, "Weekly review", "Reflect on what worked and adjust next week's plan.", 2);
 
@@ -231,7 +266,8 @@ async function main() {
     "Tooling & Setup",
     "Get your environment ready in minutes.",
     fundamentals.id,
-    1
+    1,
+    { thumbnailUrl: thumb("tooling"), coverImageUrl: cover("tooling") }
   );
   await ensureLesson("seed-lesson-tooling-1", toolingCourse.id, "Install the essentials", "A short checklist of tools to install first.", 0);
   await ensureLesson("seed-lesson-tooling-2", toolingCourse.id, "Configure your editor", "Settings that pay off every single day.", 1);
@@ -242,7 +278,8 @@ async function main() {
     "Scaling Your Workflow",
     "Patterns for when things get bigger.",
     advanced.id,
-    0
+    0,
+    { thumbnailUrl: thumb("scaling"), coverImageUrl: cover("scaling") }
   );
   await ensureLesson("seed-lesson-scaling-1", scalingCourse.id, "Automate the boring parts", "Identify repetitive tasks worth automating.", 0);
   await ensureLesson("seed-lesson-scaling-2", scalingCourse.id, "Delegate & document", "Write it down so others can run it without you.", 1);

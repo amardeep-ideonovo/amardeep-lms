@@ -5,6 +5,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
 import { AppModule } from './app.module';
 import { IMAGES_ROOT, IMAGES_ROUTE, ensureUploadDirs } from './blog/upload.config';
+import { ensureLmsUploadDirs } from './lms/upload.config';
 
 async function bootstrap() {
   // bodyParser disabled here so we can register a raw-body parser for the
@@ -28,6 +29,10 @@ async function bootstrap() {
   // Serve uploaded blog images (see blog/upload.config.ts). On Render this
   // dir is ephemeral — set BLOG_IMAGES_DIR to a persistent disk for prod.
   ensureUploadDirs();
+  ensureLmsUploadDirs();
+  // Course/lesson images live under IMAGES_ROOT too, so this one static mount
+  // serves them all. Lesson NOTE files are deliberately NOT served here — they
+  // stream through an access-checked route (see LmsController).
   app.use(IMAGES_ROUTE, express.static(IMAGES_ROOT));
 
   app.useGlobalPipes(

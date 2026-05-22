@@ -44,6 +44,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get lessonProgress() {
     return this.client.lessonProgress;
   }
+  get lessonNote() {
+    return this.client.lessonNote;
+  }
   get subscriptionMirror() {
     return this.client.subscriptionMirror;
   }

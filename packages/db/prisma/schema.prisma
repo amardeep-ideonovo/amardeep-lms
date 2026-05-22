@@ -112,20 +112,23 @@ model UserLevel {
 // ---------- LMS content ----------
 
 model Category {
-  id      String   @id @default(cuid())
-  name    String
-  order   Int      @default(0)
-  courses Course[]
+  id           String   @id @default(cuid())
+  name         String
+  thumbnailUrl String?  // tile image shown on the member dashboard
+  order        Int      @default(0)
+  courses      Course[]
 }
 
 model Course {
-  id          String        @id @default(cuid())
-  title       String
-  description String?
-  categoryId  String?
-  category    Category?     @relation(fields: [categoryId], references: [id])
-  order       Int           @default(0)
-  createdAt   DateTime      @default(now())
+  id            String        @id @default(cuid())
+  title         String
+  description   String?
+  thumbnailUrl  String?       // squared thumbnail shown on course cards
+  coverImageUrl String?       // wide cover/hero image shown on the course page
+  categoryId    String?
+  category      Category?     @relation(fields: [categoryId], references: [id])
+  order         Int           @default(0)
+  createdAt     DateTime      @default(now())
 
   lessons      Lesson[]
   courseLevels CourseLevel[]
@@ -142,17 +145,19 @@ model CourseLevel {
 }
 
 model Lesson {
-  id          String           @id @default(cuid())
-  courseId    String
-  course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  title       String
-  content     String?          // markdown / rich text
-  muxAssetId  String?          // managed video; playback via signed URL (prod)
-  videoUrl    String?          // direct video URL (e.g. sample MP4); plays without Mux signing
-  order       Int              @default(0)
-  createdAt   DateTime         @default(now())
+  id           String          @id @default(cuid())
+  courseId     String
+  course       Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title        String
+  content      String?         // markdown / rich text — doubles as the lesson description/body
+  thumbnailUrl String?         // lesson thumbnail
+  muxAssetId   String?         // managed video; playback via signed URL (prod)
+  videoUrl     String?         // direct video URL (e.g. sample MP4); plays without Mux signing
+  order        Int             @default(0)
+  createdAt    DateTime        @default(now())
 
   progress LessonProgress[]
+  notes    LessonNote[]
 }
 
 model LessonProgress {
@@ -164,6 +169,23 @@ model LessonProgress {
   completedAt DateTime @default(now())
 
   @@unique([userId, lessonId])
+}
+
+// Downloadable attachments for a lesson (PDFs, docs, etc.). Files live OUTSIDE
+// the public images dir and are streamed only through an access-checked
+// endpoint, so a locked course never leaks its materials.
+model LessonNote {
+  id           String   @id @default(cuid())
+  lessonId     String
+  lesson       Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  filename     String   // stored filename on disk (timestamp-based, unique)
+  originalName String   // original upload name (shown to member; used as download filename)
+  mimeType     String
+  size         Int      // bytes
+  order        Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([lessonId])
 }
 
 // ---------- Billing mirror & settings ----------

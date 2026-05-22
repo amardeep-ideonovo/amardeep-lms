@@ -2,8 +2,10 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import type {
   AuthUser,
+  CourseCard,
   DashboardResponse,
   LessonDTO,
+  LessonNoteDTO,
   LoginResponse,
   PostDetailDTO,
   PostListItem,
@@ -104,6 +106,8 @@ export const api = {
 
   dashboard: () => request<DashboardResponse>("/dashboard"),
 
+  courses: () => request<CourseCard[]>("/courses"),
+
   courseLessons: (courseId: string) =>
     request<LessonDTO[]>(`/courses/${courseId}/lessons`),
 
@@ -119,3 +123,15 @@ export const api = {
       auth: false,
     }),
 };
+
+// Build the (access-checked) download URL for a lesson note. The file is
+// streamed by an authenticated route; on mobile we open it in the device
+// browser via Linking, passing the member's token as a query param (this is
+// the one route that accepts ?token=). No native file modules required.
+export async function noteDownloadUrl(note: LessonNoteDTO): Promise<string> {
+  const token = await getToken();
+  const sep = note.downloadUrl.includes("?") ? "&" : "?";
+  return `${API_BASE_URL}${note.downloadUrl}${
+    token ? `${sep}token=${encodeURIComponent(token)}` : ""
+  }`;
+}

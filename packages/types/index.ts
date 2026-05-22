@@ -56,30 +56,70 @@ export interface MemberRow {
 export interface CategoryDTO {
   id: string;
   name: string;
+  thumbnailUrl: string | null; // tile image on the member dashboard
   order: number;
 }
 export interface CourseCard {
   id: string;
   title: string;
   description: string | null;
+  thumbnailUrl: string | null; // squared thumbnail (cards)
+  coverImageUrl: string | null; // wide cover/hero (course page)
   categoryId: string | null;
+  levelIds: string[]; // assigned access levels (drives the admin edit form)
   locked: boolean; // computed from the viewer's active levels
   lessonCount: number; // total lessons in the course
   completedCount: number; // lessons the viewer has completed (0 for admin/no context)
+}
+// Downloadable lesson attachment (PDFs, docs, …). The file itself is never
+// public — `downloadUrl` points at an access-checked API route the client
+// fetches with the member's token.
+export interface LessonNoteDTO {
+  id: string;
+  lessonId: string;
+  originalName: string; // shown to the member; used as the saved filename
+  mimeType: string;
+  size: number; // bytes
+  order: number;
+  downloadUrl: string; // API path: GET /lessons/:id/notes/:noteId/download (auth required)
 }
 export interface LessonDTO {
   id: string;
   courseId: string;
   title: string;
   content: string | null;
+  thumbnailUrl?: string | null; // lesson thumbnail
   muxPlaybackToken?: string; // signed; present only when the viewer has access
   videoUrl?: string | null; // direct video URL (sample/dev or non-Mux source)
   order: number;
   completed?: boolean;
+  notes?: LessonNoteDTO[]; // downloadable attachments (present on detail views)
 }
 export interface DashboardResponse {
   categories: { category: CategoryDTO; courses: CourseCard[] }[];
 }
+
+// ---------- Course / lesson admin inputs ----------
+export interface CreateCourseInput {
+  title: string;
+  description?: string;
+  thumbnailUrl?: string;
+  coverImageUrl?: string;
+  categoryId?: string;
+  levelIds?: string[];
+  order?: number;
+}
+export type UpdateCourseInput = Partial<CreateCourseInput>;
+
+export interface CreateLessonInput {
+  title: string;
+  content?: string;
+  thumbnailUrl?: string;
+  videoUrl?: string;
+  muxAssetId?: string;
+  order?: number;
+}
+export type UpdateLessonInput = Partial<CreateLessonInput>;
 
 // ---------- Blog ----------
 // Public marketing/news content. PUBLISHED posts are readable without login;
@@ -165,14 +205,26 @@ export const ROUTES = {
 
   // lms
   listCategories: "GET /categories",
-  createCategory: "POST /categories",
+  createCategory: "POST /categories", // body {name, order?, thumbnailUrl?}
+  deleteCategory: "DELETE /categories/:id", // uncategorizes its courses
+  uploadCategoryImage: "POST /categories/upload", // multipart {file} -> {url}
   listCourses: "GET /courses", // admin: all; member: includes locked flag
-  createCourse: "POST /courses", // body {title, description?, categoryId?, levelIds:[]}
-  updateCourse: "PATCH /courses/:id",
+  createCourse: "POST /courses", // body CreateCourseInput
+  updateCourse: "PATCH /courses/:id", // body UpdateCourseInput
+  deleteCourse: "DELETE /courses/:id", // cascades lessons/levels/notes
+  uploadCourseImage: "POST /courses/upload", // multipart {file} -> {url}; for thumbnail or cover
   listCourseLessons: "GET /courses/:id/lessons",
-  createLesson: "POST /courses/:id/lessons", // body {title, content?, muxAssetId?}
-  getLesson: "GET /lessons/:id", // 403 if viewer lacks access
+  createLesson: "POST /courses/:id/lessons", // body CreateLessonInput
+  updateLesson: "PATCH /lessons/:id", // body UpdateLessonInput
+  deleteLesson: "DELETE /lessons/:id",
+  uploadLessonImage: "POST /lessons/upload", // multipart {file} -> {url}; lesson thumbnail
+  getLesson: "GET /lessons/:id", // 403 if viewer lacks access; includes notes[]
   completeLesson: "POST /lessons/:id/complete",
+  // lesson notes (downloadable attachments)
+  uploadLessonNotes: "POST /lessons/:id/notes", // admin; multipart {files[]} -> LessonNoteDTO[]
+  updateLessonNote: "PATCH /lessons/:id/notes/:noteId", // admin; rename {originalName}
+  deleteLessonNote: "DELETE /lessons/:id/notes/:noteId", // admin
+  downloadLessonNote: "GET /lessons/:id/notes/:noteId/download", // member (access-checked); accepts ?token=
 
   // member dashboard
   dashboard: "GET /dashboard", // -> DashboardResponse

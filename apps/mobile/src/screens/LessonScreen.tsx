@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,9 +11,9 @@ import {
 } from "react-native";
 import { ResizeMode, Video } from "expo-av";
 import { WebView } from "react-native-webview";
-import type { LessonDTO } from "@lms/types";
+import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 
-import { api, ApiError } from "../api";
+import { api, ApiError, noteDownloadUrl } from "../api";
 import { Loading, ErrorState } from "../components/Screen";
 import type { ScreenProps } from "../navigation";
 import { colors, spacing } from "../theme";
@@ -39,6 +41,12 @@ function vimeoEmbed(url: string | null | undefined): string | null {
   return `https://player.vimeo.com/video/${id}?${params}`;
 }
 
+function fmtSize(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
 export function LessonScreen({ route }: ScreenProps<"Lesson">) {
   const { lessonId } = route.params;
   const [lesson, setLesson] = useState<LessonDTO | null>(null);
@@ -48,6 +56,7 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
 
   const [completing, setCompleting] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
+  const [noteError, setNoteError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,6 +100,21 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
     }
   }
 
+  // Open a note in the device browser, which downloads it. The download route
+  // is access-checked and accepts the member's token via ?token= (built in
+  // noteDownloadUrl) so no native file modules are needed.
+  async function openNote(note: LessonNoteDTO) {
+    setNoteError(null);
+    try {
+      const url = await noteDownloadUrl(note);
+      const ok = await Linking.canOpenURL(url);
+      if (!ok) throw new Error("Couldn't open the download link.");
+      await Linking.openURL(url);
+    } catch (e) {
+      setNoteError(e instanceof Error ? e.message : "Could not open the file.");
+    }
+  }
+
   if (loading) return <Loading />;
 
   if (locked) {
@@ -112,6 +136,7 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
     ? null
     : lesson.videoUrl ??
       (lesson.muxPlaybackToken ? playbackUrl(lesson.muxPlaybackToken) : null);
+  const notes = lesson.notes ?? [];
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
@@ -134,13 +159,34 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
           resizeMode={ResizeMode.CONTAIN}
           isLooping={false}
         />
+      ) : lesson.thumbnailUrl ? (
+        <Image
+          style={styles.video}
+          source={{ uri: lesson.thumbnailUrl }}
+          resizeMode="cover"
+        />
       ) : null}
 
-      {lesson.content ? (
-        <Text style={styles.body}>{lesson.content}</Text>
-      ) : (
-        <Text style={styles.bodyMuted}>No written content for this lesson.</Text>
-      )}
+      {notes.length > 0 ? (
+        <View style={styles.notes}>
+          <Text style={styles.notesTitle}>Downloads</Text>
+          {noteError ? <Text style={styles.error}>{noteError}</Text> : null}
+          {notes.map((n) => (
+            <TouchableOpacity
+              key={n.id}
+              style={styles.noteRow}
+              activeOpacity={0.8}
+              onPress={() => openNote(n)}
+            >
+              <Text style={styles.noteName} numberOfLines={1}>
+                {n.originalName}
+              </Text>
+              <Text style={styles.noteSize}>{fmtSize(n.size)}</Text>
+              <Text style={styles.noteIcon}>⬇</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : null}
 
       {completeError ? <Text style={styles.error}>{completeError}</Text> : null}
 
@@ -158,6 +204,14 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
           </Text>
         )}
       </TouchableOpacity>
+
+      {lesson.content ? (
+        <Text style={[styles.body, styles.bodyBelow]}>{lesson.content}</Text>
+      ) : (
+        <Text style={[styles.bodyMuted, styles.bodyBelow]}>
+          No written content for this lesson.
+        </Text>
+      )}
 
       <View style={styles.spacer} />
     </ScrollView>
@@ -182,7 +236,30 @@ const styles = StyleSheet.create({
   },
   body: { color: colors.text, fontSize: 16, lineHeight: 24 },
   bodyMuted: { color: colors.textMuted, fontSize: 15, fontStyle: "italic" },
+  bodyBelow: { marginTop: spacing.lg },
   error: { color: colors.danger, marginTop: spacing.md },
+  notes: {
+    marginTop: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.md,
+  },
+  notesTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: spacing.sm,
+  },
+  noteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.surfaceMuted,
+  },
+  noteName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "500" },
+  noteSize: { color: colors.textMuted, fontSize: 13, marginHorizontal: spacing.sm },
+  noteIcon: { color: colors.primary, fontSize: 18, fontWeight: "700" },
   button: {
     backgroundColor: colors.primary,
     borderRadius: 10,

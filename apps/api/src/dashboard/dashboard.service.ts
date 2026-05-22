@@ -37,7 +37,10 @@ export class DashboardService {
         id: c.id,
         title: c.title,
         description: c.description,
+        thumbnailUrl: c.thumbnailUrl,
+        coverImageUrl: c.coverImageUrl,
         categoryId: c.categoryId,
+        levelIds: assigned,
         locked: isCourseLocked(assigned, activeLevels),
         lessonCount: c._count.lessons,
         completedCount: completedByCourse.get(c.id) ?? 0,
@@ -45,7 +48,12 @@ export class DashboardService {
     };
 
     const sections = categories.map((cat) => ({
-      category: { id: cat.id, name: cat.name, order: cat.order },
+      category: {
+        id: cat.id,
+        name: cat.name,
+        thumbnailUrl: cat.thumbnailUrl,
+        order: cat.order,
+      },
       courses: courses.filter((c) => c.categoryId === cat.id).map(toCard),
     }));
 
@@ -53,7 +61,7 @@ export class DashboardService {
     const orphans = courses.filter((c) => !c.categoryId);
     if (orphans.length) {
       sections.push({
-        category: { id: '', name: 'Uncategorized', order: 9999 },
+        category: { id: '', name: 'Uncategorized', thumbnailUrl: null, order: 9999 },
         courses: orphans.map(toCard),
       });
     }

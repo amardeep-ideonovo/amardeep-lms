@@ -10,6 +10,7 @@ import type { RootStackParamList } from "./src/navigation";
 import { colors } from "./src/theme";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
+import { CourseListScreen } from "./src/screens/CourseListScreen";
 import { CourseScreen } from "./src/screens/CourseScreen";
 import { LessonScreen } from "./src/screens/LessonScreen";
 import { AccountScreen } from "./src/screens/AccountScreen";
@@ -59,6 +60,11 @@ function RootNavigator() {
       ) : (
         <>
           <Stack.Screen name="Dashboard" component={DashboardScreen} />
+          <Stack.Screen
+            name="CourseList"
+            component={CourseListScreen}
+            options={({ route }) => ({ title: route.params.title })}
+          />
           <Stack.Screen
             name="Course"
             component={CourseScreen}

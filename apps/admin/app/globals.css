@@ -442,3 +442,125 @@ textarea:focus {
   padding: 20px;
   overflow-y: auto;
 }
+
+/* ---------- course/lesson images ---------- */
+.thumb-preview {
+  margin-top: 8px;
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: block;
+}
+.table-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  display: block;
+  flex: none;
+}
+.table-thumb--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: #f1f5f9;
+  font-size: 12px;
+}
+
+/* ---------- lesson manager ---------- */
+.lesson-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lesson-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.lesson-item__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+}
+.lesson-item__num {
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  flex: none;
+}
+.lesson-item__title {
+  font-weight: 600;
+  flex: 1;
+}
+.lesson-item__body {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+  background: #f8fafc;
+}
+
+/* ---------- notes list ---------- */
+.notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.note-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+.note-item__name {
+  font-weight: 500;
+  word-break: break-all;
+  flex: 1;
+}
+
+/* File-picker styled as a button (hidden native input). */
+.file-btn {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+/* Category chip with a small thumbnail. */
+.chip--thumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chip-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+/* Editable note filename input. */
+.note-name-input {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  min-width: 0;
+}

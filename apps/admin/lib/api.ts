@@ -3,14 +3,19 @@ import type {
   AuthAdmin,
   CategoryDTO,
   CourseCard,
+  CreateCourseInput,
+  CreateLessonInput,
   CreateLevelInput,
   CreatePostInput,
   LessonDTO,
+  LessonNoteDTO,
   LevelDTO,
   LoginResponse,
   MemberRow,
   PostAdminRow,
   PostCategoryDTO,
+  UpdateCourseInput,
+  UpdateLessonInput,
   UpdatePostInput,
 } from "@lms/types";
 
@@ -87,6 +92,73 @@ async function request<T>(
   return (text ? JSON.parse(text) : undefined) as T;
 }
 
+// ---------- multipart upload + authenticated download helpers ----------
+// Multipart can't go through `request` (which forces JSON). The browser sets
+// the multipart boundary itself, so we must NOT set Content-Type.
+async function multipartFetch(path: string, fd: FormData): Promise<Response> {
+  const token = getToken();
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: fd,
+  });
+  if (res.status === 401 && typeof window !== "undefined") {
+    clearToken();
+    if (window.location.pathname !== "/login") window.location.href = "/login";
+  }
+  if (!res.ok) {
+    let message = `Upload failed (${res.status})`;
+    try {
+      const data = await res.json();
+      if (data?.message)
+        message = Array.isArray(data.message)
+          ? data.message.join(", ")
+          : String(data.message);
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new ApiError(res.status, message);
+  }
+  return res;
+}
+
+async function uploadFile(
+  path: string,
+  file: File
+): Promise<{ url: string; filename: string }> {
+  const fd = new FormData();
+  fd.append("file", file);
+  return (await multipartFetch(path, fd)).json();
+}
+
+async function uploadFiles(
+  path: string,
+  files: File[]
+): Promise<LessonNoteDTO[]> {
+  const fd = new FormData();
+  for (const f of files) fd.append("files", f);
+  return (await multipartFetch(path, fd)).json();
+}
+
+// Authenticated download: fetch the (access-checked) file as a blob and save it
+// via a temporary <a download>. Used for lesson notes.
+async function downloadBlob(path: string, filename: string): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${BASE_URL}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new ApiError(res.status, `Download failed (${res.status})`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 // ---------- settings DTOs (not in @lms/types; secrets are write-only) ----------
 export interface StripeSettings {
   secretKey?: string;
@@ -135,35 +207,34 @@ export const api = {
 
   // lms
   listCategories: () => request<CategoryDTO[]>("GET", "/categories"),
-  createCategory: (name: string, order?: number) =>
-    request<CategoryDTO>("POST", "/categories", { name, order }),
+  createCategory: (name: string, order?: number, thumbnailUrl?: string) =>
+    request<CategoryDTO>("POST", "/categories", { name, order, thumbnailUrl }),
+  deleteCategory: (id: string) => request<void>("DELETE", `/categories/${id}`),
+  uploadCategoryImage: (file: File) => uploadFile("/categories/upload", file),
   listCourses: () => request<CourseCard[]>("GET", "/courses"),
-  createCourse: (input: {
-    title: string;
-    description?: string;
-    categoryId?: string;
-    levelIds: string[];
-  }) => request<CourseCard>("POST", "/courses", input),
-  updateCourse: (
-    id: string,
-    input: Partial<{
-      title: string;
-      description: string;
-      categoryId: string | null;
-      levelIds: string[];
-    }>
-  ) => request<CourseCard>("PATCH", `/courses/${id}`, input),
+  createCourse: (input: CreateCourseInput) =>
+    request<CourseCard>("POST", "/courses", input),
+  updateCourse: (id: string, input: UpdateCourseInput) =>
+    request<CourseCard>("PATCH", `/courses/${id}`, input),
+  deleteCourse: (id: string) => request<void>("DELETE", `/courses/${id}`),
   listCourseLessons: (courseId: string) =>
     request<LessonDTO[]>("GET", `/courses/${courseId}/lessons`),
-  createLesson: (
-    courseId: string,
-    input: {
-      title: string;
-      content?: string;
-      videoUrl?: string;
-      muxAssetId?: string;
-    }
-  ) => request<LessonDTO>("POST", `/courses/${courseId}/lessons`, input),
+  createLesson: (courseId: string, input: CreateLessonInput) =>
+    request<LessonDTO>("POST", `/courses/${courseId}/lessons`, input),
+  updateLesson: (id: string, input: UpdateLessonInput) =>
+    request<LessonDTO>("PATCH", `/lessons/${id}`, input),
+  deleteLesson: (id: string) => request<void>("DELETE", `/lessons/${id}`),
+  // lesson notes (downloadable attachments)
+  uploadLessonNotes: (lessonId: string, files: File[]) =>
+    uploadFiles(`/lessons/${lessonId}/notes`, files),
+  renameLessonNote: (lessonId: string, noteId: string, originalName: string) =>
+    request<LessonNoteDTO>("PATCH", `/lessons/${lessonId}/notes/${noteId}`, {
+      originalName,
+    }),
+  deleteLessonNote: (lessonId: string, noteId: string) =>
+    request<void>("DELETE", `/lessons/${lessonId}/notes/${noteId}`),
+  downloadNote: (note: { downloadUrl: string; originalName: string }) =>
+    downloadBlob(note.downloadUrl, note.originalName),
 
   // settings
   getStripeSettings: () =>
@@ -193,37 +264,8 @@ export const api = {
   deletePostCategory: (id: string) =>
     request<void>("DELETE", `/admin/blog/categories/${id}`),
 
-  // Multipart upload (can't go through `request`, which forces JSON).
-  uploadImage: async (
-    file: File
-  ): Promise<{ url: string; filename: string }> => {
-    const token = getToken();
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch(`${BASE_URL}/admin/blog/upload`, {
-      method: "POST",
-      // No Content-Type: the browser sets the multipart boundary itself.
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: fd,
-    });
-    if (res.status === 401 && typeof window !== "undefined") {
-      clearToken();
-      if (window.location.pathname !== "/login")
-        window.location.href = "/login";
-    }
-    if (!res.ok) {
-      let message = `Upload failed (${res.status})`;
-      try {
-        const data = await res.json();
-        if (data?.message)
-          message = Array.isArray(data.message)
-            ? data.message.join(", ")
-            : String(data.message);
-      } catch {
-        /* non-JSON error body */
-      }
-      throw new ApiError(res.status, message);
-    }
-    return res.json();
-  },
+  // Multipart uploads (see helpers above). The browser sets the boundary.
+  uploadImage: (file: File) => uploadFile("/admin/blog/upload", file),
+  uploadCourseImage: (file: File) => uploadFile("/courses/upload", file),
+  uploadLessonImage: (file: File) => uploadFile("/lessons/upload", file),
 };
