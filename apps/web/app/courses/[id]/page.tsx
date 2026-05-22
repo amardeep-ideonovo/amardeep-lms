@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import type { LessonDTO } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
+import ProgressBar from "@/components/ProgressBar";
 
 function CourseInner() {
   const params = useParams<{ id: string }>();
@@ -69,6 +70,10 @@ function CourseInner() {
       </div>
       <h1 className="page-title">Lessons</h1>
       <p className="page-sub">{lessons.length} lesson(s) in this course.</p>
+      <ProgressBar
+        completed={lessons.filter((l) => l.completed).length}
+        total={lessons.length}
+      />
 
       {lessons.length === 0 ? (
         <p className="empty">No lessons have been published yet.</p>

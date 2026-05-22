@@ -50,8 +50,10 @@ export default async function BlogIndexPage() {
                 <img src={post.coverImageUrl} alt="" className="post-cover" />
               )}
               <div className="post-meta">
-                {post.category && (
-                  <span className="post-cat">{post.category.name}</span>
+                {post.categories.length > 0 && (
+                  <span className="post-cat">
+                    {post.categories.map((c) => c.name).join(", ")}
+                  </span>
                 )}
                 {post.publishedAt && <span>{fmtDate(post.publishedAt)}</span>}
               </div>

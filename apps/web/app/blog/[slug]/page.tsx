@@ -48,7 +48,11 @@ export default async function BlogPostPage({ params }: Params) {
       <div className="post-meta" style={{ marginBottom: 20 }}>
         {post.author && <span>By {post.author.name}</span>}
         {post.publishedAt && <span>· {fmtDate(post.publishedAt)}</span>}
-        {post.category && <span className="post-cat">· {post.category.name}</span>}
+        {post.categories.length > 0 && (
+          <span className="post-cat">
+            · {post.categories.map((c) => c.name).join(", ")}
+          </span>
+        )}
       </div>
 
       {post.coverImageUrl && (

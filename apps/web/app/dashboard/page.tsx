@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { CourseCard, DashboardResponse } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
+import ProgressBar from "@/components/ProgressBar";
 import { useRouter } from "next/navigation";
 
 function Card({ course }: { course: CourseCard }) {
@@ -26,6 +27,7 @@ function Card({ course }: { course: CourseCard }) {
     <Link href={`/courses/${course.id}`} className="card">
       <h3 className="card-title">{course.title}</h3>
       {course.description && <p className="card-desc">{course.description}</p>}
+      <ProgressBar completed={course.completedCount} total={course.lessonCount} />
       <span className="card-cta">View course →</span>
     </Link>
   );

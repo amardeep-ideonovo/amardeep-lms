@@ -96,7 +96,17 @@ function LessonInner() {
       </div>
       <h1 className="page-title">{lesson.title}</h1>
 
-      {lesson.muxPlaybackToken && (
+      {lesson.videoUrl ? (
+        <div className="player-wrap">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <video
+            controls
+            playsInline
+            src={lesson.videoUrl}
+            style={{ height: "100%", width: "100%", background: "#000" }}
+          />
+        </div>
+      ) : lesson.muxPlaybackToken ? (
         <div className="player-wrap">
           <MuxPlayer
             playbackId={PLACEHOLDER_PLAYBACK_ID}
@@ -105,7 +115,7 @@ function LessonInner() {
             style={{ height: "100%", width: "100%" }}
           />
         </div>
-      )}
+      ) : null}
 
       {lesson.content && <div className="lesson-content">{lesson.content}</div>}
 
