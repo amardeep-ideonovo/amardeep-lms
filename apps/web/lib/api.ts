@@ -6,6 +6,8 @@ import type {
   LessonDTO,
   LevelDTO,
   LoginResponse,
+  PostDetailDTO,
+  PostListItem,
 } from "@lms/types";
 
 const API_BASE =
@@ -113,5 +115,26 @@ export const api = {
     }),
   portal: () => request<{ url: string }>("/billing/portal"),
 };
+
+// ---------- Blog (PUBLIC) ----------
+// No token: usable from Server Components for SSR/SEO. Only PUBLISHED posts
+// are returned by the API; an unknown/draft slug yields 404 -> null here.
+export function fetchPublishedPosts(): Promise<PostListItem[]> {
+  return request<PostListItem[]>("/blog/posts", { auth: false });
+}
+
+export async function fetchPublishedPost(
+  slug: string
+): Promise<PostDetailDTO | null> {
+  try {
+    return await request<PostDetailDTO>(
+      `/blog/posts/${encodeURIComponent(slug)}`,
+      { auth: false }
+    );
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
 
 export { API_BASE };

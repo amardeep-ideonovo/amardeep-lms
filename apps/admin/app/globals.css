@@ -282,3 +282,96 @@ textarea:focus {
   width: 360px;
   max-width: 100%;
 }
+
+/* ---------- blog rich-text editor ---------- */
+.editor {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+}
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.editor-toolbar button {
+  font: inherit;
+  font-size: 13px;
+  min-width: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+}
+.editor-toolbar button:hover {
+  background: var(--bg);
+}
+.editor-toolbar button.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.editor .ProseMirror {
+  min-height: 200px;
+  padding: 12px 14px;
+  outline: none;
+}
+.editor .ProseMirror > * {
+  margin: 0 0 10px;
+}
+.editor .ProseMirror h2 {
+  font-size: 18px;
+  margin: 16px 0 8px;
+}
+.editor .ProseMirror h3 {
+  font-size: 16px;
+  margin: 14px 0 6px;
+}
+.editor .ProseMirror ul,
+.editor .ProseMirror ol {
+  padding-left: 22px;
+}
+.editor .ProseMirror blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 12px;
+  color: var(--muted);
+}
+.editor .ProseMirror a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+/* ---------- status badges ---------- */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge--published {
+  background: #dcfce7;
+  color: #166534;
+}
+.badge--draft {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+/* ---------- featured image preview ---------- */
+.cover-preview {
+  margin-top: 8px;
+  max-width: 260px;
+  max-height: 150px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  display: block;
+}

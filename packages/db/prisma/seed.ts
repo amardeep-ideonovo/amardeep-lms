@@ -11,7 +11,7 @@ const prisma = new PrismaClient();
 async function main() {
   // ----- Admin -----
   const adminPassword = "admin123";
-  await prisma.admin.upsert({
+  const admin = await prisma.admin.upsert({
     where: { email: "admin@example.com" },
     update: {},
     create: {
@@ -150,12 +150,113 @@ async function main() {
     },
   });
 
+  // ----- Blog -----
+  const newsCat = await prisma.postCategory.upsert({
+    where: { id: "seed-postcat-news" },
+    update: {},
+    create: {
+      id: "seed-postcat-news",
+      name: "Latest News",
+      slug: "latest-news",
+      order: 0,
+    },
+  });
+  const featuredCat = await prisma.postCategory.upsert({
+    where: { id: "seed-postcat-featured" },
+    update: {},
+    create: {
+      id: "seed-postcat-featured",
+      name: "Featured Stories",
+      slug: "featured-stories",
+      order: 1,
+    },
+  });
+
+  // Three published posts (public, no login) + one draft (admin-only).
+  await prisma.post.upsert({
+    where: { id: "seed-post-welcome" },
+    update: {},
+    create: {
+      id: "seed-post-welcome",
+      slug: "welcome-to-the-new-member-portal",
+      title: "Welcome to the new member portal",
+      excerpt:
+        "We've rebuilt the entire membership experience from the ground up.",
+      content:
+        "<p>We've rebuilt the entire membership experience from the ground up.</p><h2>What's new</h2><ul><li>A faster dashboard</li><li>A brand-new public blog</li><li>Cleaner course access</li></ul><p>Thanks for being a member!</p>",
+      coverImageUrl: "https://picsum.photos/seed/welcome/1200/630",
+      status: "PUBLISHED",
+      publishedAt: new Date("2026-05-01T09:00:00Z"),
+      authorId: admin.id,
+      categoryId: newsCat.id,
+      tags: ["announcement", "platform"],
+    },
+  });
+
+  await prisma.post.upsert({
+    where: { id: "seed-post-publishing" },
+    update: {},
+    create: {
+      id: "seed-post-publishing",
+      slug: "how-to-publish-your-book",
+      title: "How to publish your book",
+      excerpt: "A practical three-step path from manuscript to published.",
+      content:
+        "<p>Publishing your book is easier than you think.</p><h2>Three steps</h2><ol><li>Finish your manuscript</li><li>Edit ruthlessly</li><li>Choose a platform</li></ol><p>Then hit publish.</p>",
+      coverImageUrl: "https://picsum.photos/seed/publishing/1200/630",
+      status: "PUBLISHED",
+      publishedAt: new Date("2026-05-08T09:00:00Z"),
+      authorId: admin.id,
+      categoryId: featuredCat.id,
+      tags: ["writing", "guide"],
+    },
+  });
+
+  await prisma.post.upsert({
+    where: { id: "seed-post-writing" },
+    update: {},
+    create: {
+      id: "seed-post-writing",
+      slug: "how-to-write-your-book",
+      title: "How to write your book",
+      excerpt: "Every great book starts with a single sentence.",
+      content:
+        "<p>Every great book starts with a single sentence.</p><blockquote>Write drunk, edit sober.</blockquote><p>Set a daily word count and stick to it.</p>",
+      coverImageUrl: "https://picsum.photos/seed/writing/1200/630",
+      status: "PUBLISHED",
+      publishedAt: new Date("2026-05-15T09:00:00Z"),
+      authorId: admin.id,
+      categoryId: newsCat.id,
+      tags: ["writing"],
+    },
+  });
+
+  // Draft: must NOT appear on the public blog, and its slug must 404 publicly.
+  await prisma.post.upsert({
+    where: { id: "seed-post-draft" },
+    update: {},
+    create: {
+      id: "seed-post-draft",
+      slug: "the-2026-roadmap",
+      title: "Upcoming: our 2026 roadmap",
+      excerpt: "A sneak peek at what we're planning (still a draft).",
+      content:
+        "<p>Here's a sneak peek at what we're planning for 2026. This post is still a <strong>draft</strong>.</p>",
+      coverImageUrl: "https://picsum.photos/seed/roadmap/1200/630",
+      status: "DRAFT",
+      authorId: admin.id,
+      categoryId: featuredCat.id,
+      tags: ["roadmap"],
+    },
+  });
+
   // unused-var guard
   void freeLevel;
 
   console.log("Seed complete.");
   console.log(`  Admin:  admin@example.com / ${adminPassword}`);
   console.log(`  Member: member@example.com / ${memberPassword} (has Pro)`);
+  console.log(`  Blog:   3 published posts + 1 draft, 2 categories`);
 }
 
 main()

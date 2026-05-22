@@ -4,10 +4,14 @@ import type {
   CategoryDTO,
   CourseCard,
   CreateLevelInput,
+  CreatePostInput,
   LessonDTO,
   LevelDTO,
   LoginResponse,
   MemberRow,
+  PostAdminRow,
+  PostCategoryDTO,
+  UpdatePostInput,
 } from "@lms/types";
 
 const BASE_URL =
@@ -169,4 +173,16 @@ export const api = {
       "/admin/settings/mailchimp",
       input
     ),
+
+  // blog
+  listPosts: () => request<PostAdminRow[]>("GET", "/admin/blog/posts"),
+  createPost: (input: CreatePostInput) =>
+    request<PostAdminRow>("POST", "/admin/blog/posts", input),
+  updatePost: (id: string, input: UpdatePostInput) =>
+    request<PostAdminRow>("PATCH", `/admin/blog/posts/${id}`, input),
+  deletePost: (id: string) => request<void>("DELETE", `/admin/blog/posts/${id}`),
+  listPostCategories: () =>
+    request<PostCategoryDTO[]>("GET", "/blog/categories"),
+  createPostCategory: (name: string, order?: number) =>
+    request<PostCategoryDTO>("POST", "/admin/blog/categories", { name, order }),
 };

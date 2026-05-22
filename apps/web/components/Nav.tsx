@@ -39,6 +39,12 @@ export default function Nav() {
             Dashboard
           </Link>
           <Link
+            href="/blog"
+            className={isActive("/blog") ? "nav-link active" : "nav-link"}
+          >
+            Blog
+          </Link>
+          <Link
             href="/account"
             className={isActive("/account") ? "nav-link active" : "nav-link"}
           >

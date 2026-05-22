@@ -9,6 +9,7 @@ import { LevelsModule } from './levels/levels.module';
 import { MembersModule } from './members/members.module';
 import { BillingModule } from './billing/billing.module';
 import { LmsModule } from './lms/lms.module';
+import { BlogModule } from './blog/blog.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
 
@@ -27,6 +28,7 @@ import { HealthModule } from './health/health.module';
     LevelsModule,
     MembersModule,
     LmsModule,
+    BlogModule,
     DashboardModule,
   ],
 })

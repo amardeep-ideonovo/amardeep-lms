@@ -106,3 +106,53 @@ Then(
     assert.equal(course.locked, false, `expected "${title}" to be unlocked`);
   },
 );
+
+// ---------- blog ----------
+
+When(
+  "I POST {string} without a token and body:",
+  async function (this: LmsWorld, path: string, docString: string) {
+    await this.request("POST", path, {
+      token: null,
+      body: JSON.parse(docString),
+    });
+  },
+);
+
+When(
+  "I POST {string} with an admin token and body:",
+  async function (this: LmsWorld, path: string, docString: string) {
+    const token = await this.adminToken();
+    await this.request("POST", path, { token, body: JSON.parse(docString) });
+  },
+);
+
+Then(
+  "the response should include a post with slug {string}",
+  function (this: LmsWorld, slug: string) {
+    const body = this.last.body;
+    assert.ok(
+      Array.isArray(body),
+      `expected an array, got: ${JSON.stringify(body)}`,
+    );
+    assert.ok(
+      body.some((p: any) => p?.slug === slug),
+      `expected a post with slug "${slug}" in the list`,
+    );
+  },
+);
+
+Then(
+  "the response should not include a post with slug {string}",
+  function (this: LmsWorld, slug: string) {
+    const body = this.last.body;
+    assert.ok(
+      Array.isArray(body),
+      `expected an array, got: ${JSON.stringify(body)}`,
+    );
+    assert.ok(
+      !body.some((p: any) => p?.slug === slug),
+      `did not expect a post with slug "${slug}" in the list`,
+    );
+  },
+);

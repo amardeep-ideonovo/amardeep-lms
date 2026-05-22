@@ -78,6 +78,69 @@ export interface DashboardResponse {
   categories: { category: CategoryDTO; courses: CourseCard[] }[];
 }
 
+// ---------- Blog ----------
+// Public marketing/news content. PUBLISHED posts are readable without login;
+// DRAFTs are admin-only. Content is sanitized HTML (rich text).
+export type PostStatus = "DRAFT" | "PUBLISHED";
+
+export interface PostCategoryDTO {
+  id: string;
+  name: string;
+  slug: string;
+  order: number;
+}
+export interface PostAuthorDTO {
+  id: string;
+  name: string; // display name (no credentials ever exposed)
+}
+// Public list card.
+export interface PostListItem {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  coverImageUrl: string | null;
+  category: PostCategoryDTO | null;
+  tags: string[];
+  author: PostAuthorDTO | null;
+  publishedAt: string | null; // ISO
+}
+// Public detail = card + sanitized HTML body.
+export interface PostDetailDTO extends PostListItem {
+  content: string;
+}
+// Admin row: includes drafts, raw status, and timestamps.
+export interface PostAdminRow {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  content: string;
+  coverImageUrl: string | null;
+  status: PostStatus;
+  categoryId: string | null;
+  category: PostCategoryDTO | null;
+  tags: string[];
+  author: PostAuthorDTO | null;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface CreatePostInput {
+  title: string;
+  excerpt?: string;
+  content?: string; // HTML (sanitized server-side)
+  coverImageUrl?: string;
+  categoryId?: string;
+  tags?: string[];
+  status?: PostStatus; // default DRAFT
+}
+export type UpdatePostInput = Partial<CreatePostInput>;
+export interface CreatePostCategoryInput {
+  name: string;
+  order?: number;
+}
+
 // ---------- REST contract ----------
 // Base: process.env API URL. All authed routes use `Authorization: Bearer <token>`.
 export const ROUTES = {
@@ -110,6 +173,18 @@ export const ROUTES = {
 
   // member dashboard
   dashboard: "GET /dashboard", // -> DashboardResponse
+
+  // blog — PUBLIC (no auth): only PUBLISHED posts are visible
+  listPublishedPosts: "GET /blog/posts", // -> PostListItem[]
+  getPublishedPost: "GET /blog/posts/:slug", // -> PostDetailDTO (404 if draft/missing)
+  listPostCategories: "GET /blog/categories", // -> PostCategoryDTO[]
+
+  // blog — ADMIN (full CRUD, includes drafts)
+  adminListPosts: "GET /admin/blog/posts", // -> PostAdminRow[]
+  adminCreatePost: "POST /admin/blog/posts", // body CreatePostInput -> PostAdminRow
+  adminUpdatePost: "PATCH /admin/blog/posts/:id", // body UpdatePostInput -> PostAdminRow
+  adminDeletePost: "DELETE /admin/blog/posts/:id",
+  adminCreatePostCategory: "POST /admin/blog/categories", // body CreatePostCategoryInput
 
   // billing (member)
   checkout: "POST /billing/checkout", // body {priceId} -> {url}
