@@ -28,8 +28,9 @@ export class CreatePostDto {
   coverImageUrl?: string;
 
   @IsOptional()
-  @IsString()
-  categoryId?: string;
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
 
   @IsOptional()
   @IsArray()
@@ -60,8 +61,9 @@ export class UpdatePostDto {
   coverImageUrl?: string;
 
   @IsOptional()
-  @IsString()
-  categoryId?: string;
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
 
   @IsOptional()
   @IsArray()

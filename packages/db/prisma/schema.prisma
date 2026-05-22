@@ -147,7 +147,8 @@ model Lesson {
   course      Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title       String
   content     String?          // markdown / rich text
-  muxAssetId  String?          // managed video; playback via signed URL
+  muxAssetId  String?          // managed video; playback via signed URL (prod)
+  videoUrl    String?          // direct video URL (e.g. sample MP4); plays without Mux signing
   order       Int              @default(0)
   createdAt   DateTime         @default(now())
 
@@ -215,22 +216,20 @@ model PostCategory {
 }
 
 model Post {
-  id            String        @id @default(cuid())
-  slug          String        @unique // URL key: /blog/:slug
+  id            String         @id @default(cuid())
+  slug          String         @unique // URL key: /blog/:slug
   title         String
   excerpt       String? // short summary for cards + meta description
-  content       String        @default("") // sanitized HTML (rich text)
+  content       String         @default("") // sanitized HTML (rich text)
   coverImageUrl String? // featured image (URL); used as hero + og:image
-  status        PostStatus    @default(DRAFT)
+  status        PostStatus     @default(DRAFT)
   publishedAt   DateTime? // set when first published; drives public ordering
   authorId      String?
-  author        Admin?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  categoryId    String?
-  category      PostCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  tags          String[]      @default([])
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  author        Admin?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  categories    PostCategory[] // many-to-many: a post can be in several categories
+  tags          String[]       @default([])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   @@index([status, publishedAt])
-  @@index([categoryId])
 }

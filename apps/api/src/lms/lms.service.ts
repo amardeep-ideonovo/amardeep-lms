@@ -52,11 +52,17 @@ export class LmsService {
   async listCourses(userId?: string): Promise<CourseCard[]> {
     const courses = await this.prisma.course.findMany({
       orderBy: { order: 'asc' },
-      include: { courseLevels: { select: { levelId: true } } },
+      include: {
+        courseLevels: { select: { levelId: true } },
+        _count: { select: { lessons: true } },
+      },
     });
 
     const activeLevels = userId
       ? await this.access.activeLevelIds(userId)
+      : null;
+    const completedByCourse = userId
+      ? await this.access.completedCountByCourse(userId)
       : null;
 
     return courses.map((c) => {
@@ -70,6 +76,8 @@ export class LmsService {
         description: c.description,
         categoryId: c.categoryId,
         locked,
+        lessonCount: c._count.lessons,
+        completedCount: completedByCourse?.get(c.id) ?? 0,
       };
     });
   }
@@ -92,6 +100,8 @@ export class LmsService {
       description: course.description,
       categoryId: course.categoryId,
       locked: false,
+      lessonCount: 0,
+      completedCount: 0,
     };
   }
 
@@ -128,6 +138,8 @@ export class LmsService {
       description: course.description,
       categoryId: course.categoryId,
       locked: false,
+      lessonCount: 0,
+      completedCount: 0,
     };
   }
 
@@ -189,6 +201,7 @@ export class LmsService {
         title: dto.title,
         content: dto.content ?? null,
         muxAssetId: dto.muxAssetId ?? null,
+        videoUrl: dto.videoUrl ?? null,
         order: dto.order ?? 0,
       },
     });
@@ -197,6 +210,7 @@ export class LmsService {
       courseId: lesson.courseId,
       title: lesson.title,
       content: lesson.content,
+      videoUrl: lesson.videoUrl,
       order: lesson.order,
     };
   }
@@ -237,6 +251,7 @@ export class LmsService {
       title: lesson.title,
       content: lesson.content,
       muxPlaybackToken,
+      videoUrl: lesson.videoUrl,
       order: lesson.order,
       completed: !!completed,
     };

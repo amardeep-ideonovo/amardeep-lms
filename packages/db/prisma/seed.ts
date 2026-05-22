@@ -8,6 +8,47 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+// A short, public sample video (MP4) that plays in a browser <video> tag and
+// in expo-av on mobile — no Mux account needed, so lessons "just play" in dev.
+const SAMPLE_VIDEO = "https://www.w3schools.com/html/mov_bbb.mp4";
+
+async function ensureCourse(
+  id: string,
+  title: string,
+  description: string,
+  categoryId: string,
+  order: number
+) {
+  return prisma.course.upsert({
+    where: { id },
+    update: {},
+    create: { id, title, description, categoryId, order },
+  });
+}
+
+async function ensureLesson(
+  id: string,
+  courseId: string,
+  title: string,
+  content: string,
+  order: number,
+  videoUrl?: string
+) {
+  return prisma.lesson.upsert({
+    where: { id },
+    update: {},
+    create: { id, courseId, title, content, order, videoUrl: videoUrl ?? null },
+  });
+}
+
+async function completeLesson(userId: string, lessonId: string) {
+  await prisma.lessonProgress.upsert({
+    where: { userId_lessonId: { userId, lessonId } },
+    update: {},
+    create: { userId, lessonId },
+  });
+}
+
 async function main() {
   // ----- Admin -----
   const adminPassword = "admin123";
@@ -150,6 +191,65 @@ async function main() {
     },
   });
 
+  // ----- Sample courses for testing (multiple sections, content, a video) -----
+  const fundamentals = await prisma.category.upsert({
+    where: { id: "seed-cat-fundamentals" },
+    update: {},
+    create: { id: "seed-cat-fundamentals", name: "Fundamentals", order: 1 },
+  });
+  const advanced = await prisma.category.upsert({
+    where: { id: "seed-cat-advanced" },
+    update: {},
+    create: { id: "seed-cat-advanced", name: "Advanced", order: 2 },
+  });
+
+  // A video lesson on the open course so any member can watch right away.
+  await ensureLesson(
+    "seed-lesson-open-2",
+    openCourse.id,
+    "Watch: a quick tour (video)",
+    "A short sample video showing how a video lesson plays.",
+    1,
+    SAMPLE_VIDEO
+  );
+
+  // Fundamentals → two open courses with content; the first has a video.
+  const prodCourse = await ensureCourse(
+    "seed-course-prod",
+    "Productivity Basics",
+    "Build momentum with simple, repeatable habits.",
+    fundamentals.id,
+    0
+  );
+  await ensureLesson("seed-lesson-prod-1", prodCourse.id, "Plan your week (video)", "Start each week by writing down your top 3 outcomes.", 0, SAMPLE_VIDEO);
+  await ensureLesson("seed-lesson-prod-2", prodCourse.id, "Time-blocking", "Reserve focused blocks for deep work and protect them.", 1);
+  await ensureLesson("seed-lesson-prod-3", prodCourse.id, "Weekly review", "Reflect on what worked and adjust next week's plan.", 2);
+
+  const toolingCourse = await ensureCourse(
+    "seed-course-tooling",
+    "Tooling & Setup",
+    "Get your environment ready in minutes.",
+    fundamentals.id,
+    1
+  );
+  await ensureLesson("seed-lesson-tooling-1", toolingCourse.id, "Install the essentials", "A short checklist of tools to install first.", 0);
+  await ensureLesson("seed-lesson-tooling-2", toolingCourse.id, "Configure your editor", "Settings that pay off every single day.", 1);
+
+  // Advanced → one open course.
+  const scalingCourse = await ensureCourse(
+    "seed-course-scaling",
+    "Scaling Your Workflow",
+    "Patterns for when things get bigger.",
+    advanced.id,
+    0
+  );
+  await ensureLesson("seed-lesson-scaling-1", scalingCourse.id, "Automate the boring parts", "Identify repetitive tasks worth automating.", 0);
+  await ensureLesson("seed-lesson-scaling-2", scalingCourse.id, "Delegate & document", "Write it down so others can run it without you.", 1);
+
+  // Give the member partial progress so the progress bars are visibly non-zero.
+  await completeLesson(member.id, "seed-lesson-open-1"); // Welcome & Orientation: 1 of 2
+  await completeLesson(member.id, "seed-lesson-prod-1"); // Productivity Basics: 1 of 3
+
   // ----- Blog -----
   const newsCat = await prisma.postCategory.upsert({
     where: { id: "seed-postcat-news" },
@@ -188,7 +288,7 @@ async function main() {
       status: "PUBLISHED",
       publishedAt: new Date("2026-05-01T09:00:00Z"),
       authorId: admin.id,
-      categoryId: newsCat.id,
+      categories: { connect: [{ id: newsCat.id }] },
       tags: ["announcement", "platform"],
     },
   });
@@ -207,7 +307,7 @@ async function main() {
       status: "PUBLISHED",
       publishedAt: new Date("2026-05-08T09:00:00Z"),
       authorId: admin.id,
-      categoryId: featuredCat.id,
+      categories: { connect: [{ id: featuredCat.id }] },
       tags: ["writing", "guide"],
     },
   });
@@ -226,7 +326,7 @@ async function main() {
       status: "PUBLISHED",
       publishedAt: new Date("2026-05-15T09:00:00Z"),
       authorId: admin.id,
-      categoryId: newsCat.id,
+      categories: { connect: [{ id: newsCat.id }] },
       tags: ["writing"],
     },
   });
@@ -245,7 +345,7 @@ async function main() {
       coverImageUrl: "https://picsum.photos/seed/roadmap/1200/630",
       status: "DRAFT",
       authorId: admin.id,
-      categoryId: featuredCat.id,
+      categories: { connect: [{ id: featuredCat.id }] },
       tags: ["roadmap"],
     },
   });

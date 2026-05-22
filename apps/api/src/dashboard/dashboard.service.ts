@@ -17,14 +17,19 @@ export class DashboardService {
    * category are grouped under a synthetic "Uncategorized" bucket.
    */
   async build(userId: string): Promise<DashboardResponse> {
-    const [categories, courses, activeLevels] = await Promise.all([
-      this.prisma.category.findMany({ orderBy: { order: 'asc' } }),
-      this.prisma.course.findMany({
-        orderBy: { order: 'asc' },
-        include: { courseLevels: { select: { levelId: true } } },
-      }),
-      this.access.activeLevelIds(userId),
-    ]);
+    const [categories, courses, activeLevels, completedByCourse] =
+      await Promise.all([
+        this.prisma.category.findMany({ orderBy: { order: 'asc' } }),
+        this.prisma.course.findMany({
+          orderBy: { order: 'asc' },
+          include: {
+            courseLevels: { select: { levelId: true } },
+            _count: { select: { lessons: true } },
+          },
+        }),
+        this.access.activeLevelIds(userId),
+        this.access.completedCountByCourse(userId),
+      ]);
 
     const toCard = (c: (typeof courses)[number]) => {
       const assigned = c.courseLevels.map((cl) => cl.levelId);
@@ -34,6 +39,8 @@ export class DashboardService {
         description: c.description,
         categoryId: c.categoryId,
         locked: isCourseLocked(assigned, activeLevels),
+        lessonCount: c._count.lessons,
+        completedCount: completedByCourse.get(c.id) ?? 0,
       };
     };
 

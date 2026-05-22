@@ -78,6 +78,10 @@ export class CreateLessonDto {
   muxAssetId?: string;
 
   @IsOptional()
+  @IsString()
+  videoUrl?: string;
+
+  @IsOptional()
   @IsInt()
   order?: number;
 }

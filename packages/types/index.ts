@@ -64,6 +64,8 @@ export interface CourseCard {
   description: string | null;
   categoryId: string | null;
   locked: boolean; // computed from the viewer's active levels
+  lessonCount: number; // total lessons in the course
+  completedCount: number; // lessons the viewer has completed (0 for admin/no context)
 }
 export interface LessonDTO {
   id: string;
@@ -71,6 +73,7 @@ export interface LessonDTO {
   title: string;
   content: string | null;
   muxPlaybackToken?: string; // signed; present only when the viewer has access
+  videoUrl?: string | null; // direct video URL (sample/dev or non-Mux source)
   order: number;
   completed?: boolean;
 }
@@ -100,7 +103,7 @@ export interface PostListItem {
   title: string;
   excerpt: string | null;
   coverImageUrl: string | null;
-  category: PostCategoryDTO | null;
+  categories: PostCategoryDTO[];
   tags: string[];
   author: PostAuthorDTO | null;
   publishedAt: string | null; // ISO
@@ -118,8 +121,8 @@ export interface PostAdminRow {
   content: string;
   coverImageUrl: string | null;
   status: PostStatus;
-  categoryId: string | null;
-  category: PostCategoryDTO | null;
+  categoryIds: string[];
+  categories: PostCategoryDTO[];
   tags: string[];
   author: PostAuthorDTO | null;
   publishedAt: string | null;
@@ -131,7 +134,7 @@ export interface CreatePostInput {
   excerpt?: string;
   content?: string; // HTML (sanitized server-side)
   coverImageUrl?: string;
-  categoryId?: string;
+  categoryIds?: string[];
   tags?: string[];
   status?: PostStatus; // default DRAFT
 }
@@ -185,6 +188,7 @@ export const ROUTES = {
   adminUpdatePost: "PATCH /admin/blog/posts/:id", // body UpdatePostInput -> PostAdminRow
   adminDeletePost: "DELETE /admin/blog/posts/:id",
   adminCreatePostCategory: "POST /admin/blog/categories", // body CreatePostCategoryInput
+  adminDeletePostCategory: "DELETE /admin/blog/categories/:id", // posts become uncategorized
 
   // billing (member)
   checkout: "POST /billing/checkout", // body {priceId} -> {url}

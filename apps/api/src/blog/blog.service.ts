@@ -52,12 +52,11 @@ type PostRow = {
   coverImageUrl: string | null;
   status: PostStatus;
   publishedAt: Date | null;
-  categoryId: string | null;
   tags: string[];
   createdAt: Date;
   updatedAt: Date;
   author: { id: string; email: string } | null;
-  category: { id: string; name: string; slug: string; order: number } | null;
+  categories: { id: string; name: string; slug: string; order: number }[];
 };
 
 @Injectable()
@@ -67,7 +66,7 @@ export class BlogService {
   // Only ever load non-secret author fields alongside a post.
   private static readonly REL = {
     author: { select: { id: true, email: true } },
-    category: true,
+    categories: true,
   } as const;
 
   // ---------- public reads ----------
@@ -127,7 +126,9 @@ export class BlogService {
         coverImageUrl: dto.coverImageUrl?.trim() || null,
         status,
         publishedAt: status === 'PUBLISHED' ? new Date() : null,
-        categoryId: dto.categoryId || null,
+        categories: dto.categoryIds?.length
+          ? { connect: dto.categoryIds.map((id) => ({ id })) }
+          : undefined,
         tags: dto.tags ?? [],
         authorId,
       },
@@ -162,8 +163,9 @@ export class BlogService {
             : undefined,
         status: dto.status ?? undefined,
         publishedAt,
-        categoryId:
-          dto.categoryId !== undefined ? dto.categoryId || null : undefined,
+        categories: dto.categoryIds
+          ? { set: dto.categoryIds.map((id) => ({ id })) }
+          : undefined,
         tags: dto.tags ?? undefined,
       },
       include: BlogService.REL,
@@ -186,6 +188,17 @@ export class BlogService {
     return { id: cat.id, name: cat.name, slug: cat.slug, order: cat.order };
   }
 
+  // Delete a category. Posts referencing it are kept and become uncategorized
+  // (the Post.categoryId FK is ON DELETE SET NULL).
+  async deleteCategory(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.postCategory.findUnique({
+      where: { id },
+    });
+    if (!existing) throw new NotFoundException('Category not found');
+    await this.prisma.postCategory.delete({ where: { id } });
+    return { ok: true };
+  }
+
   // ---------- mappers ----------
 
   private toAuthor(
@@ -195,10 +208,15 @@ export class BlogService {
     return { id: a.id, name: a.email.split('@')[0] || a.email };
   }
 
-  private toCategory(
-    c: { id: string; name: string; slug: string; order: number } | null,
-  ): PostCategoryDTO | null {
-    return c ? { id: c.id, name: c.name, slug: c.slug, order: c.order } : null;
+  private toCategories(
+    cats: { id: string; name: string; slug: string; order: number }[],
+  ): PostCategoryDTO[] {
+    return cats.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      order: c.order,
+    }));
   }
 
   private toListItem(p: PostRow): PostListItem {
@@ -208,7 +226,7 @@ export class BlogService {
       title: p.title,
       excerpt: p.excerpt,
       coverImageUrl: p.coverImageUrl,
-      category: this.toCategory(p.category),
+      categories: this.toCategories(p.categories),
       tags: p.tags,
       author: this.toAuthor(p.author),
       publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
@@ -228,8 +246,8 @@ export class BlogService {
       content: p.content,
       coverImageUrl: p.coverImageUrl,
       status: p.status,
-      categoryId: p.categoryId,
-      category: this.toCategory(p.category),
+      categoryIds: p.categories.map((c) => c.id),
+      categories: this.toCategories(p.categories),
       tags: p.tags,
       author: this.toAuthor(p.author),
       publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
