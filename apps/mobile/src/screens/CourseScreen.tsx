@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import type { LessonDTO } from "@lms/types";
 
 import { api } from "../api";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
+import { ProgressBar } from "../components/ProgressBar";
 import type { ScreenProps } from "../navigation";
 import { colors, spacing } from "../theme";
 
@@ -26,9 +28,12 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
     }
   }, [courseId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Reload on focus so completing a lesson and returning updates progress.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -36,12 +41,20 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
     return <EmptyState message="This course has no lessons yet." />;
   }
 
+  const completed = lessons.filter((l) => l.completed).length;
+
   return (
     <FlatList
       style={styles.list}
       contentContainerStyle={styles.content}
       data={lessons}
       keyExtractor={(item) => item.id}
+      ListHeaderComponent={
+        <View style={styles.progressHeader}>
+          <Text style={styles.progressTitle}>Course progress</Text>
+          <ProgressBar completed={completed} total={lessons.length} />
+        </View>
+      }
       renderItem={({ item, index }) => (
         <TouchableOpacity
           style={styles.row}
@@ -69,6 +82,13 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
 const styles = StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
+  progressHeader: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  progressTitle: { color: colors.text, fontSize: 14, fontWeight: "700" },
   row: {
     flexDirection: "row",
     alignItems: "center",

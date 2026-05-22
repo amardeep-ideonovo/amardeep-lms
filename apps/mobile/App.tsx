@@ -13,6 +13,8 @@ import { DashboardScreen } from "./src/screens/DashboardScreen";
 import { CourseScreen } from "./src/screens/CourseScreen";
 import { LessonScreen } from "./src/screens/LessonScreen";
 import { AccountScreen } from "./src/screens/AccountScreen";
+import { BlogListScreen } from "./src/screens/BlogListScreen";
+import { BlogPostScreen } from "./src/screens/BlogPostScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -68,6 +70,16 @@ function RootNavigator() {
             options={({ route }) => ({ title: route.params.title })}
           />
           <Stack.Screen name="Account" component={AccountScreen} />
+          <Stack.Screen
+            name="Blog"
+            component={BlogListScreen}
+            options={{ title: "Blog" }}
+          />
+          <Stack.Screen
+            name="BlogPost"
+            component={BlogPostScreen}
+            options={({ route }) => ({ title: route.params.title })}
+          />
         </>
       )}
     </Stack.Navigator>

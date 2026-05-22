@@ -5,6 +5,8 @@ import type {
   DashboardResponse,
   LessonDTO,
   LoginResponse,
+  PostDetailDTO,
+  PostListItem,
 } from "@lms/types";
 
 import { API_BASE_URL } from "./config";
@@ -109,4 +111,11 @@ export const api = {
 
   completeLesson: (lessonId: string) =>
     request<void>(`/lessons/${lessonId}/complete`, { method: "POST" }),
+
+  // blog (public — no auth needed; visible to logged-in members)
+  posts: () => request<PostListItem[]>("/blog/posts", { auth: false }),
+  post: (slug: string) =>
+    request<PostDetailDTO>(`/blog/posts/${encodeURIComponent(slug)}`, {
+      auth: false,
+    }),
 };

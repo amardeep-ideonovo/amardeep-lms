@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import type { CourseCard, DashboardResponse } from "@lms/types";
 
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
+import { ProgressBar } from "../components/ProgressBar";
 import type { ScreenProps } from "../navigation";
 import { colors, spacing } from "../theme";
 
@@ -42,15 +44,22 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Reload on focus (not just mount) so progress reflects lessons completed
+  // since the last visit — e.g. returning here after finishing a lesson.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   // Header actions: Account (web billing) + Sign out.
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
         <View style={styles.headerActions}>
+          <TouchableOpacity onPress={() => navigation.navigate("Blog")}>
+            <Text style={styles.headerLink}>Blog</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate("Account")}>
             <Text style={styles.headerLink}>Account</Text>
           </TouchableOpacity>
@@ -105,19 +114,27 @@ function CourseRow({
       disabled={locked}
       activeOpacity={0.8}
     >
-      <View style={styles.cardText}>
-        <Text style={[styles.cardTitle, locked && styles.lockedText]}>
-          {course.title}
-        </Text>
-        {course.description ? (
-          <Text style={styles.cardDesc} numberOfLines={2}>
-            {course.description}
+      <View style={styles.cardRow}>
+        <View style={styles.cardText}>
+          <Text style={[styles.cardTitle, locked && styles.lockedText]}>
+            {course.title}
           </Text>
-        ) : null}
+          {course.description ? (
+            <Text style={styles.cardDesc} numberOfLines={2}>
+              {course.description}
+            </Text>
+          ) : null}
+        </View>
+        <Text style={[styles.indicator, locked && styles.lockedText]}>
+          {locked ? "🔒" : "›"}
+        </Text>
       </View>
-      <Text style={[styles.indicator, locked && styles.lockedText]}>
-        {locked ? "🔒" : "›"}
-      </Text>
+      {!locked && course.lessonCount > 0 ? (
+        <ProgressBar
+          completed={course.completedCount}
+          total={course.lessonCount}
+        />
+      ) : null}
     </TouchableOpacity>
   );
 }
@@ -135,13 +152,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   card: {
-    flexDirection: "row",
-    alignItems: "center",
     backgroundColor: colors.surface,
     borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
+  cardRow: { flexDirection: "row", alignItems: "center" },
   cardLocked: { opacity: 0.6 },
   cardText: { flex: 1, paddingRight: spacing.sm },
   cardTitle: { color: colors.text, fontSize: 16, fontWeight: "600" },

@@ -90,15 +90,19 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
   if (!lesson) return <ErrorState message="Lesson not found." onRetry={load} />;
 
   const completed = lesson.completed === true;
+  // Prefer a direct video URL (sample/dev); fall back to the Mux signed stream.
+  const videoUri =
+    lesson.videoUrl ??
+    (lesson.muxPlaybackToken ? playbackUrl(lesson.muxPlaybackToken) : null);
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <Text style={styles.title}>{lesson.title}</Text>
 
-      {lesson.muxPlaybackToken ? (
+      {videoUri ? (
         <Video
           style={styles.video}
-          source={{ uri: playbackUrl(lesson.muxPlaybackToken) }}
+          source={{ uri: videoUri }}
           useNativeControls
           resizeMode={ResizeMode.CONTAIN}
           isLooping={false}
