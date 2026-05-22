@@ -124,17 +124,36 @@ function DashboardInner() {
 
   // ----- Drill-down views (no search box here) -----
   if (allParam) {
+    const ql = q.trim().toLowerCase();
+    const list = ql
+      ? allCourses.filter((c) => c.title.toLowerCase().includes(ql))
+      : allCourses;
     return (
       <>
         <Link href="/dashboard" className="back-link">
           ← Back
         </Link>
         <h1 className="page-title">All courses</h1>
-        {allCourses.length === 0 ? (
-          <p className="empty">No courses are available yet.</p>
+        {allCourses.length > 0 && (
+          <div className="dash-search">
+            <input
+              type="search"
+              placeholder="Search courses…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Search courses"
+            />
+          </div>
+        )}
+        {list.length === 0 ? (
+          <p className="empty">
+            {ql
+              ? `No courses match “${q}”.`
+              : "No courses are available yet."}
+          </p>
         ) : (
           <div className="card-grid">
-            {allCourses.map((c) => (
+            {list.map((c) => (
               <CourseTile key={c.id} course={c} />
             ))}
           </div>

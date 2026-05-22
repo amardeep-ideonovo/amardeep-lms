@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,9 +12,12 @@ import {
 } from "react-native";
 import { ResizeMode, Video } from "expo-av";
 import { WebView } from "react-native-webview";
+import * as FileSystem from "expo-file-system";
+import * as SecureStore from "expo-secure-store";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 
-import { api, ApiError, noteDownloadUrl } from "../api";
+import { api, ApiError, getToken, noteDownloadUrl } from "../api";
+import { API_BASE_URL } from "../config";
 import { Loading, ErrorState } from "../components/Screen";
 import type { ScreenProps } from "../navigation";
 import { colors, spacing } from "../theme";
@@ -57,6 +61,8 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
   const [completing, setCompleting] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [noteError, setNoteError] = useState<string | null>(null);
+  const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -100,18 +106,76 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
     }
   }
 
-  // Open a note in the device browser, which downloads it. The download route
-  // is access-checked and accepts the member's token via ?token= (built in
-  // noteDownloadUrl) so no native file modules are needed.
-  async function openNote(note: LessonNoteDTO) {
+  // Download a note to the device. On Android we fetch the file (access-checked
+  // endpoint; auth via the Authorization header) and save it to a user-chosen
+  // folder via the Storage Access Framework — the folder is remembered so it's
+  // only asked once. On other platforms we fall back to opening the URL.
+  async function saveNote(note: LessonNoteDTO) {
     setNoteError(null);
+    setSavedMsg(null);
+
+    if (Platform.OS !== "android") {
+      try {
+        await Linking.openURL(await noteDownloadUrl(note));
+      } catch (e) {
+        setNoteError(e instanceof Error ? e.message : "Could not open the file.");
+      }
+      return;
+    }
+
+    const SAF_DIR_KEY = "lms.saf.dir";
+    setSavingNoteId(note.id);
     try {
-      const url = await noteDownloadUrl(note);
-      const ok = await Linking.canOpenURL(url);
-      if (!ok) throw new Error("Couldn't open the download link.");
-      await Linking.openURL(url);
+      const token = await getToken();
+      const dot = note.originalName.lastIndexOf(".");
+      const ext = dot > 0 ? note.originalName.slice(dot) : "";
+      const base = dot > 0 ? note.originalName.slice(0, dot) : note.originalName;
+
+      // 1) Download to the app cache (auth via header).
+      const tmp = `${FileSystem.cacheDirectory}note-${note.id}${ext}`;
+      const dl = await FileSystem.downloadAsync(
+        `${API_BASE_URL}${note.downloadUrl}`,
+        tmp,
+        { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
+      );
+      if (dl.status !== 200) throw new Error(`Download failed (${dl.status})`);
+      const b64 = await FileSystem.readAsStringAsync(dl.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // 2) Write into a user-chosen folder (remembered for next time).
+      const writeInto = async (dirUri: string) => {
+        const destUri =
+          await FileSystem.StorageAccessFramework.createFileAsync(
+            dirUri,
+            base,
+            note.mimeType || "application/octet-stream"
+          );
+        await FileSystem.writeAsStringAsync(destUri, b64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      };
+
+      const savedDir = await SecureStore.getItemAsync(SAF_DIR_KEY);
+      try {
+        if (!savedDir) throw new Error("no-saved-dir");
+        await writeInto(savedDir);
+      } catch {
+        const perm =
+          await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (!perm.granted) {
+          setSavingNoteId(null);
+          return; // user cancelled the folder picker
+        }
+        await SecureStore.setItemAsync(SAF_DIR_KEY, perm.directoryUri);
+        await writeInto(perm.directoryUri);
+      }
+
+      setSavedMsg(`Saved “${note.originalName}” to your chosen folder.`);
     } catch (e) {
-      setNoteError(e instanceof Error ? e.message : "Could not open the file.");
+      setNoteError(e instanceof Error ? e.message : "Could not save the file.");
+    } finally {
+      setSavingNoteId(null);
     }
   }
 
@@ -171,18 +235,22 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
         <View style={styles.notes}>
           <Text style={styles.notesTitle}>Downloads</Text>
           {noteError ? <Text style={styles.error}>{noteError}</Text> : null}
+          {savedMsg ? <Text style={styles.savedMsg}>{savedMsg}</Text> : null}
           {notes.map((n) => (
             <TouchableOpacity
               key={n.id}
               style={styles.noteRow}
               activeOpacity={0.8}
-              onPress={() => openNote(n)}
+              onPress={() => saveNote(n)}
+              disabled={savingNoteId === n.id}
             >
               <Text style={styles.noteName} numberOfLines={1}>
                 {n.originalName}
               </Text>
               <Text style={styles.noteSize}>{fmtSize(n.size)}</Text>
-              <Text style={styles.noteIcon}>⬇</Text>
+              <Text style={styles.noteIcon}>
+                {savingNoteId === n.id ? "…" : "⬇"}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -238,6 +306,7 @@ const styles = StyleSheet.create({
   bodyMuted: { color: colors.textMuted, fontSize: 15, fontStyle: "italic" },
   bodyBelow: { marginTop: spacing.lg },
   error: { color: colors.danger, marginTop: spacing.md },
+  savedMsg: { color: "#34d399", marginBottom: spacing.sm, fontSize: 14 },
   notes: {
     marginTop: spacing.lg,
     backgroundColor: colors.surface,

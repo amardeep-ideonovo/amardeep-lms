@@ -88,14 +88,14 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
             })
           }
         >
+          <View style={styles.numberBadge}>
+            <Text style={styles.numberText}>{index + 1}</Text>
+          </View>
           {item.thumbnailUrl ? (
-            <Image
-              source={{ uri: item.thumbnailUrl }}
-              style={styles.rowThumb}
-            />
+            <Image source={{ uri: item.thumbnailUrl }} style={styles.rowThumb} />
           ) : (
-            <View style={styles.numberBadge}>
-              <Text style={styles.numberText}>{index + 1}</Text>
+            <View style={[styles.rowThumb, styles.rowThumbEmpty]}>
+              <Text style={styles.rowThumbGlyph}>▶</Text>
             </View>
           )}
           <Text style={styles.rowTitle} numberOfLines={2}>
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: spacing.md,
+    marginRight: spacing.sm,
   },
   numberText: { color: colors.text, fontWeight: "700" },
   rowThumb: {
@@ -150,6 +150,8 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
     backgroundColor: colors.surfaceMuted,
   },
+  rowThumbEmpty: { alignItems: "center", justifyContent: "center" },
+  rowThumbGlyph: { color: colors.textMuted, fontSize: 16 },
   rowTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "500" },
   check: { color: colors.primary, fontSize: 18, fontWeight: "700" },
 });

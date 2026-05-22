@@ -105,6 +105,7 @@ function CourseInner() {
         <ul className="lesson-list">
           {lessons.map((lesson, i) => (
             <li key={lesson.id} className="lesson-row">
+              <span className="lesson-index">{i + 1}</span>
               {lesson.thumbnailUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -113,7 +114,12 @@ function CourseInner() {
                   className="lesson-thumb"
                 />
               ) : (
-                <span className="lesson-index">{i + 1}</span>
+                <div
+                  className="lesson-thumb lesson-thumb--empty"
+                  aria-hidden="true"
+                >
+                  ▶
+                </div>
               )}
               <Link href={`/lessons/${lesson.id}`} className="lesson-name">
                 {lesson.title}
