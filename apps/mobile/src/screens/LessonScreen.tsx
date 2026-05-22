@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { ResizeMode, Video } from "expo-av";
+import { WebView } from "react-native-webview";
 import type { LessonDTO } from "@lms/types";
 
 import { api, ApiError } from "../api";
@@ -22,6 +23,20 @@ const PLACEHOLDER_HLS =
 
 function playbackUrl(token: string): string {
   return `${PLACEHOLDER_HLS}?token=${encodeURIComponent(token)}`;
+}
+
+// Parse a Vimeo URL into its player embed URL (or null if not a Vimeo link).
+function vimeoEmbed(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const id = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1];
+  if (!id) return null;
+  const h =
+    url.match(/[?&]h=([0-9A-Za-z]+)/)?.[1] ??
+    url.match(/vimeo\.com\/\d+\/([0-9A-Za-z]+)/)?.[1];
+  const params = [h ? `h=${h}` : "", "title=0", "byline=0", "portrait=0"]
+    .filter(Boolean)
+    .join("&");
+  return `https://player.vimeo.com/video/${id}?${params}`;
 }
 
 export function LessonScreen({ route }: ScreenProps<"Lesson">) {
@@ -90,16 +105,28 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
   if (!lesson) return <ErrorState message="Lesson not found." onRetry={load} />;
 
   const completed = lesson.completed === true;
-  // Prefer a direct video URL (sample/dev); fall back to the Mux signed stream.
-  const videoUri =
-    lesson.videoUrl ??
-    (lesson.muxPlaybackToken ? playbackUrl(lesson.muxPlaybackToken) : null);
+  // Vimeo (production) plays in a WebView; a direct MP4/HLS or Mux stream
+  // plays in the native expo-av player.
+  const vimeo = vimeoEmbed(lesson.videoUrl);
+  const videoUri = vimeo
+    ? null
+    : lesson.videoUrl ??
+      (lesson.muxPlaybackToken ? playbackUrl(lesson.muxPlaybackToken) : null);
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <Text style={styles.title}>{lesson.title}</Text>
 
-      {videoUri ? (
+      {vimeo ? (
+        <WebView
+          style={styles.video}
+          source={{ uri: vimeo }}
+          allowsFullscreenVideo
+          allowsInlineMediaPlayback
+          javaScriptEnabled
+          domStorageEnabled
+        />
+      ) : videoUri ? (
         <Video
           style={styles.video}
           source={{ uri: videoUri }}

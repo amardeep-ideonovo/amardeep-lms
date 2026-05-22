@@ -10,7 +10,8 @@ const prisma = new PrismaClient();
 
 // A short, public sample video (MP4) that plays in a browser <video> tag and
 // in expo-av on mobile — no Mux account needed, so lessons "just play" in dev.
-const SAMPLE_VIDEO = "https://www.w3schools.com/html/mov_bbb.mp4";
+// Production videos are hosted on Vimeo; this is a public Vimeo test video.
+const SAMPLE_VIDEO = "https://vimeo.com/1043569034";
 
 async function ensureCourse(
   id: string,

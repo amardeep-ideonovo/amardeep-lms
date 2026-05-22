@@ -358,12 +358,12 @@ function CourseLessons({
         <div className="field">
           <label>
             Video URL{" "}
-            <span className="muted">(direct MP4/HLS; plays without Mux)</span>
+            <span className="muted">(Vimeo link — or a direct MP4)</span>
           </label>
           <input
             value={videoUrl}
             onChange={(e) => setVideoUrl(e.target.value)}
-            placeholder="https://… .mp4 (optional)"
+            placeholder="https://vimeo.com/123456789 (optional)"
           />
         </div>
         <div className="field">

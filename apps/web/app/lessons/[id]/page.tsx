@@ -12,6 +12,22 @@ import AuthGate from "@/components/AuthGate";
 // muxPlaybackToken. We use a placeholder playbackId here per spec.
 const PLACEHOLDER_PLAYBACK_ID = "00000000000000000000000000000000";
 
+// Parse a Vimeo URL into its player embed URL (or null if not a Vimeo link).
+// Production videos are hosted on Vimeo; lesson.videoUrl holds the Vimeo link.
+function vimeoEmbed(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const id = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1];
+  if (!id) return null;
+  // Optional privacy hash: ?h=xxxx or vimeo.com/<id>/<hash>
+  const h =
+    url.match(/[?&]h=([0-9A-Za-z]+)/)?.[1] ??
+    url.match(/vimeo\.com\/\d+\/([0-9A-Za-z]+)/)?.[1];
+  const params = [h ? `h=${h}` : "", "title=0", "byline=0", "portrait=0"]
+    .filter(Boolean)
+    .join("&");
+  return `https://player.vimeo.com/video/${id}?${params}`;
+}
+
 function LessonInner() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -88,6 +104,8 @@ function LessonInner() {
       </div>
     );
 
+  const vimeo = vimeoEmbed(lesson.videoUrl);
+
   return (
     <>
       <div className="breadcrumb">
@@ -96,7 +114,17 @@ function LessonInner() {
       </div>
       <h1 className="page-title">{lesson.title}</h1>
 
-      {lesson.videoUrl ? (
+      {vimeo ? (
+        <div className="player-wrap">
+          <iframe
+            src={vimeo}
+            title={lesson.title}
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+            style={{ height: "100%", width: "100%", border: 0 }}
+          />
+        </div>
+      ) : lesson.videoUrl ? (
         <div className="player-wrap">
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <video
