@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { LevelsService } from './levels.service';
 import { CreateLevelDto, UpdateLevelDto } from './dto/level.dto';
 
@@ -18,11 +20,11 @@ export class LevelsController {
   constructor(private readonly levels: LevelsService) {}
 
   // Listing is member-accessible (powers the subscribe/plan picker); writes are
-  // admin-only.
+  // admin-only. Member counts are only included for admins.
   @UseGuards(JwtAuthGuard)
   @Get()
-  list() {
-    return this.levels.list();
+  list(@CurrentUser() principal: AuthenticatedPrincipal) {
+    return this.levels.list(principal.isAdmin);
   }
 
   @UseGuards(AdminGuard)

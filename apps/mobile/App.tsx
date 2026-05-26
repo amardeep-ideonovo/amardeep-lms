@@ -10,9 +10,13 @@ import type { RootStackParamList } from "./src/navigation";
 import { colors } from "./src/theme";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
+import { CourseListScreen } from "./src/screens/CourseListScreen";
 import { CourseScreen } from "./src/screens/CourseScreen";
 import { LessonScreen } from "./src/screens/LessonScreen";
 import { AccountScreen } from "./src/screens/AccountScreen";
+import { BlogListScreen } from "./src/screens/BlogListScreen";
+import { BlogPostScreen } from "./src/screens/BlogPostScreen";
+import { PageScreen } from "./src/screens/PageScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -58,6 +62,11 @@ function RootNavigator() {
         <>
           <Stack.Screen name="Dashboard" component={DashboardScreen} />
           <Stack.Screen
+            name="CourseList"
+            component={CourseListScreen}
+            options={({ route }) => ({ title: route.params.title })}
+          />
+          <Stack.Screen
             name="Course"
             component={CourseScreen}
             options={({ route }) => ({ title: route.params.title })}
@@ -68,6 +77,21 @@ function RootNavigator() {
             options={({ route }) => ({ title: route.params.title })}
           />
           <Stack.Screen name="Account" component={AccountScreen} />
+          <Stack.Screen
+            name="Blog"
+            component={BlogListScreen}
+            options={{ title: "Blog" }}
+          />
+          <Stack.Screen
+            name="BlogPost"
+            component={BlogPostScreen}
+            options={({ route }) => ({ title: route.params.title })}
+          />
+          <Stack.Screen
+            name="Page"
+            component={PageScreen}
+            options={({ route }) => ({ title: route.params.title })}
+          />
         </>
       )}
     </Stack.Navigator>

@@ -1,0 +1,5 @@
+# Uploaded lesson note files are PRIVATE runtime data (never served statically;
+# streamed only through an access-checked route). Keep the folder, ignore the
+# contents. (This .gitignore is itself tracked, which preserves the folder.)
+*
+!.gitignore

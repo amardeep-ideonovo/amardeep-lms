@@ -1,0 +1,39 @@
+# Caddy reverse proxy with automatic HTTPS (Let's Encrypt).
+# DOMAIN and ACME_EMAIL are injected from deploy/.env via the compose file.
+#
+# Requirements for certs to issue automatically:
+#   - DNS A records for example.com, www.example.com, api.example.com,
+#     admin.example.com all point at this server's public IP.
+#   - Ports 80 and 443 are open on the firewall.
+
+{
+	# Email used by Let's Encrypt for expiry notices.
+	email {$ACME_EMAIL}
+}
+
+# Member web app (Next.js) — the apex domain.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy web:3002
+}
+
+# Redirect www -> apex.
+www.{$DOMAIN} {
+	redir https://{$DOMAIN}{uri} permanent
+}
+
+# NestJS API. (Stripe webhook lands at https://api.<domain>/billing/webhook.)
+api.{$DOMAIN} {
+	encode gzip
+	# Allow large-ish uploads (course images 5MB, note files 25MB).
+	request_body {
+		max_size 30MB
+	}
+	reverse_proxy api:3000
+}
+
+# Admin console (Next.js).
+admin.{$DOMAIN} {
+	encode gzip
+	reverse_proxy admin:3001
+}

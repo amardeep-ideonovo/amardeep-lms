@@ -7,6 +7,7 @@ import { decryptSecret, encryptSecret } from '../common/crypto.util';
 export const SETTING_KEYS = {
   stripeSecretKey: 'stripe.secretKey',
   stripeWebhookSecret: 'stripe.webhookSecret',
+  stripePublishableKey: 'stripe.publishableKey',
   mailchimpApiKey: 'mailchimp.apiKey',
   mailchimpServerPrefix: 'mailchimp.serverPrefix',
   mailchimpAudienceId: 'mailchimp.audienceId',
@@ -44,6 +45,29 @@ export class SettingsService {
       create: { key, value },
       update: { value },
     });
+  }
+
+  /** Remove a stored secret entirely (so it reads back as unset). Idempotent. */
+  async clearSecret(key: string): Promise<void> {
+    await this.prisma.setting.deleteMany({ where: { key } });
+  }
+
+  /** Clear all Stripe credentials. */
+  async clearStripe(): Promise<void> {
+    await Promise.all([
+      this.clearSecret(SETTING_KEYS.stripeSecretKey),
+      this.clearSecret(SETTING_KEYS.stripeWebhookSecret),
+      this.clearSecret(SETTING_KEYS.stripePublishableKey),
+    ]);
+  }
+
+  /** Clear all Mailchimp credentials (key + server prefix + audience). */
+  async clearMailchimp(): Promise<void> {
+    await Promise.all([
+      this.clearSecret(SETTING_KEYS.mailchimpApiKey),
+      this.clearSecret(SETTING_KEYS.mailchimpServerPrefix),
+      this.clearSecret(SETTING_KEYS.mailchimpAudienceId),
+    ]);
   }
 
   // --- Convenience accessors used by integration services ---

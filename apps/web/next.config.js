@@ -1,8 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // @lms/types ships raw .ts from the workspace; let Next transpile it.
-  transpilePackages: ["@lms/types"],
+  // @lms/types and @lms/puck ship raw .ts(x) from the workspace; transpile them.
+  transpilePackages: ["@lms/types", "@lms/puck"],
 };
 
 module.exports = nextConfig;

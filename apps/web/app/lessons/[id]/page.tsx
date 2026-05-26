@@ -4,13 +4,29 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import MuxPlayer from "@mux/mux-player-react";
-import type { LessonDTO } from "@lms/types";
+import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 
 // Mux requires a real playbackId; the API supplies a signed token via
 // muxPlaybackToken. We use a placeholder playbackId here per spec.
 const PLACEHOLDER_PLAYBACK_ID = "00000000000000000000000000000000";
+
+// Parse a Vimeo URL into its player embed URL (or null if not a Vimeo link).
+// Production videos are hosted on Vimeo; lesson.videoUrl holds the Vimeo link.
+function vimeoEmbed(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const id = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1];
+  if (!id) return null;
+  // Optional privacy hash: ?h=xxxx or vimeo.com/<id>/<hash>
+  const h =
+    url.match(/[?&]h=([0-9A-Za-z]+)/)?.[1] ??
+    url.match(/vimeo\.com\/\d+\/([0-9A-Za-z]+)/)?.[1];
+  const params = [h ? `h=${h}` : "", "title=0", "byline=0", "portrait=0"]
+    .filter(Boolean)
+    .join("&");
+  return `https://player.vimeo.com/video/${id}?${params}`;
+}
 
 function LessonInner() {
   const params = useParams<{ id: string }>();
@@ -22,6 +38,8 @@ function LessonInner() {
   const [locked, setLocked] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [noteError, setNoteError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -67,6 +85,20 @@ function LessonInner() {
     }
   }
 
+  async function download(note: LessonNoteDTO) {
+    setNoteError(null);
+    setDownloadingId(note.id);
+    try {
+      await api.downloadNote(note);
+    } catch (err) {
+      setNoteError(
+        err instanceof Error ? err.message : "Could not download the file."
+      );
+    } finally {
+      setDownloadingId(null);
+    }
+  }
+
   if (locked) {
     return (
       <div className="locked-panel">
@@ -88,6 +120,15 @@ function LessonInner() {
       </div>
     );
 
+  const vimeo = vimeoEmbed(lesson.videoUrl);
+  const notes = lesson.notes ?? [];
+  const fmtSize = (n: number) =>
+    n < 1024
+      ? `${n} B`
+      : n < 1024 * 1024
+      ? `${(n / 1024).toFixed(0)} KB`
+      : `${(n / 1024 / 1024).toFixed(1)} MB`;
+
   return (
     <>
       <div className="breadcrumb">
@@ -96,7 +137,27 @@ function LessonInner() {
       </div>
       <h1 className="page-title">{lesson.title}</h1>
 
-      {lesson.muxPlaybackToken && (
+      {vimeo ? (
+        <div className="player-wrap">
+          <iframe
+            src={vimeo}
+            title={lesson.title}
+            allow="autoplay; fullscreen; picture-in-picture"
+            allowFullScreen
+            style={{ height: "100%", width: "100%", border: 0 }}
+          />
+        </div>
+      ) : lesson.videoUrl ? (
+        <div className="player-wrap">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <video
+            controls
+            playsInline
+            src={lesson.videoUrl}
+            style={{ height: "100%", width: "100%", background: "#000" }}
+          />
+        </div>
+      ) : lesson.muxPlaybackToken ? (
         <div className="player-wrap">
           <MuxPlayer
             playbackId={PLACEHOLDER_PLAYBACK_ID}
@@ -105,9 +166,34 @@ function LessonInner() {
             style={{ height: "100%", width: "100%" }}
           />
         </div>
-      )}
+      ) : lesson.thumbnailUrl ? (
+        // No video — show the lesson thumbnail as a hero image instead.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={lesson.thumbnailUrl} alt="" className="lesson-hero" />
+      ) : null}
 
-      {lesson.content && <div className="lesson-content">{lesson.content}</div>}
+      {notes.length > 0 && (
+        <div className="downloads">
+          <h2 className="downloads-title">Downloads</h2>
+          {noteError && <p className="alert alert-error">{noteError}</p>}
+          <ul className="downloads-list">
+            {notes.map((n) => (
+              <li key={n.id} className="download-item">
+                <span className="download-name">{n.originalName}</span>
+                <span className="download-size">{fmtSize(n.size)}</span>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => download(n)}
+                  disabled={downloadingId === n.id}
+                >
+                  {downloadingId === n.id ? "Downloading…" : "Download"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {completed ? (
         <span className="lesson-done">✓ Completed</span>
@@ -120,6 +206,12 @@ function LessonInner() {
         >
           {completing ? "Saving…" : "Mark complete"}
         </button>
+      )}
+
+      {lesson.content && (
+        <div className="lesson-content lesson-content--below">
+          {lesson.content}
+        </div>
       )}
     </>
   );

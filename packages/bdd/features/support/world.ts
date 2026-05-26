@@ -19,6 +19,8 @@ export class LmsWorld extends World {
   adminTokenValue: string | null = null;
   memberIdValue: string | null = null;
   last: HttpResult = { status: 0, body: null };
+  formId: string | null = null;
+  popupId: string | null = null;
 
   async request(
     method: string,

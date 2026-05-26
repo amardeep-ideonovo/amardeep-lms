@@ -37,6 +37,14 @@ export class CreateLevelDto {
   mailchimpTag?: string;
 
   @IsOptional()
+  @IsString()
+  mailchimpAudienceId?: string;
+
+  @IsOptional()
+  @IsString()
+  mailchimpAudienceName?: string;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PriceInputDto)
@@ -56,4 +64,12 @@ export class UpdateLevelDto {
   @IsOptional()
   @IsString()
   mailchimpTag?: string;
+
+  @IsOptional()
+  @IsString()
+  mailchimpAudienceId?: string;
+
+  @IsOptional()
+  @IsString()
+  mailchimpAudienceName?: string;
 }

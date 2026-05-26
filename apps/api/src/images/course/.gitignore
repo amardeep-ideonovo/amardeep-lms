@@ -1,0 +1,4 @@
+# Uploaded course images are runtime data: keep the folder in git, ignore its
+# contents. (This .gitignore is itself tracked, which preserves the folder.)
+*
+!.gitignore

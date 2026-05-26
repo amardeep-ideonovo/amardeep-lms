@@ -10,11 +10,20 @@ export class MailchimpProducer {
   ) {}
 
   /**
-   * Enqueue a tag add/remove. The jobId is deterministic per (type,email,tag)
-   * so rapid duplicate enqueues collapse into one job — idempotent producer.
+   * Enqueue a tag add/remove on a specific audience (or the global default when
+   * omitted). The jobId is deterministic per (type,email,audience,tag) so rapid
+   * duplicate enqueues collapse into one job — idempotent producer. The audience
+   * is part of the key so the same tag on different lists doesn't collide.
+   *
+   * NOTE: BullMQ forbids ":" in custom job ids, so we join with "|".
    */
-  async enqueueTag(type: 'add' | 'remove', email: string, tag: string) {
-    const jobId = `${type}:${email.toLowerCase()}:${tag}`;
-    await this.queue.add('tag', { type, email, tag }, { jobId });
+  async enqueueTag(
+    type: 'add' | 'remove',
+    email: string,
+    tag: string,
+    audienceId?: string,
+  ) {
+    const jobId = `${type}|${email.toLowerCase()}|${audienceId ?? 'default'}|${tag}`;
+    await this.queue.add('tag', { type, email, tag, audienceId }, { jobId });
   }
 }

@@ -2,9 +2,17 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import type {
   AuthUser,
+  CourseCard,
   DashboardResponse,
   LessonDTO,
+  LessonNoteDTO,
   LoginResponse,
+  PagePublicDTO,
+  PopupContext,
+  PopupEventType,
+  PopupPublicDTO,
+  PostDetailDTO,
+  PostListItem,
 } from "@lms/types";
 
 import { API_BASE_URL } from "./config";
@@ -102,6 +110,8 @@ export const api = {
 
   dashboard: () => request<DashboardResponse>("/dashboard"),
 
+  courses: () => request<CourseCard[]>("/courses"),
+
   courseLessons: (courseId: string) =>
     request<LessonDTO[]>(`/courses/${courseId}/lessons`),
 
@@ -109,4 +119,48 @@ export const api = {
 
   completeLesson: (lessonId: string) =>
     request<void>(`/lessons/${lessonId}/complete`, { method: "POST" }),
+
+  // blog (public — no auth needed; visible to logged-in members)
+  posts: () => request<PostListItem[]>("/blog/posts", { auth: false }),
+  post: (slug: string) =>
+    request<PostDetailDTO>(`/blog/posts/${encodeURIComponent(slug)}`, {
+      auth: false,
+    }),
+
+  // pages (public CMS — built with the admin visual editor; no auth needed)
+  page: (slug: string) =>
+    request<PagePublicDTO>(`/pages/${encodeURIComponent(slug)}`, {
+      auth: false,
+    }),
+
+  // popups (public — only ACTIVE; server filters by context). The caller
+  // catches failures so a popup hiccup never breaks the host screen.
+  activePopups: (ctx: PopupContext) => {
+    const qs =
+      ctx.type === "page"
+        ? `context=page&pageId=${encodeURIComponent(ctx.pageId)}`
+        : "context=dashboard";
+    return request<PopupPublicDTO[]>(`/popups/active?${qs}`, { auth: false });
+  },
+
+  // Fire-and-forget analytics ping (view / dismiss). Never thrown.
+  recordPopupEvent: (id: string, type: PopupEventType): void => {
+    request<{ ok: true }>(`/popups/${encodeURIComponent(id)}/event`, {
+      method: "POST",
+      body: { type },
+      auth: false,
+    }).catch(() => {});
+  },
 };
+
+// Build the (access-checked) download URL for a lesson note. The file is
+// streamed by an authenticated route; on mobile we open it in the device
+// browser via Linking, passing the member's token as a query param (this is
+// the one route that accepts ?token=). No native file modules required.
+export async function noteDownloadUrl(note: LessonNoteDTO): Promise<string> {
+  const token = await getToken();
+  const sep = note.downloadUrl.includes("?") ? "&" : "?";
+  return `${API_BASE_URL}${note.downloadUrl}${
+    token ? `${sep}token=${encodeURIComponent(token)}` : ""
+  }`;
+}

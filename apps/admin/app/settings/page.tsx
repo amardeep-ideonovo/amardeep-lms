@@ -29,6 +29,7 @@ function masked(last4: string | null) {
 
 function StripeSection() {
   const [current, setCurrent] = useState<StripeSettingsMasked | null>(null);
+  const [removing, setRemoving] = useState(false);
   const [secretKey, setSecretKey] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [publishableKey, setPublishableKey] = useState("");
@@ -76,6 +77,26 @@ function StripeSection() {
     }
   }
 
+  async function remove() {
+    if (!window.confirm("Remove all Stripe keys? This cannot be undone."))
+      return;
+    setRemoving(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const cleared = await api.clearStripeSettings();
+      setCurrent(cleared);
+      setSecretKey("");
+      setWebhookSecret("");
+      setPublishableKey("");
+      setStatus("Stripe keys removed.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Remove failed");
+    } finally {
+      setRemoving(false);
+    }
+  }
+
   return (
     <div className="card">
       <h2>Stripe</h2>
@@ -120,9 +141,19 @@ function StripeSection() {
         </div>
         {error && <p className="error">{error}</p>}
         {status && <p className="muted">{status}</p>}
-        <button className="btn" type="submit" disabled={saving}>
-          {saving ? "Saving…" : "Save Stripe settings"}
-        </button>
+        <div className="row-actions">
+          <button className="btn" type="submit" disabled={saving || removing}>
+            {saving ? "Saving…" : "Save Stripe settings"}
+          </button>
+          <button
+            type="button"
+            className="btn btn--danger"
+            onClick={remove}
+            disabled={removing || saving}
+          >
+            {removing ? "Removing…" : "Remove keys"}
+          </button>
+        </div>
       </form>
     </div>
   );
@@ -130,6 +161,7 @@ function StripeSection() {
 
 function MailchimpSection() {
   const [current, setCurrent] = useState<MailchimpSettingsMasked | null>(null);
+  const [removing, setRemoving] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [serverPrefix, setServerPrefix] = useState("");
   const [audienceId, setAudienceId] = useState("");
@@ -178,6 +210,30 @@ function MailchimpSection() {
     }
   }
 
+  async function remove() {
+    if (
+      !window.confirm(
+        "Remove the Mailchimp API key, server prefix, and audience? This cannot be undone."
+      )
+    )
+      return;
+    setRemoving(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const cleared = await api.clearMailchimpSettings();
+      setCurrent(cleared);
+      setApiKey("");
+      setServerPrefix(cleared.serverPrefix ?? "");
+      setAudienceId(cleared.audienceId ?? "");
+      setStatus("Mailchimp keys removed.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Remove failed");
+    } finally {
+      setRemoving(false);
+    }
+  }
+
   return (
     <div className="card">
       <h2>Mailchimp</h2>
@@ -217,9 +273,19 @@ function MailchimpSection() {
         </div>
         {error && <p className="error">{error}</p>}
         {status && <p className="muted">{status}</p>}
-        <button className="btn" type="submit" disabled={saving}>
-          {saving ? "Saving…" : "Save Mailchimp settings"}
-        </button>
+        <div className="row-actions">
+          <button className="btn" type="submit" disabled={saving || removing}>
+            {saving ? "Saving…" : "Save Mailchimp settings"}
+          </button>
+          <button
+            type="button"
+            className="btn btn--danger"
+            onClick={remove}
+            disabled={removing || saving}
+          >
+            {removing ? "Removing…" : "Remove keys"}
+          </button>
+        </div>
       </form>
     </div>
   );

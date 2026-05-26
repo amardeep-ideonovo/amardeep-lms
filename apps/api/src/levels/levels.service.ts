@@ -9,6 +9,8 @@ type LevelWithPrices = {
   name: string;
   type: any;
   mailchimpTag: string | null;
+  mailchimpAudienceId: string | null;
+  mailchimpAudienceName: string | null;
   stripeProductId: string | null;
   prices: {
     id: string;
@@ -26,12 +28,14 @@ export class LevelsService {
     private readonly stripe: StripeService,
   ) {}
 
-  private toDTO(level: LevelWithPrices): LevelDTO {
+  private toDTO(level: LevelWithPrices, memberCount = 0): LevelDTO {
     return {
       id: level.id,
       name: level.name,
       type: level.type,
       mailchimpTag: level.mailchimpTag,
+      mailchimpAudienceId: level.mailchimpAudienceId,
+      mailchimpAudienceName: level.mailchimpAudienceName,
       stripeProductId: level.stripeProductId,
       prices: level.prices.map((p) => ({
         id: p.id,
@@ -40,15 +44,39 @@ export class LevelsService {
         amount: p.amount,
         currency: p.currency,
       })),
+      memberCount,
     };
   }
 
-  async list(): Promise<LevelDTO[]> {
+  // Distinct members holding an ACTIVE grant for each level. A user can hold the
+  // same level via two sources (STRIPE + MANUAL), so we dedupe on userId rather
+  // than counting UserLevel rows.
+  private async activeMemberCounts(): Promise<Map<string, number>> {
+    const rows = await this.prisma.userLevel.findMany({
+      where: { status: 'ACTIVE' },
+      select: { userId: true, levelId: true },
+    });
+    const byLevel = new Map<string, Set<string>>();
+    for (const r of rows) {
+      const set = byLevel.get(r.levelId) ?? new Set<string>();
+      set.add(r.userId);
+      byLevel.set(r.levelId, set);
+    }
+    return new Map([...byLevel].map(([levelId, users]) => [levelId, users.size]));
+  }
+
+  // includeCounts is set only for admin requests (member-facing calls get 0).
+  async list(includeCounts = false): Promise<LevelDTO[]> {
     const levels = await this.prisma.level.findMany({
       include: { prices: true },
       orderBy: { createdAt: 'asc' },
     });
-    return levels.map((l) => this.toDTO(l as LevelWithPrices));
+    const counts = includeCounts
+      ? await this.activeMemberCounts()
+      : new Map<string, number>();
+    return levels.map((l) =>
+      this.toDTO(l as LevelWithPrices, counts.get(l.id) ?? 0),
+    );
   }
 
   async create(dto: CreateLevelDto): Promise<LevelDTO> {
@@ -86,6 +114,8 @@ export class LevelsService {
         name: dto.name,
         type: dto.type,
         mailchimpTag: dto.mailchimpTag ?? null,
+        mailchimpAudienceId: dto.mailchimpAudienceId ?? null,
+        mailchimpAudienceName: dto.mailchimpAudienceName ?? null,
         stripeProductId,
         prices: { create: priceRows },
       },
@@ -103,6 +133,10 @@ export class LevelsService {
         name: dto.name ?? undefined,
         type: dto.type ?? undefined,
         mailchimpTag: dto.mailchimpTag ?? undefined,
+        // The admin form always submits the full audience selection, so map
+        // undefined/empty -> null (clears) and a value -> set.
+        mailchimpAudienceId: dto.mailchimpAudienceId ?? null,
+        mailchimpAudienceName: dto.mailchimpAudienceName ?? null,
       },
       include: { prices: true },
     });

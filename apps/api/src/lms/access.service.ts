@@ -15,4 +15,19 @@ export class AccessService {
     });
     return new Set(rows.map((r) => r.levelId));
   }
+
+  // Map of courseId -> number of lessons the user has completed, for progress
+  // bars. One query, aggregated in memory.
+  async completedCountByCourse(userId: string): Promise<Map<string, number>> {
+    const rows = await this.prisma.lessonProgress.findMany({
+      where: { userId },
+      select: { lesson: { select: { courseId: true } } },
+    });
+    const map = new Map<string, number>();
+    for (const r of rows) {
+      const cid = r.lesson.courseId;
+      map.set(cid, (map.get(cid) ?? 0) + 1);
+    }
+    return map;
+  }
 }
