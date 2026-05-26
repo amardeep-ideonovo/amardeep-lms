@@ -100,7 +100,7 @@ async function main() {
       id: "seed-level-free",
       name: "Free",
       type: "FREE",
-      mailchimpTag: "free",
+      mailchimpTags: ["free"],
     },
   });
 
@@ -111,7 +111,7 @@ async function main() {
       id: "seed-level-pro",
       name: "Pro",
       type: "PAID",
-      mailchimpTag: "pro",
+      mailchimpTags: ["pro"],
       stripeProductId: "prod_seed_pro",
     },
   });

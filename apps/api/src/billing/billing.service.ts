@@ -193,7 +193,7 @@ export class BillingService {
       {
         levelId: string;
         subItemId: string;
-        mailchimpTag: string | null;
+        mailchimpTags: string[];
         mailchimpAudienceId: string | null;
       }
     >();
@@ -212,7 +212,7 @@ export class BillingService {
       desired.set(price.levelId, {
         levelId: price.levelId,
         subItemId: item.id,
-        mailchimpTag: price.level.mailchimpTag,
+        mailchimpTags: price.level.mailchimpTags,
         mailchimpAudienceId: price.level.mailchimpAudienceId,
       });
     }
@@ -252,22 +252,22 @@ export class BillingService {
 
       // Audience/tag sync: add when newly active, remove when transitioning to
       // non-active. Subscribes to the level's own audience (or the global one).
-      if (info.mailchimpTag || info.mailchimpAudienceId) {
+      if (info.mailchimpTags.length || info.mailchimpAudienceId) {
         const wasActive = prev?.status === 'ACTIVE';
         const nowActive = levelStatus === 'ACTIVE';
         if (nowActive && !wasActive) {
-          await this.mailchimp.enqueueTag(
+          await this.mailchimp.enqueueTags(
             'add',
             user.email,
-            info.mailchimpTag ?? '',
+            info.mailchimpTags,
             info.mailchimpAudienceId ?? undefined,
           );
         } else if (!nowActive && wasActive) {
-          await this.maybeRemoveTag(
+          await this.maybeRemoveTags(
             user.id,
             levelId,
             user.email,
-            info.mailchimpTag ?? '',
+            info.mailchimpTags,
             info.mailchimpAudienceId ?? undefined,
           );
         }
@@ -281,12 +281,12 @@ export class BillingService {
           where: { id: ul.id },
           data: { status: 'CANCELED' },
         });
-        if (ul.level.mailchimpTag && ul.status === 'ACTIVE') {
-          await this.maybeRemoveTag(
+        if (ul.level.mailchimpTags.length && ul.status === 'ACTIVE') {
+          await this.maybeRemoveTags(
             user.id,
             ul.levelId,
             user.email,
-            ul.level.mailchimpTag,
+            ul.level.mailchimpTags,
             ul.level.mailchimpAudienceId ?? undefined,
           );
         }
@@ -296,18 +296,18 @@ export class BillingService {
 
   // Only enqueue a tag removal if the user has no OTHER active grant for the
   // level (e.g. a manual grant), keeping Mailchimp state consistent.
-  private async maybeRemoveTag(
+  private async maybeRemoveTags(
     userId: string,
     levelId: string,
     email: string,
-    tag: string,
+    tags: string[],
     audienceId?: string,
   ): Promise<void> {
     const stillActive = await this.prisma.userLevel.count({
       where: { userId, levelId, status: 'ACTIVE' },
     });
     if (stillActive === 0) {
-      await this.mailchimp.enqueueTag('remove', email, tag, audienceId);
+      await this.mailchimp.enqueueTags('remove', email, tags, audienceId);
     }
   }
 }

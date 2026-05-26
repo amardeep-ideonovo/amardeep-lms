@@ -64,7 +64,7 @@ model Level {
   id                    String      @id @default(cuid())
   name                  String
   type                  LevelType   @default(PAID)
-  mailchimpTag          String?     // tag name applied within the audience
+  mailchimpTags         String[]    @default([]) // tag names applied within the audience
   mailchimpAudienceId   String?     // Mailchimp list this level subscribes members to (falls back to the global Settings audience)
   mailchimpAudienceName String?     // cached name for admin display
   stripeProductId       String?     // prod_… for PAID levels
