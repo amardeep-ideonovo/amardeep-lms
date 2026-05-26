@@ -39,17 +39,18 @@ export class MailchimpService {
 
   /**
    * Idempotently upsert the member on the target audience (the level's own
-   * audience when provided, else the global one), then add/remove a tag if one
-   * is given. Mailchimp's tag endpoint is itself idempotent. A `remove` with no
-   * tag is a no-op — we never auto-unsubscribe a contact.
+   * audience when provided, else the global one), then add/remove one or more
+   * tags in a single call. Mailchimp's tag endpoint is itself idempotent. A
+   * `remove` with no tags is a no-op — we never auto-unsubscribe a contact.
    */
-  async syncTag(
+  async syncTags(
     type: 'add' | 'remove',
     email: string,
-    tag: string,
+    tags: string[],
     audienceId?: string,
   ): Promise<void> {
-    if (type === 'remove' && !tag) return; // nothing to deactivate
+    const clean = (tags ?? []).map((t) => t.trim()).filter(Boolean);
+    if (type === 'remove' && clean.length === 0) return; // nothing to deactivate
     const cfg = await this.resolveAudience(audienceId);
     if (!cfg) return;
     const hash = subscriberHash(email);
@@ -60,9 +61,12 @@ export class MailchimpService {
       status_if_new: 'subscribed',
     });
 
-    if (tag) {
+    if (clean.length) {
       await mailchimp.lists.updateListMemberTags(cfg.audienceId, hash, {
-        tags: [{ name: tag, status: type === 'add' ? 'active' : 'inactive' }],
+        tags: clean.map((name) => ({
+          name,
+          status: type === 'add' ? 'active' : 'inactive',
+        })),
       });
     }
   }

@@ -7,7 +7,7 @@ Feature: Level Mailchimp audience
   Scenario: An admin can create a level with a Mailchimp audience
     When I POST "/levels" with an admin token and body:
       """
-      { "name": "BDD Audience Level", "type": "FREE", "mailchimpTag": "bdd", "mailchimpAudienceId": "aud_123", "mailchimpAudienceName": "BDD List" }
+      { "name": "BDD Audience Level", "type": "FREE", "mailchimpTags": ["bdd", "vip"], "mailchimpAudienceId": "aud_123", "mailchimpAudienceName": "BDD List" }
       """
     Then the response status should be 201
     And the response field "mailchimpAudienceId" should be "aud_123"

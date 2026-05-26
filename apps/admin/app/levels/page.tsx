@@ -26,7 +26,8 @@ export default function LevelsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [type, setType] = useState<LevelType>("PAID");
-  const [mailchimpTag, setMailchimpTag] = useState("");
+  const [mailchimpTags, setMailchimpTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [mailchimpAudienceId, setMailchimpAudienceId] = useState("");
   const [mailchimpAudienceName, setMailchimpAudienceName] = useState("");
   const [prices, setPrices] = useState<PriceForm[]>([emptyPrice()]);
@@ -76,7 +77,8 @@ export default function LevelsPage() {
     setEditingId(null);
     setName("");
     setType("PAID");
-    setMailchimpTag("");
+    setMailchimpTags([]);
+    setTagInput("");
     setMailchimpAudienceId("");
     setMailchimpAudienceName("");
     setPrices([emptyPrice()]);
@@ -86,7 +88,8 @@ export default function LevelsPage() {
     setEditingId(level.id);
     setName(level.name);
     setType(level.type);
-    setMailchimpTag(level.mailchimpTag ?? "");
+    setMailchimpTags(level.mailchimpTags ?? []);
+    setTagInput("");
     setMailchimpAudienceId(level.mailchimpAudienceId ?? "");
     setMailchimpAudienceName(level.mailchimpAudienceName ?? "");
     setPrices(
@@ -97,6 +100,15 @@ export default function LevelsPage() {
           }))
         : [emptyPrice()]
     );
+  }
+
+  function addTag() {
+    const t = tagInput.trim();
+    if (t && !mailchimpTags.includes(t)) setMailchimpTags((p) => [...p, t]);
+    setTagInput("");
+  }
+  function removeTag(t: string) {
+    setMailchimpTags((p) => p.filter((x) => x !== t));
   }
 
   async function onSubmit(e: FormEvent) {
@@ -110,10 +122,16 @@ export default function LevelsPage() {
           interval: p.interval,
           amount: Math.round(parseFloat(p.amount) * 100), // dollars -> cents
         }));
+      // Flush any tag still typed in the box but not yet added.
+      const pending = tagInput.trim();
+      const finalTags =
+        pending && !mailchimpTags.includes(pending)
+          ? [...mailchimpTags, pending]
+          : mailchimpTags;
       const input: CreateLevelInput = {
         name: name.trim(),
         type,
-        mailchimpTag: mailchimpTag.trim() || undefined,
+        mailchimpTags: finalTags,
         mailchimpAudienceId: mailchimpAudienceId || undefined,
         mailchimpAudienceName: mailchimpAudienceName || undefined,
         prices: type === "PAID" ? cleanedPrices : [],
@@ -183,12 +201,37 @@ export default function LevelsPage() {
               </select>
             </div>
             <div className="field">
-              <label>Mailchimp tag</label>
+              <label>Mailchimp tags</label>
               <input
-                value={mailchimpTag}
-                onChange={(e) => setMailchimpTag(e.target.value)}
-                placeholder="e.g. gold-members"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === ",") {
+                    e.preventDefault();
+                    addTag();
+                  }
+                }}
+                onBlur={addTag}
+                placeholder="Type a tag, press Enter"
               />
+              {mailchimpTags.length > 0 && (
+                <div className="chips" style={{ marginTop: 8 }}>
+                  {mailchimpTags.map((t) => (
+                    <span key={t} className="chip chip--muted">
+                      {t}
+                      <button
+                        type="button"
+                        className="chip-x"
+                        aria-label={`Remove ${t}`}
+                        title={`Remove ${t}`}
+                        onClick={() => removeTag(t)}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -317,7 +360,7 @@ export default function LevelsPage() {
                 <th>Name</th>
                 <th>Type</th>
                 <th>Members</th>
-                <th>Mailchimp tag</th>
+                <th>Mailchimp tags</th>
                 <th>Prices</th>
                 <th></th>
               </tr>
@@ -328,7 +371,19 @@ export default function LevelsPage() {
                   <td>{lvl.name}</td>
                   <td>{lvl.type}</td>
                   <td>{lvl.memberCount}</td>
-                  <td>{lvl.mailchimpTag ?? <span className="muted">—</span>}</td>
+                  <td>
+                    {lvl.mailchimpTags.length === 0 ? (
+                      <span className="muted">—</span>
+                    ) : (
+                      <div className="chips">
+                        {lvl.mailchimpTags.map((t) => (
+                          <span key={t} className="chip chip--muted">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </td>
                   <td>
                     {lvl.prices.length === 0 ? (
                       <span className="muted">—</span>

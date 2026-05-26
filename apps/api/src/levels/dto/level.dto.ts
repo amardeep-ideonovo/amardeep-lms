@@ -33,8 +33,9 @@ export class CreateLevelDto {
   type!: LevelType;
 
   @IsOptional()
-  @IsString()
-  mailchimpTag?: string;
+  @IsArray()
+  @IsString({ each: true })
+  mailchimpTags?: string[];
 
   @IsOptional()
   @IsString()
@@ -62,8 +63,9 @@ export class UpdateLevelDto {
   type?: LevelType;
 
   @IsOptional()
-  @IsString()
-  mailchimpTag?: string;
+  @IsArray()
+  @IsString({ each: true })
+  mailchimpTags?: string[];
 
   @IsOptional()
   @IsString()

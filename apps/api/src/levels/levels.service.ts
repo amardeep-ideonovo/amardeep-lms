@@ -2,13 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { LevelDTO } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { StripeService } from '../billing/stripe.service';
+import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
 import { CreateLevelDto, UpdateLevelDto } from './dto/level.dto';
 
 type LevelWithPrices = {
   id: string;
   name: string;
   type: any;
-  mailchimpTag: string | null;
+  mailchimpTags: string[];
   mailchimpAudienceId: string | null;
   mailchimpAudienceName: string | null;
   stripeProductId: string | null;
@@ -26,6 +27,7 @@ export class LevelsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly stripe: StripeService,
+    private readonly mailchimp: MailchimpProducer,
   ) {}
 
   private toDTO(level: LevelWithPrices, memberCount = 0): LevelDTO {
@@ -33,7 +35,7 @@ export class LevelsService {
       id: level.id,
       name: level.name,
       type: level.type,
-      mailchimpTag: level.mailchimpTag,
+      mailchimpTags: level.mailchimpTags,
       mailchimpAudienceId: level.mailchimpAudienceId,
       mailchimpAudienceName: level.mailchimpAudienceName,
       stripeProductId: level.stripeProductId,
@@ -113,7 +115,7 @@ export class LevelsService {
       data: {
         name: dto.name,
         type: dto.type,
-        mailchimpTag: dto.mailchimpTag ?? null,
+        mailchimpTags: dto.mailchimpTags ?? undefined,
         mailchimpAudienceId: dto.mailchimpAudienceId ?? null,
         mailchimpAudienceName: dto.mailchimpAudienceName ?? null,
         stripeProductId,
@@ -132,7 +134,7 @@ export class LevelsService {
       data: {
         name: dto.name ?? undefined,
         type: dto.type ?? undefined,
-        mailchimpTag: dto.mailchimpTag ?? undefined,
+        mailchimpTags: dto.mailchimpTags ?? undefined,
         // The admin form always submits the full audience selection, so map
         // undefined/empty -> null (clears) and a value -> set.
         mailchimpAudienceId: dto.mailchimpAudienceId ?? null,
@@ -140,7 +142,54 @@ export class LevelsService {
       },
       include: { prices: true },
     });
+
+    // If the tag set changed, propagate it to Mailchimp for everyone who
+    // currently holds this level: activate newly-added tags, deactivate
+    // removed ones. (Editing the level reconciles existing members, not just
+    // future grants.)
+    if (dto.mailchimpTags !== undefined) {
+      const before = new Set(existing.mailchimpTags);
+      const after = new Set(level.mailchimpTags);
+      const added = level.mailchimpTags.filter((t) => !before.has(t));
+      const removed = existing.mailchimpTags.filter((t) => !after.has(t));
+      if (added.length || removed.length) {
+        await this.reconcileLevelTags(
+          id,
+          level.mailchimpAudienceId ?? undefined,
+          added,
+          removed,
+        );
+      }
+    }
+
     return this.toDTO(level as LevelWithPrices);
+  }
+
+  // Enqueue tag add/remove jobs for every member who currently (ACTIVE) holds
+  // the level, so a tag edit syncs to Mailchimp. Deduped per email.
+  private async reconcileLevelTags(
+    levelId: string,
+    audienceId: string | undefined,
+    added: string[],
+    removed: string[],
+  ): Promise<void> {
+    const holders = await this.prisma.userLevel.findMany({
+      where: { levelId, status: 'ACTIVE' },
+      select: { user: { select: { email: true } } },
+    });
+    const emails = Array.from(new Set(holders.map((h) => h.user.email)));
+    await Promise.all(
+      emails.flatMap((email) => {
+        const jobs: Promise<void>[] = [];
+        if (added.length)
+          jobs.push(this.mailchimp.enqueueTags('add', email, added, audienceId));
+        if (removed.length)
+          jobs.push(
+            this.mailchimp.enqueueTags('remove', email, removed, audienceId),
+          );
+        return jobs;
+      }),
+    );
   }
 
   async remove(id: string): Promise<{ ok: true }> {

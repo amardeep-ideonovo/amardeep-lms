@@ -89,12 +89,12 @@ export class MembersService {
       update: { status: 'ACTIVE' },
     });
 
-    // Subscribe to the level's audience (or the global one) and apply its tag.
-    if (level.mailchimpTag || level.mailchimpAudienceId) {
-      await this.mailchimp.enqueueTag(
+    // Subscribe to the level's audience (or the global one) and apply its tags.
+    if (level.mailchimpTags.length || level.mailchimpAudienceId) {
+      await this.mailchimp.enqueueTags(
         'add',
         user.email,
-        level.mailchimpTag ?? '',
+        level.mailchimpTags,
         level.mailchimpAudienceId ?? undefined,
       );
     }
@@ -125,13 +125,13 @@ export class MembersService {
     const stillActive = await this.prisma.userLevel.count({
       where: { userId, levelId, status: 'ACTIVE' },
     });
-    // Deactivate the tag on the level's audience (membership is left intact —
-    // we never auto-unsubscribe). Audience-only levels have no tag to remove.
-    if (level.mailchimpTag && stillActive === 0) {
-      await this.mailchimp.enqueueTag(
+    // Deactivate the tags on the level's audience (membership is left intact —
+    // we never auto-unsubscribe). Audience-only levels have no tags to remove.
+    if (level.mailchimpTags.length && stillActive === 0) {
+      await this.mailchimp.enqueueTags(
         'remove',
         user.email,
-        level.mailchimpTag,
+        level.mailchimpTags,
         level.mailchimpAudienceId ?? undefined,
       );
     }

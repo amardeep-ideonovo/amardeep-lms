@@ -34,7 +34,7 @@ export interface LevelDTO {
   id: string;
   name: string;
   type: LevelType;
-  mailchimpTag: string | null;
+  mailchimpTags: string[]; // tags applied within the audience on grant
   mailchimpAudienceId: string | null; // Mailchimp list this level subscribes members to
   mailchimpAudienceName: string | null; // cached name for display
   stripeProductId: string | null;
@@ -46,7 +46,7 @@ export interface LevelDTO {
 export interface CreateLevelInput {
   name: string;
   type: LevelType;
-  mailchimpTag?: string;
+  mailchimpTags?: string[];
   mailchimpAudienceId?: string;
   mailchimpAudienceName?: string;
   prices?: { interval: "month" | "year"; amount: number; currency?: string }[];
