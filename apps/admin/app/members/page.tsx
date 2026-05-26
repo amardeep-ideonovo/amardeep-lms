@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import type { LevelDTO, MemberRow } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 
+const EMPTY_EDIT = { firstName: "", lastName: "", phone: "" };
+
 export default function MembersPage() {
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [levels, setLevels] = useState<LevelDTO[]>([]);
@@ -12,6 +14,14 @@ export default function MembersPage() {
   // per-member "add level" select value
   const [pending, setPending] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  // filter the list by held level ("" = all, levelId, or "__none__" = no level)
+  const [filterLevel, setFilterLevel] = useState("");
+
+  // edit-profile modal
+  const [editing, setEditing] = useState<MemberRow | null>(null);
+  const [editForm, setEditForm] = useState({ ...EMPTY_EDIT });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -30,6 +40,53 @@ export default function MembersPage() {
   useEffect(() => {
     load();
   }, []);
+
+  // Close the edit modal on Escape.
+  useEffect(() => {
+    if (!editing) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeEdit();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing]);
+
+  function openEdit(m: MemberRow) {
+    setEditing(m);
+    setEditForm({
+      firstName: m.firstName ?? "",
+      lastName: m.lastName ?? "",
+      phone: m.phone ?? "",
+    });
+    setEditError(null);
+  }
+  function closeEdit() {
+    setEditing(null);
+    setEditForm({ ...EMPTY_EDIT });
+    setEditError(null);
+  }
+
+  async function saveEdit() {
+    if (!editing) return;
+    setSavingEdit(true);
+    setEditError(null);
+    try {
+      await api.updateMember(editing.id, {
+        firstName: editForm.firstName.trim(),
+        lastName: editForm.lastName.trim(),
+        phone: editForm.phone.trim(),
+      });
+      closeEdit();
+      await load();
+    } catch (err) {
+      setEditError(
+        err instanceof ApiError ? err.message : "Failed to save member"
+      );
+    } finally {
+      setSavingEdit(false);
+    }
+  }
 
   async function addLevel(memberId: string) {
     const levelId = pending[memberId];
@@ -60,13 +117,19 @@ export default function MembersPage() {
     }
   }
 
+  const filtered = members.filter((m) => {
+    if (filterLevel === "") return true;
+    if (filterLevel === "__none__") return m.levels.length === 0;
+    return m.levels.some((l) => l.id === filterLevel);
+  });
+
   return (
     <div>
       <div className="page-header">
         <h1>Members</h1>
         <p className="subtitle">
-          Manually grant or revoke a level. Manual grants coexist with paid
-          subscriptions.
+          Edit a member’s details, or manually grant/revoke a level. Manual
+          grants coexist with paid subscriptions.
         </p>
       </div>
 
@@ -78,24 +141,64 @@ export default function MembersPage() {
         ) : members.length === 0 ? (
           <p className="muted">No members yet.</p>
         ) : (
-          <table className="table">
-            <thead>
+          <>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                marginBottom: 14,
+                flexWrap: "wrap",
+              }}
+            >
+              <label htmlFor="level-filter" style={{ fontWeight: 600 }}>
+                Filter by level
+              </label>
+              <select
+                id="level-filter"
+                value={filterLevel}
+                onChange={(e) => setFilterLevel(e.target.value)}
+              >
+                <option value="">All levels</option>
+                {levels.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+                <option value="__none__">No level</option>
+              </select>
+              <span className="muted" style={{ fontSize: 13 }}>
+                Showing {filtered.length} of {members.length}
+              </span>
+            </div>
+            {filtered.length === 0 ? (
+              <p className="muted">No members match this filter.</p>
+            ) : (
+              <table className="table">
+                <thead>
               <tr>
                 <th>Username</th>
+                <th>First name</th>
+                <th>Last name</th>
                 <th>Email</th>
+                <th>Phone</th>
                 <th>Registered</th>
                 <th>Levels</th>
                 <th>Add level</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {members.map((m) => {
+              {filtered.map((m) => {
                 const heldIds = new Set(m.levels.map((l) => l.id));
                 const available = levels.filter((l) => !heldIds.has(l.id));
                 return (
                   <tr key={m.id}>
                     <td>{m.username}</td>
+                    <td>{m.firstName || <span className="muted">—</span>}</td>
+                    <td>{m.lastName || <span className="muted">—</span>}</td>
                     <td>{m.email}</td>
+                    <td>{m.phone || <span className="muted">—</span>}</td>
                     <td>
                       {new Date(m.registeredAt).toLocaleDateString(undefined, {
                         year: "numeric",
@@ -154,13 +257,102 @@ export default function MembersPage() {
                         </button>
                       </div>
                     </td>
+                    <td>
+                      <button
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => openEdit(m)}
+                      >
+                        Edit
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
-          </table>
+              </table>
+            )}
+          </>
         )}
       </div>
+
+      {editing && (
+        <div
+          className="modal-overlay"
+          onClick={closeEdit}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit member — {editing.username}</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeEdit}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {editError && <p className="error">{editError}</p>}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  saveEdit();
+                }}
+              >
+                <div className="form-row">
+                  <div className="field">
+                    <label>First name</label>
+                    <input
+                      value={editForm.firstName}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, firstName: e.target.value }))
+                      }
+                      autoFocus
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Last name</label>
+                    <input
+                      value={editForm.lastName}
+                      onChange={(e) =>
+                        setEditForm((f) => ({ ...f, lastName: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Phone</label>
+                  <input
+                    value={editForm.phone}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, phone: e.target.value }))
+                    }
+                    placeholder="+1 555 0100"
+                  />
+                </div>
+                <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+                  {editing.email} · leave a field blank to clear it.
+                </p>
+                <div className="row-actions">
+                  <button className="btn" type="submit" disabled={savingEdit}>
+                    {savingEdit ? "Saving…" : "Save changes"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={closeEdit}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

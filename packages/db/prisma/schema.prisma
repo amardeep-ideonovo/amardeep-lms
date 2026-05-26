@@ -22,6 +22,9 @@ model User {
   email            String          @unique
   username         String          @unique
   passwordHash     String
+  firstName        String?         // optional profile fields (admin-managed)
+  lastName         String?
+  phone            String?
   wpId             Int?            @unique // original WordPress user ID, for migration reconciliation
   stripeCustomerId String?         @unique // cus_… on the SAME Stripe account
   createdAt        DateTime        @default(now())
@@ -58,12 +61,14 @@ enum LevelType {
 }
 
 model Level {
-  id              String      @id @default(cuid())
-  name            String
-  type            LevelType   @default(PAID)
-  mailchimpTag    String?     // tag name within the single Mailchimp audience
-  stripeProductId String?     // prod_… for PAID levels
-  createdAt       DateTime    @default(now())
+  id                    String      @id @default(cuid())
+  name                  String
+  type                  LevelType   @default(PAID)
+  mailchimpTag          String?     // tag name applied within the audience
+  mailchimpAudienceId   String?     // Mailchimp list this level subscribes members to (falls back to the global Settings audience)
+  mailchimpAudienceName String?     // cached name for admin display
+  stripeProductId       String?     // prod_… for PAID levels
+  createdAt             DateTime    @default(now())
 
   prices      Price[]
   userLevels  UserLevel[]

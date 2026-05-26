@@ -318,6 +318,42 @@ Then(
   },
 );
 
+Then(
+  "the response field {string} should be {string}",
+  function (this: LmsWorld, field: string, expected: string) {
+    assert.equal(
+      String(this.last.body?.[field] ?? ""),
+      expected,
+      `expected "${field}" to be "${expected}" but got ${JSON.stringify(this.last.body)}`,
+    );
+  },
+);
+
+// ---------- members (admin profile edit) ----------
+
+When(
+  "I update the member's profile via admin with body:",
+  async function (this: LmsWorld, docString: string) {
+    const token = await this.adminToken();
+    const id = await this.memberId();
+    await this.request("PATCH", `/members/${id}`, {
+      token,
+      body: JSON.parse(docString),
+    });
+  },
+);
+
+When(
+  "I try to update the member's profile without a token with body:",
+  async function (this: LmsWorld, docString: string) {
+    const id = await this.memberId();
+    await this.request("PATCH", `/members/${id}`, {
+      token: null,
+      body: JSON.parse(docString),
+    });
+  },
+);
+
 // ---------- form submissions (entries viewer) ----------
 
 When(

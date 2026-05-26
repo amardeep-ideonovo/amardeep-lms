@@ -29,8 +29,8 @@ export class MailchimpWorker implements OnModuleInit, OnModuleDestroy {
     this.worker = new Worker<MailchimpJob>(
       MAILCHIMP_QUEUE,
       async (job: Job<MailchimpJob>) => {
-        const { type, email, tag } = job.data;
-        await this.mailchimp.syncTag(type, email, tag);
+        const { type, email, tag, audienceId } = job.data;
+        await this.mailchimp.syncTag(type, email, tag, audienceId);
       },
       { connection: this.connection, concurrency: 5 },
     );

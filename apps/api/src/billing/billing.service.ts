@@ -190,7 +190,12 @@ export class BillingService {
     const items = sub.items?.data ?? [];
     const desired = new Map<
       string,
-      { levelId: string; subItemId: string; mailchimpTag: string | null }
+      {
+        levelId: string;
+        subItemId: string;
+        mailchimpTag: string | null;
+        mailchimpAudienceId: string | null;
+      }
     >();
     for (const item of items) {
       const stripePriceId =
@@ -208,6 +213,7 @@ export class BillingService {
         levelId: price.levelId,
         subItemId: item.id,
         mailchimpTag: price.level.mailchimpTag,
+        mailchimpAudienceId: price.level.mailchimpAudienceId,
       });
     }
 
@@ -244,14 +250,26 @@ export class BillingService {
         },
       });
 
-      // Tag sync: add when newly active, remove when transitioning to non-active.
-      if (info.mailchimpTag) {
+      // Audience/tag sync: add when newly active, remove when transitioning to
+      // non-active. Subscribes to the level's own audience (or the global one).
+      if (info.mailchimpTag || info.mailchimpAudienceId) {
         const wasActive = prev?.status === 'ACTIVE';
         const nowActive = levelStatus === 'ACTIVE';
         if (nowActive && !wasActive) {
-          await this.mailchimp.enqueueTag('add', user.email, info.mailchimpTag);
+          await this.mailchimp.enqueueTag(
+            'add',
+            user.email,
+            info.mailchimpTag ?? '',
+            info.mailchimpAudienceId ?? undefined,
+          );
         } else if (!nowActive && wasActive) {
-          await this.maybeRemoveTag(user.id, levelId, user.email, info.mailchimpTag);
+          await this.maybeRemoveTag(
+            user.id,
+            levelId,
+            user.email,
+            info.mailchimpTag ?? '',
+            info.mailchimpAudienceId ?? undefined,
+          );
         }
       }
     }
@@ -269,6 +287,7 @@ export class BillingService {
             ul.levelId,
             user.email,
             ul.level.mailchimpTag,
+            ul.level.mailchimpAudienceId ?? undefined,
           );
         }
       }
@@ -282,12 +301,13 @@ export class BillingService {
     levelId: string,
     email: string,
     tag: string,
+    audienceId?: string,
   ): Promise<void> {
     const stillActive = await this.prisma.userLevel.count({
       where: { userId, levelId, status: 'ACTIVE' },
     });
     if (stillActive === 0) {
-      await this.mailchimp.enqueueTag('remove', email, tag);
+      await this.mailchimp.enqueueTag('remove', email, tag, audienceId);
     }
   }
 }

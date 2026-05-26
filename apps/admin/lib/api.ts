@@ -28,6 +28,7 @@ import type {
   UpdateCourseInput,
   UpdateFormInput,
   UpdateLessonInput,
+  UpdateMemberInput,
   UpdatePageInput,
   UpdatePopupInput,
   UpdatePostInput,
@@ -214,6 +215,8 @@ export const api = {
 
   // members
   listMembers: () => request<MemberRow[]>("GET", "/members"),
+  updateMember: (memberId: string, input: UpdateMemberInput) =>
+    request<MemberRow>("PATCH", `/members/${memberId}`, input),
   addMemberLevel: (memberId: string, levelId: string) =>
     request<void>("POST", `/members/${memberId}/levels`, { levelId }),
   removeMemberLevel: (memberId: string, levelId: string) =>
@@ -255,6 +258,8 @@ export const api = {
     request<StripeSettingsMasked>("GET", "/admin/settings/stripe"),
   putStripeSettings: (input: StripeSettings) =>
     request<StripeSettingsMasked>("PUT", "/admin/settings/stripe", input),
+  clearStripeSettings: () =>
+    request<StripeSettingsMasked>("DELETE", "/admin/settings/stripe"),
   getMailchimpSettings: () =>
     request<MailchimpSettingsMasked>("GET", "/admin/settings/mailchimp"),
   putMailchimpSettings: (input: MailchimpSettings) =>
@@ -263,6 +268,8 @@ export const api = {
       "/admin/settings/mailchimp",
       input
     ),
+  clearMailchimpSettings: () =>
+    request<MailchimpSettingsMasked>("DELETE", "/admin/settings/mailchimp"),
 
   // blog
   listPosts: () => request<PostAdminRow[]>("GET", "/admin/blog/posts"),

@@ -35,13 +35,20 @@ export interface LevelDTO {
   name: string;
   type: LevelType;
   mailchimpTag: string | null;
+  mailchimpAudienceId: string | null; // Mailchimp list this level subscribes members to
+  mailchimpAudienceName: string | null; // cached name for display
   stripeProductId: string | null;
   prices: PriceDTO[];
+  // Distinct members currently holding this level (ACTIVE). Only populated for
+  // admin requests; 0 for member-facing calls so subscriber counts aren't leaked.
+  memberCount: number;
 }
 export interface CreateLevelInput {
   name: string;
   type: LevelType;
   mailchimpTag?: string;
+  mailchimpAudienceId?: string;
+  mailchimpAudienceName?: string;
   prices?: { interval: "month" | "year"; amount: number; currency?: string }[];
 }
 
@@ -49,8 +56,17 @@ export interface MemberRow {
   id: string;
   username: string;
   email: string;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
   registeredAt: string; // ISO
   levels: { id: string; name: string; status: UserLevelStatus }[];
+}
+// Admin-editable member profile fields (Members tab).
+export interface UpdateMemberInput {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
 }
 
 export interface CategoryDTO {
@@ -464,6 +480,7 @@ export const ROUTES = {
 
   // admin: members
   listMembers: "GET /members", // -> MemberRow[]
+  updateMember: "PATCH /members/:id", // body UpdateMemberInput -> MemberRow
   addMemberLevel: "POST /members/:id/levels", // body {levelId}
   removeMemberLevel: "DELETE /members/:id/levels/:levelId",
 
@@ -551,7 +568,9 @@ export const ROUTES = {
 
   // admin settings (secrets are write-only; GET returns masked/last4 only)
   getStripeSettings: "GET /admin/settings/stripe",
-  putStripeSettings: "PUT /admin/settings/stripe",
+  putStripeSettings: "PUT /admin/settings/stripe", // body {secretKey?, webhookSecret?, publishableKey?}
+  deleteStripeSettings: "DELETE /admin/settings/stripe", // clears all Stripe creds
   getMailchimpSettings: "GET /admin/settings/mailchimp",
   putMailchimpSettings: "PUT /admin/settings/mailchimp",
+  deleteMailchimpSettings: "DELETE /admin/settings/mailchimp", // clears all Mailchimp creds
 } as const;

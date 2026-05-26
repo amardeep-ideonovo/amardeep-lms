@@ -17,12 +17,18 @@ export class MailchimpService {
 
   constructor(private readonly settings: SettingsService) {}
 
-  private async configure(): Promise<{ audienceId: string } | null> {
-    const [apiKey, server, audienceId] = await Promise.all([
+  // Resolve the target audience: the level's own audience (override) when set,
+  // else the single global Settings audience. Returns null (skip) if Mailchimp
+  // isn't configured or no audience can be determined.
+  private async resolveAudience(
+    override?: string,
+  ): Promise<{ audienceId: string } | null> {
+    const [apiKey, server, globalAudience] = await Promise.all([
       this.settings.getMailchimpApiKey(),
       this.settings.getMailchimpServerPrefix(),
       this.settings.getMailchimpAudienceId(),
     ]);
+    const audienceId = override || globalAudience;
     if (!apiKey || !server || !audienceId) {
       this.logger.warn('Mailchimp not fully configured — skipping sync');
       return null;
@@ -32,24 +38,33 @@ export class MailchimpService {
   }
 
   /**
-   * Idempotently upsert the member (PUT by subscriber hash, status_if_new
-   * "subscribed") then add or remove a tag. Mailchimp's tag endpoint is itself
-   * idempotent — adding an existing tag or removing an absent one is a no-op.
+   * Idempotently upsert the member on the target audience (the level's own
+   * audience when provided, else the global one), then add/remove a tag if one
+   * is given. Mailchimp's tag endpoint is itself idempotent. A `remove` with no
+   * tag is a no-op — we never auto-unsubscribe a contact.
    */
-  async syncTag(type: 'add' | 'remove', email: string, tag: string): Promise<void> {
-    const cfg = await this.configure();
+  async syncTag(
+    type: 'add' | 'remove',
+    email: string,
+    tag: string,
+    audienceId?: string,
+  ): Promise<void> {
+    if (type === 'remove' && !tag) return; // nothing to deactivate
+    const cfg = await this.resolveAudience(audienceId);
     if (!cfg) return;
     const hash = subscriberHash(email);
 
-    // Ensure the contact exists (no-op if already present).
+    // Ensure the contact exists on the audience (no-op if already present).
     await mailchimp.lists.setListMember(cfg.audienceId, hash, {
       email_address: email.toLowerCase(),
       status_if_new: 'subscribed',
     });
 
-    await mailchimp.lists.updateListMemberTags(cfg.audienceId, hash, {
-      tags: [{ name: tag, status: type === 'add' ? 'active' : 'inactive' }],
-    });
+    if (tag) {
+      await mailchimp.lists.updateListMemberTags(cfg.audienceId, hash, {
+        tags: [{ name: tag, status: type === 'add' ? 'active' : 'inactive' }],
+      });
+    }
   }
 
   // ---------- Forms support (any audience; no preset audienceId needed) ----------

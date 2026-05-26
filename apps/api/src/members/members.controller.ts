@@ -4,12 +4,13 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { MembersService } from './members.service';
-import { AddMemberLevelDto } from './dto/member.dto';
+import { AddMemberLevelDto, UpdateMemberDto } from './dto/member.dto';
 
 @UseGuards(AdminGuard)
 @Controller('members')
@@ -19,6 +20,11 @@ export class MembersController {
   @Get()
   list() {
     return this.members.list();
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateMemberDto) {
+    return this.members.update(id, dto);
   }
 
   @Post(':id/levels')

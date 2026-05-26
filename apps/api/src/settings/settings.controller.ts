@@ -1,13 +1,23 @@
-import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Put,
+  UseGuards,
+} from '@nestjs/common';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { SettingsService, SETTING_KEYS } from './settings.service';
-import { maskSecret } from '../common/crypto.util';
 import {
   UpdateMailchimpSettingsDto,
   UpdateStripeSettingsDto,
 } from './dto/settings.dto';
 
-// Secrets are write-only: GET returns masked values (last4) only, never plaintext.
+// Last 4 chars of a secret for read-back (never the full plaintext).
+const last4 = (s: string | null): string | null => (s ? s.slice(-4) : null);
+
+// Secrets are write-only: GET returns last4 only. PUT sets/updates (blank = keep);
+// DELETE clears a provider's credentials entirely.
 @UseGuards(AdminGuard)
 @Controller('admin/settings')
 export class SettingsController {
@@ -15,14 +25,16 @@ export class SettingsController {
 
   @Get('stripe')
   async getStripe() {
-    const [secret, webhook] = await Promise.all([
+    const [secret, webhook, publishable] = await Promise.all([
       this.settings.getSecret(SETTING_KEYS.stripeSecretKey),
       this.settings.getSecret(SETTING_KEYS.stripeWebhookSecret),
+      this.settings.getSecret(SETTING_KEYS.stripePublishableKey),
     ]);
     return {
-      secretKey: maskSecret(secret),
-      webhookSecret: maskSecret(webhook),
-      configured: { secretKey: !!secret, webhookSecret: !!webhook },
+      secretKeyLast4: last4(secret),
+      webhookSecretLast4: last4(webhook),
+      // publishable key is public — returned in full so the admin can see it.
+      publishableKey: publishable ?? null,
     };
   }
 
@@ -33,7 +45,17 @@ export class SettingsController {
       SETTING_KEYS.stripeWebhookSecret,
       dto.webhookSecret,
     );
-    return { ok: true };
+    await this.settings.setSecret(
+      SETTING_KEYS.stripePublishableKey,
+      dto.publishableKey,
+    );
+    return this.getStripe();
+  }
+
+  @Delete('stripe')
+  async deleteStripe() {
+    await this.settings.clearStripe();
+    return this.getStripe();
   }
 
   @Get('mailchimp')
@@ -44,11 +66,10 @@ export class SettingsController {
       this.settings.getSecret(SETTING_KEYS.mailchimpAudienceId),
     ]);
     return {
-      apiKey: maskSecret(apiKey),
+      apiKeyLast4: last4(apiKey),
       // serverPrefix & audienceId are non-secret identifiers — safe to return.
       serverPrefix: serverPrefix ?? null,
       audienceId: audienceId ?? null,
-      configured: { apiKey: !!apiKey },
     };
   }
 
@@ -63,6 +84,12 @@ export class SettingsController {
       SETTING_KEYS.mailchimpAudienceId,
       dto.audienceId,
     );
-    return { ok: true };
+    return this.getMailchimp();
+  }
+
+  @Delete('mailchimp')
+  async deleteMailchimp() {
+    await this.settings.clearMailchimp();
+    return this.getMailchimp();
   }
 }

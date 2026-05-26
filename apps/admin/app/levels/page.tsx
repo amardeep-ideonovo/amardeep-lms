@@ -1,7 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import type { CreateLevelInput, LevelDTO, LevelType } from "@lms/types";
+import type {
+  CreateLevelInput,
+  LevelDTO,
+  LevelType,
+  MailchimpAudienceDTO,
+} from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 
 type PriceForm = { interval: "month" | "year"; amount: string };
@@ -22,8 +27,14 @@ export default function LevelsPage() {
   const [name, setName] = useState("");
   const [type, setType] = useState<LevelType>("PAID");
   const [mailchimpTag, setMailchimpTag] = useState("");
+  const [mailchimpAudienceId, setMailchimpAudienceId] = useState("");
+  const [mailchimpAudienceName, setMailchimpAudienceName] = useState("");
   const [prices, setPrices] = useState<PriceForm[]>([emptyPrice()]);
   const [saving, setSaving] = useState(false);
+
+  // Live Mailchimp audiences for the dropdown (empty if Mailchimp unconfigured).
+  const [audiences, setAudiences] = useState<MailchimpAudienceDTO[]>([]);
+  const [mcError, setMcError] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -41,11 +52,33 @@ export default function LevelsPage() {
     load();
   }, []);
 
+  // Fetch Mailchimp audiences once. If Mailchimp isn't configured the API
+  // returns 400 — surface a hint but keep the page usable (audience optional).
+  useEffect(() => {
+    let alive = true;
+    api
+      .listMailchimpAudiences()
+      .then((a) => alive && setAudiences(a))
+      .catch((err) => {
+        if (!alive) return;
+        setMcError(
+          err instanceof ApiError
+            ? err.message
+            : "Could not load Mailchimp audiences"
+        );
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   function resetForm() {
     setEditingId(null);
     setName("");
     setType("PAID");
     setMailchimpTag("");
+    setMailchimpAudienceId("");
+    setMailchimpAudienceName("");
     setPrices([emptyPrice()]);
   }
 
@@ -54,6 +87,8 @@ export default function LevelsPage() {
     setName(level.name);
     setType(level.type);
     setMailchimpTag(level.mailchimpTag ?? "");
+    setMailchimpAudienceId(level.mailchimpAudienceId ?? "");
+    setMailchimpAudienceName(level.mailchimpAudienceName ?? "");
     setPrices(
       level.prices.length
         ? level.prices.map((p) => ({
@@ -79,6 +114,8 @@ export default function LevelsPage() {
         name: name.trim(),
         type,
         mailchimpTag: mailchimpTag.trim() || undefined,
+        mailchimpAudienceId: mailchimpAudienceId || undefined,
+        mailchimpAudienceName: mailchimpAudienceName || undefined,
         prices: type === "PAID" ? cleanedPrices : [],
       };
       if (editingId) await api.updateLevel(editingId, input);
@@ -114,8 +151,9 @@ export default function LevelsPage() {
       <div className="page-header">
         <h1>Levels</h1>
         <p className="subtitle">
-          Membership tiers. Each level maps to a Mailchimp tag and (if PAID)
-          Stripe prices.
+          Membership tiers. Each level can subscribe members to a Mailchimp
+          audience (and apply a tag within it), and — if PAID — has Stripe
+          prices.
         </p>
       </div>
 
@@ -152,6 +190,51 @@ export default function LevelsPage() {
                 placeholder="e.g. gold-members"
               />
             </div>
+          </div>
+
+          <div className="field">
+            <label>
+              Mailchimp audience{" "}
+              <span className="muted">
+                (members granted this level subscribe here; the tag is applied
+                within it)
+              </span>
+            </label>
+            <select
+              value={mailchimpAudienceId}
+              onChange={(e) => {
+                const id = e.target.value;
+                const aud = audiences.find((a) => a.id === id);
+                setMailchimpAudienceId(id);
+                // keep the cached name in sync with the selection
+                setMailchimpAudienceName(
+                  aud ? aud.name : id ? mailchimpAudienceName : ""
+                );
+              }}
+            >
+              <option value="">— None (use the global audience) —</option>
+              {/* keep the stored audience selectable even if it isn't in the
+                  fetched list (e.g. Mailchimp unconfigured or list removed) */}
+              {mailchimpAudienceId &&
+                !audiences.some((a) => a.id === mailchimpAudienceId) && (
+                  <option value={mailchimpAudienceId}>
+                    {mailchimpAudienceName || mailchimpAudienceId}
+                  </option>
+                )}
+              {audiences.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                  {typeof a.memberCount === "number"
+                    ? ` (${a.memberCount})`
+                    : ""}
+                </option>
+              ))}
+            </select>
+            {mcError && (
+              <span className="muted" style={{ fontSize: 12 }}>
+                {mcError} — set the key in Settings → Mailchimp to pick a list.
+              </span>
+            )}
           </div>
 
           {type === "PAID" && (
@@ -233,6 +316,7 @@ export default function LevelsPage() {
               <tr>
                 <th>Name</th>
                 <th>Type</th>
+                <th>Members</th>
                 <th>Mailchimp tag</th>
                 <th>Prices</th>
                 <th></th>
@@ -243,6 +327,7 @@ export default function LevelsPage() {
                 <tr key={lvl.id}>
                   <td>{lvl.name}</td>
                   <td>{lvl.type}</td>
+                  <td>{lvl.memberCount}</td>
                   <td>{lvl.mailchimpTag ?? <span className="muted">—</span>}</td>
                   <td>
                     {lvl.prices.length === 0 ? (
