@@ -9,6 +9,7 @@ export type RootStackParamList = {
   Account: undefined;
   Blog: undefined;
   BlogPost: { slug: string; title: string };
+  Page: { slug: string; title: string };
 };
 
 export type ScreenProps<T extends keyof RootStackParamList> =

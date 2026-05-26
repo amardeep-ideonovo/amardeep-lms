@@ -15,6 +15,7 @@ import { api } from "../api";
 import { useAuth } from "../auth";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { CourseRow } from "../components/CourseRow";
+import { PopupHost } from "../components/PopupHost";
 import type { ScreenProps } from "../navigation";
 import { colors, spacing } from "../theme";
 
@@ -149,7 +150,9 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
   );
 
   return (
-    <ScrollView style={styles.list} contentContainerStyle={styles.content}>
+    <>
+      <PopupHost context={{ type: "dashboard" }} />
+      <ScrollView style={styles.list} contentContainerStyle={styles.content}>
       <TextInput
         style={styles.search}
         placeholder="Search categories or courses…"
@@ -199,7 +202,8 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
           <AllCoursesTile count={allCourses.length} onPress={openAll} />
         </>
       )}
-    </ScrollView>
+      </ScrollView>
+    </>
   );
 }
 

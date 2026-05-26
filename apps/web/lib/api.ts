@@ -4,9 +4,15 @@ import type {
   AuthUser,
   CourseCard,
   DashboardResponse,
+  FormPublicDTO,
+  FormSubmitResult,
   LessonDTO,
   LevelDTO,
   LoginResponse,
+  PagePublicDTO,
+  PopupContext,
+  PopupEventType,
+  PopupPublicDTO,
   PostDetailDTO,
   PostListItem,
 } from "@lms/types";
@@ -157,6 +163,83 @@ export async function fetchPublishedPost(
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return null;
     throw err;
+  }
+}
+
+// ---------- Pages (PUBLIC CMS / Puck) ----------
+// No token: usable from Server Components for SSR/SEO. Only PUBLISHED pages are
+// returned by the API; an unknown/draft slug yields 404 -> null here.
+export async function fetchPublishedPage(
+  slug: string
+): Promise<PagePublicDTO | null> {
+  try {
+    return await request<PagePublicDTO>(`/pages/${encodeURIComponent(slug)}`, {
+      auth: false,
+    });
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+// ---------- Forms (PUBLIC, Mailchimp-linked) ----------
+// Used client-side by <FormEmbed>. Only ACTIVE forms are returned.
+export async function fetchPublicForm(
+  id: string
+): Promise<FormPublicDTO | null> {
+  try {
+    return await request<FormPublicDTO>(`/forms/${encodeURIComponent(id)}`, {
+      auth: false,
+    });
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+export function submitForm(
+  id: string,
+  values: Record<string, string | number | boolean>
+): Promise<FormSubmitResult> {
+  return request<FormSubmitResult>(`/forms/${encodeURIComponent(id)}/submit`, {
+    method: "POST",
+    body: { values },
+    auth: false,
+  });
+}
+
+// ---------- Popups (PUBLIC, Puck overlay) ----------
+// Used client-side by <PopupHost>. The server filters by context, so we just
+// render what we get. A failure must never break the host page → return [].
+export async function fetchActivePopups(
+  ctx: PopupContext
+): Promise<PopupPublicDTO[]> {
+  const qs =
+    ctx.type === "page"
+      ? `context=page&pageId=${encodeURIComponent(ctx.pageId)}`
+      : "context=dashboard";
+  try {
+    return await request<PopupPublicDTO[]>(`/popups/active?${qs}`, {
+      auth: false,
+    });
+  } catch {
+    return [];
+  }
+}
+
+// Fire-and-forget analytics ping (view / click / dismiss). Never awaited and
+// never throws — a tracking failure must not affect the popup UX. keepalive
+// lets a dismiss-on-navigation ping still flush.
+export function recordPopupEvent(id: string, type: PopupEventType): void {
+  try {
+    void fetch(`${API_BASE}/popups/${encodeURIComponent(id)}/event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    /* ignore */
   }
 }
 

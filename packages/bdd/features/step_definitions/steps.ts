@@ -156,3 +156,191 @@ Then(
     );
   },
 );
+
+// ---------- pages (CMS / Puck) ----------
+
+Then(
+  "the response should include a page with slug {string}",
+  function (this: LmsWorld, slug: string) {
+    const body = this.last.body;
+    assert.ok(
+      Array.isArray(body),
+      `expected an array, got: ${JSON.stringify(body)}`,
+    );
+    assert.ok(
+      body.some((p: any) => p?.slug === slug),
+      `expected a page with slug "${slug}" in the list`,
+    );
+  },
+);
+
+Then(
+  "the response should not include a page with slug {string}",
+  function (this: LmsWorld, slug: string) {
+    const body = this.last.body;
+    assert.ok(
+      Array.isArray(body),
+      `expected an array, got: ${JSON.stringify(body)}`,
+    );
+    assert.ok(
+      !body.some((p: any) => p?.slug === slug),
+      `did not expect a page with slug "${slug}" in the list`,
+    );
+  },
+);
+
+// ---------- forms (Mailchimp-linked) ----------
+
+When(
+  "I create a form via admin with body:",
+  async function (this: LmsWorld, docString: string) {
+    const token = await this.adminToken();
+    await this.request("POST", "/admin/forms", {
+      token,
+      body: JSON.parse(docString),
+    });
+    this.formId = this.last.body?.id ?? null;
+  },
+);
+
+When("I GET the created form without a token", async function (this: LmsWorld) {
+  await this.request("GET", `/forms/${this.formId}`, { token: null });
+});
+
+When(
+  "I submit the created form without a token and body:",
+  async function (this: LmsWorld, docString: string) {
+    await this.request("POST", `/forms/${this.formId}/submit`, {
+      token: null,
+      body: JSON.parse(docString),
+    });
+  },
+);
+
+Then(
+  'the response "mailchimpStatus" should be {string}',
+  function (this: LmsWorld, expected: string) {
+    assert.equal(
+      this.last.body?.mailchimpStatus,
+      expected,
+      `expected mailchimpStatus "${expected}" but got ${JSON.stringify(this.last.body)}`,
+    );
+  },
+);
+
+// ---------- popups (Puck overlay) ----------
+
+When(
+  "I create a popup via admin with body:",
+  async function (this: LmsWorld, docString: string) {
+    const token = await this.adminToken();
+    await this.request("POST", "/admin/popups", {
+      token,
+      body: JSON.parse(docString),
+    });
+    this.popupId = this.last.body?.id ?? null;
+  },
+);
+
+When(
+  "I GET active popups for the dashboard without a token",
+  async function (this: LmsWorld) {
+    await this.request("GET", "/popups/active?context=dashboard", {
+      token: null,
+    });
+  },
+);
+
+When(
+  "I GET active popups for page {string} without a token",
+  async function (this: LmsWorld, pageId: string) {
+    await this.request(
+      "GET",
+      `/popups/active?context=page&pageId=${encodeURIComponent(pageId)}`,
+      { token: null },
+    );
+  },
+);
+
+Then(
+  "the response should include the created popup",
+  function (this: LmsWorld) {
+    const body = this.last.body;
+    assert.ok(
+      Array.isArray(body),
+      `expected an array, got: ${JSON.stringify(body)}`,
+    );
+    assert.ok(
+      body.some((p: any) => p?.id === this.popupId),
+      `expected the created popup "${this.popupId}" in the list`,
+    );
+  },
+);
+
+Then(
+  "the response should not include the created popup",
+  function (this: LmsWorld) {
+    const body = this.last.body;
+    assert.ok(
+      Array.isArray(body),
+      `expected an array, got: ${JSON.stringify(body)}`,
+    );
+    assert.ok(
+      !body.some((p: any) => p?.id === this.popupId),
+      `did not expect the created popup "${this.popupId}" in the list`,
+    );
+  },
+);
+
+When(
+  "I record a {string} event on the created popup without a token",
+  async function (this: LmsWorld, type: string) {
+    await this.request("POST", `/popups/${this.popupId}/event`, {
+      token: null,
+      body: { type },
+    });
+  },
+);
+
+When("I GET the created popup as admin", async function (this: LmsWorld) {
+  const token = await this.adminToken();
+  await this.request("GET", `/admin/popups/${this.popupId}`, { token });
+});
+
+Then(
+  "the response field {string} should be {int}",
+  function (this: LmsWorld, field: string, expected: number) {
+    assert.equal(
+      this.last.body?.[field],
+      expected,
+      `expected "${field}" to be ${expected} but got ${JSON.stringify(this.last.body)}`,
+    );
+  },
+);
+
+// ---------- form submissions (entries viewer) ----------
+
+When(
+  "I GET the created form submissions as admin",
+  async function (this: LmsWorld) {
+    const token = await this.adminToken();
+    await this.request("GET", `/admin/forms/${this.formId}/submissions`, {
+      token,
+    });
+  },
+);
+
+Then(
+  "the response should include a submission with email {string}",
+  function (this: LmsWorld, email: string) {
+    const body = this.last.body;
+    assert.ok(
+      Array.isArray(body),
+      `expected an array, got: ${JSON.stringify(body)}`,
+    );
+    assert.ok(
+      body.some((s: any) => s?.email === email),
+      `expected a submission with email "${email}"`,
+    );
+  },
+);

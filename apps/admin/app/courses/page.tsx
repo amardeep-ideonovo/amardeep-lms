@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, Fragment, FormEvent, useEffect, useState } from "react";
 import type {
   CategoryDTO,
   CourseCard,
@@ -350,63 +350,66 @@ export default function CoursesPage() {
             </thead>
             <tbody>
               {courses.map((course) => (
-                <tr key={course.id}>
-                  <td>
-                    {course.thumbnailUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={course.thumbnailUrl}
-                        alt=""
-                        className="table-thumb"
-                      />
-                    ) : (
-                      <div className="table-thumb table-thumb--empty">—</div>
-                    )}
-                  </td>
-                  <td>{course.title}</td>
-                  <td className="muted">{categoryName(course.categoryId)}</td>
-                  <td className="muted">{course.description ?? "—"}</td>
-                  <td>
-                    <div className="row-actions">
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() =>
-                          setOpenCourse(
-                            openCourse === course.id ? null : course.id
-                          )
-                        }
-                      >
-                        {openCourse === course.id ? "Hide lessons" : "Lessons"}
-                      </button>
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => startEdit(course)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn--danger btn--sm"
-                        onClick={() => removeCourse(course)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                <Fragment key={course.id}>
+                  <tr>
+                    <td>
+                      {course.thumbnailUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={course.thumbnailUrl}
+                          alt=""
+                          className="table-thumb"
+                        />
+                      ) : (
+                        <div className="table-thumb table-thumb--empty">—</div>
+                      )}
+                    </td>
+                    <td>{course.title}</td>
+                    <td className="muted">{categoryName(course.categoryId)}</td>
+                    <td className="muted">{course.description ?? "—"}</td>
+                    <td>
+                      <div className="row-actions">
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() =>
+                            setOpenCourse(
+                              openCourse === course.id ? null : course.id
+                            )
+                          }
+                        >
+                          {openCourse === course.id ? "Hide lessons" : "Lessons"}
+                        </button>
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => startEdit(course)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn--danger btn--sm"
+                          onClick={() => removeCourse(course)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {openCourse === course.id && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: 0 }}>
+                        <CourseLessons
+                          courseId={course.id}
+                          courseTitle={course.title}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
             </tbody>
           </table>
         )}
       </div>
-
-      {openCourse && (
-        <CourseLessons
-          courseId={openCourse}
-          courseTitle={
-            courses.find((c) => c.id === openCourse)?.title ?? "Course"
-          }
-        />
-      )}
 
       {modalOpen && (
         <div
@@ -585,7 +588,8 @@ function CourseLessons({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // add-lesson form
+  // add-lesson form (collapsed behind a button until the admin opens it)
+  const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
@@ -609,6 +613,16 @@ function CourseLessons({
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
+
+  // Close the add-lesson modal on Escape (mirrors the course modal).
+  useEffect(() => {
+    if (!showAdd) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowAdd(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showAdd]);
 
   async function onPickNewThumb(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -641,6 +655,7 @@ function CourseLessons({
       setContent("");
       setVideoUrl("");
       setThumbnailUrl("");
+      setShowAdd(false); // collapse back to the "+ Add lesson" button
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to add lesson");
@@ -650,8 +665,14 @@ function CourseLessons({
   }
 
   return (
-    <div className="card">
-      <h2>Lessons — {courseTitle}</h2>
+    <div
+      style={{
+        background: "#f8fafc",
+        padding: "16px 20px",
+        borderTop: "2px solid var(--border)",
+      }}
+    >
+      <h3 style={{ marginTop: 0 }}>Lessons — {courseTitle}</h3>
       {error && <p className="error">{error}</p>}
 
       {loading ? (
@@ -669,57 +690,106 @@ function CourseLessons({
         </div>
       )}
 
-      <form onSubmit={addLesson} style={{ marginTop: 20 }}>
-        <h2>Add lesson</h2>
-        <div className="field">
-          <label>Title</label>
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-          />
-        </div>
-        <div className="field">
-          <label>
-            Description <span className="muted">(shown on the lesson)</span>
-          </label>
-          <textarea value={content} onChange={(e) => setContent(e.target.value)} />
-        </div>
-        <div className="form-row">
-          <div className="field">
-            <label>
-              Video URL{" "}
-              <span className="muted">(Vimeo link — or a direct MP4)</span>
-            </label>
-            <input
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="https://vimeo.com/123456789 (optional)"
-            />
+      {/* The add-lesson flow opens in a modal (same as Add new course). */}
+      <button
+        className="btn"
+        style={{ marginTop: 16 }}
+        onClick={() => setShowAdd(true)}
+      >
+        + Add lesson
+      </button>
+
+      {showAdd && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowAdd(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Add lesson — {courseTitle}</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={() => setShowAdd(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {error && <p className="error">{error}</p>}
+              <form onSubmit={addLesson}>
+                <div className="field">
+                  <label>Title</label>
+                  <input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="field">
+                  <label>
+                    Description{" "}
+                    <span className="muted">(shown on the lesson)</span>
+                  </label>
+                  <textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                  />
+                </div>
+                <div className="form-row">
+                  <div className="field">
+                    <label>
+                      Video URL{" "}
+                      <span className="muted">
+                        (Vimeo link — or a direct MP4)
+                      </span>
+                    </label>
+                    <input
+                      value={videoUrl}
+                      onChange={(e) => setVideoUrl(e.target.value)}
+                      placeholder="https://vimeo.com/123456789 (optional)"
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Thumbnail</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={onPickNewThumb}
+                      disabled={uploadingThumb}
+                    />
+                    {uploadingThumb && <span className="muted">Uploading…</span>}
+                    {thumbnailUrl.trim() && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={thumbnailUrl} alt="" className="thumb-preview" />
+                    )}
+                  </div>
+                </div>
+                <div className="row-actions">
+                  <button className="btn" type="submit" disabled={saving}>
+                    {saving ? "Adding…" : "Add lesson"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={() => setShowAdd(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <p className="muted" style={{ marginTop: 8 }}>
+                  Add downloadable notes after creating the lesson (use “Manage”
+                  on a lesson).
+                </p>
+              </form>
+            </div>
           </div>
-          <div className="field">
-            <label>Thumbnail</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={onPickNewThumb}
-              disabled={uploadingThumb}
-            />
-            {uploadingThumb && <span className="muted">Uploading…</span>}
-            {thumbnailUrl.trim() && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={thumbnailUrl} alt="" className="thumb-preview" />
-            )}
-          </div>
         </div>
-        <button className="btn" type="submit" disabled={saving}>
-          {saving ? "Adding…" : "Add lesson"}
-        </button>
-        <p className="muted" style={{ marginTop: 8 }}>
-          Add downloadable notes after creating the lesson (use “Manage” on a
-          lesson).
-        </p>
-      </form>
+      )}
     </div>
   );
 }

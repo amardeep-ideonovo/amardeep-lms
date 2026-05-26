@@ -3,7 +3,7 @@
 // PAID level Stripe ids here are placeholders; real Products/Prices are created
 // by the API's Levels module against Stripe. Checkout won't work on these fakes,
 // but dashboard / access / lock-unlock all do.
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -388,6 +388,163 @@ async function main() {
     },
   });
 
+  // ----- Pages (CMS / Puck) -----
+  // One PUBLISHED page at /about built from Puck blocks, plus a DRAFT that must
+  // 404 publicly. `data` is the Puck document rendered by the shared @lms/puck
+  // config on the public site.
+  await prisma.page.upsert({
+    where: { id: "seed-page-about" },
+    update: {},
+    create: {
+      id: "seed-page-about",
+      slug: "about",
+      title: "About Us",
+      status: "PUBLISHED",
+      publishedAt: new Date("2026-05-20T09:00:00Z"),
+      authorId: admin.id,
+      data: {
+        root: {
+          props: {
+            seoTitle: "About Us",
+            description: "Learn about our mission and what we offer.",
+            ogImage: "",
+          },
+        },
+        content: [
+          {
+            type: "Hero",
+            props: {
+              id: "Hero-1",
+              eyebrow: "Who we are",
+              title: "About Us",
+              subtitle:
+                "We help members learn, grow, and build lasting habits.",
+              buttonLabel: "Browse courses",
+              buttonHref: "/courses",
+              align: "center",
+              background: "muted",
+            },
+          },
+          {
+            type: "Heading",
+            props: { id: "Heading-1", text: "Our mission", level: "2", align: "center" },
+          },
+          {
+            type: "RichText",
+            props: {
+              id: "RichText-1",
+              html: "<p>We started this community to make high-quality learning accessible to everyone. Our lessons are practical, concise, and built to help you make real progress.</p>",
+              align: "center",
+            },
+          },
+          {
+            type: "Cards",
+            props: {
+              id: "Cards-1",
+              columns: "3",
+              items: [
+                { title: "Practical lessons", text: "Short, focused lessons you can apply today." },
+                { title: "Members-only", text: "Premium content behind your membership." },
+                { title: "Learn anywhere", text: "Web and mobile, always in sync." },
+              ],
+            },
+          },
+          {
+            type: "CTA",
+            props: {
+              id: "CTA-1",
+              title: "Ready to start learning?",
+              subtitle: "Join today and unlock every course.",
+              buttonLabel: "Get started",
+              buttonHref: "/login",
+              background: "brand",
+              align: "center",
+            },
+          },
+        ],
+        zones: {},
+      } as Prisma.InputJsonValue,
+    },
+  });
+
+  await prisma.page.upsert({
+    where: { id: "seed-page-draft" },
+    update: {},
+    create: {
+      id: "seed-page-draft",
+      slug: "coming-soon",
+      title: "Coming soon",
+      status: "DRAFT",
+      authorId: admin.id,
+      data: {
+        root: { props: { description: "" } },
+        content: [
+          {
+            type: "Heading",
+            props: { id: "Heading-1", text: "Coming soon", level: "1", align: "center" },
+          },
+        ],
+        zones: {},
+      } as Prisma.InputJsonValue,
+    },
+  });
+
+  // ----- Popups (Puck overlay) -----
+  // One ACTIVE popup targeted at the member dashboard so the feature is visible
+  // out of the box. `update: {}` keeps any admin edits on re-seed. Built from
+  // the SAME Puck blocks as pages. Turn it off in the admin Popups tab anytime.
+  await prisma.popup.upsert({
+    where: { id: "seed-popup-welcome" },
+    update: {},
+    create: {
+      id: "seed-popup-welcome",
+      name: "Welcome popup",
+      status: "ACTIVE",
+      position: "CENTER",
+      width: "460px",
+      background: "#ffffff",
+      borderColor: "#e2e8f0",
+      borderRadius: 16,
+      padding: 28,
+      showOnDashboard: true,
+      pageMode: "NONE",
+      data: {
+        root: { props: {} },
+        content: [
+          {
+            type: "Heading",
+            props: {
+              id: "Heading-1",
+              text: "👋 Welcome back!",
+              level: "2",
+              align: "center",
+            },
+          },
+          {
+            type: "RichText",
+            props: {
+              id: "RichText-1",
+              html: "<p>Thanks for being a member. Explore your courses and keep your streak going.</p>",
+              align: "center",
+            },
+          },
+          {
+            type: "Button",
+            props: {
+              id: "Button-1",
+              label: "Browse courses",
+              href: "/dashboard",
+              variant: "primary",
+              align: "center",
+              newTab: false,
+            },
+          },
+        ],
+        zones: {},
+      } as Prisma.InputJsonValue,
+    },
+  });
+
   // unused-var guard
   void freeLevel;
 
@@ -395,6 +552,8 @@ async function main() {
   console.log(`  Admin:  admin@example.com / ${adminPassword}`);
   console.log(`  Member: member@example.com / ${memberPassword} (has Pro)`);
   console.log(`  Blog:   3 published posts + 1 draft, 2 categories`);
+  console.log(`  Pages:  1 published (/about) + 1 draft (coming-soon)`);
+  console.log(`  Popups: 1 active (Welcome popup → dashboard)`);
 }
 
 main()

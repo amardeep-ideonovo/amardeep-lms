@@ -9,6 +9,9 @@ const NAV = [
   { href: "/members", label: "Members" },
   { href: "/courses", label: "Courses" },
   { href: "/blog", label: "Blog" },
+  { href: "/pages", label: "Pages" },
+  { href: "/popups", label: "Popups" },
+  { href: "/forms", label: "Forms" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -18,6 +21,8 @@ export default function Sidebar() {
 
   // Hide the chrome on the login screen.
   if (pathname === "/login") return null;
+  // Hide the chrome in the full-screen builders (/pages/:id/edit, /popups/:id/edit).
+  if (/^\/(pages|popups)\/[^/]+\/edit$/.test(pathname)) return null;
   if (typeof window !== "undefined" && !getToken()) return null;
 
   const logout = () => {

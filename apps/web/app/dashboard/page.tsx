@@ -7,6 +7,7 @@ import type { CourseCard, DashboardResponse } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import ProgressBar from "@/components/ProgressBar";
+import PopupHost from "@/components/PopupHost";
 
 function CourseTile({ course }: { course: CourseCard }) {
   if (course.locked) {
@@ -285,6 +286,8 @@ export default function DashboardPage() {
       >
         <DashboardInner />
       </Suspense>
+      {/* Active popups targeted at the dashboard (shown on every visit). */}
+      <PopupHost context={{ type: "dashboard" }} />
     </AuthGate>
   );
 }

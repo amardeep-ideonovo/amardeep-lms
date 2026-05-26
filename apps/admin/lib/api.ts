@@ -4,18 +4,32 @@ import type {
   CategoryDTO,
   CourseCard,
   CreateCourseInput,
+  CreateFormInput,
   CreateLessonInput,
   CreateLevelInput,
+  CreatePageInput,
   CreatePostInput,
+  FormAdminRow,
+  FormSubmissionDTO,
   LessonDTO,
   LessonNoteDTO,
   LevelDTO,
   LoginResponse,
+  MailchimpAudienceDTO,
+  MailchimpMergeFieldDTO,
   MemberRow,
+  PageAdminRow,
+  PageListItem,
+  PopupAdminRow,
+  PopupListItem,
   PostAdminRow,
   PostCategoryDTO,
+  CreatePopupInput,
   UpdateCourseInput,
+  UpdateFormInput,
   UpdateLessonInput,
+  UpdatePageInput,
+  UpdatePopupInput,
   UpdatePostInput,
 } from "@lms/types";
 
@@ -263,6 +277,44 @@ export const api = {
     request<PostCategoryDTO>("POST", "/admin/blog/categories", { name, order }),
   deletePostCategory: (id: string) =>
     request<void>("DELETE", `/admin/blog/categories/${id}`),
+
+  // pages (CMS / Puck visual builder)
+  listPages: () => request<PageListItem[]>("GET", "/admin/pages"),
+  getPage: (id: string) => request<PageAdminRow>("GET", `/admin/pages/${id}`),
+  createPage: (input: CreatePageInput) =>
+    request<PageAdminRow>("POST", "/admin/pages", input),
+  updatePage: (id: string, input: UpdatePageInput) =>
+    request<PageAdminRow>("PATCH", `/admin/pages/${id}`, input),
+  deletePage: (id: string) => request<void>("DELETE", `/admin/pages/${id}`),
+  uploadPageImage: (file: File) => uploadFile("/admin/pages/upload", file),
+
+  // popups (Puck overlay — same editor as pages, plus style + visibility)
+  listPopups: () => request<PopupListItem[]>("GET", "/admin/popups"),
+  getPopup: (id: string) =>
+    request<PopupAdminRow>("GET", `/admin/popups/${id}`),
+  createPopup: (input: CreatePopupInput) =>
+    request<PopupAdminRow>("POST", "/admin/popups", input),
+  updatePopup: (id: string, input: UpdatePopupInput) =>
+    request<PopupAdminRow>("PATCH", `/admin/popups/${id}`, input),
+  deletePopup: (id: string) => request<void>("DELETE", `/admin/popups/${id}`),
+
+  // forms (Mailchimp-linked)
+  listForms: () => request<FormAdminRow[]>("GET", "/admin/forms"),
+  getForm: (id: string) => request<FormAdminRow>("GET", `/admin/forms/${id}`),
+  createForm: (input: CreateFormInput) =>
+    request<FormAdminRow>("POST", "/admin/forms", input),
+  updateForm: (id: string, input: UpdateFormInput) =>
+    request<FormAdminRow>("PATCH", `/admin/forms/${id}`, input),
+  deleteForm: (id: string) => request<void>("DELETE", `/admin/forms/${id}`),
+  listFormSubmissions: (id: string) =>
+    request<FormSubmissionDTO[]>("GET", `/admin/forms/${id}/submissions`),
+  listMailchimpAudiences: () =>
+    request<MailchimpAudienceDTO[]>("GET", "/admin/mailchimp/audiences"),
+  getMailchimpMergeFields: (audienceId: string) =>
+    request<MailchimpMergeFieldDTO[]>(
+      "GET",
+      `/admin/mailchimp/audiences/${audienceId}/merge-fields`
+    ),
 
   // Multipart uploads (see helpers above). The browser sets the boundary.
   uploadImage: (file: File) => uploadFile("/admin/blog/upload", file),

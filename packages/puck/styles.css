@@ -1,0 +1,186 @@
+/*
+ * Shared styling for the @lms/puck block components. Imported by BOTH the admin
+ * editor route and the public web render route so a page looks identical in the
+ * editor and on the live site. Self-contained (no Tailwind / app CSS needed).
+ * All classes are prefixed `lmspb-` to avoid colliding with app styles.
+ */
+.lmspb-root {
+  --lmspb-brand: #6d28d9;
+  --lmspb-brand-contrast: #ffffff;
+  --lmspb-fg: #111827;
+  --lmspb-muted-fg: #6b7280;
+  --lmspb-muted-bg: #f4f4f5;
+  --lmspb-dark-bg: #0f172a;
+  --lmspb-dark-fg: #f8fafc;
+  --lmspb-border: #e5e7eb;
+  --lmspb-radius: 12px;
+  --lmspb-maxw: 1100px;
+  color: var(--lmspb-fg);
+  line-height: 1.6;
+  font-family: inherit;
+}
+.lmspb-root *,
+.lmspb-root *::before,
+.lmspb-root *::after {
+  box-sizing: border-box;
+}
+
+/* ---- Section (full-width band) ---- */
+.lmspb-section {
+  width: 100%;
+}
+.lmspb-bg-muted {
+  background: var(--lmspb-muted-bg);
+}
+.lmspb-bg-dark {
+  background: var(--lmspb-dark-bg);
+  color: var(--lmspb-dark-fg);
+}
+.lmspb-bg-brand {
+  background: var(--lmspb-brand);
+  color: var(--lmspb-brand-contrast);
+}
+.lmspb-container {
+  margin: 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.lmspb-w-narrow { max-width: 720px; }
+.lmspb-w-normal { max-width: var(--lmspb-maxw); }
+.lmspb-w-wide { max-width: 1320px; }
+.lmspb-w-full { max-width: none; }
+
+/* ---- alignment helpers ---- */
+.lmspb-al-left { text-align: left; }
+.lmspb-al-center { text-align: center; }
+.lmspb-al-right { text-align: right; }
+.lmspb-actions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+.lmspb-actions.lmspb-al-center { justify-content: center; }
+.lmspb-actions.lmspb-al-right { justify-content: flex-end; }
+
+/* ---- Hero ---- */
+.lmspb-hero { padding: 72px 0; }
+.lmspb-hero-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--lmspb-brand);
+  margin: 0 0 12px;
+}
+.lmspb-bg-dark .lmspb-hero-eyebrow,
+.lmspb-bg-brand .lmspb-hero-eyebrow { color: inherit; opacity: 0.85; }
+.lmspb-hero-title { font-size: clamp(2rem, 5vw, 3.25rem); line-height: 1.1; margin: 0 0 16px; font-weight: 800; }
+.lmspb-hero-sub { font-size: 1.2rem; color: var(--lmspb-muted-fg); margin: 0 auto; max-width: 640px; }
+.lmspb-bg-dark .lmspb-hero-sub,
+.lmspb-bg-brand .lmspb-hero-sub { color: inherit; opacity: 0.9; }
+.lmspb-hero.lmspb-al-center .lmspb-hero-sub { margin-left: auto; margin-right: auto; }
+
+/* ---- Heading ---- */
+.lmspb-heading { margin: 0 0 0.4em; font-weight: 800; line-height: 1.15; }
+
+/* ---- Rich text ---- */
+.lmspb-richtext > :first-child { margin-top: 0; }
+.lmspb-richtext > :last-child { margin-bottom: 0; }
+.lmspb-richtext a { color: var(--lmspb-brand); text-decoration: underline; }
+.lmspb-richtext img { max-width: 100%; height: auto; border-radius: 8px; }
+
+/* ---- Image ---- */
+.lmspb-figure { margin: 0; }
+.lmspb-img { display: block; height: auto; }
+.lmspb-img-normal { max-width: 720px; width: 100%; margin: 0 auto; }
+.lmspb-img-wide { max-width: var(--lmspb-maxw); width: 100%; margin: 0 auto; }
+.lmspb-img-full { width: 100%; }
+.lmspb-img-rounded { border-radius: var(--lmspb-radius); }
+.lmspb-caption { color: var(--lmspb-muted-fg); font-size: 0.9rem; text-align: center; margin-top: 8px; }
+
+/* ---- Button ---- */
+.lmspb-btn {
+  display: inline-block;
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+.lmspb-btn:hover { opacity: 0.9; }
+.lmspb-btn-primary { background: var(--lmspb-brand); color: var(--lmspb-brand-contrast); }
+.lmspb-btn-secondary { background: var(--lmspb-fg); color: #fff; }
+.lmspb-btn-outline { background: transparent; color: var(--lmspb-brand); border-color: var(--lmspb-brand); }
+
+/* ---- Spacer ---- */
+.lmspb-spacer { width: 100%; }
+
+/* ---- Columns (CSS grid) ---- */
+.lmspb-grid { display: grid; }
+@media (max-width: 720px) {
+  .lmspb-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ---- Cards / feature grid ---- */
+.lmspb-cards { display: grid; gap: 20px; }
+@media (max-width: 720px) {
+  .lmspb-cards { grid-template-columns: 1fr !important; }
+}
+.lmspb-card {
+  border: 1px solid var(--lmspb-border);
+  border-radius: var(--lmspb-radius);
+  padding: 22px;
+  background: #fff;
+  color: var(--lmspb-fg);
+  text-decoration: none;
+  display: block;
+}
+.lmspb-card-img { width: 100%; height: 160px; object-fit: cover; border-radius: 8px; margin-bottom: 14px; }
+.lmspb-card-title { font-weight: 700; font-size: 1.15rem; margin: 0 0 8px; }
+.lmspb-card-text { color: var(--lmspb-muted-fg); margin: 0; }
+
+/* ---- CTA banner ---- */
+.lmspb-cta { padding: 56px 0; border-radius: var(--lmspb-radius); }
+.lmspb-cta-title { font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 800; margin: 0 0 10px; }
+.lmspb-cta-sub { opacity: 0.9; margin: 0; font-size: 1.1rem; }
+
+/* ---- FAQ (native details/summary, no JS) ---- */
+.lmspb-faq { display: flex; flex-direction: column; gap: 10px; }
+.lmspb-faq-item { border: 1px solid var(--lmspb-border); border-radius: 10px; padding: 4px 16px; background: #fff; }
+.lmspb-faq-item > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 12px 0;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.lmspb-faq-item > summary::-webkit-details-marker { display: none; }
+.lmspb-faq-item > summary::after { content: "+"; font-size: 1.3rem; color: var(--lmspb-muted-fg); }
+.lmspb-faq-item[open] > summary::after { content: "\2212"; }
+.lmspb-faq-answer { padding: 0 0 14px; color: var(--lmspb-muted-fg); }
+
+/* ---- Testimonial ---- */
+.lmspb-quote {
+  border-left: 4px solid var(--lmspb-brand);
+  padding: 8px 0 8px 22px;
+  margin: 0;
+}
+.lmspb-quote-text { font-size: 1.3rem; font-style: italic; margin: 0 0 16px; }
+.lmspb-quote-by { display: flex; align-items: center; gap: 12px; }
+.lmspb-quote-avatar { width: 44px; height: 44px; border-radius: 999px; object-fit: cover; }
+.lmspb-quote-author { font-weight: 700; }
+.lmspb-quote-role { color: var(--lmspb-muted-fg); font-size: 0.9rem; }
+
+/* ---- Form block placeholder (editor / when no form component is injected) ---- */
+.lmspb-form-placeholder {
+  border: 1px dashed var(--lmspb-border);
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  color: var(--lmspb-muted-fg);
+}
+
+/* ---- Video (responsive 16:9) ---- */
+.lmspb-video { position: relative; width: 100%; padding-top: 56.25%; border-radius: var(--lmspb-radius); overflow: hidden; background: #000; }
+.lmspb-video > iframe,
+.lmspb-video > video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }

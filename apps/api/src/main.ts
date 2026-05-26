@@ -15,6 +15,25 @@ async function bootstrap() {
     bodyParser: false,
   });
 
+  // The PUBLIC form routes (read, submit, embed.js) must be embeddable on ANY
+  // origin — a popup, an external site. Registered BEFORE enableCors so this
+  // owns /forms preflight (responds to OPTIONS with `*`). For the real GET/POST
+  // the global cors below may overwrite ACAO with the matching origin (still
+  // valid) or leave our `*` (external origins). These routes carry no cookies.
+  app.use(
+    '/forms',
+    (req: express.Request, res: express.Response, next: express.NextFunction) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Content-Type');
+      if (req.method === 'OPTIONS') {
+        res.statusCode = 204;
+        return res.end();
+      }
+      next();
+    },
+  );
+
   app.enableCors({
     origin: process.env.CORS_ORIGIN?.split(',') ?? true,
     credentials: true,

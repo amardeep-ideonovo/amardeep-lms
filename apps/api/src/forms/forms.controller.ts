@@ -1,0 +1,103 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { AdminGuard } from '../auth/guards/admin.guard';
+import { FormsService } from './forms.service';
+import { CreateFormDto, FormSubmitDto, UpdateFormDto } from './dto/form.dto';
+
+// Form routes. The /forms/* reads + submit are PUBLIC (no guard) and only ACTIVE
+// forms are exposed. All management + the live Mailchimp lookups live under
+// /admin/* behind AdminGuard.
+@Controller()
+export class FormsController {
+  constructor(private readonly forms: FormsService) {}
+
+  // ----- Public (no auth) -----
+
+  @Get('forms/:id')
+  getPublic(@Param('id') id: string) {
+    return this.forms.getPublic(id);
+  }
+
+  @Post('forms/:id/submit')
+  submit(@Param('id') id: string, @Body() dto: FormSubmitDto) {
+    return this.forms.submit(id, dto.values);
+  }
+
+  // Paste-anywhere embed widget: <script src="…/forms/:id/embed.js"></script>.
+  @Get('forms/:id/embed.js')
+  embedScript(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const base =
+      process.env.PUBLIC_API_URL?.replace(/\/$/, '') ||
+      `${req.protocol}://${req.get('host')}`;
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.send(this.forms.buildEmbedScript(id, base));
+  }
+
+  // ----- Admin: live Mailchimp lookups for the form editor -----
+
+  @UseGuards(AdminGuard)
+  @Get('admin/mailchimp/audiences')
+  listAudiences() {
+    return this.forms.listAudiences();
+  }
+
+  @UseGuards(AdminGuard)
+  @Get('admin/mailchimp/audiences/:id/merge-fields')
+  getMergeFields(@Param('id') id: string) {
+    return this.forms.getMergeFields(id);
+  }
+
+  // ----- Admin: form CRUD -----
+
+  @UseGuards(AdminGuard)
+  @Get('admin/forms')
+  adminList() {
+    return this.forms.adminList();
+  }
+
+  @UseGuards(AdminGuard)
+  @Get('admin/forms/:id')
+  adminGet(@Param('id') id: string) {
+    return this.forms.adminGet(id);
+  }
+
+  @UseGuards(AdminGuard)
+  @Get('admin/forms/:id/submissions')
+  adminListSubmissions(@Param('id') id: string) {
+    return this.forms.listSubmissions(id);
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('admin/forms')
+  adminCreate(@Body() dto: CreateFormDto) {
+    return this.forms.adminCreate(dto);
+  }
+
+  @UseGuards(AdminGuard)
+  @Patch('admin/forms/:id')
+  adminUpdate(@Param('id') id: string, @Body() dto: UpdateFormDto) {
+    return this.forms.adminUpdate(id, dto);
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete('admin/forms/:id')
+  adminDelete(@Param('id') id: string) {
+    return this.forms.adminDelete(id);
+  }
+}

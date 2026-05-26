@@ -7,6 +7,10 @@ import type {
   LessonDTO,
   LessonNoteDTO,
   LoginResponse,
+  PagePublicDTO,
+  PopupContext,
+  PopupEventType,
+  PopupPublicDTO,
   PostDetailDTO,
   PostListItem,
 } from "@lms/types";
@@ -122,6 +126,31 @@ export const api = {
     request<PostDetailDTO>(`/blog/posts/${encodeURIComponent(slug)}`, {
       auth: false,
     }),
+
+  // pages (public CMS — built with the admin visual editor; no auth needed)
+  page: (slug: string) =>
+    request<PagePublicDTO>(`/pages/${encodeURIComponent(slug)}`, {
+      auth: false,
+    }),
+
+  // popups (public — only ACTIVE; server filters by context). The caller
+  // catches failures so a popup hiccup never breaks the host screen.
+  activePopups: (ctx: PopupContext) => {
+    const qs =
+      ctx.type === "page"
+        ? `context=page&pageId=${encodeURIComponent(ctx.pageId)}`
+        : "context=dashboard";
+    return request<PopupPublicDTO[]>(`/popups/active?${qs}`, { auth: false });
+  },
+
+  // Fire-and-forget analytics ping (view / dismiss). Never thrown.
+  recordPopupEvent: (id: string, type: PopupEventType): void => {
+    request<{ ok: true }>(`/popups/${encodeURIComponent(id)}/event`, {
+      method: "POST",
+      body: { type },
+      auth: false,
+    }).catch(() => {});
+  },
 };
 
 // Build the (access-checked) download URL for a lesson note. The file is

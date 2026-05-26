@@ -46,6 +46,7 @@ model Admin {
   createdAt    DateTime  @default(now())
 
   posts Post[]
+  pages Page[]
 }
 
 // ---------- Membership levels ----------
@@ -254,4 +255,133 @@ model Post {
   updatedAt     DateTime       @updatedAt
 
   @@index([status, publishedAt])
+}
+
+// ---------- CMS Pages ----------
+// Visual page-builder content (Puck). Like blog posts, PUBLISHED pages are
+// public (no login) and drafts are admin-only. `data` is the Puck document
+// (JSON) rendered by shared React block components in @lms/puck. Any embedded
+// rich-text HTML inside that document is sanitized on write (same policy as
+// blog posts), so a stored-XSS payload never reaches a logged-out visitor.
+
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Page {
+  id          String     @id @default(cuid())
+  slug        String     @unique // URL key at the site root: /:slug
+  title       String
+  data        Json       @default("{}") // Puck document: { content, root, zones }
+  status      PageStatus @default(DRAFT)
+  publishedAt DateTime?  // set when first published; drives public visibility
+  authorId    String?
+  author      Admin?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([status, publishedAt])
+}
+
+// ---------- Mailchimp-linked Forms ----------
+// Admin-authored forms (configurable field builder) that subscribe submitters
+// to a chosen Mailchimp audience. The Mailchimp API key/server prefix are the
+// one-time encrypted Settings; each form picks its own audience. Submissions are
+// stored locally too, so a Mailchimp hiccup never loses a lead.
+
+enum FormStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Form {
+  id                    String     @id @default(cuid())
+  name                  String
+  fields                Json       @default("[]") // FormFieldDef[] (builder output)
+  mailchimpAudienceId   String? // Mailchimp list id this form subscribes to
+  mailchimpAudienceName String? // cached name for admin list display
+  doubleOptIn           Boolean    @default(false) // default: No
+  updateExisting        Boolean    @default(true) // default: Yes
+  tags                  String[]   @default([]) // applied to every subscriber
+  successMessage        String? // shown after submit when no redirect
+  redirectUrl           String? // optional redirect after a successful submit
+  status                FormStatus @default(ACTIVE)
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  submissions FormSubmission[]
+}
+
+model FormSubmission {
+  id              String   @id @default(cuid())
+  formId          String
+  form            Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  email           String? // extracted email, for quick reference
+  data            Json     @default("{}") // all submitted field values
+  mailchimpStatus String? // subscribed | pending | existing | failed | skipped
+  createdAt       DateTime @default(now())
+
+  @@index([formId, createdAt])
+}
+
+// ---------- Popups ----------
+// Popups reuse the SAME visual editor (Puck) as Pages — `data` is the Puck
+// document rendered by the shared @lms/puck block components inside a styled,
+// positioned overlay. On top of the content they carry presentation settings
+// (size/background/position/border/padding) and visibility targeting that
+// decides WHERE the popup is shown: the member dashboard and/or specific CMS
+// pages. Only ACTIVE popups are exposed to the public targeting endpoint.
+
+enum PopupStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// On-screen placement of the popup box.
+enum PopupPosition {
+  CENTER
+  TOP
+  BOTTOM
+  TOP_LEFT
+  TOP_RIGHT
+  BOTTOM_LEFT
+  BOTTOM_RIGHT
+}
+
+// How a popup targets CMS pages (independent of the dashboard toggle).
+enum PopupPageMode {
+  NONE // not shown on any CMS page
+  ALL // shown on every CMS page
+  INCLUDE // shown only on the pages listed in pageIds
+  EXCLUDE // shown on every CMS page except those listed in pageIds
+}
+
+model Popup {
+  id     String      @id @default(cuid())
+  name   String
+  data   Json        @default("{}") // Puck document (same editor as Pages)
+  status PopupStatus @default(INACTIVE) // INACTIVE until the admin turns it on
+
+  // ----- presentation settings -----
+  width        String        @default("480px") // CSS length (e.g. 480px, 90%, auto)
+  height       String        @default("auto")
+  background   String        @default("#ffffff") // CSS color of the popup box
+  position     PopupPosition @default(CENTER)
+  borderColor  String        @default("#e2e8f0")
+  borderRadius Int           @default(12) // px
+  padding      Int           @default(24) // px
+
+  // ----- visibility / targeting -----
+  showOnDashboard Boolean       @default(false) // show on the member dashboard
+  pageMode        PopupPageMode @default(NONE)
+  pageIds         String[]      @default([]) // referenced Page ids for INCLUDE/EXCLUDE
+
+  // ----- analytics counters (incremented by the public event endpoint) -----
+  views      Int @default(0) // times shown
+  clicks     Int @default(0) // clicks on a link/button inside (web)
+  dismissals Int @default(0) // times closed
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

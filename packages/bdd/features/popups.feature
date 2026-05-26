@@ -1,0 +1,56 @@
+Feature: Popups
+  Admins build popups in the same visual editor as pages, then choose where they
+  appear. Only ACTIVE popups are exposed by the public targeting endpoint, and
+  visibility is enforced server-side per context (the member dashboard, or a
+  specific CMS page). All write operations are restricted to admins.
+
+  Scenario: Anonymous visitors cannot create popups
+    When I POST "/admin/popups" without a token and body:
+      """
+      { "name": "Hacked popup", "status": "ACTIVE", "showOnDashboard": true }
+      """
+    Then the response status should be 403
+
+  Scenario: An admin can create a popup
+    When I create a popup via admin with body:
+      """
+      { "name": "BDD popup" }
+      """
+    Then the response status should be 201
+
+  Scenario: An active dashboard popup is visible on the public endpoint
+    When I create a popup via admin with body:
+      """
+      { "name": "BDD dashboard popup", "status": "ACTIVE", "showOnDashboard": true }
+      """
+    And I GET active popups for the dashboard without a token
+    Then the response status should be 200
+    And the response should include the created popup
+
+  Scenario: An inactive popup is hidden from the public endpoint
+    When I create a popup via admin with body:
+      """
+      { "name": "BDD inactive popup", "status": "INACTIVE", "showOnDashboard": true }
+      """
+    And I GET active popups for the dashboard without a token
+    Then the response should not include the created popup
+
+  Scenario: A page-targeted popup shows only on the selected page
+    When I create a popup via admin with body:
+      """
+      { "name": "BDD page popup", "status": "ACTIVE", "pageMode": "INCLUDE", "pageIds": ["seed-page-about"] }
+      """
+    And I GET active popups for page "seed-page-about" without a token
+    Then the response should include the created popup
+    When I GET active popups for the dashboard without a token
+    Then the response should not include the created popup
+
+  Scenario: Recording a view increments the popup's analytics
+    When I create a popup via admin with body:
+      """
+      { "name": "BDD analytics popup" }
+      """
+    And I record a "view" event on the created popup without a token
+    And I GET the created popup as admin
+    Then the response status should be 200
+    And the response field "views" should be 1
