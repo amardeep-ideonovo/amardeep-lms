@@ -1,0 +1,81 @@
+name: Build
+
+# Runs in parallel with the BDD workflow. Currently INFORMATIONAL ONLY —
+# it does not block merges. Once stable for ~2 weeks we can promote any
+# of these jobs to required checks in the repo ruleset.
+#
+# The goal is to stop "merged green, broke on deploy" — typecheck/bundle
+# regressions in admin/web/mobile that BDD's API-only check misses.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [amardeepLMS]
+
+jobs:
+  typecheck:
+    name: TypeCheck (${{ matrix.workspace }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Workspaces with a tsconfig but no full build elsewhere. The API
+        # is covered by `nest build` in the BDD workflow; admin + web are
+        # covered by their `next build` jobs below.
+        workspace: [mobile, puck, bdd, db]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate --schema packages/db/prisma/schema.prisma
+      - name: tsc --noEmit
+        run: |
+          case "${{ matrix.workspace }}" in
+            mobile) PROJECT=apps/mobile/tsconfig.json ;;
+            puck)   PROJECT=packages/puck/tsconfig.json ;;
+            bdd)    PROJECT=packages/bdd/tsconfig.json ;;
+            db)     PROJECT=packages/db/tsconfig.json ;;
+          esac
+          npx tsc --noEmit -p "$PROJECT"
+
+  build-admin:
+    name: Next build (admin)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate --schema packages/db/prisma/schema.prisma
+      - name: next build
+        run: npm run -w @lms/admin build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3000
+
+  build-web:
+    name: Next build (web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate --schema packages/db/prisma/schema.prisma
+      - name: next build
+        run: npm run -w @lms/web build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3000
