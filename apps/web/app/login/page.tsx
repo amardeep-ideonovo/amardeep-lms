@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, setToken } from "@/lib/api";
 
@@ -66,6 +67,13 @@ export default function LoginPage() {
           {loading ? "Signing in…" : "Sign in"}
         </button>
       </form>
+
+      <p className="sub" style={{ marginTop: 16 }}>
+        New here?{" "}
+        <Link href="/signup" className="link">
+          Create an account
+        </Link>
+      </p>
     </div>
   );
 }
