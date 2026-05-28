@@ -19,6 +19,11 @@ async function bootstrap() {
     bodyParser: false,
   });
 
+  // Trust X-Forwarded-* so req.ip is the real client IP behind a CDN / load
+  // balancer. Without this, throttler keys all requests by the proxy's IP
+  // and either no one gets rate-limited or everyone gets blocked together.
+  app.set('trust proxy', true);
+
   // The PUBLIC form routes (read, submit, embed.js) must be embeddable on ANY
   // origin — a popup, an external site. Registered BEFORE enableCors so this
   // owns /forms preflight (responds to OPTIONS with `*`). For the real GET/POST

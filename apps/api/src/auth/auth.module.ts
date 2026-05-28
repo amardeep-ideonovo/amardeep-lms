@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
@@ -9,6 +10,12 @@ import { JwtDownloadStrategy } from './jwt-download.strategy';
 
 @Module({
   imports: [
+    // Defines a named throttler. The default is intentionally lenient —
+    // tight per-route limits live on @Throttle decorators in
+    // auth.controller.ts so non-sensitive routes are untouched.
+    ThrottlerModule.forRoot([
+      { name: 'default', ttl: 60_000, limit: 1000 },
+    ]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       inject: [ConfigService],
