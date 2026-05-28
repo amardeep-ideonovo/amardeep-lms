@@ -23,6 +23,17 @@ export interface LoginResponse<T = AuthUser> {
   user: T;
 }
 
+// Public signup — used by /auth/signup (web + mobile signup screens).
+// `inviteCode` is required only if SIGNUP_INVITE_CODE is set on the API.
+export interface SignupInput {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  inviteCode?: string;
+}
+
 export interface PriceDTO {
   id: string;
   stripePriceId: string;
@@ -469,6 +480,7 @@ export type PopupEventType = "view" | "click" | "dismiss";
 export const ROUTES = {
   // auth
   memberLogin: "POST /auth/login", // body {email,password} -> LoginResponse<AuthUser>
+  memberSignup: "POST /auth/signup", // body SignupInput -> LoginResponse<AuthUser>
   adminLogin: "POST /auth/admin/login", // -> LoginResponse<AuthAdmin>
   me: "GET /auth/me",
 

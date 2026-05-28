@@ -111,34 +111,58 @@ export class BillingService {
     try {
       event = await this.stripe.constructEvent(rawBody, signature, webhookSecret);
     } catch (err) {
-      this.logger.warn(`Webhook signature verification failed: ${err}`);
+      this.logger.warn(
+        `[stripe-webhook] signature_fail err=${err instanceof Error ? err.message : String(err)}`,
+      );
       throw new BadRequestException('Invalid signature');
     }
 
-    switch (event.type) {
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted':
-        await this.reconcileSubscription(
-          event.data.object as Stripe.Subscription,
-        );
-        break;
-      case 'invoice.paid':
-      case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice;
-        const subId =
-          typeof invoice.subscription === 'string'
-            ? invoice.subscription
-            : invoice.subscription?.id;
-        if (subId) {
-          // Re-fetch the canonical subscription to reconcile from source of truth.
-          const sub = await this.stripe.retrieveSubscription(subId);
-          await this.reconcileSubscription(sub);
+    // Single audit line per event lets ops correlate Stripe's dashboard
+    // event log with our processing (id + type + outcome + duration).
+    const t0 = Date.now();
+    this.logger.log(`[stripe-webhook] start id=${event.id} type=${event.type}`);
+
+    try {
+      switch (event.type) {
+        case 'customer.subscription.created':
+        case 'customer.subscription.updated':
+        case 'customer.subscription.deleted':
+          await this.reconcileSubscription(
+            event.data.object as Stripe.Subscription,
+          );
+          break;
+        case 'invoice.paid':
+        case 'invoice.payment_failed': {
+          const invoice = event.data.object as Stripe.Invoice;
+          const subId =
+            typeof invoice.subscription === 'string'
+              ? invoice.subscription
+              : invoice.subscription?.id;
+          if (subId) {
+            // Re-fetch the canonical subscription to reconcile from source of truth.
+            const sub = await this.stripe.retrieveSubscription(subId);
+            await this.reconcileSubscription(sub);
+          }
+          break;
         }
-        break;
+        default:
+          this.logger.log(
+            `[stripe-webhook] unhandled id=${event.id} type=${event.type} duration_ms=${Date.now() - t0}`,
+          );
+          return;
       }
-      default:
-        this.logger.debug(`Unhandled Stripe event: ${event.type}`);
+      this.logger.log(
+        `[stripe-webhook] ok id=${event.id} type=${event.type} duration_ms=${Date.now() - t0}`,
+      );
+    } catch (err) {
+      // Stripe retries on non-2xx, so rethrowing is intentional. The log
+      // here captures the failure with full context before Stripe re-sends.
+      this.logger.error(
+        `[stripe-webhook] error id=${event.id} type=${event.type} duration_ms=${Date.now() - t0} err=${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      throw err;
     }
   }
 

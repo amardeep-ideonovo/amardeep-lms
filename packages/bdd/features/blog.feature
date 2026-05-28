@@ -3,6 +3,7 @@ Feature: Public blog
   all write operations are restricted to admins. This is the only public,
   unauthenticated surface in the API.
 
+  @smoke
   Scenario: Anyone can list published posts without logging in
     When I GET "/blog/posts" without a token
     Then the response status should be 200

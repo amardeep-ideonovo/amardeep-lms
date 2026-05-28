@@ -12,5 +12,14 @@ export type RootStackParamList = {
   Page: { slug: string; title: string };
 };
 
+// Param list for the unauthenticated stack (Login + Signup).
+export type AuthStackParamList = {
+  Login: undefined;
+  Signup: undefined;
+};
+
+export type AuthScreenProps<T extends keyof AuthStackParamList> =
+  NativeStackScreenProps<AuthStackParamList, T>;
+
 export type ScreenProps<T extends keyof RootStackParamList> =
   NativeStackScreenProps<RootStackParamList, T>;

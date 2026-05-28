@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -16,33 +17,57 @@ import { useAuth } from "../auth";
 import type { AuthScreenProps } from "../navigation";
 import { colors, spacing } from "../theme";
 
-type Props = AuthScreenProps<"Login">;
+type Props = AuthScreenProps<"Signup">;
 
-export function LoginScreen({ navigation }: Props) {
+export function SignupScreen({ navigation }: Props) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = email.trim().length > 0 && password.length > 0 && !submitting;
+  const canSubmit =
+    email.trim().length > 0 &&
+    password.length >= 10 &&
+    firstName.trim().length > 0 &&
+    lastName.trim().length > 0 &&
+    !submitting;
 
   async function onSubmit() {
     if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
     try {
-      const res = await api.login(email.trim(), password);
-      // Storing the token flips the auth gate -> the Dashboard stack mounts.
+      const res = await api.signup({
+        email: email.trim(),
+        password,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim() || undefined,
+        inviteCode: inviteCode.trim() || undefined,
+      });
+      // Same as login — flipping the auth gate mounts the Dashboard stack.
       await signIn(res.token);
     } catch (e) {
-      const msg =
-        e instanceof ApiError && e.status === 401
-          ? "Invalid email or password."
-          : e instanceof Error
-            ? e.message
-            : "Something went wrong.";
-      setError(msg);
+      if (e instanceof ApiError) {
+        if (e.status === 409) {
+          setError(
+            "An account with this email already exists. Try signing in."
+          );
+        } else if (e.status === 403) {
+          setError("That invite code isn't valid.");
+        } else {
+          setError(e.message);
+        }
+      } else if (e instanceof Error) {
+        setError(e.message);
+      } else {
+        setError("Something went wrong.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -54,10 +79,31 @@ export function LoginScreen({ navigation }: Props) {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
           <Text style={styles.brand}>LMS</Text>
-          <Text style={styles.subtitle}>Sign in to your membership</Text>
+          <Text style={styles.subtitle}>Create your account</Text>
 
+          <TextInput
+            style={styles.input}
+            placeholder="First name"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="words"
+            value={firstName}
+            onChangeText={setFirstName}
+            editable={!submitting}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Last name"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="words"
+            value={lastName}
+            onChangeText={setLastName}
+            editable={!submitting}
+          />
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -72,15 +118,33 @@ export function LoginScreen({ navigation }: Props) {
           />
           <TextInput
             style={styles.input}
-            placeholder="Password"
+            placeholder="Password (10+ characters)"
             placeholderTextColor={colors.textMuted}
             secureTextEntry
-            textContentType="password"
+            textContentType="newPassword"
             value={password}
             onChangeText={setPassword}
             editable={!submitting}
-            onSubmitEditing={onSubmit}
-            returnKeyType="go"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Phone (optional)"
+            placeholderTextColor={colors.textMuted}
+            keyboardType="phone-pad"
+            textContentType="telephoneNumber"
+            value={phone}
+            onChangeText={setPhone}
+            editable={!submitting}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Invite code (if you have one)"
+            placeholderTextColor={colors.textMuted}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            value={inviteCode}
+            onChangeText={setInviteCode}
+            editable={!submitting}
           />
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -94,21 +158,20 @@ export function LoginScreen({ navigation }: Props) {
             {submitting ? (
               <ActivityIndicator color={colors.text} />
             ) : (
-              <Text style={styles.buttonText}>Sign in</Text>
+              <Text style={styles.buttonText}>Create account</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity
-            onPress={() => navigation.navigate("Signup")}
+            onPress={() => navigation.navigate("Login")}
             activeOpacity={0.7}
             style={styles.linkButton}
           >
             <Text style={styles.linkText}>
-              New here?{" "}
-              <Text style={styles.linkTextStrong}>Create an account</Text>
+              Already a member? <Text style={styles.linkTextStrong}>Sign in</Text>
             </Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -118,9 +181,10 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
   },
   brand: {
     color: colors.text,
@@ -155,7 +219,11 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.5 },
   buttonText: { color: colors.text, fontSize: 16, fontWeight: "700" },
-  error: { color: colors.danger, marginBottom: spacing.sm, textAlign: "center" },
+  error: {
+    color: colors.danger,
+    marginBottom: spacing.sm,
+    textAlign: "center",
+  },
   linkButton: { marginTop: spacing.lg, alignItems: "center" },
   linkText: { color: colors.textMuted, fontSize: 14 },
   linkTextStrong: { color: colors.primary, fontWeight: "700" },

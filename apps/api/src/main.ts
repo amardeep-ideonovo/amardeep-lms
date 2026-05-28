@@ -1,3 +1,7 @@
+// Sentry must be loaded BEFORE any other module so it can patch
+// http/express/db at require-time. This file is a no-op when SENTRY_DSN
+// is unset, so it's safe to keep at the top in every environment.
+import './instrument';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
@@ -14,6 +18,11 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
   });
+
+  // Trust X-Forwarded-* so req.ip is the real client IP behind a CDN / load
+  // balancer. Without this, throttler keys all requests by the proxy's IP
+  // and either no one gets rate-limited or everyone gets blocked together.
+  app.set('trust proxy', true);
 
   // The PUBLIC form routes (read, submit, embed.js) must be embeddable on ANY
   // origin — a popup, an external site. Registered BEFORE enableCors so this

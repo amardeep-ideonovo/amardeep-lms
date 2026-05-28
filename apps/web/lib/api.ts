@@ -15,6 +15,7 @@ import type {
   PopupPublicDTO,
   PostDetailDTO,
   PostListItem,
+  SignupInput,
 } from "@lms/types";
 
 const API_BASE =
@@ -95,6 +96,12 @@ export const api = {
     request<LoginResponse<AuthUser>>("/auth/login", {
       method: "POST",
       body: { email, password },
+      auth: false,
+    }),
+  signup: (input: SignupInput) =>
+    request<LoginResponse<AuthUser>>("/auth/signup", {
+      method: "POST",
+      body: input,
       auth: false,
     }),
   me: () => request<AuthUser>("/auth/me"),

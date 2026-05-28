@@ -19,6 +19,8 @@
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.4",
+    "@nestjs/throttler": "^6.5.0",
+    "@sentry/nestjs": "^10.54.0",
     "@types/sanitize-html": "^2.16.1",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.13.2",

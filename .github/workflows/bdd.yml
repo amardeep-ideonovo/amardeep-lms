@@ -38,6 +38,11 @@ jobs:
       SETTINGS_ENC_KEY: /hPDRHx7skUjWVQVblkIExEjY1+Ldpk3TJGycbOKtmc=
       PORT: "3000"
       API_URL: http://localhost:3000
+      # Sequential BDD scenarios share localhost as their source IP, so the
+      # 5/min default throttle would trip after the 5th login attempt. Lift
+      # the limit only for CI (real prod keeps the secure default).
+      THROTTLE_LOGIN_LIMIT: "1000"
+      THROTTLE_SIGNUP_LIMIT: "1000"
 
     steps:
       - uses: actions/checkout@v4
