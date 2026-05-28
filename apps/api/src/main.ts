@@ -1,3 +1,7 @@
+// Sentry must be loaded BEFORE any other module so it can patch
+// http/express/db at require-time. This file is a no-op when SENTRY_DSN
+// is unset, so it's safe to keep at the top in every environment.
+import './instrument';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';

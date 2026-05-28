@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { SentryModule } from '@sentry/nestjs/setup';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueueModule } from './queue/queue.module';
 import { SettingsModule } from './settings/settings.module';
@@ -19,6 +20,10 @@ import { HealthModule } from './health/health.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // Sentry global exception filter — captures unhandled errors and
+    // attaches HTTP request context. No-op if SENTRY_DSN is unset (see
+    // ./instrument.ts).
+    SentryModule.forRoot(),
     // Global infrastructure modules.
     PrismaModule,
     QueueModule,
