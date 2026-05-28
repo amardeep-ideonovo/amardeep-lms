@@ -3,12 +3,14 @@ Feature: Public CMS pages
   logging in. Draft pages and all write operations are restricted to admins —
   the same public-surface rules as the blog.
 
+  @smoke
   Scenario: Anyone can list published pages without logging in
     When I GET "/pages" without a token
     Then the response status should be 200
     And the response should include a page with slug "about"
     And the response should not include a page with slug "coming-soon"
 
+  @smoke
   Scenario: Anyone can read a published page by slug without logging in
     When I GET "/pages/about" without a token
     Then the response status should be 200

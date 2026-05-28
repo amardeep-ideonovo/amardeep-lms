@@ -1,0 +1,75 @@
+name: Smoke (staging)
+
+# Runs the @smoke-tagged subset of BDD scenarios against any deployed API.
+#
+# Usage:
+#   1. Deploy the latest amardeepLMS to staging
+#   2. Trigger this workflow from the Actions tab — "Run workflow"
+#   3. Optionally edit the staging URL input if it changes
+#
+# The default target reads from repo secret `STAGING_API_URL` (set this
+# once in Settings → Secrets → Actions). The manual trigger can override
+# it for one-off runs against a preview URL.
+#
+# Scenarios tagged @smoke are reads-only (no DB writes), so it's also safe
+# to point at production when needed — just override the URL.
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: "API URL to smoke (overrides STAGING_API_URL secret)"
+        required: false
+        default: ""
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve target URL
+        id: target
+        run: |
+          URL="${{ github.event.inputs.api_url }}"
+          if [ -z "$URL" ]; then
+            URL="${{ secrets.STAGING_API_URL }}"
+          fi
+          if [ -z "$URL" ]; then
+            echo "No API URL provided. Set STAGING_API_URL secret or pass api_url input." >&2
+            exit 1
+          fi
+          # Strip trailing slash so /health and /auth/login concat cleanly.
+          URL="${URL%/}"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Targeting: $URL"
+
+      - name: Verify /health is reachable
+        run: |
+          code=$(curl -s -o /tmp/health.json -w "%{http_code}" "${{ steps.target.outputs.url }}/health")
+          if [ "$code" != "200" ]; then
+            echo "Health check failed: HTTP $code" >&2
+            cat /tmp/health.json >&2 || true
+            exit 1
+          fi
+          cat /tmp/health.json
+          # Pass through if status is "ok"; warn (don't fail) on "degraded" so
+          # the smoke scenarios can still surface the actual problem.
+          if grep -q '"status":"ok"' /tmp/health.json; then
+            echo "Health is ok."
+          else
+            echo "::warning::Health endpoint reports degraded state."
+          fi
+
+      - name: Run @smoke BDD scenarios
+        env:
+          API_URL: ${{ steps.target.outputs.url }}
+        run: npm run -w @lms/bdd test:smoke

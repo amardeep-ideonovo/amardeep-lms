@@ -4,7 +4,8 @@
   "private": true,
   "description": "API-level BDD suite (Cucumber.js). Gates merges to main.",
   "scripts": {
-    "test": "cucumber-js"
+    "test": "cucumber-js",
+    "test:smoke": "cucumber-js --tags @smoke"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^10.9.0",
