@@ -43,8 +43,7 @@ jobs:
             npm -w apps/admin run build
             npm -w apps/api run build
 
-            su - websitedesignpixel -c 'pm2 restart lms-web --update-env'
-            su - websitedesignpixel -c 'pm2 restart lms-admin --update-env'
-            su - websitedesignpixel -c 'pm2 restart lms-api --update-env'
-            su - websitedesignpixel -c 'pm2 save'
+            pm2 restart lms-web --update-env
+            pm2 restart lms-admin --update-env
+            pm2 restart lms-api --update-env
           EOF
