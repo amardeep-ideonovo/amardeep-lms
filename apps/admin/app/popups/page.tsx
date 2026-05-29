@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { PopupListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { withBase } from "@/lib/base-path";
 
 // Human summary of WHERE a popup shows, from its visibility flags.
 function visibilitySummary(p: PopupListItem): string {
@@ -65,7 +66,7 @@ export default function PopupsPage() {
   }, []);
 
   function openEditor(id: string) {
-    window.open(`/popups/${id}/edit`, "_blank", "noopener");
+    window.open(withBase(`/popups/${id}/edit`), "_blank", "noopener");
   }
 
   async function addNewPopup() {
@@ -77,7 +78,7 @@ export default function PopupsPage() {
     setError(null);
     try {
       const popup = await api.createPopup({ name: "Untitled popup" });
-      if (win) win.location.href = `/popups/${popup.id}/edit`;
+      if (win) win.location.href = withBase(`/popups/${popup.id}/edit`);
       else openEditor(popup.id);
       await load();
     } catch (err) {

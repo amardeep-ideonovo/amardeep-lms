@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { PageListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { withBase } from "@/lib/base-path";
 
 // Where to open the public "View" link. Set NEXT_PUBLIC_WEB_URL in prod;
 // defaults to the dev member site.
@@ -33,7 +34,7 @@ export default function PagesPage() {
   }, []);
 
   function openEditor(id: string) {
-    window.open(`/pages/${id}/edit`, "_blank", "noopener");
+    window.open(withBase(`/pages/${id}/edit`), "_blank", "noopener");
   }
 
   async function addNewPage() {
@@ -45,7 +46,7 @@ export default function PagesPage() {
     setError(null);
     try {
       const page = await api.createPage({ title: "Untitled page" });
-      if (win) win.location.href = `/pages/${page.id}/edit`;
+      if (win) win.location.href = withBase(`/pages/${page.id}/edit`);
       else openEditor(page.id);
       await load();
     } catch (err) {
