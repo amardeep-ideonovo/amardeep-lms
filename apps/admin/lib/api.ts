@@ -33,6 +33,7 @@ import type {
   UpdatePopupInput,
   UpdatePostInput,
 } from "@lms/types";
+import { withBase } from "./base-path";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:3000";
@@ -84,7 +85,8 @@ async function request<T>(
 
   if (res.status === 401 && typeof window !== "undefined") {
     clearToken();
-    if (window.location.pathname !== "/login") window.location.href = "/login";
+    if (window.location.pathname !== withBase("/login"))
+      window.location.href = withBase("/login");
   }
 
   if (!res.ok) {
@@ -119,7 +121,8 @@ async function multipartFetch(path: string, fd: FormData): Promise<Response> {
   });
   if (res.status === 401 && typeof window !== "undefined") {
     clearToken();
-    if (window.location.pathname !== "/login") window.location.href = "/login";
+    if (window.location.pathname !== withBase("/login"))
+      window.location.href = withBase("/login");
   }
   if (!res.ok) {
     let message = `Upload failed (${res.status})`;
