@@ -40,7 +40,11 @@ jobs:
             npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma
 
             npm -w apps/web run build
-            npm -w apps/admin run build
+            # Admin is served under /admin behind the reverse proxy. basePath must be
+            # inlined at build time (NEXT_PUBLIC_* are baked into the bundle by next
+            # build), so set it here rather than relying on the server .env — which has
+            # proven unreliable (rebuilds kept emitting /_next, i.e. no prefix).
+            NEXT_PUBLIC_ADMIN_BASE_PATH=/admin npm -w apps/admin run build
             npm -w apps/api run build
 
             pm2 restart lms-web --update-env
