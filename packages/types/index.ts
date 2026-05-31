@@ -63,6 +63,14 @@ export interface CreateLevelInput {
   prices?: { interval: "month" | "year"; amount: number; currency?: string }[];
 }
 
+// A member's own live paid subscription, surfaced to the web app so the
+// pricing/checkout UI can flag a plan they already pay for and route them to
+// the customer portal instead of starting a duplicate checkout.
+export interface MySubscriptionDTO {
+  levelId: string;
+  status: Extract<UserLevelStatus, "ACTIVE" | "PAST_DUE">;
+}
+
 export interface MemberRow {
   id: string;
   username: string;
@@ -576,6 +584,7 @@ export const ROUTES = {
   // billing (member)
   checkout: "POST /billing/checkout", // body {priceId} -> {url}
   portal: "GET /billing/portal", // -> {url} (Stripe Customer Portal)
+  mySubscriptions: "GET /billing/subscriptions", // -> MySubscriptionDTO[] (member's active paid levels)
   stripeWebhook: "POST /billing/webhook",
 
   // admin settings (secrets are write-only; GET returns masked/last4 only)

@@ -6,4 +6,4 @@ export const API_BASE_URL =
 
 // Members manage billing/account on the web (Apple/Google IAP rules forbid in-app billing).
 export const WEB_ACCOUNT_URL =
-  process.env.EXPO_PUBLIC_WEB_ACCOUNT_URL ?? "http://localhost:3001/account";
+  process.env.EXPO_PUBLIC_WEB_ACCOUNT_URL ?? "http://localhost:3002/account";

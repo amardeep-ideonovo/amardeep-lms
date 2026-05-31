@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 
-import { clearToken, getToken, setToken } from "./api";
+import { clearToken, getToken, setToken, setUnauthorizedHandler } from "./api";
 
 type AuthState = {
   token: string | null;
@@ -37,6 +37,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await clearToken();
     setTokenState(null);
   }, []);
+
+  // When the API rejects our token (401), drop it and bounce back to Login.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      void signOut();
+    });
+    return () => setUnauthorizedHandler(null);
+  }, [signOut]);
 
   const value = useMemo<AuthState>(
     () => ({ token, loading, signIn, signOut }),

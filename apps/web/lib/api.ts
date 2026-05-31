@@ -9,6 +9,7 @@ import type {
   LessonDTO,
   LevelDTO,
   LoginResponse,
+  MySubscriptionDTO,
   PagePublicDTO,
   PopupContext,
   PopupEventType,
@@ -150,6 +151,8 @@ export const api = {
       body: { priceId },
     }),
   portal: () => request<{ url: string }>("/billing/portal"),
+  mySubscriptions: () =>
+    request<MySubscriptionDTO[]>("/billing/subscriptions"),
 };
 
 // ---------- Blog (PUBLIC) ----------

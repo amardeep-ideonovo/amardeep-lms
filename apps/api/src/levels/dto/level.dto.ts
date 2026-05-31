@@ -74,4 +74,13 @@ export class UpdateLevelDto {
   @IsOptional()
   @IsString()
   mailchimpAudienceName?: string;
+
+  // Desired set of offered prices (admin edit form always submits the full
+  // list). The service reconciles it against Stripe: Stripe Prices are
+  // immutable, so a changed amount becomes a NEW Price plus an archived old one.
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PriceInputDto)
+  prices?: PriceInputDto[];
 }

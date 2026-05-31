@@ -1,8 +1,9 @@
 // Dev/demo seed. Idempotent (fixed ids + upserts) so it can run repeatedly.
 // NOTE: this is local convenience data only — unrelated to the WordPress migration.
-// PAID level Stripe ids here are placeholders; real Products/Prices are created
-// by the API's Levels module against Stripe. Checkout won't work on these fakes,
-// but dashboard / access / lock-unlock all do.
+// The "Pro" level here is a manual-grant DEMO with NO Stripe price, so it never
+// appears as a purchasable plan on /pricing (a fake price id can't be checked
+// out). Real PAID levels — with live Stripe Products/Prices — are created in the
+// admin. Dashboard / access / lock-unlock all work from the manual grant below.
 import { Prisma, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -112,21 +113,15 @@ async function main() {
       name: "Pro",
       type: "PAID",
       mailchimpTags: ["pro"],
-      stripeProductId: "prod_seed_pro",
     },
   });
 
-  await prisma.price.upsert({
+  // Pro is a manual-grant demo (see the MANUAL UserLevel + gated "Pro
+  // Masterclass" course below) and intentionally has NO Price. Clean up the
+  // historical fake price if an older seed wrote it, so it can't surface as a
+  // dead-end "Choose plan" button on /pricing.
+  await prisma.price.deleteMany({
     where: { stripePriceId: "price_seed_pro_monthly" },
-    update: {},
-    create: {
-      id: "seed-price-pro-monthly",
-      levelId: proLevel.id,
-      stripePriceId: "price_seed_pro_monthly",
-      interval: "month",
-      amount: 1500, // $15.00
-      currency: "usd",
-    },
   });
 
   // ----- Member -----
@@ -553,7 +548,9 @@ async function main() {
 
   console.log("Seed complete.");
   console.log(`  Admin:  admin@example.com / ${adminPassword}`);
-  console.log(`  Member: member@example.com / ${memberPassword} (has Pro)`);
+  console.log(
+    `  Member: member@example.com / ${memberPassword} (has Pro via manual grant)`,
+  );
   console.log(`  Blog:   3 published posts + 1 draft, 2 categories`);
   console.log(`  Pages:  1 published (/about) + 1 draft (coming-soon)`);
   console.log(`  Popups: 1 active (Welcome popup → dashboard)`);

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { clearToken, getToken } from "@/lib/api";
 
@@ -18,12 +19,17 @@ const NAV = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Hide the chrome on the login screen.
   if (pathname === "/login") return null;
   // Hide the chrome in the full-screen builders (/pages/:id/edit, /popups/:id/edit).
   if (/^\/(pages|popups)\/[^/]+\/edit$/.test(pathname)) return null;
-  if (typeof window !== "undefined" && !getToken()) return null;
+  // Hide when unauthenticated — but only after mount. The token lives in
+  // localStorage (unknown to SSR), so gating on `mounted` keeps the server and
+  // first client render identical and avoids a hydration mismatch.
+  if (mounted && !getToken()) return null;
 
   const logout = () => {
     clearToken();

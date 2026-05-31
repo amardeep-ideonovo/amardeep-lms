@@ -1,44 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { LevelDTO, PriceDTO } from "@lms/types";
+import { Suspense, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 
-function formatPrice(p: PriceDTO): string {
-  const amount = (p.amount / 100).toLocaleString(undefined, {
-    style: "currency",
-    currency: (p.currency || "usd").toUpperCase(),
-  });
-  return `${amount} / ${p.interval}`;
+// Stripe redirects back to /account?checkout=success|cancel after a Checkout
+// Session. Entitlements update asynchronously via webhook, so success only
+// promises the access "shortly". Reads search params → must sit in <Suspense>.
+function CheckoutBanner() {
+  const status = useSearchParams().get("checkout");
+  if (status === "success") {
+    return (
+      <div className="alert alert-info">
+        Subscription successful — your new access will appear shortly.
+      </div>
+    );
+  }
+  if (status === "cancel") {
+    return (
+      <div className="alert alert-info">
+        Checkout canceled — you haven’t been charged.
+      </div>
+    );
+  }
+  return null;
 }
 
 function AccountInner() {
   const router = useRouter();
-  const [levels, setLevels] = useState<LevelDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null); // priceId or "portal"
-
-  useEffect(() => {
-    let active = true;
-    api
-      .levels()
-      .then((l) => active && setLevels(l))
-      .catch((err) => {
-        if (!active) return;
-        if (err instanceof ApiError && err.status === 401) {
-          clearToken();
-          router.replace("/login");
-          return;
-        }
-        // Levels listing is optional context; don't hard-fail the page.
-        setLevels([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, [router]);
+  const [busy, setBusy] = useState(false);
 
   function fail(err: unknown) {
     if (err instanceof ApiError && err.status === 401) {
@@ -51,34 +44,24 @@ function AccountInner() {
 
   async function openPortal() {
     setError(null);
-    setBusy("portal");
+    setBusy(true);
     try {
       const { url } = await api.portal();
       window.location.href = url;
     } catch (err) {
       fail(err);
-      setBusy(null);
+      setBusy(false);
     }
   }
-
-  async function subscribe(priceId: string) {
-    setError(null);
-    setBusy(priceId);
-    try {
-      const { url } = await api.checkout(priceId);
-      window.location.href = url;
-    } catch (err) {
-      fail(err);
-      setBusy(null);
-    }
-  }
-
-  const paidLevels = (levels || []).filter((l) => l.prices.length > 0);
 
   return (
     <>
       <h1 className="page-title">Account</h1>
       <p className="page-sub">Manage your membership and billing.</p>
+
+      <Suspense fallback={null}>
+        <CheckoutBanner />
+      </Suspense>
 
       {error && <div className="alert alert-error">{error}</div>}
 
@@ -92,42 +75,18 @@ function AccountInner() {
           type="button"
           className="btn btn-primary"
           onClick={openPortal}
-          disabled={busy === "portal"}
+          disabled={busy}
         >
-          {busy === "portal" ? "Redirecting…" : "Manage subscription"}
+          {busy ? "Redirecting…" : "Manage subscription"}
         </button>
       </section>
 
       <section className="account-section">
-        <h2>Subscribe to a plan</h2>
-        <p>Pick a membership level to unlock more courses.</p>
-
-        {levels === null ? (
-          <div className="spinner" aria-label="Loading" />
-        ) : paidLevels.length === 0 ? (
-          <p className="empty">No plans are available right now.</p>
-        ) : (
-          <div className="plan-list">
-            {paidLevels.map((level) =>
-              level.prices.map((price) => (
-                <div className="plan-row" key={price.id}>
-                  <div className="plan-info">
-                    <h3>{level.name}</h3>
-                    <span>{formatPrice(price)}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => subscribe(price.stripePriceId)}
-                    disabled={busy === price.stripePriceId}
-                  >
-                    {busy === price.stripePriceId ? "Redirecting…" : "Subscribe"}
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        )}
+        <h2>Membership plans</h2>
+        <p>Browse membership levels and subscribe to unlock more courses.</p>
+        <Link href="/pricing" className="btn btn-secondary">
+          View plans
+        </Link>
       </section>
     </>
   );

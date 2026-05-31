@@ -23,7 +23,7 @@ function CourseTile({ course }: { course: CourseCard }) {
         <h3 className="card-title">{course.title}</h3>
         {course.description && <p className="card-desc">{course.description}</p>}
         <div className="lock-overlay">
-          <Link href="/account">Upgrade to unlock →</Link>
+          <Link href="/pricing">Upgrade to unlock →</Link>
         </div>
       </div>
     );

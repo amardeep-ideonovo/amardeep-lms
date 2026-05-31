@@ -35,6 +35,12 @@ export class BillingController {
     return this.billing.createPortal(principal.sub);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('subscriptions')
+  mySubscriptions(@CurrentUser() principal: AuthenticatedPrincipal) {
+    return this.billing.mySubscriptions(principal.sub);
+  }
+
   // Public (Stripe-signed). Raw body is provided by the express.raw() parser
   // registered for this exact path in main.ts.
   @Post('webhook')

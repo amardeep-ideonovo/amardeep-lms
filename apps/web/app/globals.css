@@ -218,6 +218,27 @@ a.card:hover {
   color: var(--primary);
 }
 
+/* current-plan card (pricing): a plan the member already subscribes to */
+.card.current {
+  border-color: var(--primary);
+}
+
+.plan-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--primary);
+  background: rgba(79, 70, 229, 0.1);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
 /* ---------- Lesson list ---------- */
 .lesson-list {
   list-style: none;
@@ -648,6 +669,26 @@ a.card:hover {
   color: var(--muted);
   margin: 0 0 16px;
   font-size: 14px;
+}
+
+/* ---------- Checkout page ---------- */
+.plan-row.selectable {
+  cursor: pointer;
+}
+
+.plan-row.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+}
+
+.checkout-cta {
+  margin-top: 20px;
+}
+
+.checkout-note {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 12px 0 0;
 }
 
 /* ---------- Blog ---------- */

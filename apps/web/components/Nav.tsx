@@ -45,6 +45,16 @@ export default function Nav() {
             Blog
           </Link>
           <Link
+            href="/pricing"
+            className={
+              isActive("/pricing") || isActive("/checkout")
+                ? "nav-link active"
+                : "nav-link"
+            }
+          >
+            Plans
+          </Link>
+          <Link
             href="/account"
             className={isActive("/account") ? "nav-link active" : "nav-link"}
           >

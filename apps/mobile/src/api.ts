@@ -56,6 +56,15 @@ export class ApiError extends Error {
   }
 }
 
+// ---------- 401 handler ----------
+// The auth layer registers a callback here so a server-rejected token (expired,
+// or signed by a since-rotated JWT secret) drops the stale token and returns the
+// member to Login, instead of dead-ending on an "Unauthorized" retry loop.
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(fn: (() => void) | null): void {
+  onUnauthorized = fn;
+}
+
 type RequestOptions = {
   method?: string;
   body?: unknown;
@@ -84,6 +93,9 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   }
 
   if (!res.ok) {
+    // A rejected token on an authed request means the session is dead — let the
+    // auth layer sign out so the user lands on Login rather than retrying a 401.
+    if (res.status === 401 && auth) onUnauthorized?.();
     let message = `Request failed (${res.status})`;
     try {
       const data = await res.json();

@@ -35,6 +35,19 @@ export class StripeService {
     return stripe.products.create({ name });
   }
 
+  // Keep the Stripe Product name in step with a level rename.
+  async updateProduct(productId: string, name: string): Promise<Stripe.Product> {
+    const stripe = await this.getClient();
+    return stripe.products.update(productId, { name });
+  }
+
+  // Stripe Prices are immutable; "removing" one means archiving it (active:false)
+  // so existing subscriptions keep working but it can't back a new checkout.
+  async archivePrice(stripePriceId: string): Promise<Stripe.Price> {
+    const stripe = await this.getClient();
+    return stripe.prices.update(stripePriceId, { active: false });
+  }
+
   async createPrice(input: {
     productId: string;
     interval: 'month' | 'year';
@@ -69,6 +82,8 @@ export class StripeService {
   async createCheckoutSession(input: {
     customerId: string;
     priceId: string;
+    userId: string;
+    levelId: string;
     successUrl: string;
     cancelUrl: string;
   }): Promise<Stripe.Checkout.Session> {
@@ -77,6 +92,13 @@ export class StripeService {
       mode: 'subscription',
       customer: input.customerId,
       line_items: [{ price: input.priceId, quantity: 1 }],
+      // Stamp the user + level onto the session AND the resulting subscription
+      // so events are traceable in the Stripe dashboard and reconciliation has
+      // a fallback correlation key beyond the customer id.
+      client_reference_id: input.userId,
+      subscription_data: {
+        metadata: { userId: input.userId, levelId: input.levelId },
+      },
       success_url: input.successUrl,
       cancel_url: input.cancelUrl,
     });

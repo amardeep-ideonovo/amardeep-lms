@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type Stripe from 'stripe';
+import type { MySubscriptionDTO } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { StripeService } from './stripe.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
@@ -56,6 +57,35 @@ export class BillingService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
+    // Only ever start checkout for a price WE provisioned. This rejects stale,
+    // unknown, or foreign Stripe price ids with a clean 404 (instead of
+    // forwarding them to Stripe and surfacing a raw "No such price" failure),
+    // and gives us the target Level for the duplicate-subscription guard below.
+    const price = await this.prisma.price.findUnique({
+      where: { stripePriceId: priceId },
+      include: { level: true },
+    });
+    if (!price || !price.active) {
+      throw new NotFoundException('This plan is not available');
+    }
+
+    // Prevent a second concurrent subscription to a level the member already
+    // pays for — Stripe would happily create one, double-charging them. To
+    // change or cancel an existing paid plan they use the customer portal.
+    const existingPaid = await this.prisma.userLevel.findFirst({
+      where: {
+        userId: user.id,
+        levelId: price.levelId,
+        source: 'STRIPE',
+        status: { in: ['ACTIVE', 'PAST_DUE'] },
+      },
+    });
+    if (existingPaid) {
+      throw new BadRequestException(
+        'You already have an active subscription to this plan. Manage it from your account.',
+      );
+    }
+
     const customerId = await this.stripe.ensureCustomer({
       existingCustomerId: user.stripeCustomerId,
       email: user.email,
@@ -71,6 +101,8 @@ export class BillingService {
     const session = await this.stripe.createCheckoutSession({
       customerId,
       priceId,
+      userId: user.id,
+      levelId: price.levelId,
       successUrl: `${this.appUrl()}/account?checkout=success`,
       cancelUrl: `${this.appUrl()}/account?checkout=cancel`,
     });
@@ -78,6 +110,26 @@ export class BillingService {
       throw new BadRequestException('Stripe did not return a checkout URL');
     }
     return { url: session.url };
+  }
+
+  // ---------- Member's own subscriptions ----------
+
+  // The levels this member currently pays for (STRIPE-sourced, live status).
+  // Lets the web pricing/checkout UI flag a plan they already hold instead of
+  // offering a duplicate checkout (which the createCheckout guard also blocks).
+  async mySubscriptions(userId: string): Promise<MySubscriptionDTO[]> {
+    const rows = await this.prisma.userLevel.findMany({
+      where: {
+        userId,
+        source: 'STRIPE',
+        status: { in: ['ACTIVE', 'PAST_DUE'] },
+      },
+      select: { levelId: true, status: true },
+    });
+    return rows.map((r) => ({
+      levelId: r.levelId,
+      status: r.status as MySubscriptionDTO['status'],
+    }));
   }
 
   // ---------- Customer Portal ----------
