@@ -7,12 +7,25 @@ from the **exact current state** (code + secrets + database + uploaded media).
 > secrets, your database data, and your uploaded files are deliberately **not**.
 > This guide moves the missing pieces too.
 
+## Your actual local stack (important)
+
+This repo ships a `docker-compose.yml`, but **this machine does not use Docker.**
+Postgres and Redis run as **native Homebrew services**:
+
+- **Postgres 16** — `brew services` (auto-starts via LaunchAgent), on `localhost:5432`.
+- **Redis** — `brew services`, on `localhost:6379` (BullMQ job queue; ephemeral, nothing to migrate).
+- `DATABASE_URL` = `postgresql://amardeepsingh@localhost:5432/lms?schema=public`
+  — connects as your **macOS username with no password** (local trust auth), db `lms`.
+
+So the faithful migration reproduces that native setup (steps below). The Docker
+route still works if you'd rather containerize — see [Alternative: Docker](#alternative-docker).
+
 ## What git carries vs. what it doesn't
 
 | In git (arrives via `git clone`) | NOT in git — must be moved by hand |
 | --- | --- |
-| All source (`apps/*`, `packages/*`) | `./.env` and `apps/api/.env` (real secrets) |
-| `docker-compose.yml`, Prisma schema + migrations | **Database data** (lives in the Docker volume `lms_pg`) |
+| All source (`apps/*`, `packages/*`) + `package-lock.json` | `./.env` and `apps/api/.env` (real secrets) |
+| `docker-compose.yml`, Prisma schema + migrations | **Database data** (native Postgres `lms` DB) |
 | `.env.example` templates | **Uploaded media** — `apps/api/src/{files,images}/**` |
 | Empty upload dirs (kept via tracked `.gitignore`) | `.mcp.json`, `.claude/settings.local.json` (dev convenience) |
 
@@ -21,8 +34,8 @@ from the **exact current state** (code + secrets + database + uploaded media).
   that decrypts the Stripe/Mailchimp secrets stored in the DB `Setting` table.
   Move the DB without the *same* key and those settings become unreadable.
 - **Uploaded files ↔ database.** DB rows reference uploaded files by name
-  (blog/category/course/lesson images, lesson-note PDFs under
-  `apps/api/src/{files,images}`). Move the DB but not the files → broken links.
+  (blog/category/course/lesson images, lesson-note PDFs). Move the DB but not the
+  files → broken links.
 
 So `./.env`, the DB dump, and the uploads bundle must all travel together.
 
@@ -39,8 +52,7 @@ npm run db:generate    # Prisma client (no postinstall hook does this for you)
 
 **No native compilation required.** Nothing needs node-gyp/a C++ toolchain to
 build — password hashing is pure-JS `bcryptjs`, and Prisma + esbuild ship
-prebuilt binaries npm fetches for arm64 automatically. The API/web/admin install
-cleanly with just Node + npm.
+prebuilt binaries npm fetches for arm64 automatically.
 
 What each workspace pulls in (all installed by `npm ci` — listed for orientation):
 
@@ -81,13 +93,10 @@ git config --global user.email "you@example.com"
 For a single project onto a fresh Apple-silicon Mac, do a **clean selective
 migration** rather than a whole-machine copy:
 
-- **Never copy `node_modules`.** It contains platform-specific native binaries
-  (Prisma engine, esbuild, bcrypt, React Native). Always reinstall fresh.
+- **Never copy `node_modules`.** Platform-specific native binaries (Prisma engine,
+  esbuild). Always reinstall fresh with `npm ci`.
 - A new machine deserves clean ARM-native toolchain installs.
 - It's deliberate — you know exactly what landed.
-
-(Whole-machine Migration Assistant also works if you want all your *other* apps
-too — but still delete `node_modules` and `npm install` fresh in this repo.)
 
 ---
 
@@ -106,14 +115,16 @@ cp ./.claude/settings.local.json ~/lms-migration/ 2>/dev/null || true
 # 2) Uploaded media (gitignored content)
 tar -czf ~/lms-migration/uploads.tgz apps/api/src/files apps/api/src/images
 
-# 3) Database dump (Postgres runs in Docker; start it if stopped)
-docker compose up -d postgres
-sleep 5
-docker compose exec -T postgres pg_dump -U postgres -d lms > ~/lms-migration/lms-dump.sql
+# 3) Database dump — native Postgres (NO Docker). Reads creds from .env; the
+#    value is not printed. --no-owner makes the restore role-agnostic.
+DB_URL=$(grep -E '^DATABASE_URL=' .env | head -1 | cut -d= -f2- | tr -d '"' | sed 's/?.*//')
+pg_dump "$DB_URL" --no-owner --no-privileges > ~/lms-migration/lms-dump.sql
+
+# sanity: should print non-zero counts
+grep -c 'CREATE TABLE' ~/lms-migration/lms-dump.sql
 ```
 
-Transfer `~/lms-migration/` to the new Mac — it's ~1 MB, so **AirDrop** is
-easiest.
+Transfer `~/lms-migration/` to the new Mac — it's ~400 KB, so **AirDrop** is easiest.
 
 > ⚠️ This bundle contains live secrets, password hashes, and user data.
 > Transfer device-to-device (AirDrop) or via an encrypted drive only — never
@@ -129,14 +140,22 @@ easiest.
 xcode-select --install
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 brew install git gh watchman stripe/stripe-cli/stripe
-brew install --cask docker            # then launch Docker Desktop once
-# Mobile on iOS/Android only (NOT needed for API/web/admin or mobile web preview):
-# brew install cocoapods              # + install Xcode (iOS) / Android Studio + JDK 17 (Android)
+
+# --- Data services (native, matching your current setup) ---
+brew install postgresql@16 redis
+brew services start postgresql@16
+brew services start redis
+# postgresql@16 is keg-only; put its client tools (psql/createdb/pg_dump) on PATH:
+echo 'export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"' >> ~/.zshrc && exec zsh
 
 # --- Node (match the old machine: v24.13.0; package.json engines requires >=20) ---
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-# restart the shell, then:
+exec zsh
 nvm install 24.13.0 && nvm alias default 24.13.0
+
+# --- Git identity ---
+git config --global user.name "Amardeep Singh"
+git config --global user.email "you@example.com"
 
 # --- Clone + the working branch ---
 gh auth login
@@ -150,22 +169,25 @@ cp ~/lms-migration/.mcp.json ./ 2>/dev/null || true
 cp ~/lms-migration/settings.local.json ./.claude/ 2>/dev/null || true
 tar -xzf ~/lms-migration/uploads.tgz          # restores apps/api/src/{files,images}
 
-# --- Infra + restore DB ---
-docker compose up -d                          # Postgres :5432 + Redis :6379
-sleep 5
-cat ~/lms-migration/lms-dump.sql | docker compose exec -T postgres psql -U postgres -d lms
+# --- Restore the database (native Postgres) ---
+createdb lms
+psql -d lms -f ~/lms-migration/lms-dump.sql
 
-# --- Dependencies + Prisma client (npm ci = exact, lockfile-faithful install) ---
+# --- Dependencies + Prisma client ---
 npm ci
 npm run db:generate
 ```
 
-> Do **not** run `npm run db:migrate` (`prisma migrate dev`) when restoring a
-> dump — the dump already carries the schema, and `migrate dev` may try to reset
-> a DB it sees as out of sync. Only migrate if you take the fresh-DB route below.
+> **Username gotcha.** `DATABASE_URL` connects as `amardeepsingh` with no
+> password. Homebrew Postgres auto-creates a superuser role equal to your macOS
+> username, so this works out-of-the-box **only if the new Mac's username is also
+> `amardeepsingh`**. If it differs, either create a matching role
+> (`createuser -s amardeepsingh`) or edit `DATABASE_URL` in **both** `.env` files
+> to your new username. The dump is role-agnostic (`--no-owner`), so only the
+> connecting user matters.
 >
-> If the restore prints ownership/role warnings, re-dump on the old machine with
-> `pg_dump --no-owner --no-privileges`.
+> Do **not** run `npm run db:migrate` — you're restoring a populated DB; the dump
+> already carries the schema. Only migrate if you take the fresh-DB route below.
 
 ---
 
@@ -173,8 +195,8 @@ npm run db:generate
 
 ```bash
 npm run dev:api     # :3000  → open http://localhost:3000/health (should be OK)
-npm run dev:admin   # :3001
-npm run dev:web     # :3002
+npm run dev:admin   # :3001     (your levels/members should show)
+npm run dev:web     # :3002     (blog/category images render → uploads+DB in sync)
 # mobile:  cd apps/mobile && npm start
 # Stripe webhooks (local dev):
 #   stripe listen --forward-to localhost:3000/billing/webhook
@@ -187,21 +209,30 @@ Sanity checks:
 
 ---
 
+## Alternative: Docker
+
+The repo ships `docker-compose.yml` (Postgres 16 + Redis 7) if you prefer
+containers over native services. Install Docker Desktop, then instead of the
+native Postgres/Redis steps:
+```bash
+docker compose up -d                                   # Postgres :5432 + Redis :6379
+cat ~/lms-migration/lms-dump.sql | docker compose exec -T postgres psql -U postgres -d lms
+```
+Note the compose Postgres uses `postgres:postgres` creds — update `DATABASE_URL`
+in both `.env` files to `postgresql://postgres:postgres@localhost:5432/lms?schema=public`.
+
 ## Alternative: fresh database (no data carryover)
 
-If you'd rather start clean instead of carrying your dev data (skip the DB dump
-and the uploads bundle in Phase 1):
-
+To start clean instead of carrying your dev data (skip the DB dump + uploads in
+Phase 1):
 ```bash
-docker compose up -d
-npm install
-npm run db:generate
-npm run db:migrate      # creates schema from migrations
+createdb lms          # or: docker compose up -d
+npm ci && npm run db:generate
+npm run db:migrate     # creates schema from migrations
 npm -w packages/db run seed
 ```
-
-You still need `./.env` (for `SETTINGS_ENC_KEY`, DB URL, and the Stripe/Mailchimp
-keys the seed reads). Any previously uploaded media will be absent.
+You still need `./.env` (for `SETTINGS_ENC_KEY`, the DB URL, and the
+Stripe/Mailchimp keys the seed reads). Previously uploaded media will be absent.
 
 ---
 
@@ -210,12 +241,14 @@ keys the seed reads). Any previously uploaded media will be absent.
 | Tool | Why |
 | --- | --- |
 | Node (match `24.13.0`, or any `>=20`) | monorepo runtime; pin via `nvm` |
-| Docker Desktop | runs Postgres 16 + Redis 7 (`docker-compose.yml`) |
+| `postgresql@16` (Homebrew) | the database (native; `brew services start`) |
+| `redis` (Homebrew) | BullMQ job queue (native; `brew services start`) |
 | `git`, `gh` | clone + GitHub auth |
 | `stripe` CLI | forward Stripe webhooks to the local API during dev |
 | `watchman` | React Native / Expo file watching (`apps/mobile`) |
 | CocoaPods + Xcode | iOS mobile builds — only if running mobile on iOS |
 | Android Studio + JDK 17 | Android mobile builds — only if running mobile on Android |
+| Docker Desktop | optional — only if you take the Docker route above |
 
 > System tools only. All npm dependencies are restored by `npm ci` (see the
 > [Dependencies](#dependencies) section) — no manual package installs needed.
