@@ -26,6 +26,56 @@ from the **exact current state** (code + secrets + database + uploaded media).
 
 So `./.env`, the DB dump, and the uploads bundle must all travel together.
 
+## Dependencies
+
+**npm packages reproduce automatically.** Every workspace `package.json` and the
+root `package-lock.json` are committed, so a clean install pins the exact same
+~1,700 packages. Use `npm ci` (not `npm install`) for a lockfile-faithful install:
+
+```bash
+npm ci                 # root install covers all workspaces
+npm run db:generate    # Prisma client (no postinstall hook does this for you)
+```
+
+**No native compilation required.** Nothing needs node-gyp/a C++ toolchain to
+build — password hashing is pure-JS `bcryptjs`, and Prisma + esbuild ship
+prebuilt binaries npm fetches for arm64 automatically. The API/web/admin install
+cleanly with just Node + npm.
+
+What each workspace pulls in (all installed by `npm ci` — listed for orientation):
+
+| Workspace | Stack / key deps | Runtime needs |
+| --- | --- | --- |
+| `apps/api` (`@lms/api`) | NestJS 10, Stripe 16, Mailchimp, BullMQ + ioredis, passport-jwt, sanitize-html, Sentry | **Postgres + Redis** |
+| `apps/web` (`@lms/web`) | Next.js 14.2.5, React 18.2, Puck editor, Mux player | API running |
+| `apps/admin` (`@lms/admin`) | Next.js 14.2.5, React 18.2, Puck, TipTap | API running |
+| `apps/mobile` (`@lms/mobile`) | Expo SDK 51, RN 0.74.5, React Navigation, expo-av/secure-store/file-system, dev-client | see Mobile note |
+| `packages/db` (`@lms/db`) | Prisma 5.22 (+ bcryptjs) | Postgres; run `db:generate` |
+| `packages/types`, `packages/puck` | shared internal TS (no external deps) | — |
+| `packages/bdd` (`@lms/bdd`) | Cucumber.js 10 (API-level tests) | API running |
+
+### Mobile (Expo) — extra setup only if running on devices/simulators
+`apps/mobile` uses **`expo-dev-client`** (a custom dev build, not plain Expo Go)
+with native modules. Web preview (`npm run web`) needs nothing extra. For native:
+- **iOS:** Xcode + iOS Simulator, `watchman`, and CocoaPods (`brew install cocoapods`).
+- **Android:** Android Studio + SDK + an emulator, and JDK 17.
+- Build a dev client via EAS (`npx eas build --profile development`) or a local
+  prebuild — Expo Go alone won't load the native modules.
+
+### Node version caveat
+This repo runs on **Node 24.13.0** (engines: `>=20`). Expo SDK 51 predates Node
+24 and officially targets Node 18/20 LTS. The API/web/admin are fine on either;
+if Metro/Expo tooling misbehaves, switch that shell to Node 20 LTS
+(`nvm install 20 && nvm use 20`).
+
+### Git identity
+Commits here fell back to an auto-derived name/email. Set it explicitly on the
+new machine so commits are attributed correctly:
+```bash
+git config --global user.name  "Amardeep Singh"
+git config --global user.email "you@example.com"
+```
+
 ## Recommended approach: selective migration (not Apple Migration Assistant)
 
 For a single project onto a fresh Apple-silicon Mac, do a **clean selective
@@ -80,6 +130,8 @@ xcode-select --install
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 brew install git gh watchman stripe/stripe-cli/stripe
 brew install --cask docker            # then launch Docker Desktop once
+# Mobile on iOS/Android only (NOT needed for API/web/admin or mobile web preview):
+# brew install cocoapods              # + install Xcode (iOS) / Android Studio + JDK 17 (Android)
 
 # --- Node (match the old machine: v24.13.0; package.json engines requires >=20) ---
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
@@ -103,8 +155,8 @@ docker compose up -d                          # Postgres :5432 + Redis :6379
 sleep 5
 cat ~/lms-migration/lms-dump.sql | docker compose exec -T postgres psql -U postgres -d lms
 
-# --- Dependencies + Prisma client ---
-npm install
+# --- Dependencies + Prisma client (npm ci = exact, lockfile-faithful install) ---
+npm ci
 npm run db:generate
 ```
 
@@ -162,4 +214,8 @@ keys the seed reads). Any previously uploaded media will be absent.
 | `git`, `gh` | clone + GitHub auth |
 | `stripe` CLI | forward Stripe webhooks to the local API during dev |
 | `watchman` | React Native / Expo file watching (`apps/mobile`) |
-| Xcode / Android Studio | only if running the mobile app on simulators |
+| CocoaPods + Xcode | iOS mobile builds — only if running mobile on iOS |
+| Android Studio + JDK 17 | Android mobile builds — only if running mobile on Android |
+
+> System tools only. All npm dependencies are restored by `npm ci` (see the
+> [Dependencies](#dependencies) section) — no manual package installs needed.
