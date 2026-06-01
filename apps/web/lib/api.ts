@@ -2,7 +2,15 @@
 // Talks to the NestJS API; auth via member JWT stored in localStorage.
 import type {
   AuthUser,
+  BillingConfigDTO,
+  CouponPreviewDTO,
+  CouponValidateInput,
+  CheckoutLevelDTO,
   CourseCard,
+  InvoiceDTO,
+  SubscribeInput,
+  SubscribeResult,
+  SubscriptionDetailDTO,
   DashboardResponse,
   FormPublicDTO,
   FormSubmitResult,
@@ -16,7 +24,9 @@ import type {
   PopupPublicDTO,
   PostDetailDTO,
   PostListItem,
+  ChangePasswordInput,
   SignupInput,
+  UpdateProfileInput,
 } from "@lms/types";
 
 const API_BASE =
@@ -106,6 +116,13 @@ export const api = {
       auth: false,
     }),
   me: () => request<AuthUser>("/auth/me"),
+  updateMe: (input: UpdateProfileInput) =>
+    request<AuthUser>("/auth/me", { method: "PATCH", body: input }),
+  changePassword: (input: ChangePasswordInput) =>
+    request<{ ok: true }>("/auth/change-password", {
+      method: "POST",
+      body: input,
+    }),
 
   // member dashboard
   dashboard: () => request<DashboardResponse>("/dashboard"),
@@ -143,6 +160,12 @@ export const api = {
 
   // levels (for the subscribe flow)
   levels: () => request<LevelDTO[]>("/levels"),
+  // Public checkout resolution (slug or id) — works logged-out.
+  checkoutLevel: (slugOrId: string) =>
+    request<CheckoutLevelDTO>(
+      `/levels/checkout/${encodeURIComponent(slugOrId)}`,
+      { auth: false },
+    ),
 
   // billing
   checkout: (priceId: string) =>
@@ -153,6 +176,24 @@ export const api = {
   portal: () => request<{ url: string }>("/billing/portal"),
   mySubscriptions: () =>
     request<MySubscriptionDTO[]>("/billing/subscriptions"),
+
+  // Embedded checkout (Stripe Elements). `config` is public; the others need auth.
+  billingConfig: () =>
+    request<BillingConfigDTO>("/billing/config", { auth: false }),
+  subscribe: (input: SubscribeInput) =>
+    request<SubscribeResult>("/billing/subscribe", {
+      method: "POST",
+      body: input,
+    }),
+  validateCoupon: (input: CouponValidateInput) =>
+    request<CouponPreviewDTO>("/billing/coupon/validate", {
+      method: "POST",
+      body: input,
+    }),
+  // Enriched subscriptions (actual price/interval) + the member's payment history.
+  mySubscriptionDetails: () =>
+    request<SubscriptionDetailDTO[]>("/billing/subscription-details"),
+  myInvoices: () => request<InvoiceDTO[]>("/billing/invoices"),
 };
 
 // ---------- Blog (PUBLIC) ----------

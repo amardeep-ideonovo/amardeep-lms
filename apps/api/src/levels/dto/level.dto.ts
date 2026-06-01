@@ -5,6 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
   MinLength,
   ValidateNested,
@@ -28,6 +29,11 @@ export class CreateLevelDto {
   @IsString()
   @MinLength(1)
   name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  slug?: string;
 
   @IsIn(['PAID', 'FREE', 'MANUAL'])
   type!: LevelType;
@@ -57,6 +63,11 @@ export class UpdateLevelDto {
   @IsString()
   @MinLength(1)
   name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  slug?: string;
 
   @IsOptional()
   @IsIn(['PAID', 'FREE', 'MANUAL'])

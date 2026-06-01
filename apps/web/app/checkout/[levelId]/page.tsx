@@ -1,207 +1,500 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import type { LevelDTO, PriceDTO } from "@lms/types";
-import { ApiError, api, clearToken } from "@/lib/api";
-import AuthGate from "@/components/AuthGate";
+import type { AuthUser, CouponPreviewDTO } from "@lms/types";
+import {
+  ApiError,
+  getBillingConfig,
+  getCurrentUser,
+  logout,
+  signup,
+  subscribe,
+  validateCoupon,
+} from "@/lib/checkout-service";
+import {
+  formatMoney,
+  resolveCheckoutConfig,
+  type CheckoutProductOption,
+  type LevelCheckoutConfig,
+} from "@/lib/checkout-config";
+import { DEFAULT_COUNTRY } from "@/lib/countries";
+import CountrySelect from "@/components/checkout/CountrySelect";
+import LoginModal from "@/components/checkout/LoginModal";
+import PaymentSection, {
+  type PaymentHandle,
+} from "@/components/checkout/PaymentSection";
 
-function formatPrice(p: PriceDTO): string {
-  const amount = (p.amount / 100).toLocaleString(undefined, {
-    style: "currency",
-    currency: (p.currency || "usd").toUpperCase(),
-  });
-  return `${amount} / ${p.interval}`;
-}
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD = 8;
 
-// Stable display order: monthly before annual, then by amount.
-function sortPrices(prices: PriceDTO[]): PriceDTO[] {
-  const rank = (i: string) => (i === "month" ? 0 : i === "year" ? 1 : 2);
-  return [...prices].sort(
-    (a, b) => rank(a.interval) - rank(b.interval) || a.amount - b.amount
+function SectionHead({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="co-section-head">
+      <span>{children}</span>
+      <span className="co-rule" />
+    </div>
   );
 }
 
-function CheckoutInner() {
+export default function CheckoutPage() {
   const router = useRouter();
   const params = useParams<{ levelId: string }>();
-  const levelId = params.levelId;
+  const slugOrId = params.levelId;
 
-  const [levels, setLevels] = useState<LevelDTO[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [alreadySubscribed, setAlreadySubscribed] = useState(false);
+  // load state
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [config, setConfig] = useState<LevelCheckoutConfig | null>(null);
+  const [publishableKey, setPublishableKey] = useState<string | null>(null);
 
-  // No single-level endpoint exists; fetch all and pick this one client-side.
-  useEffect(() => {
-    let active = true;
-    api
-      .levels()
-      .then((l) => active && setLevels(l))
-      .catch((err) => {
-        if (!active) return;
-        if (err instanceof ApiError && err.status === 401) {
-          clearToken();
-          router.replace("/login");
-          return;
-        }
-        setError(
-          err instanceof Error ? err.message : "Failed to load this plan."
-        );
-      });
-    // Best-effort: flag if the member already pays for this level so we show
-    // "manage" instead of a duplicate-checkout CTA (the server also guards it).
-    // A failure here must never block the checkout page.
-    api
-      .mySubscriptions()
-      .then((subs) => {
-        if (active) {
-          setAlreadySubscribed(subs.some((s) => s.levelId === levelId));
-        }
-      })
-      .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, [router, levelId]);
+  // auth
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [showLogin, setShowLogin] = useState(false);
 
-  const level = useMemo(
-    () => (levels || []).find((l) => l.id === levelId) || null,
-    [levels, levelId]
+  // form
+  const [selectedKey, setSelectedKey] = useState<string>("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [country, setCountry] = useState(DEFAULT_COUNTRY);
+  const [address, setAddress] = useState("");
+
+  // coupon
+  const [coupon, setCoupon] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponPreview, setCouponPreview] = useState<CouponPreviewDTO | null>(
+    null,
   );
-  const prices = useMemo(() => (level ? sortPrices(level.prices) : []), [level]);
 
-  // Default the selection to the first (monthly) option once loaded.
-  useEffect(() => {
-    if (prices.length > 0 && selectedPriceId === null) {
-      setSelectedPriceId(prices[0].id);
-    }
-  }, [prices, selectedPriceId]);
+  // submit
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
-  async function subscribe() {
-    const price = prices.find((p) => p.id === selectedPriceId);
-    if (!price) return;
-    setError(null);
-    setBusy(true);
-    try {
-      // Server creates a Stripe Checkout Session and returns its hosted URL.
-      const { url } = await api.checkout(price.stripePriceId);
-      window.location.href = url;
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        clearToken();
-        router.replace("/login");
-        return;
-      }
-      setError(err instanceof Error ? err.message : "Could not start checkout.");
-      setBusy(false);
+  const payRef = useRef<PaymentHandle>(null);
+  const mockMode = !publishableKey;
+
+  // Prefill identity from the signed-in profile (State B). Kept editable.
+  function applyUser(u: AuthUser | null) {
+    setUser(u);
+    if (u) {
+      setEmail(u.email);
+      setFirstName(u.firstName ?? "");
+      setLastName(u.lastName ?? "");
     }
   }
 
-  if (levels === null) {
-    return error ? (
-      <>
-        <Link href="/pricing" className="back-link">
-          ← All plans
-        </Link>
-        <div className="alert alert-error">{error}</div>
-      </>
-    ) : (
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const [u, cfg, resolved] = await Promise.all([
+          getCurrentUser(),
+          // billing config is best-effort; default to mock if it fails.
+          getBillingConfig().catch(() => ({ publishableKey: null })),
+          // public — resolves by slug or raw id, works logged-out.
+          resolveCheckoutConfig(slugOrId),
+        ]);
+        if (!active) return;
+        setPublishableKey(cfg.publishableKey);
+        applyUser(u);
+        setConfig(resolved);
+        if (resolved && resolved.options.length > 0) {
+          setSelectedKey(resolved.options[0].key);
+        }
+      } catch (err) {
+        if (active)
+          setLoadError(
+            err instanceof Error ? err.message : "Failed to load checkout.",
+          );
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slugOrId]);
+
+  const selected: CheckoutProductOption | null = useMemo(
+    () => config?.options.find((o) => o.key === selectedKey) ?? null,
+    [config, selectedKey],
+  );
+
+  // Reset a validated coupon when the product changes (discount is price-bound).
+  useEffect(() => {
+    setCouponPreview(null);
+  }, [selectedKey]);
+
+  const total = useMemo(() => {
+    if (!selected) return 0;
+    if (couponPreview?.valid && couponPreview.amountOff != null) {
+      return Math.max(0, selected.amount - couponPreview.amountOff);
+    }
+    return selected.amount;
+  }, [selected, couponPreview]);
+
+  async function applyCoupon() {
+    const code = coupon.trim();
+    if (!code || !selected) return;
+    setCouponBusy(true);
+    try {
+      if (mockMode) {
+        // No Stripe to validate against locally — accept optimistically.
+        setCouponPreview({
+          valid: true,
+          code,
+          label: "Will apply at payment",
+          amountOff: null,
+          percentOff: null,
+          message: null,
+        });
+      } else {
+        const preview = await validateCoupon(code, selected.stripePriceId);
+        setCouponPreview(preview);
+      }
+    } catch (err) {
+      setCouponPreview({
+        valid: false,
+        code,
+        label: null,
+        amountOff: null,
+        percentOff: null,
+        message: err instanceof ApiError ? err.message : "Could not validate.",
+      });
+    } finally {
+      setCouponBusy(false);
+    }
+  }
+
+  function validate(): string | null {
+    if (!selected) return "Please choose a product option.";
+    if (!EMAIL_RE.test(email.trim())) return "Enter a valid email address.";
+    if (!user) {
+      if (password.length < MIN_PASSWORD)
+        return `Password must be at least ${MIN_PASSWORD} characters.`;
+    }
+    if (!firstName.trim()) return "Enter your first name.";
+    if (!lastName.trim()) return "Enter your last name.";
+    if (!country) return "Select your country or region.";
+    return null;
+  }
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const v = validate();
+    if (v) {
+      setError(v);
+      return;
+    }
+    if (!selected) return;
+    setSubmitting(true);
+    try {
+      // 1) Ensure an authenticated member (State A signs up inline).
+      let current = user;
+      if (!current) {
+        try {
+          current = await signup({
+            email: email.trim(),
+            password,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+          });
+          applyUser(current);
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 409) {
+            setError(
+              "An account with this email already exists — use “Already a member?” to log in.",
+            );
+            setShowLogin(true);
+            setSubmitting(false);
+            return;
+          }
+          throw err;
+        }
+      }
+
+      // 2) Pay. Recurring + real Stripe → server PaymentIntent then confirm.
+      //    One-time ("Pay in Full") and any mock environment → simulated confirm.
+      const useRealStripe = !mockMode && selected.kind === "recurring";
+      let clientSecret: string | null = null;
+      if (useRealStripe) {
+        const res = await subscribe({
+          priceId: selected.stripePriceId,
+          couponCode: couponPreview?.valid ? coupon.trim() : undefined,
+        });
+        if (res.status === "active") {
+          router.push("/dashboard");
+          return;
+        }
+        clientSecret = res.clientSecret;
+      }
+
+      const payErr = await payRef.current?.confirm(clientSecret);
+      if (payErr) {
+        setError(payErr);
+        setSubmitting(false);
+        return;
+      }
+
+      // 3) Enrolled — the webhook grants the level; head to the dashboard.
+      router.push("/dashboard");
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Something went wrong. Please try again.",
+      );
+      setSubmitting(false);
+    }
+  }
+
+  if (loading) {
+    return (
       <div className="centered-state">
         <div className="spinner" aria-label="Loading" />
       </div>
     );
   }
 
-  if (!level || prices.length === 0) {
+  if (loadError) {
+    return <div className="alert alert-error">{loadError}</div>;
+  }
+
+  if (!config || !selected) {
     return (
-      <>
-        <Link href="/pricing" className="back-link">
-          ← All plans
-        </Link>
-        <h1 className="page-title">Plan unavailable</h1>
-        <p className="empty">
-          This plan isn’t available right now. Browse the plans we offer.
+      <div className="co-notfound">
+        <h1 className="page-title">Checkout not found</h1>
+        <p className="page-sub">
+          We couldn’t find a plan for “{slugOrId}”. The link may be out of date.
         </p>
-      </>
+        <Link href="/pricing/all" className="btn btn-primary">
+          View all plans
+        </Link>
+      </div>
     );
   }
 
   return (
-    <>
-      <Link href="/pricing" className="back-link">
-        ← All plans
-      </Link>
-      <h1 className="page-title">{level.name}</h1>
-      {alreadySubscribed ? (
-        <div className="account-section">
-          <div className="alert alert-info">
-            You’re already subscribed to this plan.
-          </div>
-          <p>Change your billing or cancel anytime from your account.</p>
-          <Link href="/account" className="btn btn-primary">
-            Manage subscription
-          </Link>
+    <div className="co-page">
+      {/* Auth banner */}
+      {user ? (
+        <div className="co-auth-banner">
+          <span>
+            Logged in as <strong>{user.email}</strong>
+          </span>
+          <button
+            type="button"
+            className="co-linkbtn"
+            onClick={() => {
+              logout();
+              applyUser(null);
+              setPassword("");
+            }}
+          >
+            Log out
+          </button>
         </div>
       ) : (
-        <>
-          <p className="page-sub">
-            Confirm your billing option and continue to secure checkout.
-          </p>
-
-          {error && <div className="alert alert-error">{error}</div>}
-
-          <div className="account-section">
-            <h2>Choose billing</h2>
-            <div className="plan-list">
-              {prices.map((price) => {
-                const active = price.id === selectedPriceId;
-                return (
-                  <label
-                    key={price.id}
-                    className={`plan-row selectable${active ? " selected" : ""}`}
-                  >
-                    <div className="plan-info">
-                      <h3>{price.interval === "year" ? "Annual" : "Monthly"}</h3>
-                      <span>{formatPrice(price)}</span>
-                    </div>
-                    <input
-                      type="radio"
-                      name="billing-interval"
-                      value={price.id}
-                      checked={active}
-                      onChange={() => setSelectedPriceId(price.id)}
-                      aria-label={`${price.interval} billing`}
-                    />
-                  </label>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              className="btn btn-primary btn-block checkout-cta"
-              onClick={subscribe}
-              disabled={busy || !selectedPriceId}
-            >
-              {busy ? "Redirecting…" : "Continue to checkout"}
-            </button>
-            <p className="checkout-note">
-              You’ll be redirected to Stripe to complete your purchase securely.
-            </p>
-          </div>
-        </>
+        <div className="co-auth-banner co-auth-banner--ghost">
+          <span>Already have an account?</span>
+          <button
+            type="button"
+            className="co-linkbtn"
+            onClick={() => setShowLogin(true)}
+          >
+            Already a member?
+          </button>
+        </div>
       )}
-    </>
-  );
-}
 
-export default function CheckoutPage() {
-  return (
-    <AuthGate>
-      <CheckoutInner />
-    </AuthGate>
+      <form onSubmit={onSubmit} noValidate>
+        {/* SELECT PRODUCT */}
+        <SectionHead>SELECT PRODUCT</SectionHead>
+        <div className="co-products">
+          {config.options.map((opt) => {
+            const active = opt.key === selectedKey;
+            return (
+              <label
+                key={opt.key}
+                className={`co-product${active ? " co-product--active" : ""}`}
+              >
+                <span
+                  className={`co-radio${active ? " co-radio--on" : ""}`}
+                  aria-hidden
+                />
+                <input
+                  type="radio"
+                  name="product"
+                  className="co-sr-only"
+                  checked={active}
+                  onChange={() => setSelectedKey(opt.key)}
+                />
+                <span className="co-product-main">
+                  <span className="co-product-title">{opt.title}</span>
+                  <span className="co-product-sub">{opt.subLabel}</span>
+                </span>
+                <span className="co-product-price">{opt.priceText}</span>
+              </label>
+            );
+          })}
+        </div>
+
+        {/* Email + (conditional) Password */}
+        <input
+          className="co-input"
+          type="email"
+          placeholder="Email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          aria-label="Email"
+        />
+        {!user && (
+          <input
+            className="co-input"
+            type="password"
+            placeholder={`Password (${MIN_PASSWORD}+ characters)`}
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            aria-label="Password"
+          />
+        )}
+
+        {/* BILLING INFORMATION */}
+        <SectionHead>BILLING INFORMATION</SectionHead>
+        <div className="co-grid2">
+          <input
+            className="co-input"
+            placeholder="First name"
+            autoComplete="given-name"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            aria-label="First name"
+          />
+          <input
+            className="co-input"
+            placeholder="Last name"
+            autoComplete="family-name"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            aria-label="Last name"
+          />
+        </div>
+        <CountrySelect value={country} onChange={setCountry} />
+        <input
+          className="co-input"
+          placeholder="Address"
+          autoComplete="street-address"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          aria-label="Address"
+        />
+
+        {/* PAYMENT INFORMATION */}
+        <SectionHead>PAYMENT INFORMATION</SectionHead>
+        <PaymentSection ref={payRef} publishableKey={publishableKey} />
+
+        {/* Coupon */}
+        <div className="co-coupon">
+          <input
+            className="co-input"
+            placeholder="Discount code"
+            value={coupon}
+            onChange={(e) => setCoupon(e.target.value)}
+            aria-label="Discount code"
+          />
+          <button
+            type="button"
+            className="co-btn co-btn--ghost"
+            onClick={applyCoupon}
+            disabled={couponBusy || !coupon.trim()}
+          >
+            {couponBusy ? "Applying…" : "Apply"}
+          </button>
+        </div>
+        {couponPreview && (
+          <p
+            className={
+              couponPreview.valid ? "co-coupon-ok" : "co-coupon-bad"
+            }
+          >
+            {couponPreview.valid
+              ? `Coupon “${couponPreview.code}” applied${couponPreview.label ? ` — ${couponPreview.label}` : ""}.`
+              : couponPreview.message || "Invalid code."}
+          </p>
+        )}
+
+        {/* Summary (collapsible) */}
+        <div className="co-summary">
+          <button
+            type="button"
+            className="co-summary-head"
+            onClick={() => setSummaryOpen((s) => !s)}
+            aria-expanded={summaryOpen}
+          >
+            <span className="co-summary-title">🛒 Summary</span>
+            <span className="co-summary-hint">
+              {summaryOpen ? "Hide details" : "For more details, fill the form"}
+            </span>
+            <span className="co-chevron" aria-hidden>
+              {summaryOpen ? "▴" : "▾"}
+            </span>
+          </button>
+          {summaryOpen && (
+            <div className="co-summary-body">
+              <div className="co-summary-row">
+                <span>{selected.title}</span>
+                <span>{formatMoney(selected.amount, selected.currency)}</span>
+              </div>
+              {couponPreview?.valid && couponPreview.amountOff != null && (
+                <div className="co-summary-row co-summary-row--muted">
+                  <span>Discount ({couponPreview.code})</span>
+                  <span>
+                    −{formatMoney(couponPreview.amountOff, selected.currency)}
+                  </span>
+                </div>
+              )}
+              <div className="co-summary-row co-summary-row--total">
+                <span>Total due today</span>
+                <span>{formatMoney(total, selected.currency)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {error && <div className="co-alert co-alert-error">{error}</div>}
+
+        <button
+          type="submit"
+          className="co-btn co-btn--navy co-btn--block co-submit"
+          disabled={submitting}
+        >
+          {submitting ? "Processing…" : "Submit"}
+        </button>
+        <p className="co-footer-note">
+          We Never Share Your Information With Anyone
+        </p>
+      </form>
+
+      {showLogin && (
+        <LoginModal
+          onClose={() => setShowLogin(false)}
+          onSuccess={(u) => {
+            applyUser(u);
+            setShowLogin(false);
+            setError(null);
+          }}
+        />
+      )}
+    </div>
   );
 }

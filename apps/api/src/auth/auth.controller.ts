@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -10,6 +11,8 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
 import type { AuthenticatedPrincipal } from './jwt-payload.interface';
@@ -63,5 +66,28 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() principal: AuthenticatedPrincipal) {
     return this.auth.me(principal);
+  }
+
+  // Member self-service: update own name + username (NOT email).
+  @UseGuards(JwtAuthGuard)
+  @Patch('me')
+  updateMe(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.auth.updateProfile(principal.sub, dto);
+  }
+
+  // Change own password. Requires the current password; rate-limited (5/min/IP)
+  // to slow brute-forcing it. 200 (not 201) — no resource is created.
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
+  @Post('change-password')
+  @HttpCode(200)
+  changePassword(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.auth.changePassword(principal.sub, dto);
   }
 }

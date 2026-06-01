@@ -81,6 +81,13 @@ export class SettingsService {
       'STRIPE_WEBHOOK_SECRET',
     );
   }
+  // Publishable key is public (safe to expose to the browser for Stripe Elements).
+  getStripePublishableKey(): Promise<string | null> {
+    return this.getSecret(
+      SETTING_KEYS.stripePublishableKey,
+      'STRIPE_PUBLISHABLE_KEY',
+    );
+  }
   getMailchimpApiKey(): Promise<string | null> {
     return this.getSecret(SETTING_KEYS.mailchimpApiKey, 'MAILCHIMP_API_KEY');
   }

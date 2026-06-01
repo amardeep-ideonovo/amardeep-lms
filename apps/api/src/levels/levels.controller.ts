@@ -19,6 +19,13 @@ import { CreateLevelDto, UpdateLevelDto } from './dto/level.dto';
 export class LevelsController {
   constructor(private readonly levels: LevelsService) {}
 
+  // Public: the checkout page resolves a level by slug or id and must work for
+  // logged-out visitors — so this route has no guard.
+  @Get('checkout/:slugOrId')
+  checkout(@Param('slugOrId') slugOrId: string) {
+    return this.levels.checkoutBySlugOrId(slugOrId);
+  }
+
   // Listing is member-accessible (powers the subscribe/plan picker); writes are
   // admin-only. Member counts are only included for admins.
   @UseGuards(JwtAuthGuard)

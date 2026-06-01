@@ -23,7 +23,7 @@ function CourseTile({ course }: { course: CourseCard }) {
         <h3 className="card-title">{course.title}</h3>
         {course.description && <p className="card-desc">{course.description}</p>}
         <div className="lock-overlay">
-          <Link href="/pricing">Upgrade to unlock →</Link>
+          <Link href="/pricing/all">Upgrade to unlock →</Link>
         </div>
       </div>
     );
@@ -86,12 +86,15 @@ function DashboardInner() {
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    let active = true;
-    api
-      .dashboard()
-      .then((d) => active && setData(d))
-      .catch((err) => {
-        if (!active) return;
+    let mounted = true;
+    async function load() {
+      try {
+        const d = await api.dashboard();
+        if (!mounted) return;
+        setData(d); // update in place — no spinner flash on a focus refresh
+        setError(null);
+      } catch (err) {
+        if (!mounted) return;
         if (err instanceof ApiError && err.status === 401) {
           clearToken();
           router.replace("/login");
@@ -100,9 +103,21 @@ function DashboardInner() {
         setError(
           err instanceof Error ? err.message : "Failed to load dashboard."
         );
-      });
+      }
+    }
+    load();
+    // Refresh when the member returns to this tab, so newly unlocked courses
+    // (after a purchase or an admin grant) and new content appear without a
+    // manual reload.
+    const refresh = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
-      active = false;
+      mounted = false;
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, [router]);
 

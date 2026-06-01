@@ -7,6 +7,7 @@ import { SettingsModule } from './settings/settings.module';
 import { MailchimpModule } from './mailchimp/mailchimp.module';
 import { AuthModule } from './auth/auth.module';
 import { LevelsModule } from './levels/levels.module';
+import { CouponsModule } from './coupons/coupons.module';
 import { MembersModule } from './members/members.module';
 import { BillingModule } from './billing/billing.module';
 import { LmsModule } from './lms/lms.module';
@@ -34,6 +35,7 @@ import { HealthModule } from './health/health.module';
     AuthModule,
     BillingModule,
     LevelsModule,
+    CouponsModule,
     MembersModule,
     LmsModule,
     BlogModule,

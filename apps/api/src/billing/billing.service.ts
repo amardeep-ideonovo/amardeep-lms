@@ -6,7 +6,17 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type Stripe from 'stripe';
-import type { MySubscriptionDTO } from '@lms/types';
+import type {
+  BillingConfigDTO,
+  CouponPreviewDTO,
+  CouponValidateInput,
+  InvoiceDTO,
+  MemberBillingDTO,
+  MySubscriptionDTO,
+  SubscribeInput,
+  SubscribeResult,
+  SubscriptionDetailDTO,
+} from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { StripeService } from './stripe.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
@@ -145,6 +155,274 @@ export class BillingService {
       returnUrl: `${this.appUrl()}/account`,
     });
     return { url: session.url };
+  }
+
+  // ---------- Embedded checkout (Stripe Elements) ----------
+
+  // Public config for the checkout page. `publishableKey` is null when Stripe
+  // isn't configured — the web app then runs its mock payment path.
+  async getConfig(): Promise<BillingConfigDTO> {
+    return { publishableKey: await this.stripe.getElementsPublishableKey() };
+  }
+
+  // Start an embedded subscription: same price + duplicate guard as hosted
+  // checkout, resolve an optional promo code, then create a default_incomplete
+  // subscription and return the PaymentIntent client secret for the browser to
+  // confirm via Stripe Elements. The webhook reconciles the grant on success.
+  async subscribe(
+    userId: string,
+    input: SubscribeInput,
+  ): Promise<SubscribeResult> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const price = await this.prisma.price.findUnique({
+      where: { stripePriceId: input.priceId },
+      include: { level: true },
+    });
+    if (!price || !price.active) {
+      throw new NotFoundException('This plan is not available');
+    }
+
+    const existingPaid = await this.prisma.userLevel.findFirst({
+      where: {
+        userId: user.id,
+        levelId: price.levelId,
+        source: 'STRIPE',
+        status: { in: ['ACTIVE', 'PAST_DUE'] },
+      },
+    });
+    if (existingPaid) {
+      throw new BadRequestException(
+        'You already have an active subscription to this plan. Manage it from your account.',
+      );
+    }
+
+    const customerId = await this.stripe.ensureCustomer({
+      existingCustomerId: user.stripeCustomerId,
+      email: user.email,
+      userId: user.id,
+    });
+    if (customerId !== user.stripeCustomerId) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { stripeCustomerId: customerId },
+      });
+    }
+
+    let couponId: string | undefined;
+    if (input.couponCode?.trim()) {
+      const promo = await this.stripe.findPromotionCode(input.couponCode.trim());
+      if (!promo) {
+        throw new BadRequestException('Invalid or expired coupon code');
+      }
+      const restrictedProduct = promo.metadata?.levelProductId;
+      if (
+        restrictedProduct &&
+        restrictedProduct !== price.level.stripeProductId
+      ) {
+        throw new BadRequestException(
+          'This coupon is not valid for the selected plan',
+        );
+      }
+      couponId =
+        typeof promo.coupon === 'string' ? promo.coupon : promo.coupon.id;
+    }
+
+    const result = await this.stripe.createSubscriptionIntent({
+      customerId,
+      priceId: input.priceId,
+      userId: user.id,
+      levelId: price.levelId,
+      couponId,
+    });
+    return {
+      status: result.status === 'active' ? 'active' : 'requires_payment',
+      clientSecret: result.clientSecret,
+      subscriptionId: result.subscriptionId,
+    };
+  }
+
+  // Validate a promo code against a price and return a discount preview.
+  async validateCoupon(input: CouponValidateInput): Promise<CouponPreviewDTO> {
+    const code = input.code.trim();
+    const base: CouponPreviewDTO = {
+      valid: false,
+      code,
+      label: null,
+      amountOff: null,
+      percentOff: null,
+      message: null,
+    };
+    if (!code) return { ...base, message: 'Enter a code' };
+
+    const price = await this.prisma.price.findUnique({
+      where: { stripePriceId: input.priceId },
+      include: { level: true },
+    });
+    if (!price) return { ...base, message: 'Plan not found' };
+
+    const promo = await this.stripe.findPromotionCode(code);
+    if (!promo) return { ...base, message: 'Invalid or expired code' };
+
+    // Per-level coupons carry the target product in metadata (set by the admin
+    // Coupons feature). Reject the preview when it doesn't match this plan.
+    const restrictedProduct = promo.metadata?.levelProductId;
+    if (restrictedProduct && restrictedProduct !== price.level.stripeProductId) {
+      return { ...base, message: 'Not valid for this plan' };
+    }
+
+    const coupon = promo.coupon;
+    const percentOff = coupon.percent_off ?? null;
+    const amountOff = coupon.amount_off ?? null;
+    const computed =
+      amountOff ??
+      (percentOff != null
+        ? Math.round((price.amount * percentOff) / 100)
+        : null);
+    const label =
+      percentOff != null
+        ? `${percentOff}% off`
+        : amountOff != null
+          ? `${(amountOff / 100).toFixed(2)} ${(
+              coupon.currency ?? price.currency
+            ).toUpperCase()} off`
+          : 'Discount applied';
+    return { valid: true, code, label, amountOff: computed, percentOff, message: null };
+  }
+
+  // ---------- Subscription detail + payment history ----------
+
+  // Map a customer's live subscriptions to enriched detail DTOs. Interval/amount
+  // come from our local Price row (the ACTUAL subscribed price) — this is what
+  // fixes the "shows /month when they bought /year" display bug.
+  private async detailsForCustomer(
+    customerId: string | null,
+  ): Promise<SubscriptionDetailDTO[]> {
+    if (!customerId) return [];
+    const subs = await this.stripe.listSubscriptionsForCustomer(customerId);
+    const out: SubscriptionDetailDTO[] = [];
+    for (const sub of subs) {
+      if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
+        continue;
+      }
+      for (const item of sub.items.data) {
+        const stripePriceId =
+          typeof item.price === 'string' ? item.price : item.price?.id;
+        if (!stripePriceId) continue;
+        const price = await this.prisma.price.findUnique({
+          where: { stripePriceId },
+          include: { level: true },
+        });
+        if (!price) continue;
+        out.push({
+          stripeSubId: sub.id,
+          levelId: price.levelId,
+          levelName: price.level.name,
+          status: sub.status,
+          interval: price.interval,
+          amount: price.amount,
+          currency: price.currency,
+          currentPeriodEnd: sub.current_period_end
+            ? new Date(sub.current_period_end * 1000).toISOString()
+            : null,
+          cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+          paused: sub.pause_collection != null,
+        });
+      }
+    }
+    return out;
+  }
+
+  private async invoicesForCustomer(
+    customerId: string | null,
+  ): Promise<InvoiceDTO[]> {
+    if (!customerId) return [];
+    const invoices = await this.stripe.listInvoices(customerId);
+    return invoices.map((inv) => ({
+      id: inv.id,
+      number: inv.number ?? null,
+      created: new Date(inv.created * 1000).toISOString(),
+      amountPaid: inv.amount_paid,
+      amountDue: inv.amount_due,
+      currency: inv.currency,
+      status: inv.status ?? 'unknown',
+      description: inv.lines?.data?.[0]?.description ?? null,
+      hostedInvoiceUrl: inv.hosted_invoice_url ?? null,
+      invoicePdf: inv.invoice_pdf ?? null,
+    }));
+  }
+
+  async getMySubscriptionDetails(
+    userId: string,
+  ): Promise<SubscriptionDetailDTO[]> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    return this.detailsForCustomer(user?.stripeCustomerId ?? null);
+  }
+
+  async getMyInvoices(userId: string): Promise<InvoiceDTO[]> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    return this.invoicesForCustomer(user?.stripeCustomerId ?? null);
+  }
+
+  // ---------- Admin: per-member billing + one-click actions ----------
+
+  async getMemberBilling(memberId: string): Promise<MemberBillingDTO> {
+    const user = await this.prisma.user.findUnique({ where: { id: memberId } });
+    if (!user) throw new NotFoundException('Member not found');
+    const [subscriptions, invoices] = await Promise.all([
+      this.detailsForCustomer(user.stripeCustomerId),
+      this.invoicesForCustomer(user.stripeCustomerId),
+    ]);
+    return {
+      member: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+      subscriptions,
+      invoices,
+    };
+  }
+
+  // The member's current live Stripe subscription (for an admin action).
+  private async memberLiveSubId(memberId: string): Promise<string> {
+    const user = await this.prisma.user.findUnique({ where: { id: memberId } });
+    if (!user?.stripeCustomerId) {
+      throw new BadRequestException('Member has no Stripe customer');
+    }
+    const subs = await this.stripe.listSubscriptionsForCustomer(
+      user.stripeCustomerId,
+    );
+    const live = subs.find((s) =>
+      ['active', 'past_due', 'trialing', 'paused', 'unpaid'].includes(s.status),
+    );
+    if (!live) {
+      throw new BadRequestException('No active subscription for this member');
+    }
+    return live.id;
+  }
+
+  async pauseMember(memberId: string): Promise<MemberBillingDTO> {
+    await this.stripe.pauseSubscription(await this.memberLiveSubId(memberId));
+    return this.getMemberBilling(memberId);
+  }
+
+  async resumeMember(memberId: string): Promise<MemberBillingDTO> {
+    const sub = await this.stripe.resumeSubscription(
+      await this.memberLiveSubId(memberId),
+    );
+    await this.reconcileSubscription(sub); // reflect the resumed grant locally
+    return this.getMemberBilling(memberId);
+  }
+
+  async cancelMember(memberId: string): Promise<MemberBillingDTO> {
+    await this.stripe.setCancelAtPeriodEnd(
+      await this.memberLiveSubId(memberId),
+      true,
+    );
+    return this.getMemberBilling(memberId);
   }
 
   // ---------- Webhook ----------

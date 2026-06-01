@@ -63,6 +63,7 @@ enum LevelType {
 model Level {
   id                    String      @id @default(cuid())
   name                  String
+  slug                  String?     @unique // pretty checkout URL key: /checkout/<slug> (admin-editable)
   type                  LevelType   @default(PAID)
   mailchimpTags         String[]    @default([]) // tag names applied within the audience
   mailchimpAudienceId   String?     // Mailchimp list this level subscribes members to (falls back to the global Settings audience)

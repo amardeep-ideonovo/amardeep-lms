@@ -71,6 +71,60 @@ export class MailchimpService {
     }
   }
 
+  /**
+   * Re-key a contact's email on every audience it may belong to — the global
+   * Settings audience plus the supplied per-level audience ids. Uses the OLD
+   * email's subscriber hash as the path id and PATCHes the new address, so we
+   * never create a duplicate at the new email. A 404 means the contact isn't on
+   * that audience — skipped. Other errors propagate so the job retries.
+   * No-op when Mailchimp isn't configured.
+   */
+  async changeEmail(
+    oldEmail: string,
+    newEmail: string,
+    perLevelAudienceIds: string[],
+  ): Promise<void> {
+    const [apiKey, server, globalAudience] = await Promise.all([
+      this.settings.getMailchimpApiKey(),
+      this.settings.getMailchimpServerPrefix(),
+      this.settings.getMailchimpAudienceId(),
+    ]);
+    if (!apiKey || !server) {
+      this.logger.warn('Mailchimp not configured — skipping email change');
+      return;
+    }
+    mailchimp.setConfig({ apiKey, server });
+
+    const audiences = Array.from(
+      new Set(
+        [globalAudience, ...perLevelAudienceIds].filter(
+          (a): a is string => !!a,
+        ),
+      ),
+    );
+    if (audiences.length === 0) return;
+
+    const oldHash = subscriberHash(oldEmail);
+    const nextEmail = newEmail.trim().toLowerCase();
+
+    for (const audienceId of audiences) {
+      try {
+        await mailchimp.lists.updateListMember(audienceId, oldHash, {
+          email_address: nextEmail,
+        });
+      } catch (e: any) {
+        const status = e?.status ?? e?.response?.status;
+        if (status === 404) continue; // not on this audience — nothing to migrate
+        this.logger.error(
+          `[mailchimp] email change failed on audience ${audienceId}: ${
+            e?.response?.body?.detail ?? e?.message ?? e
+          }`,
+        );
+        throw e; // let the job retry
+      }
+    }
+  }
+
   // ---------- Forms support (any audience; no preset audienceId needed) ----------
 
   // Configure with just the API key + server prefix (the one-time Settings).

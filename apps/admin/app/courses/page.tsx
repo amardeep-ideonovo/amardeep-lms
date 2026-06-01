@@ -245,6 +245,13 @@ export default function CoursesPage() {
   const categoryName = (id: string | null) =>
     id ? categories.find((c) => c.id === id)?.name ?? "—" : "—";
 
+  // Map a course's assigned level IDs to their display names (skips any
+  // dangling IDs whose level was since deleted).
+  const levelNamesFor = (ids: string[]) =>
+    ids
+      .map((id) => levels.find((l) => l.id === id)?.name)
+      .filter((n): n is string => Boolean(n));
+
   return (
     <div>
       <div className="page-header with-action">
@@ -344,7 +351,7 @@ export default function CoursesPage() {
                 <th></th>
                 <th>Title</th>
                 <th>Category</th>
-                <th>Description</th>
+                <th>Level</th>
                 <th></th>
               </tr>
             </thead>
@@ -366,7 +373,19 @@ export default function CoursesPage() {
                     </td>
                     <td>{course.title}</td>
                     <td className="muted">{categoryName(course.categoryId)}</td>
-                    <td className="muted">{course.description ?? "—"}</td>
+                    <td>
+                      {levelNamesFor(course.levelIds).length === 0 ? (
+                        <span className="muted">—</span>
+                      ) : (
+                        <div className="chips">
+                          {levelNamesFor(course.levelIds).map((name, i) => (
+                            <span key={i} className="chip chip--muted">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
                     <td>
                       <div className="row-actions">
                         <button
@@ -827,6 +846,7 @@ function LessonRow({
         videoUrl: videoUrl.trim() || undefined,
       });
       setEditing(false);
+      setExpanded(false);
       await onChanged();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "Failed to save lesson");
@@ -941,7 +961,19 @@ function LessonRow({
         <div className="row-actions">
           <button
             className="btn btn--ghost btn--sm"
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() => {
+              setExpanded(true);
+              setEditing(true);
+            }}
+          >
+            Edit details
+          </button>
+          <button
+            className="btn btn--ghost btn--sm"
+            onClick={() => {
+              setEditing(false);
+              setExpanded((v) => !v);
+            }}
           >
             {expanded ? "Close" : "Manage"}
           </button>
@@ -985,7 +1017,10 @@ function LessonRow({
                 </button>
                 <button
                   className="btn btn--ghost btn--sm"
-                  onClick={() => setEditing(false)}
+                  onClick={() => {
+                    setEditing(false);
+                    setExpanded(false);
+                  }}
                 >
                   Cancel
                 </button>
@@ -993,12 +1028,6 @@ function LessonRow({
             </>
           ) : (
             <div className="row-actions">
-              <button
-                className="btn btn--ghost btn--sm"
-                onClick={() => setEditing(true)}
-              >
-                Edit details
-              </button>
               <label className="btn btn--ghost btn--sm file-btn">
                 {uploadingThumb ? "Uploading…" : "Replace thumbnail"}
                 <input
@@ -1012,6 +1041,7 @@ function LessonRow({
             </div>
           )}
 
+          {!editing && (
           <div className="field" style={{ marginTop: 12 }}>
             <label>Notes (downloadable files)</label>
             {notes.length === 0 ? (
@@ -1068,6 +1098,7 @@ function LessonRow({
               />
             </label>
           </div>
+          )}
         </div>
       )}
     </div>

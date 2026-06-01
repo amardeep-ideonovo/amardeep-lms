@@ -1,5 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import type { LevelDTO } from '@lms/types';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import type { CheckoutLevelDTO, LevelDTO } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { StripeService } from '../billing/stripe.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
@@ -8,6 +12,7 @@ import { CreateLevelDto, UpdateLevelDto } from './dto/level.dto';
 type LevelWithPrices = {
   id: string;
   name: string;
+  slug: string | null;
   type: any;
   mailchimpTags: string[];
   mailchimpAudienceId: string | null;
@@ -34,6 +39,7 @@ export class LevelsService {
     return {
       id: level.id,
       name: level.name,
+      slug: level.slug,
       type: level.type,
       mailchimpTags: level.mailchimpTags,
       mailchimpAudienceId: level.mailchimpAudienceId,
@@ -83,7 +89,32 @@ export class LevelsService {
     );
   }
 
+  // Public: resolve a PAID level (by slug OR raw id) for the checkout page.
+  // Returns only what checkout needs; 404 when missing or without active prices.
+  async checkoutBySlugOrId(slugOrId: string): Promise<CheckoutLevelDTO> {
+    const level = await this.prisma.level.findFirst({
+      where: { type: 'PAID', OR: [{ slug: slugOrId }, { id: slugOrId }] },
+      include: { prices: { where: { active: true } } },
+    });
+    if (!level || level.prices.length === 0) {
+      throw new NotFoundException('Checkout not found');
+    }
+    return {
+      id: level.id,
+      name: level.name,
+      slug: level.slug,
+      prices: level.prices.map((p) => ({
+        id: p.id,
+        stripePriceId: p.stripePriceId,
+        interval: p.interval as 'month' | 'year',
+        amount: p.amount,
+        currency: p.currency,
+      })),
+    };
+  }
+
   async create(dto: CreateLevelDto): Promise<LevelDTO> {
+    const slug = await this.resolveLevelSlug(dto.slug);
     let stripeProductId: string | null = null;
     const priceRows: {
       stripePriceId: string;
@@ -116,6 +147,7 @@ export class LevelsService {
     const level = await this.prisma.level.create({
       data: {
         name: dto.name,
+        slug,
         type: dto.type,
         mailchimpTags: dto.mailchimpTags ?? undefined,
         mailchimpAudienceId: dto.mailchimpAudienceId ?? null,
@@ -135,10 +167,17 @@ export class LevelsService {
     });
     if (!existing) throw new NotFoundException('Level not found');
 
+    // Resolve the checkout slug only when the caller sends one ('' clears it).
+    const slug =
+      dto.slug !== undefined
+        ? await this.resolveLevelSlug(dto.slug, id)
+        : undefined;
+
     const level = await this.prisma.level.update({
       where: { id },
       data: {
         name: dto.name ?? undefined,
+        slug,
         type: dto.type ?? undefined,
         mailchimpTags: dto.mailchimpTags ?? undefined,
         // The admin form always submits the full audience selection, so map
@@ -309,5 +348,38 @@ export class LevelsService {
     if (!existing) throw new NotFoundException('Level not found');
     await this.prisma.level.delete({ where: { id } });
     return { ok: true };
+  }
+
+  // ---------- checkout slug ----------
+
+  private slugify(input: string): string {
+    return input
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[̀-ͯ]/g, '') // strip diacritics
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  // Normalize a requested checkout slug; blank/whitespace -> null (clears it).
+  // Rejects a slug already used by another level. `ignoreId` lets a level keep
+  // its own slug on update.
+  private async resolveLevelSlug(
+    raw: string | undefined,
+    ignoreId?: string,
+  ): Promise<string | null> {
+    if (raw === undefined) return null;
+    const slug = this.slugify(raw);
+    if (!slug) return null;
+    const clash = await this.prisma.level.findFirst({
+      where: { slug, NOT: ignoreId ? { id: ignoreId } : undefined },
+      select: { id: true },
+    });
+    if (clash) {
+      throw new ConflictException('That checkout slug is already in use');
+    }
+    return slug;
   }
 }

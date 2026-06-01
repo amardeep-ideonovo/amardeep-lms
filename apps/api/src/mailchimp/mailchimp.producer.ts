@@ -26,6 +26,28 @@ export class MailchimpProducer {
   ) {
     const key = [...tags].sort().join(',');
     const jobId = `${type}|${email.toLowerCase()}|${audienceId ?? 'default'}|${key}`;
-    await this.queue.add('tag', { type, email, tags, audienceId }, { jobId });
+    await this.queue.add(
+      'tag',
+      { kind: 'tag', type, email, tags, audienceId },
+      { jobId },
+    );
+  }
+
+  /**
+   * Enqueue an email re-key for a contact across the given per-level audiences
+   * (the worker also covers the global Settings audience). jobId is
+   * deterministic per (oldEmail,newEmail) so duplicate enqueues collapse.
+   */
+  async enqueueEmailChange(
+    oldEmail: string,
+    newEmail: string,
+    audienceIds: string[],
+  ) {
+    const jobId = `email-change|${oldEmail.toLowerCase()}|${newEmail.toLowerCase()}`;
+    await this.queue.add(
+      'email-change',
+      { kind: 'email-change', oldEmail, newEmail, audienceIds },
+      { jobId },
+    );
   }
 }

@@ -2,7 +2,9 @@
 import type {
   AuthAdmin,
   CategoryDTO,
+  CouponDTO,
   CourseCard,
+  CreateCouponInput,
   CreateCourseInput,
   CreateFormInput,
   CreateLessonInput,
@@ -17,6 +19,7 @@ import type {
   LoginResponse,
   MailchimpAudienceDTO,
   MailchimpMergeFieldDTO,
+  MemberBillingDTO,
   MemberRow,
   PageAdminRow,
   PageListItem,
@@ -86,7 +89,7 @@ async function request<T>(
   if (res.status === 401 && typeof window !== "undefined") {
     clearToken();
     if (window.location.pathname !== withBase("/login"))
-      window.location.href = withBase("/login");
+      window.location.href = `${withBase("/login")}?session=expired`;
   }
 
   if (!res.ok) {
@@ -122,7 +125,7 @@ async function multipartFetch(path: string, fd: FormData): Promise<Response> {
   if (res.status === 401 && typeof window !== "undefined") {
     clearToken();
     if (window.location.pathname !== withBase("/login"))
-      window.location.href = withBase("/login");
+      window.location.href = `${withBase("/login")}?session=expired`;
   }
   if (!res.ok) {
     let message = `Upload failed (${res.status})`;
@@ -218,12 +221,39 @@ export const api = {
 
   // members
   listMembers: () => request<MemberRow[]>("GET", "/members"),
+  getMember: (memberId: string) =>
+    request<MemberRow>("GET", `/members/${memberId}`),
   updateMember: (memberId: string, input: UpdateMemberInput) =>
     request<MemberRow>("PATCH", `/members/${memberId}`, input),
   addMemberLevel: (memberId: string, levelId: string) =>
     request<void>("POST", `/members/${memberId}/levels`, { levelId }),
   removeMemberLevel: (memberId: string, levelId: string) =>
     request<void>("DELETE", `/members/${memberId}/levels/${levelId}`),
+  // Admin override: set a member's password without their current one.
+  setMemberPassword: (memberId: string, newPassword: string) =>
+    request<{ ok: true }>("POST", `/members/${memberId}/password`, {
+      newPassword,
+    }),
+  // per-member billing detail + one-click subscription actions
+  memberBilling: (memberId: string) =>
+    request<MemberBillingDTO>("GET", `/billing/members/${memberId}`),
+  pauseMemberSub: (memberId: string) =>
+    request<MemberBillingDTO>("POST", `/billing/members/${memberId}/pause`),
+  resumeMemberSub: (memberId: string) =>
+    request<MemberBillingDTO>("POST", `/billing/members/${memberId}/resume`),
+  cancelMemberSub: (memberId: string) =>
+    request<MemberBillingDTO>("POST", `/billing/members/${memberId}/cancel`),
+
+  // coupons (Stripe-backed; admin-only)
+  listCoupons: () => request<CouponDTO[]>("GET", "/admin/coupons"),
+  createCoupon: (input: CreateCouponInput) =>
+    request<CouponDTO>("POST", "/admin/coupons", input),
+  deactivateCoupon: (id: string) =>
+    request<CouponDTO>("POST", `/admin/coupons/${id}/deactivate`),
+  activateCoupon: (id: string) =>
+    request<CouponDTO>("POST", `/admin/coupons/${id}/activate`),
+  deleteCoupon: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/coupons/${id}`),
 
   // lms
   listCategories: () => request<CategoryDTO[]>("GET", "/categories"),

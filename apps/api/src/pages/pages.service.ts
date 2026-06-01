@@ -126,6 +126,13 @@ export class PagesService {
     const base = this.slugify(dto.slug?.trim() || dto.title);
     const slug = await this.resolveSlug(base, wantsCustom);
     const status: PageStatus = dto.status ?? 'DRAFT';
+    // authorId comes from the JWT. If it no longer maps to an Admin (e.g. a token
+    // issued before a DB reseed), fall back to an authorless page rather than
+    // letting the authorId foreign key throw a 500 — the column is nullable.
+    const author = await this.prisma.admin.findUnique({
+      where: { id: authorId },
+      select: { id: true },
+    });
     const page = await this.prisma.page.create({
       data: {
         slug,
@@ -133,7 +140,7 @@ export class PagesService {
         data: this.sanitizeDoc(dto.data),
         status,
         publishedAt: status === 'PUBLISHED' ? new Date() : null,
-        authorId,
+        authorId: author ? authorId : null,
       },
       include: PagesService.REL,
     });

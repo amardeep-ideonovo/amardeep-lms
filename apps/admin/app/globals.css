@@ -564,3 +564,39 @@ textarea:focus {
   font: inherit;
   min-width: 0;
 }
+
+/* ---------- Member billing modal (subscriptions + payment history) ---------- */
+.linklike {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--primary, #2563eb);
+  cursor: pointer;
+  text-align: left;
+}
+.linklike:hover {
+  text-decoration: underline;
+}
+.modal--wide {
+  max-width: 720px;
+  width: 100%;
+}
+.sub-list {
+  display: grid;
+  gap: 10px;
+}
+.sub-tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.sub-tile__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

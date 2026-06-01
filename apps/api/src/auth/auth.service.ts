@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -7,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 import type {
   AuthAdmin,
   AuthUser,
@@ -16,6 +18,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
 import type { JwtPayload } from './jwt-payload.interface';
 import type { SignupDto } from './dto/signup.dto';
+import type { UpdateProfileDto } from './dto/update-profile.dto';
+import type { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -45,7 +49,13 @@ export class AuthService {
     };
     return {
       token: await this.jwt.signAsync(payload),
-      user: { id: user.id, email: user.email, username: user.username },
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
     };
   }
 
@@ -125,7 +135,13 @@ export class AuthService {
     };
     return {
       token: await this.jwt.signAsync(payload),
-      user: { id: user.id, email: user.email, username: user.username },
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
     };
   }
 
@@ -201,6 +217,108 @@ export class AuthService {
       where: { id: principal.sub },
     });
     if (!user) throw new UnauthorizedException();
-    return { id: user.id, email: user.email, username: user.username };
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    };
+  }
+
+  /**
+   * Member self-service profile update (PATCH /auth/me): first/last name and a
+   * unique username. Email is intentionally NOT updatable here. Username
+   * uniqueness is checked case-insensitively (so "Amar"/"amar" can't collide),
+   * with the DB @unique constraint as a P2002 backstop.
+   */
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<AuthUser> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    const data: Prisma.UserUpdateInput = {};
+    const firstName = dto.firstName?.trim();
+    const lastName = dto.lastName?.trim();
+    const username = dto.username?.trim();
+    if (firstName) data.firstName = firstName;
+    if (lastName) data.lastName = lastName;
+
+    // Only touch username when it actually changes (case-insensitively).
+    if (username && username.toLowerCase() !== user.username.toLowerCase()) {
+      const clash = await this.prisma.user.findFirst({
+        where: {
+          id: { not: userId },
+          username: { equals: username, mode: 'insensitive' },
+        },
+        select: { id: true },
+      });
+      if (clash) throw new ConflictException('That username is taken');
+      data.username = username;
+    }
+
+    let updated = user;
+    if (Object.keys(data).length > 0) {
+      try {
+        updated = await this.prisma.user.update({
+          where: { id: userId },
+          data,
+        });
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2002'
+        ) {
+          throw new ConflictException('That username is taken');
+        }
+        throw err;
+      }
+    }
+
+    return {
+      id: updated.id,
+      email: updated.email,
+      username: updated.username,
+      firstName: updated.firstName,
+      lastName: updated.lastName,
+    };
+  }
+
+  /**
+   * Member changes their own password. Requires the current password (verified
+   * against the stored hash) and rejects reusing the same password. Throws 400
+   * (not 401) on a wrong current password so the web client doesn't mistake it
+   * for an expired session and bounce the user to /login.
+   */
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<{ ok: true }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    const currentOk = await bcrypt.compare(
+      dto.currentPassword,
+      user.passwordHash,
+    );
+    if (!currentOk) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const sameAsOld = await bcrypt.compare(dto.newPassword, user.passwordHash);
+    if (sameAsOld) {
+      throw new BadRequestException(
+        'New password must be different from the current one',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    return { ok: true };
   }
 }

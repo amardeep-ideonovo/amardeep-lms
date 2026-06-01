@@ -25,6 +25,7 @@ export default function LevelsPage() {
   // create/edit form state
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [slug, setSlug] = useState("");
   const [type, setType] = useState<LevelType>("PAID");
   const [mailchimpTags, setMailchimpTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
@@ -32,6 +33,9 @@ export default function LevelsPage() {
   const [mailchimpAudienceName, setMailchimpAudienceName] = useState("");
   const [prices, setPrices] = useState<PriceForm[]>([emptyPrice()]);
   const [saving, setSaving] = useState(false);
+  // Create/edit happen in a modal (opened by the top button or a row's Edit).
+  const [modalOpen, setModalOpen] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Live Mailchimp audiences for the dropdown (empty if Mailchimp unconfigured).
   const [audiences, setAudiences] = useState<MailchimpAudienceDTO[]>([]);
@@ -52,6 +56,17 @@ export default function LevelsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  // Close the modal on Escape (mirrors the courses modal).
+  useEffect(() => {
+    if (!modalOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeModal();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalOpen]);
 
   // Fetch Mailchimp audiences once. If Mailchimp isn't configured the API
   // returns 400 — surface a hint but keep the page usable (audience optional).
@@ -76,17 +91,28 @@ export default function LevelsPage() {
   function resetForm() {
     setEditingId(null);
     setName("");
+    setSlug("");
     setType("PAID");
     setMailchimpTags([]);
     setTagInput("");
     setMailchimpAudienceId("");
     setMailchimpAudienceName("");
     setPrices([emptyPrice()]);
+    setFormError(null);
+  }
+  function openCreate() {
+    resetForm();
+    setModalOpen(true);
+  }
+  function closeModal() {
+    setModalOpen(false);
+    resetForm();
   }
 
   function startEdit(level: LevelDTO) {
     setEditingId(level.id);
     setName(level.name);
+    setSlug(level.slug ?? "");
     setType(level.type);
     setMailchimpTags(level.mailchimpTags ?? []);
     setTagInput("");
@@ -100,6 +126,8 @@ export default function LevelsPage() {
           }))
         : [emptyPrice()]
     );
+    setFormError(null);
+    setModalOpen(true);
   }
 
   function addTag() {
@@ -114,7 +142,7 @@ export default function LevelsPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
-    setError(null);
+    setFormError(null);
     try {
       const cleanedPrices = prices
         .filter((p) => p.amount.trim() !== "")
@@ -130,6 +158,7 @@ export default function LevelsPage() {
           : mailchimpTags;
       const input: CreateLevelInput = {
         name: name.trim(),
+        slug: slug.trim(),
         type,
         mailchimpTags: finalTags,
         mailchimpAudienceId: mailchimpAudienceId || undefined,
@@ -138,10 +167,11 @@ export default function LevelsPage() {
       };
       if (editingId) await api.updateLevel(editingId, input);
       else await api.createLevel(input);
+      setModalOpen(false);
       resetForm();
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Save failed");
+      setFormError(err instanceof ApiError ? err.message : "Save failed");
     } finally {
       setSaving(false);
     }
@@ -166,18 +196,44 @@ export default function LevelsPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <h1>Levels</h1>
-        <p className="subtitle">
-          Membership tiers. Each level can subscribe members to a Mailchimp
-          audience (and apply a tag within it), and — if PAID — has Stripe
-          prices.
-        </p>
+      <div className="page-header with-action">
+        <div>
+          <h1>Levels</h1>
+          <p className="subtitle">
+            Membership tiers. Each level can subscribe members to a Mailchimp
+            audience (and apply a tag within it), and — if PAID — has Stripe
+            prices.
+          </p>
+        </div>
+        <button className="btn" onClick={openCreate}>
+          + Add new level
+        </button>
       </div>
 
-      <div className="card">
-        <h2>{editingId ? "Edit level" : "Create level"}</h2>
-        <form onSubmit={onSubmit}>
+      {error && <p className="error">{error}</p>}
+
+      {modalOpen && (
+        <div
+          className="modal-overlay"
+          onClick={closeModal}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{editingId ? "Edit level" : "Create level"}</h2>
+              <button
+                type="button"
+                className="modal-close"
+                onClick={closeModal}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {formError && <p className="error">{formError}</p>}
+              <form onSubmit={onSubmit}>
           <div className="form-row">
             <div className="field">
               <label>Name</label>
@@ -233,6 +289,22 @@ export default function LevelsPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="field">
+            <label>
+              Checkout URL slug <span className="muted">(optional)</span>
+            </label>
+            <input
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="e.g. pro"
+            />
+            <span className="muted" style={{ fontSize: 12 }}>
+              {slug.trim()
+                ? `Checkout URL: /checkout/${slug.trim()}`
+                : "Leave blank to use the raw level id in the checkout URL."}
+            </span>
           </div>
 
           <div className="field">
@@ -329,26 +401,35 @@ export default function LevelsPage() {
             </div>
           )}
 
-          {error && <p className="error">{error}</p>}
-          <div className="row-actions">
-            <button className="btn" type="submit" disabled={saving}>
-              {saving ? "Saving…" : editingId ? "Update level" : "Create level"}
-            </button>
-            {editingId && (
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={resetForm}
-              >
-                Cancel
-              </button>
-            )}
+                <div className="row-actions">
+                  <button className="btn" type="submit" disabled={saving}>
+                    {saving
+                      ? "Saving…"
+                      : editingId
+                        ? "Update level"
+                        : "Create level"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--ghost"
+                    onClick={closeModal}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </form>
-      </div>
+        </div>
+      )}
 
       <div className="card">
-        <h2>All levels</h2>
+        <div className="card-head">
+          <h2>All levels</h2>
+          <button className="btn btn--sm" onClick={openCreate}>
+            + Add new level
+          </button>
+        </div>
         {loading ? (
           <p className="muted">Loading…</p>
         ) : levels.length === 0 ? (
@@ -360,7 +441,6 @@ export default function LevelsPage() {
                 <th>Name</th>
                 <th>Type</th>
                 <th>Members</th>
-                <th>Mailchimp tags</th>
                 <th>Prices</th>
                 <th></th>
               </tr>
@@ -371,19 +451,6 @@ export default function LevelsPage() {
                   <td>{lvl.name}</td>
                   <td>{lvl.type}</td>
                   <td>{lvl.memberCount}</td>
-                  <td>
-                    {lvl.mailchimpTags.length === 0 ? (
-                      <span className="muted">—</span>
-                    ) : (
-                      <div className="chips">
-                        {lvl.mailchimpTags.map((t) => (
-                          <span key={t} className="chip chip--muted">
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </td>
                   <td>
                     {lvl.prices.length === 0 ? (
                       <span className="muted">—</span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, api, setToken } from "@/lib/api";
 
@@ -10,6 +10,19 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // Surface a prompt when the API invalidated the session (request() redirects
+  // here with ?session=expired on a 401, e.g. a token whose admin no longer
+  // exists after a DB reseed).
+  useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("session") === "expired"
+    ) {
+      setNotice("Your session is no longer valid — please sign in again.");
+    }
+  }, []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -57,6 +70,21 @@ export default function LoginPage() {
             required
           />
         </div>
+        {notice && (
+          <p
+            style={{
+              background: "#fffbeb",
+              color: "#92400e",
+              border: "1px solid #fde68a",
+              borderRadius: 8,
+              padding: "10px 12px",
+              fontSize: 14,
+              margin: "0 0 4px",
+            }}
+          >
+            {notice}
+          </p>
+        )}
         {error && <p className="error">{error}</p>}
         <button className="btn" type="submit" disabled={loading}>
           {loading ? "Signing in…" : "Sign in"}
