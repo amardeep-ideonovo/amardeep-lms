@@ -147,15 +147,6 @@ async function multipartFetch(path: string, fd: FormData): Promise<Response> {
   return res;
 }
 
-async function uploadFile(
-  path: string,
-  file: File
-): Promise<{ url: string; filename: string }> {
-  const fd = new FormData();
-  fd.append("file", file);
-  return (await multipartFetch(path, fd)).json();
-}
-
 async function uploadFiles(
   path: string,
   files: File[]
@@ -297,7 +288,6 @@ export const api = {
   createCategory: (name: string, order?: number, thumbnailUrl?: string) =>
     request<CategoryDTO>("POST", "/categories", { name, order, thumbnailUrl }),
   deleteCategory: (id: string) => request<void>("DELETE", `/categories/${id}`),
-  uploadCategoryImage: (file: File) => uploadFile("/categories/upload", file),
   listCourses: () => request<CourseCard[]>("GET", "/courses"),
   createCourse: (input: CreateCourseInput) =>
     request<CourseCard>("POST", "/courses", input),
@@ -363,7 +353,6 @@ export const api = {
   updatePage: (id: string, input: UpdatePageInput) =>
     request<PageAdminRow>("PATCH", `/admin/pages/${id}`, input),
   deletePage: (id: string) => request<void>("DELETE", `/admin/pages/${id}`),
-  uploadPageImage: (file: File) => uploadFile("/admin/pages/upload", file),
 
   // popups (Puck overlay — same editor as pages, plus style + visibility)
   listPopups: () => request<PopupListItem[]>("GET", "/admin/popups"),
@@ -392,9 +381,4 @@ export const api = {
       "GET",
       `/admin/mailchimp/audiences/${audienceId}/merge-fields`
     ),
-
-  // Multipart uploads (see helpers above). The browser sets the boundary.
-  uploadImage: (file: File) => uploadFile("/admin/blog/upload", file),
-  uploadCourseImage: (file: File) => uploadFile("/courses/upload", file),
-  uploadLessonImage: (file: File) => uploadFile("/lessons/upload", file),
 };

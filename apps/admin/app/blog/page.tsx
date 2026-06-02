@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import type {
   CreatePostInput,
   PostAdminRow,
@@ -33,7 +33,6 @@ export default function BlogPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [formError, setFormError] = useState<string | null>(null); // modal errors
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
   const [newCategory, setNewCategory] = useState("");
 
@@ -177,24 +176,6 @@ export default function BlogPage() {
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete post");
-    }
-  }
-
-  async function onPickImage(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setFormError(null);
-    try {
-      const { url } = await api.uploadImage(file);
-      setForm((f) => ({ ...f, coverImageUrl: url }));
-    } catch (err) {
-      setFormError(
-        err instanceof ApiError ? err.message : "Image upload failed"
-      );
-    } finally {
-      setUploading(false);
-      e.target.value = ""; // allow re-selecting the same file
     }
   }
 

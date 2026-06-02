@@ -31,7 +31,6 @@ export default function CoursesPage() {
   // create-category form
   const [newCategory, setNewCategory] = useState("");
   const [newCategoryThumb, setNewCategoryThumb] = useState("");
-  const [uploadingCatThumb, setUploadingCatThumb] = useState(false);
 
   // course modal (create/edit)
   const [modalOpen, setModalOpen] = useState(false);
@@ -39,8 +38,6 @@ export default function CoursesPage() {
   const [form, setForm] = useState({ ...EMPTY_COURSE });
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [uploadingThumb, setUploadingThumb] = useState(false);
-  const [uploadingCover, setUploadingCover] = useState(false);
 
   // expanded course -> lessons
   const [openCourse, setOpenCourse] = useState<string | null>(null);
@@ -168,26 +165,6 @@ export default function CoursesPage() {
     }
   }
 
-  async function uploadCourseImage(
-    e: ChangeEvent<HTMLInputElement>,
-    field: "thumbnailUrl" | "coverImageUrl"
-  ) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const setBusy = field === "thumbnailUrl" ? setUploadingThumb : setUploadingCover;
-    setBusy(true);
-    setFormError(null);
-    try {
-      const { url } = await api.uploadCourseImage(file);
-      setForm((f) => ({ ...f, [field]: url }));
-    } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Image upload failed");
-    } finally {
-      setBusy(false);
-      e.target.value = "";
-    }
-  }
-
   async function createCategory(e: FormEvent) {
     e.preventDefault();
     if (!newCategory.trim()) return;
@@ -205,22 +182,6 @@ export default function CoursesPage() {
       setError(
         err instanceof ApiError ? err.message : "Failed to create category"
       );
-    }
-  }
-
-  async function onPickCategoryThumb(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingCatThumb(true);
-    setError(null);
-    try {
-      const { url } = await api.uploadCategoryImage(file);
-      setNewCategoryThumb(url);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Image upload failed");
-    } finally {
-      setUploadingCatThumb(false);
-      e.target.value = "";
     }
   }
 
@@ -569,7 +530,6 @@ function CourseLessons({
   const [content, setContent] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
-  const [uploadingThumb, setUploadingThumb] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function load() {
@@ -598,22 +558,6 @@ function CourseLessons({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [showAdd]);
-
-  async function onPickNewThumb(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingThumb(true);
-    setError(null);
-    try {
-      const { url } = await api.uploadLessonImage(file);
-      setThumbnailUrl(url);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Thumbnail upload failed");
-    } finally {
-      setUploadingThumb(false);
-      e.target.value = "";
-    }
-  }
 
   async function addLesson(e: FormEvent) {
     e.preventDefault();
