@@ -87,11 +87,12 @@ export default function MediaPage() {
     if (!files?.length) return;
     setUploading(true);
     setError(null);
-    let last: MediaDTO | null = null;
     try {
-      for (const f of Array.from(files)) last = await api.uploadMedia(f);
+      // Each file is saved on upload. Just add them to the library and refresh
+      // the grid (newest first) — don't pop open the details/edit panel; the
+      // user opens that themselves by clicking a tile when they want to edit.
+      for (const f of Array.from(files)) await api.uploadMedia(f);
       await load(1, q, kind);
-      if (last) setSelected(last); // open the newly uploaded file's details
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Upload failed");
     } finally {
