@@ -9,12 +9,16 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 
-type PriceForm = { interval: "month" | "year"; amount: string };
+type PriceForm = {
+  interval: "month" | "year";
+  amount: string;
+  installments: string; // number of payments, then lifetime; "" = ongoing sub
+};
 
 const LEVEL_TYPES: LevelType[] = ["PAID", "FREE", "MANUAL"];
 
 function emptyPrice(): PriceForm {
-  return { interval: "month", amount: "" };
+  return { interval: "month", amount: "", installments: "" };
 }
 
 export default function LevelsPage() {
@@ -123,6 +127,7 @@ export default function LevelsPage() {
         ? level.prices.map((p) => ({
             interval: p.interval,
             amount: (p.amount / 100).toString(),
+            installments: p.installments != null ? String(p.installments) : "",
           }))
         : [emptyPrice()]
     );
@@ -149,6 +154,9 @@ export default function LevelsPage() {
         .map((p) => ({
           interval: p.interval,
           amount: Math.round(parseFloat(p.amount) * 100), // dollars -> cents
+          installments: p.installments.trim()
+            ? Math.round(Number(p.installments))
+            : undefined,
         }));
       // Flush any tag still typed in the box but not yet added.
       const pending = tagInput.trim();
@@ -355,6 +363,13 @@ export default function LevelsPage() {
           {type === "PAID" && (
             <div className="field">
               <label>Prices</label>
+              <span
+                className="muted"
+                style={{ fontSize: 12, display: "block", marginBottom: 8 }}
+              >
+                “Payments” bills that many times, then the member keeps the level
+                for life. Leave it blank for an ongoing subscription.
+              </span>
               {prices.map((p, i) => (
                 <div className="form-row" key={i} style={{ marginBottom: 8 }}>
                   <select
@@ -375,6 +390,18 @@ export default function LevelsPage() {
                     placeholder="Amount (USD)"
                     value={p.amount}
                     onChange={(e) => updatePrice(i, { amount: e.target.value })}
+                  />
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="Payments"
+                    title="Number of payments, then lifetime access. Blank = ongoing subscription."
+                    value={p.installments}
+                    onChange={(e) =>
+                      updatePrice(i, { installments: e.target.value })
+                    }
+                    style={{ maxWidth: 130 }}
                   />
                   <button
                     type="button"
@@ -463,6 +490,9 @@ export default function LevelsPage() {
                               currency: p.currency || "USD",
                             })}
                             /{p.interval}
+                            {p.installments
+                              ? ` ×${p.installments} → lifetime`
+                              : ""}
                           </span>
                         ))}
                       </div>

@@ -50,6 +50,7 @@ model Admin {
 
   posts Post[]
   pages Page[]
+  media MediaAsset[]
 }
 
 // ---------- Membership levels ----------
@@ -85,6 +86,10 @@ model Price {
   amount        Int      // minor units (cents)
   currency      String   @default("usd")
   active        Boolean  @default(true)
+  // Installment plan: bill this many times, then the member keeps the level for
+  // life (the webhook sets UserLevel.lifetime and cancels the sub). null = an
+  // ongoing subscription that bills until canceled.
+  installments  Int?
 }
 
 enum UserLevelSource {
@@ -97,6 +102,7 @@ enum UserLevelStatus {
   PAST_DUE
   CANCELED
   EXPIRED
+  PAUSED // billing paused — access suspended but resumable (unlike CANCELED)
 }
 
 model UserLevel {
@@ -107,6 +113,9 @@ model UserLevel {
   level               Level           @relation(fields: [levelId], references: [id], onDelete: Cascade)
   source              UserLevelSource
   status              UserLevelStatus @default(ACTIVE)
+  // Once true the grant is permanent (a paid-in-full installment plan converted
+  // to lifetime) and Stripe reconciliation will never revoke it.
+  lifetime            Boolean         @default(false)
   stripeSubItemId     String?         // si_… when source = STRIPE
   expiresAt           DateTime?       // for manual grants or period-end access
   grantedAt           DateTime        @default(now())
@@ -204,6 +213,7 @@ enum SubStatus {
   CANCELED
   UNPAID
   INCOMPLETE
+  PAUSED // pause_collection set — billing paused, access suspended
 }
 
 // Local mirror of Stripe subscriptions, kept current by webhooks.
@@ -390,4 +400,29 @@ model Popup {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ---------- Media Library (Gallery) ----------
+// Admin-managed catalog of uploaded files of ANY type (images, video, audio,
+// PDF, docs, SVG…). Each asset is served at a stable PUBLIC URL so it can be
+// embedded anywhere. `key` is the storage object key (local: filename under
+// MEDIA_ROOT; cloud later: the bucket key) — the public URL is derived from it.
+model MediaAsset {
+  id           String   @id @default(cuid())
+  key          String   @unique // storage key / stored filename
+  originalName String // filename as uploaded (shown in the UI)
+  mimeType     String
+  size         Int // bytes
+  width        Int? // images only
+  height       Int? // images only
+  title        String?
+  altText      String?
+  caption      String?
+  description  String?
+  uploadedById String?
+  uploadedBy   Admin?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([createdAt])
 }

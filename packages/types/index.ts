@@ -4,7 +4,12 @@
 // ---------- Enums (mirror Prisma) ----------
 export type LevelType = "PAID" | "FREE" | "MANUAL";
 export type UserLevelSource = "STRIPE" | "MANUAL";
-export type UserLevelStatus = "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED";
+export type UserLevelStatus =
+  | "ACTIVE"
+  | "PAST_DUE"
+  | "CANCELED"
+  | "EXPIRED"
+  | "PAUSED"; // billing paused — access suspended but resumable
 export type AdminRole = "SUPER_ADMIN" | "ADMIN" | "EDITOR";
 
 // ---------- DTOs ----------
@@ -56,6 +61,9 @@ export interface PriceDTO {
   interval: "month" | "year";
   amount: number; // cents
   currency: string;
+  // Installment plan: bill this many times, then the member keeps the level for
+  // life. null = an ongoing subscription that bills until canceled.
+  installments: number | null;
 }
 export interface LevelDTO {
   id: string;
@@ -88,7 +96,12 @@ export interface CreateLevelInput {
   mailchimpTags?: string[];
   mailchimpAudienceId?: string;
   mailchimpAudienceName?: string;
-  prices?: { interval: "month" | "year"; amount: number; currency?: string }[];
+  prices?: {
+    interval: "month" | "year";
+    amount: number;
+    currency?: string;
+    installments?: number; // bill N times then lifetime; omit for an ongoing sub
+  }[];
 }
 
 // A member's own live paid subscription, surfaced to the web app so the
@@ -179,7 +192,9 @@ export interface SubscriptionDetailDTO {
   currency: string;
   currentPeriodEnd: string | null; // ISO — when the paid period ends / renews
   cancelAtPeriodEnd: boolean; // true once "Cancel" was used (reversible)
-  paused: boolean; // true while billing is paused (access retained)
+  paused: boolean; // true while billing is paused (access suspended, resumable)
+  installmentsTotal: number | null; // installment plan size (null = ongoing subscription)
+  installmentsPaid: number | null; // installments paid so far (null = ongoing)
 }
 // One row of payment history (a Stripe invoice).
 export interface InvoiceDTO {
@@ -204,6 +219,33 @@ export interface MemberBillingDTO {
   };
   subscriptions: SubscriptionDetailDTO[];
   invoices: InvoiceDTO[];
+  // Permanent (lifetime) grants — completed installment plans the member keeps
+  // forever. These have no live subscription, so they don't appear above.
+  lifetimeLevels: { levelId: string; levelName: string }[];
+}
+
+// One row of the admin Subscriptions tab — every Stripe subscription (active +
+// historical) joined to the local member + level, with an order count and last
+// order date derived from invoices. Read live from Stripe.
+export interface SubscriptionRowDTO {
+  id: string; // stripe subscription id (row key)
+  memberId: string | null; // local user id (links to the member billing page); null if no local user
+  memberName: string; // "First Last" (falls back to email / Stripe name)
+  memberEmail: string | null;
+  levelId: string | null;
+  levelName: string; // joined level name(s) for the subscription's items
+  status: string; // raw stripe status: active | trialing | past_due | canceled | unpaid | incomplete…
+  paused: boolean; // billing paused (surfaced as "On hold")
+  cancelAtPeriodEnd: boolean;
+  amount: number | null; // minor units (the actual subscribed price; null if unmapped)
+  currency: string;
+  interval: string | null; // "month" | "year"
+  startDate: string | null; // ISO
+  nextPayment: string | null; // ISO — next renewal charge (null when cancelling/paused/ended)
+  lastOrderDate: string | null; // ISO — most recent invoice for this subscription
+  endDate: string | null; // ISO — when it ended / is scheduled to end
+  orders: number; // count of (non-draft) invoices for this subscription
+  installmentsTotal: number | null; // installment plan size (null = ongoing); paid count = `orders`
 }
 
 export interface MemberRow {
@@ -214,7 +256,12 @@ export interface MemberRow {
   lastName: string | null;
   phone: string | null;
   registeredAt: string; // ISO
-  levels: { id: string; name: string; status: UserLevelStatus }[];
+  levels: {
+    id: string;
+    name: string;
+    status: UserLevelStatus;
+    lifetime: boolean; // permanent grant (completed installment plan)
+  }[];
   // Paid-subscription summary for the admin list (derived from STRIPE grants;
   // null when the member has never had a paid subscription).
   subscription: {
@@ -629,6 +676,48 @@ export type PopupEventType = "view" | "click" | "dismiss";
 
 // ---------- REST contract ----------
 // Base: process.env API URL. All authed routes use `Authorization: Bearer <token>`.
+// ---------- Media Library (Gallery) ----------
+export type MediaKind =
+  | "image"
+  | "video"
+  | "audio"
+  | "pdf"
+  | "document"
+  | "archive"
+  | "other";
+
+// A managed media asset. `url` is the absolute, public, embeddable URL.
+export interface MediaDTO {
+  id: string;
+  url: string; // absolute public URL — copy/embed anywhere
+  key: string; // storage object key (stored filename)
+  originalName: string; // filename as uploaded
+  mimeType: string;
+  kind: MediaKind;
+  size: number; // bytes
+  width: number | null; // images only
+  height: number | null;
+  title: string | null;
+  altText: string | null;
+  caption: string | null;
+  description: string | null;
+  uploadedBy: { email: string } | null;
+  createdAt: string; // ISO
+}
+export interface MediaListDTO {
+  items: MediaDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+// Editable metadata (attachment details panel).
+export interface UpdateMediaInput {
+  title?: string;
+  altText?: string;
+  caption?: string;
+  description?: string;
+}
+
 export const ROUTES = {
   // auth
   memberLogin: "POST /auth/login", // body {email,password} -> LoginResponse<AuthUser>
@@ -658,6 +747,16 @@ export const ROUTES = {
   adminDeactivateCoupon: "POST /admin/coupons/:id/deactivate", // -> CouponDTO
   adminActivateCoupon: "POST /admin/coupons/:id/activate", // -> CouponDTO
   adminDeleteCoupon: "DELETE /admin/coupons/:id", // -> { ok: true } (deletes the Stripe coupon)
+
+  // admin: subscriptions (read-only list, live from Stripe)
+  adminListSubscriptions: "GET /admin/subscriptions", // -> SubscriptionRowDTO[]
+
+  // admin: media library (gallery) — files served at public, embeddable URLs
+  adminListMedia: "GET /admin/media", // ?q&kind&page&pageSize -> MediaListDTO
+  adminUploadMedia: "POST /admin/media", // multipart {file} -> MediaDTO
+  adminGetMedia: "GET /admin/media/:id", // -> MediaDTO
+  adminUpdateMedia: "PATCH /admin/media/:id", // body UpdateMediaInput -> MediaDTO
+  adminDeleteMedia: "DELETE /admin/media/:id", // -> { ok: true }
 
   // lms
   listCategories: "GET /categories",

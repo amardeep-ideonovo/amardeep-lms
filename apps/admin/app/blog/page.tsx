@@ -9,6 +9,7 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import RichTextEditor from "@/components/RichTextEditor";
+import MediaPicker from "@/components/MediaPicker";
 
 const EMPTY = {
   title: "",
@@ -432,31 +433,12 @@ export default function BlogPage() {
 
                 <div className="field">
                   <label>Featured image</label>
-                  <div className="row-actions" style={{ alignItems: "center" }}>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={onPickImage}
-                      disabled={uploading}
-                    />
-                    {uploading && <span className="muted">Uploading…</span>}
-                  </div>
-                  <input
+                  <MediaPicker
                     value={form.coverImageUrl}
-                    onChange={(e) =>
-                      setForm({ ...form, coverImageUrl: e.target.value })
+                    onChange={(url) =>
+                      setForm((f) => ({ ...f, coverImageUrl: url }))
                     }
-                    placeholder="…or paste an image URL"
-                    style={{ marginTop: 8 }}
                   />
-                  {form.coverImageUrl.trim() && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={form.coverImageUrl}
-                      alt="Featured preview"
-                      className="cover-preview"
-                    />
-                  )}
                 </div>
 
                 <div className="field">

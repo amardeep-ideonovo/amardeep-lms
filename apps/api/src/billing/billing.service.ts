@@ -48,6 +48,8 @@ function mapSubStatus(status: Stripe.Subscription.Status): {
 @Injectable()
 export class BillingService {
   private readonly logger = new Logger(BillingService.name);
+  // Installments→lifetime conversion + global pause=no-access live in the
+  // webhook reconcile + fulfillInstallmentsIfComplete below.
 
   constructor(
     private readonly prisma: PrismaService,
@@ -315,6 +317,15 @@ export class BillingService {
           include: { level: true },
         });
         if (!price) continue;
+        // For installment plans, surface how many of the N payments are done.
+        let installmentsPaid: number | null = null;
+        if (price.installments != null) {
+          const paidInvoices = await this.stripe.listSubscriptionInvoices(
+            sub.id,
+            'paid',
+          );
+          installmentsPaid = paidInvoices.length;
+        }
         out.push({
           stripeSubId: sub.id,
           levelId: price.levelId,
@@ -328,6 +339,8 @@ export class BillingService {
             : null,
           cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
           paused: sub.pause_collection != null,
+          installmentsTotal: price.installments ?? null,
+          installmentsPaid,
         });
       }
     }
@@ -370,9 +383,13 @@ export class BillingService {
   async getMemberBilling(memberId: string): Promise<MemberBillingDTO> {
     const user = await this.prisma.user.findUnique({ where: { id: memberId } });
     if (!user) throw new NotFoundException('Member not found');
-    const [subscriptions, invoices] = await Promise.all([
+    const [subscriptions, invoices, lifetimeRows] = await Promise.all([
       this.detailsForCustomer(user.stripeCustomerId),
       this.invoicesForCustomer(user.stripeCustomerId),
+      this.prisma.userLevel.findMany({
+        where: { userId: user.id, lifetime: true },
+        include: { level: { select: { name: true } } },
+      }),
     ]);
     return {
       member: {
@@ -383,6 +400,10 @@ export class BillingService {
       },
       subscriptions,
       invoices,
+      lifetimeLevels: lifetimeRows.map((ul) => ({
+        levelId: ul.levelId,
+        levelName: ul.level.name,
+      })),
     };
   }
 
@@ -418,10 +439,15 @@ export class BillingService {
   }
 
   async cancelMember(memberId: string): Promise<MemberBillingDTO> {
-    await this.stripe.setCancelAtPeriodEnd(
-      await this.memberLiveSubId(memberId),
-      true,
-    );
+    const subId = await this.memberLiveSubId(memberId);
+    const sub = await this.stripe.retrieveSubscription(subId);
+    if (await this.isIncompleteInstallmentPlan(sub)) {
+      // An unfinished installment plan PAUSES (resumable) instead of cancelling,
+      // so the member can resume and finish the remaining payments later.
+      await this.stripe.pauseSubscription(subId);
+    } else {
+      await this.stripe.setCancelAtPeriodEnd(subId, true);
+    }
     return this.getMemberBilling(memberId);
   }
 
@@ -472,6 +498,11 @@ export class BillingService {
             // Re-fetch the canonical subscription to reconcile from source of truth.
             const sub = await this.stripe.retrieveSubscription(subId);
             await this.reconcileSubscription(sub);
+            // On a successful payment, check whether an installment plan has now
+            // been paid in full -> convert to lifetime + stop billing.
+            if (event.type === 'invoice.paid') {
+              await this.fulfillInstallmentsIfComplete(sub, invoice.id);
+            }
           }
           break;
         }
@@ -520,6 +551,11 @@ export class BillingService {
     }
 
     const { sub: subStatus, userLevel: levelStatus } = mapSubStatus(sub.status);
+    // pause_collection suspends access everywhere (resumable). Surface it as a
+    // distinct PAUSED status rather than leaving the subscription "active".
+    const paused = sub.pause_collection != null;
+    const subStatusFinal = paused ? ('PAUSED' as const) : subStatus;
+    const levelStatusFinal = paused ? ('PAUSED' as const) : levelStatus;
     const periodEnd = sub.current_period_end
       ? new Date(sub.current_period_end * 1000)
       : null;
@@ -529,12 +565,12 @@ export class BillingService {
       create: {
         stripeSubId: sub.id,
         stripeCustomerId: customerId,
-        status: subStatus,
+        status: subStatusFinal,
         currentPeriodEnd: periodEnd,
         cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
       },
       update: {
-        status: subStatus,
+        status: subStatusFinal,
         currentPeriodEnd: periodEnd,
         cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
       },
@@ -581,6 +617,9 @@ export class BillingService {
     // Upsert desired levels.
     for (const [levelId, info] of desired) {
       const prev = existingByLevel.get(levelId);
+      // Never downgrade a lifetime grant (a paid-in-full installment plan stays
+      // ACTIVE forever, even as its now-cancelled subscription reconciles).
+      const statusForRow = prev?.lifetime ? 'ACTIVE' : levelStatusFinal;
       await this.prisma.userLevel.upsert({
         where: {
           userId_levelId_source: {
@@ -593,22 +632,23 @@ export class BillingService {
           userId: user.id,
           levelId,
           source: 'STRIPE',
-          status: levelStatus,
+          status: statusForRow,
           stripeSubItemId: info.subItemId,
           expiresAt: periodEnd,
         },
         update: {
-          status: levelStatus,
+          status: statusForRow,
           stripeSubItemId: info.subItemId,
-          expiresAt: periodEnd,
+          expiresAt: prev?.lifetime ? null : periodEnd,
         },
       });
 
       // Audience/tag sync: add when newly active, remove when transitioning to
-      // non-active. Subscribes to the level's own audience (or the global one).
+      // non-active — but NOT for a mere pause (keep tags during a pause so a
+      // temporary suspension doesn't churn Mailchimp).
       if (info.mailchimpTags.length || info.mailchimpAudienceId) {
         const wasActive = prev?.status === 'ACTIVE';
-        const nowActive = levelStatus === 'ACTIVE';
+        const nowActive = statusForRow === 'ACTIVE';
         if (nowActive && !wasActive) {
           await this.mailchimp.enqueueTags(
             'add',
@@ -616,7 +656,7 @@ export class BillingService {
             info.mailchimpTags,
             info.mailchimpAudienceId ?? undefined,
           );
-        } else if (!nowActive && wasActive) {
+        } else if (!nowActive && wasActive && statusForRow !== 'PAUSED') {
           await this.maybeRemoveTags(
             user.id,
             levelId,
@@ -628,9 +668,11 @@ export class BillingService {
       }
     }
 
-    // Levels no longer present on the subscription -> CANCELED.
+    // Levels no longer present on the subscription -> CANCELED, EXCEPT lifetime
+    // grants (a completed installment plan), which are permanent.
     for (const ul of existing) {
       if (!desired.has(ul.levelId)) {
+        if (ul.lifetime) continue;
         await this.prisma.userLevel.update({
           where: { id: ul.id },
           data: { status: 'CANCELED' },
@@ -663,5 +705,101 @@ export class BillingService {
     if (stillActive === 0) {
       await this.mailchimp.enqueueTags('remove', email, tags, audienceId);
     }
+  }
+
+  // ---------- Installments -> lifetime ----------
+
+  /**
+   * On a paid invoice, check whether an installment plan has been paid in full.
+   * Once paid invoices >= Price.installments, convert the grant to lifetime
+   * (UserLevel.lifetime = true, ACTIVE, no expiry) and cancel the Stripe
+   * subscription so it never bills again — the member keeps access via the
+   * lifetime grant. Idempotent: re-running just re-asserts the grant.
+   */
+  private async fulfillInstallmentsIfComplete(
+    sub: Stripe.Subscription,
+    currentInvoiceId: string | null,
+  ): Promise<void> {
+    const customerId =
+      typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+    const user = await this.prisma.user.findUnique({
+      where: { stripeCustomerId: customerId },
+    });
+    if (!user) return;
+
+    for (const item of sub.items?.data ?? []) {
+      const stripePriceId =
+        typeof item.price === 'string' ? item.price : item.price?.id;
+      if (!stripePriceId) continue;
+      const price = await this.prisma.price.findUnique({
+        where: { stripePriceId },
+        include: { level: true },
+      });
+      if (!price || price.installments == null) continue;
+
+      // Count paid invoices for this subscription; make sure the invoice that
+      // triggered this event is counted (guards a read-after-write off-by-one).
+      const paid = await this.stripe.listSubscriptionInvoices(sub.id, 'paid');
+      const ids = new Set(paid.map((i) => i.id));
+      if (currentInvoiceId) ids.add(currentInvoiceId);
+      if (ids.size < price.installments) continue;
+
+      await this.prisma.userLevel.upsert({
+        where: {
+          userId_levelId_source: {
+            userId: user.id,
+            levelId: price.levelId,
+            source: 'STRIPE',
+          },
+        },
+        create: {
+          userId: user.id,
+          levelId: price.levelId,
+          source: 'STRIPE',
+          status: 'ACTIVE',
+          lifetime: true,
+          stripeSubItemId: item.id,
+          expiresAt: null,
+        },
+        update: { status: 'ACTIVE', lifetime: true, expiresAt: null },
+      });
+      this.logger.log(
+        `[installments] sub=${sub.id} level=${price.levelId} paid ${ids.size}/${price.installments} -> lifetime granted user=${user.id}`,
+      );
+
+      // Stop billing. The resulting customer.subscription.deleted reconciles,
+      // and its revoke step skips the now-lifetime grant.
+      if (sub.status !== 'canceled') {
+        try {
+          await this.stripe.cancelSubscription(sub.id);
+        } catch (err) {
+          this.logger.warn(
+            `[installments] post-fulfillment cancel failed sub=${sub.id}: ${
+              err instanceof Error ? err.message : err
+            }`,
+          );
+        }
+      }
+    }
+  }
+
+  // True if the subscription carries an installment plan not yet paid in full
+  // (drives "cancel -> pause" so the member can resume and finish it).
+  private async isIncompleteInstallmentPlan(
+    sub: Stripe.Subscription,
+  ): Promise<boolean> {
+    for (const item of sub.items?.data ?? []) {
+      const stripePriceId =
+        typeof item.price === 'string' ? item.price : item.price?.id;
+      if (!stripePriceId) continue;
+      const price = await this.prisma.price.findUnique({
+        where: { stripePriceId },
+      });
+      if (price?.installments != null) {
+        const paid = await this.stripe.listSubscriptionInvoices(sub.id, 'paid');
+        if (paid.length < price.installments) return true;
+      }
+    }
+    return false;
   }
 }

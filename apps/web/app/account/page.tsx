@@ -414,6 +414,9 @@ function AccountInner() {
                     : ""}
                   {sub.cancelAtPeriodEnd ? " · cancels at period end" : ""}
                   {sub.paused ? " · paused" : ""}
+                  {sub.installmentsTotal != null
+                    ? ` · payment ${sub.installmentsPaid ?? 0} of ${sub.installmentsTotal} (then lifetime)`
+                    : ""}
                 </dd>
               </div>
             ))}

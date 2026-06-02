@@ -135,6 +135,12 @@ export type PuckConfigOptions = {
    * so it falls back to a plain text input there.
    */
   formField?: Field;
+  /**
+   * Custom Puck field for image-URL props (Image, card image, avatar, og:image).
+   * The admin injects a Media Library picker; the public site never passes it,
+   * so it falls back to a plain text URL input there.
+   */
+  imageField?: Field;
 };
 
 export function createPuckConfig(
@@ -147,13 +153,19 @@ export function createPuckConfig(
       type: "text",
       label: "Form ID (copy it from the Forms tab)",
     };
+  // Image-URL fields use the injected Media Library picker when provided, else a
+  // plain text input (keeps the public <Render> free of admin-only components).
+  const imageField = (label: string): Field =>
+    opts.imageField
+      ? ({ ...opts.imageField, label } as Field)
+      : { type: "text", label };
 
   return {
     root: {
       fields: {
         seoTitle: { type: "text", label: "SEO title (optional override)" },
         description: { type: "textarea", label: "Meta description" },
-        ogImage: { type: "text", label: "Social share image URL" },
+        ogImage: imageField("Social share image URL"),
       },
       defaultProps: { seoTitle: "", description: "", ogImage: "" },
       // Wrap all page content so block CSS variables + base styles apply in
@@ -263,7 +275,7 @@ export function createPuckConfig(
       Image: {
         label: "Image",
         fields: {
-          src: { type: "text", label: "Image URL" },
+          src: imageField("Image URL"),
           alt: { type: "text", label: "Alt text" },
           width: { type: "select", options: [
             { label: "Normal", value: "normal" },
@@ -426,7 +438,7 @@ export function createPuckConfig(
             label: "Cards",
             getItemSummary: (item: Feature, i) => item?.title || `Card ${(i ?? 0) + 1}`,
             arrayFields: {
-              imageUrl: { type: "text", label: "Image URL" },
+              imageUrl: imageField("Image URL"),
               title: { type: "text", label: "Title" },
               text: { type: "textarea", label: "Text" },
               href: { type: "text", label: "Link (optional)" },
@@ -550,7 +562,7 @@ export function createPuckConfig(
           quote: { type: "textarea", label: "Quote" },
           author: { type: "text", label: "Author" },
           role: { type: "text", label: "Role / company" },
-          avatarUrl: { type: "text", label: "Avatar URL" },
+          avatarUrl: imageField("Avatar URL"),
         },
         defaultProps: {
           quote: "This product changed how we work. Highly recommended.",

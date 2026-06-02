@@ -58,7 +58,12 @@ export default function MemberBillingPage() {
     }
   }
 
-  const heading = data?.member.email ?? "Member";
+  // Prefer the member's name in the heading; fall back to email.
+  const fullName = [data?.member.firstName, data?.member.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const heading = fullName || data?.member.email || "Member";
 
   return (
     <div>
@@ -67,7 +72,10 @@ export default function MemberBillingPage() {
       </Link>
       <div className="page-header" style={{ marginTop: 8 }}>
         <h1>{heading} — billing</h1>
-        <p className="subtitle">Subscriptions and payment history.</p>
+        <p className="subtitle">
+          {fullName && data?.member.email ? `${data.member.email} · ` : ""}
+          Subscriptions and payment history.
+        </p>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -95,6 +103,9 @@ export default function MemberBillingPage() {
                           {s.currentPeriodEnd
                             ? ` · renews ${fmtDate(s.currentPeriodEnd)}`
                             : ""}
+                          {s.installmentsTotal != null
+                            ? ` · installment ${s.installmentsPaid ?? 0}/${s.installmentsTotal} → lifetime`
+                            : ""}
                         </span>
                       </div>
                       <div className="row-actions">
@@ -115,7 +126,7 @@ export default function MemberBillingPage() {
                             Pause
                           </button>
                         )}
-                        {!s.cancelAtPeriodEnd && (
+                        {!s.cancelAtPeriodEnd && s.installmentsTotal == null && (
                           <button
                             className="btn btn--danger btn--sm"
                             disabled={busy}
@@ -137,6 +148,26 @@ export default function MemberBillingPage() {
                   );
                 })}
               </div>
+            )}
+
+            {data.lifetimeLevels.length > 0 && (
+              <>
+                <h3 style={{ marginTop: 22 }}>Lifetime access</h3>
+                <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+                  Completed installment plans — kept permanently, no further
+                  billing.
+                </p>
+                <div className="chips">
+                  {data.lifetimeLevels.map((l) => (
+                    <span key={l.levelId} className="chip">
+                      {l.levelName}
+                      <span className="muted" style={{ fontSize: 11 }}>
+                        LIFETIME
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </>
             )}
 
             <h3 style={{ marginTop: 22 }}>Payment history</h3>

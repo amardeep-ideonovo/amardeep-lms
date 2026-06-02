@@ -181,7 +181,7 @@ export default function MembersPage() {
                             <span key={l.id} className="chip">
                               {l.name}
                               <span className="muted" style={{ fontSize: 11 }}>
-                                {l.status}
+                                {l.lifetime ? "LIFETIME" : l.status}
                               </span>
                               <button
                                 className="chip-x"

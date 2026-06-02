@@ -23,6 +23,7 @@ import type {
 import { ApiError, api } from "@/lib/api";
 import RichTextEditor from "@/components/RichTextEditor";
 import FormPickerField from "@/components/FormPickerField";
+import MediaPicker from "@/components/MediaPicker";
 
 type PopupData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -128,7 +129,22 @@ export default function PopupEditor() {
         onChange: (v: string) => void;
       }) => <FormPickerField value={value} onChange={onChange} />,
     } as Field;
-    return createPuckConfig({ richTextField, formComponent: FormPreview, formField });
+    const imageField = {
+      type: "custom" as const,
+      render: ({
+        value,
+        onChange,
+      }: {
+        value?: string;
+        onChange: (v: string) => void;
+      }) => <MediaPicker value={value || ""} onChange={onChange} />,
+    } as Field;
+    return createPuckConfig({
+      richTextField,
+      formComponent: FormPreview,
+      formField,
+      imageField,
+    });
   }, []);
 
   useEffect(() => {

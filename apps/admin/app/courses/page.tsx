@@ -10,6 +10,7 @@ import type {
   LevelDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import MediaPicker from "@/components/MediaPicker";
 
 const EMPTY_COURSE = {
   title: "",
@@ -285,21 +286,10 @@ export default function CoursesPage() {
               <label>
                 Thumbnail <span className="muted">(optional)</span>
               </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={onPickCategoryThumb}
-                disabled={uploadingCatThumb}
+              <MediaPicker
+                value={newCategoryThumb}
+                onChange={setNewCategoryThumb}
               />
-              {uploadingCatThumb && <span className="muted">Uploading…</span>}
-              {newCategoryThumb && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={newCategoryThumb}
-                  alt="Category thumbnail preview"
-                  className="thumb-preview"
-                />
-              )}
             </div>
           </div>
           <button className="btn" type="submit">
@@ -478,58 +468,24 @@ export default function CoursesPage() {
                       Square thumbnail{" "}
                       <span className="muted">(course cards)</span>
                     </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => uploadCourseImage(e, "thumbnailUrl")}
-                      disabled={uploadingThumb}
-                    />
-                    {uploadingThumb && <span className="muted">Uploading…</span>}
-                    <input
+                    <MediaPicker
                       value={form.thumbnailUrl}
-                      onChange={(e) =>
-                        setForm({ ...form, thumbnailUrl: e.target.value })
+                      onChange={(url) =>
+                        setForm({ ...form, thumbnailUrl: url })
                       }
-                      placeholder="…or paste an image URL"
-                      style={{ marginTop: 8 }}
                     />
-                    {form.thumbnailUrl.trim() && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={form.thumbnailUrl}
-                        alt="Thumbnail preview"
-                        className="thumb-preview"
-                      />
-                    )}
                   </div>
                   <div className="field">
                     <label>
                       Cover image{" "}
                       <span className="muted">(course page hero)</span>
                     </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => uploadCourseImage(e, "coverImageUrl")}
-                      disabled={uploadingCover}
-                    />
-                    {uploadingCover && <span className="muted">Uploading…</span>}
-                    <input
+                    <MediaPicker
                       value={form.coverImageUrl}
-                      onChange={(e) =>
-                        setForm({ ...form, coverImageUrl: e.target.value })
+                      onChange={(url) =>
+                        setForm({ ...form, coverImageUrl: url })
                       }
-                      placeholder="…or paste an image URL"
-                      style={{ marginTop: 8 }}
                     />
-                    {form.coverImageUrl.trim() && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={form.coverImageUrl}
-                        alt="Cover preview"
-                        className="cover-preview"
-                      />
-                    )}
                   </div>
                 </div>
 
@@ -775,17 +731,7 @@ function CourseLessons({
                   </div>
                   <div className="field">
                     <label>Thumbnail</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={onPickNewThumb}
-                      disabled={uploadingThumb}
-                    />
-                    {uploadingThumb && <span className="muted">Uploading…</span>}
-                    {thumbnailUrl.trim() && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={thumbnailUrl} alt="" className="thumb-preview" />
-                    )}
+                    <MediaPicker value={thumbnailUrl} onChange={setThumbnailUrl} />
                   </div>
                 </div>
                 <div className="row-actions">
@@ -861,7 +807,8 @@ function LessonRow({
     setUploadingThumb(true);
     setErr(null);
     try {
-      const { url } = await api.uploadLessonImage(file);
+      // Route through the Media Library so the upload is cataloged too.
+      const { url } = await api.uploadMedia(file);
       await api.updateLesson(lesson.id, { thumbnailUrl: url });
       await onChanged();
     } catch (e) {

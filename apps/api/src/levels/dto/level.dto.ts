@@ -23,6 +23,13 @@ export class PriceInputDto {
   @IsOptional()
   @IsString()
   currency?: string;
+
+  // Installment plan: bill this many times, then grant lifetime access. Omit for
+  // an ongoing subscription.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  installments?: number;
 }
 
 export class CreateLevelDto {

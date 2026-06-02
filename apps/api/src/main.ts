@@ -10,6 +10,7 @@ import * as express from 'express';
 import { AppModule } from './app.module';
 import { IMAGES_ROOT, IMAGES_ROUTE, ensureUploadDirs } from './blog/upload.config';
 import { ensureLmsUploadDirs } from './lms/upload.config';
+import { MEDIA_ROOT, MEDIA_ROUTE, ensureMediaDir } from './media/media.config';
 
 async function bootstrap() {
   // bodyParser disabled here so we can register a raw-body parser for the
@@ -62,6 +63,16 @@ async function bootstrap() {
   // serves them all. Lesson NOTE files are deliberately NOT served here — they
   // stream through an access-checked route (see LmsController).
   app.use(IMAGES_ROUTE, express.static(IMAGES_ROOT));
+
+  // Media Library (Gallery): publicly served so each asset has an embeddable
+  // URL. `nosniff` stops content-type confusion; SVGs are sanitized on upload.
+  ensureMediaDir();
+  app.use(
+    MEDIA_ROUTE,
+    express.static(MEDIA_ROOT, {
+      setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+    }),
+  );
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -24,6 +24,7 @@ type LevelWithPrices = {
     interval: string;
     amount: number;
     currency: string;
+    installments: number | null;
   }[];
 };
 
@@ -51,6 +52,7 @@ export class LevelsService {
         interval: p.interval as 'month' | 'year',
         amount: p.amount,
         currency: p.currency,
+        installments: p.installments,
       })),
       memberCount,
     };
@@ -109,6 +111,7 @@ export class LevelsService {
         interval: p.interval as 'month' | 'year',
         amount: p.amount,
         currency: p.currency,
+        installments: p.installments,
       })),
     };
   }
@@ -121,6 +124,7 @@ export class LevelsService {
       interval: string;
       amount: number;
       currency: string;
+      installments: number | null;
     }[] = [];
 
     // PAID levels get a Stripe Product + a Price per requested interval.
@@ -140,6 +144,7 @@ export class LevelsService {
           interval: price.interval,
           amount: price.amount,
           currency,
+          installments: price.installments ?? null,
         });
       }
     }
@@ -260,16 +265,29 @@ export class LevelsService {
       interval: string;
       amount: number;
       currency: string;
+      installments: number | null;
     }[],
-    desired: { interval: 'month' | 'year'; amount: number; currency?: string }[],
+    desired: {
+      interval: 'month' | 'year';
+      amount: number;
+      currency?: string;
+      installments?: number;
+    }[],
   ): Promise<void> {
-    const key = (p: { interval: string; amount: number; currency: string }) =>
-      `${p.interval}:${p.amount}:${p.currency.toLowerCase()}`;
+    // installments is part of a price's identity: a "6 payments then lifetime"
+    // plan and an ongoing plan at the same amount/interval are different offers.
+    const key = (p: {
+      interval: string;
+      amount: number;
+      currency: string;
+      installments: number | null;
+    }) => `${p.interval}:${p.amount}:${p.currency.toLowerCase()}:${p.installments ?? ''}`;
 
     const desiredNorm = desired.map((d) => ({
       interval: d.interval,
       amount: d.amount,
       currency: (d.currency ?? 'usd').toLowerCase(),
+      installments: d.installments ?? null,
     }));
     const existingKeys = new Set(existingActive.map(key));
     const desiredKeys = new Set(desiredNorm.map(key));
@@ -303,6 +321,7 @@ export class LevelsService {
           interval: d.interval,
           amount: d.amount,
           currency: d.currency,
+          installments: d.installments ?? null,
         },
       });
     }

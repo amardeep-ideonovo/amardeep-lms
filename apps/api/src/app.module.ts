@@ -9,6 +9,8 @@ import { AuthModule } from './auth/auth.module';
 import { LevelsModule } from './levels/levels.module';
 import { CouponsModule } from './coupons/coupons.module';
 import { MembersModule } from './members/members.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { MediaModule } from './media/media.module';
 import { BillingModule } from './billing/billing.module';
 import { LmsModule } from './lms/lms.module';
 import { BlogModule } from './blog/blog.module';
@@ -37,6 +39,8 @@ import { HealthModule } from './health/health.module';
     LevelsModule,
     CouponsModule,
     MembersModule,
+    SubscriptionsModule,
+    MediaModule,
     LmsModule,
     BlogModule,
     PagesModule,

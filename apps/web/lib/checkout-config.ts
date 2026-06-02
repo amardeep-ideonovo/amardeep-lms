@@ -103,6 +103,20 @@ export function formatMoney(amount: number, currency: string): string {
 // Build an option from a level's recurring Stripe price (fallback path).
 function priceToOption(levelName: string, p: PriceDTO): CheckoutProductOption {
   const money = formatMoney(p.amount, p.currency);
+  // Installment plan: bill N times, then the member keeps the level for life.
+  if (p.installments != null) {
+    const cadence = p.interval === "year" ? "YEARLY" : "MONTHLY";
+    return {
+      key: p.id,
+      title: `${levelName} | ${p.installments}-Payment Plan (then lifetime)`,
+      subLabel: `${p.installments} ${cadence} PAYMENTS, THEN LIFETIME`,
+      priceText: `${money}/${p.interval}`,
+      kind: "recurring",
+      stripePriceId: p.stripePriceId,
+      amount: p.amount,
+      currency: p.currency || "usd",
+    };
+  }
   return {
     key: p.id,
     title: `${levelName} | ${p.interval === "year" ? "Annual" : "Monthly"} Plan`,

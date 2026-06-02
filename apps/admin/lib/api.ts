@@ -19,6 +19,8 @@ import type {
   LoginResponse,
   MailchimpAudienceDTO,
   MailchimpMergeFieldDTO,
+  MediaDTO,
+  MediaListDTO,
   MemberBillingDTO,
   MemberRow,
   PageAdminRow,
@@ -27,10 +29,12 @@ import type {
   PopupListItem,
   PostAdminRow,
   PostCategoryDTO,
+  SubscriptionRowDTO,
   CreatePopupInput,
   UpdateCourseInput,
   UpdateFormInput,
   UpdateLessonInput,
+  UpdateMediaInput,
   UpdateMemberInput,
   UpdatePageInput,
   UpdatePopupInput,
@@ -161,6 +165,13 @@ async function uploadFiles(
   return (await multipartFetch(path, fd)).json();
 }
 
+// Media Library upload: one file (any allowed type) -> the created MediaDTO.
+async function uploadMediaFile(path: string, file: File): Promise<MediaDTO> {
+  const fd = new FormData();
+  fd.append("file", file);
+  return (await multipartFetch(path, fd)).json();
+}
+
 // Authenticated download: fetch the (access-checked) file as a blob and save it
 // via a temporary <a download>. Used for lesson notes.
 async function downloadBlob(path: string, filename: string): Promise<void> {
@@ -244,6 +255,10 @@ export const api = {
   cancelMemberSub: (memberId: string) =>
     request<MemberBillingDTO>("POST", `/billing/members/${memberId}/cancel`),
 
+  // subscriptions (admin Subscriptions tab; live from Stripe, read-only)
+  listSubscriptions: () =>
+    request<SubscriptionRowDTO[]>("GET", "/admin/subscriptions"),
+
   // coupons (Stripe-backed; admin-only)
   listCoupons: () => request<CouponDTO[]>("GET", "/admin/coupons"),
   createCoupon: (input: CreateCouponInput) =>
@@ -254,6 +269,28 @@ export const api = {
     request<CouponDTO>("POST", `/admin/coupons/${id}/activate`),
   deleteCoupon: (id: string) =>
     request<{ ok: true }>("DELETE", `/admin/coupons/${id}`),
+
+  // media library (gallery; files served at public, embeddable URLs)
+  listMedia: (params?: {
+    q?: string;
+    kind?: string;
+    page?: number;
+    pageSize?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.q) qs.set("q", params.q);
+    if (params?.kind && params.kind !== "all") qs.set("kind", params.kind);
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.pageSize) qs.set("pageSize", String(params.pageSize));
+    const s = qs.toString();
+    return request<MediaListDTO>("GET", `/admin/media${s ? `?${s}` : ""}`);
+  },
+  getMedia: (id: string) => request<MediaDTO>("GET", `/admin/media/${id}`),
+  uploadMedia: (file: File) => uploadMediaFile("/admin/media", file),
+  updateMedia: (id: string, input: UpdateMediaInput) =>
+    request<MediaDTO>("PATCH", `/admin/media/${id}`, input),
+  deleteMedia: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/media/${id}`),
 
   // lms
   listCategories: () => request<CategoryDTO[]>("GET", "/categories"),

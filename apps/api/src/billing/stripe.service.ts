@@ -305,6 +305,23 @@ export class StripeService {
     return res.data;
   }
 
+  // All subscriptions across every customer (active + historical), customer
+  // expanded for a name/email fallback. Auto-paginated with a hard cap so the
+  // admin Subscriptions tab can't trigger an unbounded scan.
+  async listAllSubscriptions(max = 1000): Promise<Stripe.Subscription[]> {
+    const stripe = await this.getClient();
+    return stripe.subscriptions
+      .list({ status: 'all', limit: 100, expand: ['data.customer'] })
+      .autoPagingToArray({ limit: max });
+  }
+
+  // All invoices across the account, for per-subscription order counts + last
+  // order date. Auto-paginated with a hard cap.
+  async listAllInvoices(max = 2000): Promise<Stripe.Invoice[]> {
+    const stripe = await this.getClient();
+    return stripe.invoices.list({ limit: 100 }).autoPagingToArray({ limit: max });
+  }
+
   // Pause billing without canceling — access is retained (sub stays active);
   // invoices during the pause are voided. Cleared by resumeSubscription.
   async pauseSubscription(subId: string): Promise<Stripe.Subscription> {
@@ -335,6 +352,29 @@ export class StripeService {
   async retrieveSubscription(subId: string): Promise<Stripe.Subscription> {
     const stripe = await this.getClient();
     return stripe.subscriptions.retrieve(subId);
+  }
+
+  // Cancel immediately. Used when an installment plan is paid in full: the member
+  // keeps lifetime access via their UserLevel grant, so there's no reason to keep
+  // the subscription around or let it bill again.
+  async cancelSubscription(subId: string): Promise<Stripe.Subscription> {
+    const stripe = await this.getClient();
+    return stripe.subscriptions.cancel(subId);
+  }
+
+  // Invoices for a single subscription (optionally filtered by status) — used to
+  // count how many installments have actually been paid.
+  async listSubscriptionInvoices(
+    subId: string,
+    status?: 'draft' | 'open' | 'paid' | 'uncollectible' | 'void',
+  ): Promise<Stripe.Invoice[]> {
+    const stripe = await this.getClient();
+    const res = await stripe.invoices.list({
+      subscription: subId,
+      ...(status ? { status } : {}),
+      limit: 100,
+    });
+    return res.data;
   }
 
   // Verify & construct a webhook event from the raw request body + signature.

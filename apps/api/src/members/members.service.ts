@@ -53,6 +53,7 @@ export class MembersService {
         id: ul.level.id,
         name: ul.level.name,
         status: ul.status,
+        lifetime: ul.lifetime,
       })),
       subscription: summary
         ? {
