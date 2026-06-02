@@ -45,7 +45,8 @@ export default function MediaPage() {
   const [kind, setKind] = useState("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [pending, setPending] = useState<File[]>([]); // picked, awaiting details + save
+  const [savingNew, setSavingNew] = useState(false);
   const [selected, setSelected] = useState<MediaDTO | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -83,22 +84,41 @@ export default function MediaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
-  async function onFilesChosen(files: FileList | null) {
+  // Picking files does NOT upload yet — it queues them. Each opens a details
+  // popup, and the file is saved only when the user clicks "Save to gallery".
+  function onFilesChosen(files: FileList | null) {
     if (!files?.length) return;
-    setUploading(true);
+    setError(null);
+    setPending(Array.from(files));
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  // Save the front-of-queue file WITH the details entered in the popup.
+  async function saveNew(meta: {
+    title: string;
+    altText: string;
+    caption: string;
+    description: string;
+  }) {
+    if (!pending.length) return;
+    setSavingNew(true);
     setError(null);
     try {
-      // Each file is saved on upload. Just add them to the library and refresh
-      // the grid (newest first) — don't pop open the details/edit panel; the
-      // user opens that themselves by clicking a tile when they want to edit.
-      for (const f of Array.from(files)) await api.uploadMedia(f);
-      await load(1, q, kind);
+      const created = await api.uploadMedia(pending[0]); // saves the file
+      await api.updateMedia(created.id, meta).catch(() => undefined); // details (best-effort)
+      const rest = pending.slice(1);
+      setPending(rest);
+      if (rest.length === 0) await load(1, q, kind); // refresh once the batch is done
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Upload failed");
     } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = "";
+      setSavingNew(false);
     }
+  }
+
+  function cancelNew() {
+    setPending([]); // discard the queue; nothing un-saved is uploaded
+    void load(1, q, kind); // reflect any files already saved earlier in the batch
   }
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -115,12 +135,8 @@ export default function MediaPage() {
             video, audio, PDFs, documents and SVG are supported.
           </p>
         </div>
-        <button
-          className="btn"
-          disabled={uploading}
-          onClick={() => fileRef.current?.click()}
-        >
-          {uploading ? "Uploading…" : "+ Add Media File"}
+        <button className="btn" onClick={() => fileRef.current?.click()}>
+          + Add Media File
         </button>
         <input
           ref={fileRef}
@@ -277,6 +293,200 @@ export default function MediaPage() {
           }}
         />
       )}
+
+      {pending.length > 0 && (
+        <NewMediaModal
+          file={pending[0]}
+          remaining={pending.length}
+          busy={savingNew}
+          onSave={saveNew}
+          onCancel={cancelNew}
+        />
+      )}
+    </div>
+  );
+}
+
+// Pre-save "add" popup: collect details for a freshly-picked file BEFORE it's
+// uploaded. Save uploads the file with these details; Cancel discards it.
+function NewMediaModal({
+  file,
+  remaining,
+  busy,
+  onSave,
+  onCancel,
+}: {
+  file: File;
+  remaining: number;
+  busy: boolean;
+  onSave: (meta: {
+    title: string;
+    altText: string;
+    caption: string;
+    description: string;
+  }) => void;
+  onCancel: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [altText, setAltText] = useState("");
+  const [caption, setCaption] = useState("");
+  const [description, setDescription] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Fresh fields + a local preview whenever the queued file changes.
+  useEffect(() => {
+    setTitle(file.name.replace(/\.[^.]+$/, ""));
+    setAltText("");
+    setCaption("");
+    setDescription("");
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy) onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel, busy]);
+
+  const kind: MediaKind = file.type.startsWith("image/")
+    ? "image"
+    : file.type.startsWith("video/")
+      ? "video"
+      : file.type.startsWith("audio/")
+        ? "audio"
+        : file.type === "application/pdf"
+          ? "pdf"
+          : "other";
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={busy ? undefined : onCancel}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="modal"
+        style={{ maxWidth: 760 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2>Add to Gallery{remaining > 1 ? ` — ${remaining} files` : ""}</h2>
+          <button
+            type="button"
+            className="modal-close"
+            onClick={onCancel}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div className="modal-body">
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+              gap: 20,
+            }}
+          >
+            <div
+              style={{
+                background: "var(--bg)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                minHeight: 220,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+              }}
+            >
+              {kind === "image" && previewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={previewUrl}
+                  alt=""
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: 300,
+                    objectFit: "contain",
+                  }}
+                />
+              ) : (
+                <div style={{ textAlign: "center", padding: 24 }}>
+                  <div style={{ fontSize: 56 }}>{KIND_ICON[kind]}</div>
+                  <p className="muted" style={{ fontSize: 13 }}>
+                    {file.name}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+                Not saved yet — add details below, then save.
+              </p>
+              <p style={{ margin: "4px 0", fontSize: 13 }}>
+                <strong>File name:</strong> {file.name}
+                <br />
+                <strong>File type:</strong> {file.type || "—"}
+                <br />
+                <strong>File size:</strong> {fmtBytes(file.size)}
+              </p>
+              <div className="field">
+                <label>Title</label>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="field">
+                <label>Alternative text</label>
+                <input
+                  value={altText}
+                  onChange={(e) => setAltText(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label>Caption</label>
+                <input
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label>Description</label>
+                <textarea
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+              </div>
+              <div className="row-actions" style={{ marginTop: 12 }}>
+                <button
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => onSave({ title, altText, caption, description })}
+                >
+                  {busy ? "Saving…" : "Save to gallery"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--ghost"
+                  disabled={busy}
+                  onClick={onCancel}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
