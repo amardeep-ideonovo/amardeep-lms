@@ -18,6 +18,7 @@ import type {
   LevelDTO,
   LoginResponse,
   MySubscriptionDTO,
+  PageListItem,
   PagePublicDTO,
   PopupContext,
   PopupEventType,
@@ -220,6 +221,11 @@ export async function fetchPublishedPost(
 // ---------- Pages (PUBLIC CMS / Puck) ----------
 // No token: usable from Server Components for SSR/SEO. Only PUBLISHED pages are
 // returned by the API; an unknown/draft slug yields 404 -> null here.
+// Published CMS pages (list) — drives the sitemap. PUBLISHED only.
+export function fetchPublishedPages(): Promise<PageListItem[]> {
+  return request<PageListItem[]>("/pages", { auth: false });
+}
+
 export async function fetchPublishedPage(
   slug: string
 ): Promise<PagePublicDTO | null> {

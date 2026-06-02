@@ -241,7 +241,11 @@ export class BlogService {
   }
 
   private toDetail(p: PostRow): PostDetailDTO {
-    return { ...this.toListItem(p), content: p.content };
+    return {
+      ...this.toListItem(p),
+      content: p.content,
+      updatedAt: p.updatedAt.toISOString(),
+    };
   }
 
   private toAdminRow(p: PostRow): PostAdminRow {

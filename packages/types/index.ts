@@ -377,6 +377,7 @@ export interface PostListItem {
 // Public detail = card + sanitized HTML body.
 export interface PostDetailDTO extends PostListItem {
   content: string;
+  updatedAt: string; // ISO — surfaced for Article schema `dateModified`
 }
 // Admin row: includes drafts, raw status, and timestamps.
 export interface PostAdminRow {
