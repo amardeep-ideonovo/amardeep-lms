@@ -24,7 +24,6 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { LmsService } from './lms.service';
 import {
-  CreateCategoryDto,
   CreateCourseDto,
   CreateLessonDto,
   UpdateCourseDto,
@@ -32,8 +31,6 @@ import {
   UpdateLessonNoteDto,
 } from './dto/lms.dto';
 import {
-  CATEGORY_IMG_DIR,
-  CATEGORY_IMG_URL_PATH,
   COURSE_IMG_DIR,
   COURSE_IMG_URL_PATH,
   LESSON_IMG_DIR,
@@ -78,15 +75,6 @@ const noteStorage = diskStorage({
       timestampName(noteFileExt(file.mimetype, file.originalname) ?? '.bin'),
     ),
 });
-const categoryImageStorage = diskStorage({
-  destination: (_req, _file, cb) => cb(null, CATEGORY_IMG_DIR),
-  filename: (_req, file, cb) =>
-    cb(
-      null,
-      timestampName(imageExt(file.mimetype, file.originalname) ?? '.img'),
-    ),
-});
-
 // Absolute base for built URLs: PUBLIC_API_URL in prod, else the request host.
 function publicBase(req: Request): string {
   return (
@@ -103,52 +91,6 @@ export class LmsController {
 
   private memberContext(principal: AuthenticatedPrincipal): string | undefined {
     return principal.isAdmin ? undefined : principal.sub;
-  }
-
-  // ----- Categories -----
-
-  @UseGuards(JwtAuthGuard)
-  @Get('categories')
-  listCategories() {
-    return this.lms.listCategories();
-  }
-
-  @UseGuards(AdminGuard)
-  @Post('categories')
-  createCategory(@Body() dto: CreateCategoryDto) {
-    return this.lms.createCategory(dto);
-  }
-
-  @UseGuards(AdminGuard)
-  @Delete('categories/:id')
-  deleteCategory(@Param('id') id: string) {
-    return this.lms.deleteCategory(id);
-  }
-
-  // Upload a category tile image. Saved under the public /images/category tree.
-  @UseGuards(AdminGuard)
-  @Post('categories/upload')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: categoryImageStorage,
-      limits: { fileSize: MAX_IMAGE_BYTES },
-      fileFilter: (_req, file, cb) =>
-        cb(null, imageExt(file.mimetype, file.originalname) !== null),
-    }),
-  )
-  uploadCategoryImage(
-    @UploadedFile() file: Express.Multer.File | undefined,
-    @Req() req: Request,
-  ) {
-    if (!file) {
-      throw new BadRequestException(
-        'No image file (allowed: jpg, png, webp, gif, avif; max 5 MB)',
-      );
-    }
-    return {
-      url: `${publicBase(req)}${CATEGORY_IMG_URL_PATH}/${file.filename}`,
-      filename: file.filename,
-    };
   }
 
   // ----- Courses -----

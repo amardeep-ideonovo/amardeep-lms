@@ -46,7 +46,7 @@ export default function MembersPage() {
       setPending((p) => ({ ...p, [memberId]: "" }));
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to add level");
+      setError(err instanceof ApiError ? err.message : "Failed to add class");
     } finally {
       setBusy(null);
     }
@@ -59,7 +59,7 @@ export default function MembersPage() {
       await api.removeMemberLevel(memberId, levelId);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to remove level");
+      setError(err instanceof ApiError ? err.message : "Failed to remove class");
     } finally {
       setBusy(null);
     }
@@ -78,7 +78,7 @@ export default function MembersPage() {
       <div className="page-header">
         <h1>Members</h1>
         <p className="subtitle">
-          Edit a member’s details, or manually grant/revoke a level. Manual
+          Edit a member’s details, or manually grant/revoke a class. Manual
           grants coexist with paid subscriptions.
         </p>
       </div>
@@ -113,20 +113,20 @@ export default function MembersPage() {
                 style={{ minWidth: 220 }}
               />
               <label htmlFor="level-filter" style={{ fontWeight: 600 }}>
-                Filter by level
+                Filter by class
               </label>
               <select
                 id="level-filter"
                 value={filterLevel}
                 onChange={(e) => setFilterLevel(e.target.value)}
               >
-                <option value="">All levels</option>
+                <option value="">All classes</option>
                 {levels.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.name}
                   </option>
                 ))}
-                <option value="__none__">No level</option>
+                <option value="__none__">No class</option>
               </select>
               <span className="muted" style={{ fontSize: 13 }}>
                 Showing {filtered.length} of {members.length}
@@ -142,9 +142,9 @@ export default function MembersPage() {
                 <th>Last name</th>
                 <th>Email</th>
                 <th>Registered</th>
-                <th>Levels</th>
+                <th>Classes</th>
                 <th>Subscription</th>
-                <th>Add level</th>
+                <th>Add class</th>
                 <th></th>
               </tr>
             </thead>
@@ -185,7 +185,7 @@ export default function MembersPage() {
                               </span>
                               <button
                                 className="chip-x"
-                                title="Remove level"
+                                title="Remove class"
                                 disabled={busy === m.id}
                                 onClick={() => removeLevel(m.id, l.id)}
                               >

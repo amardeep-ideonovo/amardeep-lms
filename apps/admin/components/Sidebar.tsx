@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { clearToken, getToken } from "@/lib/api";
 
 const NAV = [
-  { href: "/levels", label: "Levels" },
+  { href: "/classes", label: "Classes" },
   { href: "/coupons", label: "Coupons" },
   { href: "/members", label: "Members" },
   { href: "/subscriptions", label: "Subscriptions" },

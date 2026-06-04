@@ -63,6 +63,11 @@ export class CreateLevelDto {
   @ValidateNested({ each: true })
   @Type(() => PriceInputDto)
   prices?: PriceInputDto[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
 }
 
 export class UpdateLevelDto {
@@ -101,4 +106,20 @@ export class UpdateLevelDto {
   @ValidateNested({ each: true })
   @Type(() => PriceInputDto)
   prices?: PriceInputDto[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
+}
+
+// Admin-only "class" (level) category. Mirrors the blog's category create DTO.
+export class CreateLevelCategoryDto {
+  @IsString()
+  @MinLength(1)
+  name!: string;
+
+  @IsOptional()
+  @IsInt()
+  order?: number;
 }

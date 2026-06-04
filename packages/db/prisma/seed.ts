@@ -25,7 +25,6 @@ async function ensureCourse(
   id: string,
   title: string,
   description: string,
-  categoryId: string,
   order: number,
   images?: { thumbnailUrl?: string; coverImageUrl?: string }
 ) {
@@ -40,7 +39,6 @@ async function ensureCourse(
       id,
       title,
       description,
-      categoryId,
       order,
       thumbnailUrl: images?.thumbnailUrl ?? null,
       coverImageUrl: images?.coverImageUrl ?? null,
@@ -158,12 +156,6 @@ async function main() {
   });
 
   // ----- Content -----
-  const category = await prisma.category.upsert({
-    where: { id: "seed-cat-start" },
-    update: {},
-    create: { id: "seed-cat-start", name: "Getting Started", order: 0 },
-  });
-
   // Course A: open to everyone (no level assignments) -> always unlocked.
   const openCourse = await prisma.course.upsert({
     where: { id: "seed-course-open" },
@@ -172,7 +164,6 @@ async function main() {
       id: "seed-course-open",
       title: "Welcome & Orientation",
       description: "Free intro course, open to all members.",
-      categoryId: category.id,
       order: 0,
       thumbnailUrl: thumb("open"),
       coverImageUrl: cover("open"),
@@ -187,7 +178,6 @@ async function main() {
       id: "seed-course-pro",
       title: "Pro Masterclass",
       description: "Premium content for Pro members.",
-      categoryId: category.id,
       order: 1,
       thumbnailUrl: thumb("pro"),
       coverImageUrl: cover("pro"),
@@ -224,17 +214,6 @@ async function main() {
   });
 
   // ----- Sample courses for testing (multiple sections, content, a video) -----
-  const fundamentals = await prisma.category.upsert({
-    where: { id: "seed-cat-fundamentals" },
-    update: {},
-    create: { id: "seed-cat-fundamentals", name: "Fundamentals", order: 1 },
-  });
-  const advanced = await prisma.category.upsert({
-    where: { id: "seed-cat-advanced" },
-    update: {},
-    create: { id: "seed-cat-advanced", name: "Advanced", order: 2 },
-  });
-
   // A video lesson on the open course so any member can watch right away.
   await ensureLesson(
     "seed-lesson-open-2",
@@ -251,7 +230,6 @@ async function main() {
     "seed-course-prod",
     "Productivity Basics",
     "Build momentum with simple, repeatable habits.",
-    fundamentals.id,
     0,
     { thumbnailUrl: thumb("prod"), coverImageUrl: cover("prod") }
   );
@@ -263,7 +241,6 @@ async function main() {
     "seed-course-tooling",
     "Tooling & Setup",
     "Get your environment ready in minutes.",
-    fundamentals.id,
     1,
     { thumbnailUrl: thumb("tooling"), coverImageUrl: cover("tooling") }
   );
@@ -275,7 +252,6 @@ async function main() {
     "seed-course-scaling",
     "Scaling Your Workflow",
     "Patterns for when things get bigger.",
-    advanced.id,
     0,
     { thumbnailUrl: thumb("scaling"), coverImageUrl: cover("scaling") }
   );

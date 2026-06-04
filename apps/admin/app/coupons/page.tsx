@@ -278,7 +278,7 @@ export default function CouponsPage() {
 
           <div className="field">
             <label>
-              Restrict to level{" "}
+              Restrict to class{" "}
               <span className="muted">(optional — default any plan)</span>
             </label>
             <select value={levelId} onChange={(e) => setLevelId(e.target.value)}>
@@ -347,7 +347,7 @@ export default function CouponsPage() {
                 <th>Discount</th>
                 <th>Applies to</th>
                 <th>Redemptions</th>
-                <th>Level</th>
+                <th>Class</th>
                 <th>Status</th>
                 <th></th>
               </tr>

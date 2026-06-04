@@ -31,7 +31,7 @@ export default function LoginPage() {
     try {
       const res = await api.adminLogin(email, password);
       setToken(res.token);
-      router.replace("/levels");
+      router.replace("/classes");
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Login failed. Try again."

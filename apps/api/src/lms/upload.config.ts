@@ -10,10 +10,8 @@ export { imageExt };
 // Course + lesson images sit alongside blog images under the public root.
 export const COURSE_IMG_DIR = path.join(IMAGES_ROOT, 'course');
 export const LESSON_IMG_DIR = path.join(IMAGES_ROOT, 'lesson');
-export const CATEGORY_IMG_DIR = path.join(IMAGES_ROOT, 'category');
 export const COURSE_IMG_URL_PATH = '/images/course';
 export const LESSON_IMG_URL_PATH = '/images/lesson';
-export const CATEGORY_IMG_URL_PATH = '/images/category';
 
 // ---------- Private files (NEVER served statically) ----------
 // Lesson note attachments. Streamed only through an access-checked endpoint so
@@ -29,7 +27,6 @@ export const LESSON_NOTES_DIR = path.join(FILES_ROOT, 'lesson-notes');
 export function ensureLmsUploadDirs(): void {
   fs.mkdirSync(COURSE_IMG_DIR, { recursive: true });
   fs.mkdirSync(LESSON_IMG_DIR, { recursive: true });
-  fs.mkdirSync(CATEGORY_IMG_DIR, { recursive: true });
   fs.mkdirSync(LESSON_NOTES_DIR, { recursive: true });
 }
 

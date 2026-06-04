@@ -132,7 +132,7 @@ export default function SubscriptionsPage() {
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Name, email or level…"
+                placeholder="Name, email or class…"
                 style={{ minWidth: 220 }}
               />
               <label htmlFor="sub-status" style={{ fontWeight: 600 }}>
@@ -163,7 +163,7 @@ export default function SubscriptionsPage() {
                   <tr>
                     <th>Status</th>
                     <th>Name</th>
-                    <th>Level Name</th>
+                    <th>Class Name</th>
                     <th>Total</th>
                     <th>Start Date</th>
                     <th>Next Payment</th>

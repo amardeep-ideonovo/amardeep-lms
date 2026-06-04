@@ -2,7 +2,6 @@
 
 import { ChangeEvent, Fragment, FormEvent, useEffect, useState } from "react";
 import type {
-  CategoryDTO,
   CourseCard,
   CreateCourseInput,
   LessonDTO,
@@ -15,7 +14,6 @@ import MediaPicker from "@/components/MediaPicker";
 const EMPTY_COURSE = {
   title: "",
   description: "",
-  categoryId: "",
   levelIds: [] as string[],
   thumbnailUrl: "",
   coverImageUrl: "",
@@ -23,14 +21,9 @@ const EMPTY_COURSE = {
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<CourseCard[]>([]);
-  const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // create-category form
-  const [newCategory, setNewCategory] = useState("");
-  const [newCategoryThumb, setNewCategoryThumb] = useState("");
 
   // course modal (create/edit)
   const [modalOpen, setModalOpen] = useState(false);
@@ -46,13 +39,11 @@ export default function CoursesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [c, cats, lvls] = await Promise.all([
+      const [c, lvls] = await Promise.all([
         api.listCourses(),
-        api.listCategories(),
         api.listLevels(),
       ]);
       setCourses(c);
-      setCategories(cats);
       setLevels(lvls);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load courses");
@@ -94,7 +85,6 @@ export default function CoursesPage() {
     setForm({
       title: course.title,
       description: course.description ?? "",
-      categoryId: course.categoryId ?? "",
       levelIds: course.levelIds ?? [],
       thumbnailUrl: course.thumbnailUrl ?? "",
       coverImageUrl: course.coverImageUrl ?? "",
@@ -116,7 +106,6 @@ export default function CoursesPage() {
     return {
       title: form.title.trim(),
       description: form.description.trim() || undefined,
-      categoryId: form.categoryId || undefined,
       levelIds: form.levelIds,
       thumbnailUrl: form.thumbnailUrl.trim() || undefined,
       coverImageUrl: form.coverImageUrl.trim() || undefined,
@@ -165,48 +154,6 @@ export default function CoursesPage() {
     }
   }
 
-  async function createCategory(e: FormEvent) {
-    e.preventDefault();
-    if (!newCategory.trim()) return;
-    setError(null);
-    try {
-      await api.createCategory(
-        newCategory.trim(),
-        categories.length,
-        newCategoryThumb || undefined
-      );
-      setNewCategory("");
-      setNewCategoryThumb("");
-      await load();
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Failed to create category"
-      );
-    }
-  }
-
-  async function removeCategory(c: CategoryDTO) {
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        `Remove category "${c.name}"? Its courses will become uncategorized.`
-      )
-    )
-      return;
-    setError(null);
-    try {
-      await api.deleteCategory(c.id);
-      await load();
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Failed to remove category"
-      );
-    }
-  }
-
-  const categoryName = (id: string | null) =>
-    id ? categories.find((c) => c.id === id)?.name ?? "—" : "—";
-
   // Map a course's assigned level IDs to their display names (skips any
   // dangling IDs whose level was since deleted).
   const levelNamesFor = (ids: string[]) =>
@@ -220,8 +167,8 @@ export default function CoursesPage() {
         <div>
           <h1>Courses</h1>
           <p className="subtitle">
-            Assign each course to one or more levels. A course unlocks if a member
-            holds ANY assigned level.
+            Assign each course to one or more classes. A course unlocks if a member
+            holds ANY assigned class.
           </p>
         </div>
         <button className="btn" onClick={openCreate}>
@@ -230,59 +177,6 @@ export default function CoursesPage() {
       </div>
 
       {error && <p className="error">{error}</p>}
-
-      <div className="card">
-        <h2>New category</h2>
-        <form onSubmit={createCategory}>
-          <div className="form-row">
-            <div className="field">
-              <label>Name</label>
-              <input
-                placeholder="Category name"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>
-                Thumbnail <span className="muted">(optional)</span>
-              </label>
-              <MediaPicker
-                value={newCategoryThumb}
-                onChange={setNewCategoryThumb}
-              />
-            </div>
-          </div>
-          <button className="btn" type="submit">
-            Add category
-          </button>
-        </form>
-        {categories.length > 0 && (
-          <div className="chips" style={{ marginTop: 12 }}>
-            {categories
-              .slice()
-              .sort((a, b) => a.order - b.order)
-              .map((c) => (
-                <span key={c.id} className="chip chip--muted chip--thumb">
-                  {c.thumbnailUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.thumbnailUrl} alt="" className="chip-thumb" />
-                  )}
-                  {c.name}
-                  <button
-                    type="button"
-                    className="chip-x"
-                    aria-label={`Remove ${c.name}`}
-                    title={`Remove ${c.name}`}
-                    onClick={() => removeCategory(c)}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-          </div>
-        )}
-      </div>
 
       <div className="card">
         <div className="card-head">
@@ -301,8 +195,7 @@ export default function CoursesPage() {
               <tr>
                 <th></th>
                 <th>Title</th>
-                <th>Category</th>
-                <th>Level</th>
+                <th>Class</th>
                 <th></th>
               </tr>
             </thead>
@@ -323,7 +216,6 @@ export default function CoursesPage() {
                       )}
                     </td>
                     <td>{course.title}</td>
-                    <td className="muted">{categoryName(course.categoryId)}</td>
                     <td>
                       {levelNamesFor(course.levelIds).length === 0 ? (
                         <span className="muted">—</span>
@@ -366,7 +258,7 @@ export default function CoursesPage() {
                   </tr>
                   {openCourse === course.id && (
                     <tr>
-                      <td colSpan={5} style={{ padding: 0 }}>
+                      <td colSpan={4} style={{ padding: 0 }}>
                         <CourseLessons
                           courseId={course.id}
                           courseTitle={course.title}
@@ -450,42 +342,24 @@ export default function CoursesPage() {
                   </div>
                 </div>
 
-                <div className="form-row">
-                  <div className="field">
-                    <label>Category</label>
-                    <select
-                      value={form.categoryId}
-                      onChange={(e) =>
-                        setForm({ ...form, categoryId: e.target.value })
-                      }
-                    >
-                      <option value="">No category</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
+                <div className="field">
+                  <label>Classes (unlock access)</label>
+                  {levels.length === 0 ? (
+                    <p className="muted">No classes yet.</p>
+                  ) : (
+                    <div className="checkbox-list">
+                      {levels.map((l) => (
+                        <label key={l.id}>
+                          <input
+                            type="checkbox"
+                            checked={form.levelIds.includes(l.id)}
+                            onChange={() => toggleLevel(l.id)}
+                          />
+                          {l.name}
+                        </label>
                       ))}
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>Levels (unlock access)</label>
-                    {levels.length === 0 ? (
-                      <p className="muted">No levels yet.</p>
-                    ) : (
-                      <div className="checkbox-list">
-                        {levels.map((l) => (
-                          <label key={l.id}>
-                            <input
-                              type="checkbox"
-                              checked={form.levelIds.includes(l.id)}
-                              onChange={() => toggleLevel(l.id)}
-                            />
-                            {l.name}
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="row-actions">

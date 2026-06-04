@@ -3,11 +3,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { CheckoutLevelDTO, LevelDTO } from '@lms/types';
+import type { CheckoutLevelDTO, LevelCategoryDTO, LevelDTO } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { StripeService } from '../billing/stripe.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
-import { CreateLevelDto, UpdateLevelDto } from './dto/level.dto';
+import {
+  CreateLevelCategoryDto,
+  CreateLevelDto,
+  UpdateLevelDto,
+} from './dto/level.dto';
 
 type LevelWithPrices = {
   id: string;
@@ -26,6 +30,7 @@ type LevelWithPrices = {
     currency: string;
     installments: number | null;
   }[];
+  categories: { id: string; name: string; order: number }[];
 };
 
 @Injectable()
@@ -54,6 +59,11 @@ export class LevelsService {
         currency: p.currency,
         installments: p.installments,
       })),
+      categories: level.categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        order: c.order,
+      })),
       memberCount,
     };
   }
@@ -80,7 +90,10 @@ export class LevelsService {
     const levels = await this.prisma.level.findMany({
       // Only active prices are offered; archived ones are kept for existing
       // subscribers but must never resurface on /pricing or the admin form.
-      include: { prices: { where: { active: true } } },
+      include: {
+        prices: { where: { active: true } },
+        categories: { orderBy: { order: 'asc' } },
+      },
       orderBy: { createdAt: 'asc' },
     });
     const counts = includeCounts
@@ -159,8 +172,14 @@ export class LevelsService {
         mailchimpAudienceName: dto.mailchimpAudienceName ?? null,
         stripeProductId,
         prices: { create: priceRows },
+        categories: dto.categoryIds?.length
+          ? { connect: dto.categoryIds.map((id) => ({ id })) }
+          : undefined,
       },
-      include: { prices: { where: { active: true } } },
+      include: {
+        prices: { where: { active: true } },
+        categories: { orderBy: { order: 'asc' } },
+      },
     });
     return this.toDTO(level as LevelWithPrices);
   }
@@ -189,6 +208,11 @@ export class LevelsService {
         // undefined/empty -> null (clears) and a value -> set.
         mailchimpAudienceId: dto.mailchimpAudienceId ?? null,
         mailchimpAudienceName: dto.mailchimpAudienceName ?? null,
+        // Replace the category set wholesale when the admin form submits it.
+        categories:
+          dto.categoryIds !== undefined
+            ? { set: dto.categoryIds.map((id) => ({ id })) }
+            : undefined,
       },
     });
 
@@ -239,7 +263,10 @@ export class LevelsService {
     // any Stripe product id provisioned along the way.
     const fresh = await this.prisma.level.findUniqueOrThrow({
       where: { id },
-      include: { prices: { where: { active: true } } },
+      include: {
+        prices: { where: { active: true } },
+        categories: { orderBy: { order: 'asc' } },
+      },
     });
     return this.toDTO(fresh as LevelWithPrices);
   }
@@ -366,6 +393,33 @@ export class LevelsService {
     const existing = await this.prisma.level.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Level not found');
     await this.prisma.level.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  // ---------- categories (admin-only grouping for classes) ----------
+
+  async listCategories(): Promise<LevelCategoryDTO[]> {
+    const cats = await this.prisma.levelCategory.findMany({
+      orderBy: { order: 'asc' },
+    });
+    return cats.map((c) => ({ id: c.id, name: c.name, order: c.order }));
+  }
+
+  async createCategory(dto: CreateLevelCategoryDto): Promise<LevelCategoryDTO> {
+    const count = await this.prisma.levelCategory.count();
+    const cat = await this.prisma.levelCategory.create({
+      data: { name: dto.name.trim(), order: dto.order ?? count },
+    });
+    return { id: cat.id, name: cat.name, order: cat.order };
+  }
+
+  async deleteCategory(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.levelCategory.findUnique({
+      where: { id },
+    });
+    if (!existing) throw new NotFoundException('Category not found');
+    // The implicit M2M join rows are removed automatically; levels are kept.
+    await this.prisma.levelCategory.delete({ where: { id } });
     return { ok: true };
   }
 

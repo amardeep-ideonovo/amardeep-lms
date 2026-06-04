@@ -65,6 +65,13 @@ export interface PriceDTO {
   // life. null = an ongoing subscription that bills until canceled.
   installments: number | null;
 }
+// Admin-only grouping for classes (membership levels). Mirrors the blog's
+// PostCategory, but never shown to members.
+export interface LevelCategoryDTO {
+  id: string;
+  name: string;
+  order: number;
+}
 export interface LevelDTO {
   id: string;
   name: string;
@@ -75,6 +82,7 @@ export interface LevelDTO {
   mailchimpAudienceName: string | null; // cached name for display
   stripeProductId: string | null;
   prices: PriceDTO[];
+  categories: LevelCategoryDTO[]; // admin-only grouping ("Classes" categories)
   // Distinct members currently holding this level (ACTIVE). Only populated for
   // admin requests; 0 for member-facing calls so subscriber counts aren't leaked.
   memberCount: number;
@@ -96,6 +104,7 @@ export interface CreateLevelInput {
   mailchimpTags?: string[];
   mailchimpAudienceId?: string;
   mailchimpAudienceName?: string;
+  categoryIds?: string[]; // admin-only class categories to assign
   prices?: {
     interval: "month" | "year";
     amount: number;
@@ -291,7 +300,6 @@ export interface CourseCard {
   description: string | null;
   thumbnailUrl: string | null; // squared thumbnail (cards)
   coverImageUrl: string | null; // wide cover/hero (course page)
-  categoryId: string | null;
   levelIds: string[]; // assigned access levels (drives the admin edit form)
   locked: boolean; // computed from the viewer's active levels
   lessonCount: number; // total lessons in the course
@@ -331,7 +339,6 @@ export interface CreateCourseInput {
   description?: string;
   thumbnailUrl?: string;
   coverImageUrl?: string;
-  categoryId?: string;
   levelIds?: string[];
   order?: number;
 }
@@ -734,6 +741,10 @@ export const ROUTES = {
   updateLevel: "PATCH /levels/:id",
   deleteLevel: "DELETE /levels/:id",
   checkoutLevel: "GET /levels/checkout/:slugOrId", // public — resolve a level for checkout by slug or id
+  // admin: class (level) categories
+  listLevelCategories: "GET /levels/categories",
+  createLevelCategory: "POST /levels/categories", // body {name, order?}
+  deleteLevelCategory: "DELETE /levels/categories/:id",
 
   // admin: members
   listMembers: "GET /members", // -> MemberRow[]
@@ -760,10 +771,6 @@ export const ROUTES = {
   adminDeleteMedia: "DELETE /admin/media/:id", // -> { ok: true }
 
   // lms
-  listCategories: "GET /categories",
-  createCategory: "POST /categories", // body {name, order?, thumbnailUrl?}
-  deleteCategory: "DELETE /categories/:id", // uncategorizes its courses
-  uploadCategoryImage: "POST /categories/upload", // multipart {file} -> {url}
   listCourses: "GET /courses", // admin: all; member: includes locked flag
   createCourse: "POST /courses", // body CreateCourseInput
   updateCourse: "PATCH /courses/:id", // body UpdateCourseInput

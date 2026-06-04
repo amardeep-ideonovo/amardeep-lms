@@ -13,7 +13,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { LevelsService } from './levels.service';
-import { CreateLevelDto, UpdateLevelDto } from './dto/level.dto';
+import {
+  CreateLevelCategoryDto,
+  CreateLevelDto,
+  UpdateLevelDto,
+} from './dto/level.dto';
 
 @Controller('levels')
 export class LevelsController {
@@ -32,6 +36,26 @@ export class LevelsController {
   @Get()
   list(@CurrentUser() principal: AuthenticatedPrincipal) {
     return this.levels.list(principal.isAdmin);
+  }
+
+  // ----- Categories (admin-only grouping for classes) -----
+
+  @UseGuards(AdminGuard)
+  @Get('categories')
+  listCategories() {
+    return this.levels.listCategories();
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('categories')
+  createCategory(@Body() dto: CreateLevelCategoryDto) {
+    return this.levels.createCategory(dto);
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete('categories/:id')
+  deleteCategory(@Param('id') id: string) {
+    return this.levels.deleteCategory(id);
   }
 
   @UseGuards(AdminGuard)

@@ -6,20 +6,6 @@ import {
   MinLength,
 } from 'class-validator';
 
-export class CreateCategoryDto {
-  @IsString()
-  @MinLength(1)
-  name!: string;
-
-  @IsOptional()
-  @IsString()
-  thumbnailUrl?: string;
-
-  @IsOptional()
-  @IsInt()
-  order?: number;
-}
-
 export class UpdateLessonNoteDto {
   @IsString()
   @MinLength(1)
@@ -42,10 +28,6 @@ export class CreateCourseDto {
   @IsOptional()
   @IsString()
   coverImageUrl?: string;
-
-  @IsOptional()
-  @IsString()
-  categoryId?: string;
 
   @IsOptional()
   @IsArray()
@@ -74,10 +56,6 @@ export class UpdateCourseDto {
   @IsOptional()
   @IsString()
   coverImageUrl?: string;
-
-  @IsOptional()
-  @IsString()
-  categoryId?: string;
 
   // When provided, replaces the course's level assignments wholesale.
   @IsOptional()

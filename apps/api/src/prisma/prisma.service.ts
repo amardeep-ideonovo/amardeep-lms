@@ -23,14 +23,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get level() {
     return this.client.level;
   }
+  get levelCategory() {
+    return this.client.levelCategory;
+  }
   get price() {
     return this.client.price;
   }
   get userLevel() {
     return this.client.userLevel;
-  }
-  get category() {
-    return this.client.category;
   }
   get course() {
     return this.client.course;

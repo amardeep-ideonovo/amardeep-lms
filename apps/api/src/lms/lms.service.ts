@@ -6,12 +6,7 @@ import {
 } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import type {
-  CategoryDTO,
-  CourseCard,
-  LessonDTO,
-  LessonNoteDTO,
-} from '@lms/types';
+import type { CourseCard, LessonDTO, LessonNoteDTO } from '@lms/types';
 import type { LessonNote } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccessService } from './access.service';
@@ -20,7 +15,6 @@ import { isCourseLocked } from '../common/access.util';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { LESSON_NOTES_DIR } from './upload.config';
 import {
-  CreateCategoryDto,
   CreateCourseDto,
   CreateLessonDto,
   UpdateCourseDto,
@@ -34,50 +28,6 @@ export class LmsService {
     private readonly access: AccessService,
     private readonly mux: MuxService,
   ) {}
-
-  // ---------- Categories ----------
-
-  async listCategories(): Promise<CategoryDTO[]> {
-    const cats = await this.prisma.category.findMany({
-      orderBy: { order: 'asc' },
-    });
-    return cats.map((c) => ({
-      id: c.id,
-      name: c.name,
-      thumbnailUrl: c.thumbnailUrl,
-      order: c.order,
-    }));
-  }
-
-  async createCategory(dto: CreateCategoryDto): Promise<CategoryDTO> {
-    const cat = await this.prisma.category.create({
-      data: {
-        name: dto.name,
-        thumbnailUrl: dto.thumbnailUrl ?? null,
-        order: dto.order ?? 0,
-      },
-    });
-    return {
-      id: cat.id,
-      name: cat.name,
-      thumbnailUrl: cat.thumbnailUrl,
-      order: cat.order,
-    };
-  }
-
-  async deleteCategory(id: string): Promise<{ ok: true }> {
-    const existing = await this.prisma.category.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Category not found');
-    // Detach courses (they become uncategorized), then remove the category.
-    await this.prisma.$transaction([
-      this.prisma.course.updateMany({
-        where: { categoryId: id },
-        data: { categoryId: null },
-      }),
-      this.prisma.category.delete({ where: { id } }),
-    ]);
-    return { ok: true };
-  }
 
   // ---------- Courses ----------
 
@@ -112,7 +62,6 @@ export class LmsService {
         description: c.description,
         thumbnailUrl: c.thumbnailUrl,
         coverImageUrl: c.coverImageUrl,
-        categoryId: c.categoryId,
         levelIds: assigned,
         locked,
         lessonCount: c._count.lessons,
@@ -128,7 +77,6 @@ export class LmsService {
         description: dto.description ?? null,
         thumbnailUrl: dto.thumbnailUrl ?? null,
         coverImageUrl: dto.coverImageUrl ?? null,
-        categoryId: dto.categoryId ?? null,
         order: dto.order ?? 0,
         courseLevels: dto.levelIds?.length
           ? { create: dto.levelIds.map((levelId) => ({ levelId })) }
@@ -141,7 +89,6 @@ export class LmsService {
       description: course.description,
       thumbnailUrl: course.thumbnailUrl,
       coverImageUrl: course.coverImageUrl,
-      categoryId: course.categoryId,
       levelIds: dto.levelIds ?? [],
       locked: false,
       lessonCount: 0,
@@ -161,7 +108,6 @@ export class LmsService {
           description: dto.description ?? undefined,
           thumbnailUrl: dto.thumbnailUrl ?? undefined,
           coverImageUrl: dto.coverImageUrl ?? undefined,
-          categoryId: dto.categoryId ?? undefined,
           order: dto.order ?? undefined,
         },
       });
@@ -189,7 +135,6 @@ export class LmsService {
       description: course.description,
       thumbnailUrl: course.thumbnailUrl,
       coverImageUrl: course.coverImageUrl,
-      categoryId: course.categoryId,
       levelIds: levels.map((l) => l.levelId),
       locked: false,
       lessonCount: 0,

@@ -1,7 +1,6 @@
 // Typed fetch client for the admin app. Wraps the REST contract in @lms/types.
 import type {
   AuthAdmin,
-  CategoryDTO,
   CouponDTO,
   CourseCard,
   CreateCouponInput,
@@ -15,6 +14,7 @@ import type {
   FormSubmissionDTO,
   LessonDTO,
   LessonNoteDTO,
+  LevelCategoryDTO,
   LevelDTO,
   LoginResponse,
   MailchimpAudienceDTO,
@@ -220,6 +220,12 @@ export const api = {
   updateLevel: (id: string, input: Partial<CreateLevelInput>) =>
     request<LevelDTO>("PATCH", `/levels/${id}`, input),
   deleteLevel: (id: string) => request<void>("DELETE", `/levels/${id}`),
+  listLevelCategories: () =>
+    request<LevelCategoryDTO[]>("GET", "/levels/categories"),
+  createLevelCategory: (name: string, order?: number) =>
+    request<LevelCategoryDTO>("POST", "/levels/categories", { name, order }),
+  deleteLevelCategory: (id: string) =>
+    request<void>("DELETE", `/levels/categories/${id}`),
 
   // members
   listMembers: () => request<MemberRow[]>("GET", "/members"),
@@ -284,10 +290,6 @@ export const api = {
     request<{ ok: true }>("DELETE", `/admin/media/${id}`),
 
   // lms
-  listCategories: () => request<CategoryDTO[]>("GET", "/categories"),
-  createCategory: (name: string, order?: number, thumbnailUrl?: string) =>
-    request<CategoryDTO>("POST", "/categories", { name, order, thumbnailUrl }),
-  deleteCategory: (id: string) => request<void>("DELETE", `/categories/${id}`),
   listCourses: () => request<CourseCard[]>("GET", "/courses"),
   createCourse: (input: CreateCourseInput) =>
     request<CourseCard>("POST", "/courses", input),

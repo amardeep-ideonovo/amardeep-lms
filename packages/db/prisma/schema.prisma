@@ -75,6 +75,7 @@ model Level {
   prices      Price[]
   userLevels  UserLevel[]
   courseLevels CourseLevel[]
+  categories  LevelCategory[]
 }
 
 model Price {
@@ -125,15 +126,17 @@ model UserLevel {
   @@index([levelId])
 }
 
-// ---------- LMS content ----------
-
-model Category {
-  id           String   @id @default(cuid())
-  name         String
-  thumbnailUrl String?  // tile image shown on the member dashboard
-  order        Int      @default(0)
-  courses      Course[]
+// Admin-managed grouping for membership levels ("Classes"). Many-to-many: a
+// level can belong to several categories. Admin-only organization — not shown
+// to members. (Separate from the blog's PostCategory.)
+model LevelCategory {
+  id     String  @id @default(cuid())
+  name   String
+  order  Int     @default(0)
+  levels Level[]
 }
+
+// ---------- LMS content ----------
 
 model Course {
   id            String        @id @default(cuid())
@@ -141,8 +144,6 @@ model Course {
   description   String?
   thumbnailUrl  String?       // squared thumbnail shown on course cards
   coverImageUrl String?       // wide cover/hero image shown on the course page
-  categoryId    String?
-  category      Category?     @relation(fields: [categoryId], references: [id])
   order         Int           @default(0)
   createdAt     DateTime      @default(now())
 
