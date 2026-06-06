@@ -509,6 +509,27 @@ a.card:hover {
   width: 100%;
 }
 
+/* ---------- Thank-you (post-checkout) ---------- */
+.thankyou {
+  max-width: 480px;
+  margin: 10vh auto 0;
+  padding: 0 20px;
+  text-align: center;
+}
+.thankyou-check {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+  color: #16a34a;
+}
+.thankyou-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 28px;
+}
+
 /* ---------- Forms ---------- */
 .form-card {
   max-width: 380px;

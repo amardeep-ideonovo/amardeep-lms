@@ -5,6 +5,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { QueueModule } from './queue/queue.module';
 import { SettingsModule } from './settings/settings.module';
 import { MailchimpModule } from './mailchimp/mailchimp.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { AuthModule } from './auth/auth.module';
 import { LevelsModule } from './levels/levels.module';
 import { CouponsModule } from './coupons/coupons.module';
@@ -32,6 +33,7 @@ import { HealthModule } from './health/health.module';
     QueueModule,
     SettingsModule,
     MailchimpModule,
+    NotificationsModule,
     // Feature modules.
     HealthModule,
     AuthModule,

@@ -16,7 +16,12 @@ import { AdminGuard } from '../auth/guards/admin.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { BillingService } from './billing.service';
-import { CheckoutDto, CouponValidateDto, SubscribeDto } from './dto/billing.dto';
+import {
+  CancelSubDto,
+  CheckoutDto,
+  CouponValidateDto,
+  SubscribeDto,
+} from './dto/billing.dto';
 
 @Controller('billing')
 export class BillingController {
@@ -59,6 +64,15 @@ export class BillingController {
     return this.billing.subscribe(principal.sub, dto);
   }
 
+  // Called by the checkout right after a successful payment to reconcile the
+  // new subscription inline (grant + mirror + admin notification) without
+  // waiting on the Stripe webhook.
+  @UseGuards(JwtAuthGuard)
+  @Post('sync')
+  sync(@CurrentUser() principal: AuthenticatedPrincipal) {
+    return this.billing.syncMySubscriptions(principal.sub);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('coupon/validate')
   validateCoupon(@Body() dto: CouponValidateDto) {
@@ -85,21 +99,25 @@ export class BillingController {
   }
 
   @UseGuards(AdminGuard)
-  @Post('members/:id/pause')
-  pauseMember(@Param('id') id: string) {
-    return this.billing.pauseMember(id);
+  @Post('members/:id/subscriptions/:subId/pause')
+  pauseSub(@Param('id') id: string, @Param('subId') subId: string) {
+    return this.billing.pauseSub(id, subId);
   }
 
   @UseGuards(AdminGuard)
-  @Post('members/:id/resume')
-  resumeMember(@Param('id') id: string) {
-    return this.billing.resumeMember(id);
+  @Post('members/:id/subscriptions/:subId/resume')
+  resumeSub(@Param('id') id: string, @Param('subId') subId: string) {
+    return this.billing.resumeSub(id, subId);
   }
 
   @UseGuards(AdminGuard)
-  @Post('members/:id/cancel')
-  cancelMember(@Param('id') id: string) {
-    return this.billing.cancelMember(id);
+  @Post('members/:id/subscriptions/:subId/cancel')
+  cancelSub(
+    @Param('id') id: string,
+    @Param('subId') subId: string,
+    @Body() dto: CancelSubDto,
+  ) {
+    return this.billing.cancelSub(id, subId, dto.mode);
   }
 
   // Public (Stripe-signed). Raw body is provided by the express.raw() parser

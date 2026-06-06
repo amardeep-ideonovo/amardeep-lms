@@ -51,6 +51,7 @@ model Admin {
   posts Post[]
   pages Page[]
   media MediaAsset[]
+  notificationReads AdminNotificationRead[]
 }
 
 // ---------- Membership levels ----------
@@ -65,17 +66,25 @@ model Level {
   id                    String      @id @default(cuid())
   name                  String
   slug                  String?     @unique // pretty checkout URL key: /checkout/<slug> (admin-editable)
+  published             Boolean     @default(false) // show this class as a tile on the member dashboard
   type                  LevelType   @default(PAID)
   mailchimpTags         String[]    @default([]) // tag names applied within the audience
   mailchimpAudienceId   String?     // Mailchimp list this level subscribes members to (falls back to the global Settings audience)
   mailchimpAudienceName String?     // cached name for admin display
   stripeProductId       String?     // prod_… for PAID levels
+  // ----- MasterClass-style landing-page fields (all optional) -----
+  imageUrl              String?     // hero/cover image for the class page
+  description           String?     // marketing description
+  trailerUrl            String?     // trailer: Vimeo/MP4 URL or a Gallery video URL
+  skills                Json        @default("[]") // [{ title, imageUrl }] — "Skills You'll Learn"
+  featuredCourseId      String?     // course whose lessons appear as the curriculum
   createdAt             DateTime    @default(now())
 
-  prices      Price[]
-  userLevels  UserLevel[]
-  courseLevels CourseLevel[]
-  categories  LevelCategory[]
+  prices         Price[]
+  userLevels     UserLevel[]
+  courseLevels   CourseLevel[]
+  categories     LevelCategory[]
+  featuredCourse Course?         @relation("ClassFeaturedCourse", fields: [featuredCourseId], references: [id], onDelete: SetNull)
 }
 
 model Price {
@@ -147,8 +156,9 @@ model Course {
   order         Int           @default(0)
   createdAt     DateTime      @default(now())
 
-  lessons      Lesson[]
-  courseLevels CourseLevel[]
+  lessons          Lesson[]
+  courseLevels     CourseLevel[]
+  featuredInLevels Level[]       @relation("ClassFeaturedCourse")
 }
 
 // Many-to-many: a course is accessible to any of these levels.
@@ -170,6 +180,7 @@ model Lesson {
   thumbnailUrl String?         // lesson thumbnail
   muxAssetId   String?         // managed video; playback via signed URL (prod)
   videoUrl     String?         // direct video URL (e.g. sample MP4); plays without Mux signing
+  durationSeconds Int?         // lesson length in seconds (admin enters mm:ss); drives the curriculum total
   order        Int             @default(0)
   createdAt    DateTime        @default(now())
 
@@ -426,4 +437,60 @@ model MediaAsset {
   updatedAt    DateTime @updatedAt
 
   @@index([createdAt])
+}
+
+// ---------- Admin in-app notifications ----------
+// Server-emitted feed of billing/subscription events surfaced to admins via a
+// bell in the admin app. Each row is an immutable snapshot (title/body rendered
+// at emit time). Read state is PER-ADMIN via the AdminNotificationRead join, so
+// every admin has their own unread count. `dedupeKey` is unique: the same
+// logical event (incl. Stripe webhook replays) upserts to the same row, so the
+// feed never double-counts. Emitted from BillingService.reconcileSubscription /
+// handleWebhook (see apps/api/src/billing/billing.service.ts).
+
+enum AdminNotificationType {
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_CANCELED // immediate cancel OR Stripe's final auto-cancel (status -> CANCELED)
+  SUBSCRIPTION_CANCEL_SCHEDULED // cancelAtPeriodEnd flipped true while still active
+  SUBSCRIPTION_PAUSED
+  SUBSCRIPTION_RESUMED
+  PAYMENT_FAILED
+  PAYMENT_SUCCEEDED // invoice.paid renewal (first invoice suppressed in favor of CREATED)
+  INSTALLMENT_PLAN_COMPLETED // paid-in-full installment plan converted to lifetime
+}
+
+enum AdminNotificationSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model AdminNotification {
+  id        String                    @id @default(cuid())
+  type      AdminNotificationType
+  severity  AdminNotificationSeverity @default(INFO)
+  title     String // short headline (rendered at emit time)
+  body      String // one-line detail (member email + plan + amount)
+  userId    String? // local User.id for deep-linking to /members/<userId>; no FK so history survives member deletion
+  dedupeKey String                    @unique // idempotency key — same logical event upserts to the same row
+  createdAt DateTime                  @default(now())
+
+  reads AdminNotificationRead[]
+
+  @@index([createdAt])
+  @@index([type])
+}
+
+// Per-admin read marker. A notification is unread for an admin when no row
+// exists for (notificationId, adminId) — the unread count is an anti-join.
+model AdminNotificationRead {
+  id             String            @id @default(cuid())
+  notificationId String
+  notification   AdminNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  adminId        String
+  admin          Admin             @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  readAt         DateTime          @default(now())
+
+  @@unique([notificationId, adminId])
+  @@index([adminId])
 }

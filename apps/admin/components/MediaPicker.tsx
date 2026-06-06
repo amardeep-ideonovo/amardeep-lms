@@ -4,19 +4,26 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { MediaDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 
-// Reusable image picker: choose from the Media Library OR upload a new file
-// (which is cataloged in the library), with a preview and a paste-a-URL escape
-// hatch. `value`/`onChange` make it a drop-in for any image-URL field — used by
-// the blog/course/lesson/category forms and injected into the Puck builder.
+type MediaKindPick = "image" | "video";
+
+// Reusable media picker: choose from the Media Library OR upload a new file
+// (cataloged in the library), with a preview and a paste-a-URL escape hatch.
+// `value`/`onChange` make it a drop-in for any media-URL field — used by the
+// blog/course/lesson/class forms and injected into the Puck builder. `kind`
+// switches between image and video (the class trailer uses "video"; a pasted
+// Vimeo/MP4 link works for either).
 export default function MediaPicker({
   value,
   onChange,
-  accept = "image/*",
+  accept,
+  kind = "image",
 }: {
   value: string;
   onChange: (url: string) => void;
   accept?: string;
+  kind?: MediaKindPick;
 }) {
+  const resolvedAccept = accept ?? (kind === "video" ? "video/*" : "image/*");
   const [libOpen, setLibOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -42,19 +49,34 @@ export default function MediaPicker({
     <div>
       {value ? (
         <div style={{ marginBottom: 8 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={value}
-            alt=""
-            style={{
-              maxWidth: 220,
-              maxHeight: 130,
-              objectFit: "cover",
-              borderRadius: 6,
-              border: "1px solid var(--border)",
-              display: "block",
-            }}
-          />
+          {kind === "video" ? (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video
+              src={value}
+              controls
+              style={{
+                maxWidth: 240,
+                maxHeight: 140,
+                borderRadius: 6,
+                border: "1px solid var(--border)",
+                display: "block",
+              }}
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={value}
+              alt=""
+              style={{
+                maxWidth: 240,
+                maxHeight: 140,
+                objectFit: "cover",
+                borderRadius: 6,
+                border: "1px solid var(--border)",
+                display: "block",
+              }}
+            />
+          )}
         </div>
       ) : null}
       <div className="row-actions">
@@ -86,7 +108,7 @@ export default function MediaPicker({
       <input
         ref={fileRef}
         type="file"
-        accept={accept}
+        accept={resolvedAccept}
         hidden
         onChange={(e) => onFile(e.target.files)}
       />
@@ -94,12 +116,15 @@ export default function MediaPicker({
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="…or paste a URL"
+        placeholder={
+          kind === "video" ? "…or paste a Vimeo/MP4 URL" : "…or paste a URL"
+        }
         style={{ marginTop: 6 }}
       />
       {err && <p className="error">{err}</p>}
       {libOpen && (
         <MediaLibraryModal
+          kind={kind}
           onClose={() => setLibOpen(false)}
           onPick={(m) => {
             onChange(m.url);
@@ -112,9 +137,11 @@ export default function MediaPicker({
 }
 
 function MediaLibraryModal({
+  kind = "image",
   onClose,
   onPick,
 }: {
+  kind?: MediaKindPick;
   onClose: () => void;
   onPick: (m: MediaDTO) => void;
 }) {
@@ -124,24 +151,28 @@ function MediaLibraryModal({
   const [err, setErr] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const noun = kind === "video" ? "videos" : "images";
 
-  const load = useCallback(async (query: string) => {
-    setLoading(true);
-    setErr(null);
-    try {
-      const res = await api.listMedia({
-        q: query,
-        kind: "image",
-        page: 1,
-        pageSize: 60,
-      });
-      setItems(res.items);
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Failed to load media");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (query: string) => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const res = await api.listMedia({
+          q: query,
+          kind,
+          page: 1,
+          pageSize: 60,
+        });
+        setItems(res.items);
+      } catch (e) {
+        setErr(e instanceof ApiError ? e.message : "Failed to load media");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [kind],
+  );
 
   useEffect(() => {
     const t = setTimeout(() => load(q), 250);
@@ -195,7 +226,7 @@ function MediaLibraryModal({
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search images…"
+              placeholder={`Search ${noun}…`}
               style={{ minWidth: 220 }}
             />
             <button
@@ -209,7 +240,7 @@ function MediaLibraryModal({
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept={kind === "video" ? "video/*" : "image/*"}
               hidden
               onChange={(e) => onFile(e.target.files)}
             />
@@ -218,7 +249,7 @@ function MediaLibraryModal({
           {loading ? (
             <p className="muted">Loading…</p>
           ) : items.length === 0 ? (
-            <p className="muted">No images yet — use “Upload new”.</p>
+            <p className="muted">No {noun} yet — use “Upload new”.</p>
           ) : (
             <div
               style={{
@@ -245,12 +276,29 @@ function MediaLibraryModal({
                     height: 90,
                   }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={m.url}
-                    alt={m.altText ?? m.originalName}
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
+                  {kind === "video" ? (
+                    // eslint-disable-next-line jsx-a11y/media-has-caption
+                    <video
+                      src={m.url}
+                      muted
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={m.url}
+                      alt={m.altText ?? m.originalName}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  )}
                 </button>
               ))}
             </div>

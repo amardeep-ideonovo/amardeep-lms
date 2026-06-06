@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import type { MemberBillingDTO } from "@lms/types";
+import type {
+  MemberBillingDTO,
+  SubscriptionCancelMode,
+  SubscriptionDetailDTO,
+} from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 
 const money = (a: number, c: string) =>
@@ -29,6 +33,8 @@ export default function MemberBillingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The subscription pending cancellation (drives the immediate/period-end modal).
+  const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(null);
 
   async function load() {
     setLoading(true);
@@ -56,6 +62,14 @@ export default function MemberBillingPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  // Cancel the chosen subscription with the selected access timing, then close.
+  function doCancel(mode: SubscriptionCancelMode) {
+    const sub = cancelFor;
+    if (!sub) return;
+    setCancelFor(null);
+    act(() => api.cancelMemberSub(id, sub.stripeSubId, mode));
   }
 
   // Prefer the member's name in the heading; fall back to email.
@@ -91,7 +105,6 @@ export default function MemberBillingPage() {
             ) : (
               <div className="sub-list">
                 {data.subscriptions.map((s) => {
-                  const inactive = s.paused || s.cancelAtPeriodEnd;
                   return (
                     <div key={s.stripeSubId} className="sub-tile">
                       <div className="sub-tile__info">
@@ -109,39 +122,41 @@ export default function MemberBillingPage() {
                         </span>
                       </div>
                       <div className="row-actions">
-                        {inactive ? (
+                        {s.paused ? (
                           <button
                             className="btn btn--sm"
                             disabled={busy}
-                            onClick={() => act(() => api.resumeMemberSub(id))}
+                            onClick={() =>
+                              act(() => api.resumeMemberSub(id, s.stripeSubId))
+                            }
                           >
                             Resume
                           </button>
+                        ) : s.cancelAtPeriodEnd ? (
+                          <span className="muted" style={{ fontSize: 12 }}>
+                            Cancels at period end
+                          </span>
                         ) : (
-                          <button
-                            className="btn btn--ghost btn--sm"
-                            disabled={busy}
-                            onClick={() => act(() => api.pauseMemberSub(id))}
-                          >
-                            Pause
-                          </button>
-                        )}
-                        {!s.cancelAtPeriodEnd && s.installmentsTotal == null && (
-                          <button
-                            className="btn btn--danger btn--sm"
-                            disabled={busy}
-                            onClick={() => {
-                              if (
-                                typeof window !== "undefined" &&
-                                window.confirm(
-                                  `Cancel ${heading}'s ${s.levelName} subscription at period end?`
-                                )
-                              )
-                                act(() => api.cancelMemberSub(id));
-                            }}
-                          >
-                            Cancel
-                          </button>
+                          <>
+                            <button
+                              className="btn btn--ghost btn--sm"
+                              disabled={busy}
+                              onClick={() =>
+                                act(() => api.pauseMemberSub(id, s.stripeSubId))
+                              }
+                            >
+                              Pause
+                            </button>
+                            {s.installmentsTotal == null && (
+                              <button
+                                className="btn btn--danger btn--sm"
+                                disabled={busy}
+                                onClick={() => setCancelFor(s)}
+                              >
+                                Cancel
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -212,6 +227,61 @@ export default function MemberBillingPage() {
           </>
         )}
       </div>
+
+      {cancelFor && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            if (!busy) setCancelFor(null);
+          }}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Cancel {cancelFor.levelName}?</h2>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close"
+                disabled={busy}
+                onClick={() => setCancelFor(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="muted" style={{ marginTop: 0 }}>
+                Billing stops renewing now. Choose when access ends — this
+                can&apos;t be undone (no resume).
+              </p>
+              <div className="row-actions">
+                <button
+                  className="btn btn--danger"
+                  disabled={busy}
+                  onClick={() => doCancel("immediate")}
+                >
+                  End access now
+                </button>
+                <button
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => doCancel("period_end")}
+                >
+                  End at period end
+                </button>
+                <button
+                  className="btn btn--ghost"
+                  disabled={busy}
+                  onClick={() => setCancelFor(null)}
+                >
+                  Keep subscription
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

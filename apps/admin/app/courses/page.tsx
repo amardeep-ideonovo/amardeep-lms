@@ -19,6 +19,25 @@ const EMPTY_COURSE = {
   coverImageUrl: "",
 };
 
+// Parse an admin-entered duration ("12:30", "1:02:03", or plain seconds) into
+// seconds. Returns undefined for blank/invalid input.
+function parseDuration(input: string): number | undefined {
+  const s = input.trim();
+  if (!s) return undefined;
+  const parts = s.split(":").map((p) => Number(p));
+  if (parts.some((n) => Number.isNaN(n) || n < 0)) return undefined;
+  return parts.reduce((acc, n) => acc * 60 + n, 0);
+}
+// Seconds -> "mm:ss" (or "h:mm:ss"); "" when null.
+function formatDuration(sec?: number | null): string {
+  if (sec == null) return "";
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+
 export default function CoursesPage() {
   const [courses, setCourses] = useState<CourseCard[]>([]);
   const [levels, setLevels] = useState<LevelDTO[]>([]);
@@ -116,6 +135,10 @@ export default function CoursesPage() {
     e.preventDefault();
     if (!form.title.trim()) {
       setFormError("Title is required");
+      return;
+    }
+    if (form.levelIds.length === 0) {
+      setFormError("Assign the course to at least one class.");
       return;
     }
     setSaving(true);
@@ -343,9 +366,12 @@ export default function CoursesPage() {
                 </div>
 
                 <div className="field">
-                  <label>Classes (unlock access)</label>
+                  <label>Classes (unlock access — at least one required)</label>
                   {levels.length === 0 ? (
-                    <p className="muted">No classes yet.</p>
+                    <p className="muted">
+                      No classes yet — create a class first; every course must
+                      belong to one.
+                    </p>
                   ) : (
                     <div className="checkbox-list">
                       {levels.map((l) => (
@@ -360,10 +386,19 @@ export default function CoursesPage() {
                       ))}
                     </div>
                   )}
+                  {levels.length > 0 && form.levelIds.length === 0 && (
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      Select at least one class to save.
+                    </span>
+                  )}
                 </div>
 
                 <div className="row-actions">
-                  <button className="btn" type="submit" disabled={saving}>
+                  <button
+                    className="btn"
+                    type="submit"
+                    disabled={saving || form.levelIds.length === 0}
+                  >
                     {saving
                       ? "Saving…"
                       : editingId
@@ -404,6 +439,7 @@ function CourseLessons({
   const [content, setContent] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [duration, setDuration] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function load() {
@@ -443,11 +479,13 @@ function CourseLessons({
         content: content.trim() || undefined,
         videoUrl: videoUrl.trim() || undefined,
         thumbnailUrl: thumbnailUrl.trim() || undefined,
+        durationSeconds: parseDuration(duration),
       });
       setTitle("");
       setContent("");
       setVideoUrl("");
       setThumbnailUrl("");
+      setDuration("");
       setShowAdd(false); // collapse back to the "+ Add lesson" button
       await load();
     } catch (err) {
@@ -552,6 +590,17 @@ function CourseLessons({
                     <MediaPicker value={thumbnailUrl} onChange={setThumbnailUrl} />
                   </div>
                 </div>
+                <div className="field">
+                  <label>
+                    Duration <span className="muted">(mm:ss, optional)</span>
+                  </label>
+                  <input
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    placeholder="e.g. 12:30"
+                    style={{ maxWidth: 160 }}
+                  />
+                </div>
                 <div className="row-actions">
                   <button className="btn" type="submit" disabled={saving}>
                     {saving ? "Adding…" : "Add lesson"}
@@ -591,6 +640,9 @@ function LessonRow({
   const [title, setTitle] = useState(lesson.title);
   const [content, setContent] = useState(lesson.content ?? "");
   const [videoUrl, setVideoUrl] = useState(lesson.videoUrl ?? "");
+  const [duration, setDuration] = useState(
+    formatDuration(lesson.durationSeconds)
+  );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [uploadingThumb, setUploadingThumb] = useState(false);
@@ -608,6 +660,7 @@ function LessonRow({
         title: title.trim(),
         content: content.trim() || undefined,
         videoUrl: videoUrl.trim() || undefined,
+        durationSeconds: parseDuration(duration),
       });
       setEditing(false);
       setExpanded(false);
@@ -774,6 +827,17 @@ function LessonRow({
                 <input
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label>
+                  Duration <span className="muted">(mm:ss)</span>
+                </label>
+                <input
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  placeholder="e.g. 12:30"
+                  style={{ maxWidth: 160 }}
                 />
               </div>
               <div className="row-actions">

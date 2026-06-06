@@ -20,6 +20,10 @@ import type {
 import { PrismaService } from '../prisma/prisma.service';
 import { StripeService } from './stripe.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
+import {
+  NotificationsService,
+  type RecordNotificationInput,
+} from '../notifications/notifications.service';
 
 // Maps Stripe subscription.status -> our SubStatus / UserLevelStatus.
 function mapSubStatus(status: Stripe.Subscription.Status): {
@@ -56,11 +60,89 @@ export class BillingService {
     private readonly stripe: StripeService,
     private readonly mailchimp: MailchimpProducer,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // Where Stripe redirects users back to (the MEMBER WEB app, not the API).
   private appUrl(): string {
     return this.config.get<string>('WEB_APP_URL') || 'http://localhost:3002';
+  }
+
+  // ---------- Admin notifications (emit helpers) ----------
+
+  // Emit an admin notification WITHOUT ever throwing into the caller. The Stripe
+  // webhook path rethrows on error to trigger Stripe retries, so a notification
+  // insert must never be the reason reconciliation fails.
+  private async notify(input: RecordNotificationInput): Promise<void> {
+    try {
+      await this.notifications.record(input);
+    } catch (err) {
+      this.logger.warn(
+        `[notify] failed type=${input.type} key=${input.dedupeKey}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
+  // Minor units -> display string, e.g. (12000, "usd") => "$120.00".
+  private formatMoney(
+    amountMinor: number | null | undefined,
+    currency: string | null | undefined,
+  ): string {
+    const amt = (amountMinor ?? 0) / 100;
+    const cur = (currency || 'usd').toUpperCase();
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: cur,
+      }).format(amt);
+    } catch {
+      return `${amt.toFixed(2)} ${cur}`;
+    }
+  }
+
+  // Emit a PAYMENT_SUCCEEDED / PAYMENT_FAILED notification for one invoice.
+  // Keyed by invoice id => exactly one per invoice (Stripe resends are no-ops).
+  // The first invoice of a new subscription is suppressed in favor of the
+  // SUBSCRIPTION_CREATED notification.
+  private async notifyInvoiceEvent(
+    eventType: 'invoice.paid' | 'invoice.payment_failed',
+    invoice: Stripe.Invoice,
+    sub: Stripe.Subscription,
+  ): Promise<void> {
+    const customerId =
+      typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+    const user = await this.prisma.user.findUnique({
+      where: { stripeCustomerId: customerId },
+      select: { id: true, email: true },
+    });
+    // Not a local member (a Stripe-side-only customer, or a test event) — there's
+    // nothing actionable to surface to admins, so don't create a notification.
+    if (!user) return;
+    if (eventType === 'invoice.payment_failed') {
+      const amount = this.formatMoney(invoice.amount_due, invoice.currency);
+      await this.notify({
+        type: 'PAYMENT_FAILED',
+        severity: 'CRITICAL',
+        title: 'Payment failed',
+        body: `${user.email} — payment of ${amount} failed`,
+        userId: user.id,
+        dedupeKey: `inv:failed:${invoice.id}`,
+      });
+      return;
+    }
+    // invoice.paid — skip the signup invoice (covered by SUBSCRIPTION_CREATED).
+    if (invoice.billing_reason === 'subscription_create') return;
+    const amount = this.formatMoney(invoice.amount_paid, invoice.currency);
+    await this.notify({
+      type: 'PAYMENT_SUCCEEDED',
+      severity: 'INFO',
+      title: 'Payment received',
+      body: `${user.email} — paid ${amount}`,
+      userId: user.id,
+      dedupeKey: `inv:paid:${invoice.id}`,
+    });
   }
 
   // ---------- Checkout ----------
@@ -94,7 +176,7 @@ export class BillingService {
     });
     if (existingPaid) {
       throw new BadRequestException(
-        'You already have an active subscription to this plan. Manage it from your account.',
+        'You already have an active subscription to this class. Manage it from your account.',
       );
     }
 
@@ -196,7 +278,7 @@ export class BillingService {
     });
     if (existingPaid) {
       throw new BadRequestException(
-        'You already have an active subscription to this plan. Manage it from your account.',
+        'You already have an active subscription to this class. Manage it from your account.',
       );
     }
 
@@ -210,6 +292,58 @@ export class BillingService {
         where: { id: user.id },
         data: { stripeCustomerId: customerId },
       });
+    }
+
+    // Authoritative duplicate guard: a member must never hold two live
+    // subscriptions to the SAME CLASS — even via different prices (a class can
+    // have a monthly AND a yearly price). So match the customer's real Stripe
+    // subscriptions against ALL of this class's prices, not just the one being
+    // bought. The local UserLevel check above is also per-class but only sees
+    // already-reconciled grants; checking Stripe catches the not-yet-reconciled
+    // case (a fast double-submit, or dev with no webhook).
+    const classPriceIds = new Set(
+      (
+        await this.prisma.price.findMany({
+          where: { levelId: price.levelId },
+          select: { stripePriceId: true },
+        })
+      ).map((p) => p.stripePriceId),
+    );
+    const priceOf = (it: Stripe.SubscriptionItem): string | undefined =>
+      typeof it.price === 'string' ? it.price : it.price?.id;
+    const customerSubs =
+      await this.stripe.listSubscriptionsForCustomer(customerId);
+    const subsForClass = customerSubs.filter((s) =>
+      s.items.data.some((it) => {
+        const id = priceOf(it);
+        return id != null && classPriceIds.has(id);
+      }),
+    );
+    const liveStatuses = ['active', 'trialing', 'past_due', 'unpaid'];
+    if (subsForClass.some((s) => liveStatuses.includes(s.status))) {
+      throw new BadRequestException(
+        'You already have an active subscription to this class. Manage it from your account.',
+      );
+    }
+    // A not-yet-paid subscription from a moments-ago submit (same price): reuse
+    // its payment intent instead of creating a second one, so the member only
+    // ever pays once.
+    const pending = subsForClass.find(
+      (s) =>
+        s.status === 'incomplete' &&
+        s.items.data.some((it) => priceOf(it) === input.priceId),
+    );
+    if (pending) {
+      const clientSecret = await this.stripe.getSubscriptionClientSecret(
+        pending.id,
+      );
+      if (clientSecret) {
+        return {
+          status: 'requires_payment',
+          clientSecret,
+          subscriptionId: pending.id,
+        };
+      }
     }
 
     let couponId: string | undefined;
@@ -243,6 +377,35 @@ export class BillingService {
       clientSecret: result.clientSecret,
       subscriptionId: result.subscriptionId,
     };
+  }
+
+  // Reconcile the member's Stripe subscriptions into local grants + mirror +
+  // notifications INLINE. The web checkout calls this right after a successful
+  // payment so a purchase reflects immediately without waiting on a Stripe
+  // webhook (dev needs no `stripe listen`). Idempotent + dedupe-safe — mirrors
+  // how the admin pause/resume/cancel actions already reconcile inline.
+  // Reconcile ALL of a Stripe customer's subscriptions into local grants +
+  // mirror + notifications. Terminal subs first, live subs LAST so a level held
+  // by more than one subscription ends with the live status winning.
+  private async reconcileCustomer(
+    customerId: string,
+    tag: string,
+  ): Promise<void> {
+    const subs = await this.stripe.listSubscriptionsForCustomer(customerId);
+    const isLive = (s: Stripe.Subscription) =>
+      ['active', 'trialing', 'past_due', 'unpaid'].includes(s.status);
+    subs.sort((a, b) => Number(isLive(a)) - Number(isLive(b)));
+    for (const sub of subs) {
+      await this.reconcileSubscription(sub, `${tag}:${sub.id}`);
+    }
+  }
+
+  async syncMySubscriptions(userId: string): Promise<{ ok: true }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (user?.stripeCustomerId) {
+      await this.reconcileCustomer(user.stripeCustomerId, 'sync');
+    }
+    return { ok: true };
   }
 
   // Validate a promo code against a price and return a discount preview.
@@ -383,6 +546,21 @@ export class BillingService {
   async getMemberBilling(memberId: string): Promise<MemberBillingDTO> {
     const user = await this.prisma.user.findUnique({ where: { id: memberId } });
     if (!user) throw new NotFoundException('Member not found');
+    // Safety net: reconcile the member's live Stripe subscriptions inline so the
+    // admin always sees current grants (and the purchase notification fires) even
+    // when no Stripe webhook ran and the post-checkout sync didn't fire. Wrapped
+    // so a Stripe hiccup can never break the billing page.
+    if (user.stripeCustomerId) {
+      try {
+        await this.reconcileCustomer(user.stripeCustomerId, 'adminview');
+      } catch (err) {
+        this.logger.warn(
+          `[getMemberBilling] reconcile failed for ${memberId}: ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      }
+    }
     const [subscriptions, invoices, lifetimeRows] = await Promise.all([
       this.detailsForCustomer(user.stripeCustomerId),
       this.invoicesForCustomer(user.stripeCustomerId),
@@ -407,47 +585,58 @@ export class BillingService {
     };
   }
 
-  // The member's current live Stripe subscription (for an admin action).
-  private async memberLiveSubId(memberId: string): Promise<string> {
+  // Retrieve a subscription and assert it belongs to this member. Admin actions
+  // target a SPECIFIC subscription id (from the member's billing page), so each
+  // row acts on its own subscription rather than "the member's first live sub".
+  private async memberSub(
+    memberId: string,
+    subId: string,
+  ): Promise<Stripe.Subscription> {
     const user = await this.prisma.user.findUnique({ where: { id: memberId } });
     if (!user?.stripeCustomerId) {
       throw new BadRequestException('Member has no Stripe customer');
     }
-    const subs = await this.stripe.listSubscriptionsForCustomer(
-      user.stripeCustomerId,
-    );
-    const live = subs.find((s) =>
-      ['active', 'past_due', 'trialing', 'paused', 'unpaid'].includes(s.status),
-    );
-    if (!live) {
-      throw new BadRequestException('No active subscription for this member');
-    }
-    return live.id;
-  }
-
-  async pauseMember(memberId: string): Promise<MemberBillingDTO> {
-    await this.stripe.pauseSubscription(await this.memberLiveSubId(memberId));
-    return this.getMemberBilling(memberId);
-  }
-
-  async resumeMember(memberId: string): Promise<MemberBillingDTO> {
-    const sub = await this.stripe.resumeSubscription(
-      await this.memberLiveSubId(memberId),
-    );
-    await this.reconcileSubscription(sub); // reflect the resumed grant locally
-    return this.getMemberBilling(memberId);
-  }
-
-  async cancelMember(memberId: string): Promise<MemberBillingDTO> {
-    const subId = await this.memberLiveSubId(memberId);
     const sub = await this.stripe.retrieveSubscription(subId);
-    if (await this.isIncompleteInstallmentPlan(sub)) {
-      // An unfinished installment plan PAUSES (resumable) instead of cancelling,
-      // so the member can resume and finish the remaining payments later.
-      await this.stripe.pauseSubscription(subId);
-    } else {
-      await this.stripe.setCancelAtPeriodEnd(subId, true);
+    const customerId =
+      typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+    if (customerId !== user.stripeCustomerId) {
+      throw new NotFoundException('Subscription not found for this member');
     }
+    return sub;
+  }
+
+  // Pause ONE subscription: stop billing (pause_collection) AND suspend access.
+  // Reconciling inline flips the grant to PAUSED immediately (no webhook needed).
+  async pauseSub(memberId: string, subId: string): Promise<MemberBillingDTO> {
+    await this.memberSub(memberId, subId);
+    const sub = await this.stripe.pauseSubscription(subId);
+    await this.reconcileSubscription(sub, `admin:pause:${subId}`);
+    return this.getMemberBilling(memberId);
+  }
+
+  // Resume a PAUSED subscription: clear the pause and restore access. Never
+  // un-cancels (resumeSubscription only clears pause_collection).
+  async resumeSub(memberId: string, subId: string): Promise<MemberBillingDTO> {
+    await this.memberSub(memberId, subId);
+    const sub = await this.stripe.resumeSubscription(subId);
+    await this.reconcileSubscription(sub, `admin:resume:${subId}`);
+    return this.getMemberBilling(memberId);
+  }
+
+  // Cancel ONE subscription. `immediate` ends billing AND access now;
+  // `period_end` stops the renewal but keeps access until the paid period ends
+  // (Stripe auto-cancels then). Cancellation is final — there is no resume.
+  async cancelSub(
+    memberId: string,
+    subId: string,
+    mode: 'immediate' | 'period_end',
+  ): Promise<MemberBillingDTO> {
+    await this.memberSub(memberId, subId);
+    const sub =
+      mode === 'immediate'
+        ? await this.stripe.cancelSubscription(subId)
+        : await this.stripe.setCancelAtPeriodEnd(subId, true);
+    await this.reconcileSubscription(sub, `admin:cancel:${mode}:${subId}`);
     return this.getMemberBilling(memberId);
   }
 
@@ -485,6 +674,7 @@ export class BillingService {
         case 'customer.subscription.deleted':
           await this.reconcileSubscription(
             event.data.object as Stripe.Subscription,
+            event.id,
           );
           break;
         case 'invoice.paid':
@@ -497,7 +687,9 @@ export class BillingService {
           if (subId) {
             // Re-fetch the canonical subscription to reconcile from source of truth.
             const sub = await this.stripe.retrieveSubscription(subId);
-            await this.reconcileSubscription(sub);
+            await this.reconcileSubscription(sub, event.id);
+            // Admin notification for the payment itself (keyed by invoice id).
+            await this.notifyInvoiceEvent(event.type, invoice, sub);
             // On a successful payment, check whether an installment plan has now
             // been paid in full -> convert to lifetime + stop billing.
             if (event.type === 'invoice.paid') {
@@ -536,7 +728,10 @@ export class BillingService {
    *   item set is marked CANCELED (e.g. an item was removed).
    * - Enqueue Mailchimp tag add/remove per level transition.
    */
-  private async reconcileSubscription(sub: Stripe.Subscription): Promise<void> {
+  private async reconcileSubscription(
+    sub: Stripe.Subscription,
+    sourceEventId?: string,
+  ): Promise<void> {
     const customerId =
       typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
 
@@ -560,6 +755,12 @@ export class BillingService {
       ? new Date(sub.current_period_end * 1000)
       : null;
 
+    // Capture the prior mirror BEFORE the upsert so lifecycle notifications fire
+    // only on a genuine transition (this also makes webhook replays no-ops).
+    const prevMirror = await this.prisma.subscriptionMirror.findUnique({
+      where: { stripeSubId: sub.id },
+    });
+
     await this.prisma.subscriptionMirror.upsert({
       where: { stripeSubId: sub.id },
       create: {
@@ -578,6 +779,9 @@ export class BillingService {
 
     // Map each subscription item's price -> our Level.
     const items = sub.items?.data ?? [];
+    // Item ids on THIS subscription — used to scope cancellation so we never
+    // touch grants that belong to the customer's OTHER subscriptions.
+    const thisSubItemIds = new Set(items.map((i) => i.id));
     const desired = new Map<
       string,
       {
@@ -587,6 +791,8 @@ export class BillingService {
         mailchimpAudienceId: string | null;
       }
     >();
+    // Human-readable level names for this subscription, for notification bodies.
+    const levelNames: string[] = [];
     for (const item of items) {
       const stripePriceId =
         typeof item.price === 'string' ? item.price : item.price?.id;
@@ -605,6 +811,7 @@ export class BillingService {
         mailchimpTags: price.level.mailchimpTags,
         mailchimpAudienceId: price.level.mailchimpAudienceId,
       });
+      levelNames.push(price.level.name);
     }
 
     // Existing STRIPE-sourced grants for this user.
@@ -668,25 +875,100 @@ export class BillingService {
       }
     }
 
-    // Levels no longer present on the subscription -> CANCELED, EXCEPT lifetime
-    // grants (a completed installment plan), which are permanent.
+    // Items removed FROM THIS subscription -> CANCELED, EXCEPT lifetime grants
+    // (a completed installment plan), which are permanent. We only revoke grants
+    // tied to THIS subscription's items: each class is its own Stripe
+    // subscription, so a grant from a DIFFERENT subscription must not be
+    // cancelled here. (Previously this loop cancelled every STRIPE grant not on
+    // the current subscription, so reconciling one class revoked the member's
+    // other classes.)
     for (const ul of existing) {
-      if (!desired.has(ul.levelId)) {
-        if (ul.lifetime) continue;
-        await this.prisma.userLevel.update({
-          where: { id: ul.id },
-          data: { status: 'CANCELED' },
-        });
-        if (ul.level.mailchimpTags.length && ul.status === 'ACTIVE') {
-          await this.maybeRemoveTags(
-            user.id,
-            ul.levelId,
-            user.email,
-            ul.level.mailchimpTags,
-            ul.level.mailchimpAudienceId ?? undefined,
-          );
-        }
+      if (desired.has(ul.levelId)) continue;
+      if (ul.lifetime) continue;
+      if (!ul.stripeSubItemId || !thisSubItemIds.has(ul.stripeSubItemId)) {
+        continue; // belongs to another subscription — leave it alone
       }
+      await this.prisma.userLevel.update({
+        where: { id: ul.id },
+        data: { status: 'CANCELED' },
+      });
+      if (ul.level.mailchimpTags.length && ul.status === 'ACTIVE') {
+        await this.maybeRemoveTags(
+          user.id,
+          ul.levelId,
+          user.email,
+          ul.level.mailchimpTags,
+          ul.level.mailchimpAudienceId ?? undefined,
+        );
+      }
+    }
+
+    // ---- Admin notifications: emit ONCE per genuine lifecycle transition ----
+    // prevMirror vs the new values gates against replays/re-reconciles; the
+    // unique dedupeKey is a backstop. Payment failures are emitted from the
+    // invoice branch (not here), so PAST_DUE intentionally produces no event.
+    const planLabel = levelNames.length ? levelNames.join(', ') : 'subscription';
+    const prevStatus = prevMirror?.status ?? null;
+    const prevCancelAtPe = prevMirror?.cancelAtPeriodEnd ?? false;
+    const newCancelAtPe = sub.cancel_at_period_end ?? false;
+    const periodKey = sub.current_period_end ?? 'na';
+
+    if (
+      prevMirror == null &&
+      (subStatusFinal === 'ACTIVE' || subStatusFinal === 'TRIALING')
+    ) {
+      await this.notify({
+        type: 'SUBSCRIPTION_CREATED',
+        severity: 'INFO',
+        title: 'New subscription',
+        body: `${user.email} subscribed to ${planLabel}`,
+        userId: user.id,
+        dedupeKey: `sub:created:${sub.id}`,
+      });
+    }
+    if (prevStatus !== 'PAUSED' && subStatusFinal === 'PAUSED') {
+      await this.notify({
+        type: 'SUBSCRIPTION_PAUSED',
+        severity: 'WARNING',
+        title: 'Subscription paused',
+        body: `${user.email} — ${planLabel} is on hold`,
+        userId: user.id,
+        dedupeKey: `sub:paused:${sub.id}:${sourceEventId ?? periodKey}`,
+      });
+    }
+    if (
+      prevStatus === 'PAUSED' &&
+      subStatusFinal !== 'PAUSED' &&
+      subStatusFinal !== 'CANCELED'
+    ) {
+      await this.notify({
+        type: 'SUBSCRIPTION_RESUMED',
+        severity: 'INFO',
+        title: 'Subscription resumed',
+        body: `${user.email} — ${planLabel} resumed`,
+        userId: user.id,
+        dedupeKey: `sub:resumed:${sub.id}:${sourceEventId ?? periodKey}`,
+      });
+    }
+    if (prevStatus !== 'CANCELED' && subStatusFinal === 'CANCELED') {
+      await this.notify({
+        type: 'SUBSCRIPTION_CANCELED',
+        severity: 'CRITICAL',
+        title: 'Subscription canceled',
+        body: `${user.email} — ${planLabel} canceled`,
+        userId: user.id,
+        dedupeKey: `sub:canceled:${sub.id}`,
+      });
+    }
+    if (!prevCancelAtPe && newCancelAtPe && subStatusFinal !== 'CANCELED') {
+      await this.notify({
+        type: 'SUBSCRIPTION_CANCEL_SCHEDULED',
+        severity: 'WARNING',
+        title: 'Cancellation scheduled',
+        body: `${user.email} — ${planLabel} will cancel at the period end`,
+        userId: user.id,
+        dedupeKey: `sub:cancel_scheduled:${sub.id}`,
+      });
     }
   }
 
@@ -767,6 +1049,15 @@ export class BillingService {
         `[installments] sub=${sub.id} level=${price.levelId} paid ${ids.size}/${price.installments} -> lifetime granted user=${user.id}`,
       );
 
+      await this.notify({
+        type: 'INSTALLMENT_PLAN_COMPLETED',
+        severity: 'INFO',
+        title: 'Installment plan completed',
+        body: `${user.email} — ${price.level.name} paid in full (lifetime access granted)`,
+        userId: user.id,
+        dedupeKey: `installment:complete:${sub.id}:${price.levelId}`,
+      });
+
       // Stop billing. The resulting customer.subscription.deleted reconciles,
       // and its revoke step skips the now-lifetime grant.
       if (sub.status !== 'canceled') {
@@ -783,23 +1074,4 @@ export class BillingService {
     }
   }
 
-  // True if the subscription carries an installment plan not yet paid in full
-  // (drives "cancel -> pause" so the member can resume and finish it).
-  private async isIncompleteInstallmentPlan(
-    sub: Stripe.Subscription,
-  ): Promise<boolean> {
-    for (const item of sub.items?.data ?? []) {
-      const stripePriceId =
-        typeof item.price === 'string' ? item.price : item.price?.id;
-      if (!stripePriceId) continue;
-      const price = await this.prisma.price.findUnique({
-        where: { stripePriceId },
-      });
-      if (price?.installments != null) {
-        const paid = await this.stripe.listSubscriptionInvoices(sub.id, 'paid');
-        if (paid.length < price.installments) return true;
-      }
-    }
-    return false;
-  }
 }

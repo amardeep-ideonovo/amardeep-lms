@@ -1,5 +1,9 @@
 import type { MetadataRoute } from "next";
-import { fetchPublishedPages, fetchPublishedPosts } from "@/lib/api";
+import {
+  fetchPublicClasses,
+  fetchPublishedPages,
+  fetchPublishedPosts,
+} from "@/lib/api";
 import { absoluteUrl } from "@/lib/seo";
 
 // Resolved per-request (not at build) so we never depend on the API being up
@@ -9,9 +13,10 @@ export const dynamic = "force-dynamic";
 type Entry = MetadataRoute.Sitemap[number];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [posts, pages] = await Promise.all([
+  const [posts, pages, classes] = await Promise.all([
     fetchPublishedPosts().catch(() => []),
     fetchPublishedPages().catch(() => []),
+    fetchPublicClasses().catch(() => []),
   ]);
 
   const staticEntries: Entry[] = [
@@ -37,5 +42,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticEntries, ...postEntries, ...pageEntries];
+  const classEntries: Entry[] = classes.map((c): Entry => ({
+    url: absoluteUrl(`/classes/${c.slug ?? c.id}`),
+    changeFrequency: "weekly",
+    priority: 0.7,
+  }));
+
+  return [
+    ...staticEntries,
+    ...postEntries,
+    ...pageEntries,
+    ...classEntries,
+  ];
 }

@@ -285,6 +285,20 @@ export class StripeService {
     };
   }
 
+  // Client secret for an EXISTING subscription's first-invoice PaymentIntent.
+  // Used to reuse a not-yet-paid (incomplete) subscription instead of creating a
+  // duplicate when a checkout is submitted twice.
+  async getSubscriptionClientSecret(subId: string): Promise<string | null> {
+    const stripe = await this.getClient();
+    const sub = await stripe.subscriptions.retrieve(subId, {
+      expand: ['latest_invoice.payment_intent'],
+    });
+    const invoice = sub.latest_invoice;
+    const pi =
+      invoice && typeof invoice !== 'string' ? invoice.payment_intent : null;
+    return pi && typeof pi !== 'string' ? pi.client_secret : null;
+  }
+
   // --- Subscription detail, payment history, admin actions ---
 
   async listSubscriptionsForCustomer(
@@ -331,12 +345,13 @@ export class StripeService {
     });
   }
 
-  // Reactivate: clear any pause AND undo a pending period-end cancellation.
+  // Resume a PAUSED subscription: clear the pause only. We deliberately do NOT
+  // clear cancel_at_period_end — cancellation is final, so Resume must never
+  // revive a cancelled subscription.
   async resumeSubscription(subId: string): Promise<Stripe.Subscription> {
     const stripe = await this.getClient();
     return stripe.subscriptions.update(subId, {
       pause_collection: '',
-      cancel_at_period_end: false,
     });
   }
 

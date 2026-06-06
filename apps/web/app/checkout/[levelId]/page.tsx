@@ -11,6 +11,7 @@ import {
   logout,
   signup,
   subscribe,
+  syncSubscriptions,
   validateCoupon,
 } from "@/lib/checkout-service";
 import {
@@ -75,6 +76,10 @@ export default function CheckoutPage() {
   const [summaryOpen, setSummaryOpen] = useState(false);
 
   const payRef = useRef<PaymentHandle>(null);
+  // Re-entry guard: `setSubmitting(true)` doesn't disable the button until React
+  // re-renders, so a fast second click could fire onSubmit (and create a second
+  // subscription) before that. This ref flips synchronously, closing that gap.
+  const submittingRef = useRef(false);
   const mockMode = !publishableKey;
 
   // Prefill identity from the signed-in profile (State B). Kept editable.
@@ -193,6 +198,8 @@ export default function CheckoutPage() {
       return;
     }
     if (!selected) return;
+    if (submittingRef.current) return; // ignore a double submit (see ref above)
+    submittingRef.current = true;
     setSubmitting(true);
     try {
       // 1) Ensure an authenticated member (State A signs up inline).
@@ -213,6 +220,7 @@ export default function CheckoutPage() {
             );
             setShowLogin(true);
             setSubmitting(false);
+            submittingRef.current = false;
             return;
           }
           throw err;
@@ -229,7 +237,15 @@ export default function CheckoutPage() {
           couponCode: couponPreview?.valid ? coupon.trim() : undefined,
         });
         if (res.status === "active") {
-          router.push("/dashboard");
+          // Already paid (e.g. a 100%-off coupon) — reconcile inline, then go.
+          try {
+            await syncSubscriptions();
+          } catch {
+            // best-effort; the Stripe webhook reconciles too
+          }
+          router.push(
+            `/checkout/thank-you?class=${encodeURIComponent(config?.heading ?? "")}`,
+          );
           return;
         }
         clientSecret = res.clientSecret;
@@ -239,11 +255,20 @@ export default function CheckoutPage() {
       if (payErr) {
         setError(payErr);
         setSubmitting(false);
+        submittingRef.current = false;
         return;
       }
 
-      // 3) Enrolled — the webhook grants the level; head to the dashboard.
-      router.push("/dashboard");
+      // 3) Enrolled. Reconcile the grant inline so access + the admin
+      //    notification reflect immediately (the webhook also does this in prod).
+      try {
+        await syncSubscriptions();
+      } catch {
+        // best-effort; the Stripe webhook reconciles too
+      }
+      router.push(
+        `/checkout/thank-you?class=${encodeURIComponent(config?.heading ?? "")}`,
+      );
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -253,6 +278,7 @@ export default function CheckoutPage() {
             : "Something went wrong. Please try again.",
       );
       setSubmitting(false);
+      submittingRef.current = false;
     }
   }
 

@@ -72,10 +72,16 @@ export interface LevelCategoryDTO {
   name: string;
   order: number;
 }
+// One "Skills You'll Learn" card on a class landing page.
+export interface SkillDTO {
+  title: string;
+  imageUrl: string | null;
+}
 export interface LevelDTO {
   id: string;
   name: string;
   slug: string | null; // pretty checkout URL key (/checkout/<slug>); null = use raw id
+  published: boolean; // show as a class tile on the member dashboard
   type: LevelType;
   mailchimpTags: string[]; // tags applied within the audience on grant
   mailchimpAudienceId: string | null; // Mailchimp list this level subscribes members to
@@ -83,6 +89,12 @@ export interface LevelDTO {
   stripeProductId: string | null;
   prices: PriceDTO[];
   categories: LevelCategoryDTO[]; // admin-only grouping ("Classes" categories)
+  // ----- MasterClass-style landing-page fields -----
+  imageUrl: string | null; // hero/cover image
+  description: string | null;
+  trailerUrl: string | null; // Vimeo/MP4 or Gallery video URL
+  featuredCourseId: string | null; // course whose lessons are the curriculum
+  skills: SkillDTO[];
   // Distinct members currently holding this level (ACTIVE). Only populated for
   // admin requests; 0 for member-facing calls so subscriber counts aren't leaked.
   memberCount: number;
@@ -97,14 +109,54 @@ export interface CheckoutLevelDTO {
   prices: PriceDTO[];
 }
 
+// Public class landing page (GET /levels/page/:slugOrId) — MasterClass-style.
+// Curriculum = the featured course's lessons (titles/durations/thumbnails only;
+// no playback for logged-out visitors).
+export interface ClassPublicLessonDTO {
+  title: string;
+  durationSeconds: number | null;
+  thumbnailUrl: string | null;
+  order: number;
+}
+export interface ClassPublicDTO {
+  id: string;
+  name: string;
+  slug: string | null;
+  imageUrl: string | null;
+  description: string | null;
+  trailerUrl: string | null;
+  categories: LevelCategoryDTO[];
+  skills: SkillDTO[];
+  lessons: ClassPublicLessonDTO[];
+  lessonCount: number;
+  totalDurationSeconds: number;
+  prices: PriceDTO[];
+}
+// Minimal public class list (sitemap + cross-linking).
+export interface PublicClassListItem {
+  id: string;
+  name: string;
+  slug: string | null;
+}
+
+export interface SkillInput {
+  title: string;
+  imageUrl?: string;
+}
 export interface CreateLevelInput {
   name: string;
   slug?: string; // optional pretty checkout URL slug (slugified server-side)
+  published?: boolean; // show as a class tile on the member dashboard
   type: LevelType;
   mailchimpTags?: string[];
   mailchimpAudienceId?: string;
   mailchimpAudienceName?: string;
   categoryIds?: string[]; // admin-only class categories to assign
+  imageUrl?: string; // hero/cover image (Gallery URL)
+  description?: string;
+  trailerUrl?: string; // Vimeo/MP4 or Gallery video URL
+  featuredCourseId?: string; // course supplying the curriculum
+  skills?: SkillInput[];
   prices?: {
     interval: "month" | "year";
     amount: number;
@@ -233,6 +285,10 @@ export interface MemberBillingDTO {
   lifetimeLevels: { levelId: string; levelName: string }[];
 }
 
+// Admin cancel mode for a member's subscription: end access now, or let the paid
+// period run out (no renewal) then auto-cancel. Cancellation is final (no resume).
+export type SubscriptionCancelMode = "immediate" | "period_end";
+
 // One row of the admin Subscriptions tab — every Stripe subscription (active +
 // historical) joined to the local member + level, with an order count and last
 // order date derived from invoices. Read live from Stripe.
@@ -268,6 +324,7 @@ export interface MemberRow {
   levels: {
     id: string;
     name: string;
+    source: UserLevelSource; // MANUAL grants are removable here; STRIPE is managed via billing
     status: UserLevelStatus;
     lifetime: boolean; // permanent grant (completed installment plan)
   }[];
@@ -325,12 +382,33 @@ export interface LessonDTO {
   thumbnailUrl?: string | null; // lesson thumbnail
   muxPlaybackToken?: string; // signed; present only when the viewer has access
   videoUrl?: string | null; // direct video URL (sample/dev or non-Mux source)
+  durationSeconds?: number | null; // lesson length (admin-entered); drives curriculum totals
   order: number;
   completed?: boolean;
   notes?: LessonNoteDTO[]; // downloadable attachments (present on detail views)
 }
 export interface DashboardResponse {
   categories: { category: CategoryDTO; courses: CourseCard[] }[];
+}
+
+// One class tile on the member dashboard (GET /levels/my-classes). Members see
+// every PUBLISHED class; `owned` marks the ones their active membership unlocks.
+// Tiles link to /classes/<slug ?? id>.
+export interface ClassTileDTO {
+  id: string;
+  name: string;
+  slug: string | null;
+  imageUrl: string | null;
+  owned: boolean;
+  categories: LevelCategoryDTO[];
+}
+
+// GET /levels/:slugOrId/my-courses (member, auth). A class's courses — returned
+// ONLY when the member owns the class (active membership); otherwise owned:false
+// and an empty list, so the public class page shows just its marketing + CTA.
+export interface MyClassCoursesDTO {
+  owned: boolean;
+  courses: CourseCard[];
 }
 
 // ---------- Course / lesson admin inputs ----------
@@ -350,6 +428,7 @@ export interface CreateLessonInput {
   thumbnailUrl?: string;
   videoUrl?: string;
   muxAssetId?: string;
+  durationSeconds?: number; // seconds (parsed from the admin's mm:ss input)
   order?: number;
 }
 export type UpdateLessonInput = Partial<CreateLessonInput>;
@@ -726,6 +805,41 @@ export interface UpdateMediaInput {
   description?: string;
 }
 
+// ---------- Admin in-app notifications ----------
+// Server-emitted feed of billing/subscription events shown to admins via the
+// bell in the admin app. Read state is per-admin: `read` reflects the requesting
+// admin, and `unreadCount` is that admin's own unread total across the feed.
+export type AdminNotificationType =
+  | "SUBSCRIPTION_CREATED"
+  | "SUBSCRIPTION_CANCELED"
+  | "SUBSCRIPTION_CANCEL_SCHEDULED"
+  | "SUBSCRIPTION_PAUSED"
+  | "SUBSCRIPTION_RESUMED"
+  | "PAYMENT_FAILED"
+  | "PAYMENT_SUCCEEDED"
+  | "INSTALLMENT_PLAN_COMPLETED";
+
+export type AdminNotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
+
+export interface AdminNotificationDTO {
+  id: string;
+  type: AdminNotificationType;
+  severity: AdminNotificationSeverity;
+  title: string; // short headline
+  body: string; // one-line detail (member email + plan + amount)
+  userId: string | null; // local User.id — deep-link to /members/<userId> when present
+  createdAt: string; // ISO
+  read: boolean; // per-requesting-admin read state
+}
+
+export interface AdminNotificationListDTO {
+  items: AdminNotificationDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+  unreadCount: number; // requesting admin's unread total across the whole feed (not just this page)
+}
+
 export const ROUTES = {
   // auth
   memberLogin: "POST /auth/login", // body {email,password} -> LoginResponse<AuthUser>
@@ -741,6 +855,10 @@ export const ROUTES = {
   updateLevel: "PATCH /levels/:id",
   deleteLevel: "DELETE /levels/:id",
   checkoutLevel: "GET /levels/checkout/:slugOrId", // public — resolve a level for checkout by slug or id
+  classPage: "GET /levels/page/:slugOrId", // public — full class landing-page data
+  listPublicClasses: "GET /levels/public", // public — minimal class list (sitemap/links)
+  myClasses: "GET /levels/my-classes", // member — published class tiles for the dashboard (owned flag)
+  myClassCourses: "GET /levels/:slugOrId/my-courses", // member — a class's courses, only if owned
   // admin: class (level) categories
   listLevelCategories: "GET /levels/categories",
   createLevelCategory: "POST /levels/categories", // body {name, order?}
@@ -762,6 +880,12 @@ export const ROUTES = {
 
   // admin: subscriptions (read-only list, live from Stripe)
   adminListSubscriptions: "GET /admin/subscriptions", // -> SubscriptionRowDTO[]
+
+  // admin: in-app notifications (per-admin read state)
+  adminListNotifications: "GET /admin/notifications", // ?page&pageSize -> AdminNotificationListDTO
+  adminNotificationsUnreadCount: "GET /admin/notifications/unread-count", // -> { count: number }
+  adminMarkNotificationRead: "POST /admin/notifications/:id/read", // -> { ok: true }
+  adminMarkAllNotificationsRead: "POST /admin/notifications/read-all", // -> { ok: true }
 
   // admin: media library (gallery) — files served at public, embeddable URLs
   adminListMedia: "GET /admin/media", // ?q&kind&page&pageSize -> MediaListDTO
@@ -850,13 +974,14 @@ export const ROUTES = {
   stripeWebhook: "POST /billing/webhook",
   billingConfig: "GET /billing/config", // -> BillingConfigDTO (public; Stripe Elements publishable key)
   subscribe: "POST /billing/subscribe", // body SubscribeInput -> SubscribeResult (Elements clientSecret)
+  syncMySubscriptions: "POST /billing/sync", // member: reconcile own subs inline post-payment -> { ok: true }
   validateCoupon: "POST /billing/coupon/validate", // body CouponValidateInput -> CouponPreviewDTO
   mySubscriptionDetails: "GET /billing/subscription-details", // -> SubscriptionDetailDTO[]
   myInvoices: "GET /billing/invoices", // -> InvoiceDTO[] (member's own payment history)
   adminMemberBilling: "GET /billing/members/:id", // admin -> MemberBillingDTO
-  adminPauseMemberSub: "POST /billing/members/:id/pause", // admin -> MemberBillingDTO
-  adminResumeMemberSub: "POST /billing/members/:id/resume", // admin -> MemberBillingDTO
-  adminCancelMemberSub: "POST /billing/members/:id/cancel", // admin (at period end) -> MemberBillingDTO
+  adminPauseMemberSub: "POST /billing/members/:id/subscriptions/:subId/pause", // admin -> MemberBillingDTO
+  adminResumeMemberSub: "POST /billing/members/:id/subscriptions/:subId/resume", // admin -> MemberBillingDTO
+  adminCancelMemberSub: "POST /billing/members/:id/subscriptions/:subId/cancel", // admin; body {mode} -> MemberBillingDTO
 
   // admin settings (secrets are write-only; GET returns masked/last4 only)
   getStripeSettings: "GET /admin/settings/stripe",

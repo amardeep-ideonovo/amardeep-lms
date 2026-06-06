@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { clearToken, getToken } from "@/lib/api";
+import NotificationBell from "./NotificationBell";
 
 const NAV = [
   { href: "/classes", label: "Classes" },
   { href: "/coupons", label: "Coupons" },
   { href: "/members", label: "Members" },
   { href: "/subscriptions", label: "Subscriptions" },
+  { href: "/notifications", label: "Notifications" },
   { href: "/courses", label: "Courses" },
   { href: "/gallery", label: "Gallery" },
   { href: "/blog", label: "Blog" },
@@ -41,7 +43,10 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-brand">LMS Admin</div>
+      <div className="sidebar-brand sidebar-brand--row">
+        <span>LMS Admin</span>
+        <NotificationBell />
+      </div>
       <nav className="sidebar-nav">
         {NAV.map((item) => {
           const active = pathname.startsWith(item.href);

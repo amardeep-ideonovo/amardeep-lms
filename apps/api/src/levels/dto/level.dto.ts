@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -32,6 +33,17 @@ export class PriceInputDto {
   installments?: number;
 }
 
+// One "Skills You'll Learn" card on the class landing page.
+export class SkillInputDto {
+  @IsString()
+  @MinLength(1)
+  title!: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+}
+
 export class CreateLevelDto {
   @IsString()
   @MinLength(1)
@@ -41,6 +53,11 @@ export class CreateLevelDto {
   @IsString()
   @MaxLength(60)
   slug?: string;
+
+  // Show this class as a tile on the member dashboard.
+  @IsOptional()
+  @IsBoolean()
+  published?: boolean;
 
   @IsIn(['PAID', 'FREE', 'MANUAL'])
   type!: LevelType;
@@ -68,6 +85,29 @@ export class CreateLevelDto {
   @IsArray()
   @IsString({ each: true })
   categoryIds?: string[];
+
+  // ----- MasterClass-style landing-page fields -----
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  trailerUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  featuredCourseId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SkillInputDto)
+  skills?: SkillInputDto[];
 }
 
 export class UpdateLevelDto {
@@ -80,6 +120,10 @@ export class UpdateLevelDto {
   @IsString()
   @MaxLength(60)
   slug?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  published?: boolean;
 
   @IsOptional()
   @IsIn(['PAID', 'FREE', 'MANUAL'])
@@ -111,6 +155,29 @@ export class UpdateLevelDto {
   @IsArray()
   @IsString({ each: true })
   categoryIds?: string[];
+
+  // ----- MasterClass-style landing-page fields -----
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  trailerUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  featuredCourseId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SkillInputDto)
+  skills?: SkillInputDto[];
 }
 
 // Admin-only "class" (level) category. Mirrors the blog's category create DTO.

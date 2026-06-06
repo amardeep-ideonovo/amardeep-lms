@@ -30,6 +30,35 @@ export class LevelsController {
     return this.levels.checkoutBySlugOrId(slugOrId);
   }
 
+  // Public: full class landing-page data (MasterClass-style); works logged-out.
+  @Get('page/:slugOrId')
+  classPage(@Param('slugOrId') slugOrId: string) {
+    return this.levels.classPageBySlugOrId(slugOrId);
+  }
+
+  // Public: minimal class list (sitemap + cross-linking).
+  @Get('public')
+  listPublic() {
+    return this.levels.listPublicClasses();
+  }
+
+  // Member: published class tiles for the dashboard (owned flag per class).
+  @UseGuards(JwtAuthGuard)
+  @Get('my-classes')
+  myClasses(@CurrentUser() principal: AuthenticatedPrincipal) {
+    return this.levels.myClasses(principal.sub);
+  }
+
+  // Member: a class's courses — only returned when the member owns the class.
+  @UseGuards(JwtAuthGuard)
+  @Get(':slugOrId/my-courses')
+  myClassCourses(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Param('slugOrId') slugOrId: string,
+  ) {
+    return this.levels.myClassCourses(principal.sub, slugOrId);
+  }
+
   // Listing is member-accessible (powers the subscribe/plan picker); writes are
   // admin-only. Member counts are only included for admins.
   @UseGuards(JwtAuthGuard)

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import type {
+  CourseCard,
   CreateLevelInput,
   LevelCategoryDTO,
   LevelDTO,
@@ -9,6 +10,7 @@ import type {
   MailchimpAudienceDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import MediaPicker from "@/components/MediaPicker";
 
 type PriceForm = {
   interval: "month" | "year";
@@ -35,11 +37,21 @@ export default function ClassesPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [type, setType] = useState<LevelType>("PAID");
+  const [published, setPublished] = useState(false);
   const [mailchimpTags, setMailchimpTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [mailchimpAudienceId, setMailchimpAudienceId] = useState("");
   const [mailchimpAudienceName, setMailchimpAudienceName] = useState("");
   const [prices, setPrices] = useState<PriceForm[]>([emptyPrice()]);
+  // ----- landing-page (MasterClass-style) fields -----
+  const [imageUrl, setImageUrl] = useState("");
+  const [description, setDescription] = useState("");
+  const [trailerUrl, setTrailerUrl] = useState("");
+  const [featuredCourseId, setFeaturedCourseId] = useState("");
+  const [skills, setSkills] = useState<{ title: string; imageUrl: string }[]>(
+    []
+  );
+  const [courses, setCourses] = useState<CourseCard[]>([]);
   const [saving, setSaving] = useState(false);
   // Create/edit happen in a modal (opened by the top button or a row's Edit).
   const [modalOpen, setModalOpen] = useState(false);
@@ -53,12 +65,14 @@ export default function ClassesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [lvls, cats] = await Promise.all([
+      const [lvls, cats, crs] = await Promise.all([
         api.listLevels(),
         api.listLevelCategories(),
+        api.listCourses(),
       ]);
       setLevels(lvls);
       setCategories(cats);
+      setCourses(crs);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load classes");
     } finally {
@@ -106,12 +120,18 @@ export default function ClassesPage() {
     setName("");
     setSlug("");
     setType("PAID");
+    setPublished(false);
     setMailchimpTags([]);
     setTagInput("");
     setMailchimpAudienceId("");
     setMailchimpAudienceName("");
     setPrices([emptyPrice()]);
     setCategoryIds([]);
+    setImageUrl("");
+    setDescription("");
+    setTrailerUrl("");
+    setFeaturedCourseId("");
+    setSkills([]);
     setFormError(null);
   }
   function openCreate() {
@@ -128,11 +148,22 @@ export default function ClassesPage() {
     setName(level.name);
     setSlug(level.slug ?? "");
     setType(level.type);
+    setPublished(level.published);
     setMailchimpTags(level.mailchimpTags ?? []);
     setTagInput("");
     setMailchimpAudienceId(level.mailchimpAudienceId ?? "");
     setMailchimpAudienceName(level.mailchimpAudienceName ?? "");
     setCategoryIds(level.categories?.map((c) => c.id) ?? []);
+    setImageUrl(level.imageUrl ?? "");
+    setDescription(level.description ?? "");
+    setTrailerUrl(level.trailerUrl ?? "");
+    setFeaturedCourseId(level.featuredCourseId ?? "");
+    setSkills(
+      level.skills?.map((s) => ({
+        title: s.title,
+        imageUrl: s.imageUrl ?? "",
+      })) ?? []
+    );
     setPrices(
       level.prices.length
         ? level.prices.map((p) => ({
@@ -179,10 +210,21 @@ export default function ClassesPage() {
         name: name.trim(),
         slug: slug.trim(),
         type,
+        published,
         mailchimpTags: finalTags,
         mailchimpAudienceId: mailchimpAudienceId || undefined,
         mailchimpAudienceName: mailchimpAudienceName || undefined,
         categoryIds,
+        imageUrl: imageUrl.trim(),
+        description: description.trim(),
+        trailerUrl: trailerUrl.trim(),
+        featuredCourseId,
+        skills: skills
+          .filter((s) => s.title.trim())
+          .map((s) => ({
+            title: s.title.trim(),
+            imageUrl: s.imageUrl.trim() || undefined,
+          })),
         prices: type === "PAID" ? cleanedPrices : [],
       };
       if (editingId) await api.updateLevel(editingId, input);
@@ -212,6 +254,20 @@ export default function ClassesPage() {
     setPrices((prev) =>
       prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p))
     );
+  }
+
+  // ----- Skills (landing-page "Skills You'll Learn") -----
+  function addSkill() {
+    setSkills((p) => [...p, { title: "", imageUrl: "" }]);
+  }
+  function updateSkill(
+    i: number,
+    patch: Partial<{ title: string; imageUrl: string }>
+  ) {
+    setSkills((p) => p.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
+  }
+  function removeSkill(i: number) {
+    setSkills((p) => p.filter((_, idx) => idx !== i));
   }
 
   // ----- Categories (admin-only grouping) -----
@@ -351,6 +407,25 @@ export default function ClassesPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="field">
+            <label>Visibility</label>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                fontWeight: 400,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={published}
+                onChange={(e) => setPublished(e.target.checked)}
+              />
+              Published — show this class as a tile on the member dashboard
+            </label>
           </div>
 
           <div className="field">
@@ -502,6 +577,101 @@ export default function ClassesPage() {
             )}
           </div>
 
+          <div className="field">
+            <label>
+              Class image <span className="muted">(landing-page hero)</span>
+            </label>
+            <MediaPicker value={imageUrl} onChange={setImageUrl} />
+          </div>
+
+          <div className="field">
+            <label>
+              Description <span className="muted">(landing page)</span>
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              style={{ minHeight: 80 }}
+              placeholder="What this class teaches…"
+            />
+          </div>
+
+          <div className="field">
+            <label>
+              Featured course{" "}
+              <span className="muted">
+                (its lessons become the class curriculum; buying the class
+                unlocks it)
+              </span>
+            </label>
+            <select
+              value={featuredCourseId}
+              onChange={(e) => setFeaturedCourseId(e.target.value)}
+            >
+              <option value="">— None —</option>
+              {courses.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field">
+            <label>
+              Trailer{" "}
+              <span className="muted">
+                (upload a video or paste a Vimeo/MP4 link)
+              </span>
+            </label>
+            <MediaPicker
+              value={trailerUrl}
+              onChange={setTrailerUrl}
+              kind="video"
+            />
+          </div>
+
+          <div className="field">
+            <label>Skills you&apos;ll learn</label>
+            {skills.length === 0 ? (
+              <p className="muted">No skills yet — add the first below.</p>
+            ) : (
+              skills.map((s, i) => (
+                <div
+                  className="form-row"
+                  key={i}
+                  style={{ marginBottom: 12, alignItems: "flex-start" }}
+                >
+                  <input
+                    placeholder="Skill title"
+                    value={s.title}
+                    onChange={(e) => updateSkill(i, { title: e.target.value })}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <MediaPicker
+                      value={s.imageUrl}
+                      onChange={(url) => updateSkill(i, { imageUrl: url })}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => removeSkill(i)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))
+            )}
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={addSkill}
+            >
+              + Add skill
+            </button>
+          </div>
+
                 <div className="row-actions">
                   <button className="btn" type="submit" disabled={saving}>
                     {saving
@@ -582,7 +752,17 @@ export default function ClassesPage() {
             <tbody>
               {levels.map((lvl) => (
                 <tr key={lvl.id}>
-                  <td>{lvl.name}</td>
+                  <td>
+                    {lvl.name}
+                    {!lvl.published && (
+                      <span
+                        className="chip chip--muted"
+                        style={{ marginLeft: 8 }}
+                      >
+                        Draft
+                      </span>
+                    )}
+                  </td>
                   <td className="muted">
                     {lvl.categories.length
                       ? lvl.categories.map((c) => c.name).join(", ")

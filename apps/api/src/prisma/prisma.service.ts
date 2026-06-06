@@ -74,6 +74,12 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get mediaAsset() {
     return this.client.mediaAsset;
   }
+  get adminNotification() {
+    return this.client.adminNotification;
+  }
+  get adminNotificationRead() {
+    return this.client.adminNotificationRead;
+  }
 
   get $transaction() {
     return this.client.$transaction.bind(this.client);

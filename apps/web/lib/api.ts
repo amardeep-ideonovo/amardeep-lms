@@ -6,6 +6,8 @@ import type {
   CouponPreviewDTO,
   CouponValidateInput,
   CheckoutLevelDTO,
+  ClassPublicDTO,
+  ClassTileDTO,
   CourseCard,
   InvoiceDTO,
   SubscribeInput,
@@ -17,6 +19,7 @@ import type {
   LessonDTO,
   LevelDTO,
   LoginResponse,
+  MyClassCoursesDTO,
   MySubscriptionDTO,
   PageListItem,
   PagePublicDTO,
@@ -25,6 +28,7 @@ import type {
   PopupPublicDTO,
   PostDetailDTO,
   PostListItem,
+  PublicClassListItem,
   ChangePasswordInput,
   SignupInput,
   UpdateProfileInput,
@@ -128,6 +132,14 @@ export const api = {
   // member dashboard
   dashboard: () => request<DashboardResponse>("/dashboard"),
 
+  // classes (member): published class tiles for the dashboard, and a class's
+  // courses (only returned when the member owns the class).
+  myClasses: () => request<ClassTileDTO[]>("/levels/my-classes"),
+  myClassCourses: (slugOrId: string) =>
+    request<MyClassCoursesDTO>(
+      `/levels/${encodeURIComponent(slugOrId)}/my-courses`,
+    ),
+
   // lms
   courses: () => request<CourseCard[]>("/courses"),
   courseLessons: (courseId: string) =>
@@ -186,6 +198,10 @@ export const api = {
       method: "POST",
       body: input,
     }),
+  // Reconcile the member's own subscriptions inline after a successful payment
+  // (so a purchase reflects without waiting on the Stripe webhook).
+  syncSubscriptions: () =>
+    request<{ ok: true }>("/billing/sync", { method: "POST" }),
   validateCoupon: (input: CouponValidateInput) =>
     request<CouponPreviewDTO>("/billing/coupon/validate", {
       method: "POST",
@@ -233,6 +249,26 @@ export async function fetchPublishedPage(
     return await request<PagePublicDTO>(`/pages/${encodeURIComponent(slug)}`, {
       auth: false,
     });
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return null;
+    throw err;
+  }
+}
+
+// ---------- Classes (PUBLIC landing pages) ----------
+// No token: server-rendered for SEO. An unknown slug/id yields 404 -> null.
+export function fetchPublicClasses(): Promise<PublicClassListItem[]> {
+  return request<PublicClassListItem[]>("/levels/public", { auth: false });
+}
+
+export async function fetchClassPage(
+  slugOrId: string
+): Promise<ClassPublicDTO | null> {
+  try {
+    return await request<ClassPublicDTO>(
+      `/levels/page/${encodeURIComponent(slugOrId)}`,
+      { auth: false }
+    );
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return null;
     throw err;

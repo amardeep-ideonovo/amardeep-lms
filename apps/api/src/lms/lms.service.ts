@@ -78,9 +78,8 @@ export class LmsService {
         thumbnailUrl: dto.thumbnailUrl ?? null,
         coverImageUrl: dto.coverImageUrl ?? null,
         order: dto.order ?? 0,
-        courseLevels: dto.levelIds?.length
-          ? { create: dto.levelIds.map((levelId) => ({ levelId })) }
-          : undefined,
+        // levelIds is required + non-empty (DTO-validated): always link ≥1 class.
+        courseLevels: { create: dto.levelIds.map((levelId) => ({ levelId })) },
       },
     });
     return {
@@ -89,7 +88,7 @@ export class LmsService {
       description: course.description,
       thumbnailUrl: course.thumbnailUrl,
       coverImageUrl: course.coverImageUrl,
-      levelIds: dto.levelIds ?? [],
+      levelIds: dto.levelIds,
       locked: false,
       lessonCount: 0,
       completedCount: 0,
@@ -203,6 +202,7 @@ export class LmsService {
       content: l.content,
       thumbnailUrl: l.thumbnailUrl,
       videoUrl: l.videoUrl,
+      durationSeconds: l.durationSeconds,
       order: l.order,
       completed: userId ? completedIds.has(l.id) : undefined,
       notes: l.notes.map((n) => this.toNoteDTO(n)),
@@ -225,6 +225,7 @@ export class LmsService {
         thumbnailUrl: dto.thumbnailUrl ?? null,
         muxAssetId: dto.muxAssetId ?? null,
         videoUrl: dto.videoUrl ?? null,
+        durationSeconds: dto.durationSeconds ?? null,
         order: dto.order ?? 0,
       },
     });
@@ -235,6 +236,7 @@ export class LmsService {
       content: lesson.content,
       thumbnailUrl: lesson.thumbnailUrl,
       videoUrl: lesson.videoUrl,
+      durationSeconds: lesson.durationSeconds,
       order: lesson.order,
     };
   }
@@ -250,6 +252,7 @@ export class LmsService {
         thumbnailUrl: dto.thumbnailUrl ?? undefined,
         muxAssetId: dto.muxAssetId ?? undefined,
         videoUrl: dto.videoUrl ?? undefined,
+        durationSeconds: dto.durationSeconds ?? undefined,
         order: dto.order ?? undefined,
       },
       include: { notes: { orderBy: { order: 'asc' } } },
@@ -261,6 +264,7 @@ export class LmsService {
       content: lesson.content,
       thumbnailUrl: lesson.thumbnailUrl,
       videoUrl: lesson.videoUrl,
+      durationSeconds: lesson.durationSeconds,
       order: lesson.order,
       notes: lesson.notes.map((n) => this.toNoteDTO(n)),
     };
@@ -316,6 +320,7 @@ export class LmsService {
       thumbnailUrl: lesson.thumbnailUrl,
       muxPlaybackToken,
       videoUrl: lesson.videoUrl,
+      durationSeconds: lesson.durationSeconds,
       order: lesson.order,
       completed: !!completed,
       notes: lesson.notes.map((n) => this.toNoteDTO(n)),

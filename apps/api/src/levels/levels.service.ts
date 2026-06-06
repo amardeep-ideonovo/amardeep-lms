@@ -3,8 +3,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { CheckoutLevelDTO, LevelCategoryDTO, LevelDTO } from '@lms/types';
+import type {
+  CheckoutLevelDTO,
+  ClassPublicDTO,
+  ClassTileDTO,
+  CourseCard,
+  LevelCategoryDTO,
+  LevelDTO,
+  MyClassCoursesDTO,
+  PublicClassListItem,
+  SkillDTO,
+} from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { AccessService } from '../lms/access.service';
 import { StripeService } from '../billing/stripe.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
 import {
@@ -17,11 +28,17 @@ type LevelWithPrices = {
   id: string;
   name: string;
   slug: string | null;
+  published: boolean;
   type: any;
   mailchimpTags: string[];
   mailchimpAudienceId: string | null;
   mailchimpAudienceName: string | null;
   stripeProductId: string | null;
+  imageUrl: string | null;
+  description: string | null;
+  trailerUrl: string | null;
+  featuredCourseId: string | null;
+  skills: unknown; // Json column — normalized via normalizeSkills()
   prices: {
     id: string;
     stripePriceId: string;
@@ -39,6 +56,7 @@ export class LevelsService {
     private readonly prisma: PrismaService,
     private readonly stripe: StripeService,
     private readonly mailchimp: MailchimpProducer,
+    private readonly access: AccessService,
   ) {}
 
   private toDTO(level: LevelWithPrices, memberCount = 0): LevelDTO {
@@ -46,11 +64,17 @@ export class LevelsService {
       id: level.id,
       name: level.name,
       slug: level.slug,
+      published: level.published,
       type: level.type,
       mailchimpTags: level.mailchimpTags,
       mailchimpAudienceId: level.mailchimpAudienceId,
       mailchimpAudienceName: level.mailchimpAudienceName,
       stripeProductId: level.stripeProductId,
+      imageUrl: level.imageUrl,
+      description: level.description,
+      trailerUrl: level.trailerUrl,
+      featuredCourseId: level.featuredCourseId,
+      skills: this.normalizeSkills(level.skills),
       prices: level.prices.map((p) => ({
         id: p.id,
         stripePriceId: p.stripePriceId,
@@ -129,6 +153,179 @@ export class LevelsService {
     };
   }
 
+  // Public: full class landing-page data (MasterClass-style). Curriculum = the
+  // featured course's lessons (titles/durations/thumbnails only — no playback
+  // for logged-out visitors). 404 when the class doesn't exist.
+  async classPageBySlugOrId(slugOrId: string): Promise<ClassPublicDTO> {
+    const level = await this.prisma.level.findFirst({
+      where: { OR: [{ slug: slugOrId }, { id: slugOrId }] },
+      include: {
+        prices: { where: { active: true } },
+        categories: { orderBy: { order: 'asc' } },
+        featuredCourse: {
+          include: {
+            lessons: {
+              orderBy: { order: 'asc' },
+              select: {
+                title: true,
+                durationSeconds: true,
+                thumbnailUrl: true,
+                order: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!level) throw new NotFoundException('Class not found');
+    const lessons = (level.featuredCourse?.lessons ?? []).map((l) => ({
+      title: l.title,
+      durationSeconds: l.durationSeconds,
+      thumbnailUrl: l.thumbnailUrl,
+      order: l.order,
+    }));
+    const totalDurationSeconds = lessons.reduce(
+      (n, l) => n + (l.durationSeconds ?? 0),
+      0,
+    );
+    return {
+      id: level.id,
+      name: level.name,
+      slug: level.slug,
+      imageUrl: level.imageUrl,
+      description: level.description,
+      trailerUrl: level.trailerUrl,
+      categories: level.categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        order: c.order,
+      })),
+      skills: this.normalizeSkills(level.skills),
+      lessons,
+      lessonCount: lessons.length,
+      totalDurationSeconds,
+      prices: level.prices.map((p) => ({
+        id: p.id,
+        stripePriceId: p.stripePriceId,
+        interval: p.interval as 'month' | 'year',
+        amount: p.amount,
+        currency: p.currency,
+        installments: p.installments,
+      })),
+    };
+  }
+
+  // Public: minimal class list for the sitemap + cross-linking.
+  async listPublicClasses(): Promise<PublicClassListItem[]> {
+    const levels = await this.prisma.level.findMany({
+      where: { published: true },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, name: true, slug: true },
+    });
+    return levels.map((l) => ({ id: l.id, name: l.name, slug: l.slug }));
+  }
+
+  // Member dashboard tiles: every PUBLISHED class (so members can browse/buy)
+  // PLUS any class the member is actively enrolled in (so an unpublished class
+  // they own still appears, never stranding them). `owned` marks the active
+  // ones. Tiles link to /classes/<slug ?? id>.
+  async myClasses(userId: string): Promise<ClassTileDTO[]> {
+    const owned = await this.access.activeLevelIds(userId);
+    const levels = await this.prisma.level.findMany({
+      where: {
+        OR: [
+          { published: true },
+          { id: { in: [...owned] } }, // always surface classes the member owns
+        ],
+      },
+      include: { categories: { orderBy: { order: 'asc' } } },
+      orderBy: { name: 'asc' },
+    });
+    return levels.map((l) => ({
+      id: l.id,
+      name: l.name,
+      slug: l.slug,
+      imageUrl: l.imageUrl,
+      owned: owned.has(l.id),
+      categories: l.categories.map((c) => ({
+        id: c.id,
+        name: c.name,
+        order: c.order,
+      })),
+    }));
+  }
+
+  // A class's courses for the class page — returned ONLY when the member owns the
+  // class. Not owned (or logged-out) => owned:false + []. The course player is
+  // independently access-gated, so this is a UX convenience, not the security
+  // boundary. 404 only when the class itself doesn't exist.
+  async myClassCourses(
+    userId: string,
+    slugOrId: string,
+  ): Promise<MyClassCoursesDTO> {
+    const level = await this.prisma.level.findFirst({
+      where: { OR: [{ slug: slugOrId }, { id: slugOrId }] },
+      select: { id: true },
+    });
+    if (!level) throw new NotFoundException('Class not found');
+
+    const owned = (await this.access.activeLevelIds(userId)).has(level.id);
+    if (!owned) return { owned: false, courses: [] };
+
+    const [courses, completedByCourse] = await Promise.all([
+      this.prisma.course.findMany({
+        where: { courseLevels: { some: { levelId: level.id } } },
+        orderBy: { order: 'asc' },
+        include: {
+          courseLevels: { select: { levelId: true } },
+          _count: { select: { lessons: true } },
+        },
+      }),
+      this.access.completedCountByCourse(userId),
+    ]);
+
+    const courseCards: CourseCard[] = courses.map((c) => ({
+      id: c.id,
+      title: c.title,
+      description: c.description,
+      thumbnailUrl: c.thumbnailUrl,
+      coverImageUrl: c.coverImageUrl,
+      levelIds: c.courseLevels.map((cl) => cl.levelId),
+      locked: false, // owned => unlocked
+      lessonCount: c._count.lessons,
+      completedCount: completedByCourse.get(c.id) ?? 0,
+    }));
+    return { owned: true, courses: courseCards };
+  }
+
+  // Ensure the featured course is unlockable by buying this class (so "Get
+  // Class" actually grants access to the curriculum it advertises).
+  private async ensureCourseAssigned(
+    courseId: string,
+    levelId: string,
+  ): Promise<void> {
+    await this.prisma.courseLevel.upsert({
+      where: { courseId_levelId: { courseId, levelId } },
+      create: { courseId, levelId },
+      update: {},
+    });
+  }
+
+  // Read the skills JSON column into a clean SkillDTO[].
+  private normalizeSkills(raw: unknown): SkillDTO[] {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter(
+        (s): s is Record<string, unknown> =>
+          !!s && typeof s === 'object' && !Array.isArray(s),
+      )
+      .map((s) => ({
+        title: typeof s.title === 'string' ? s.title : '',
+        imageUrl: typeof s.imageUrl === 'string' ? s.imageUrl : null,
+      }))
+      .filter((s) => s.title.length > 0);
+  }
+
   async create(dto: CreateLevelDto): Promise<LevelDTO> {
     const slug = await this.resolveLevelSlug(dto.slug);
     let stripeProductId: string | null = null;
@@ -166,11 +363,22 @@ export class LevelsService {
       data: {
         name: dto.name,
         slug,
+        published: dto.published ?? false,
         type: dto.type,
         mailchimpTags: dto.mailchimpTags ?? undefined,
         mailchimpAudienceId: dto.mailchimpAudienceId ?? null,
         mailchimpAudienceName: dto.mailchimpAudienceName ?? null,
         stripeProductId,
+        imageUrl: dto.imageUrl || null,
+        description: dto.description || null,
+        trailerUrl: dto.trailerUrl || null,
+        featuredCourseId: dto.featuredCourseId || null,
+        skills: dto.skills
+          ? dto.skills.map((s) => ({
+              title: s.title.trim(),
+              imageUrl: s.imageUrl || null,
+            }))
+          : undefined,
         prices: { create: priceRows },
         categories: dto.categoryIds?.length
           ? { connect: dto.categoryIds.map((id) => ({ id })) }
@@ -181,6 +389,9 @@ export class LevelsService {
         categories: { orderBy: { order: 'asc' } },
       },
     });
+    if (dto.featuredCourseId) {
+      await this.ensureCourseAssigned(dto.featuredCourseId, level.id);
+    }
     return this.toDTO(level as LevelWithPrices);
   }
 
@@ -202,12 +413,31 @@ export class LevelsService {
       data: {
         name: dto.name ?? undefined,
         slug,
+        published: dto.published !== undefined ? dto.published : undefined,
         type: dto.type ?? undefined,
         mailchimpTags: dto.mailchimpTags ?? undefined,
         // The admin form always submits the full audience selection, so map
         // undefined/empty -> null (clears) and a value -> set.
         mailchimpAudienceId: dto.mailchimpAudienceId ?? null,
         mailchimpAudienceName: dto.mailchimpAudienceName ?? null,
+        // Landing-page fields: only touch them when the caller actually sends
+        // them (so a partial update can't accidentally blank them).
+        imageUrl: dto.imageUrl !== undefined ? dto.imageUrl || null : undefined,
+        description:
+          dto.description !== undefined ? dto.description || null : undefined,
+        trailerUrl:
+          dto.trailerUrl !== undefined ? dto.trailerUrl || null : undefined,
+        featuredCourseId:
+          dto.featuredCourseId !== undefined
+            ? dto.featuredCourseId || null
+            : undefined,
+        skills:
+          dto.skills !== undefined
+            ? dto.skills.map((s) => ({
+                title: s.title.trim(),
+                imageUrl: s.imageUrl || null,
+              }))
+            : undefined,
         // Replace the category set wholesale when the admin form submits it.
         categories:
           dto.categoryIds !== undefined
@@ -215,6 +445,9 @@ export class LevelsService {
             : undefined,
       },
     });
+    if (dto.featuredCourseId) {
+      await this.ensureCourseAssigned(dto.featuredCourseId, id);
+    }
 
     // Keep the Stripe Product name in step with a rename (PAID levels only).
     if (

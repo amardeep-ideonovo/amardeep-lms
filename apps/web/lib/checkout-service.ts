@@ -59,3 +59,7 @@ export function validateCoupon(
 export function subscribe(input: SubscribeInput): Promise<SubscribeResult> {
   return api.subscribe(input);
 }
+
+export function syncSubscriptions(): Promise<{ ok: true }> {
+  return api.syncSubscriptions();
+}

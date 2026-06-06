@@ -49,12 +49,17 @@ export class MembersService {
       lastName: u.lastName,
       phone: u.phone,
       registeredAt: u.createdAt.toISOString(),
-      levels: u.levels.map((ul) => ({
-        id: ul.level.id,
-        name: ul.level.name,
-        status: ul.status,
-        lifetime: ul.lifetime,
-      })),
+      // Only classes the member CURRENTLY holds (ACTIVE). Canceled/expired/paused
+      // grants are history — the Subscription column still surfaces paid status.
+      levels: u.levels
+        .filter((ul) => ul.status === 'ACTIVE')
+        .map((ul) => ({
+          id: ul.level.id,
+          name: ul.level.name,
+          source: ul.source,
+          status: ul.status,
+          lifetime: ul.lifetime,
+        })),
       subscription: summary
         ? {
             active: !!activePaid,

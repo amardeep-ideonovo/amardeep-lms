@@ -178,19 +178,29 @@ export default function MembersPage() {
                       ) : (
                         <div className="chips">
                           {m.levels.map((l) => (
-                            <span key={l.id} className="chip">
+                            <span key={`${l.id}-${l.source}`} className="chip">
                               {l.name}
                               <span className="muted" style={{ fontSize: 11 }}>
                                 {l.lifetime ? "LIFETIME" : l.status}
                               </span>
-                              <button
-                                className="chip-x"
-                                title="Remove class"
-                                disabled={busy === m.id}
-                                onClick={() => removeLevel(m.id, l.id)}
-                              >
-                                ×
-                              </button>
+                              {l.source === "MANUAL" ? (
+                                <button
+                                  className="chip-x"
+                                  title="Remove manual grant"
+                                  disabled={busy === m.id}
+                                  onClick={() => removeLevel(m.id, l.id)}
+                                >
+                                  ×
+                                </button>
+                              ) : (
+                                <span
+                                  className="muted"
+                                  style={{ fontSize: 11 }}
+                                  title="From a paid subscription — manage it in Subscriptions / Stripe, not here"
+                                >
+                                  · paid
+                                </span>
+                              )}
                             </span>
                           ))}
                         </div>

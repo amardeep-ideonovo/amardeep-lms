@@ -1,5 +1,6 @@
 // Typed fetch client for the admin app. Wraps the REST contract in @lms/types.
 import type {
+  AdminNotificationListDTO,
   AuthAdmin,
   CouponDTO,
   CourseCard,
@@ -30,6 +31,7 @@ import type {
   PostAdminRow,
   PostCategoryDTO,
   SubscriptionRowDTO,
+  SubscriptionCancelMode,
   CreatePopupInput,
   UpdateCourseInput,
   UpdateFormInput,
@@ -245,16 +247,48 @@ export const api = {
   // per-member billing detail + one-click subscription actions
   memberBilling: (memberId: string) =>
     request<MemberBillingDTO>("GET", `/billing/members/${memberId}`),
-  pauseMemberSub: (memberId: string) =>
-    request<MemberBillingDTO>("POST", `/billing/members/${memberId}/pause`),
-  resumeMemberSub: (memberId: string) =>
-    request<MemberBillingDTO>("POST", `/billing/members/${memberId}/resume`),
-  cancelMemberSub: (memberId: string) =>
-    request<MemberBillingDTO>("POST", `/billing/members/${memberId}/cancel`),
+  pauseMemberSub: (memberId: string, subId: string) =>
+    request<MemberBillingDTO>(
+      "POST",
+      `/billing/members/${memberId}/subscriptions/${subId}/pause`,
+    ),
+  resumeMemberSub: (memberId: string, subId: string) =>
+    request<MemberBillingDTO>(
+      "POST",
+      `/billing/members/${memberId}/subscriptions/${subId}/resume`,
+    ),
+  cancelMemberSub: (
+    memberId: string,
+    subId: string,
+    mode: SubscriptionCancelMode,
+  ) =>
+    request<MemberBillingDTO>(
+      "POST",
+      `/billing/members/${memberId}/subscriptions/${subId}/cancel`,
+      { mode },
+    ),
 
   // subscriptions (admin Subscriptions tab; live from Stripe, read-only)
   listSubscriptions: () =>
     request<SubscriptionRowDTO[]>("GET", "/admin/subscriptions"),
+
+  // in-app notifications (per-admin read state)
+  listNotifications: (params?: { page?: number; pageSize?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.pageSize) qs.set("pageSize", String(params.pageSize));
+    const s = qs.toString();
+    return request<AdminNotificationListDTO>(
+      "GET",
+      `/admin/notifications${s ? `?${s}` : ""}`,
+    );
+  },
+  notificationsUnreadCount: () =>
+    request<{ count: number }>("GET", "/admin/notifications/unread-count"),
+  markNotificationRead: (id: string) =>
+    request<{ ok: true }>("POST", `/admin/notifications/${id}/read`),
+  markAllNotificationsRead: () =>
+    request<{ ok: true }>("POST", "/admin/notifications/read-all"),
 
   // coupons (Stripe-backed; admin-only)
   listCoupons: () => request<CouponDTO[]>("GET", "/admin/coupons"),

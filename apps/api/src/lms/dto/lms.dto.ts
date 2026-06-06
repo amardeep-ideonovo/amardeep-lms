@@ -1,8 +1,11 @@
 import {
+  ArrayMinSize,
+  ArrayNotEmpty,
   IsArray,
   IsInt,
   IsOptional,
   IsString,
+  Min,
   MinLength,
 } from 'class-validator';
 
@@ -29,10 +32,11 @@ export class CreateCourseDto {
   @IsString()
   coverImageUrl?: string;
 
-  @IsOptional()
+  // Every course must belong to at least one class (level): required, non-empty.
   @IsArray()
+  @ArrayNotEmpty()
   @IsString({ each: true })
-  levelIds?: string[];
+  levelIds!: string[];
 
   @IsOptional()
   @IsInt()
@@ -57,9 +61,11 @@ export class UpdateCourseDto {
   @IsString()
   coverImageUrl?: string;
 
-  // When provided, replaces the course's level assignments wholesale.
+  // When provided, replaces the course's level assignments wholesale. A course
+  // must never end up class-less, so an empty array is rejected.
   @IsOptional()
   @IsArray()
+  @ArrayMinSize(1)
   @IsString({ each: true })
   levelIds?: string[];
 
@@ -91,6 +97,11 @@ export class CreateLessonDto {
 
   @IsOptional()
   @IsInt()
+  @Min(0)
+  durationSeconds?: number;
+
+  @IsOptional()
+  @IsInt()
   order?: number;
 }
 
@@ -115,6 +126,11 @@ export class UpdateLessonDto {
   @IsOptional()
   @IsString()
   videoUrl?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  durationSeconds?: number;
 
   @IsOptional()
   @IsInt()
