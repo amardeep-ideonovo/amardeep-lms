@@ -17,6 +17,10 @@ interface AdminAuthValue {
   isSuperAdmin: boolean;
   can: (section: AdminSection, action: AdminAction) => boolean;
   refresh: () => void;
+  // The admin's saved sidebar ordering (stable nav keys). [] = use defaults.
+  menuOrder: string[];
+  // Persist a new sidebar order for THIS admin (optimistic + server write).
+  saveMenuOrder: (order: string[]) => Promise<void>;
 }
 
 const Ctx = createContext<AdminAuthValue>({
@@ -25,6 +29,8 @@ const Ctx = createContext<AdminAuthValue>({
   isSuperAdmin: false,
   can: () => false,
   refresh: () => {},
+  menuOrder: [],
+  saveMenuOrder: async () => {},
 });
 
 // Loads the current admin (role + per-section permissions) once and exposes
@@ -72,8 +78,38 @@ export function AdminAuthProvider({
     [me],
   );
 
+  const menuOrder = me?.prefs?.menuOrder ?? [];
+
+  // Optimistically apply the new order, then persist. On failure, re-fetch the
+  // authoritative state so the UI never drifts from the server.
+  const saveMenuOrder = useCallback(
+    async (order: string[]) => {
+      setMe((prev) =>
+        prev ? { ...prev, prefs: { ...prev.prefs, menuOrder: order } } : prev,
+      );
+      try {
+        const updated = await api.updateMyPrefs({ menuOrder: order });
+        setMe(updated);
+      } catch (err) {
+        refresh();
+        throw err;
+      }
+    },
+    [refresh],
+  );
+
   return (
-    <Ctx.Provider value={{ me, loading, isSuperAdmin, can, refresh }}>
+    <Ctx.Provider
+      value={{
+        me,
+        loading,
+        isSuperAdmin,
+        can,
+        refresh,
+        menuOrder,
+        saveMenuOrder,
+      }}
+    >
       {children}
     </Ctx.Provider>
   );

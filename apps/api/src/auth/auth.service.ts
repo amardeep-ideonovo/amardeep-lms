@@ -11,6 +11,7 @@ import * as bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import type {
   AdminPermissions,
+  AdminPrefs,
   AuthAdmin,
   AuthUser,
   LoginResponse,
@@ -21,6 +22,7 @@ import type { JwtPayload } from './jwt-payload.interface';
 import type { SignupDto } from './dto/signup.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
 import type { ChangePasswordDto } from './dto/change-password.dto';
+import type { UpdateAdminPrefsDto } from './dto/update-admin-prefs.dto';
 
 @Injectable()
 export class AuthService {
@@ -83,6 +85,7 @@ export class AuthService {
         email: admin.email,
         role: admin.role,
         permissions: (admin.permissions as AdminPermissions) ?? {},
+        prefs: (admin.prefs as AdminPrefs) ?? {},
       },
     };
   }
@@ -222,6 +225,7 @@ export class AuthService {
         email: admin.email,
         role: admin.role,
         permissions: (admin.permissions as AdminPermissions) ?? {},
+        prefs: (admin.prefs as AdminPrefs) ?? {},
       };
     }
     const user = await this.prisma.user.findUnique({
@@ -359,5 +363,50 @@ export class AuthService {
       data: { passwordHash: await bcrypt.hash(dto.newPassword, 10) },
     });
     return { ok: true };
+  }
+
+  /**
+   * Admin self-service: persist personal UI preferences (PATCH /auth/admin/prefs).
+   * Today that's just the sidebar `menuOrder` — a list of stable nav keys. We
+   * sanitize it (trim, drop empties, dedupe, cap) and MERGE into any existing
+   * prefs so future pref fields aren't clobbered. Keys aren't validated against a
+   * section list here: the admin app reconciles the saved order against the live
+   * nav (appends new items, ignores stale keys), so stray keys are harmless.
+   * Returns the refreshed AuthAdmin so the client can update its cached `me`.
+   */
+  async updateAdminPrefs(
+    adminId: string,
+    dto: UpdateAdminPrefsDto,
+  ): Promise<AuthAdmin> {
+    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin) throw new UnauthorizedException();
+
+    const current = (admin.prefs as AdminPrefs) ?? {};
+    const next: AdminPrefs = { ...current };
+
+    if (dto.menuOrder !== undefined) {
+      const seen = new Set<string>();
+      const cleaned: string[] = [];
+      for (const raw of dto.menuOrder) {
+        const key = typeof raw === 'string' ? raw.trim() : '';
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        cleaned.push(key);
+        if (cleaned.length >= 100) break;
+      }
+      next.menuOrder = cleaned;
+    }
+
+    const updated = await this.prisma.admin.update({
+      where: { id: adminId },
+      data: { prefs: next as unknown as Prisma.InputJsonValue },
+    });
+    return {
+      id: updated.id,
+      email: updated.email,
+      role: updated.role,
+      permissions: (updated.permissions as AdminPermissions) ?? {},
+      prefs: (updated.prefs as AdminPrefs) ?? {},
+    };
   }
 }

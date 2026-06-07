@@ -50,6 +50,10 @@ model Admin {
   // { [section]: { create?, read?, edit?, delete? } }. SUPER_ADMIN ignores this
   // (implicit full access). Enforced by PermissionsGuard; edited by super admins.
   permissions  Json      @default("{}")
+  // Per-admin UI preferences (personal, not access-controlling), shape:
+  // { menuOrder?: string[] } — the admin's custom sidebar ordering by nav key.
+  // Self-service via PATCH /auth/admin/prefs; every admin manages their own.
+  prefs        Json      @default("{}")
   createdAt    DateTime  @default(now())
 
   posts Post[]

@@ -25,6 +25,14 @@ export interface AuthAdmin {
   email: string;
   role: AdminRole;
   permissions: AdminPermissions; // empty / ignored for SUPER_ADMIN (implicit full access)
+  prefs: AdminPrefs; // per-admin UI preferences (custom sidebar order, etc.)
+}
+
+// Per-admin UI preferences. Personal, NOT access-controlling — every admin
+// (including super admins) manages their own. `menuOrder` is the sidebar nav
+// ordering by stable nav key; missing/unknown keys are reconciled client-side.
+export interface AdminPrefs {
+  menuOrder?: string[];
 }
 
 // ---------- Admin RBAC (per-section CRUD permissions) ----------
@@ -68,6 +76,10 @@ export interface CreateAdminInput {
 export interface UpdateAdminInput {
   superAdmin?: boolean;
   permissions?: AdminPermissions;
+}
+// Self-service: an admin updates their OWN UI preferences (not another admin's).
+export interface UpdateAdminPrefsInput {
+  menuOrder?: string[];
 }
 export interface LoginResponse<T = AuthUser> {
   token: string;
@@ -893,6 +905,7 @@ export const ROUTES = {
   updateMe: "PATCH /auth/me", // body UpdateProfileInput -> AuthUser (member self-service)
   changePassword: "POST /auth/change-password", // body ChangePasswordInput -> { ok: true }
   adminChangeOwnPassword: "POST /auth/admin/change-password", // admin self; body ChangePasswordInput -> { ok: true }
+  adminUpdateMyPrefs: "PATCH /auth/admin/prefs", // admin self; body UpdateAdminPrefsInput -> AuthAdmin
 
   // admin: levels
   listLevels: "GET /levels",

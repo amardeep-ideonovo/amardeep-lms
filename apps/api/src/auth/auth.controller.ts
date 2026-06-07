@@ -13,7 +13,9 @@ import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateAdminPrefsDto } from './dto/update-admin-prefs.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AdminGuard } from './guards/admin.guard';
 import { CurrentUser } from './current-user.decorator';
 import type { AuthenticatedPrincipal } from './jwt-payload.interface';
 
@@ -101,5 +103,18 @@ export class AuthController {
     @Body() dto: ChangePasswordDto,
   ) {
     return this.auth.changeAdminPassword(principal.sub, dto);
+  }
+
+  // Admin self-service: save personal UI preferences (e.g. a custom sidebar
+  // order). Every admin manages their OWN prefs — AdminGuard only requires a
+  // valid admin token (no per-section permission needed). Returns the refreshed
+  // AuthAdmin so the client can update its cached `me` in place.
+  @UseGuards(AdminGuard)
+  @Patch('admin/prefs')
+  updateAdminPrefs(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: UpdateAdminPrefsDto,
+  ) {
+    return this.auth.updateAdminPrefs(principal.sub, dto);
   }
 }

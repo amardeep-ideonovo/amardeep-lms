@@ -79,6 +79,112 @@ a {
   margin-top: auto;
 }
 
+/* ---------- sidebar: customizable menu (reorder mode) ---------- */
+.sidebar-customize {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.sidebar-edit-hint {
+  margin: 0 0 4px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.sidebar-nav--editing {
+  gap: 6px;
+}
+.nav-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: grab;
+  user-select: none;
+}
+.nav-edit-row:active {
+  cursor: grabbing;
+}
+.nav-edit-row--dragging {
+  opacity: 0.5;
+  border-style: dashed;
+  border-color: var(--primary);
+}
+.nav-drag-handle {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+}
+.nav-edit-label {
+  flex: 1;
+  font-weight: 500;
+}
+.nav-reorder-btns {
+  display: inline-flex;
+  gap: 2px;
+}
+.nav-reorder-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+.nav-reorder-btn:hover:not(:disabled) {
+  background: #eef2ff;
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.nav-reorder-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.sidebar-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.sidebar-edit-actions .btn {
+  flex: 1;
+  font-size: 13px;
+}
+.sidebar-reset {
+  margin-top: 8px;
+  background: none;
+  border: none;
+  padding: 4px 12px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+}
+.sidebar-reset:hover:not(:disabled) {
+  color: var(--danger);
+}
+.sidebar-reset:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.sidebar-error {
+  margin: 8px 0 0;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--danger);
+}
+
 /* ---------- typography ---------- */
 h1 {
   font-size: 22px;

@@ -6,6 +6,7 @@ import type {
   CouponDTO,
   CreateAdminInput,
   UpdateAdminInput,
+  UpdateAdminPrefsInput,
   CourseCard,
   CreateCouponInput,
   CreateCourseInput,
@@ -223,6 +224,10 @@ export const api = {
       currentPassword,
       newPassword,
     }),
+  // Admin self-service UI prefs (e.g. custom sidebar order). Returns the
+  // refreshed AuthAdmin so the caller can update its cached `me` in place.
+  updateMyPrefs: (input: UpdateAdminPrefsInput) =>
+    request<AuthAdmin>("PATCH", "/auth/admin/prefs", input),
 
   // admin accounts + RBAC (super admin only)
   listAdmins: () => request<AdminDTO[]>("GET", "/admin/admins"),
