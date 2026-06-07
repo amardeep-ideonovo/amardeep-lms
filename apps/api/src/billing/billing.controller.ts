@@ -73,6 +73,17 @@ export class BillingController {
     return this.billing.syncMySubscriptions(principal.sub);
   }
 
+  // Member self-service cancellation of their OWN subscription — always at period
+  // end (keeps paid-through access, stops renewal). Ownership enforced in service.
+  @UseGuards(JwtAuthGuard)
+  @Post('subscriptions/:subId/cancel')
+  cancelMySubscription(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Param('subId') subId: string,
+  ) {
+    return this.billing.cancelMyMembership(principal.sub, subId);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('coupon/validate')
   validateCoupon(@Body() dto: CouponValidateDto) {

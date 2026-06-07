@@ -640,6 +640,20 @@ export class BillingService {
     return this.getMemberBilling(memberId);
   }
 
+  // Member self-service cancellation: ALWAYS at period end — the member keeps the
+  // access they've already paid for and billing simply won't renew. (Immediate
+  // cancel stays an admin-only action.) memberSub enforces that the subscription
+  // belongs to this member.
+  async cancelMyMembership(
+    userId: string,
+    subId: string,
+  ): Promise<SubscriptionDetailDTO[]> {
+    await this.memberSub(userId, subId);
+    const sub = await this.stripe.setCancelAtPeriodEnd(subId, true);
+    await this.reconcileSubscription(sub, `member:cancel:${subId}`);
+    return this.getMySubscriptionDetails(userId);
+  }
+
   // ---------- Webhook ----------
 
   /**

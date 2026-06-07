@@ -736,6 +736,106 @@ a.card:hover {
   font-size: 14px;
 }
 
+/* ---------- Account: plan cards (mirrors admin subscription tiles) ---------- */
+.plan-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.plan-tile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.plan-tile__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.plan-tile__meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+.plan-tile__actions {
+  flex: none;
+}
+.plan-tile__note {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* small + danger button variants */
+.btn-sm {
+  padding: 7px 12px;
+  font-size: 13px;
+}
+.btn-danger {
+  background: var(--surface);
+  color: #dc2626;
+  border-color: var(--border);
+}
+.btn-danger:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 24, 40, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 100;
+}
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(16, 24, 40, 0.25);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--muted);
+}
+.modal-body {
+  padding: 16px 20px 20px;
+}
+.modal-body p {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 /* ---------- Checkout page ---------- */
 .plan-row.selectable {
   cursor: pointer;

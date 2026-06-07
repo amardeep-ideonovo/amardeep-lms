@@ -211,6 +211,11 @@ export const api = {
   mySubscriptionDetails: () =>
     request<SubscriptionDetailDTO[]>("/billing/subscription-details"),
   myInvoices: () => request<InvoiceDTO[]>("/billing/invoices"),
+  // Member self-service: cancel own subscription at period end.
+  cancelMyMembership: (subId: string) =>
+    request<SubscriptionDetailDTO[]>(`/billing/subscriptions/${subId}/cancel`, {
+      method: "POST",
+    }),
 };
 
 // ---------- Blog (PUBLIC) ----------

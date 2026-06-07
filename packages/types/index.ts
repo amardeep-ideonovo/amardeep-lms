@@ -978,6 +978,7 @@ export const ROUTES = {
   validateCoupon: "POST /billing/coupon/validate", // body CouponValidateInput -> CouponPreviewDTO
   mySubscriptionDetails: "GET /billing/subscription-details", // -> SubscriptionDetailDTO[]
   myInvoices: "GET /billing/invoices", // -> InvoiceDTO[] (member's own payment history)
+  cancelMyMembership: "POST /billing/subscriptions/:subId/cancel", // member: cancel own sub at period end -> SubscriptionDetailDTO[]
   adminMemberBilling: "GET /billing/members/:id", // admin -> MemberBillingDTO
   adminPauseMemberSub: "POST /billing/members/:id/subscriptions/:subId/pause", // admin -> MemberBillingDTO
   adminResumeMemberSub: "POST /billing/members/:id/subscriptions/:subId/resume", // admin -> MemberBillingDTO

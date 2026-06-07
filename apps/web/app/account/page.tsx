@@ -48,6 +48,9 @@ function AccountInner() {
   const [busy, setBusy] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [subs, setSubs] = useState<SubscriptionDetailDTO[]>([]);
+  // Member self-cancel (period end). `cancelFor` drives the confirm modal.
+  const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
   // Inline edit of name + username (email is not editable by members).
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -108,12 +111,35 @@ function AccountInner() {
   async function openPortal() {
     setError(null);
     setBusy(true);
+    // Open the tab synchronously inside the click so popup blockers allow it,
+    // then point it at the portal URL once we have it. Sever `opener` for safety.
+    const tab = window.open("about:blank", "_blank");
+    if (tab) tab.opener = null;
     try {
       const { url } = await api.portal();
-      window.location.href = url;
+      if (tab) tab.location.href = url;
+      else window.location.href = url; // popup blocked → same-tab fallback
+    } catch (err) {
+      tab?.close();
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Cancel the chosen membership at period end, then refresh the plan list.
+  async function doCancelMembership() {
+    if (!cancelFor) return;
+    setCancelBusy(true);
+    setError(null);
+    try {
+      const updated = await api.cancelMyMembership(cancelFor.stripeSubId);
+      setSubs(updated);
+      setCancelFor(null);
     } catch (err) {
       fail(err);
-      setBusy(false);
+    } finally {
+      setCancelBusy(false);
     }
   }
 
@@ -403,24 +429,46 @@ function AccountInner() {
         {subs.length === 0 ? (
           <p className="empty">You don’t have a paid membership yet.</p>
         ) : (
-          <dl className="detail-list">
-            {subs.map((sub) => (
-              <div key={sub.stripeSubId}>
-                <dt>{sub.levelName}</dt>
-                <dd>
-                  {money(sub.amount, sub.currency)} / {sub.interval}
-                  {sub.currentPeriodEnd
-                    ? ` · renews ${fmtDate(sub.currentPeriodEnd)}`
-                    : ""}
-                  {sub.cancelAtPeriodEnd ? " · cancels at period end" : ""}
-                  {sub.paused ? " · paused" : ""}
-                  {sub.installmentsTotal != null
-                    ? ` · payment ${sub.installmentsPaid ?? 0} of ${sub.installmentsTotal} (then lifetime)`
-                    : ""}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <div className="plan-list">
+            {subs.map((sub) => {
+              const installment = sub.installmentsTotal != null;
+              return (
+                <div key={sub.stripeSubId} className="plan-tile">
+                  <div className="plan-tile__info">
+                    <strong>{sub.levelName}</strong>
+                    <span className="plan-tile__meta">
+                      {money(sub.amount, sub.currency)} / {sub.interval} ·{" "}
+                      {sub.paused ? "paused" : sub.status}
+                      {sub.cancelAtPeriodEnd ? " · cancels at period end" : ""}
+                      {sub.currentPeriodEnd
+                        ? ` · renews ${fmtDate(sub.currentPeriodEnd)}`
+                        : ""}
+                      {installment
+                        ? ` · payment ${sub.installmentsPaid ?? 0} of ${sub.installmentsTotal} (then lifetime)`
+                        : ""}
+                    </span>
+                  </div>
+                  <div className="plan-tile__actions">
+                    {sub.cancelAtPeriodEnd ? (
+                      <span className="plan-tile__note">
+                        Cancels at period end
+                      </span>
+                    ) : sub.paused ? (
+                      <span className="plan-tile__note">Paused</span>
+                    ) : installment ? null : (
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        onClick={() => setCancelFor(sub)}
+                      >
+                        Cancel membership
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
         <div
           style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" }}
@@ -441,10 +489,9 @@ function AccountInner() {
       </section>
 
       <section className="account-section">
-        <h2>Manage subscription</h2>
+        <h2>Manage/Update Your Card Details</h2>
         <p>
-          Update your card, change plan, or cancel through the secure Stripe
-          customer portal.
+          Update your card details through the secure Stripe customer portal.
         </p>
         <button
           type="button"
@@ -452,9 +499,62 @@ function AccountInner() {
           onClick={openPortal}
           disabled={busy}
         >
-          {busy ? "Redirecting…" : "Manage subscription"}
+          {busy ? "Redirecting…" : "Update Card Details"}
         </button>
       </section>
+
+      {cancelFor && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            if (!cancelBusy) setCancelFor(null);
+          }}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Cancel {cancelFor.levelName}?</h2>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close"
+                disabled={cancelBusy}
+                onClick={() => setCancelFor(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>
+                You’ll keep access until{" "}
+                {cancelFor.currentPeriodEnd
+                  ? fmtDate(cancelFor.currentPeriodEnd)
+                  : "the end of your billing period"}
+                , then it won’t renew. You can re-subscribe anytime.
+              </p>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  disabled={cancelBusy}
+                  onClick={doCancelMembership}
+                >
+                  {cancelBusy ? "Canceling…" : "Cancel membership"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={cancelBusy}
+                  onClick={() => setCancelFor(null)}
+                >
+                  Keep membership
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
