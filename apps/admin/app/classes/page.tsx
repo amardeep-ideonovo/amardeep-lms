@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import type {
-  CourseCard,
   CreateLevelInput,
   LevelCategoryDTO,
   LevelDTO,
@@ -47,11 +46,9 @@ export default function ClassesPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [description, setDescription] = useState("");
   const [trailerUrl, setTrailerUrl] = useState("");
-  const [featuredCourseId, setFeaturedCourseId] = useState("");
   const [skills, setSkills] = useState<{ title: string; imageUrl: string }[]>(
     []
   );
-  const [courses, setCourses] = useState<CourseCard[]>([]);
   const [saving, setSaving] = useState(false);
   // Create/edit happen in a modal (opened by the top button or a row's Edit).
   const [modalOpen, setModalOpen] = useState(false);
@@ -65,14 +62,12 @@ export default function ClassesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [lvls, cats, crs] = await Promise.all([
+      const [lvls, cats] = await Promise.all([
         api.listLevels(),
         api.listLevelCategories(),
-        api.listCourses(),
       ]);
       setLevels(lvls);
       setCategories(cats);
-      setCourses(crs);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load classes");
     } finally {
@@ -130,7 +125,6 @@ export default function ClassesPage() {
     setImageUrl("");
     setDescription("");
     setTrailerUrl("");
-    setFeaturedCourseId("");
     setSkills([]);
     setFormError(null);
   }
@@ -157,7 +151,6 @@ export default function ClassesPage() {
     setImageUrl(level.imageUrl ?? "");
     setDescription(level.description ?? "");
     setTrailerUrl(level.trailerUrl ?? "");
-    setFeaturedCourseId(level.featuredCourseId ?? "");
     setSkills(
       level.skills?.map((s) => ({
         title: s.title,
@@ -218,7 +211,6 @@ export default function ClassesPage() {
         imageUrl: imageUrl.trim(),
         description: description.trim(),
         trailerUrl: trailerUrl.trim(),
-        featuredCourseId,
         skills: skills
           .filter((s) => s.title.trim())
           .map((s) => ({
@@ -594,27 +586,6 @@ export default function ClassesPage() {
               style={{ minHeight: 80 }}
               placeholder="What this class teaches…"
             />
-          </div>
-
-          <div className="field">
-            <label>
-              Featured course{" "}
-              <span className="muted">
-                (its lessons become the class curriculum; buying the class
-                unlocks it)
-              </span>
-            </label>
-            <select
-              value={featuredCourseId}
-              onChange={(e) => setFeaturedCourseId(e.target.value)}
-            >
-              <option value="">— None —</option>
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </select>
           </div>
 
           <div className="field">
