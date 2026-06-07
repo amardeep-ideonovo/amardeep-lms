@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import type {
+  AdminPermissions,
   AuthAdmin,
   AuthUser,
   LoginResponse,
@@ -77,7 +78,12 @@ export class AuthService {
     };
     return {
       token: await this.jwt.signAsync(payload),
-      user: { id: admin.id, email: admin.email, role: admin.role },
+      user: {
+        id: admin.id,
+        email: admin.email,
+        role: admin.role,
+        permissions: (admin.permissions as AdminPermissions) ?? {},
+      },
     };
   }
 
@@ -211,7 +217,12 @@ export class AuthService {
         where: { id: principal.sub },
       });
       if (!admin) throw new UnauthorizedException();
-      return { id: admin.id, email: admin.email, role: admin.role };
+      return {
+        id: admin.id,
+        email: admin.email,
+        role: admin.role,
+        permissions: (admin.permissions as AdminPermissions) ?? {},
+      };
     }
     const user = await this.prisma.user.findUnique({
       where: { id: principal.sub },
@@ -318,6 +329,34 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { passwordHash },
+    });
+    return { ok: true };
+  }
+
+  /** Admin changes their OWN password (verified against Admin.passwordHash). */
+  async changeAdminPassword(
+    adminId: string,
+    dto: ChangePasswordDto,
+  ): Promise<{ ok: true }> {
+    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin) throw new UnauthorizedException();
+
+    const currentOk = await bcrypt.compare(
+      dto.currentPassword,
+      admin.passwordHash,
+    );
+    if (!currentOk) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+    const sameAsOld = await bcrypt.compare(dto.newPassword, admin.passwordHash);
+    if (sameAsOld) {
+      throw new BadRequestException(
+        'New password must be different from the current one',
+      );
+    }
+    await this.prisma.admin.update({
+      where: { id: adminId },
+      data: { passwordHash: await bcrypt.hash(dto.newPassword, 10) },
     });
     return { ok: true };
   }

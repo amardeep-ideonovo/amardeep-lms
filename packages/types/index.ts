@@ -24,6 +24,50 @@ export interface AuthAdmin {
   id: string;
   email: string;
   role: AdminRole;
+  permissions: AdminPermissions; // empty / ignored for SUPER_ADMIN (implicit full access)
+}
+
+// ---------- Admin RBAC (per-section CRUD permissions) ----------
+export const ADMIN_ACTIONS = ["create", "read", "edit", "delete"] as const;
+export type AdminAction = (typeof ADMIN_ACTIONS)[number];
+
+// Single source of truth for admin sections. Adding a new admin area? Add it
+// here and it flows to the backend permission guard + the permission-matrix UI.
+export const ADMIN_SECTIONS = [
+  { key: "classes", label: "Classes" },
+  { key: "coupons", label: "Coupons" },
+  { key: "members", label: "Members" },
+  { key: "subscriptions", label: "Subscriptions", readOnly: true },
+  { key: "courses", label: "Courses" },
+  { key: "gallery", label: "Gallery" },
+  { key: "blog", label: "Blog" },
+  { key: "pages", label: "Pages" },
+  { key: "popups", label: "Popups" },
+  { key: "forms", label: "Forms" },
+  { key: "settings", label: "Settings" },
+] as const;
+export type AdminSection = (typeof ADMIN_SECTIONS)[number]["key"];
+
+export type AdminPermissions = Partial<
+  Record<AdminSection, Partial<Record<AdminAction, boolean>>>
+>;
+
+export interface AdminDTO {
+  id: string;
+  email: string;
+  role: AdminRole;
+  permissions: AdminPermissions;
+  createdAt: string; // ISO
+}
+export interface CreateAdminInput {
+  email: string;
+  password: string;
+  superAdmin?: boolean; // promote to SUPER_ADMIN (full access) instead of permission-scoped
+  permissions?: AdminPermissions;
+}
+export interface UpdateAdminInput {
+  superAdmin?: boolean;
+  permissions?: AdminPermissions;
 }
 export interface LoginResponse<T = AuthUser> {
   token: string;
@@ -848,6 +892,7 @@ export const ROUTES = {
   me: "GET /auth/me",
   updateMe: "PATCH /auth/me", // body UpdateProfileInput -> AuthUser (member self-service)
   changePassword: "POST /auth/change-password", // body ChangePasswordInput -> { ok: true }
+  adminChangeOwnPassword: "POST /auth/admin/change-password", // admin self; body ChangePasswordInput -> { ok: true }
 
   // admin: levels
   listLevels: "GET /levels",
@@ -880,6 +925,13 @@ export const ROUTES = {
 
   // admin: subscriptions (read-only list, live from Stripe)
   adminListSubscriptions: "GET /admin/subscriptions", // -> SubscriptionRowDTO[]
+
+  // admin: admin accounts + RBAC (SUPER_ADMIN only)
+  adminListAdmins: "GET /admin/admins", // -> AdminDTO[]
+  adminCreateAdmin: "POST /admin/admins", // body CreateAdminInput -> AdminDTO
+  adminUpdateAdmin: "PATCH /admin/admins/:id", // body UpdateAdminInput -> AdminDTO
+  adminResetAdminPassword: "POST /admin/admins/:id/password", // body { password } -> { ok: true }
+  adminDeleteAdmin: "DELETE /admin/admins/:id", // -> { ok: true }
 
   // admin: in-app notifications (per-admin read state)
   adminListNotifications: "GET /admin/notifications", // ?page&pageSize -> AdminNotificationListDTO

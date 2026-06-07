@@ -9,7 +9,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../auth/guards/admin.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermission } from '../auth/require-permission.decorator';
 import { PopupsService } from './popups.service';
 import {
   CreatePopupDto,
@@ -19,7 +20,7 @@ import {
 
 // Popup routes. GET /popups/active is PUBLIC (no guard) and returns only ACTIVE
 // popups filtered by context (dashboard / a CMS page). All management lives
-// under /admin/* behind AdminGuard.
+// under /admin/* behind the `popups` permission.
 @Controller()
 export class PopupsController {
   constructor(private readonly popups: PopupsService) {}
@@ -43,32 +44,37 @@ export class PopupsController {
 
   // ----- Admin: popup CRUD -----
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('popups', 'read')
   @Get('admin/popups')
   adminList() {
     return this.popups.adminList();
   }
 
   // The editor loads the full document (including inactive) by id.
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('popups', 'read')
   @Get('admin/popups/:id')
   adminGet(@Param('id') id: string) {
     return this.popups.adminGet(id);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('popups', 'create')
   @Post('admin/popups')
   adminCreate(@Body() dto: CreatePopupDto) {
     return this.popups.adminCreate(dto);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('popups', 'edit')
   @Patch('admin/popups/:id')
   adminUpdate(@Param('id') id: string, @Body() dto: UpdatePopupDto) {
     return this.popups.adminUpdate(id, dto);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('popups', 'delete')
   @Delete('admin/popups/:id')
   adminDelete(@Param('id') id: string) {
     return this.popups.adminDelete(id);

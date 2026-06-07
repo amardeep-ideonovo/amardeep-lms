@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import type { AdminPermissions } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import type { AuthenticatedPrincipal, JwtPayload } from './jwt-payload.interface';
 
@@ -24,16 +25,31 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   // valid-but-authorless session — so the client clears it and re-prompts a
   // sign-in.
   async validate(payload: JwtPayload): Promise<AuthenticatedPrincipal> {
-    const exists = payload.isAdmin
-      ? await this.prisma.admin.findUnique({
-          where: { id: payload.sub },
-          select: { id: true },
-        })
-      : await this.prisma.user.findUnique({
-          where: { id: payload.sub },
-          select: { id: true },
-        });
-    if (!exists) {
+    if (payload.isAdmin) {
+      // Load the admin's CURRENT role + permissions (not what was in the token),
+      // so permission/role edits take effect on the very next request.
+      const admin = await this.prisma.admin.findUnique({
+        where: { id: payload.sub },
+        select: { id: true, role: true, permissions: true },
+      });
+      if (!admin) {
+        throw new UnauthorizedException(
+          'Your session is no longer valid — please sign in again',
+        );
+      }
+      return {
+        sub: payload.sub,
+        email: payload.email,
+        isAdmin: true,
+        role: admin.role,
+        permissions: (admin.permissions as AdminPermissions) ?? {},
+      };
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true },
+    });
+    if (!user) {
       throw new UnauthorizedException(
         'Your session is no longer valid — please sign in again',
       );
@@ -42,8 +58,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       sub: payload.sub,
       email: payload.email,
       username: payload.username,
-      isAdmin: payload.isAdmin,
-      role: payload.role,
+      isAdmin: false,
     };
   }
 }

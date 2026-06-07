@@ -6,7 +6,8 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../auth/guards/admin.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermission } from '../auth/require-permission.decorator';
 import { SettingsService, SETTING_KEYS } from './settings.service';
 import {
   UpdateMailchimpSettingsDto,
@@ -17,13 +18,15 @@ import {
 const last4 = (s: string | null): string | null => (s ? s.slice(-4) : null);
 
 // Secrets are write-only: GET returns last4 only. PUT sets/updates (blank = keep);
-// DELETE clears a provider's credentials entirely.
-@UseGuards(AdminGuard)
+// DELETE clears a provider's credentials entirely. Gated by the `settings`
+// permission (defaults off for new admins — sensitive section).
+@UseGuards(PermissionsGuard)
 @Controller('admin/settings')
 export class SettingsController {
   constructor(private readonly settings: SettingsService) {}
 
   @Get('stripe')
+  @RequirePermission('settings', 'read')
   async getStripe() {
     const [secret, webhook, publishable] = await Promise.all([
       this.settings.getSecret(SETTING_KEYS.stripeSecretKey),
@@ -39,6 +42,7 @@ export class SettingsController {
   }
 
   @Put('stripe')
+  @RequirePermission('settings', 'edit')
   async putStripe(@Body() dto: UpdateStripeSettingsDto) {
     await this.settings.setSecret(SETTING_KEYS.stripeSecretKey, dto.secretKey);
     await this.settings.setSecret(
@@ -53,12 +57,14 @@ export class SettingsController {
   }
 
   @Delete('stripe')
+  @RequirePermission('settings', 'delete')
   async deleteStripe() {
     await this.settings.clearStripe();
     return this.getStripe();
   }
 
   @Get('mailchimp')
+  @RequirePermission('settings', 'read')
   async getMailchimp() {
     const [apiKey, serverPrefix, audienceId] = await Promise.all([
       this.settings.getSecret(SETTING_KEYS.mailchimpApiKey),
@@ -74,6 +80,7 @@ export class SettingsController {
   }
 
   @Put('mailchimp')
+  @RequirePermission('settings', 'edit')
   async putMailchimp(@Body() dto: UpdateMailchimpSettingsDto) {
     await this.settings.setSecret(SETTING_KEYS.mailchimpApiKey, dto.apiKey);
     await this.settings.setSecret(
@@ -88,6 +95,7 @@ export class SettingsController {
   }
 
   @Delete('mailchimp')
+  @RequirePermission('settings', 'delete')
   async deleteMailchimp() {
     await this.settings.clearMailchimp();
     return this.getMailchimp();

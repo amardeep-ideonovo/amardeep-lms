@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import AuthGuard from "@/components/AuthGuard";
+import { AdminAuthProvider } from "@/components/AdminAuthProvider";
 
 export const metadata: Metadata = {
   title: "LMS Admin",
@@ -16,12 +17,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div className="app-shell">
-          <Sidebar />
-          <main className="app-main">
-            <AuthGuard>{children}</AuthGuard>
-          </main>
-        </div>
+        <AdminAuthProvider>
+          <div className="app-shell">
+            <Sidebar />
+            <main className="app-main">
+              <AuthGuard>{children}</AuthGuard>
+            </main>
+          </div>
+        </AdminAuthProvider>
       </body>
     </html>
   );

@@ -12,7 +12,8 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { AdminGuard } from '../auth/guards/admin.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermission } from '../auth/require-permission.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { BillingService } from './billing.service';
@@ -103,25 +104,29 @@ export class BillingController {
   }
 
   // Admin: per-member billing detail + one-click pause / resume / cancel.
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('members', 'read')
   @Get('members/:id')
   memberBilling(@Param('id') id: string) {
     return this.billing.getMemberBilling(id);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('members', 'edit')
   @Post('members/:id/subscriptions/:subId/pause')
   pauseSub(@Param('id') id: string, @Param('subId') subId: string) {
     return this.billing.pauseSub(id, subId);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('members', 'edit')
   @Post('members/:id/subscriptions/:subId/resume')
   resumeSub(@Param('id') id: string, @Param('subId') subId: string) {
     return this.billing.resumeSub(id, subId);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('members', 'edit')
   @Post('members/:id/subscriptions/:subId/cancel')
   cancelSub(
     @Param('id') id: string,

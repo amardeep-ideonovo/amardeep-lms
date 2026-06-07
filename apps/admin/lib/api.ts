@@ -1,8 +1,11 @@
 // Typed fetch client for the admin app. Wraps the REST contract in @lms/types.
 import type {
+  AdminDTO,
   AdminNotificationListDTO,
   AuthAdmin,
   CouponDTO,
+  CreateAdminInput,
+  UpdateAdminInput,
   CourseCard,
   CreateCouponInput,
   CreateCourseInput,
@@ -214,6 +217,23 @@ export const api = {
       email,
       password,
     }),
+  me: () => request<AuthAdmin>("GET", "/auth/me"),
+  changeOwnPassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: true }>("POST", "/auth/admin/change-password", {
+      currentPassword,
+      newPassword,
+    }),
+
+  // admin accounts + RBAC (super admin only)
+  listAdmins: () => request<AdminDTO[]>("GET", "/admin/admins"),
+  createAdmin: (input: CreateAdminInput) =>
+    request<AdminDTO>("POST", "/admin/admins", input),
+  updateAdmin: (id: string, input: UpdateAdminInput) =>
+    request<AdminDTO>("PATCH", `/admin/admins/${id}`, input),
+  resetAdminPassword: (id: string, password: string) =>
+    request<{ ok: true }>("POST", `/admin/admins/${id}/password`, { password }),
+  deleteAdmin: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/admins/${id}`),
 
   // levels
   listLevels: () => request<LevelDTO[]>("GET", "/levels"),

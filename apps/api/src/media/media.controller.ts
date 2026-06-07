@@ -15,7 +15,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import type { Request } from 'express';
-import { AdminGuard } from '../auth/guards/admin.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermission } from '../auth/require-permission.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { MediaService } from './media.service';
@@ -31,12 +32,13 @@ function baseUrlOf(req: Request): string {
   );
 }
 
-@UseGuards(AdminGuard)
+@UseGuards(PermissionsGuard)
 @Controller('admin/media')
 export class MediaController {
   constructor(private readonly media: MediaService) {}
 
   @Get()
+  @RequirePermission('gallery', 'read')
   list(
     @Req() req: Request,
     @Query('q') q?: string,
@@ -53,6 +55,7 @@ export class MediaController {
   }
 
   @Get(':id')
+  @RequirePermission('gallery', 'read')
   get(@Req() req: Request, @Param('id') id: string) {
     return this.media.get(id, baseUrlOf(req));
   }
@@ -60,6 +63,7 @@ export class MediaController {
   // Upload ANY allowed file type. Held in memory so we can sanitize SVGs and
   // read image dimensions before handing the bytes to storage.
   @Post()
+  @RequirePermission('gallery', 'create')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -75,6 +79,7 @@ export class MediaController {
   }
 
   @Patch(':id')
+  @RequirePermission('gallery', 'edit')
   update(
     @Req() req: Request,
     @Param('id') id: string,
@@ -84,6 +89,7 @@ export class MediaController {
   }
 
   @Delete(':id')
+  @RequirePermission('gallery', 'delete')
   remove(@Param('id') id: string) {
     return this.media.remove(id);
   }

@@ -8,7 +8,8 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { AdminGuard } from '../auth/guards/admin.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermission } from '../auth/require-permission.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
@@ -69,37 +70,43 @@ export class LevelsController {
 
   // ----- Categories (admin-only grouping for classes) -----
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('classes', 'read')
   @Get('categories')
   listCategories() {
     return this.levels.listCategories();
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('classes', 'create')
   @Post('categories')
   createCategory(@Body() dto: CreateLevelCategoryDto) {
     return this.levels.createCategory(dto);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('classes', 'delete')
   @Delete('categories/:id')
   deleteCategory(@Param('id') id: string) {
     return this.levels.deleteCategory(id);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('classes', 'create')
   @Post()
   create(@Body() dto: CreateLevelDto) {
     return this.levels.create(dto);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('classes', 'edit')
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateLevelDto) {
     return this.levels.update(id, dto);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('classes', 'delete')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.levels.remove(id);

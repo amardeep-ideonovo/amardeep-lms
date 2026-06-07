@@ -46,6 +46,10 @@ model Admin {
   email        String    @unique
   passwordHash String
   role         AdminRole @default(ADMIN)
+  // Per-section CRUD permissions for non-super admins, shape:
+  // { [section]: { create?, read?, edit?, delete? } }. SUPER_ADMIN ignores this
+  // (implicit full access). Enforced by PermissionsGuard; edited by super admins.
+  permissions  Json      @default("{}")
   createdAt    DateTime  @default(now())
 
   posts Post[]

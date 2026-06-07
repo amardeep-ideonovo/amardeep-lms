@@ -7,8 +7,21 @@ import {
   type MailchimpSettingsMasked,
   type StripeSettingsMasked,
 } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 
 export default function SettingsPage() {
+  const { can, loading } = useAdminAuth();
+  if (loading) return <p className="muted">Loading…</p>;
+  if (!can("settings", "read")) {
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Settings</h1>
+        </div>
+        <p className="error">You don’t have access to settings.</p>
+      </div>
+    );
+  }
   return (
     <div>
       <div className="page-header">

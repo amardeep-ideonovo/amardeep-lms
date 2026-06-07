@@ -90,4 +90,16 @@ export class AuthController {
   ) {
     return this.auth.changePassword(principal.sub, dto);
   }
+
+  // Admin self-service password change (separate table from members).
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
+  @Post('admin/change-password')
+  @HttpCode(200)
+  changeAdminPassword(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.auth.changeAdminPassword(principal.sub, dto);
+  }
 }
