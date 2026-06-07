@@ -80,17 +80,41 @@ function DashboardInner() {
       </div>
     );
 
+  // Group tiles by enrollment: classes the member is enrolled in first, then
+  // the rest to explore. Each group keeps the backend's name ordering.
+  const enrolled = classes.filter((c) => c.owned);
+  const available = classes.filter((c) => !c.owned);
+
   return (
     <>
       <h1 className="page-title">Dashboard</h1>
       {classes.length === 0 ? (
         <p className="empty">No classes are available yet.</p>
       ) : (
-        <div className="card-grid">
-          {classes.map((c) => (
-            <ClassTile key={c.id} cls={c} />
-          ))}
-        </div>
+        <>
+          {enrolled.length > 0 && (
+            <section>
+              <h2 className="section-title" style={{ marginTop: 8 }}>
+                My classes
+              </h2>
+              <div className="card-grid">
+                {enrolled.map((c) => (
+                  <ClassTile key={c.id} cls={c} />
+                ))}
+              </div>
+            </section>
+          )}
+          {available.length > 0 && (
+            <section>
+              <h2 className="section-title">Explore more classes</h2>
+              <div className="card-grid">
+                {available.map((c) => (
+                  <ClassTile key={c.id} cls={c} />
+                ))}
+              </div>
+            </section>
+          )}
+        </>
       )}
     </>
   );

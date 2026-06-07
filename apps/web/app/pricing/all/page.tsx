@@ -63,6 +63,53 @@ function AllPlansInner() {
   const subByLevel = new Map(subs.map((s) => [s.levelId, s]));
   // Every PAID level is a purchasable plan; FREE/MANUAL levels aren't listed.
   const planLevels = (levels || []).filter((l) => l.type === "PAID");
+  // Group by enrollment: the member's current plans first, then the rest.
+  const currentPlans = planLevels.filter((l) => subByLevel.has(l.id));
+  const otherPlans = planLevels.filter((l) => !subByLevel.has(l.id));
+
+  function renderPlan(level: LevelDTO) {
+    const sub = subByLevel.get(level.id);
+    const low = lowestPrice(level.prices);
+    if (sub) {
+      return (
+        <div key={level.id} className="card current">
+          <span className="plan-badge">Current plan</span>
+          <h3 className="card-title">{level.name}</h3>
+          <p className="card-desc">
+            {money(sub.amount, sub.currency)} / {sub.interval}
+          </p>
+          {sub.cancelAtPeriodEnd && (
+            <p className="card-note">Cancels at period end</p>
+          )}
+          {sub.paused && <p className="card-note">Billing paused</p>}
+          <Link href="/account" className="card-cta">
+            Manage subscription →
+          </Link>
+        </div>
+      );
+    }
+    if (low) {
+      return (
+        <Link
+          key={level.id}
+          href={`/checkout/${level.slug ?? level.id}`}
+          className="card"
+        >
+          <h3 className="card-title">{level.name}</h3>
+          <p className="card-desc">
+            From {money(low.amount, low.currency)} / {low.interval}
+          </p>
+          <span className="card-cta">Choose plan →</span>
+        </Link>
+      );
+    }
+    return (
+      <div key={level.id} className="card">
+        <h3 className="card-title">{level.name}</h3>
+        <p className="card-desc">Pricing coming soon</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -81,52 +128,22 @@ function AllPlansInner() {
       ) : planLevels.length === 0 ? (
         <p className="empty">No plans are available right now.</p>
       ) : (
-        <div className="card-grid">
-          {planLevels.map((level) => {
-            const sub = subByLevel.get(level.id);
-            const low = lowestPrice(level.prices);
-
-            if (sub) {
-              return (
-                <div key={level.id} className="card current">
-                  <span className="plan-badge">Current plan</span>
-                  <h3 className="card-title">{level.name}</h3>
-                  <p className="card-desc">
-                    {money(sub.amount, sub.currency)} / {sub.interval}
-                  </p>
-                  {sub.cancelAtPeriodEnd && (
-                    <p className="card-note">Cancels at period end</p>
-                  )}
-                  {sub.paused && <p className="card-note">Billing paused</p>}
-                  <Link href="/account" className="card-cta">
-                    Manage subscription →
-                  </Link>
-                </div>
-              );
-            }
-            if (low) {
-              return (
-                <Link
-                  key={level.id}
-                  href={`/checkout/${level.slug ?? level.id}`}
-                  className="card"
-                >
-                  <h3 className="card-title">{level.name}</h3>
-                  <p className="card-desc">
-                    From {money(low.amount, low.currency)} / {low.interval}
-                  </p>
-                  <span className="card-cta">Choose plan →</span>
-                </Link>
-              );
-            }
-            return (
-              <div key={level.id} className="card">
-                <h3 className="card-title">{level.name}</h3>
-                <p className="card-desc">Pricing coming soon</p>
-              </div>
-            );
-          })}
-        </div>
+        <>
+          {currentPlans.length > 0 && (
+            <section>
+              <h2 className="section-title" style={{ marginTop: 8 }}>
+                Your plans
+              </h2>
+              <div className="card-grid">{currentPlans.map(renderPlan)}</div>
+            </section>
+          )}
+          {otherPlans.length > 0 && (
+            <section>
+              <h2 className="section-title">Available plans</h2>
+              <div className="card-grid">{otherPlans.map(renderPlan)}</div>
+            </section>
+          )}
+        </>
       )}
     </>
   );
