@@ -3,6 +3,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect } from "react";
+import { dialog } from "@/components/DialogProvider";
 
 // Lightweight TipTap rich-text editor. Emits HTML via onChange; the API
 // sanitizes that HTML on write before it is ever stored or shown publicly.
@@ -60,9 +61,13 @@ export default function RichTextEditor({
     </button>
   );
 
-  const setLink = () => {
+  const setLink = async () => {
     const prev = (editor.getAttributes("link").href as string) || "https://";
-    const url = window.prompt("Link URL", prev);
+    const url = await dialog.prompt({
+      title: "Insert link",
+      message: "Link URL",
+      defaultValue: prev,
+    });
     if (url === null) return;
     if (url.trim() === "") {
       editor.chain().focus().extendMarkRange("link").unsetLink().run();

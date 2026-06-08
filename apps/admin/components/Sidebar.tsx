@@ -1,85 +1,156 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type { AdminSection } from "@lms/types";
 import { clearToken, getToken } from "@/lib/api";
 import { useAdminAuth } from "./AdminAuthProvider";
-import NotificationBell from "./NotificationBell";
+import ThemeToggle from "./ThemeToggle";
 
-// One row in the admin sidebar. `key` is the stable id stored in each admin's
-// saved order (decoupled from `href`, so a link can move without breaking saved
-// orders). `section` gates by `read` permission; `superOnly` is super-admin-only
-// (Admins). Notifications has neither — it's the admin's own feed, always shown.
 type NavItem = {
-  key: string;
   href: string;
   label: string;
   section?: AdminSection;
-  superOnly?: boolean;
+  icon: ReactNode;
+  badge?: string;
+};
+type NavGroup = { label: string; items: NavItem[] };
+
+// Inline stroke icons (no icon-font dependency). 19px, currentColor.
+const I = {
+  dashboard: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M3 11l9-8 9 8M5 10v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  members: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M16 19v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM22 19v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  classes: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M3 9h18M8 2v4M16 2v4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  ),
+  courses: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15Z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  gallery: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="8.5" cy="8.5" r="1.6" stroke="currentColor" strokeWidth="1.7" />
+      <path d="m21 15-5-5L5 21" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  blog: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M4 4h16v16H4zM4 9h16M9 9v11" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  pages: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M14 2v6h6M8 13h8M8 17h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  ),
+  popups: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M3 9h18" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  ),
+  forms: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M9 11l3 3 8-8M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  subscriptions: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M2 10h20" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  ),
+  coupons: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M20 12V8H4v4M20 12v8H4v-8M20 12H4M12 7v13" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  notifications: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  settings: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 14H4.5a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 10 4.6h.09A1.65 1.65 0 0 0 11.27 3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9.27" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  admins: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.7" />
+      <path d="m17 11 2 2 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 };
 
-const NAV: NavItem[] = [
-  { key: "classes", href: "/classes", label: "Classes", section: "classes" },
-  { key: "coupons", href: "/coupons", label: "Coupons", section: "coupons" },
-  { key: "members", href: "/members", label: "Members", section: "members" },
+// `section` gates each item by `read` permission. Notifications has none —
+// it's the admin's own feed, always visible.
+const GROUPS: NavGroup[] = [
   {
-    key: "subscriptions",
-    href: "/subscriptions",
-    label: "Subscriptions",
-    section: "subscriptions",
+    label: "Overview",
+    items: [
+      { href: "/", label: "Dashboard", icon: I.dashboard },
+      { href: "/classes", label: "Classes", section: "classes", icon: I.classes },
+      { href: "/courses", label: "Courses", section: "courses", icon: I.courses },
+    ],
   },
-  { key: "notifications", href: "/notifications", label: "Notifications" },
-  { key: "courses", href: "/courses", label: "Courses", section: "courses" },
-  { key: "gallery", href: "/gallery", label: "Gallery", section: "gallery" },
-  { key: "blog", href: "/blog", label: "Blog", section: "blog" },
-  { key: "pages", href: "/pages", label: "Pages", section: "pages" },
-  { key: "popups", href: "/popups", label: "Popups", section: "popups" },
-  { key: "forms", href: "/forms", label: "Forms", section: "forms" },
-  { key: "settings", href: "/settings", label: "Settings", section: "settings" },
-  { key: "admins", href: "/admins", label: "Admins", superOnly: true },
+  {
+    label: "Content",
+    items: [
+      { href: "/blog", label: "Blog", section: "blog", icon: I.blog },
+      { href: "/gallery", label: "Gallery", section: "gallery", icon: I.gallery },
+      { href: "/pages", label: "Pages", section: "pages", icon: I.pages },
+      { href: "/popups", label: "Popups", section: "popups", icon: I.popups },
+      { href: "/forms", label: "Forms", section: "forms", icon: I.forms },
+    ],
+  },
+  {
+    label: "Commerce",
+    items: [
+      { href: "/members", label: "Members", section: "members", icon: I.members },
+      { href: "/subscriptions", label: "Subscriptions", section: "subscriptions", icon: I.subscriptions },
+      { href: "/coupons", label: "Coupons", section: "coupons", icon: I.coupons },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { href: "/notifications", label: "Notifications", icon: I.notifications },
+      { href: "/settings", label: "Settings", section: "settings", icon: I.settings },
+    ],
+  },
 ];
-
-// Order `items` by the admin's saved key order. Keys missing from `order` keep
-// their default position (appended in NAV order); unknown saved keys are ignored
-// — so adding/removing a nav item later never corrupts an existing saved order.
-function applyOrder(items: NavItem[], order: string[]): NavItem[] {
-  const byKey = new Map(items.map((i) => [i.key, i] as const));
-  const out: NavItem[] = [];
-  for (const k of order) {
-    const it = byKey.get(k);
-    if (it) {
-      out.push(it);
-      byKey.delete(k);
-    }
-  }
-  for (const it of items) if (byKey.has(it.key)) out.push(it);
-  return out;
-}
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { can, isSuperAdmin, menuOrder, saveMenuOrder } = useAdminAuth();
+  const { can, isSuperAdmin } = useAdminAuth();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-
-  // "Customize" (reorder) mode + its working state. `draft` holds the working
-  // key order while editing; `dragKey` is the row currently being dragged.
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<string[]>([]);
-  const [dragKey, setDragKey] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Hide the chrome on the login screen.
   if (pathname === "/login") return null;
   // Hide the chrome in the full-screen builders (/pages/:id/edit, /popups/:id/edit).
   if (/^\/(pages|popups)\/[^/]+\/edit$/.test(pathname)) return null;
-  // Hide when unauthenticated — but only after mount. The token lives in
-  // localStorage (unknown to SSR), so gating on `mounted` keeps the server and
-  // first client render identical and avoids a hydration mismatch.
+  // Hide when unauthenticated — but only after mount (token lives in localStorage,
+  // unknown to SSR), keeping server and first client render identical.
   if (mounted && !getToken()) return null;
 
   const logout = () => {
@@ -87,192 +158,55 @@ export default function Sidebar() {
     router.replace("/login");
   };
 
-  // Only show sections this admin can read; super admins also get Admins.
-  const visible = NAV.filter((item) => {
-    if (item.superOnly) return isSuperAdmin;
-    if (item.section) return can(item.section, "read");
-    return true; // notifications — always visible
-  });
-  const displayed = applyOrder(visible, menuOrder);
-  // While editing we render the working draft order (reconciled against what's
-  // currently visible, so it stays correct even if perms change mid-edit).
-  const editItems = applyOrder(visible, draft);
-
-  const startEditing = () => {
-    setDraft(displayed.map((i) => i.key));
-    setError(null);
-    setEditing(true);
-  };
-  const cancelEditing = () => {
-    setEditing(false);
-    setDragKey(null);
-    setError(null);
-  };
-
-  // ↑/↓ reorder — keeps the feature usable on touch + keyboard (native HTML5
-  // drag-and-drop doesn't fire on touch and isn't keyboard-accessible).
-  const move = (key: string, dir: -1 | 1) => {
-    setDraft((d) => {
-      const order = d.length ? d : displayed.map((i) => i.key);
-      const i = order.indexOf(key);
-      const j = i + dir;
-      if (i === -1 || j < 0 || j >= order.length) return order;
-      const next = order.slice();
-      [next[i], next[j]] = [next[j], next[i]];
-      return next;
-    });
-  };
-
-  // Live drag reorder: as the dragged row hovers another, slot it into that
-  // position. Guarded so we only re-render when the order actually changes.
-  const onDragOver = (overKey: string) => {
-    if (!dragKey || dragKey === overKey) return;
-    setDraft((d) => {
-      const next = d.filter((k) => k !== dragKey);
-      const idx = next.indexOf(overKey);
-      if (idx === -1) return d;
-      next.splice(idx, 0, dragKey);
-      return next.join("|") === d.join("|") ? d : next;
-    });
-  };
-
-  const onDone = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      await saveMenuOrder(editItems.map((i) => i.key));
-      setEditing(false);
-      setDragKey(null);
-    } catch {
-      setError("Couldn't save. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const onReset = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      await saveMenuOrder([]); // clear → fall back to the default order
-      setEditing(false);
-      setDragKey(null);
-    } catch {
-      setError("Couldn't reset. Please try again.");
-    } finally {
-      setSaving(false);
-    }
+  const renderItem = (item: NavItem) => {
+    // "/" must match exactly; everything else matches by prefix.
+    const active =
+      item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={active ? "nav-link nav-link--active" : "nav-link"}
+      >
+        {item.icon}
+        <span>{item.label}</span>
+        {item.badge && <span className="nav-badge">{item.badge}</span>}
+      </Link>
+    );
   };
 
   return (
     <aside className="sidebar">
       <div className="sidebar-brand sidebar-brand--row">
-        <span>LMS Admin</span>
-        <NotificationBell />
+        <span className="brand-mark" aria-hidden="true">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+            <path d="M12 3 3 8l9 5 9-5-9-5Z" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M3 16l9 5 9-5M3 12l9 5 9-5" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+          </svg>
+        </span>
+        <span className="brand-name">LMS Admin</span>
       </div>
 
-      {editing ? (
-        <>
-          <p className="sidebar-edit-hint">Drag, or use ↑ ↓, to reorder.</p>
-          <nav className="sidebar-nav sidebar-nav--editing">
-            {editItems.map((item, idx) => (
-              <div
-                key={item.key}
-                className={
-                  dragKey === item.key
-                    ? "nav-edit-row nav-edit-row--dragging"
-                    : "nav-edit-row"
-                }
-                draggable
-                onDragStart={() => setDragKey(item.key)}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  onDragOver(item.key);
-                }}
-                onDragEnd={() => setDragKey(null)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragKey(null);
-                }}
-              >
-                <span className="nav-drag-handle" aria-hidden>
-                  ⠿
-                </span>
-                <span className="nav-edit-label">{item.label}</span>
-                <span className="nav-reorder-btns">
-                  <button
-                    type="button"
-                    className="nav-reorder-btn"
-                    aria-label={`Move ${item.label} up`}
-                    disabled={idx === 0 || saving}
-                    onClick={() => move(item.key, -1)}
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    className="nav-reorder-btn"
-                    aria-label={`Move ${item.label} down`}
-                    disabled={idx === editItems.length - 1 || saving}
-                    onClick={() => move(item.key, 1)}
-                  >
-                    ↓
-                  </button>
-                </span>
-              </div>
-            ))}
+      {GROUPS.map((group) => {
+        // Only show sections the admin can read.
+        const items = group.items.filter(
+          (item) => !item.section || can(item.section, "read"),
+        );
+        // Append super-admin-only "Admins" to the System group.
+        const withAdmins =
+          group.label === "System" && isSuperAdmin
+            ? [...items, { href: "/admins", label: "Admins", icon: I.admins } as NavItem]
+            : items;
+        if (withAdmins.length === 0) return null;
+        return (
+          <nav className="nav-group" key={group.label}>
+            <div className="nav-label">{group.label}</div>
+            {withAdmins.map(renderItem)}
           </nav>
+        );
+      })}
 
-          {error && <p className="sidebar-error">{error}</p>}
-
-          <div className="sidebar-edit-actions">
-            <button className="btn" onClick={onDone} disabled={saving}>
-              {saving ? "Saving…" : "Done"}
-            </button>
-            <button
-              className="btn btn--ghost"
-              onClick={cancelEditing}
-              disabled={saving}
-            >
-              Cancel
-            </button>
-          </div>
-          <button
-            type="button"
-            className="sidebar-reset"
-            onClick={onReset}
-            disabled={saving}
-          >
-            Reset to default
-          </button>
-        </>
-      ) : (
-        <>
-          <nav className="sidebar-nav">
-            {displayed.map((item) => {
-              const active = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  className={active ? "nav-link nav-link--active" : "nav-link"}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-          {displayed.length > 1 && (
-            <button
-              type="button"
-              className="btn btn--ghost sidebar-customize"
-              onClick={startEditing}
-            >
-              Customize menu
-            </button>
-          )}
-        </>
-      )}
+      <ThemeToggle />
 
       <button className="btn btn--ghost sidebar-logout" onClick={logout}>
         Log out

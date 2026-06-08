@@ -13,6 +13,8 @@ import { CreateAdminDto, UpdateAdminDto } from './dto/admins.dto';
 const ADMIN_SELECT = {
   id: true,
   email: true,
+  name: true,
+  avatarUrl: true,
   role: true,
   permissions: true,
   createdAt: true,
@@ -28,6 +30,8 @@ export class AdminsService {
     return {
       id: a.id,
       email: a.email,
+      name: a.name ?? null,
+      avatarUrl: a.avatarUrl ?? null,
       role: a.role,
       permissions: (a.permissions as AdminPermissions) ?? {},
       createdAt: a.createdAt.toISOString(),

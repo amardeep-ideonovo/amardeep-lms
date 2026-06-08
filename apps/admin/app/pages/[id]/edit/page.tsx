@@ -13,6 +13,7 @@ import { createPuckConfig } from "@lms/puck";
 import type { PageProps, RootProps } from "@lms/puck";
 import type { PageStatus, PuckDocument } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
 import FormPickerField from "@/components/FormPickerField";
 import MediaPicker from "@/components/MediaPicker";
@@ -157,7 +158,9 @@ export default function PageEditor() {
       setSaveState("saved");
     } catch (err) {
       setSaveState("error");
-      alert(err instanceof ApiError ? err.message : "Failed to update status");
+      await dialog.notify(
+        err instanceof ApiError ? err.message : "Failed to update status",
+      );
     }
   }
 
@@ -170,7 +173,9 @@ export default function PageEditor() {
       setTitle(updated.title);
       setSlug(updated.slug);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Failed to save title/slug");
+      await dialog.notify(
+        err instanceof ApiError ? err.message : "Failed to save title/slug",
+      );
     }
   }
 

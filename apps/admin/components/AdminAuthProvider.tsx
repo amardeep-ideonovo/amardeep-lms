@@ -21,6 +21,8 @@ interface AdminAuthValue {
   menuOrder: string[];
   // Persist a new sidebar order for THIS admin (optimistic + server write).
   saveMenuOrder: (order: string[]) => Promise<void>;
+  // Replace the cached `me` (after a profile/avatar update returns a fresh one).
+  applyAdmin: (admin: AuthAdmin) => void;
 }
 
 const Ctx = createContext<AdminAuthValue>({
@@ -31,6 +33,7 @@ const Ctx = createContext<AdminAuthValue>({
   refresh: () => {},
   menuOrder: [],
   saveMenuOrder: async () => {},
+  applyAdmin: () => {},
 });
 
 // Loads the current admin (role + per-section permissions) once and exposes
@@ -98,6 +101,8 @@ export function AdminAuthProvider({
     [refresh],
   );
 
+  const applyAdmin = useCallback((admin: AuthAdmin) => setMe(admin), []);
+
   return (
     <Ctx.Provider
       value={{
@@ -108,6 +113,7 @@ export function AdminAuthProvider({
         refresh,
         menuOrder,
         saveMenuOrder,
+        applyAdmin,
       }}
     >
       {children}

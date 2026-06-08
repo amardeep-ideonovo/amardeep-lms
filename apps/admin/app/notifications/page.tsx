@@ -22,11 +22,11 @@ const fmtDateTime = (iso: string) =>
 
 const SEVERITY_META: Record<
   AdminNotificationSeverity,
-  { label: string; bg: string; fg: string }
+  { label: string; cls: string }
 > = {
-  INFO: { label: "Info", bg: "#e0f2fe", fg: "#075985" },
-  WARNING: { label: "Warning", bg: "#fef9c3", fg: "#854d0e" },
-  CRITICAL: { label: "Critical", bg: "#fee2e2", fg: "#991b1b" },
+  INFO: { label: "Info", cls: "badge--info" },
+  WARNING: { label: "Warning", cls: "badge--warn" },
+  CRITICAL: { label: "Critical", cls: "badge--danger" },
 };
 
 export default function NotificationsPage() {
@@ -148,15 +148,12 @@ export default function NotificationsPage() {
                   return (
                     <tr
                       key={n.id}
-                      style={n.read ? undefined : { background: "#eff6ff" }}
+                      style={
+                        n.read ? undefined : { background: "var(--surface-2)" }
+                      }
                     >
                       <td>
-                        <span
-                          className="badge"
-                          style={{ background: sev.bg, color: sev.fg }}
-                        >
-                          {sev.label}
-                        </span>
+                        <span className={`badge ${sev.cls}`}>{sev.label}</span>
                       </td>
                       <td>
                         <div style={{ fontWeight: 600 }}>{n.title}</div>

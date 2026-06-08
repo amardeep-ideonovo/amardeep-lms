@@ -2,11 +2,13 @@
 import type {
   AdminDTO,
   AdminNotificationListDTO,
+  AdminSearchResponse,
   AuthAdmin,
   CouponDTO,
   CreateAdminInput,
   UpdateAdminInput,
   UpdateAdminPrefsInput,
+  UpdateAdminProfileInput,
   CourseCard,
   CreateCouponInput,
   CreateCourseInput,
@@ -228,6 +230,20 @@ export const api = {
   // refreshed AuthAdmin so the caller can update its cached `me` in place.
   updateMyPrefs: (input: UpdateAdminPrefsInput) =>
     request<AuthAdmin>("PATCH", "/auth/admin/prefs", input),
+  // global admin search (topbar); results are permission-scoped server-side
+  search: (q: string) =>
+    request<AdminSearchResponse>(
+      "GET",
+      `/admin/search?q=${encodeURIComponent(q)}`,
+    ),
+  // admin self-service profile: update name / remove photo, upload photo
+  updateProfile: (input: UpdateAdminProfileInput) =>
+    request<AuthAdmin>("PATCH", "/auth/admin/profile", input),
+  uploadAvatar: async (file: File): Promise<AuthAdmin> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return (await multipartFetch("/auth/admin/avatar", fd)).json();
+  },
 
   // admin accounts + RBAC (super admin only)
   listAdmins: () => request<AdminDTO[]>("GET", "/admin/admins"),

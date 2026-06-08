@@ -45,6 +45,10 @@ model Admin {
   id           String    @id @default(cuid())
   email        String    @unique
   passwordHash String
+  // Profile (admin self-service): display name + photo. avatarUrl is served
+  // from /media (stored via the shared media storage). Email stays the login id.
+  name         String?
+  avatarUrl    String?
   role         AdminRole @default(ADMIN)
   // Per-section CRUD permissions for non-super admins, shape:
   // { [section]: { create?, read?, edit?, delete? } }. SUPER_ADMIN ignores this

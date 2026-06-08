@@ -31,7 +31,7 @@ export default function LoginPage() {
     try {
       const res = await api.adminLogin(email, password);
       setToken(res.token);
-      router.replace("/classes");
+      router.replace("/");
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Login failed. Try again."
@@ -70,21 +70,7 @@ export default function LoginPage() {
             required
           />
         </div>
-        {notice && (
-          <p
-            style={{
-              background: "#fffbeb",
-              color: "#92400e",
-              border: "1px solid #fde68a",
-              borderRadius: 8,
-              padding: "10px 12px",
-              fontSize: 14,
-              margin: "0 0 4px",
-            }}
-          >
-            {notice}
-          </p>
-        )}
+        {notice && <p className="alert-warning">{notice}</p>}
         {error && <p className="error">{error}</p>}
         <button className="btn" type="submit" disabled={loading}>
           {loading ? "Signing in…" : "Sign in"}

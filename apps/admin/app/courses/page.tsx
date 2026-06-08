@@ -9,6 +9,7 @@ import type {
   LevelDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 
 const EMPTY_COURSE = {
@@ -160,10 +161,10 @@ export default function CoursesPage() {
 
   async function removeCourse(course: CourseCard) {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        `Delete "${course.title}"? This removes its lessons and notes and cannot be undone.`
-      )
+      !(await dialog.confirm({
+        message: `Delete "${course.title}"? This removes its lessons and notes and cannot be undone.`,
+        danger: true,
+      }))
     )
       return;
     setError(null);
@@ -498,7 +499,7 @@ function CourseLessons({
   return (
     <div
       style={{
-        background: "#f8fafc",
+        background: "var(--surface-2)",
         padding: "16px 20px",
         borderTop: "2px solid var(--border)",
       }}
@@ -739,8 +740,10 @@ function LessonRow({
 
   async function removeLesson() {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(`Delete lesson "${lesson.title}"?`)
+      !(await dialog.confirm({
+        message: `Delete lesson "${lesson.title}"?`,
+        danger: true,
+      }))
     )
       return;
     setBusy(true);

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { MemberRow } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { dialog } from "@/components/DialogProvider";
 
 // Edit a member's profile (first/last name, phone) on its own page. Opened from
 // the "Edit" button in the members table; saves and returns to the list.
@@ -60,12 +61,14 @@ export default function EditMemberPage() {
     // Changing the email re-points login + Stripe + Mailchimp — confirm first.
     const nextEmail = form.email.trim().toLowerCase();
     if (nextEmail !== member.email) {
-      const ok = window.confirm(
-        `Change this member’s email to:\n\n${nextEmail}\n\n` +
+      const ok = await dialog.confirm({
+        title: "Change member email?",
+        message:
+          `Change this member’s email to:\n\n${nextEmail}\n\n` +
           `• They will log in with the new email.\n` +
           `• Stripe receipts move to the new address.\n` +
           `• Their Mailchimp contact is updated.\n\nContinue?`,
-      );
+      });
       if (!ok) return;
     }
 
@@ -199,20 +202,7 @@ export default function EditMemberPage() {
             current one. Any active session stays valid until it expires.
           </p>
           {pwError && <p className="error">{pwError}</p>}
-          {pwOk && (
-            <p
-              style={{
-                background: "#ecfdf5",
-                color: "#065f46",
-                border: "1px solid #a7f3d0",
-                borderRadius: 8,
-                padding: "10px 12px",
-                fontSize: 14,
-              }}
-            >
-              Password updated.
-            </p>
-          )}
+          {pwOk && <p className="alert-success">Password updated.</p>}
           <form onSubmit={resetPassword}>
             <div className="form-row">
               <div className="field">

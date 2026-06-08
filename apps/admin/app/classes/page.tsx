@@ -9,6 +9,7 @@ import type {
   MailchimpAudienceDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 
 type PriceForm = {
@@ -232,7 +233,8 @@ export default function ClassesPage() {
   }
 
   async function onDelete(id: string) {
-    if (!window.confirm("Delete this class?")) return;
+    if (!(await dialog.confirm({ message: "Delete this class?", danger: true })))
+      return;
     try {
       await api.deleteLevel(id);
       if (editingId === id) resetForm();
@@ -286,10 +288,10 @@ export default function ClassesPage() {
 
   async function removeCategory(c: LevelCategoryDTO) {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        `Remove category "${c.name}"? Classes in it will become uncategorized.`
-      )
+      !(await dialog.confirm({
+        message: `Remove category "${c.name}"? Classes in it will become uncategorized.`,
+        danger: true,
+      }))
     )
       return;
     setError(null);

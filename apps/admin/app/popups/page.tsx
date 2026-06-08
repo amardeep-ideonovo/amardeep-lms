@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { PopupListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { withBase } from "@/lib/base-path";
+import { dialog } from "@/components/DialogProvider";
 
 // Human summary of WHERE a popup shows, from its visibility flags.
 function visibilitySummary(p: PopupListItem): string {
@@ -90,7 +91,11 @@ export default function PopupsPage() {
   }
 
   async function rename(p: PopupListItem) {
-    const name = window.prompt("Popup name", p.name);
+    const name = await dialog.prompt({
+      title: "Rename popup",
+      message: "Popup name",
+      defaultValue: p.name,
+    });
     if (name === null || !name.trim()) return;
     setError(null);
     try {
@@ -115,8 +120,10 @@ export default function PopupsPage() {
 
   async function remove(p: PopupListItem) {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(`Delete "${p.name}"? This cannot be undone.`)
+      !(await dialog.confirm({
+        message: `Delete "${p.name}"? This cannot be undone.`,
+        danger: true,
+      }))
     )
       return;
     setError(null);

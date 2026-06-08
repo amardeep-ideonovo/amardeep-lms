@@ -8,6 +8,7 @@ import type {
   PostStatus,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
 import MediaPicker from "@/components/MediaPicker";
 
@@ -165,8 +166,10 @@ export default function BlogPage() {
 
   async function remove(post: PostAdminRow) {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(`Delete "${post.title}"? This cannot be undone.`)
+      !(await dialog.confirm({
+        message: `Delete "${post.title}"? This cannot be undone.`,
+        danger: true,
+      }))
     )
       return;
     setError(null);
@@ -196,10 +199,10 @@ export default function BlogPage() {
 
   async function removeCategory(c: PostCategoryDTO) {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        `Remove category "${c.name}"? Posts in it will become uncategorized.`
-      )
+      !(await dialog.confirm({
+        message: `Remove category "${c.name}"? Posts in it will become uncategorized.`,
+        danger: true,
+      }))
     )
       return;
     setError(null);

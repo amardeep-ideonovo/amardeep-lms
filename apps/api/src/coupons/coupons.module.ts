@@ -8,5 +8,6 @@ import { BillingModule } from '../billing/billing.module';
   imports: [BillingModule],
   providers: [CouponsService],
   controllers: [CouponsController],
+  exports: [CouponsService], // reused by SearchModule for coupon search
 })
 export class CouponsModule {}

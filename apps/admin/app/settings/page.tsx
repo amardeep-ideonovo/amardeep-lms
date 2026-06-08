@@ -8,6 +8,7 @@ import {
   type StripeSettingsMasked,
 } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
+import { dialog } from "@/components/DialogProvider";
 
 export default function SettingsPage() {
   const { can, loading } = useAdminAuth();
@@ -91,7 +92,12 @@ function StripeSection() {
   }
 
   async function remove() {
-    if (!window.confirm("Remove all Stripe keys? This cannot be undone."))
+    if (
+      !(await dialog.confirm({
+        message: "Remove all Stripe keys? This cannot be undone.",
+        danger: true,
+      }))
+    )
       return;
     setRemoving(true);
     setError(null);
@@ -225,9 +231,11 @@ function MailchimpSection() {
 
   async function remove() {
     if (
-      !window.confirm(
-        "Remove the Mailchimp API key, server prefix, and audience? This cannot be undone."
-      )
+      !(await dialog.confirm({
+        message:
+          "Remove the Mailchimp API key, server prefix, and audience? This cannot be undone.",
+        danger: true,
+      }))
     )
       return;
     setRemoving(true);

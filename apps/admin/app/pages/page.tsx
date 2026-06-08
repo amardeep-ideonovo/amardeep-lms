@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { PageListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { dialog } from "@/components/DialogProvider";
 import { withBase } from "@/lib/base-path";
 
 // Where to open the public "View" link. Set NEXT_PUBLIC_WEB_URL in prod;
@@ -58,12 +59,18 @@ export default function PagesPage() {
   }
 
   async function rename(p: PageListItem) {
-    const title = window.prompt("Page title", p.title);
+    const title = await dialog.prompt({
+      title: "Rename page",
+      message: "Page title",
+      defaultValue: p.title,
+    });
     if (title === null || !title.trim()) return;
-    const slug = window.prompt(
-      "Slug (the URL after the domain). Keep it unchanged to leave as-is.",
-      p.slug
-    );
+    const slug = await dialog.prompt({
+      title: "Page slug",
+      message:
+        "Slug (the URL after the domain). Keep it unchanged to leave as-is.",
+      defaultValue: p.slug,
+    });
     if (slug === null) return;
     setError(null);
     try {
@@ -91,8 +98,10 @@ export default function PagesPage() {
 
   async function remove(p: PageListItem) {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(`Delete "${p.title}"? This cannot be undone.`)
+      !(await dialog.confirm({
+        message: `Delete "${p.title}"? This cannot be undone.`,
+        danger: true,
+      }))
     )
       return;
     setError(null);

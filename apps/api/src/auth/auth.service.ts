@@ -9,6 +9,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
+import type { Admin } from '@prisma/client';
 import type {
   AdminPermissions,
   AdminPrefs,
@@ -18,11 +19,26 @@ import type {
 } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
+import { MediaStorage } from '../media/media.storage';
+import { MEDIA_ROUTE } from '../media/media.config';
 import type { JwtPayload } from './jwt-payload.interface';
 import type { SignupDto } from './dto/signup.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
 import type { ChangePasswordDto } from './dto/change-password.dto';
 import type { UpdateAdminPrefsDto } from './dto/update-admin-prefs.dto';
+import type { UpdateAdminProfileDto } from './dto/update-admin-profile.dto';
+
+// Avatar uploads are image-only (no SVG — we don't sanitize here) and are stored
+// directly via MediaStorage WITHOUT a MediaAsset row, so they never appear in the
+// gallery. mime -> stored-file extension.
+const AVATAR_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+};
+const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
 
 @Injectable()
 export class AuthService {
@@ -32,7 +48,22 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly mailchimp: MailchimpProducer,
+    private readonly storage: MediaStorage,
   ) {}
+
+  // Build the AuthAdmin DTO from a full Admin row — used by login, /me, and the
+  // self-service updates so the shape stays consistent everywhere.
+  private toAuthAdmin(admin: Admin): AuthAdmin {
+    return {
+      id: admin.id,
+      email: admin.email,
+      name: admin.name ?? null,
+      avatarUrl: admin.avatarUrl ?? null,
+      role: admin.role,
+      permissions: (admin.permissions as AdminPermissions) ?? {},
+      prefs: (admin.prefs as AdminPrefs) ?? {},
+    };
+  }
 
   async loginMember(
     email: string,
@@ -80,13 +111,7 @@ export class AuthService {
     };
     return {
       token: await this.jwt.signAsync(payload),
-      user: {
-        id: admin.id,
-        email: admin.email,
-        role: admin.role,
-        permissions: (admin.permissions as AdminPermissions) ?? {},
-        prefs: (admin.prefs as AdminPrefs) ?? {},
-      },
+      user: this.toAuthAdmin(admin),
     };
   }
 
@@ -220,13 +245,7 @@ export class AuthService {
         where: { id: principal.sub },
       });
       if (!admin) throw new UnauthorizedException();
-      return {
-        id: admin.id,
-        email: admin.email,
-        role: admin.role,
-        permissions: (admin.permissions as AdminPermissions) ?? {},
-        prefs: (admin.prefs as AdminPrefs) ?? {},
-      };
+      return this.toAuthAdmin(admin);
     }
     const user = await this.prisma.user.findUnique({
       where: { id: principal.sub },
@@ -401,12 +420,83 @@ export class AuthService {
       where: { id: adminId },
       data: { prefs: next as unknown as Prisma.InputJsonValue },
     });
-    return {
-      id: updated.id,
-      email: updated.email,
-      role: updated.role,
-      permissions: (updated.permissions as AdminPermissions) ?? {},
-      prefs: (updated.prefs as AdminPrefs) ?? {},
-    };
+    return this.toAuthAdmin(updated);
+  }
+
+  /**
+   * Admin self-service: update display name and/or remove the avatar. Email is
+   * the login id and is intentionally NOT editable here.
+   */
+  async updateAdminProfile(
+    adminId: string,
+    dto: UpdateAdminProfileDto,
+  ): Promise<AuthAdmin> {
+    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin) throw new UnauthorizedException();
+
+    const data: Prisma.AdminUpdateInput = {};
+    if (dto.name !== undefined) {
+      const name = (dto.name ?? '').trim();
+      data.name = name ? name.slice(0, 120) : null;
+    }
+    if (dto.removeAvatar) {
+      await this.deleteAvatarFile(admin.avatarUrl);
+      data.avatarUrl = null;
+    }
+
+    const updated = Object.keys(data).length
+      ? await this.prisma.admin.update({ where: { id: adminId }, data })
+      : admin;
+    return this.toAuthAdmin(updated);
+  }
+
+  /**
+   * Admin self-service: upload a profile photo. Stored directly via MediaStorage
+   * (image-only, ≤8 MB) WITHOUT creating a gallery MediaAsset — so profile photos
+   * never show up in the media library. Replaces (and deletes) any prior avatar.
+   */
+  async setAdminAvatar(
+    adminId: string,
+    file: Express.Multer.File | undefined,
+    baseUrl: string,
+  ): Promise<AuthAdmin> {
+    if (!file) throw new BadRequestException('No file provided');
+    const ext = AVATAR_EXT[file.mimetype];
+    if (!ext) {
+      throw new BadRequestException(
+        'Please choose a JPG, PNG, WebP or GIF image.',
+      );
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      throw new BadRequestException('Image too large (max 8 MB).');
+    }
+    const admin = await this.prisma.admin.findUnique({
+      where: { id: adminId },
+      select: { id: true, avatarUrl: true },
+    });
+    if (!admin) throw new UnauthorizedException();
+
+    const key = `avatar-${adminId}-${Date.now()}${ext}`;
+    await this.storage.put(key, file.buffer, file.mimetype);
+    await this.deleteAvatarFile(admin.avatarUrl); // best-effort cleanup of the old file
+
+    const updated = await this.prisma.admin.update({
+      where: { id: adminId },
+      data: { avatarUrl: `${baseUrl}${MEDIA_ROUTE}/${key}` },
+    });
+    return this.toAuthAdmin(updated);
+  }
+
+  // Delete a previously-stored avatar file (best effort). Only removes keys we
+  // generated (avatar-*), so it can never touch gallery media.
+  private async deleteAvatarFile(url: string | null): Promise<void> {
+    if (!url) return;
+    const marker = `${MEDIA_ROUTE}/`;
+    const idx = url.indexOf(marker);
+    if (idx === -1) return;
+    const key = url.slice(idx + marker.length);
+    if (key.startsWith('avatar-')) {
+      await this.storage.delete(key).catch(() => undefined);
+    }
   }
 }

@@ -10,6 +10,7 @@ import {
   type AdminSection,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { dialog } from "@/components/DialogProvider";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 
 const fmtDate = (iso: string) =>
@@ -77,7 +78,13 @@ export default function AdminsPage() {
 
   async function onDelete(a: AdminDTO) {
     if (a.id === me?.id) return;
-    if (!window.confirm(`Delete admin ${a.email}? This can’t be undone.`)) return;
+    if (
+      !(await dialog.confirm({
+        message: `Delete admin ${a.email}? This can’t be undone.`,
+        danger: true,
+      }))
+    )
+      return;
     setBusy(true);
     setError(null);
     try {
@@ -91,7 +98,11 @@ export default function AdminsPage() {
   }
 
   async function onResetPassword(a: AdminDTO) {
-    const pw = window.prompt(`New password for ${a.email} (min 8 chars):`);
+    const pw = await dialog.prompt({
+      title: "Reset password",
+      message: `New password for ${a.email} (min 8 chars):`,
+      inputType: "password",
+    });
     if (pw === null) return;
     if (pw.length < 8) {
       setError("Password must be at least 8 characters.");
@@ -101,7 +112,7 @@ export default function AdminsPage() {
     setError(null);
     try {
       await api.resetAdminPassword(a.id, pw);
-      window.alert("Password updated.");
+      await dialog.notify("Password updated.");
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Reset failed");
     } finally {

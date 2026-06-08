@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MediaDTO, MediaKind } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { dialog } from "@/components/DialogProvider";
 
 const PAGE_SIZE = 40;
 
@@ -552,9 +553,10 @@ function MediaDetails({
 
   async function remove() {
     if (
-      !window.confirm(
-        `Delete “${asset.originalName}” permanently? Any place embedding its URL will break.`,
-      )
+      !(await dialog.confirm({
+        message: `Delete “${asset.originalName}” permanently? Any place embedding its URL will break.`,
+        danger: true,
+      }))
     )
       return;
     setBusy(true);

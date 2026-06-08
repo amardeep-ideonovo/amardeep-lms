@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtDownloadStrategy } from './jwt-download.strategy';
+import { MediaModule } from '../media/media.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { JwtDownloadStrategy } from './jwt-download.strategy';
         signOptions: { expiresIn: config.get<string>('JWT_TTL') || '7d' },
       }),
     }),
+    MediaModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtDownloadStrategy],

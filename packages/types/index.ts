@@ -23,6 +23,8 @@ export interface AuthUser {
 export interface AuthAdmin {
   id: string;
   email: string;
+  name: string | null; // display name (admin-editable); email is the login id
+  avatarUrl: string | null; // profile photo URL (served from /media)
   role: AdminRole;
   permissions: AdminPermissions; // empty / ignored for SUPER_ADMIN (implicit full access)
   prefs: AdminPrefs; // per-admin UI preferences (custom sidebar order, etc.)
@@ -63,6 +65,8 @@ export type AdminPermissions = Partial<
 export interface AdminDTO {
   id: string;
   email: string;
+  name: string | null;
+  avatarUrl: string | null;
   role: AdminRole;
   permissions: AdminPermissions;
   createdAt: string; // ISO
@@ -80,6 +84,12 @@ export interface UpdateAdminInput {
 // Self-service: an admin updates their OWN UI preferences (not another admin's).
 export interface UpdateAdminPrefsInput {
   menuOrder?: string[];
+}
+// Self-service: an admin updates their OWN profile (display name; clear photo).
+// Send name: "" to clear the display name.
+export interface UpdateAdminProfileInput {
+  name?: string;
+  removeAvatar?: boolean;
 }
 export interface LoginResponse<T = AuthUser> {
   token: string;
@@ -896,6 +906,34 @@ export interface AdminNotificationListDTO {
   unreadCount: number; // requesting admin's unread total across the whole feed (not just this page)
 }
 
+// ---------- Admin global search (topbar) ----------
+export type AdminSearchType =
+  | "member"
+  | "class"
+  | "course"
+  | "blog"
+  | "page"
+  | "popup"
+  | "form"
+  | "media"
+  | "coupon";
+export interface AdminSearchItem {
+  type: AdminSearchType;
+  id: string;
+  title: string;
+  subtitle?: string;
+  href: string; // admin route to navigate to on select
+}
+export interface AdminSearchGroup {
+  type: AdminSearchType;
+  label: string; // e.g. "Members"
+  items: AdminSearchItem[];
+}
+export interface AdminSearchResponse {
+  query: string;
+  groups: AdminSearchGroup[]; // only sections the requesting admin may read
+}
+
 export const ROUTES = {
   // auth
   memberLogin: "POST /auth/login", // body {email,password} -> LoginResponse<AuthUser>
@@ -906,6 +944,8 @@ export const ROUTES = {
   changePassword: "POST /auth/change-password", // body ChangePasswordInput -> { ok: true }
   adminChangeOwnPassword: "POST /auth/admin/change-password", // admin self; body ChangePasswordInput -> { ok: true }
   adminUpdateMyPrefs: "PATCH /auth/admin/prefs", // admin self; body UpdateAdminPrefsInput -> AuthAdmin
+  adminUpdateProfile: "PATCH /auth/admin/profile", // admin self; body UpdateAdminProfileInput -> AuthAdmin
+  adminUploadAvatar: "POST /auth/admin/avatar", // admin self; multipart file -> AuthAdmin
 
   // admin: levels
   listLevels: "GET /levels",
@@ -945,6 +985,9 @@ export const ROUTES = {
   adminUpdateAdmin: "PATCH /admin/admins/:id", // body UpdateAdminInput -> AdminDTO
   adminResetAdminPassword: "POST /admin/admins/:id/password", // body { password } -> { ok: true }
   adminDeleteAdmin: "DELETE /admin/admins/:id", // -> { ok: true }
+
+  // admin: global search (topbar) — permission-scoped to the admin's sections
+  adminSearch: "GET /admin/search", // ?q= -> AdminSearchResponse
 
   // admin: in-app notifications (per-admin read state)
   adminListNotifications: "GET /admin/notifications", // ?page&pageSize -> AdminNotificationListDTO

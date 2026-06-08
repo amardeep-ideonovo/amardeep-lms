@@ -18,6 +18,7 @@ import type {
   CreateFormInput,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { dialog } from "@/components/DialogProvider";
 
 // Escape one CSV cell (quote if it contains a comma/quote/newline).
 function csvCell(v: unknown): string {
@@ -95,10 +96,10 @@ function previewField(fld: FormFieldDef) {
   const base: CSSProperties = {
     padding: "8px 10px",
     borderRadius: 6,
-    border: "1px solid #d1d5db",
+    border: "1px solid var(--border)",
     width: "100%",
     font: "inherit",
-    background: "#fff",
+    background: "var(--surface-2)",
   };
   if (fld.type === "textarea")
     return (
@@ -384,8 +385,10 @@ export default function FormsPage() {
 
   async function remove(f: FormAdminRow) {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(`Delete "${f.name}"? Its submissions are removed too.`)
+      !(await dialog.confirm({
+        message: `Delete "${f.name}"? Its submissions are removed too.`,
+        danger: true,
+      }))
     )
       return;
     setError(null);
@@ -518,7 +521,7 @@ export default function FormsPage() {
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
-                background: "#fff",
+                background: "var(--surface)",
                 borderRadius: 12,
                 width: "min(900px, 96vw)",
                 maxHeight: "86vh",
@@ -938,14 +941,17 @@ export default function FormsPage() {
                       padding: 8,
                       borderRadius: 8,
                       border: "1px solid var(--border)",
-                      background: dragIndex === i ? "#eef2ff" : "#fff",
+                      background:
+                        dragIndex === i
+                          ? "var(--surface-hover)"
+                          : "var(--surface-2)",
                     }}
                   >
                     <span
                       title="Drag to reorder"
                       style={{
                         cursor: "grab",
-                        color: "#9ca3af",
+                        color: "var(--muted)",
                         userSelect: "none",
                         paddingTop: fld.type === "checkbox" ? 0 : 22,
                       }}

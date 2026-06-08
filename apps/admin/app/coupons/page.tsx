@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { CouponDTO, CreateCouponInput, LevelDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { dialog } from "@/components/DialogProvider";
 
 type DiscountType = "percent" | "amount";
 type Duration = "once" | "repeating" | "forever";
@@ -123,7 +124,8 @@ export default function CouponsPage() {
 
   async function toggleActive(c: CouponDTO) {
     const turningOff = c.active;
-    if (turningOff && !window.confirm(`Deactivate code ${c.code}?`)) return;
+    if (turningOff && !(await dialog.confirm(`Deactivate code ${c.code}?`)))
+      return;
     setBusyId(c.id);
     setError(null);
     try {
@@ -139,9 +141,10 @@ export default function CouponsPage() {
 
   async function removeCoupon(c: CouponDTO) {
     if (
-      !window.confirm(
-        `Permanently delete code ${c.code}? It can no longer be redeemed and this can’t be undone.`,
-      )
+      !(await dialog.confirm({
+        message: `Permanently delete code ${c.code}? It can no longer be redeemed and this can’t be undone.`,
+        danger: true,
+      }))
     )
       return;
     setBusyId(c.id);

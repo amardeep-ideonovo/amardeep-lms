@@ -24,15 +24,15 @@ const fmtDate = (iso: string | null) =>
 
 // Status -> human label + pill colors (mirrors the WooCommerce status colors:
 // green active, grey cancelled, purple expired, yellow on-hold, red past-due).
-const STATUS_META: Record<string, { label: string; bg: string; fg: string }> = {
-  active: { label: "Active", bg: "#dcfce7", fg: "#166534" },
-  trialing: { label: "Trialing", bg: "#e0f2fe", fg: "#075985" },
-  past_due: { label: "Past due", bg: "#fee2e2", fg: "#991b1b" },
-  unpaid: { label: "Unpaid", bg: "#fee2e2", fg: "#991b1b" },
-  paused: { label: "On hold", bg: "#fef9c3", fg: "#854d0e" },
-  canceled: { label: "Cancelled", bg: "#f1f5f9", fg: "#475569" },
-  incomplete: { label: "Incomplete", bg: "#f1f5f9", fg: "#475569" },
-  incomplete_expired: { label: "Expired", bg: "#ede9fe", fg: "#5b21b6" },
+const STATUS_META: Record<string, { label: string; cls: string }> = {
+  active: { label: "Active", cls: "badge--ok" },
+  trialing: { label: "Trialing", cls: "badge--info" },
+  past_due: { label: "Past due", cls: "badge--danger" },
+  unpaid: { label: "Unpaid", cls: "badge--danger" },
+  paused: { label: "On hold", cls: "badge--warn" },
+  canceled: { label: "Cancelled", cls: "badge--neutral" },
+  incomplete: { label: "Incomplete", cls: "badge--neutral" },
+  incomplete_expired: { label: "Expired", cls: "badge--violet" },
 };
 
 // While billing is paused Stripe keeps `status: active`, so surface "On hold".
@@ -41,9 +41,9 @@ const statusKey = (s: SubscriptionRowDTO): string =>
 
 function StatusBadge({ s }: { s: SubscriptionRowDTO }) {
   const key = statusKey(s);
-  const meta = STATUS_META[key] ?? { label: key, bg: "#f1f5f9", fg: "#475569" };
+  const meta = STATUS_META[key] ?? { label: key, cls: "badge--neutral" };
   return (
-    <span className="badge" style={{ background: meta.bg, color: meta.fg }}>
+    <span className={`badge ${meta.cls}`}>
       {meta.label}
     </span>
   );

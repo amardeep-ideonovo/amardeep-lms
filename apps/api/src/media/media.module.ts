@@ -11,5 +11,6 @@ import { LocalDiskStorage, MediaStorage } from './media.storage';
     MediaService,
     { provide: MediaStorage, useClass: LocalDiskStorage },
   ],
+  exports: [MediaStorage], // reused by AuthModule for admin avatar storage
 })
 export class MediaModule {}
