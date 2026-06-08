@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Nav from "@/components/Nav";
+import Footer from "@/components/Footer";
+import { fetchFooter, fetchSiteHeader } from "@/lib/api";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -32,16 +34,21 @@ export const viewport: Viewport = {
   themeColor: "#4f46e5",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [header, footer] = await Promise.all([
+    fetchSiteHeader(),
+    fetchFooter(),
+  ]);
   return (
     <html lang="en">
       <body>
-        <Nav />
+        <Nav initialHeader={header} />
         <main className="container">{children}</main>
+        <Footer config={footer} />
       </body>
     </html>
   );

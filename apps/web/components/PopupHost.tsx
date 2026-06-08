@@ -19,9 +19,13 @@ import type { PageProps, RootProps } from "@lms/puck";
 import "@lms/puck/styles.css";
 import type { PopupContext, PopupPosition, PopupPublicDTO } from "@lms/types";
 import FormEmbed from "@/components/FormEmbed";
+import PageMenu from "@/components/PageMenu";
 import { fetchActivePopups, recordPopupEvent } from "@/lib/api";
 
-const config = createPuckConfig({ formComponent: FormEmbed });
+const config = createPuckConfig({
+  formComponent: FormEmbed,
+  menuComponent: PageMenu,
+});
 
 const EDGE = 20; // px gap from the viewport edges for non-centered popups
 

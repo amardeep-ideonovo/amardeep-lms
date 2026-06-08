@@ -169,7 +169,7 @@ export default function PopupsPage() {
         ) : popups.length === 0 ? (
           <p className="muted">No popups yet. Click “Add new popup” to start.</p>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Name</th>
@@ -231,7 +231,7 @@ export default function PopupsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

@@ -158,7 +158,7 @@ export default function SubscriptionsPage() {
             {visible.length === 0 ? (
               <p className="muted">No subscriptions match this filter.</p>
             ) : (
-              <table className="table">
+              <div className="table-wrap"><table className="table">
                 <thead>
                   <tr>
                     <th>Status</th>
@@ -230,7 +230,7 @@ export default function SubscriptionsPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </>
         )}

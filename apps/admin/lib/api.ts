@@ -9,6 +9,20 @@ import type {
   UpdateAdminInput,
   UpdateAdminPrefsInput,
   UpdateAdminProfileInput,
+  MenuListItem,
+  MenuDTO,
+  CreateMenuInput,
+  UpdateMenuInput,
+  CreateMenuItemInput,
+  UpdateMenuItemInput,
+  ReorderMenuItemsInput,
+  HeaderDTO,
+  HeaderSummary,
+  CreateHeaderInput,
+  UpdateHeaderInput,
+  ReorderHeadersInput,
+  FooterConfig,
+  UpdateFooterInput,
   CourseCard,
   CreateCouponInput,
   CreateCourseInput,
@@ -244,6 +258,42 @@ export const api = {
     fd.append("file", file);
     return (await multipartFetch("/auth/admin/avatar", fd)).json();
   },
+
+  // navigation menus
+  listMenus: () => request<MenuListItem[]>("GET", "/admin/menus"),
+  getMenu: (id: string) => request<MenuDTO>("GET", `/admin/menus/${id}`),
+  createMenu: (input: CreateMenuInput) =>
+    request<MenuDTO>("POST", "/admin/menus", input),
+  updateMenu: (id: string, input: UpdateMenuInput) =>
+    request<MenuDTO>("PATCH", `/admin/menus/${id}`, input),
+  deleteMenu: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/menus/${id}`),
+  addMenuItem: (menuId: string, input: CreateMenuItemInput) =>
+    request<MenuDTO>("POST", `/admin/menus/${menuId}/items`, input),
+  updateMenuItem: (itemId: string, input: UpdateMenuItemInput) =>
+    request<MenuDTO>("PATCH", `/admin/menus/items/${itemId}`, input),
+  deleteMenuItem: (itemId: string) =>
+    request<MenuDTO>("DELETE", `/admin/menus/items/${itemId}`),
+  reorderMenuItems: (menuId: string, input: ReorderMenuItemsInput) =>
+    request<MenuDTO>("PUT", `/admin/menus/${menuId}/order`, input),
+
+  // site header builder (gated by the `menus` permission)
+  // site headers (multiple, conditional)
+  listHeaders: () => request<HeaderSummary[]>("GET", "/admin/site/headers"),
+  getHeader: (id: string) =>
+    request<HeaderDTO>("GET", `/admin/site/headers/${id}`),
+  createHeader: (input: CreateHeaderInput) =>
+    request<HeaderDTO>("POST", "/admin/site/headers", input),
+  updateHeader: (id: string, input: UpdateHeaderInput) =>
+    request<HeaderDTO>("PUT", `/admin/site/headers/${id}`, input),
+  deleteHeader: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/site/headers/${id}`),
+  reorderHeaders: (input: ReorderHeadersInput) =>
+    request<HeaderSummary[]>("PUT", "/admin/site/headers/order", input),
+  // site footer (single global)
+  getFooter: () => request<FooterConfig>("GET", "/admin/site/footer"),
+  updateFooter: (input: UpdateFooterInput) =>
+    request<FooterConfig>("PUT", "/admin/site/footer", input),
 
   // admin accounts + RBAC (super admin only)
   listAdmins: () => request<AdminDTO[]>("GET", "/admin/admins"),

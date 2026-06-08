@@ -214,7 +214,7 @@ export default function CoursesPage() {
         ) : courses.length === 0 ? (
           <p className="muted">No courses yet. Click “Add new course” to start.</p>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th></th>
@@ -293,7 +293,7 @@ export default function CoursesPage() {
                 </Fragment>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 

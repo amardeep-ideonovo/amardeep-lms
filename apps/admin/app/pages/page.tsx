@@ -148,7 +148,7 @@ export default function PagesPage() {
         ) : pages.length === 0 ? (
           <p className="muted">No pages yet. Click “Add new page” to start.</p>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Title</th>
@@ -214,7 +214,7 @@ export default function PagesPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

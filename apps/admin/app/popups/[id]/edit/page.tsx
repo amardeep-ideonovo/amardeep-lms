@@ -25,6 +25,7 @@ import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
 import FormPickerField from "@/components/FormPickerField";
 import MediaPicker from "@/components/MediaPicker";
+import MenuPickerField from "@/components/MenuPickerField";
 
 type PopupData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -140,11 +141,23 @@ export default function PopupEditor() {
         onChange: (v: string) => void;
       }) => <MediaPicker value={value || ""} onChange={onChange} />,
     } as Field;
+    const menuField = {
+      type: "custom" as const,
+      label: "Menu",
+      render: ({
+        value,
+        onChange,
+      }: {
+        value?: string;
+        onChange: (v: string) => void;
+      }) => <MenuPickerField value={value} onChange={onChange} />,
+    } as Field;
     return createPuckConfig({
       richTextField,
       formComponent: FormPreview,
       formField,
       imageField,
+      menuField,
     });
   }, []);
 

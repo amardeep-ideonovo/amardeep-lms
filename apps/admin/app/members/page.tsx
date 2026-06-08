@@ -135,7 +135,7 @@ export default function MembersPage() {
             {filtered.length === 0 ? (
               <p className="muted">No members match this filter.</p>
             ) : (
-              <table className="table">
+              <div className="table-wrap"><table className="table">
                 <thead>
               <tr>
                 <th>First name</th>
@@ -262,7 +262,7 @@ export default function MembersPage() {
                 );
               })}
             </tbody>
-              </table>
+              </table></div>
             )}
           </>
         )}

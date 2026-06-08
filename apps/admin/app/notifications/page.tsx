@@ -132,7 +132,7 @@ export default function NotificationsPage() {
           <p className="muted">No notifications yet.</p>
         ) : (
           <>
-            <table className="table">
+            <div className="table-wrap"><table className="table">
               <thead>
                 <tr>
                   <th>Severity</th>
@@ -194,7 +194,7 @@ export default function NotificationsPage() {
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
 
             <div
               style={{

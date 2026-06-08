@@ -291,7 +291,7 @@ export default function BlogPage() {
         ) : posts.length === 0 ? (
           <p className="muted">No posts yet. Click “Add new post” to start.</p>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Title</th>
@@ -355,7 +355,7 @@ export default function BlogPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 

@@ -21,6 +21,8 @@ import { FormsModule } from './forms/forms.module';
 import { PopupsModule } from './popups/popups.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SearchModule } from './search/search.module';
+import { MenusModule } from './menus/menus.module';
+import { SiteModule } from './site/site.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -53,6 +55,8 @@ import { HealthModule } from './health/health.module';
     PopupsModule,
     DashboardModule,
     SearchModule,
+    MenusModule,
+    SiteModule,
   ],
 })
 export class AppModule {}

@@ -54,6 +54,7 @@ export const ADMIN_SECTIONS = [
   { key: "pages", label: "Pages" },
   { key: "popups", label: "Popups" },
   { key: "forms", label: "Forms" },
+  { key: "menus", label: "Navigation" },
   { key: "settings", label: "Settings" },
 ] as const;
 export type AdminSection = (typeof ADMIN_SECTIONS)[number]["key"];
@@ -934,6 +935,279 @@ export interface AdminSearchResponse {
   groups: AdminSearchGroup[]; // only sections the requesting admin may read
 }
 
+// ---------- Navigation menus (WordPress-style) ----------
+export const MENU_LOCATIONS = ["HEADER", "FOOTER", "MOBILE"] as const;
+export type MenuLocation = (typeof MENU_LOCATIONS)[number];
+
+export const MENU_ITEM_TYPES = [
+  "PAGE",
+  "CLASS",
+  "CLASS_INDEX",
+  "COURSE",
+  "COURSE_INDEX",
+  "BLOG_INDEX",
+  "BLOG_POST",
+  "ROUTE",
+  "CUSTOM",
+] as const;
+export type MenuItemType = (typeof MENU_ITEM_TYPES)[number];
+
+export const MENU_ITEM_VISIBILITIES = [
+  "ALL",
+  "GUEST",
+  "AUTHED",
+  "LEVEL",
+] as const;
+export type MenuItemVisibility = (typeof MENU_ITEM_VISIBILITIES)[number];
+
+// Admin-facing item (full target ids + options, nested tree) — for editing.
+export interface MenuItemDTO {
+  id: string;
+  parentId: string | null;
+  order: number;
+  label: string;
+  type: MenuItemType;
+  url: string | null;
+  pageId: string | null;
+  levelId: string | null;
+  courseId: string | null;
+  postId: string | null;
+  openNewTab: boolean;
+  visibility: MenuItemVisibility;
+  visibilityLevelId: string | null;
+  children: MenuItemDTO[];
+}
+export interface MenuDTO {
+  id: string;
+  name: string;
+  location: MenuLocation | null;
+  items: MenuItemDTO[]; // top-level items, each with nested children
+  createdAt: string; // ISO
+}
+export interface MenuListItem {
+  id: string;
+  name: string;
+  location: MenuLocation | null;
+  itemCount: number;
+}
+
+// Public resolved item for rendering: href computed, gated items already removed.
+export interface ResolvedMenuItem {
+  id: string;
+  label: string;
+  href: string;
+  newTab: boolean;
+  children: ResolvedMenuItem[];
+}
+export interface ResolvedMenu {
+  id: string;
+  name: string;
+  location: MenuLocation | null;
+  items: ResolvedMenuItem[];
+}
+
+export interface CreateMenuInput {
+  name: string;
+  location?: MenuLocation | null;
+}
+export interface UpdateMenuInput {
+  name?: string;
+  location?: MenuLocation | null;
+}
+export interface MenuItemInput {
+  label: string;
+  type: MenuItemType;
+  url?: string | null;
+  pageId?: string | null;
+  levelId?: string | null;
+  courseId?: string | null;
+  postId?: string | null;
+  openNewTab?: boolean;
+  visibility?: MenuItemVisibility;
+  visibilityLevelId?: string | null;
+  parentId?: string | null;
+}
+export type CreateMenuItemInput = MenuItemInput;
+export type UpdateMenuItemInput = Partial<MenuItemInput>;
+
+// Persist a drag/nest reorder: the full flattened tree as {id, parentId, order}.
+export interface MenuReorderNode {
+  id: string;
+  parentId?: string | null;
+  order: number;
+}
+export interface ReorderMenuItemsInput {
+  items: MenuReorderNode[];
+}
+
+// ---------- Site Header builder ----------
+// Admin-authored config for the public web header. CTA targets reuse MenuItemType
+// + the menu href-resolution, so a CTA to a Page resolves like a menu item would.
+export const HEADER_LAYOUTS = ["TWO_COL", "THREE_COL"] as const;
+export type HeaderLayout = (typeof HEADER_LAYOUTS)[number];
+export const HEADER_WIDTHS = ["BOXED", "FULL"] as const; // content width; bg is full-bleed
+export type HeaderWidth = (typeof HEADER_WIDTHS)[number];
+
+export interface HeaderCtaLink {
+  type: MenuItemType;
+  url?: string | null;
+  pageId?: string | null;
+  levelId?: string | null;
+  courseId?: string | null;
+  postId?: string | null;
+  openNewTab?: boolean;
+}
+export interface HeaderCta {
+  id: string; // stable client-generated id (list keys/reorder)
+  label: string;
+  bgColor: string; // #rrggbb
+  textColor: string; // #rrggbb
+  paddingX: number; // px
+  paddingY: number; // px
+  borderRadius: number; // px
+  link: HeaderCtaLink;
+}
+export interface HeaderConfig {
+  layout: HeaderLayout;
+  width: HeaderWidth;
+  maxWidth?: number | null; // content max-width px (BOXED); null -> theme default
+  bgColor: string; // #rrggbb (full-bleed)
+  paddingX: number; // px
+  paddingY: number; // px
+  logoUrl?: string | null; // image; null -> text brand (site name)
+  menuId?: string | null; // chosen Navigation menu (col 2); null -> HEADER location fallback
+  linkColor: string; // menu link (inactive) color (#rrggbb)
+  menuActiveColor?: string | null; // active link color (#rrggbb)
+  ctas: HeaderCta[]; // col 3 (THREE_COL only)
+}
+// Public, render-ready (CTA hrefs resolved server-side; CTAs are not visibility-gated).
+export interface ResolvedHeaderCta {
+  id: string;
+  label: string;
+  href: string;
+  newTab: boolean;
+  bgColor: string;
+  textColor: string;
+  paddingX: number;
+  paddingY: number;
+  borderRadius: number;
+}
+export interface ResolvedHeader {
+  layout: HeaderLayout;
+  width: HeaderWidth;
+  maxWidth: number | null;
+  bgColor: string;
+  paddingX: number;
+  paddingY: number;
+  logoUrl: string | null;
+  menuId: string | null; // Nav client-resolves items via resolveMenuById
+  linkColor: string;
+  menuActiveColor: string | null;
+  ctas: ResolvedHeaderCta[];
+}
+// ----- placement rules: which header shows, where, and for whom -----
+export const HEADER_AUDIENCES = ["ALL", "AUTHED", "GUEST", "LEVEL"] as const;
+export type HeaderAudience = (typeof HEADER_AUDIENCES)[number];
+export const HEADER_SECTIONS = [
+  "HOME",
+  "DASHBOARD",
+  "BLOG",
+  "PRICING",
+  "CLASSES",
+  "COURSES",
+] as const;
+export type HeaderSection = (typeof HEADER_SECTIONS)[number];
+export const HEADER_PAGE_MODES = ["ALL", "INCLUDE"] as const;
+export type HeaderPageMode = (typeof HEADER_PAGE_MODES)[number];
+
+export interface HeaderConditions {
+  audience: HeaderAudience; // ALL | AUTHED | GUEST | LEVEL
+  audienceLevelId?: string | null; // when audience === "LEVEL"
+  pageMode: HeaderPageMode; // ALL pages, or only the included targets
+  includePageIds: string[]; // CMS pages to include (INCLUDE)
+  includeSections: HeaderSection[]; // built-in sections to include (INCLUDE)
+  excludePageIds: string[]; // always hide on these CMS pages
+  excludeSections: HeaderSection[]; // always hide on these sections
+}
+
+// One configured header: style/content (config) + placement (conditions).
+export interface HeaderDTO {
+  id: string;
+  name: string;
+  enabled: boolean;
+  priority: number; // higher wins when multiple match
+  config: HeaderConfig;
+  conditions: HeaderConditions;
+  updatedAt: string; // ISO
+}
+export interface HeaderSummary {
+  id: string;
+  name: string;
+  enabled: boolean;
+  priority: number;
+  audience: HeaderAudience;
+  pageMode: HeaderPageMode;
+}
+export interface CreateHeaderInput {
+  name: string;
+}
+export interface UpdateHeaderInput {
+  name?: string;
+  enabled?: boolean;
+  config?: HeaderConfig;
+  conditions?: HeaderConditions;
+}
+export interface ReorderHeadersInput {
+  ids: string[]; // new order, highest priority first
+}
+
+// ---------- Site Footer (single global, 3 columns + bottom bar) ----------
+export interface FooterBottomLink {
+  id: string;
+  label: string;
+  url: string;
+}
+export interface FooterEmail {
+  heading: string;
+  text?: string | null;
+  placeholder: string;
+  buttonText: string;
+  audienceId?: string | null; // Mailchimp audience
+  audienceName?: string | null;
+  doubleOptIn: boolean;
+  successMessage: string;
+}
+export interface FooterConfig {
+  enabled: boolean;
+  bgColor: string; // #rrggbb
+  textColor: string;
+  headingColor: string;
+  linkColor: string;
+  paddingY: number; // px
+  // col 1: logo
+  logoUrl?: string | null;
+  tagline?: string | null;
+  // col 2: menu
+  menuHeading: string;
+  menuId?: string | null; // null -> FOOTER-location menu
+  // col 3: email opt-in (built-in -> Mailchimp)
+  email: FooterEmail;
+  // bottom bar
+  copyright: string; // supports the {year} token
+  bottomLinks: FooterBottomLink[];
+}
+export interface UpdateFooterInput {
+  footer: FooterConfig;
+}
+export interface FooterSubscribeInput {
+  email: string;
+}
+export interface FooterSubscribeResult {
+  ok: boolean;
+  status: string; // subscribed | pending | existing | skipped | error
+  message: string;
+}
+
 export const ROUTES = {
   // auth
   memberLogin: "POST /auth/login", // body {email,password} -> LoginResponse<AuthUser>
@@ -988,6 +1262,34 @@ export const ROUTES = {
 
   // admin: global search (topbar) — permission-scoped to the admin's sections
   adminSearch: "GET /admin/search", // ?q= -> AdminSearchResponse
+
+  // admin: navigation menus
+  adminListMenus: "GET /admin/menus", // -> MenuListItem[]
+  adminCreateMenu: "POST /admin/menus", // body CreateMenuInput -> MenuDTO
+  adminGetMenu: "GET /admin/menus/:id", // -> MenuDTO (nested items)
+  adminUpdateMenu: "PATCH /admin/menus/:id", // body UpdateMenuInput -> MenuDTO
+  adminDeleteMenu: "DELETE /admin/menus/:id", // -> { ok: true }
+  adminAddMenuItem: "POST /admin/menus/:id/items", // body CreateMenuItemInput -> MenuDTO
+  adminUpdateMenuItem: "PATCH /admin/menus/items/:itemId", // body UpdateMenuItemInput -> MenuDTO
+  adminDeleteMenuItem: "DELETE /admin/menus/items/:itemId", // -> MenuDTO
+  adminReorderMenuItems: "PUT /admin/menus/:id/order", // body ReorderMenuItemsInput -> MenuDTO
+  // public: resolved menus for the web (visibility-filtered server-side)
+  menuByLocation: "GET /menus/location/:location", // -> ResolvedMenu | null
+  menuById: "GET /menus/:id/resolved", // embed-in-page -> ResolvedMenu | null
+
+  // site headers (multiple, conditional) — admin CRUD (RBAC `menus`) + public match
+  adminListHeaders: "GET /admin/site/headers", // -> HeaderSummary[]
+  adminCreateHeader: "POST /admin/site/headers", // body CreateHeaderInput -> HeaderDTO
+  adminGetHeader: "GET /admin/site/headers/:id", // -> HeaderDTO
+  adminUpdateHeader: "PUT /admin/site/headers/:id", // body UpdateHeaderInput -> HeaderDTO
+  adminDeleteHeader: "DELETE /admin/site/headers/:id", // -> { ok: true }
+  adminReorderHeaders: "PUT /admin/site/headers/order", // body ReorderHeadersInput -> HeaderSummary[]
+  siteHeader: "GET /site/header", // public ?path= -> matched ResolvedHeader | null (auth-aware)
+  // site footer (single global) — admin (RBAC `menus`) + public config + subscribe
+  adminGetFooter: "GET /admin/site/footer", // -> FooterConfig (default-merged)
+  adminUpdateFooter: "PUT /admin/site/footer", // body UpdateFooterInput -> FooterConfig
+  siteFooter: "GET /site/footer", // public -> FooterConfig
+  siteFooterSubscribe: "POST /site/footer/subscribe", // public, body FooterSubscribeInput -> FooterSubscribeResult
 
   // admin: in-app notifications (per-admin read state)
   adminListNotifications: "GET /admin/notifications", // ?page&pageSize -> AdminNotificationListDTO

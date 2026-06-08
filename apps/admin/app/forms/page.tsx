@@ -435,7 +435,7 @@ export default function FormsPage() {
           ) : forms.length === 0 ? (
             <p className="muted">No forms yet. Click “Add new form” to start.</p>
           ) : (
-            <table className="table">
+            <div className="table-wrap"><table className="table">
               <thead>
                 <tr>
                   <th>Name</th>
@@ -500,7 +500,7 @@ export default function FormsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
 
@@ -570,7 +570,7 @@ export default function FormsPage() {
                 ) : entries.length === 0 ? (
                   <p className="muted">No submissions yet.</p>
                 ) : (
-                  <table className="table">
+                  <div className="table-wrap"><table className="table">
                     <thead>
                       <tr>
                         <th>Submitted</th>
@@ -595,7 +595,7 @@ export default function FormsPage() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 )}
               </div>
             </div>

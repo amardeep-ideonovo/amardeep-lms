@@ -77,6 +77,7 @@ export type PageProps = {
   FAQ: FaqProps;
   Testimonial: TestimonialProps;
   Form: { formId: string };
+  Menu: { menuId: string };
 };
 // Page-level (SEO) props edited in Puck's "page" settings; title/slug live on
 // the Page row and are edited in the editor's top bar instead.
@@ -141,6 +142,10 @@ export type PuckConfigOptions = {
    * so it falls back to a plain text URL input there.
    */
   imageField?: Field;
+  /** Renders an embedded navigation menu by id — web injects <PageMenu>. */
+  menuComponent?: React.ComponentType<{ menuId: string }>;
+  /** Custom Puck field for the Menu block's `menuId` (admin injects a dropdown). */
+  menuField?: Field;
 };
 
 export function createPuckConfig(
@@ -159,6 +164,9 @@ export function createPuckConfig(
     opts.imageField
       ? ({ ...opts.imageField, label } as Field)
       : { type: "text", label };
+  const MenuComponent = opts.menuComponent;
+  const menuField: Field =
+    opts.menuField ?? { type: "text", label: "Menu ID (from the Menus tab)" };
 
   return {
     root: {
@@ -181,7 +189,15 @@ export function createPuckConfig(
       layout: { title: "Layout", components: ["Section", "Columns", "Spacer"] },
       content: {
         title: "Content",
-        components: ["Heading", "RichText", "Image", "Button", "Video", "Form"],
+        components: [
+          "Heading",
+          "RichText",
+          "Image",
+          "Button",
+          "Video",
+          "Form",
+          "Menu",
+        ],
       },
     },
 
@@ -605,6 +621,25 @@ export function createPuckConfig(
                 {formId
                   ? `Form: ${formId}`
                   : "Form block — set a Form ID in the field panel"}
+              </div>
+            </div>
+          ),
+      },
+
+      // ---------------- Menu (embedded navigation) ----------------
+      Menu: {
+        label: "Menu",
+        fields: { menuId: menuField },
+        defaultProps: { menuId: "" },
+        render: ({ menuId }) =>
+          MenuComponent && menuId ? (
+            <MenuComponent menuId={menuId} />
+          ) : (
+            <div className="lmspb-container lmspb-w-normal">
+              <div className="lmspb-form-placeholder">
+                {menuId
+                  ? `Menu: ${menuId}`
+                  : "Menu block — pick a menu in the field panel"}
               </div>
             </div>
           ),

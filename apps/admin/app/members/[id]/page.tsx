@@ -189,7 +189,7 @@ export default function MemberBillingPage() {
             {data.invoices.length === 0 ? (
               <p className="muted">No payments yet.</p>
             ) : (
-              <table className="table">
+              <div className="table-wrap"><table className="table">
                 <thead>
                   <tr>
                     <th>Date</th>
@@ -222,7 +222,7 @@ export default function MemberBillingPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </>
         )}

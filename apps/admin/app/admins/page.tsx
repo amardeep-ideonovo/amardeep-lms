@@ -141,7 +141,7 @@ export default function AdminsPage() {
         {loading ? (
           <p className="muted">Loading…</p>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Email</th>
@@ -203,7 +203,7 @@ export default function AdminsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 
@@ -366,7 +366,7 @@ function AdminModal({
             </label>
 
             {!superAdmin && (
-              <table className="table perms-matrix">
+              <div className="table-wrap"><table className="table perms-matrix">
                 <thead>
                   <tr>
                     <th>Section</th>
@@ -405,7 +405,7 @@ function AdminModal({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
 
             <div className="row-actions" style={{ marginTop: 16 }}>

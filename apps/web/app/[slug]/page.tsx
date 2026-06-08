@@ -8,6 +8,7 @@ import { createPuckConfig } from "@lms/puck";
 import type { PageProps, RootProps } from "@lms/puck";
 import "@lms/puck/styles.css";
 import FormEmbed from "@/components/FormEmbed";
+import PageMenu from "@/components/PageMenu";
 import PopupHost from "@/components/PopupHost";
 import { fetchPublishedPage } from "@/lib/api";
 import { absoluteUrl, buildMetadata } from "@/lib/seo";
@@ -18,7 +19,10 @@ import { absoluteUrl, buildMetadata } from "@/lib/seo";
 // them to a PUBLISHED page or 404. Public + server-rendered for SEO.
 export const dynamic = "force-dynamic";
 
-const config = createPuckConfig({ formComponent: FormEmbed });
+const config = createPuckConfig({
+  formComponent: FormEmbed,
+  menuComponent: PageMenu,
+});
 
 type Params = { params: { slug: string } };
 

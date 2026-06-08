@@ -29,6 +29,10 @@ import type {
   PostDetailDTO,
   PostListItem,
   PublicClassListItem,
+  ResolvedMenu,
+  ResolvedHeader,
+  FooterConfig,
+  FooterSubscribeResult,
   ChangePasswordInput,
   SignupInput,
   UpdateProfileInput,
@@ -173,6 +177,12 @@ export const api = {
 
   // levels (for the subscribe flow)
   levels: () => request<LevelDTO[]>("/levels"),
+
+  // navigation menus (resolved + visibility-filtered server-side; optional auth)
+  resolveMenu: (location: string) =>
+    request<ResolvedMenu | null>(`/menus/location/${location}`),
+  resolveMenuById: (id: string) =>
+    request<ResolvedMenu | null>(`/menus/${id}/resolved`),
   // Public checkout resolution (slug or id) — works logged-out.
   checkoutLevel: (slugOrId: string) =>
     request<CheckoutLevelDTO>(
@@ -217,6 +227,52 @@ export const api = {
       method: "POST",
     }),
 };
+
+// ---------- Site header (PUBLIC) ----------
+// SSR'd in the root layout. Returns null on any failure so the layout never
+// 500s — <Nav> then falls back to the default header look.
+export async function fetchSiteHeader(
+  path?: string,
+): Promise<ResolvedHeader | null> {
+  try {
+    const qs = path ? `?path=${encodeURIComponent(path)}` : "";
+    // SSR (no path) -> guest default, no token. Client (with path) -> attach
+    // the member token so audience/level rules resolve for this visitor.
+    return await request<ResolvedHeader>(`/site/header${qs}`, {
+      auth: !!path,
+    });
+  } catch {
+    return null;
+  }
+}
+
+// ---------- Site footer (PUBLIC) ----------
+// SSR'd in the root layout; null on failure so the layout never 500s.
+export async function fetchFooter(): Promise<FooterConfig | null> {
+  try {
+    return await request<FooterConfig>("/site/footer", { auth: false });
+  } catch {
+    return null;
+  }
+}
+
+// Built-in footer email opt-in -> Mailchimp (server-side). Never throws; a
+// failure (bad email / unconfigured) comes back as { ok:false, message }.
+export async function footerSubscribe(
+  email: string,
+): Promise<FooterSubscribeResult> {
+  try {
+    return await request<FooterSubscribeResult>("/site/footer/subscribe", {
+      method: "POST",
+      body: { email },
+      auth: false,
+    });
+  } catch (err) {
+    const message =
+      err instanceof ApiError ? err.message : "Couldn’t subscribe. Try again.";
+    return { ok: false, status: "error", message };
+  }
+}
 
 // ---------- Blog (PUBLIC) ----------
 // No token: usable from Server Components for SSR/SEO. Only PUBLISHED posts

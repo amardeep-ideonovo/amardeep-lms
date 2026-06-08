@@ -80,6 +80,18 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get adminNotificationRead() {
     return this.client.adminNotificationRead;
   }
+  get menu() {
+    return this.client.menu;
+  }
+  get menuItem() {
+    return this.client.menuItem;
+  }
+  get header() {
+    return this.client.header;
+  }
+  get footer() {
+    return this.client.footer;
+  }
 
   get $transaction() {
     return this.client.$transaction.bind(this.client);

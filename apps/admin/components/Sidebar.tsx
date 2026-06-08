@@ -69,6 +69,26 @@ const I = {
       <path d="M9 11l3 3 8-8M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  menus: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  header: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M3 9.5h18" stroke="currentColor" strokeWidth="1.7" />
+      <circle cx="6.4" cy="7.25" r="0.95" fill="currentColor" />
+      <path d="M14.5 7.25H18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  ),
+  footer: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M3 14.5h18" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M6.5 17.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  ),
   subscriptions: (
     <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
       <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.7" />
@@ -117,6 +137,9 @@ const GROUPS: NavGroup[] = [
       { href: "/blog", label: "Blog", section: "blog", icon: I.blog },
       { href: "/gallery", label: "Gallery", section: "gallery", icon: I.gallery },
       { href: "/pages", label: "Pages", section: "pages", icon: I.pages },
+      { href: "/header", label: "Header", section: "menus", icon: I.header },
+      { href: "/footer", label: "Footer", section: "menus", icon: I.footer },
+      { href: "/navigation", label: "Navigation", section: "menus", icon: I.menus },
       { href: "/popups", label: "Popups", section: "popups", icon: I.popups },
       { href: "/forms", label: "Forms", section: "forms", icon: I.forms },
     ],

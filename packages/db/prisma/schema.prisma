@@ -259,6 +259,30 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
+// Site headers (header builder). Multiple rows, each with style/content (config)
+// and placement rules (conditions: audience + page targeting). The web shows the
+// highest-priority enabled header whose rules match the page + visitor. Public.
+model Header {
+  id         String   @id @default(cuid())
+  name       String
+  config     Json
+  conditions Json
+  priority   Int      @default(0)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([enabled, priority])
+}
+
+// Site footer (footer builder). Single global config row keyed "singleton";
+// `config` holds the FooterConfig JSON (logo, menu, email opt-in, bottom bar).
+model Footer {
+  id        String   @id @default("singleton")
+  config    Json?
+  updatedAt DateTime @updatedAt
+}
+
 // ---------- Blog ----------
 // Public-facing marketing/news content. Unlike LMS courses, posts have no
 // level gating: PUBLISHED posts are readable by anyone (no login). Drafts are
@@ -505,4 +529,80 @@ model AdminNotificationRead {
 
   @@unique([notificationId, adminId])
   @@index([adminId])
+}
+
+// ---------- Navigation menus (WordPress-style) ----------
+
+// Where a menu renders on the web site. A location holds at most one menu
+// (@unique). A menu with no location is "embed-only" (placed inside a CMS page
+// via the Puck Menu block, referenced by id).
+enum MenuLocation {
+  HEADER
+  FOOTER
+  MOBILE
+}
+
+// What a menu item points at. Loose target ids (like WordPress) are resolved to
+// hrefs at render time, so a slug change is always reflected and a deleted
+// target just drops out gracefully.
+enum MenuItemType {
+  PAGE // CMS page  -> pageId  -> /:slug
+  CLASS // Level     -> levelId -> /classes/:slug
+  CLASS_INDEX // all classes  -> /pricing/all
+  COURSE // Course    -> courseId -> /courses/:id
+  COURSE_INDEX // all courses  -> /dashboard
+  BLOG_INDEX // /blog
+  BLOG_POST // Post      -> postId  -> /blog/:slug
+  ROUTE // built-in internal path (url, e.g. /dashboard)
+  CUSTOM // any URL (url)
+}
+
+// Per-item visibility (WishList-style). LEVEL requires the visitor to hold a
+// specific class/level; filtered server-side so gated items never leak.
+enum MenuItemVisibility {
+  ALL
+  GUEST
+  AUTHED
+  LEVEL
+}
+
+model Menu {
+  id        String        @id @default(cuid())
+  name      String
+  location  MenuLocation? @unique
+  items     MenuItem[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model MenuItem {
+  id       String     @id @default(cuid())
+  menuId   String
+  menu     Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  // Self-relation for nesting (dropdowns). Deleting a parent removes children.
+  parentId String?
+  parent   MenuItem?  @relation("MenuItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children MenuItem[] @relation("MenuItemChildren")
+  order    Int        @default(0)
+
+  label String
+  type  MenuItemType
+
+  // Target (one of, by type). Loose ids — no FK — resolved at render time.
+  url      String? // CUSTOM (any URL) or ROUTE (internal path)
+  pageId   String?
+  levelId  String?
+  courseId String?
+  postId   String?
+
+  openNewTab Boolean @default(false)
+
+  visibility        MenuItemVisibility @default(ALL)
+  visibilityLevelId String? // required level when visibility = LEVEL
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([menuId])
+  @@index([parentId])
 }

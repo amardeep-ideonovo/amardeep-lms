@@ -711,7 +711,7 @@ export default function ClassesPage() {
         ) : levels.length === 0 ? (
           <p className="muted">No classes yet.</p>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Name</th>
@@ -782,7 +782,7 @@ export default function ClassesPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

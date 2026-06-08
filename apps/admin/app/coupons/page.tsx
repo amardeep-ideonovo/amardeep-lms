@@ -343,7 +343,7 @@ export default function CouponsPage() {
         ) : visible.length === 0 ? (
           <p className="muted">No {filter} coupons.</p>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Code</th>
@@ -411,7 +411,7 @@ export default function CouponsPage() {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>
