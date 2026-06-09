@@ -2415,3 +2415,31 @@ a.card:hover {
 .nav-drawer-link { color: #f4f4f6; }
 .nav-drawer-link:hover { background: rgba(255, 255, 255, 0.06); }
 .nav-drawer-ctas { border-top-color: rgba(255, 255, 255, 0.1); }
+
+/* ===========================================================================
+   Dark CMS pages — scoped to `.cms-dark` (the PUBLIC /[slug] render only). The
+   admin Puck editor renders `.lmspb-root` WITHOUT this wrapper, so it stays
+   light. Full-bleed dark canvas + dark Puck design-system vars.
+   =========================================================================== */
+.cms-dark {
+  position: relative;
+  left: 50%;
+  right: 50%;
+  width: 100vw;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  margin-top: -32px;
+  margin-bottom: -64px;
+  min-height: 80vh;
+  background: #0b0b0d;
+}
+.cms-dark .lmspb-root {
+  --lmspb-fg: #f4f4f6;
+  --lmspb-muted-fg: #9aa1ad;
+  --lmspb-muted-bg: #16161b;
+  --lmspb-border: rgba(255, 255, 255, 0.12);
+  color: var(--lmspb-fg);
+}
+.cms-dark .lmspb-card,
+.cms-dark .lmspb-faq-item { background: #16161b; }
+.cms-dark .lmspb-bg-muted { background: #16161b; }

@@ -82,10 +82,12 @@ export default async function CmsPage({ params }: Params) {
           heading block, so we surface the page/SEO title here (visually hidden
           so it never clashes with the authored design). */}
       <h1 className="co-sr-only">{seo.title}</h1>
-      <Render
-        config={config}
-        data={page.data as unknown as Data<PageProps, RootProps>}
-      />
+      <div className="cms-dark">
+        <Render
+          config={config}
+          data={page.data as unknown as Data<PageProps, RootProps>}
+        />
+      </div>
       {/* Active popups targeted at this page (shown on every visit). */}
       <PopupHost context={{ type: "page", pageId: page.id }} />
     </>

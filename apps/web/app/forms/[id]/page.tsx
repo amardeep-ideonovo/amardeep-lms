@@ -6,8 +6,10 @@ export const dynamic = "force-dynamic";
 
 export default function FormPage({ params }: { params: { id: string } }) {
   return (
-    <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 20px" }}>
-      <FormEmbed formId={params.id} />
+    <div className="dark-page">
+      <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 20px" }}>
+        <FormEmbed formId={params.id} />
+      </div>
     </div>
   );
 }

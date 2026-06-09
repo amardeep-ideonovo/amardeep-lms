@@ -182,7 +182,9 @@ const styles: Record<string, CSSProperties> = {
   input: {
     padding: "10px 12px",
     borderRadius: 8,
-    border: "1px solid #d1d5db",
+    border: "1px solid rgba(128, 128, 128, 0.4)",
+    background: "transparent",
+    color: "inherit",
     font: "inherit",
     width: "100%",
   },
@@ -201,8 +203,9 @@ const styles: Record<string, CSSProperties> = {
   success: {
     padding: 16,
     borderRadius: 10,
-    background: "#dcfce7",
-    color: "#166534",
+    background: "rgba(34, 197, 94, 0.14)",
+    border: "1px solid rgba(34, 197, 94, 0.4)",
+    color: "inherit",
   },
   note: { color: "#6b7280" },
 };
