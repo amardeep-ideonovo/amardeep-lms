@@ -2382,3 +2382,28 @@ a.card:hover {
 .checkout-dark .co-modal { background: #16161b; border: 1px solid rgba(255, 255, 255, 0.12); }
 .checkout-dark .co-modal-overlay { background: rgba(0, 0, 0, 0.6); }
 .checkout-dark .co-modal-head h2 { color: #f4f4f6; }
+
+/* ===========================================================================
+   Dark global Nav. Overrides the default chrome dark (later in the file → wins
+   at equal specificity). The admin "Header" builder still wins: it sets
+   --hdr-bg / --hdr-link / --hdr-active / --hdr-active-bg inline, which these
+   rules keep as `var(--hdr-*, <dark fallback>)`.
+   =========================================================================== */
+.nav { background: var(--hdr-bg, #0b0b0d); border-bottom-color: rgba(255, 255, 255, 0.08); }
+.nav-brand { color: #a5a7f7; }
+.nav-link { color: var(--hdr-link, #c2c2cb); }
+.nav-link:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.nav-link.active { color: var(--hdr-active, #fff); background: var(--hdr-active-bg, rgba(255, 255, 255, 0.1)); }
+.nav-logout { border-color: rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.04); color: #c2c2cb; }
+.nav-logout:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.nav-sub { background: #16161b; border-color: rgba(255, 255, 255, 0.1); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5); }
+.nav-sub-link { color: #c2c2cb; }
+.nav-sub-link:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.nav-burger { border-color: rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.04); }
+.nav-burger span { background: #f4f4f6; }
+.nav-drawer-overlay { background: rgba(0, 0, 0, 0.6); }
+.nav-drawer { background: #0b0b0d; border-left-color: rgba(255, 255, 255, 0.1); }
+.nav-drawer-close { color: #c2c2cb; }
+.nav-drawer-link { color: #f4f4f6; }
+.nav-drawer-link:hover { background: rgba(255, 255, 255, 0.06); }
+.nav-drawer-ctas { border-top-color: rgba(255, 255, 255, 0.1); }
