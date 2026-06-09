@@ -11,8 +11,10 @@ export default function Home() {
     router.replace(getToken() ? "/dashboard" : "/login");
   }, [router]);
   return (
-    <div className="centered-state">
-      <div className="spinner" aria-label="Loading" />
+    <div className="dark-page">
+      <div className="centered-state">
+        <div className="spinner" aria-label="Loading" />
+      </div>
     </div>
   );
 }

@@ -58,7 +58,9 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="form-card">
+    <div className="dark-page">
+      <div className="dp-wrap">
+        <div className="form-card">
       <h1>Create your account</h1>
       <p className="sub">
         Already a member?{" "}
@@ -147,6 +149,8 @@ export default function SignupPage() {
           {loading ? "Creating account…" : "Create account"}
         </button>
       </form>
+        </div>
+      </div>
     </div>
   );
 }

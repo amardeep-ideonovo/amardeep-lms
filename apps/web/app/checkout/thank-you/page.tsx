@@ -35,7 +35,9 @@ function ThankYouInner() {
   }, []);
 
   return (
-    <div className="thankyou">
+    <div className="dark-page">
+      <div className="dp-wrap">
+        <div className="thankyou">
       <div className="thankyou-check" aria-hidden="true">
         <svg
           width="64"
@@ -78,6 +80,8 @@ function ThankYouInner() {
             {loadingReceipt ? "Loading receipt…" : "View receipt"}
           </Link>
         )}
+      </div>
+        </div>
       </div>
     </div>
   );

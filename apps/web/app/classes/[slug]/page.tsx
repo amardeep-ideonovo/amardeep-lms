@@ -5,10 +5,10 @@ import { fetchClassPage } from "@/lib/api";
 import { buildMetadata } from "@/lib/seo";
 import ClassMemberArea from "@/components/ClassMemberArea";
 
-// Public, server-rendered class landing page (MasterClass-style). Dynamic so we
-// never reach the API at build time and the page always reflects admin edits.
-// The hero + skills are static (SSR, SEO-friendly); the ownership-dependent body
-// (courses vs. Get-Class/trailer) is resolved client-side in <ClassMemberArea>.
+// Public, server-rendered class landing page (cinematic dark theme). Dynamic so
+// we never reach the API at build time and the page always reflects admin edits.
+// Hero + skills are static SSR (SEO-friendly); the ownership-dependent body
+// (Your Courses vs. Get-Class/trailer) is resolved client-side in <ClassMemberArea>.
 export const dynamic = "force-dynamic";
 
 type Params = { params: { slug: string } };
@@ -47,65 +47,77 @@ export default async function ClassPage({ params }: Params) {
   if (!cls) notFound();
 
   const slugOrId = cls.slug ?? cls.id;
+  const totalLabel = fmtTotal(cls.totalDurationSeconds);
 
   return (
-    <article>
-      {/* Hero — static, public (good for SEO + always visible) */}
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: 28,
-          alignItems: "center",
-          margin: "8px 0 28px",
-        }}
-      >
-        <div>
-          {cls.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={cls.imageUrl}
-              alt={cls.name}
-              style={{
-                width: "100%",
-                maxHeight: 480,
-                objectFit: "cover",
-                borderRadius: 12,
-                display: "block",
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                width: "100%",
-                aspectRatio: "3/4",
-                borderRadius: 12,
-                background: "var(--border)",
-              }}
-            />
-          )}
+    <article className="class-cinema">
+      {/* ---------- HERO (static, public, SEO) ---------- */}
+      <header className="cc-hero">
+        <div
+          className={cls.imageUrl ? "cc-hero-bg" : "cc-hero-bg cc-hero-bg--empty"}
+          style={cls.imageUrl ? { backgroundImage: `url(${cls.imageUrl})` } : undefined}
+        />
+        <div className="cc-hero-inner">
+          <div className="cc-hero-left">
+            {cls.categories.length > 0 && (
+              <div className="cc-cats">
+                {cls.categories.map((c) => (
+                  <span key={c.id} className="cc-chip">{c.name}</span>
+                ))}
+              </div>
+            )}
+            <h1 className="cc-title">{cls.name}</h1>
+            {cls.description && <p className="cc-teaches">{cls.description}</p>}
+            <div className="cc-meta">
+              {cls.lessonCount > 0 && (
+                <>
+                  <span>{cls.lessonCount} lesson{cls.lessonCount === 1 ? "" : "s"}</span>
+                  {totalLabel && <span className="dot" />}
+                </>
+              )}
+              {totalLabel && <span>{totalLabel}</span>}
+            </div>
+          </div>
+
+          {/* The buy / resume card is ownership-dependent → client component. */}
+          <ClassMemberArea
+            slugOrId={slugOrId}
+            name={cls.name}
+            checkoutHref={`/checkout/${slugOrId}`}
+            priceLabel={priceLabel(cls)}
+            trailerUrl={cls.trailerUrl}
+            lessonCount={cls.lessonCount}
+            totalLabel={totalLabel}
+            slot="hero-card"
+          />
         </div>
-        <div>
-          {cls.categories.length > 0 && (
-            <div className="chips" style={{ marginBottom: 12 }}>
-              {cls.categories.map((c) => (
-                <span key={c.id} className="chip chip--muted">
-                  {c.name}
-                </span>
+      </header>
+
+      {/* ---------- SKILLS (always shown) ---------- */}
+      {cls.skills.length > 0 && (
+        <section className="cc-section">
+          <div className="cc-wrap">
+            <p className="cc-eyebrow">Curriculum</p>
+            <h2 className="cc-h2">Skills You&apos;ll Learn</h2>
+            <p className="cc-sub">What you&apos;ll be able to do by the end.</p>
+            <div className="cc-skills">
+              {cls.skills.map((s, i) => (
+                <div key={i} className={s.imageUrl ? "cc-skill" : "cc-skill cc-skill--empty"}>
+                  <span className="cc-skill-num">{i + 1}</span>
+                  {s.imageUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.imageUrl} alt="" />
+                  )}
+                  <div className="cc-skill-title">{s.title}</div>
+                </div>
               ))}
             </div>
-          )}
-          <h1 className="page-title" style={{ marginBottom: 12 }}>
-            {cls.name}
-          </h1>
-          {cls.description && (
-            <p style={{ color: "var(--muted, #555)" }}>{cls.description}</p>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
-      {/* Ownership-gated body: members see "Your Courses"; everyone else sees the
-          marketing CTA + trailer. Resolved client-side (token is in localStorage). */}
+      {/* ---------- BODY: trailer + courses + closing CTA ---------- */}
+      {/* Ownership-gated. Members → Your Courses. Others → trailer + closing CTA. */}
       <ClassMemberArea
         slugOrId={slugOrId}
         name={cls.name}
@@ -113,37 +125,9 @@ export default async function ClassPage({ params }: Params) {
         priceLabel={priceLabel(cls)}
         trailerUrl={cls.trailerUrl}
         lessonCount={cls.lessonCount}
-        totalLabel={fmtTotal(cls.totalDurationSeconds)}
+        totalLabel={totalLabel}
+        slot="body"
       />
-
-      {/* Skills You'll Learn — always shown */}
-      {cls.skills.length > 0 && (
-        <section style={{ marginBottom: 36 }}>
-          <h2 className="section-title">Skills You&apos;ll Learn</h2>
-          <div className="card-grid">
-            {cls.skills.map((s, i) => (
-              <div key={i} className="card">
-                {s.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={s.imageUrl}
-                    alt=""
-                    style={{
-                      width: "100%",
-                      height: 160,
-                      objectFit: "cover",
-                      borderRadius: 8,
-                      marginBottom: 8,
-                      display: "block",
-                    }}
-                  />
-                ) : null}
-                <h3 className="card-title">{s.title}</h3>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </article>
   );
 }

@@ -284,19 +284,31 @@ export default function CheckoutPage() {
 
   if (loading) {
     return (
-      <div className="centered-state">
-        <div className="spinner" aria-label="Loading" />
+      <div className="dark-page checkout-dark">
+        <div className="dp-wrap">
+          <div className="centered-state">
+            <div className="spinner" aria-label="Loading" />
+          </div>
+        </div>
       </div>
     );
   }
 
   if (loadError) {
-    return <div className="alert alert-error">{loadError}</div>;
+    return (
+      <div className="dark-page checkout-dark">
+        <div className="dp-wrap">
+          <div className="alert alert-error">{loadError}</div>
+        </div>
+      </div>
+    );
   }
 
   if (!config || !selected) {
     return (
-      <div className="co-notfound">
+      <div className="dark-page checkout-dark">
+        <div className="dp-wrap">
+          <div className="co-notfound">
         <h1 className="page-title">Checkout not found</h1>
         <p className="page-sub">
           We couldn’t find a plan for “{slugOrId}”. The link may be out of date.
@@ -304,12 +316,16 @@ export default function CheckoutPage() {
         <Link href="/pricing/all" className="btn btn-primary">
           View all plans
         </Link>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="co-page">
+    <div className="dark-page checkout-dark">
+      <div className="dp-wrap">
+        <div className="co-page">
       {/* Auth banner */}
       {user ? (
         <div className="co-auth-banner">
@@ -521,6 +537,8 @@ export default function CheckoutPage() {
           }}
         />
       )}
+    </div>
+      </div>
     </div>
   );
 }

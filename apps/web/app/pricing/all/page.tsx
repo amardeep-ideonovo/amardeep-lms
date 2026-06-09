@@ -112,10 +112,11 @@ function AllPlansInner() {
   }
 
   return (
-    <>
-      <Link href="/account" className="back-link">
-        ← Account
-      </Link>
+    <div className="dark-page">
+      <div className="dp-wrap">
+        <Link href="/account" className="back-link">
+          ← Account
+        </Link>
       <h1 className="page-title">All membership plans</h1>
       <p className="page-sub">Choose a plan to unlock more courses.</p>
 
@@ -145,7 +146,8 @@ function AllPlansInner() {
           )}
         </>
       )}
-    </>
+      </div>
+    </div>
   );
 }
 

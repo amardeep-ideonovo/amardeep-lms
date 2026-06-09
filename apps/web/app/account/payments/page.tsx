@@ -46,10 +46,11 @@ function PaymentsInner() {
   }, [router]);
 
   return (
-    <>
-      <Link href="/account" className="back-link">
-        ← Account
-      </Link>
+    <div className="account-cinema">
+      <div className="ac-wrap">
+        <Link href="/account" className="back-link">
+          ← Account
+        </Link>
       <h1 className="page-title">Payment history</h1>
       <p className="page-sub">All of your payments.</p>
 
@@ -101,7 +102,8 @@ function PaymentsInner() {
           </table>
         )}
       </section>
-    </>
+      </div>
+    </div>
   );
 }
 

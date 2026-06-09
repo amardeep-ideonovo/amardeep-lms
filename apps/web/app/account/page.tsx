@@ -21,6 +21,23 @@ function fmtDate(iso: string): string {
   });
 }
 
+// Status pill for a membership row: green active, amber paused/canceling.
+function planStatus(sub: SubscriptionDetailDTO): { label: string; cls: string } {
+  if (sub.cancelAtPeriodEnd)
+    return {
+      label: sub.currentPeriodEnd
+        ? `Cancels ${fmtDate(sub.currentPeriodEnd)}`
+        : "Canceling",
+      cls: "plan-status--cancel",
+    };
+  if (sub.paused) return { label: "Paused", cls: "plan-status--paused" };
+  const s = sub.status || "active";
+  return {
+    label: s.charAt(0).toUpperCase() + s.slice(1),
+    cls: "plan-status--active",
+  };
+}
+
 // Stripe redirects back to /account?checkout=success|cancel after a Checkout
 // Session. Reads search params → must sit in <Suspense>.
 function CheckoutBanner() {
@@ -225,9 +242,10 @@ function AccountInner() {
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "—";
 
   return (
-    <>
-      <h1 className="page-title">Account</h1>
-      <p className="page-sub">Manage your membership and billing.</p>
+    <div className="account-cinema">
+      <div className="ac-wrap">
+        <h1 className="page-title">Account</h1>
+        <p className="page-sub">Manage your membership and billing.</p>
 
       <Suspense fallback={null}>
         <CheckoutBanner />
@@ -425,21 +443,25 @@ function AccountInner() {
       </section>
 
       <section className="account-section">
-        <h2>Your plan</h2>
+        <h2>{subs.length > 1 ? "Your plans" : "Your plan"}</h2>
         {subs.length === 0 ? (
           <p className="empty">You don’t have a paid membership yet.</p>
         ) : (
           <div className="plan-list">
             {subs.map((sub) => {
               const installment = sub.installmentsTotal != null;
+              const status = planStatus(sub);
               return (
                 <div key={sub.stripeSubId} className="plan-tile">
                   <div className="plan-tile__info">
-                    <strong>{sub.levelName}</strong>
+                    <div className="plan-tile__top">
+                      <strong>{sub.levelName}</strong>
+                      <span className={`plan-status ${status.cls}`}>
+                        {status.label}
+                      </span>
+                    </div>
                     <span className="plan-tile__meta">
-                      {money(sub.amount, sub.currency)} / {sub.interval} ·{" "}
-                      {sub.paused ? "paused" : sub.status}
-                      {sub.cancelAtPeriodEnd ? " · cancels at period end" : ""}
+                      {money(sub.amount, sub.currency)} / {sub.interval}
                       {sub.currentPeriodEnd
                         ? ` · renews ${fmtDate(sub.currentPeriodEnd)}`
                         : ""}
@@ -449,19 +471,13 @@ function AccountInner() {
                     </span>
                   </div>
                   <div className="plan-tile__actions">
-                    {sub.cancelAtPeriodEnd ? (
-                      <span className="plan-tile__note">
-                        Cancels at period end
-                      </span>
-                    ) : sub.paused ? (
-                      <span className="plan-tile__note">Paused</span>
-                    ) : installment ? null : (
+                    {!sub.cancelAtPeriodEnd && !sub.paused && !installment && (
                       <button
                         type="button"
-                        className="btn btn-danger btn-sm"
+                        className="plan-tile__cancel"
                         onClick={() => setCancelFor(sub)}
                       >
-                        Cancel membership
+                        Cancel
                       </button>
                     )}
                   </div>
@@ -502,6 +518,7 @@ function AccountInner() {
           {busy ? "Redirecting…" : "Update Card Details"}
         </button>
       </section>
+      </div>
 
       {cancelFor && (
         <div
@@ -555,7 +572,7 @@ function AccountInner() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 

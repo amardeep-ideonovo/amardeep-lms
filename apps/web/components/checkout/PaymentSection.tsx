@@ -52,7 +52,15 @@ const PaymentSection = forwardRef<PaymentHandle, { publishableKey: string | null
         stripeRef.current = stripe;
         const elements = stripe.elements({});
         const cardEl = elements.create("card", {
-          style: { base: { fontSize: "16px", color: "#101828" } },
+          // Dark checkout: light text + placeholder so the Stripe-hosted card
+          // iframe stays legible (CSS can't reach inside that iframe).
+          style: {
+            base: {
+              fontSize: "16px",
+              color: "#f4f4f6",
+              "::placeholder": { color: "#8a8a95" },
+            },
+          },
         });
         if (mountRef.current) cardEl.mount(mountRef.current);
         elementsRef.current = elements;

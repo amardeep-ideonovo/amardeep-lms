@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { CourseCard } from "@lms/types";
 import { api, getToken } from "@/lib/api";
-import ProgressBar from "@/components/ProgressBar";
 
 // Vimeo URL -> player embed URL; null for non-Vimeo (then we use <video>).
 function vimeoEmbed(url: string): string | null {
@@ -12,6 +11,7 @@ function vimeoEmbed(url: string): string | null {
   return m ? `https://player.vimeo.com/video/${m[1]}` : null;
 }
 
+type Slot = "hero-card" | "body";
 type Props = {
   slugOrId: string;
   name: string;
@@ -19,17 +19,33 @@ type Props = {
   priceLabel: string | null;
   trailerUrl: string | null;
   lessonCount: number;
-  totalLabel: string; // "2hr 52min" / "27min" / ""
+  totalLabel: string;
+  slot: Slot;
 };
 
-// Ownership-gated body of the class page. The member JWT lives in localStorage,
-// so the server can't know who's viewing — we resolve it here on the client:
-//   • Member of this class      -> "Your Courses" only (navigate lessons via a
-//     course). Trailer, the lesson list, and "Get Class" are all hidden.
-//   • Not a member (or logged out) -> marketing: lesson summary, "Get Class" +
-//     price, and the trailer. No courses, no lesson list.
-// A stable placeholder renders until ownership resolves, so an owner never
-// flashes the "Get Class" button.
+type Ownership = { owned: boolean; courses: CourseCard[] };
+
+// Module-level cache so the two instances (hero card + body) share ONE request.
+const cache = new Map<string, Promise<Ownership>>();
+function resolveOwnership(slugOrId: string): Promise<Ownership> {
+  if (!getToken()) return Promise.resolve({ owned: false, courses: [] });
+  let p = cache.get(slugOrId);
+  if (!p) {
+    p = api
+      .myClassCourses(slugOrId)
+      .then((res) => ({ owned: res.owned, courses: res.courses }))
+      .catch(() => ({ owned: false, courses: [] }));
+    cache.set(slugOrId, p);
+  }
+  return p;
+}
+
+// Ownership-gated parts of the cinematic class page. Rendered twice:
+//   slot="hero-card" → the purchase card (guest) or resume card (member)
+//   slot="body"      → trailer + closing CTA (guest) or Your Courses (member)
+// Token lives in localStorage, so the server can't know the viewer — we resolve
+// on the client. A stable placeholder renders until resolved (no owner ever
+// flashes "Get Class").
 export default function ClassMemberArea({
   slugOrId,
   name,
@@ -38,6 +54,7 @@ export default function ClassMemberArea({
   trailerUrl,
   lessonCount,
   totalLabel,
+  slot,
 }: Props) {
   const [resolved, setResolved] = useState(false);
   const [owned, setOwned] = useState(false);
@@ -45,135 +62,142 @@ export default function ClassMemberArea({
 
   useEffect(() => {
     let active = true;
-    // Logged out -> definitely not a member; skip the request.
-    if (!getToken()) {
-      setOwned(false);
+    resolveOwnership(slugOrId).then((res) => {
+      if (!active) return;
+      setOwned(res.owned);
+      setCourses(res.courses);
       setResolved(true);
-      return;
-    }
-    api
-      .myClassCourses(slugOrId)
-      .then((res) => {
-        if (!active) return;
-        setOwned(res.owned);
-        setCourses(res.courses);
-        setResolved(true);
-      })
-      .catch(() => {
-        // 401/403/network -> treat as not a member (show marketing view).
-        if (active) {
-          setOwned(false);
-          setResolved(true);
-        }
-      });
+    });
     return () => {
       active = false;
     };
   }, [slugOrId]);
 
-  // SSR + first client render: stable placeholder (no hydration mismatch, no flash).
+  /* ===================== HERO CARD ===================== */
+  if (slot === "hero-card") {
+    if (!resolved) return <aside className="cc-buy" aria-hidden style={{ minHeight: 150 }} />;
+
+    if (owned) {
+      const totalLessons = courses.reduce((n, c) => n + c.lessonCount, 0);
+      const done = courses.reduce((n, c) => n + c.completedCount, 0);
+      const pct = totalLessons ? Math.round((done / totalLessons) * 100) : 0;
+      return (
+        <aside className="cc-buy">
+          <span className="cc-owned-tag">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+              <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            You own this class
+          </span>
+          <div className="cc-prog-label">
+            <span>{pct}% complete</span>
+            <span>{done} / {totalLessons} lessons</span>
+          </div>
+          <div className="cc-track" style={{ marginBottom: 18 }}>
+            <div className="cc-fill" style={{ width: `${pct}%` }} />
+          </div>
+          <a href="#your-courses" className="cc-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+            Continue learning
+          </a>
+          <p className="cc-buy-sub">Pick up where you left off.</p>
+        </aside>
+      );
+    }
+
+    return (
+      <aside className="cc-buy">
+        <Link href={checkoutHref} className="cc-btn">Get Class</Link>
+        <p className="cc-buy-sub">
+          {priceLabel ? <>Starting at <b>{priceLabel}</b>.<br /></> : null}
+          {trailerUrl ? <a href="#trailer" style={{ color: "var(--cc-soft)" }}>Watch the trailer ↓</a> : "Full lifetime access."}
+        </p>
+      </aside>
+    );
+  }
+
+  /* ===================== BODY ===================== */
   if (!resolved) return <div style={{ minHeight: 120 }} aria-hidden />;
 
-  // ----- Member of this class: courses only -----
+  // ----- Member: Your Courses -----
   if (owned) {
     return (
-      <section style={{ margin: "8px 0 36px" }}>
-        <h2 className="section-title">Your Courses</h2>
-        {courses.length === 0 ? (
-          <p className="muted">No courses in this class yet.</p>
-        ) : (
-          <div className="card-grid">
-            {courses.map((c) => (
-              <Link key={c.id} href={`/courses/${c.id}`} className="card">
-                {c.thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={c.thumbnailUrl}
-                    alt=""
-                    style={{
-                      width: "100%",
-                      height: 160,
-                      objectFit: "cover",
-                      borderRadius: 8,
-                      marginBottom: 8,
-                      display: "block",
-                    }}
-                  />
-                ) : null}
-                <h3 className="card-title">{c.title}</h3>
-                {c.description && <p className="card-desc">{c.description}</p>}
-                <ProgressBar completed={c.completedCount} total={c.lessonCount} />
-                <span className="card-cta">View course →</span>
-              </Link>
-            ))}
-          </div>
-        )}
+      <section className="cc-section" id="your-courses">
+        <div className="cc-wrap">
+          <p className="cc-eyebrow">Your library</p>
+          <h2 className="cc-h2">Your Courses</h2>
+          <p className="cc-sub">Continue where you left off.</p>
+          {courses.length === 0 ? (
+            <p style={{ color: "var(--cc-muted)" }}>No courses in this class yet.</p>
+          ) : (
+            <div className="cc-courses">
+              {courses.map((c) => {
+                const pct = c.lessonCount ? Math.round((c.completedCount / c.lessonCount) * 100) : 0;
+                return (
+                  <Link key={c.id} href={`/courses/${c.id}`} className="cc-course">
+                    {c.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img className="cc-course-thumb" src={c.thumbnailUrl} alt="" />
+                    ) : (
+                      <div className="cc-course-thumb cc-course-thumb--empty">
+                        {c.title.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="cc-course-body">
+                      <h3 className="cc-course-title">{c.title}</h3>
+                      {c.description && <p className="cc-course-desc">{c.description}</p>}
+                      <div className="cc-prog-label">
+                        <span>{pct === 100 ? "Completed" : pct > 0 ? "In progress" : "Not started"}</span>
+                        <span>{c.completedCount} / {c.lessonCount}</span>
+                      </div>
+                      <div className="cc-track"><div className="cc-fill" style={{ width: `${pct}%` }} /></div>
+                      <span className="cc-course-cta">View course →</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </section>
     );
   }
 
-  // ----- Not a member (or logged out): marketing CTA + trailer -----
+  // ----- Guest / not a member: trailer + closing CTA -----
   const vimeo = trailerUrl ? vimeoEmbed(trailerUrl) : null;
   return (
-    <section style={{ margin: "8px 0 36px" }}>
-      {lessonCount > 0 && (
-        <p className="muted" style={{ marginBottom: 16 }}>
-          {lessonCount} lesson{lessonCount === 1 ? "" : "s"}
-          {totalLabel ? ` · ${totalLabel}` : ""}
-          {trailerUrl ? (
-            <>
-              {" · "}
-              <a href="#trailer">Watch Trailer</a>
-            </>
-          ) : null}
-        </p>
-      )}
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          alignItems: "center",
-          flexWrap: "wrap",
-          marginBottom: trailerUrl ? 28 : 0,
-        }}
-      >
-        <Link href={checkoutHref} className="btn">
-          Get Class
-        </Link>
-        {priceLabel && <span className="muted">Starting at {priceLabel}</span>}
-      </div>
-
+    <>
       {trailerUrl && (
-        <div id="trailer">
-          <h2 className="section-title">Trailer</h2>
-          {vimeo ? (
-            <iframe
-              src={vimeo}
-              title={`${name} trailer`}
-              allow="autoplay; fullscreen; picture-in-picture"
-              allowFullScreen
-              style={{
-                width: "100%",
-                aspectRatio: "16/9",
-                border: 0,
-                borderRadius: 12,
-              }}
-            />
-          ) : (
-            // eslint-disable-next-line jsx-a11y/media-has-caption
-            <video
-              src={trailerUrl}
-              controls
-              style={{
-                width: "100%",
-                aspectRatio: "16/9",
-                borderRadius: 12,
-                background: "#000",
-              }}
-            />
-          )}
-        </div>
+        <section className="cc-section" id="trailer">
+          <div className="cc-wrap">
+            <p className="cc-eyebrow">Preview</p>
+            <h2 className="cc-h2">Class Trailer</h2>
+            <p className="cc-sub">A two-minute look inside.</p>
+            <div className="cc-trailer">
+              {vimeo ? (
+                <iframe
+                  src={vimeo}
+                  title={`${name} trailer`}
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                // eslint-disable-next-line jsx-a11y/media-has-caption
+                <video src={trailerUrl} controls />
+              )}
+            </div>
+          </div>
+        </section>
       )}
-    </section>
+
+      <section className="cc-closing">
+        <div className="cc-wrap">
+          <p className="cc-eyebrow">Start today</p>
+          <h2 className="cc-h2">Begin {name}</h2>
+          <Link href={checkoutHref} className="cc-btn">Get Class</Link>
+          {priceLabel && <p className="cc-closing-price">Starting at {priceLabel}</p>}
+        </div>
+      </section>
+    </>
   );
 }

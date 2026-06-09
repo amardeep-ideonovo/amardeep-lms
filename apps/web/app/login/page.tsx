@@ -30,7 +30,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="form-card">
+    <div className="dark-page">
+      <div className="dp-wrap">
+        <div className="form-card">
       <h1>Welcome back</h1>
       <p className="sub">Sign in to access your courses.</p>
 
@@ -74,6 +76,8 @@ export default function LoginPage() {
           Create an account
         </Link>
       </p>
+        </div>
+      </div>
     </div>
   );
 }

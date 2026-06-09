@@ -8,25 +8,56 @@ import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
 
-// A class tile. Clicking it opens the public class page (/classes/<slug ?? id>),
-// where a member who owns the class then sees its courses. "Enrolled" marks the
-// classes the member's active membership already unlocks.
+// A class tile (cinematic dark). Clicking opens the public class page
+// (/classes/<slug ?? id>), where an owner then sees its courses. "Enrolled"
+// marks classes the member's active membership already unlocks.
+// Deterministic gradient from a class id, so imageless classes each get a
+// distinct—but stable—tile color instead of all sharing one purple.
+function letterGradient(seed: string): string {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 360;
+  return `linear-gradient(150deg, hsl(${h} 68% 56%), hsl(${(h + 38) % 360} 60% 46%))`;
+}
+
 function ClassTile({ cls }: { cls: ClassTileDTO }) {
+  const href = `/classes/${cls.slug ?? cls.id}`;
   return (
-    <Link href={`/classes/${cls.slug ?? cls.id}`} className="cat-tile">
-      {cls.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={cls.imageUrl} alt="" className="cat-tile-img" />
-      ) : (
-        <div className="cat-tile-img cat-tile-img--empty">
-          {cls.name.charAt(0).toUpperCase()}
-        </div>
-      )}
-      <div className="cat-tile-body">
-        <h3 className="cat-tile-title">{cls.name}</h3>
-        <span className="cat-tile-count">
-          {cls.owned ? "Enrolled" : "View class"}
+    <Link href={href} className="md-card">
+      <div className="md-card-media">
+        {cls.owned && (
+          <span className="md-badge">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+              <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Enrolled
+          </span>
+        )}
+        {cls.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cls.imageUrl} alt="" />
+        ) : (
+          <div className="md-card-media--letter" style={{ background: letterGradient(cls.id) }}>
+            {cls.name.charAt(0).toUpperCase()}
+          </div>
+        )}
+        <span className="md-card-play">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
         </span>
+      </div>
+      <div className="md-card-body">
+        <div className="md-card-title">{cls.name}</div>
+        {cls.categories && cls.categories.length > 0 && (
+          <div className="md-cats">
+            {cls.categories.slice(0, 2).map((c) => (
+              <span key={c.id} className="md-cat">{c.name}</span>
+            ))}
+          </div>
+        )}
+        <div className="md-card-foot">
+          <span className={cls.owned ? "md-card-cta" : "md-card-cta muted"}>
+            {cls.owned ? "Continue →" : "View class →"}
+          </span>
+        </div>
       </div>
     </Link>
   );
@@ -52,9 +83,7 @@ function DashboardInner() {
           router.replace("/login");
           return;
         }
-        setError(
-          err instanceof Error ? err.message : "Failed to load dashboard."
-        );
+        setError(err instanceof Error ? err.message : "Failed to load dashboard.");
       }
     }
     load();
@@ -72,51 +101,149 @@ function DashboardInner() {
     };
   }, [router]);
 
-  if (error) return <div className="alert alert-error">{error}</div>;
-  if (!classes)
+  // Featured (most recent enrolled) class headlines the hero — fetch its
+  // progress so the hero can show "X% complete" without a new DTO field.
+  const featuredClass = classes?.find((c) => c.owned) ?? null;
+  const featuredKey = featuredClass
+    ? featuredClass.slug ?? featuredClass.id
+    : null;
+  const [progress, setProgress] = useState<{
+    pct: number;
+    done: number;
+    total: number;
+  } | null>(null);
+  useEffect(() => {
+    if (!featuredKey) {
+      setProgress(null);
+      return;
+    }
+    let active = true;
+    api
+      .myClassCourses(featuredKey)
+      .then((res) => {
+        if (!active) return;
+        const total = res.courses.reduce((n, c) => n + c.lessonCount, 0);
+        const done = res.courses.reduce((n, c) => n + c.completedCount, 0);
+        setProgress({
+          pct: total ? Math.round((done / total) * 100) : 0,
+          done,
+          total,
+        });
+      })
+      .catch(() => {
+        if (active) setProgress(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [featuredKey]);
+
+  if (error) {
     return (
-      <div className="centered-state">
-        <div className="spinner" aria-label="Loading" />
+      <div className="member-dash">
+        <div className="md-wrap"><div className="md-alert">{error}</div></div>
       </div>
     );
+  }
+  if (!classes) {
+    return (
+      <div className="member-dash">
+        <div className="md-wrap centered-state">
+          <div className="spinner" aria-label="Loading" />
+        </div>
+      </div>
+    );
+  }
 
-  // Group tiles by enrollment: classes the member is enrolled in first, then
-  // the rest to explore. Each group keeps the backend's name ordering.
+  // Enrolled first, then the rest to explore (backend name ordering preserved).
   const enrolled = classes.filter((c) => c.owned);
   const available = classes.filter((c) => !c.owned);
+  const featured = enrolled[0] ?? null;
+  // The featured class headlines the hero; don't repeat it in the grid below.
+  const gridEnrolled = featured
+    ? enrolled.filter((c) => c.id !== featured.id)
+    : enrolled;
 
   return (
-    <>
-      <h1 className="page-title">Dashboard</h1>
-      {classes.length === 0 ? (
-        <p className="empty">No classes are available yet.</p>
-      ) : (
-        <>
-          {enrolled.length > 0 && (
-            <section>
-              <h2 className="section-title" style={{ marginTop: 8 }}>
-                My classes
-              </h2>
-              <div className="card-grid">
-                {enrolled.map((c) => (
-                  <ClassTile key={c.id} cls={c} />
-                ))}
-              </div>
-            </section>
-          )}
-          {available.length > 0 && (
-            <section>
-              <h2 className="section-title">Explore more classes</h2>
-              <div className="card-grid">
-                {available.map((c) => (
-                  <ClassTile key={c.id} cls={c} />
-                ))}
-              </div>
-            </section>
-          )}
-        </>
-      )}
-    </>
+    <div className="member-dash">
+      <div className="md-wrap">
+        <div className="md-head">
+          <h1>{enrolled.length > 0 ? "Welcome back." : "Welcome."}</h1>
+          <p>
+            {classes.length === 0
+              ? "No classes are available yet."
+              : enrolled.length > 0
+                ? `You're enrolled in ${enrolled.length} ${enrolled.length === 1 ? "class" : "classes"}.`
+                : "Explore the classes below to get started."}
+          </p>
+        </div>
+
+        {/* Continue learning — most recent enrolled class */}
+        {featured && (
+          <div className="md-continue">
+            <div
+              className={featured.imageUrl ? "md-continue-bg" : "md-continue-bg md-continue-bg--empty"}
+              style={featured.imageUrl ? { backgroundImage: `url(${featured.imageUrl})` } : { background: letterGradient(featured.id) }}
+            />
+            <div className="md-continue-inner">
+              <p className="md-eyebrow">Continue learning</p>
+              <h2>{featured.name}</h2>
+              {featured.categories && featured.categories.length > 0 && (
+                <div className="md-continue-meta">
+                  {featured.categories.slice(0, 2).map((c) => (
+                    <span key={c.id} className="md-chip">{c.name}</span>
+                  ))}
+                </div>
+              )}
+              {progress && progress.total > 0 && (
+                <div className="md-prog">
+                  <div className="md-prog-label">
+                    <span>{progress.pct}% complete</span>
+                    <span>
+                      {progress.done} / {progress.total} lessons
+                    </span>
+                  </div>
+                  <div className="md-track">
+                    <div
+                      className="md-fill"
+                      style={{ width: `${progress.pct}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              <Link href={`/classes/${featured.slug ?? featured.id}`} className="md-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                Resume class
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {gridEnrolled.length > 0 && (
+          <section className="md-section">
+            <div className="md-section-head">
+              <h2>My Classes<span className="md-count">{gridEnrolled.length}</span></h2>
+            </div>
+            <div className="md-grid">
+              {gridEnrolled.map((c) => <ClassTile key={c.id} cls={c} />)}
+            </div>
+          </section>
+        )}
+
+        {available.length > 0 && (
+          <section className="md-section">
+            <div className="md-section-head">
+              <h2>Explore More Classes</h2>
+            </div>
+            <div className="md-grid">
+              {available.map((c) => <ClassTile key={c.id} cls={c} />)}
+            </div>
+          </section>
+        )}
+
+        {classes.length === 0 && <p className="md-empty">No classes are available yet.</p>}
+      </div>
+    </div>
   );
 }
 
