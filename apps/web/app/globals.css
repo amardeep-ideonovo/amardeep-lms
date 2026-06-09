@@ -20,10 +20,14 @@ html,
 body {
   margin: 0;
   padding: 0;
+  /* Dark page backdrop: the whole site is dark now, so the root background must
+     be dark too — otherwise the over-scroll area, the container's padding gap
+     above the footer, and pre-mount loading states flash white. */
+  background: #0b0b0d;
 }
 
 body {
-  background: var(--bg);
+  background: #0b0b0d;
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif;
@@ -268,7 +272,7 @@ a {
 .site-footer {
   background: var(--ftr-bg, var(--surface));
   color: var(--ftr-text, var(--muted));
-  border-top: 1px solid var(--border);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding: var(--ftr-pad-y, 48px) 24px;
   margin-top: 64px;
 }
@@ -331,10 +335,14 @@ a {
   min-width: 160px;
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   font: inherit;
-  background: #fff;
-  color: #111827;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--ftr-text, #f4f4f6);
+}
+.footer-subscribe input::placeholder {
+  color: var(--ftr-text, #8a8a95);
+  opacity: 0.55;
 }
 .footer-subscribe button {
   padding: 10px 18px;
