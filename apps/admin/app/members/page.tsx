@@ -138,9 +138,7 @@ export default function MembersPage() {
               <div className="table-wrap"><table className="table">
                 <thead>
               <tr>
-                <th>First name</th>
-                <th>Last name</th>
-                <th>Email</th>
+                <th>Member</th>
                 <th>Registered</th>
                 <th>Classes</th>
                 <th>Subscription</th>
@@ -152,18 +150,24 @@ export default function MembersPage() {
               {filtered.map((m) => {
                 const heldIds = new Set(m.levels.map((l) => l.id));
                 const available = levels.filter((l) => !heldIds.has(l.id));
+                const name = [m.firstName, m.lastName]
+                  .filter(Boolean)
+                  .join(" ");
                 return (
                   <tr key={m.id}>
-                    <td>{m.firstName || <span className="muted">—</span>}</td>
-                    <td>{m.lastName || <span className="muted">—</span>}</td>
                     <td>
                       <Link
                         href={`/members/${m.id}`}
                         className="linklike"
                         title="View subscription & payments"
                       >
-                        {m.email}
+                        {name || m.email}
                       </Link>
+                      {name ? (
+                        <div className="muted" style={{ fontSize: 12 }}>
+                          {m.email}
+                        </div>
+                      ) : null}
                     </td>
                     <td>
                       {new Date(m.registeredAt).toLocaleDateString(undefined, {
