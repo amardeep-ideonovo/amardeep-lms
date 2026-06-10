@@ -92,6 +92,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get footer() {
     return this.client.footer;
   }
+  get appConfig() {
+    return this.client.appConfig;
+  }
 
   get $transaction() {
     return this.client.$transaction.bind(this.client);

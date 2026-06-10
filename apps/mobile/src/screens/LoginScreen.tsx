@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -13,12 +14,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
+import { useAppConfig } from "../config-provider";
 import type { AuthScreenProps } from "../navigation";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles, useTheme } from "../theme-provider";
 
 type Props = AuthScreenProps<"Login">;
 
 export function LoginScreen({ navigation }: Props) {
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
+  const { config } = useAppConfig();
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,7 +62,19 @@ export function LoginScreen({ navigation }: Props) {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.container}>
-          <Text style={styles.brand}>LMS</Text>
+          {config.logoUrl ? (
+            <Image
+              source={{ uri: config.logoUrl }}
+              style={styles.logo}
+              resizeMode="contain"
+              accessibilityLabel={config.title}
+            />
+          ) : (
+            <Text style={styles.brand}>{config.title}</Text>
+          )}
+          {config.tagline ? (
+            <Text style={styles.tagline}>{config.tagline}</Text>
+          ) : null}
           <Text style={styles.subtitle}>Sign in to your membership</Text>
 
           <TextInput
@@ -114,7 +133,7 @@ export function LoginScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   container: {
@@ -127,6 +146,17 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: "800",
     textAlign: "center",
+  },
+  logo: {
+    height: 56,
+    width: 220,
+    alignSelf: "center",
+  },
+  tagline: {
+    color: colors.textMuted,
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: spacing.xs,
   },
   subtitle: {
     color: colors.textMuted,

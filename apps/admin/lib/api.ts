@@ -23,6 +23,8 @@ import type {
   ReorderHeadersInput,
   FooterConfig,
   UpdateFooterInput,
+  AppConfig,
+  UpdateAppConfigInput,
   CourseCard,
   CreateCouponInput,
   CreateCourseInput,
@@ -314,6 +316,11 @@ export const api = {
   getFooter: () => request<FooterConfig>("GET", "/admin/site/footer"),
   updateFooter: (input: UpdateFooterInput) =>
     request<FooterConfig>("PUT", "/admin/site/footer", input),
+
+  // mobile app customization (single global)
+  getAppConfig: () => request<AppConfig>("GET", "/admin/app/config"),
+  updateAppConfig: (input: UpdateAppConfigInput) =>
+    request<AppConfig>("PUT", "/admin/app/config", input),
 
   // admin accounts + RBAC (super admin only)
   listAdmins: () => request<AdminDTO[]>("GET", "/admin/admins"),

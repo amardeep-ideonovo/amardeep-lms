@@ -7,7 +7,9 @@ import { api } from "../api";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { CourseRow } from "../components/CourseRow";
 import type { ScreenProps } from "../navigation";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles, useTheme } from "../theme-provider";
 
 // Drill-down target from the Dashboard: shows the courses for one category, or
 // all courses (params.all). Native header back returns to the Dashboard.
@@ -15,6 +17,8 @@ export function CourseListScreen({
   route,
   navigation,
 }: ScreenProps<"CourseList">) {
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
   const { categoryId, all } = route.params;
   const [courses, setCourses] = useState<CourseCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +89,7 @@ export function CourseListScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   search: {

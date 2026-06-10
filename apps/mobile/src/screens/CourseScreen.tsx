@@ -14,9 +14,12 @@ import { api } from "../api";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { ProgressBar } from "../components/ProgressBar";
 import type { ScreenProps } from "../navigation";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles } from "../theme-provider";
 
 export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
+  const styles = useStyles(makeStyles);
   const { courseId } = route.params;
   const [lessons, setLessons] = useState<LessonDTO[]>([]);
   const [course, setCourse] = useState<CourseCard | null>(null);
@@ -108,7 +111,7 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   cover: {

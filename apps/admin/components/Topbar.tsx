@@ -41,6 +41,12 @@ const COMMANDS: Cmd[] = [
   { id: "go-coupons", title: "Coupons", href: "/coupons", section: "coupons" },
   { id: "go-notifications", title: "Notifications", href: "/notifications" },
   { id: "go-settings", title: "Settings", href: "/settings", section: "settings" },
+  {
+    id: "go-app-customization",
+    title: "App Customization",
+    href: "/app-customization",
+    section: "appCustomization",
+  },
   { id: "go-admins", title: "Admins", href: "/admins", superOnly: true },
 ];
 

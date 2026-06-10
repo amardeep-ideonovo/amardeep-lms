@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   Alert,
+  Image,
   Linking,
   StyleSheet,
   Text,
@@ -9,11 +10,16 @@ import {
 } from "react-native";
 
 import { useAuth } from "../auth";
+import { useAppConfig } from "../config-provider";
 import type { ScreenProps } from "../navigation";
 import { WEB_ACCOUNT_URL } from "../config";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles } from "../theme-provider";
 
 export function AccountScreen(_props: ScreenProps<"Account">) {
+  const styles = useStyles(makeStyles);
+  const { config } = useAppConfig();
   const { signOut } = useAuth();
   const [opening, setOpening] = useState(false);
 
@@ -35,6 +41,21 @@ export function AccountScreen(_props: ScreenProps<"Account">) {
 
   return (
     <View style={styles.container}>
+      <View style={styles.brandHeader}>
+        {config.logoUrl ? (
+          <Image
+            source={{ uri: config.logoUrl }}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel={config.title}
+          />
+        ) : (
+          <Text style={styles.brandTitle}>{config.title}</Text>
+        )}
+        {config.description ? (
+          <Text style={styles.brandDesc}>{config.description}</Text>
+        ) : null}
+      </View>
       <View style={styles.card}>
         <Text style={styles.heading}>Billing & account</Text>
         <Text style={styles.note}>
@@ -65,8 +86,28 @@ export function AccountScreen(_props: ScreenProps<"Account">) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, padding: spacing.md },
+  brandHeader: {
+    alignItems: "center",
+    paddingVertical: spacing.lg,
+  },
+  logo: {
+    height: 48,
+    width: 200,
+  },
+  brandTitle: {
+    color: colors.text,
+    fontSize: 26,
+    fontWeight: "800",
+  },
+  brandDesc: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    marginTop: spacing.xs,
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 12,

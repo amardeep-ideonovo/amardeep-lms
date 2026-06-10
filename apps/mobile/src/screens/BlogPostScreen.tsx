@@ -13,7 +13,9 @@ import type { PostDetailDTO } from "@lms/types";
 import { api } from "../api";
 import { Loading, ErrorState } from "../components/Screen";
 import type { ScreenProps } from "../navigation";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles } from "../theme-provider";
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "";
@@ -30,7 +32,7 @@ function fmtDate(iso: string | null): string {
 
 // Per-tag styles for the rendered HTML, matched to the dark theme. Cast to any
 // to avoid react-native-render-html's strict MixedStyleRecord typing friction.
-const tagsStyles: any = {
+const makeTagsStyles = ({ colors }: Theme): any => ({
   body: { color: colors.text, fontSize: 16, lineHeight: 24 },
   p: { marginTop: 0, marginBottom: spacing.md },
   h1: { color: colors.text, fontSize: 22, fontWeight: "700", marginBottom: spacing.sm },
@@ -57,9 +59,11 @@ const tagsStyles: any = {
     color: colors.text,
     marginBottom: spacing.md,
   },
-};
+});
 
 export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
+  const styles = useStyles(makeStyles);
+  const tagsStyles = useStyles(makeTagsStyles);
   const { slug } = route.params;
   const { width } = useWindowDimensions();
   const [post, setPost] = useState<PostDetailDTO | null>(null);
@@ -136,7 +140,7 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   cover: {

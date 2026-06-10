@@ -2,6 +2,7 @@ import {
   IsArray,
   IsBoolean,
   IsEmail,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -13,6 +14,9 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import type {
+  AppColorScheme,
+  AppConfig,
+  AppThemePalette,
   FooterBottomLink,
   FooterConfig,
   FooterEmail,
@@ -141,4 +145,30 @@ export class UpdateFooterDto {
 }
 export class FooterSubscribeDto {
   @IsEmail() email!: string;
+}
+
+// ----- mobile app customization (single global config) -----
+class AppThemePaletteDto implements AppThemePalette {
+  @Matches(HEX) bg!: string;
+  @Matches(HEX) surface!: string;
+  @Matches(HEX) surfaceMuted!: string;
+  @Matches(HEX) border!: string;
+  @Matches(HEX) text!: string;
+  @Matches(HEX) textMuted!: string;
+  @Matches(HEX) primary!: string;
+  @Matches(HEX) danger!: string;
+}
+class AppConfigDto implements AppConfig {
+  @IsString() @MaxLength(80) title!: string;
+  @IsOptional() @IsString() @MaxLength(200) tagline?: string | null;
+  @IsOptional() @IsString() @MaxLength(600) description?: string | null;
+  @IsOptional() @IsString() @MaxLength(2000) logoUrl?: string | null;
+  @IsOptional() @IsString() @MaxLength(2000) iconUrl?: string | null;
+  @IsOptional() @IsString() @MaxLength(2000) splashUrl?: string | null;
+  @IsIn(['light', 'dark', 'system']) colorScheme!: AppColorScheme;
+  @ValidateNested() @Type(() => AppThemePaletteDto) light!: AppThemePaletteDto;
+  @ValidateNested() @Type(() => AppThemePaletteDto) dark!: AppThemePaletteDto;
+}
+export class UpdateAppConfigDto {
+  @ValidateNested() @Type(() => AppConfigDto) appConfig!: AppConfigDto;
 }

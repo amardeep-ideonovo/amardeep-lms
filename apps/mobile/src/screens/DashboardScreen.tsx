@@ -17,7 +17,9 @@ import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { CourseRow } from "../components/CourseRow";
 import { PopupHost } from "../components/PopupHost";
 import type { ScreenProps } from "../navigation";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles, useTheme } from "../theme-provider";
 
 type Section = { category: CategoryDTO; courses: CourseCard[] };
 
@@ -28,6 +30,7 @@ function CategoryTile({
   section: Section;
   onPress: () => void;
 }) {
+  const styles = useStyles(makeStyles);
   const { category, courses } = section;
   return (
     <TouchableOpacity style={styles.catCard} onPress={onPress} activeOpacity={0.8}>
@@ -58,6 +61,7 @@ function AllCoursesTile({
   count: number;
   onPress: () => void;
 }) {
+  const styles = useStyles(makeStyles);
   return (
     <TouchableOpacity style={styles.catCard} onPress={onPress} activeOpacity={0.8}>
       <View style={[styles.catThumb, styles.catThumbAll]}>
@@ -75,6 +79,8 @@ function AllCoursesTile({
 }
 
 export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
   const { signOut } = useAuth();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -207,7 +213,7 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   search: {

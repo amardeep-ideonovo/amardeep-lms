@@ -56,6 +56,7 @@ export const ADMIN_SECTIONS = [
   { key: "forms", label: "Forms" },
   { key: "menus", label: "Navigation" },
   { key: "settings", label: "Settings" },
+  { key: "appCustomization", label: "App Customization" },
   // Read-only: the Reports tab only generates/downloads exports (no create/edit/delete).
   { key: "reports", label: "Reports", readOnly: true },
 ] as const;
@@ -1210,6 +1211,38 @@ export interface FooterSubscribeResult {
   message: string;
 }
 
+// ---------- Mobile App Customization (single global; drives the Expo app) ----------
+// Branding the native mobile app reads at launch (and live in-session via its
+// ThemeProvider). Stored as a singleton (like the Footer) and served public so
+// the app can theme its logged-out screens too. iconUrl/splashUrl are reference
+// only — the actual app icon & launch splash are baked into the binary and ship
+// via app.json, so changing them needs a new build + store submission.
+export interface AppThemePalette {
+  bg: string; // #rrggbb — screen background
+  surface: string; // cards / headers
+  surfaceMuted: string; // pressed/disabled surface
+  border: string; // hairlines / dividers
+  text: string; // primary text
+  textMuted: string; // secondary text
+  primary: string; // brand / buttons / active
+  danger: string; // errors / destructive
+}
+export type AppColorScheme = "light" | "dark" | "system";
+export interface AppConfig {
+  title: string; // app/brand name shown in-app
+  tagline?: string | null; // short line under the logo (login)
+  description?: string | null; // longer blurb (login/account)
+  logoUrl?: string | null; // in-app logo image; null -> title text
+  iconUrl?: string | null; // reference only (see note) — not applied at runtime
+  splashUrl?: string | null; // reference only (see note) — not applied at runtime
+  colorScheme: AppColorScheme; // which palette the app uses (system follows device)
+  light: AppThemePalette;
+  dark: AppThemePalette;
+}
+export interface UpdateAppConfigInput {
+  appConfig: AppConfig;
+}
+
 export const ROUTES = {
   // auth
   memberLogin: "POST /auth/login", // body {email,password} -> LoginResponse<AuthUser>
@@ -1298,6 +1331,10 @@ export const ROUTES = {
   adminUpdateFooter: "PUT /admin/site/footer", // body UpdateFooterInput -> FooterConfig
   siteFooter: "GET /site/footer", // public -> FooterConfig
   siteFooterSubscribe: "POST /site/footer/subscribe", // public, body FooterSubscribeInput -> FooterSubscribeResult
+  // mobile app customization (single global) — admin (RBAC `appCustomization`) + public config
+  appConfig: "GET /app/config", // public -> AppConfig (default-merged; drives the mobile app)
+  adminGetAppConfig: "GET /admin/app/config", // -> AppConfig (default-merged)
+  adminUpdateAppConfig: "PUT /admin/app/config", // body UpdateAppConfigInput -> AppConfig
 
   // admin: in-app notifications (per-admin read state)
   adminListNotifications: "GET /admin/notifications", // ?page&pageSize -> AdminNotificationListDTO

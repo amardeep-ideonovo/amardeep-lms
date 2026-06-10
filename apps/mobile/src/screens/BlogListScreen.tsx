@@ -12,7 +12,9 @@ import type { PostListItem } from "@lms/types";
 import { api } from "../api";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import type { ScreenProps } from "../navigation";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles } from "../theme-provider";
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "";
@@ -28,6 +30,7 @@ function fmtDate(iso: string | null): string {
 }
 
 export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
+  const styles = useStyles(makeStyles);
   const [posts, setPosts] = useState<PostListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -103,7 +106,7 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   card: {

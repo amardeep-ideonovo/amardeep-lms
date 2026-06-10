@@ -20,7 +20,9 @@ import { api, ApiError, getToken, noteDownloadUrl } from "../api";
 import { API_BASE_URL } from "../config";
 import { Loading, ErrorState } from "../components/Screen";
 import type { ScreenProps } from "../navigation";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles, useTheme } from "../theme-provider";
 
 // Placeholder HLS stream; in production the signed Mux playback URL is built from
 // muxPlaybackToken (e.g. https://stream.mux.com/<playbackId>.m3u8?token=<jwt>).
@@ -52,6 +54,8 @@ function fmtSize(n: number): string {
 }
 
 export function LessonScreen({ route }: ScreenProps<"Lesson">) {
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
   const { lessonId } = route.params;
   const [lesson, setLesson] = useState<LessonDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -286,7 +290,7 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   title: {

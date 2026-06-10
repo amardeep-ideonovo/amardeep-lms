@@ -3,7 +3,9 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { CourseCard } from "@lms/types";
 
 import { ProgressBar } from "./ProgressBar";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles } from "../theme-provider";
 
 // A single course card: thumbnail, title, description, progress, lock state.
 // Shared by the Dashboard (flat mode) and the CourseList screen.
@@ -14,6 +16,7 @@ export function CourseRow({
   course: CourseCard;
   onPress: () => void;
 }) {
+  const styles = useStyles(makeStyles);
   const locked = course.locked;
   return (
     <TouchableOpacity
@@ -50,7 +53,7 @@ export function CourseRow({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: 12,

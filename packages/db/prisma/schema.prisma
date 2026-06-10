@@ -283,6 +283,16 @@ model Footer {
   updatedAt DateTime @updatedAt
 }
 
+// Mobile app customization (single global). `config` holds the AppConfig JSON
+// (title / logo / colors / light-dark) the Expo app reads at launch and the
+// admin edits with a live preview. Public read; admin write (RBAC
+// `appCustomization`). Same singleton shape as Footer.
+model AppConfig {
+  id        String   @id @default("singleton")
+  config    Json?
+  updatedAt DateTime @updatedAt
+}
+
 // ---------- Blog ----------
 // Public-facing marketing/news content. Unlike LMS courses, posts have no
 // level gating: PUBLISHED posts are readable by anyone (no login). Drafts are

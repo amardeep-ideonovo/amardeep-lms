@@ -26,12 +26,14 @@ import type { PagePublicDTO, PuckComponentData, PuckDocument } from "@lms/types"
 
 import { api } from "../api";
 import { Loading, ErrorState } from "./Screen";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme, ThemePalette } from "../theme";
+import { useStyles, useTheme } from "../theme-provider";
 
 type Props = Record<string, any>;
 
 // ---------- helpers ----------
-function bgColor(bg?: string): string | undefined {
+function bgColor(colors: ThemePalette, bg?: string): string | undefined {
   switch (bg) {
     case "muted":
       return colors.surface;
@@ -72,7 +74,7 @@ function toEmbed(url?: string): { kind: "iframe" | "video"; src: string } | null
 }
 
 // Dark-theme styles for rendered rich-text HTML (mirrors BlogPostScreen).
-const htmlTagsStyles: any = {
+const makeHtmlTagsStyles = ({ colors }: Theme): any => ({
   body: { color: colors.text, fontSize: 16, lineHeight: 24 },
   p: { marginTop: 0, marginBottom: spacing.md },
   h1: { color: colors.text, fontSize: 22, fontWeight: "700", marginBottom: spacing.sm },
@@ -91,10 +93,11 @@ const htmlTagsStyles: any = {
     color: colors.textMuted,
   },
   img: { borderRadius: 8 },
-};
+});
 
 // ---------- leaf components ----------
 function BlockImage({ uri, rounded }: { uri: string; rounded?: boolean }) {
+  const styles = useStyles(makeStyles);
   const [ratio, setRatio] = useState(16 / 9);
   useEffect(() => {
     if (!uri) return;
@@ -121,6 +124,7 @@ function BlockImage({ uri, rounded }: { uri: string; rounded?: boolean }) {
 }
 
 function BlockButton(p: Props) {
+  const styles = useStyles(makeStyles);
   const variantStyle =
     p.variant === "secondary"
       ? styles.btnSecondary
@@ -142,6 +146,7 @@ function BlockButton(p: Props) {
 }
 
 function FaqRow({ q, a }: { q: string; a: string }) {
+  const styles = useStyles(makeStyles);
   const [open, setOpen] = useState(false);
   return (
     <View style={styles.faqItem}>
@@ -160,7 +165,9 @@ function FaqRow({ q, a }: { q: string; a: string }) {
 
 // ---------- block components ----------
 function HeroBlock(p: Props) {
-  const bg = bgColor(p.background);
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
+  const bg = bgColor(colors, p.background);
   return (
     <View
       style={[
@@ -184,11 +191,13 @@ function HeroBlock(p: Props) {
 }
 
 function HeadingBlock(p: Props) {
+  const styles = useStyles(makeStyles);
   const size = p.level === "1" ? 28 : p.level === "2" ? 24 : p.level === "3" ? 20 : 18;
   return <Text style={[styles.heading, { fontSize: size, textAlign: textAlign(p.align) }]}>{p.text}</Text>;
 }
 
 function RichTextBlock(p: Props) {
+  const htmlTagsStyles = useStyles(makeHtmlTagsStyles);
   const { width } = useWindowDimensions();
   return (
     <RenderHtml
@@ -201,6 +210,7 @@ function RichTextBlock(p: Props) {
 }
 
 function ImageBlock(p: Props) {
+  const styles = useStyles(makeStyles);
   return (
     <View>
       <BlockImage uri={p.src} rounded={p.rounded} />
@@ -210,7 +220,8 @@ function ImageBlock(p: Props) {
 }
 
 function SectionBlock(p: Props) {
-  const bg = bgColor(p.background);
+  const { colors } = useTheme();
+  const bg = bgColor(colors, p.background);
   return (
     <View
       style={[
@@ -229,6 +240,7 @@ function ColumnsBlock(p: Props) {
 }
 
 function VideoBlock(p: Props) {
+  const styles = useStyles(makeStyles);
   const embed = toEmbed(p.url);
   return (
     <View>
@@ -257,6 +269,7 @@ function VideoBlock(p: Props) {
 }
 
 function CardsBlock(p: Props) {
+  const styles = useStyles(makeStyles);
   const items: Props[] = Array.isArray(p.items) ? p.items : [];
   return (
     <View style={{ gap: spacing.md }}>
@@ -283,7 +296,9 @@ function CardsBlock(p: Props) {
 }
 
 function CtaBlock(p: Props) {
-  const bg = bgColor(p.background) ?? colors.primary;
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
+  const bg = bgColor(colors, p.background) ?? colors.primary;
   return (
     <View style={[styles.bandPad, { backgroundColor: bg, borderRadius: 14, alignItems: alignItems(p.align) }]}>
       <Text style={[styles.ctaTitle, { textAlign: textAlign(p.align) }]}>{p.title}</Text>
@@ -309,6 +324,7 @@ function FaqBlock(p: Props) {
 }
 
 function TestimonialBlock(p: Props) {
+  const styles = useStyles(makeStyles);
   return (
     <View style={styles.quote}>
       <Text style={styles.quoteText}>“{p.quote}”</Text>
@@ -365,6 +381,7 @@ function renderItems(items?: PuckComponentData[]) {
 
 // ---------- public API ----------
 export function PageRenderer({ data }: { data: PuckDocument }) {
+  const styles = useStyles(makeStyles);
   return <View style={styles.page}>{renderItems(data?.content)}</View>;
 }
 
@@ -408,7 +425,7 @@ export function PageEmbed({
   return <PageRenderer data={data} />;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   page: { padding: spacing.md, gap: spacing.md },
   bandPad: { padding: spacing.lg },
   eyebrow: {

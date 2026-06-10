@@ -366,6 +366,39 @@ When(
   },
 );
 
+// ---------- app customization (mobile branding config) ----------
+
+When(
+  "I PUT {string} without a token and body:",
+  async function (this: LmsWorld, path: string, docString: string) {
+    await this.request("PUT", path, { token: null, body: JSON.parse(docString) });
+  },
+);
+
+When(
+  "I PUT {string} with an admin token and body:",
+  async function (this: LmsWorld, path: string, docString: string) {
+    const token = await this.adminToken();
+    await this.request("PUT", path, { token, body: JSON.parse(docString) });
+  },
+);
+
+// Dotted-path variant of "the response field … should be …", so a nested value
+// (e.g. "light.primary") can be asserted on the returned config.
+Then(
+  "the response field {string} should equal {string}",
+  function (this: LmsWorld, path: string, expected: string) {
+    const actual = path
+      .split(".")
+      .reduce((o: any, k) => (o == null ? o : o[k]), this.last.body);
+    assert.equal(
+      String(actual ?? ""),
+      expected,
+      `expected "${path}" to equal "${expected}" but got ${JSON.stringify(this.last.body)}`,
+    );
+  },
+);
+
 Then(
   "the response should include a submission with email {string}",
   function (this: LmsWorld, email: string) {

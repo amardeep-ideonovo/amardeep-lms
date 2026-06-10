@@ -1,7 +1,9 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles } from "../theme-provider";
 
 // Course progress bar: completed / total lessons. Renders nothing when empty.
 export function ProgressBar({
@@ -11,6 +13,7 @@ export function ProgressBar({
   completed: number;
   total: number;
 }) {
+  const styles = useStyles(makeStyles);
   if (!total) return null;
   const pct = Math.min(100, Math.round((completed / total) * 100));
   return (
@@ -25,7 +28,7 @@ export function ProgressBar({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   wrap: { marginTop: spacing.sm },
   track: {
     height: 6,

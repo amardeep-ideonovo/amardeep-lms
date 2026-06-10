@@ -1,6 +1,7 @@
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import type {
+  AppConfig,
   AuthUser,
   CourseCard,
   DashboardResponse,
@@ -127,6 +128,9 @@ export const api = {
       body: input,
       auth: false,
     }),
+
+  // app customization (public — drives the app's branding/theme; fetched at launch)
+  appConfig: () => request<AppConfig>("/app/config", { auth: false }),
 
   dashboard: () => request<DashboardResponse>("/dashboard"),
 

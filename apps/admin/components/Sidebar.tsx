@@ -89,6 +89,12 @@ const I = {
       <path d="M6.5 17.5h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   ),
+  appCustomization: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <rect x="7" y="2" width="10" height="20" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M10.5 18.5h3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  ),
   subscriptions: (
     <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
       <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.7" />
@@ -165,6 +171,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/notifications", label: "Notifications", icon: I.notifications },
       { href: "/settings", label: "Settings", section: "settings", icon: I.settings },
+      { href: "/app-customization", label: "App Customization", section: "appCustomization", icon: I.appCustomization },
     ],
   },
 ];
