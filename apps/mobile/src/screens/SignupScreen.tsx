@@ -175,7 +175,7 @@ export function SignupScreen({ navigation }: Props) {
             activeOpacity={0.8}
           >
             {submitting ? (
-              <ActivityIndicator color={colors.text} />
+              <ActivityIndicator color={colors.onPrimary} />
             ) : (
               <Text style={styles.buttonText}>Create account</Text>
             )}
@@ -248,7 +248,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     marginTop: spacing.sm,
   },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: colors.text, fontSize: 16, fontWeight: "700" },
+  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
   error: {
     color: colors.danger,
     marginBottom: spacing.sm,

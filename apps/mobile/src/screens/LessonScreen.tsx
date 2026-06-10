@@ -271,7 +271,7 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
         {completing ? (
           <ActivityIndicator color={colors.text} />
         ) : (
-          <Text style={styles.buttonText}>
+          <Text style={[styles.buttonText, completed && styles.buttonTextDone]}>
             {completed ? "✓ Completed" : "Mark complete"}
           </Text>
         )}
@@ -341,6 +341,8 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     marginTop: spacing.lg,
   },
   buttonDone: { backgroundColor: colors.surfaceMuted },
-  buttonText: { color: colors.text, fontSize: 16, fontWeight: "700" },
+  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
+  // The done state sits on a muted surface, so it follows the theme text again.
+  buttonTextDone: { color: colors.text },
   spacer: { height: spacing.lg },
 });

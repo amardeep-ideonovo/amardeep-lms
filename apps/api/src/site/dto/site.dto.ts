@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsBoolean,
+  IsDefined,
   IsEmail,
   IsIn,
   IsInt,
@@ -141,7 +142,10 @@ class FooterConfigDto implements FooterConfig {
   bottomLinks!: FooterBottomLinkDto[];
 }
 export class UpdateFooterDto {
-  @ValidateNested() @Type(() => FooterConfigDto) footer!: FooterConfigDto;
+  // @IsDefined: @ValidateNested alone skips a missing value, so `{}` would
+  // silently reset the singleton to defaults instead of failing with a 400.
+  @IsDefined() @ValidateNested() @Type(() => FooterConfigDto)
+  footer!: FooterConfigDto;
 }
 export class FooterSubscribeDto {
   @IsEmail() email!: string;
@@ -170,5 +174,8 @@ class AppConfigDto implements AppConfig {
   @ValidateNested() @Type(() => AppThemePaletteDto) dark!: AppThemePaletteDto;
 }
 export class UpdateAppConfigDto {
-  @ValidateNested() @Type(() => AppConfigDto) appConfig!: AppConfigDto;
+  // @IsDefined: same rationale as UpdateFooterDto — an empty body must 400,
+  // not blank the config.
+  @IsDefined() @ValidateNested() @Type(() => AppConfigDto)
+  appConfig!: AppConfigDto;
 }

@@ -224,7 +224,7 @@ export default function FooterBuilder({
           <label>
             Logo image <span className="muted">(blank = “{BRAND}” text)</span>
           </label>
-          <MediaPicker value={cfg.logoUrl ?? ""} onChange={(url) => upd({ logoUrl: url || null })} />
+          <MediaPicker value={cfg.logoUrl ?? ""} disabled={ro} onChange={(url) => upd({ logoUrl: url || null })} />
         </div>
         <div className="field">
           <label>

@@ -45,6 +45,19 @@ function bgColor(colors: ThemePalette, bg?: string): string | undefined {
       return undefined;
   }
 }
+// Text color forced by a band background (mirrors the web CSS, where dark and
+// brand bands always get light-on-dark treatment regardless of page theme —
+// without this, light mode would paint near-black text on the dark band).
+function bandText(colors: ThemePalette, bg?: string): string | undefined {
+  switch (bg) {
+    case "dark":
+      return "#f8fafc";
+    case "brand":
+      return colors.onPrimary;
+    default:
+      return undefined; // none/muted: the normal theme text already reads fine
+  }
+}
 function alignItems(align?: string): "flex-start" | "center" | "flex-end" {
   return align === "center"
     ? "center"
@@ -131,7 +144,12 @@ function BlockButton(p: Props) {
       : p.variant === "outline"
       ? styles.btnOutline
       : styles.btnPrimary;
-  const textStyle = p.variant === "outline" ? styles.btnTextOutline : styles.btnText;
+  const textStyle =
+    p.variant === "outline"
+      ? styles.btnTextOutline
+      : p.variant === "secondary"
+      ? styles.btnTextSecondary
+      : styles.btnText;
   return (
     <View style={{ alignItems: alignItems(p.align) }}>
       <TouchableOpacity
@@ -168,6 +186,7 @@ function HeroBlock(p: Props) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
   const bg = bgColor(colors, p.background);
+  const band = bandText(colors, p.background);
   return (
     <View
       style={[
@@ -176,10 +195,30 @@ function HeroBlock(p: Props) {
         { alignItems: alignItems(p.align) },
       ]}
     >
-      {p.eyebrow ? <Text style={styles.eyebrow}>{String(p.eyebrow).toUpperCase()}</Text> : null}
-      <Text style={[styles.heroTitle, { textAlign: textAlign(p.align) }]}>{p.title}</Text>
+      {p.eyebrow ? (
+        <Text style={[styles.eyebrow, band ? { color: band, opacity: 0.8 } : null]}>
+          {String(p.eyebrow).toUpperCase()}
+        </Text>
+      ) : null}
+      <Text
+        style={[
+          styles.heroTitle,
+          { textAlign: textAlign(p.align) },
+          band ? { color: band } : null,
+        ]}
+      >
+        {p.title}
+      </Text>
       {p.subtitle ? (
-        <Text style={[styles.heroSub, { textAlign: textAlign(p.align) }]}>{p.subtitle}</Text>
+        <Text
+          style={[
+            styles.heroSub,
+            { textAlign: textAlign(p.align) },
+            band ? { color: band, opacity: 0.85 } : null,
+          ]}
+        >
+          {p.subtitle}
+        </Text>
       ) : null}
       {p.buttonLabel ? (
         <View style={{ marginTop: spacing.md, alignSelf: "stretch" }}>
@@ -299,10 +338,18 @@ function CtaBlock(p: Props) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
   const bg = bgColor(colors, p.background) ?? colors.primary;
+  // The CTA band defaults to the primary color, so its text follows the band,
+  // not the page theme (otherwise light mode paints dark text on indigo).
+  const txt =
+    p.background === "muted"
+      ? colors.text
+      : bandText(colors, p.background) ?? colors.onPrimary;
   return (
     <View style={[styles.bandPad, { backgroundColor: bg, borderRadius: 14, alignItems: alignItems(p.align) }]}>
-      <Text style={[styles.ctaTitle, { textAlign: textAlign(p.align) }]}>{p.title}</Text>
-      {p.subtitle ? <Text style={[styles.ctaSub, { textAlign: textAlign(p.align) }]}>{p.subtitle}</Text> : null}
+      <Text style={[styles.ctaTitle, { color: txt, textAlign: textAlign(p.align) }]}>{p.title}</Text>
+      {p.subtitle ? (
+        <Text style={[styles.ctaSub, { color: txt, textAlign: textAlign(p.align) }]}>{p.subtitle}</Text>
+      ) : null}
       {p.buttonLabel ? (
         <View style={{ marginTop: spacing.md, alignSelf: "stretch" }}>
           <BlockButton label={p.buttonLabel} href={p.buttonHref} variant="secondary" align={p.align} />
@@ -445,7 +492,10 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   btnPrimary: { backgroundColor: colors.primary },
   btnSecondary: { backgroundColor: colors.surfaceMuted },
   btnOutline: { borderWidth: 2, borderColor: colors.primary },
-  btnText: { color: "#ffffff", fontWeight: "700", fontSize: 15 },
+  btnText: { color: colors.onPrimary, fontWeight: "700", fontSize: 15 },
+  // Secondary sits on the muted surface, so it follows the theme text (the old
+  // hardcoded white was invisible on the light palette's gray).
+  btnTextSecondary: { color: colors.text, fontWeight: "700", fontSize: 15 },
   btnTextOutline: { color: colors.primary, fontWeight: "700", fontSize: 15 },
   video: {
     width: "100%",

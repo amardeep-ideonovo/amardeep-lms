@@ -5,9 +5,14 @@
 import type { AppConfig, AppThemePalette } from "@lms/types";
 
 // The themeable palette screens consume. It is the 8 admin-configurable colors
-// (AppThemePalette) plus a derived `locked` shade (not admin-configurable — used
-// for the lock state on gated courses).
-export type ThemePalette = AppThemePalette & { locked: string };
+// (AppThemePalette) plus derived tokens (not admin-configurable): `locked` for
+// the lock state on gated courses, and `onPrimary` — the text color that stays
+// readable on a `primary` surface (computed from the primary's luminance, so an
+// admin-chosen light primary gets dark text and a dark one gets white).
+export type ThemePalette = AppThemePalette & {
+  locked: string;
+  onPrimary: string;
+};
 export type Theme = {
   mode: "light" | "dark"; // active resolved mode (drives the status bar)
   colors: ThemePalette;
@@ -38,9 +43,26 @@ const APP_LIGHT: AppThemePalette = {
 
 const LOCKED = { dark: "#64748b", light: "#94a3b8" } as const;
 
-// Add the derived `locked` shade to an admin palette to form the full ThemePalette.
+// WCAG relative luminance of a #rrggbb color.
+function luminance(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+
+// White text on dark/saturated surfaces, near-black on light ones. The admin's
+// live preview mirrors this derivation (AppCustomizationBuilder), so what the
+// admin sees is what the app computes.
+function onColor(hex: string): string {
+  return luminance(hex) > 0.45 ? "#0f172a" : "#ffffff";
+}
+
+// Add the derived tokens to an admin palette to form the full ThemePalette.
 export function paletteFrom(p: AppThemePalette, mode: "light" | "dark"): ThemePalette {
-  return { ...p, locked: LOCKED[mode] };
+  return { ...p, locked: LOCKED[mode], onPrimary: onColor(p.primary) };
 }
 
 export const spacing = {
@@ -49,9 +71,6 @@ export const spacing = {
   md: 16,
   lg: 24,
 };
-
-export const DARK_PALETTE: ThemePalette = paletteFrom(APP_DARK, "dark");
-export const LIGHT_PALETTE: ThemePalette = paletteFrom(APP_LIGHT, "light");
 
 // Default config used for the very first paint and when offline. Mirrors the API
 // default-merge so an unconfigured / disconnected app looks like it does today.
@@ -66,8 +85,3 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   light: APP_LIGHT,
   dark: APP_DARK,
 };
-
-// Back-compat: the previous static `colors` export equals the dark default, so
-// screens not yet migrated to useTheme() keep compiling and look unchanged until
-// they're converted. New/migrated code should use useTheme() instead.
-export const colors = DARK_PALETTE;

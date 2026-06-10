@@ -132,7 +132,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     alignItems: "center",
     marginTop: spacing.sm,
   },
-  buttonText: { color: colors.text, fontSize: 16, fontWeight: "700" },
+  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
   signOut: {
     marginTop: spacing.lg,
     alignItems: "center",

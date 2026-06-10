@@ -776,6 +776,7 @@ function HeaderEditor({
           </label>
           <MediaPicker
             value={config.logoUrl ?? ""}
+            disabled={ro}
             onChange={(url) => updConfig({ logoUrl: url || null })}
           />
         </div>

@@ -17,11 +17,15 @@ export default function MediaPicker({
   onChange,
   accept,
   kind = "image",
+  disabled,
 }: {
   value: string;
   onChange: (url: string) => void;
   accept?: string;
   kind?: MediaKindPick;
+  // Read-only mode (e.g. an admin without edit permission): no gallery modal,
+  // no upload, no remove, no URL edits — the preview still shows.
+  disabled?: boolean;
 }) {
   const resolvedAccept = accept ?? (kind === "video" ? "video/*" : "image/*");
   const [libOpen, setLibOpen] = useState(false);
@@ -83,6 +87,7 @@ export default function MediaPicker({
         <button
           type="button"
           className="btn btn--ghost btn--sm"
+          disabled={disabled}
           onClick={() => setLibOpen(true)}
         >
           {value ? "Replace from gallery" : "Gallery"}
@@ -90,7 +95,7 @@ export default function MediaPicker({
         <button
           type="button"
           className="btn btn--ghost btn--sm"
-          disabled={uploading}
+          disabled={disabled || uploading}
           onClick={() => fileRef.current?.click()}
         >
           {uploading ? "Uploading…" : "Upload"}
@@ -99,6 +104,7 @@ export default function MediaPicker({
           <button
             type="button"
             className="btn btn--ghost btn--sm"
+            disabled={disabled}
             onClick={() => onChange("")}
           >
             Remove
@@ -115,6 +121,7 @@ export default function MediaPicker({
       <input
         type="text"
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         placeholder={
           kind === "video" ? "…or paste a Vimeo/MP4 URL" : "…or paste a URL"

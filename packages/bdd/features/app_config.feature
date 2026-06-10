@@ -19,6 +19,13 @@ Feature: Mobile app customization config
       """
     Then the response status should be 403
 
+  Scenario: An empty update body is rejected instead of blanking the config
+    When I PUT "/admin/app/config" with an admin token and body:
+      """
+      {}
+      """
+    Then the response status should be 400
+
   Scenario: An admin can update and read back the app config
     When I PUT "/admin/app/config" with an admin token and body:
       """

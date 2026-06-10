@@ -122,7 +122,9 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
         </View>
       ),
     });
-  }, [navigation, signOut]);
+    // `styles` is memoized per theme, so including it re-renders the header
+    // links when the admin config or the system light/dark scheme changes.
+  }, [navigation, signOut, styles]);
 
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -265,7 +267,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.primary,
   },
-  catThumbLetter: { color: colors.text, fontSize: 24, fontWeight: "700" },
+  catThumbLetter: { color: colors.onPrimary, fontSize: 24, fontWeight: "700" },
   cardText: { flex: 1, paddingRight: spacing.sm },
   cardTitle: { color: colors.text, fontSize: 16, fontWeight: "600" },
   cardDesc: { color: colors.textMuted, fontSize: 13, marginTop: spacing.xs },

@@ -150,6 +150,7 @@ export default function AppCustomizationBuilder({
             </label>
             <MediaPicker
               value={cfg.logoUrl ?? ""}
+              disabled={ro}
               onChange={(url) => upd({ logoUrl: url || null })}
             />
           </div>
@@ -224,6 +225,7 @@ export default function AppCustomizationBuilder({
             <label>App icon</label>
             <MediaPicker
               value={cfg.iconUrl ?? ""}
+              disabled={ro}
               onChange={(url) => upd({ iconUrl: url || null })}
             />
           </div>
@@ -231,6 +233,7 @@ export default function AppCustomizationBuilder({
             <label>Launch splash</label>
             <MediaPicker
               value={cfg.splashUrl ?? ""}
+              disabled={ro}
               onChange={(url) => upd({ splashUrl: url || null })}
             />
           </div>
@@ -262,6 +265,18 @@ export default function AppCustomizationBuilder({
       </div>
     </div>
   );
+}
+
+// Mirrors the app's onPrimary derivation (apps/mobile/src/theme.ts) so the
+// preview's button text color matches what the app will compute.
+function onColor(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  const lum = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  return lum > 0.45 ? "#0f172a" : "#ffffff";
 }
 
 // A phone-frame mock of the app's dashboard, styled entirely from the draft
@@ -393,7 +408,7 @@ function PhonePreview({
             style={{
               width: "100%",
               background: p.primary,
-              color: "#ffffff",
+              color: onColor(p.primary),
               border: "none",
               borderRadius: 10,
               padding: "11px 0",
