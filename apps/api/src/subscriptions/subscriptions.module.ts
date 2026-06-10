@@ -9,5 +9,7 @@ import { BillingModule } from '../billing/billing.module';
   imports: [BillingModule],
   providers: [SubscriptionsService],
   controllers: [SubscriptionsController],
+  // Exported so ReportsModule can reuse list() for the subscriptions report sheet.
+  exports: [SubscriptionsService],
 })
 export class SubscriptionsModule {}

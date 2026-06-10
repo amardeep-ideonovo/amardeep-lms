@@ -5,6 +5,10 @@
    ========================================================================= */
 
 :root {
+  /* Render native controls (date picker popup + its icon, scrollbars, etc.) dark
+     to match the theme. Flipped to `light` in the light-theme block below. */
+  color-scheme: dark;
+
   /* surfaces */
   --bg: #0a0a0c;
   --sidebar: #0c0c0f;
@@ -1870,6 +1874,7 @@ select:-webkit-autofill:focus {
    preference. Only variables + the few rules with hardcoded dark values flip.
    ========================================================================= */
 :root[data-theme="light"] {
+  color-scheme: light;
   --bg: #f4f6f9;
   --sidebar: #ffffff;
   --surface: #ffffff;

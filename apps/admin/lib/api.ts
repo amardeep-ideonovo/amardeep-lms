@@ -204,6 +204,26 @@ async function downloadBlob(path: string, filename: string): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
+// Date stamp (YYYY-MM-DD) appended to downloaded report filenames. The client owns
+// the saved filename (downloadBlob sets <a download>), so the server's default name
+// is irrelevant.
+function reportStamp(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Optional filters for report exports (date range + class). Omitted = all data.
+export type ReportFilter = { from?: string; to?: string; levelId?: string };
+
+function reportQuery(f?: ReportFilter): string {
+  if (!f) return "";
+  const qs = new URLSearchParams();
+  if (f.from) qs.set("from", f.from);
+  if (f.to) qs.set("to", f.to);
+  if (f.levelId) qs.set("levelId", f.levelId);
+  const s = qs.toString();
+  return s ? `?${s}` : "";
+}
+
 // ---------- settings DTOs (not in @lms/types; secrets are write-only) ----------
 export interface StripeSettings {
   secretKey?: string;
@@ -362,6 +382,28 @@ export const api = {
   // subscriptions (admin Subscriptions tab; live from Stripe, read-only)
   listSubscriptions: () =>
     request<SubscriptionRowDTO[]>("GET", "/admin/subscriptions"),
+
+  // reports (admin Reports tab; on-demand Excel .xlsx downloads via downloadBlob)
+  downloadMembersReport: (f?: ReportFilter) =>
+    downloadBlob(
+      `/admin/reports/members.xlsx${reportQuery(f)}`,
+      `members-${reportStamp()}.xlsx`,
+    ),
+  downloadSubscriptionsReport: (f?: ReportFilter) =>
+    downloadBlob(
+      `/admin/reports/subscriptions.xlsx${reportQuery(f)}`,
+      `subscriptions-${reportStamp()}.xlsx`,
+    ),
+  downloadEngagementReport: (f?: ReportFilter) =>
+    downloadBlob(
+      `/admin/reports/engagement.xlsx${reportQuery(f)}`,
+      `course-engagement-${reportStamp()}.xlsx`,
+    ),
+  downloadAllReports: (f?: ReportFilter) =>
+    downloadBlob(
+      `/admin/reports/all.xlsx${reportQuery(f)}`,
+      `lms-reports-${reportStamp()}.xlsx`,
+    ),
 
   // in-app notifications (per-admin read state)
   listNotifications: (params?: { page?: number; pageSize?: number }) => {

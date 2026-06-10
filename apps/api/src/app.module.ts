@@ -23,6 +23,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { SearchModule } from './search/search.module';
 import { MenusModule } from './menus/menus.module';
 import { SiteModule } from './site/site.module';
+import { ReportsModule } from './reports/reports.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -57,6 +58,7 @@ import { HealthModule } from './health/health.module';
     SearchModule,
     MenusModule,
     SiteModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

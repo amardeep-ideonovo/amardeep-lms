@@ -100,6 +100,13 @@ const I = {
       <path d="M20 12V8H4v4M20 12v8H4v-8M20 12H4M12 7v13" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  reports: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M3 3v18h18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="7" y="11" width="3" height="6" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <rect x="13" y="7" width="3" height="10" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  ),
   notifications: (
     <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
       <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
@@ -150,6 +157,7 @@ const GROUPS: NavGroup[] = [
       { href: "/members", label: "Members", section: "members", icon: I.members },
       { href: "/subscriptions", label: "Subscriptions", section: "subscriptions", icon: I.subscriptions },
       { href: "/coupons", label: "Coupons", section: "coupons", icon: I.coupons },
+      { href: "/reports", label: "Reports", section: "reports", icon: I.reports },
     ],
   },
   {

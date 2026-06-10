@@ -56,6 +56,8 @@ export const ADMIN_SECTIONS = [
   { key: "forms", label: "Forms" },
   { key: "menus", label: "Navigation" },
   { key: "settings", label: "Settings" },
+  // Read-only: the Reports tab only generates/downloads exports (no create/edit/delete).
+  { key: "reports", label: "Reports", readOnly: true },
 ] as const;
 export type AdminSection = (typeof ADMIN_SECTIONS)[number]["key"];
 
@@ -1252,6 +1254,12 @@ export const ROUTES = {
 
   // admin: subscriptions (read-only list, live from Stripe)
   adminListSubscriptions: "GET /admin/subscriptions", // -> SubscriptionRowDTO[]
+
+  // admin: reports (binary .xlsx downloads; RequirePermission('reports','read'))
+  adminReportMembers: "GET /admin/reports/members.xlsx", // -> xlsx (members directory)
+  adminReportSubscriptions: "GET /admin/reports/subscriptions.xlsx", // -> xlsx (Stripe subs + revenue)
+  adminReportEngagement: "GET /admin/reports/engagement.xlsx", // -> xlsx (course progress per member)
+  adminReportAll: "GET /admin/reports/all.xlsx", // -> xlsx (3-sheet workbook)
 
   // admin: admin accounts + RBAC (SUPER_ADMIN only)
   adminListAdmins: "GET /admin/admins", // -> AdminDTO[]
