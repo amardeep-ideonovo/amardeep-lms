@@ -27,3 +27,7 @@ claude-memory.tgz
 
 # mobile native build (large; contains signing keystore)
 apps/mobile/android/
+apps/mobile/ios/
+
+# mobile store credentials (never commit)
+apps/mobile/play-service-account.json
