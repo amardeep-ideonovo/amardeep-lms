@@ -18,9 +18,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import RenderHtml from "react-native-render-html";
 import { WebView } from "react-native-webview";
-import { ResizeMode, Video } from "expo-av";
 import type {
   PagePublicDTO,
   PuckComponentData,
@@ -31,7 +29,9 @@ import type {
 
 import { api } from "../api";
 import { FormEmbed } from "./FormEmbed";
+import { HtmlView } from "./HtmlView";
 import { Loading, ErrorState } from "./Screen";
+import { VideoPlayerView } from "./VideoPlayerView";
 import {
   openHref,
   useInteraction,
@@ -91,28 +91,6 @@ function toEmbed(url?: string): { kind: "iframe" | "video"; src: string } | null
   if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(u)) return { kind: "video", src: u };
   return { kind: "iframe", src: u };
 }
-
-// Dark-theme styles for rendered rich-text HTML (mirrors BlogPostScreen).
-const makeHtmlTagsStyles = ({ colors }: Theme): any => ({
-  body: { color: colors.text, fontSize: 16, lineHeight: 24 },
-  p: { marginTop: 0, marginBottom: spacing.md },
-  h1: { color: colors.text, fontSize: 22, fontWeight: "700", marginBottom: spacing.sm },
-  h2: { color: colors.text, fontSize: 20, fontWeight: "700", marginTop: spacing.md, marginBottom: spacing.sm },
-  h3: { color: colors.text, fontSize: 18, fontWeight: "700", marginTop: spacing.md, marginBottom: spacing.sm },
-  a: { color: colors.primary, textDecorationLine: "underline" },
-  li: { color: colors.text, marginBottom: spacing.xs },
-  strong: { fontWeight: "700" },
-  em: { fontStyle: "italic" },
-  blockquote: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.border,
-    paddingLeft: spacing.md,
-    marginLeft: 0,
-    marginBottom: spacing.md,
-    color: colors.textMuted,
-  },
-  img: { borderRadius: 8 },
-});
 
 // ---------- leaf components ----------
 function BlockImage({ uri, rounded }: { uri: string; rounded?: boolean }) {
@@ -246,29 +224,18 @@ function HeadingBlock(p: Props) {
 }
 
 function RichTextBlock(p: Props) {
-  const htmlTagsStyles = useScopedStyles(makeHtmlTagsStyles);
   const onInteract = useInteraction();
   const { width } = useWindowDimensions();
   return (
-    <RenderHtml
+    <HtmlView
+      html={p.html || "<p></p>"}
       contentWidth={Math.max(0, width - spacing.md * 2)}
-      source={{ html: p.html || "<p></p>" }}
-      tagsStyles={htmlTagsStyles}
-      defaultTextProps={{ selectable: true }}
       // Inside a popup, anchor taps count as engagement (web parity); outside,
-      // keep the library's default link handling.
-      renderersProps={
-        onInteract
-          ? {
-              a: {
-                onPress: (_e: unknown, href: string) => {
-                  onInteract();
-                  openHref(href);
-                },
-              },
-            }
-          : undefined
-      }
+      // onInteract is null and links just open.
+      onLinkPress={(href) => {
+        onInteract?.();
+        openHref(href);
+      }}
     />
   );
 }
@@ -310,12 +277,7 @@ function VideoBlock(p: Props) {
     <View>
       <View style={styles.video}>
         {embed?.kind === "video" ? (
-          <Video
-            style={StyleSheet.absoluteFill}
-            source={{ uri: embed.src }}
-            useNativeControls
-            resizeMode={ResizeMode.CONTAIN}
-          />
+          <VideoPlayerView style={StyleSheet.absoluteFill} uri={embed.src} />
         ) : embed ? (
           <WebView
             style={StyleSheet.absoluteFill}

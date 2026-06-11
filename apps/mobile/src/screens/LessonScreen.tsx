@@ -10,15 +10,15 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { ResizeMode, Video } from "expo-av";
 import { WebView } from "react-native-webview";
-import * as FileSystem from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system";
 import * as SecureStore from "expo-secure-store";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 
 import { api, ApiError, getToken, noteDownloadUrl } from "../api";
 import { API_BASE_URL } from "../config";
 import { Loading, ErrorState } from "../components/Screen";
+import { VideoPlayerView } from "../components/VideoPlayerView";
 import type { ScreenProps } from "../navigation";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -126,44 +126,47 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
       const ext = dot > 0 ? note.originalName.slice(dot) : "";
       const base = dot > 0 ? note.originalName.slice(0, dot) : note.originalName;
 
-      // 1) Download to the app cache (auth via header).
-      const tmp = `${FileSystem.cacheDirectory}note-${note.id}${ext}`;
-      const dl = await FileSystem.downloadAsync(
+      // 1) Download to the app cache (auth via header). Non-2xx throws.
+      const tmp = new File(Paths.cache, `note-${note.id}${ext}`);
+      const dl = await File.downloadFileAsync(
         `${API_BASE_URL}${note.downloadUrl}`,
         tmp,
-        { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          idempotent: true,
+        }
       );
-      if (dl.status !== 200) throw new Error(`Download failed (${dl.status})`);
-      const b64 = await FileSystem.readAsStringAsync(dl.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      const bytes = await dl.bytes();
 
-      // 2) Write into a user-chosen folder (remembered for next time).
-      const writeInto = async (dirUri: string) => {
-        const destUri =
-          await FileSystem.StorageAccessFramework.createFileAsync(
-            dirUri,
-            base,
-            note.mimeType || "application/octet-stream"
-          );
-        await FileSystem.writeAsStringAsync(destUri, b64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
+      // 2) Write into a user-chosen folder. The picker persists the SAF grant
+      //    natively, so the remembered folder stays writable across restarts.
+      const writeInto = (dirUri: string) => {
+        const dest = new Directory(dirUri).createFile(
+          base,
+          note.mimeType || "application/octet-stream"
+        );
+        dest.write(bytes);
       };
 
       const savedDir = await SecureStore.getItemAsync(SAF_DIR_KEY);
       try {
         if (!savedDir) throw new Error("no-saved-dir");
-        await writeInto(savedDir);
+        writeInto(savedDir); // a stale/revoked grant throws -> re-pick below
       } catch {
-        const perm =
-          await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        if (!perm.granted) {
+        let dir: Directory;
+        try {
+          dir = await Directory.pickDirectoryAsync();
+        } catch {
           setSavingNoteId(null);
           return; // user cancelled the folder picker
         }
-        await SecureStore.setItemAsync(SAF_DIR_KEY, perm.directoryUri);
-        await writeInto(perm.directoryUri);
+        await SecureStore.setItemAsync(SAF_DIR_KEY, dir.uri);
+        writeInto(dir.uri);
+      }
+      try {
+        tmp.delete();
+      } catch {
+        // best-effort cache cleanup
       }
 
       setSavedMsg(`Saved “${note.originalName}” to your chosen folder.`);
@@ -208,13 +211,7 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
           domStorageEnabled
         />
       ) : videoUri ? (
-        <Video
-          style={styles.video}
-          source={{ uri: videoUri }}
-          useNativeControls
-          resizeMode={ResizeMode.CONTAIN}
-          isLooping={false}
-        />
+        <VideoPlayerView style={styles.video} uri={videoUri} />
       ) : lesson.thumbnailUrl ? (
         <Image
           style={styles.video}

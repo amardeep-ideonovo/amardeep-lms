@@ -7,10 +7,10 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import RenderHtml from "react-native-render-html";
 import type { PostDetailDTO } from "@lms/types";
 
 import { api } from "../api";
+import { HtmlView } from "../components/HtmlView";
 import { Loading, ErrorState } from "../components/Screen";
 import type { ScreenProps } from "../navigation";
 import { spacing } from "../theme";
@@ -30,40 +30,8 @@ function fmtDate(iso: string | null): string {
   }
 }
 
-// Per-tag styles for the rendered HTML, matched to the dark theme. Cast to any
-// to avoid react-native-render-html's strict MixedStyleRecord typing friction.
-const makeTagsStyles = ({ colors }: Theme): any => ({
-  body: { color: colors.text, fontSize: 16, lineHeight: 24 },
-  p: { marginTop: 0, marginBottom: spacing.md },
-  h1: { color: colors.text, fontSize: 22, fontWeight: "700", marginBottom: spacing.sm },
-  h2: { color: colors.text, fontSize: 20, fontWeight: "700", marginTop: spacing.md, marginBottom: spacing.sm },
-  h3: { color: colors.text, fontSize: 18, fontWeight: "700", marginTop: spacing.md, marginBottom: spacing.sm },
-  a: { color: colors.primary, textDecorationLine: "underline" },
-  li: { color: colors.text, marginBottom: spacing.xs },
-  strong: { fontWeight: "700" },
-  em: { fontStyle: "italic" },
-  blockquote: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.border,
-    paddingLeft: spacing.md,
-    marginLeft: 0,
-    marginBottom: spacing.md,
-    color: colors.textMuted,
-  },
-  img: { borderRadius: 8 },
-  code: { color: colors.text, fontFamily: "monospace" },
-  pre: {
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: 8,
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-});
-
 export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
   const styles = useStyles(makeStyles);
-  const tagsStyles = useStyles(makeTagsStyles);
   const { slug } = route.params;
   const { width } = useWindowDimensions();
   const [post, setPost] = useState<PostDetailDTO | null>(null);
@@ -117,12 +85,10 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
         ) : null}
       </View>
 
-      <RenderHtml
+      <HtmlView
+        html={post.content || "<p></p>"}
         contentWidth={width - spacing.md * 2}
-        source={{ html: post.content || "<p></p>" }}
-        tagsStyles={tagsStyles}
         baseStyle={styles.htmlBase}
-        defaultTextProps={{ selectable: true }}
       />
 
       {post.tags.length > 0 ? (
