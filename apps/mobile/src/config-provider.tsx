@@ -1,11 +1,13 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import type { AppConfig } from "@lms/types";
 
@@ -57,6 +59,11 @@ async function writeCache(config: AppConfig): Promise<void> {
 // errors, so without this cap the app would spin until the OS socket timeout.
 const GATE_CAP_MS = 4000;
 
+// While the app is foregrounded, re-check the config on this cadence so an
+// admin's Save restyles open apps within one tick. The payload is ~600 B and
+// the interval is cleared in the background, so the cost is negligible.
+const POLL_MS = 30_000;
+
 // Loads the admin's app-customization config. The first-paint gate releases at
 // the EARLIEST of: cache read (last-known branding is correct enough), fetch
 // settled, or GATE_CAP_MS. The fetch always continues in the background and
@@ -64,6 +71,25 @@ const GATE_CAP_MS = 4000;
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_APP_CONFIG);
   const [loading, setLoading] = useState(true);
+  // Ref mirror of the current config so refresh() can compare without being
+  // re-created (and re-arming the poll effect) on every config change.
+  const configRef = useRef(config);
+  configRef.current = config;
+
+  // Fetch + apply-if-changed + recache. Silent on failure (offline keeps the
+  // last-known config). The equality guard keeps poll ticks from re-rendering
+  // the whole themed tree when nothing changed.
+  const refresh = useCallback(async () => {
+    try {
+      const fresh = await api.appConfig();
+      if (JSON.stringify(fresh) !== JSON.stringify(configRef.current)) {
+        setConfig(fresh);
+        void writeCache(fresh);
+      }
+    } catch {
+      // offline / API down — keep the current config
+    }
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -94,6 +120,34 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       clearTimeout(cap);
     };
   }, []);
+
+  // Live updates: refetch when the app returns to the foreground, and poll
+  // every POLL_MS while it stays active. Backgrounded apps poll nothing.
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (!interval) interval = setInterval(() => void refresh(), POLL_MS);
+    };
+    const stop = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+    start(); // the app launches foregrounded
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void refresh(); // immediate catch-up after being backgrounded
+        start();
+      } else {
+        stop();
+      }
+    });
+    return () => {
+      stop();
+      sub.remove();
+    };
+  }, [refresh]);
 
   const value = useMemo<ConfigState>(() => ({ config, loading }), [config, loading]);
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;

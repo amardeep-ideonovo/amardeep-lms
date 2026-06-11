@@ -6,6 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
 import { AuthProvider, useAuth } from "./src/auth";
+import { BrandHeaderTitle } from "./src/components/BrandHeaderTitle";
 import { ConfigProvider, useAppConfig } from "./src/config-provider";
 import { ThemeProvider, useTheme } from "./src/theme-provider";
 import type {
@@ -47,7 +48,13 @@ function AppNavigator() {
   };
   return (
     <AppStack.Navigator screenOptions={screenOptions}>
-      <AppStack.Screen name="Dashboard" component={DashboardScreen} />
+      <AppStack.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        // The home header carries the brand (admin-configured logo or title),
+        // not the screen name — matches the admin live-preview.
+        options={{ headerTitle: () => <BrandHeaderTitle /> }}
+      />
       <AppStack.Screen
         name="CourseList"
         component={CourseListScreen}
