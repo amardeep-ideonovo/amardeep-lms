@@ -11,7 +11,6 @@
   "dependencies": {
     "@lms/types": "*",
     "@lms/puck": "*",
-    "@mux/mux-player-react": "^3.1.0",
     "@puckeditor/core": "^0.21.2",
     "next": "14.2.5",
     "react": "18.2.0",

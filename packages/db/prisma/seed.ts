@@ -9,9 +9,9 @@ import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
-// A short, public sample video (MP4) that plays in a browser <video> tag and
-// in expo-av on mobile — no Mux account needed, so lessons "just play" in dev.
-// Production videos are hosted on Vimeo; this is a public Vimeo test video.
+// A public sample video that plays in the web Vimeo embed and the mobile
+// WebView player, so lessons "just play" in dev. Production videos are hosted
+// on Vimeo too; this is a public Vimeo test video.
 const SAMPLE_VIDEO = "https://vimeo.com/1043569034";
 
 // Deterministic sample images (picsum): square thumbnail + wide cover + a

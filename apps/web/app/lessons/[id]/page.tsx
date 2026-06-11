@@ -3,14 +3,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import MuxPlayer from "@mux/mux-player-react";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
-
-// Mux requires a real playbackId; the API supplies a signed token via
-// muxPlaybackToken. We use a placeholder playbackId here per spec.
-const PLACEHOLDER_PLAYBACK_ID = "00000000000000000000000000000000";
 
 // Parse a Vimeo URL into its player embed URL (or null if not a Vimeo link).
 // Production videos are hosted on Vimeo; lesson.videoUrl holds the Vimeo link.
@@ -156,15 +151,6 @@ function LessonInner() {
               playsInline
               src={lesson.videoUrl}
               style={{ height: "100%", width: "100%", background: "#000" }}
-            />
-          </div>
-        ) : lesson.muxPlaybackToken ? (
-          <div className="player-wrap">
-            <MuxPlayer
-              playbackId={PLACEHOLDER_PLAYBACK_ID}
-              tokens={{ playback: lesson.muxPlaybackToken }}
-              streamType="on-demand"
-              style={{ height: "100%", width: "100%" }}
             />
           </div>
         ) : lesson.thumbnailUrl ? (

@@ -24,15 +24,6 @@ import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
 
-// Placeholder HLS stream; in production the signed Mux playback URL is built from
-// muxPlaybackToken (e.g. https://stream.mux.com/<playbackId>.m3u8?token=<jwt>).
-const PLACEHOLDER_HLS =
-  "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
-
-function playbackUrl(token: string): string {
-  return `${PLACEHOLDER_HLS}?token=${encodeURIComponent(token)}`;
-}
-
 // Parse a Vimeo URL into its player embed URL (or null if not a Vimeo link).
 function vimeoEmbed(url: string | null | undefined): string | null {
   if (!url) return null;
@@ -197,13 +188,10 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
   if (!lesson) return <ErrorState message="Lesson not found." onRetry={load} />;
 
   const completed = lesson.completed === true;
-  // Vimeo (production) plays in a WebView; a direct MP4/HLS or Mux stream
-  // plays in the native expo-av player.
+  // Vimeo plays in a WebView; a direct MP4/HLS URL plays in the native
+  // expo-av player.
   const vimeo = vimeoEmbed(lesson.videoUrl);
-  const videoUri = vimeo
-    ? null
-    : lesson.videoUrl ??
-      (lesson.muxPlaybackToken ? playbackUrl(lesson.muxPlaybackToken) : null);
+  const videoUri = vimeo ? null : lesson.videoUrl ?? null;
   const notes = lesson.notes ?? [];
 
   return (

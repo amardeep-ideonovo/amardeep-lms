@@ -190,8 +190,7 @@ model Lesson {
   title        String
   content      String?         // markdown / rich text — doubles as the lesson description/body
   thumbnailUrl String?         // lesson thumbnail
-  muxAssetId   String?         // managed video; playback via signed URL (prod)
-  videoUrl     String?         // direct video URL (e.g. sample MP4); plays without Mux signing
+  videoUrl     String?         // Vimeo link or direct video URL (e.g. MP4)
   durationSeconds Int?         // lesson length in seconds (admin enters mm:ss); drives the curriculum total
   order        Int             @default(0)
   createdAt    DateTime        @default(now())

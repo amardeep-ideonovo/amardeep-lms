@@ -10,7 +10,6 @@ import type { CourseCard, LessonDTO, LessonNoteDTO } from '@lms/types';
 import type { LessonNote } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccessService } from './access.service';
-import { MuxService } from './mux.service';
 import { isCourseLocked } from '../common/access.util';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { LESSON_NOTES_DIR } from './upload.config';
@@ -26,7 +25,6 @@ export class LmsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
-    private readonly mux: MuxService,
   ) {}
 
   // ---------- Courses ----------
@@ -223,7 +221,6 @@ export class LmsService {
         title: dto.title,
         content: dto.content ?? null,
         thumbnailUrl: dto.thumbnailUrl ?? null,
-        muxAssetId: dto.muxAssetId ?? null,
         videoUrl: dto.videoUrl ?? null,
         durationSeconds: dto.durationSeconds ?? null,
         order: dto.order ?? 0,
@@ -250,7 +247,6 @@ export class LmsService {
         title: dto.title ?? undefined,
         content: dto.content ?? undefined,
         thumbnailUrl: dto.thumbnailUrl ?? undefined,
-        muxAssetId: dto.muxAssetId ?? undefined,
         videoUrl: dto.videoUrl ?? undefined,
         durationSeconds: dto.durationSeconds ?? undefined,
         order: dto.order ?? undefined,
@@ -283,8 +279,7 @@ export class LmsService {
 
   /**
    * Member lesson view. 403 unless the viewer holds an active UserLevel among
-   * the lesson's course's levels (open course => always allowed). When allowed
-   * and the lesson has video, attach a signed Mux playback token.
+   * the lesson's course's levels (open course => always allowed).
    */
   async getLesson(lessonId: string, userId: string): Promise<LessonDTO> {
     const lesson = await this.prisma.lesson.findUnique({
@@ -308,17 +303,12 @@ export class LmsService {
       where: { userId_lessonId: { userId, lessonId } },
     });
 
-    const muxPlaybackToken = lesson.muxAssetId
-      ? this.mux.signPlaybackToken(lesson.muxAssetId)
-      : undefined;
-
     return {
       id: lesson.id,
       courseId: lesson.courseId,
       title: lesson.title,
       content: lesson.content,
       thumbnailUrl: lesson.thumbnailUrl,
-      muxPlaybackToken,
       videoUrl: lesson.videoUrl,
       durationSeconds: lesson.durationSeconds,
       order: lesson.order,

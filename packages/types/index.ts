@@ -450,8 +450,7 @@ export interface LessonDTO {
   title: string;
   content: string | null;
   thumbnailUrl?: string | null; // lesson thumbnail
-  muxPlaybackToken?: string; // signed; present only when the viewer has access
-  videoUrl?: string | null; // direct video URL (sample/dev or non-Mux source)
+  videoUrl?: string | null; // Vimeo link or direct video URL (e.g. MP4)
   durationSeconds?: number | null; // lesson length (admin-entered); drives curriculum totals
   order: number;
   completed?: boolean;
@@ -497,7 +496,6 @@ export interface CreateLessonInput {
   content?: string;
   thumbnailUrl?: string;
   videoUrl?: string;
-  muxAssetId?: string;
   durationSeconds?: number; // seconds (parsed from the admin's mm:ss input)
   order?: number;
 }
@@ -1273,6 +1271,7 @@ export const ROUTES = {
 
   // admin: members
   listMembers: "GET /members", // -> MemberRow[]
+  getMember: "GET /members/:id", // -> MemberRow (admin detail view)
   updateMember: "PATCH /members/:id", // body UpdateMemberInput -> MemberRow
   addMemberLevel: "POST /members/:id/levels", // body {levelId}
   removeMemberLevel: "DELETE /members/:id/levels/:levelId",
@@ -1383,6 +1382,7 @@ export const ROUTES = {
   adminDeletePost: "DELETE /admin/blog/posts/:id",
   adminCreatePostCategory: "POST /admin/blog/categories", // body CreatePostCategoryInput
   adminDeletePostCategory: "DELETE /admin/blog/categories/:id", // posts become uncategorized
+  adminUploadBlogImage: "POST /admin/blog/upload", // multipart {file} -> {url}; post images
 
   // pages — PUBLIC (no auth): only PUBLISHED pages are visible
   listPublishedPages: "GET /pages", // -> PageListItem[]
@@ -1409,6 +1409,7 @@ export const ROUTES = {
   // forms — PUBLIC (no auth): only ACTIVE forms
   getPublicForm: "GET /forms/:id", // -> FormPublicDTO (404 if inactive/missing)
   submitForm: "POST /forms/:id/submit", // body FormSubmitInput -> FormSubmitResult
+  formEmbedScript: "GET /forms/:id/embed.js", // -> JS for <script> paste-anywhere embeds
 
   // popups — PUBLIC (no auth): only ACTIVE popups, filtered by context
   // ?context=dashboard | ?context=page&pageId=<id>  -> PopupPublicDTO[]
@@ -1446,4 +1447,7 @@ export const ROUTES = {
   getMailchimpSettings: "GET /admin/settings/mailchimp",
   putMailchimpSettings: "PUT /admin/settings/mailchimp",
   deleteMailchimpSettings: "DELETE /admin/settings/mailchimp", // clears all Mailchimp creds
+
+  // infra
+  health: "GET /health", // public probe -> { status, env, uptime, checks: { db, redis } }
 } as const;

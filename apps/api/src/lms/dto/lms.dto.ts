@@ -89,10 +89,6 @@ export class CreateLessonDto {
 
   @IsOptional()
   @IsString()
-  muxAssetId?: string;
-
-  @IsOptional()
-  @IsString()
   videoUrl?: string;
 
   @IsOptional()
@@ -118,10 +114,6 @@ export class UpdateLessonDto {
   @IsOptional()
   @IsString()
   thumbnailUrl?: string;
-
-  @IsOptional()
-  @IsString()
-  muxAssetId?: string;
 
   @IsOptional()
   @IsString()
