@@ -23,7 +23,7 @@ import * as React from "react";
 import type { Config, Field, Slot } from "@puckeditor/core";
 
 // ---------- shared prop shapes ----------
-type Bg = "none" | "muted" | "dark" | "brand";
+type Bg = "none" | "muted" | "dark" | "brand" | "custom";
 type Align = "left" | "center" | "right";
 type Width = "narrow" | "normal" | "wide" | "full";
 
@@ -52,6 +52,7 @@ export type HeroProps = {
   buttonHref?: string;
   align: "left" | "center";
   background: Bg;
+  backgroundColor?: string; // used when background = "custom"
   design?: DesignProps;
 };
 export type HeadingProps = {
@@ -80,6 +81,7 @@ export type ButtonProps = {
 export type SpacerProps = { height: number };
 export type SectionProps = {
   background: Bg;
+  backgroundColor?: string; // used when background = "custom"
   paddingY: number;
   maxWidth: Width;
   content: Slot;
@@ -99,7 +101,8 @@ export type CtaProps = {
   subtitle?: string;
   buttonLabel: string;
   buttonHref: string;
-  background: "muted" | "dark" | "brand";
+  background: "muted" | "dark" | "brand" | "custom";
+  backgroundColor?: string; // used when background = "custom"
   align: "left" | "center";
   design?: DesignProps;
 };
@@ -167,6 +170,19 @@ const cx = (...parts: Array<string | false | undefined>): string =>
 const bgClass = (bg: Bg): string =>
   bg === "muted" ? "lmspb-bg-muted" : bg === "dark" ? "lmspb-bg-dark" : bg === "brand" ? "lmspb-bg-brand" : "";
 
+// Inline band background. An explicit block-level custom color is the most
+// specific intent, so it beats the generic Design-group background; Design
+// still recolors bands that sit on a PRESET.
+const bandStyle = (
+  bg: Bg | string,
+  backgroundColor: string | undefined,
+  design: DesignProps | undefined,
+): React.CSSProperties | undefined => {
+  const custom = bg === "custom" && backgroundColor ? { background: backgroundColor } : undefined;
+  const fromDesign = design?.background ? { background: design.background } : undefined;
+  return custom ?? fromDesign;
+};
+
 const widthClass = (w: Width): string => `lmspb-w-${w}`;
 
 const BG_OPTIONS = [
@@ -174,6 +190,7 @@ const BG_OPTIONS = [
   { label: "Muted", value: "muted" },
   { label: "Dark", value: "dark" },
   { label: "Brand", value: "brand" },
+  { label: "Custom color…", value: "custom" },
 ];
 const ALIGN_OPTIONS = [
   { label: "Left", value: "left" },
@@ -263,10 +280,6 @@ function Designed({
     </div>
   );
 }
-
-// Inline background override for the band blocks (Hero/CTA/Section).
-const bandBg = (d?: DesignProps): React.CSSProperties | undefined =>
-  d?.background ? { background: d.background } : undefined;
 
 // ---------- icon set (inline SVG, no font dependency) ----------
 function ListIcon({ icon, color }: { icon: IconListProps["icon"]; color: string }) {
@@ -435,6 +448,20 @@ export function createPuckConfig(
   };
   const DESIGN_DEFAULT: DesignProps = {};
 
+  // Reveal a color picker right under "background" when "Custom color…" is
+  // chosen (Elementor-style progressive disclosure; the key order of `fields`
+  // controls the panel order).
+  const withCustomBackground = <P extends { background?: string }>() =>
+    ((data: { props: P }, { fields }: { fields: Record<string, Field> }) => {
+      if (data.props.background !== "custom") return fields;
+      const out: Record<string, Field> = {};
+      for (const [k, v] of Object.entries(fields)) {
+        out[k] = v;
+        if (k === "background") out.backgroundColor = colorField("Background color");
+      }
+      return out;
+    }) as never;
+
   return {
     root: {
       // Popups have no SEO surface — hide the page-only root fields there.
@@ -515,11 +542,16 @@ export function createPuckConfig(
           buttonHref: "#",
           align: "center",
           background: "muted",
+          backgroundColor: "",
           design: DESIGN_DEFAULT,
         },
-        render: ({ eyebrow, title, subtitle, buttonLabel, buttonHref, align, background, design }) => (
+        resolveFields: withCustomBackground(),
+        render: ({ eyebrow, title, subtitle, buttonLabel, buttonHref, align, background, backgroundColor, design }) => (
           <Designed d={design} ownBackground>
-            <section className={cx("lmspb-section", bgClass(background))} style={bandBg(design)}>
+            <section
+              className={cx("lmspb-section", bgClass(background))}
+              style={bandStyle(background, backgroundColor, design)}
+            >
               <div className={cx("lmspb-container", "lmspb-w-normal", "lmspb-hero", `lmspb-al-${align}`)}>
                 {eyebrow ? <p className="lmspb-hero-eyebrow">{eyebrow}</p> : null}
                 <h1 className="lmspb-hero-title">{title}</h1>
@@ -685,15 +717,23 @@ export function createPuckConfig(
           content: { type: "slot" },
           design: designField,
         },
-        defaultProps: { background: "none", paddingY: 48, maxWidth: "normal", content: [], design: DESIGN_DEFAULT },
-        render: ({ background, paddingY, maxWidth, content: Content, design }) => (
+        defaultProps: {
+          background: "none",
+          backgroundColor: "",
+          paddingY: 48,
+          maxWidth: "normal",
+          content: [],
+          design: DESIGN_DEFAULT,
+        },
+        resolveFields: withCustomBackground(),
+        render: ({ background, backgroundColor, paddingY, maxWidth, content: Content, design }) => (
           <Designed d={design} ownBackground>
             <section
               className={cx("lmspb-section", bgClass(background))}
               style={{
                 paddingTop: `${paddingY}px`,
                 paddingBottom: `${paddingY}px`,
-                ...bandBg(design),
+                ...bandStyle(background, backgroundColor, design),
               }}
             >
               <div className={cx("lmspb-container", widthClass(maxWidth))}>
@@ -843,6 +883,7 @@ export function createPuckConfig(
             { label: "Muted", value: "muted" },
             { label: "Dark", value: "dark" },
             { label: "Brand", value: "brand" },
+            { label: "Custom color…", value: "custom" },
           ] },
           align: { type: "radio", options: [
             { label: "Left", value: "left" },
@@ -856,15 +897,17 @@ export function createPuckConfig(
           buttonLabel: "Join now",
           buttonHref: "#",
           background: "brand",
+          backgroundColor: "",
           align: "center",
           design: DESIGN_DEFAULT,
         },
-        render: ({ title, subtitle, buttonLabel, buttonHref, background, align, design }) => (
+        resolveFields: withCustomBackground(),
+        render: ({ title, subtitle, buttonLabel, buttonHref, background, backgroundColor, align, design }) => (
           <Designed d={design} ownBackground>
             <div className={cx("lmspb-container", "lmspb-w-normal")}>
               <div
                 className={cx("lmspb-section", bgClass(background), "lmspb-cta", `lmspb-al-${align}`)}
-                style={bandBg(design)}
+                style={bandStyle(background, backgroundColor, design)}
               >
                 <div className={cx("lmspb-container", "lmspb-w-narrow")}>
                   <h2 className="lmspb-cta-title">{title}</h2>

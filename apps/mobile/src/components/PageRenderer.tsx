@@ -224,7 +224,9 @@ function HeroBlock(p: Props) {
   const styles = useScopedStyles(makeStyles);
   const { colors } = useScopedTheme();
   const d = (p.design ?? {}) as Props;
-  const bg = asNativeColor(d.background) ?? bgColor(colors, p.background);
+  const customBg =
+    p.background === "custom" ? asNativeColor(p.backgroundColor) : undefined;
+  const bg = customBg ?? asNativeColor(d.background) ?? bgColor(colors, p.background);
   const band = asNativeColor(d.textColor) ?? bandText(colors, p.background);
   return (
     <View
@@ -304,6 +306,7 @@ function ImageBlock(p: Props) {
 function SectionBlock(p: Props) {
   const { colors } = useScopedTheme();
   const bg =
+    (p.background === "custom" ? asNativeColor(p.backgroundColor) : undefined) ??
     asNativeColor((p.design as Props | undefined)?.background) ??
     bgColor(colors, p.background);
   return (
@@ -388,7 +391,10 @@ function CtaBlock(p: Props) {
   const { colors } = useScopedTheme();
   const d = (p.design ?? {}) as Props;
   const bg =
-    asNativeColor(d.background) ?? bgColor(colors, p.background) ?? colors.primary;
+    (p.background === "custom" ? asNativeColor(p.backgroundColor) : undefined) ??
+    asNativeColor(d.background) ??
+    bgColor(colors, p.background) ??
+    colors.primary;
   // The CTA band defaults to the primary color, so its text follows the band,
   // not the page theme (otherwise light mode paints dark text on indigo).
   const txt =
