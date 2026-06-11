@@ -133,6 +133,8 @@ services:
     envVars:
       - key: ENV_NAME
         value: staging                 # NEW — surfaced in /health
+      - key: TRUST_PROXY
+        value: "1"                     # behind Render's proxy — real client IPs for rate limiting
       - key: DATABASE_URL
         fromDatabase: { name: lms-db-staging, property: connectionString }
       - key: REDIS_URL
@@ -156,14 +158,6 @@ services:
       - key: MAILCHIMP_SERVER_PREFIX
         sync: false
       - key: MAILCHIMP_AUDIENCE_ID    # ID of the "LMS Staging" audience
-        sync: false
-      - key: MUX_TOKEN_ID
-        sync: false
-      - key: MUX_TOKEN_SECRET
-        sync: false
-      - key: MUX_SIGNING_KEY_ID
-        sync: false
-      - key: MUX_SIGNING_KEY_PRIVATE
         sync: false
 ```
 
