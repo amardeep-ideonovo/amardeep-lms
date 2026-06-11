@@ -159,6 +159,10 @@ export default function AppCustomizationBuilder({
         {/* appearance / mode */}
         <div className="card">
           <h2>Appearance</h2>
+          <p className="muted" style={{ fontSize: 13, marginTop: -4 }}>
+            Colors below default to the member website&rsquo;s theme — change
+            them only if you want the app to look different.
+          </p>
           <div className="form-row">
             <div className="field" style={{ flex: 1 }}>
               <label>Color scheme</label>
@@ -278,7 +282,7 @@ function onColor(hex: string): string {
     return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
   });
   const lum = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
-  return lum > 0.45 ? "#0f172a" : "#ffffff";
+  return lum > 0.45 ? "#101828" : "#ffffff";
 }
 
 // A phone-frame mock of the app's dashboard, styled entirely from the draft

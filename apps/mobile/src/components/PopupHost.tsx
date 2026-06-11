@@ -110,7 +110,7 @@ const LIGHT_CONTENT = {
   surface: "#f1f5f9",
   surfaceMuted: "#e2e8f0",
   border: "#cbd5e1",
-  text: "#0f172a",
+  text: "#101828",
   textMuted: "#475569",
 } as const;
 const DARK_CONTENT = {
@@ -297,6 +297,6 @@ const styles = StyleSheet.create({
   closeLight: { backgroundColor: "rgba(15,23,42,0.08)" },
   closeDark: { backgroundColor: "rgba(248,250,252,0.16)" },
   closeText: { fontSize: 18, lineHeight: 20 },
-  closeTextLight: { color: "#0f172a" },
+  closeTextLight: { color: "#101828" },
   closeTextDark: { color: "#f8fafc" },
 });

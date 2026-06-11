@@ -6,28 +6,28 @@ import { PrismaService } from '../prisma/prisma.service';
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const SCHEMES: AppColorScheme[] = ['light', 'dark', 'system'];
 
-// The dark palette IS the mobile app's current hardcoded tokens
-// (apps/mobile/src/theme.ts), so an unconfigured app looks exactly as it does
-// today. The light palette is a sensible inverse the admin can tune.
+// Defaults mirror the member WEBSITE's theme (apps/web/app/globals.css and its
+// cinematic dark scopes), so web, app, and admin preview agree out of the box.
+// MUST stay in sync with apps/mobile/src/theme.ts (the offline fallback).
 const DARK: AppThemePalette = {
-  bg: '#0f172a',
-  surface: '#1e293b',
-  surfaceMuted: '#334155',
-  border: '#334155',
-  text: '#f8fafc',
-  textMuted: '#94a3b8',
+  bg: '#0b0b0d',
+  surface: '#16161b',
+  surfaceMuted: '#1c1c22',
+  border: '#2d2d32',
+  text: '#f4f4f6',
+  textMuted: '#8a8a95',
   primary: '#6366f1',
   danger: '#ef4444',
 };
 const LIGHT: AppThemePalette = {
-  bg: '#ffffff',
-  surface: '#f1f5f9',
-  surfaceMuted: '#e2e8f0',
-  border: '#cbd5e1',
-  text: '#0f172a',
-  textMuted: '#475569',
-  primary: '#6366f1',
-  danger: '#ef4444',
+  bg: '#f6f7f9',
+  surface: '#ffffff',
+  surfaceMuted: '#eef0f4',
+  border: '#e4e7ec',
+  text: '#101828',
+  textMuted: '#667085',
+  primary: '#4f46e5',
+  danger: '#d92d20',
 };
 const DEFAULT_APP_CONFIG: AppConfig = {
   title: 'LMS',
