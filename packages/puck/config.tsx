@@ -401,13 +401,17 @@ export function createPuckConfig(
       ? ({ ...opts.colorField, label } as Field)
       : { type: "text", label: `${label} (CSS color)` };
 
-  // The Elementor-style per-block design group, shared by every block.
-  const designField: Field = {
+  // The Elementor-style per-block design group, shared by every block. The
+  // band blocks (Hero/CTA/Section) own a first-class background control, so
+  // their Design group drops the generic Background row — ONE place to set a
+  // background per block, no duelling fields. (Old documents that stored
+  // design.background still render: it stays a fallback in bandStyle.)
+  const makeDesignField = (withBackground: boolean): Field => ({
     type: "object",
     label: "Design (spacing, colors, visibility)",
     objectFields: {
       textColor: colorField("Text color"),
-      background: colorField("Background"),
+      ...(withBackground ? { background: colorField("Background") } : {}),
       paddingY: { type: "number", label: "Padding top/bottom (px)", min: 0, max: 300 },
       paddingX: { type: "number", label: "Padding left/right (px)", min: 0, max: 200 },
       marginTop: { type: "number", label: "Space above (px)", min: 0, max: 300 },
@@ -445,7 +449,9 @@ export function createPuckConfig(
       },
       anchorId: { type: "text", label: "Anchor ID (for #links)" },
     },
-  };
+  });
+  const designField = makeDesignField(true);
+  const designFieldBand = makeDesignField(false); // Hero/CTA/Section
   const DESIGN_DEFAULT: DesignProps = {};
 
   // Reveal a color picker right under "background" when "Custom color…" is
@@ -532,7 +538,7 @@ export function createPuckConfig(
             { label: "Center", value: "center" },
           ] },
           background: { type: "select", options: BG_OPTIONS },
-          design: designField,
+          design: designFieldBand,
         },
         defaultProps: {
           eyebrow: "",
@@ -715,7 +721,7 @@ export function createPuckConfig(
             { label: "Full", value: "full" },
           ] },
           content: { type: "slot" },
-          design: designField,
+          design: designFieldBand,
         },
         defaultProps: {
           background: "none",
@@ -889,7 +895,7 @@ export function createPuckConfig(
             { label: "Left", value: "left" },
             { label: "Center", value: "center" },
           ] },
-          design: designField,
+          design: designFieldBand,
         },
         defaultProps: {
           title: "Ready to get started?",
