@@ -119,6 +119,23 @@ When(
   },
 );
 
+// Signup needs a never-seen email: the suite runs against a long-lived dev DB
+// (only CI gets a fresh one), so a fixed address 409s on every rerun.
+When(
+  "I sign up with a fresh unique email",
+  async function (this: LmsWorld) {
+    await this.request("POST", "/auth/signup", {
+      token: null,
+      body: {
+        email: `bdd-signup-${Date.now()}-${process.pid}@example.com`,
+        password: "strongpass123",
+        firstName: "BDD",
+        lastName: "Signup",
+      },
+    });
+  },
+);
+
 When(
   "I POST {string} with an admin token and body:",
   async function (this: LmsWorld, path: string, docString: string) {

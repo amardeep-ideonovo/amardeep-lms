@@ -17,10 +17,7 @@ Feature: Authentication
     Then the response status should be 401
 
   Scenario: Anyone can sign up for a new account
-    When I POST "/auth/signup" without a token and body:
-      """
-      { "email": "bdd-signup@example.com", "password": "strongpass123", "firstName": "BDD", "lastName": "Signup" }
-      """
+    When I sign up with a fresh unique email
     Then the response status should be 200
     And the response should include a token
 
