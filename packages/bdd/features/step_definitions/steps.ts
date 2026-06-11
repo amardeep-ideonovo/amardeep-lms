@@ -400,6 +400,25 @@ When(
   },
 );
 
+// App-config round-trip hygiene: the suite runs against a long-lived dev DB,
+// so the scenario captures the live config first and restores it afterwards —
+// otherwise the test branding ("BDD App") becomes the real app branding.
+When("I capture the current app config", async function (this: LmsWorld) {
+  await this.request("GET", "/app/config", { token: null });
+  this.savedAppConfig = this.last.body;
+});
+
+When(
+  "I restore the captured app config with an admin token",
+  async function (this: LmsWorld) {
+    const token = await this.adminToken();
+    await this.request("PUT", "/admin/app/config", {
+      token,
+      body: { appConfig: this.savedAppConfig },
+    });
+  },
+);
+
 // Dotted-path variant of "the response field … should be …", so a nested value
 // (e.g. "light.primary") can be asserted on the returned config.
 Then(

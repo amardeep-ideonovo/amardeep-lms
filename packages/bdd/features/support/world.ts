@@ -21,6 +21,7 @@ export class LmsWorld extends World {
   last: HttpResult = { status: 0, body: null };
   formId: string | null = null;
   popupId: string | null = null;
+  savedAppConfig: unknown = null; // captured by the app-config round-trip for restore
 
   async request(
     method: string,

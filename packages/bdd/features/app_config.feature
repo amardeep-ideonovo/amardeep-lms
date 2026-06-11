@@ -27,7 +27,8 @@ Feature: Mobile app customization config
     Then the response status should be 400
 
   Scenario: An admin can update and read back the app config
-    When I PUT "/admin/app/config" with an admin token and body:
+    When I capture the current app config
+    And I PUT "/admin/app/config" with an admin token and body:
       """
       {
         "appConfig": {
@@ -56,3 +57,5 @@ Feature: Mobile app customization config
     When I GET "/app/config" without a token
     Then the response status should be 200
     And the response field "light.primary" should equal "#abcdef"
+    When I restore the captured app config with an admin token
+    Then the response status should be 200
