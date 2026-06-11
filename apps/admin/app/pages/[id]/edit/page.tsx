@@ -13,6 +13,7 @@ import { createPuckConfig } from "@lms/puck";
 import type { PageProps, RootProps } from "@lms/puck";
 import type { PageStatus, PuckDocument } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
 import FormPickerField from "@/components/FormPickerField";
@@ -43,6 +44,7 @@ function FormPreview({ formId }: { formId: string }) {
 }
 
 export default function PageEditor() {
+  const { can, loading: authLoading } = useAdminAuth();
   const params = useParams();
   const id = String((params?.id as string) ?? "");
   const router = useRouter();
@@ -114,6 +116,7 @@ export default function PageEditor() {
 
   useEffect(() => {
     if (!id) return;
+    if (authLoading || !can("pages", "read")) return;
     let alive = true;
     (async () => {
       try {
@@ -138,7 +141,8 @@ export default function PageEditor() {
       alive = false;
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, authLoading]);
 
   function persist(extra?: { status?: PageStatus }) {
     return api.updatePage(id, {
@@ -191,6 +195,22 @@ export default function PageEditor() {
       );
     }
   }
+
+  if (authLoading)
+    return (
+      <div style={{ padding: 40 }} className="muted">
+        Loading editor…
+      </div>
+    );
+  if (!can("pages", "read"))
+    return (
+      <div style={{ padding: 40 }}>
+        <div className="page-header">
+          <h1>Page editor</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   if (!loaded) {
     return (

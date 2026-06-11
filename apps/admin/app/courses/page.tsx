@@ -9,6 +9,7 @@ import type {
   LevelDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 
@@ -40,6 +41,7 @@ function formatDuration(sec?: number | null): string {
 }
 
 export default function CoursesPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [courses, setCourses] = useState<CourseCard[]>([]);
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,8 +75,10 @@ export default function CoursesPage() {
   }
 
   useEffect(() => {
+    if (authLoading || !can("courses", "read")) return;
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
 
   // Close the modal on Escape.
   useEffect(() => {
@@ -184,6 +188,17 @@ export default function CoursesPage() {
     ids
       .map((id) => levels.find((l) => l.id === id)?.name)
       .filter((n): n is string => Boolean(n));
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("courses", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Courses</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>

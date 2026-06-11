@@ -18,6 +18,7 @@ import type {
   CreateFormInput,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 
 // Escape one CSV cell (quote if it contains a comma/quote/newline).
@@ -166,6 +167,7 @@ function newForm(): EditorState {
 }
 
 export default function FormsPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [forms, setForms] = useState<FormAdminRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -219,8 +221,10 @@ export default function FormsPage() {
     }
   }
   useEffect(() => {
+    if (authLoading || !can("forms", "read")) return;
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
 
   // Fetch the live audience list (and merge fields for a chosen audience).
   const loadAudiences = useCallback(async () => {
@@ -407,6 +411,17 @@ export default function FormsPage() {
   }
 
   const mergeOptions = mergeFields.length ? mergeFields : FALLBACK_MERGE;
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("forms", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Forms</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   // ---------------- list view ----------------
   if (mode === "list") {

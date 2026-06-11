@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { PopupListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { withBase } from "@/lib/base-path";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 
 // Human summary of WHERE a popup shows, from its visibility flags.
@@ -44,6 +45,7 @@ const POSITION_LABEL: Record<PopupListItem["position"], string> = {
 };
 
 export default function PopupsPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [popups, setPopups] = useState<PopupListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,9 +64,10 @@ export default function PopupsPage() {
   }
 
   useEffect(() => {
+    if (authLoading || !can("popups", "read")) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authLoading]);
 
   function openEditor(id: string) {
     window.open(withBase(`/popups/${id}/edit`), "_blank", "noopener");
@@ -141,6 +144,17 @@ export default function PopupsPage() {
       month: "short",
       day: "numeric",
     });
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("popups", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Popups</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>

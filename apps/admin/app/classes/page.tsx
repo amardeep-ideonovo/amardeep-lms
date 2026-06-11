@@ -9,6 +9,7 @@ import type {
   MailchimpAudienceDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 
@@ -25,6 +26,7 @@ function emptyPrice(): PriceForm {
 }
 
 export default function ClassesPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [categories, setCategories] = useState<LevelCategoryDTO[]>([]);
   const [newCategory, setNewCategory] = useState("");
@@ -77,8 +79,10 @@ export default function ClassesPage() {
   }
 
   useEffect(() => {
+    if (authLoading || !can("classes", "read")) return;
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
 
   // Close the modal on Escape (mirrors the courses modal).
   useEffect(() => {
@@ -94,6 +98,7 @@ export default function ClassesPage() {
   // Fetch Mailchimp audiences once. If Mailchimp isn't configured the API
   // returns 400 — surface a hint but keep the page usable (audience optional).
   useEffect(() => {
+    if (authLoading || !can("classes", "read")) return;
     let alive = true;
     api
       .listMailchimpAudiences()
@@ -109,7 +114,8 @@ export default function ClassesPage() {
     return () => {
       alive = false;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
 
   function resetForm() {
     setEditingId(null);
@@ -305,6 +311,17 @@ export default function ClassesPage() {
       );
     }
   }
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("classes", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Classes</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>

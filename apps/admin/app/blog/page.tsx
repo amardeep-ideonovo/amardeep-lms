@@ -8,6 +8,7 @@ import type {
   PostStatus,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
 import MediaPicker from "@/components/MediaPicker";
@@ -23,6 +24,7 @@ const EMPTY = {
 };
 
 export default function BlogPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [posts, setPosts] = useState<PostAdminRow[]>([]);
   const [categories, setCategories] = useState<PostCategoryDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,9 +59,10 @@ export default function BlogPage() {
   }
 
   useEffect(() => {
+    if (authLoading || !can("blog", "read")) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authLoading]);
 
   // Close the modal on Escape.
   useEffect(() => {
@@ -229,6 +232,17 @@ export default function BlogPage() {
           day: "numeric",
         })
       : "—";
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("blog", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Blog</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>

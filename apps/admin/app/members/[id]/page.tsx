@@ -9,6 +9,7 @@ import type {
   SubscriptionDetailDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 
 const money = (a: number, c: string) =>
   (a / 100).toLocaleString(undefined, {
@@ -26,6 +27,7 @@ const fmtDate = (iso: string) =>
 // Cancel (at period end) plus the member's Stripe payment history. Opened from
 // the clickable email in the members table.
 export default function MemberBillingPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const params = useParams<{ id: string }>();
   const id = params.id;
 
@@ -48,9 +50,10 @@ export default function MemberBillingPage() {
     }
   }
   useEffect(() => {
+    if (authLoading || !can("members", "read")) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, authLoading]);
 
   async function act(fn: () => Promise<MemberBillingDTO>) {
     setBusy(true);
@@ -78,6 +81,17 @@ export default function MemberBillingPage() {
     .join(" ")
     .trim();
   const heading = fullName || data?.member.email || "Member";
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("members", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Member billing</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>

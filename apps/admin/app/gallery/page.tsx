@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MediaDTO, MediaKind } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 
 const PAGE_SIZE = 40;
@@ -39,6 +40,7 @@ function fmtDate(iso: string): string {
 }
 
 export default function MediaPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [items, setItems] = useState<MediaDTO[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -76,10 +78,12 @@ export default function MediaPage() {
 
   // Initial load + reload on filter/page change. Search is debounced.
   useEffect(() => {
+    if (authLoading || !can("gallery", "read")) return;
     load(1, q, kind);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind]);
+  }, [kind, authLoading]);
   useEffect(() => {
+    if (authLoading || !can("gallery", "read")) return;
     const t = setTimeout(() => load(1, q, kind), 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,6 +129,17 @@ export default function MediaPage() {
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const to = Math.min(total, page * PAGE_SIZE);
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("gallery", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Gallery</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>

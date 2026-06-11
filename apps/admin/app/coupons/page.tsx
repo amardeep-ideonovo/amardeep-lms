@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import type { CouponDTO, CreateCouponInput, LevelDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 
 type DiscountType = "percent" | "amount";
@@ -39,6 +40,7 @@ function statusOf(c: CouponDTO): "Active" | "Inactive" | "Expired" {
 }
 
 export default function CouponsPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [coupons, setCoupons] = useState<CouponDTO[]>([]);
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,8 +77,10 @@ export default function CouponsPage() {
   }
 
   useEffect(() => {
+    if (authLoading || !can("coupons", "read")) return;
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
 
   function resetForm() {
     setCode("");
@@ -162,6 +166,17 @@ export default function CouponsPage() {
   const visible = coupons.filter((c) =>
     filter === "all" ? true : filter === "active" ? c.active : !c.active,
   );
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("coupons", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Coupons</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>

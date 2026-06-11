@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { PageListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { withBase } from "@/lib/base-path";
 
@@ -12,6 +13,7 @@ const WEB_URL =
   process.env.NEXT_PUBLIC_WEB_URL?.replace(/\/$/, "") || "http://localhost:3002";
 
 export default function PagesPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [pages, setPages] = useState<PageListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,9 +32,10 @@ export default function PagesPage() {
   }
 
   useEffect(() => {
+    if (authLoading || !can("pages", "read")) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authLoading]);
 
   function openEditor(id: string) {
     window.open(withBase(`/pages/${id}/edit`), "_blank", "noopener");
@@ -121,6 +124,17 @@ export default function PagesPage() {
           day: "numeric",
         })
       : "—";
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("pages", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Pages</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>

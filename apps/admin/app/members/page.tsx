@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { LevelDTO, MemberRow } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 
 export default function MembersPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,8 +35,10 @@ export default function MembersPage() {
   }
 
   useEffect(() => {
+    if (authLoading || !can("members", "read")) return;
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
 
   async function addLevel(memberId: string) {
     const levelId = pending[memberId];
@@ -72,6 +76,17 @@ export default function MembersPage() {
     if (filterLevel === "__none__") return m.levels.length === 0;
     return m.levels.some((l) => l.id === filterLevel);
   });
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("members", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Members</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>

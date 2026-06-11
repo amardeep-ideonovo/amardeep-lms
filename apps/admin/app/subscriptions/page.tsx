@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { SubscriptionRowDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 
 const money = (a: number | null, c: string) =>
   a == null
@@ -50,6 +51,7 @@ function StatusBadge({ s }: { s: SubscriptionRowDTO }) {
 }
 
 export default function SubscriptionsPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [rows, setRows] = useState<SubscriptionRowDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,8 +72,10 @@ export default function SubscriptionsPage() {
     }
   }
   useEffect(() => {
+    if (authLoading || !can("subscriptions", "read")) return;
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
 
   // Only offer status values that actually appear in the data.
   const statuses = useMemo(() => {
@@ -90,6 +94,17 @@ export default function SubscriptionsPage() {
       r.levelName.toLowerCase().includes(q)
     );
   });
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("subscriptions", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Subscriptions</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>

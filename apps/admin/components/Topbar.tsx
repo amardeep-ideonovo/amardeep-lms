@@ -30,6 +30,14 @@ const COMMANDS: Cmd[] = [
   { id: "go-blog", title: "Blog", href: "/blog", section: "blog" },
   { id: "go-gallery", title: "Gallery", href: "/gallery", section: "gallery" },
   { id: "go-pages", title: "Pages", href: "/pages", section: "pages" },
+  { id: "go-header", title: "Header", href: "/header", section: "menus" },
+  { id: "go-footer", title: "Footer", href: "/footer", section: "menus" },
+  {
+    id: "go-navigation",
+    title: "Navigation",
+    href: "/navigation",
+    section: "menus",
+  },
   { id: "go-popups", title: "Popups", href: "/popups", section: "popups" },
   { id: "go-forms", title: "Forms", href: "/forms", section: "forms" },
   {
@@ -39,6 +47,7 @@ const COMMANDS: Cmd[] = [
     section: "subscriptions",
   },
   { id: "go-coupons", title: "Coupons", href: "/coupons", section: "coupons" },
+  { id: "go-reports", title: "Reports", href: "/reports", section: "reports" },
   { id: "go-notifications", title: "Notifications", href: "/notifications" },
   { id: "go-settings", title: "Settings", href: "/settings", section: "settings" },
   {

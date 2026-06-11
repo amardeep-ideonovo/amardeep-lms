@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { MemberRow } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 
 // Edit a member's profile (first/last name, phone) on its own page. Opened from
 // the "Edit" button in the members table; saves and returns to the list.
 export default function EditMemberPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const params = useParams<{ id: string }>();
   const id = params.id;
   const router = useRouter();
@@ -31,6 +33,7 @@ export default function EditMemberPage() {
   const [pwOk, setPwOk] = useState(false);
 
   useEffect(() => {
+    if (authLoading || !can("members", "read")) return;
     let active = true;
     api
       .getMember(id)
@@ -52,7 +55,8 @@ export default function EditMemberPage() {
     return () => {
       active = false;
     };
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, authLoading]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -113,6 +117,17 @@ export default function EditMemberPage() {
       setPwSaving(false);
     }
   }
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("members", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Edit member</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>

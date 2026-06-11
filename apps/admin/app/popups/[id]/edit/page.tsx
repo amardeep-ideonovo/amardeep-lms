@@ -21,6 +21,7 @@ import type {
   PuckDocument,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
 import FormPickerField from "@/components/FormPickerField";
@@ -85,6 +86,7 @@ function FormPreview({ formId }: { formId: string }) {
 }
 
 export default function PopupEditor() {
+  const { can, loading: authLoading } = useAdminAuth();
   const params = useParams();
   const id = String((params?.id as string) ?? "");
   const router = useRouter();
@@ -163,6 +165,7 @@ export default function PopupEditor() {
 
   useEffect(() => {
     if (!id) return;
+    if (authLoading || !can("popups", "read")) return;
     let alive = true;
     (async () => {
       try {
@@ -208,7 +211,8 @@ export default function PopupEditor() {
       if (docTimer.current) clearTimeout(docTimer.current);
       if (settingsTimer.current) clearTimeout(settingsTimer.current);
     };
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, authLoading]);
 
   // Debounced autosave of the Puck document on every edit.
   function scheduleSave(data: PopupData) {
@@ -291,6 +295,22 @@ export default function PopupEditor() {
       );
     }
   }
+
+  if (authLoading)
+    return (
+      <div style={{ padding: 40 }} className="muted">
+        Loading editor…
+      </div>
+    );
+  if (!can("popups", "read"))
+    return (
+      <div style={{ padding: 40 }}>
+        <div className="page-header">
+          <h1>Popup editor</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   if (!loaded) {
     return (
