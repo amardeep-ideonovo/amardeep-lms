@@ -10,7 +10,7 @@ Feature: Mobile app customization config
   Scenario: Anyone can read the app config without logging in
     When I GET "/app/config" without a token
     Then the response status should be 200
-    And the response field "colorScheme" should be "system"
+    And the response field "colorScheme" should be one of "light|dark|system"
 
   Scenario: Anonymous visitors cannot update the app config
     When I PUT "/admin/app/config" without a token and body:

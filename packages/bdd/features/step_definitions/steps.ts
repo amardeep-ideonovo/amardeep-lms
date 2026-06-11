@@ -346,6 +346,20 @@ Then(
   },
 );
 
+// Enum assertion for values an admin can change on the long-lived dev DB —
+// asserts the CONTRACT (one of the allowed values), not the saved data.
+Then(
+  "the response field {string} should be one of {string}",
+  function (this: LmsWorld, field: string, allowed: string) {
+    const value = String(this.last.body?.[field] ?? "");
+    const options = allowed.split("|");
+    assert.ok(
+      options.includes(value),
+      `expected "${field}" to be one of ${allowed} but got "${value}"`,
+    );
+  },
+);
+
 // ---------- members (admin profile edit) ----------
 
 When(
