@@ -93,31 +93,10 @@ export default async function ClassPage({ params }: Params) {
         </div>
       </header>
 
-      {/* ---------- SKILLS (always shown) ---------- */}
-      {cls.skills.length > 0 && (
-        <section className="cc-section">
-          <div className="cc-wrap">
-            <p className="cc-eyebrow">Curriculum</p>
-            <h2 className="cc-h2">Skills You&apos;ll Learn</h2>
-            <p className="cc-sub">What you&apos;ll be able to do by the end.</p>
-            <div className="cc-skills">
-              {cls.skills.map((s, i) => (
-                <div key={i} className={s.imageUrl ? "cc-skill" : "cc-skill cc-skill--empty"}>
-                  <span className="cc-skill-num">{i + 1}</span>
-                  {s.imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={s.imageUrl} alt="" />
-                  )}
-                  <div className="cc-skill-title">{s.title}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ---------- BODY: trailer + courses + closing CTA ---------- */}
-      {/* Ownership-gated. Members → Your Courses. Others → trailer + closing CTA. */}
+      {/* ---------- BODY: skills + trailer + courses + closing CTA ---------- */}
+      {/* Ownership-gated ORDER: guests see Skills first (marketing), members
+          see Your Courses first with Skills below. The skills markup is built
+          here (server, SEO-friendly) and ordered by the client component. */}
       <ClassMemberArea
         slugOrId={slugOrId}
         name={cls.name}
@@ -127,6 +106,29 @@ export default async function ClassPage({ params }: Params) {
         lessonCount={cls.lessonCount}
         totalLabel={totalLabel}
         slot="body"
+        skills={
+          cls.skills.length > 0 ? (
+            <section className="cc-section">
+              <div className="cc-wrap">
+                <p className="cc-eyebrow">Curriculum</p>
+                <h2 className="cc-h2">Skills You&apos;ll Learn</h2>
+                <p className="cc-sub">What you&apos;ll be able to do by the end.</p>
+                <div className="cc-skills">
+                  {cls.skills.map((s, i) => (
+                    <div key={i} className={s.imageUrl ? "cc-skill" : "cc-skill cc-skill--empty"}>
+                      <span className="cc-skill-num">{i + 1}</span>
+                      {s.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={s.imageUrl} alt="" />
+                      )}
+                      <div className="cc-skill-title">{s.title}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          ) : null
+        }
       />
     </article>
   );

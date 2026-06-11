@@ -21,6 +21,10 @@ type Props = {
   lessonCount: number;
   totalLabel: string;
   slot: Slot;
+  // Server-rendered "Skills You'll Learn" markup (slot="body" only). Guests get
+  // it ABOVE the trailer/CTA (marketing order); owners get it BELOW Your
+  // Courses (library order).
+  skills?: React.ReactNode;
 };
 
 type Ownership = { owned: boolean; courses: CourseCard[] };
@@ -55,6 +59,7 @@ export default function ClassMemberArea({
   lessonCount,
   totalLabel,
   slot,
+  skills,
 }: Props) {
   const [resolved, setResolved] = useState(false);
   const [owned, setOwned] = useState(false);
@@ -117,11 +122,20 @@ export default function ClassMemberArea({
   }
 
   /* ===================== BODY ===================== */
-  if (!resolved) return <div style={{ minHeight: 120 }} aria-hidden />;
+  // Unresolved placeholder keeps skills in the guest position — that's also
+  // the SSR output, so crawlers index the skills markup.
+  if (!resolved)
+    return (
+      <>
+        {skills}
+        <div style={{ minHeight: 120 }} aria-hidden />
+      </>
+    );
 
-  // ----- Member: Your Courses -----
+  // ----- Member: Your Courses first, skills below (library order) -----
   if (owned) {
     return (
+      <>
       <section className="cc-section" id="your-courses">
         <div className="cc-wrap">
           <p className="cc-eyebrow">Your library</p>
@@ -160,13 +174,16 @@ export default function ClassMemberArea({
           )}
         </div>
       </section>
+      {skills}
+      </>
     );
   }
 
-  // ----- Guest / not a member: trailer + closing CTA -----
+  // ----- Guest / not a member: skills + trailer + closing CTA -----
   const vimeo = trailerUrl ? vimeoEmbed(trailerUrl) : null;
   return (
     <>
+      {skills}
       {trailerUrl && (
         <section className="cc-section" id="trailer">
           <div className="cc-wrap">

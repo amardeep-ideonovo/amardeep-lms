@@ -98,6 +98,37 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
   const trailer = cls.trailerUrl ? vimeoEmbed(cls.trailerUrl) : null;
   const trailerHeight = ((width - 32) * 9) / 16;
 
+  // Owners see skills BELOW their course library; guests see them up top
+  // (marketing order) — mirrors the web class page.
+  const skillsSection =
+    cls.skills.length > 0 ? (
+      <View style={styles.section}>
+        <Text style={styles.eyebrow}>Curriculum</Text>
+        <Text style={styles.sectionTitle}>Skills You&rsquo;ll Learn</Text>
+        <View style={styles.skillsGrid}>
+          {cls.skills.map((skill, i) => (
+            <View key={`${skill.title}-${i}`} style={styles.skillCard}>
+              {skill.imageUrl ? (
+                <Image
+                  source={{ uri: skill.imageUrl }}
+                  style={StyleSheet.absoluteFill}
+                  resizeMode="cover"
+                />
+              ) : null}
+              <View style={styles.skillNum}>
+                <Text style={styles.skillNumText}>{i + 1}</Text>
+              </View>
+              <View style={styles.skillTitleWrap}>
+                <Text style={styles.skillTitle} numberOfLines={2}>
+                  {skill.title}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+    ) : null;
+
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
       <HeroBand
@@ -121,35 +152,8 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
         {meta ? <Text style={styles.heroMeta}>{meta}</Text> : null}
       </HeroBand>
 
-      {cls.skills.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.eyebrow}>Curriculum</Text>
-          <Text style={styles.sectionTitle}>Skills You&rsquo;ll Learn</Text>
-          <View style={styles.skillsGrid}>
-            {cls.skills.map((skill, i) => (
-              <View key={`${skill.title}-${i}`} style={styles.skillCard}>
-                {skill.imageUrl ? (
-                  <Image
-                    source={{ uri: skill.imageUrl }}
-                    style={StyleSheet.absoluteFill}
-                    resizeMode="cover"
-                  />
-                ) : null}
-                <View style={styles.skillNum}>
-                  <Text style={styles.skillNumText}>{i + 1}</Text>
-                </View>
-                <View style={styles.skillTitleWrap}>
-                  <Text style={styles.skillTitle} numberOfLines={2}>
-                    {skill.title}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-      ) : null}
-
       {owned ? (
+        <>
         <View style={styles.section}>
           <Text style={styles.eyebrow}>Your library</Text>
           <Text style={styles.sectionTitle}>Your Courses</Text>
@@ -173,8 +177,11 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
             )}
           </View>
         </View>
+        {skillsSection}
+        </>
       ) : (
         <>
+          {skillsSection}
           {trailer || cls.trailerUrl ? (
             <View style={styles.section}>
               <Text style={styles.eyebrow}>Preview</Text>
