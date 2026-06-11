@@ -1,14 +1,16 @@
 // Class landing page — native mirror of the web's /classes/[slug]
-// (hero + skills + trailer + owned course list). Unowned classes show the
-// FULL marketing page but a deliberately neutral closing panel: no prices,
-// no purchase buttons (App Store rules) — membership changes happen on web.
-import React, { useCallback, useEffect, useState } from "react";
+// (hero + buy card + skills + trailer + owned course list + closing CTA).
+// Web parity by request: unowned classes show "Get Class" with the starting
+// price exactly like the website; the button hands off to the WEB checkout in
+// the browser — no purchase ever happens in-app.
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Image,
   Linking,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -16,13 +18,12 @@ import { WebView } from "react-native-webview";
 import type { ClassPublicDTO, CourseCard } from "@lms/types";
 
 import { api } from "../api";
-import { WEB_ACCOUNT_URL } from "../config";
-import { fmtTotalDuration, vimeoEmbed } from "../format";
+import { WEB_BASE_URL } from "../config";
+import { fmtTotalDuration, money, vimeoEmbed } from "../format";
 import { CourseRow } from "../components/CourseRow";
 import { ErrorState } from "../components/Screen";
 import { HeroBand } from "../components/HeroBand";
 import { Badge } from "../components/Chip";
-import { LockedPanel } from "../components/LockedPanel";
 import { Skeleton } from "../components/Skeleton";
 import { VideoPlayerView } from "../components/VideoPlayerView";
 import type { ScreenProps } from "../navigation";
@@ -39,6 +40,8 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
   const [cls, setCls] = useState<ClassPublicDTO | null>(null);
   const [ownership, setOwnership] = useState<Ownership | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const trailerY = useRef(0);
 
   const load = useCallback(async () => {
     setError(null);
@@ -98,6 +101,21 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
   const trailer = cls.trailerUrl ? vimeoEmbed(cls.trailerUrl) : null;
   const trailerHeight = ((width - 32) * 9) / 16;
 
+  // Cheapest price drives the "Starting at" label (web priceLabel parity).
+  const cheapest =
+    cls.prices.length > 0
+      ? cls.prices.reduce((a, b) => (a.amount <= b.amount ? a : b))
+      : null;
+  const priceLabel = cheapest
+    ? `${money(cheapest.amount, cheapest.currency)}/${cheapest.interval}`
+    : null;
+  // Checkout is a WEB handoff — the button opens the site; nothing is sold
+  // in-app.
+  const openCheckout = () =>
+    Linking.openURL(`${WEB_BASE_URL}/checkout/${slugOrId}`).catch(() => {});
+  const scrollToTrailer = () =>
+    scrollRef.current?.scrollTo({ y: trailerY.current, animated: true });
+
   // Owners see skills BELOW their course library; guests see them up top
   // (marketing order) — mirrors the web class page.
   const skillsSection =
@@ -130,7 +148,11 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
     ) : null;
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <ScrollView
+      ref={scrollRef}
+      style={styles.scroll}
+      contentContainerStyle={styles.content}
+    >
       <HeroBand
         title={cls.name}
         imageUrl={cls.imageUrl}
@@ -150,6 +172,31 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
           </Text>
         ) : null}
         {meta ? <Text style={styles.heroMeta}>{meta}</Text> : null}
+        {!owned ? (
+          <View style={styles.buyCard}>
+            <TouchableOpacity
+              style={styles.buyBtn}
+              activeOpacity={0.85}
+              onPress={openCheckout}
+            >
+              <Text style={styles.buyBtnText}>Get Class</Text>
+            </TouchableOpacity>
+            <Text style={styles.buySub}>
+              {priceLabel ? (
+                <>
+                  Starting at <Text style={styles.buyStrong}>{priceLabel}</Text>.
+                </>
+              ) : (
+                "Full lifetime access."
+              )}
+            </Text>
+            {cls.trailerUrl ? (
+              <Text style={styles.buyLink} onPress={scrollToTrailer}>
+                Watch the trailer ↓
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
       </HeroBand>
 
       {owned ? (
@@ -183,7 +230,12 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
         <>
           {skillsSection}
           {trailer || cls.trailerUrl ? (
-            <View style={styles.section}>
+            <View
+              style={styles.section}
+              onLayout={(e) => {
+                trailerY.current = e.nativeEvent.layout.y;
+              }}
+            >
               <Text style={styles.eyebrow}>Preview</Text>
               <Text style={styles.sectionTitle}>Class Trailer</Text>
               <Text style={styles.sectionSub}>A two-minute look inside.</Text>
@@ -206,14 +258,19 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
               </View>
             </View>
           ) : null}
-          <View style={styles.section}>
-            <LockedPanel
-              title={`Begin ${cls.name}`}
-              message="This class isn't part of your membership."
-              note="Memberships are managed on our website — open your account in the browser to change your plan."
-              ctaLabel="Manage your plan on the web"
-              onPress={() => Linking.openURL(WEB_ACCOUNT_URL).catch(() => {})}
-            />
+          <View style={styles.closing}>
+            <Text style={styles.closingEyebrow}>Start today</Text>
+            <Text style={styles.closingTitle}>Begin {cls.name}</Text>
+            <TouchableOpacity
+              style={[styles.buyBtn, styles.closingBtn]}
+              activeOpacity={0.85}
+              onPress={openCheckout}
+            >
+              <Text style={styles.buyBtnText}>Get Class</Text>
+            </TouchableOpacity>
+            {priceLabel ? (
+              <Text style={styles.closingPrice}>Starting at {priceLabel}</Text>
+            ) : null}
           </View>
         </>
       )}
@@ -280,6 +337,49 @@ const makeStyles = ({ colors, spacing }: Theme) =>
     skillTitle: { color: colors.heroText, fontSize: 14, fontWeight: "700" },
     courseList: { gap: spacing.sm, marginTop: spacing.xs },
     empty: { color: colors.textMuted, fontSize: 14 },
+    // Buy card on the hero (web .cc-buy parity) — sits on the scrim, so its
+    // text uses the hero tokens.
+    buyCard: {
+      marginTop: spacing.sm,
+      backgroundColor: colors.overlayMid,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 14,
+      padding: spacing.md,
+      gap: spacing.sm,
+      alignItems: "center",
+    },
+    buyBtn: {
+      alignSelf: "stretch",
+      backgroundColor: colors.primary,
+      borderRadius: 11,
+      paddingVertical: 12,
+      alignItems: "center",
+    },
+    buyBtnText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700" },
+    buySub: { color: colors.heroTextSoft, fontSize: 13, textAlign: "center" },
+    buyStrong: { color: colors.heroText, fontWeight: "700" },
+    buyLink: {
+      color: colors.heroTextSoft,
+      fontSize: 13,
+      textDecorationLine: "underline",
+    },
+    closing: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.lg },
+    closingEyebrow: {
+      color: colors.primarySoft,
+      fontSize: 12,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 1.6,
+    },
+    closingTitle: {
+      color: colors.text,
+      fontSize: 24,
+      fontWeight: "800",
+      textAlign: "center",
+    },
+    closingBtn: { alignSelf: "center", paddingHorizontal: 28 },
+    closingPrice: { color: colors.textMuted, fontSize: 13 },
     trailer: {
       borderRadius: 14,
       overflow: "hidden",
