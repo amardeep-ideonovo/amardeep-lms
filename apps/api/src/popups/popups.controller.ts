@@ -19,15 +19,15 @@ import {
 } from './dto/popup.dto';
 
 // Popup routes. GET /popups/active is PUBLIC (no guard) and returns only ACTIVE
-// popups filtered by context (dashboard / a CMS page). All management lives
-// under /admin/* behind the `popups` permission.
+// popups filtered by context (a member-area surface / a CMS page). All
+// management lives under /admin/* behind the `popups` permission.
 @Controller()
 export class PopupsController {
   constructor(private readonly popups: PopupsService) {}
 
   // ----- Public (no auth) -----
 
-  // ?context=dashboard | ?context=page&pageId=<id>
+  // ?context=dashboard|classes|courses|lessons | ?context=page&pageId=<id>
   @Get('popups/active')
   listActive(
     @Query('context') context?: string,

@@ -371,7 +371,7 @@ export async function fetchActivePopups(
   const qs =
     ctx.type === "page"
       ? `context=page&pageId=${encodeURIComponent(ctx.pageId)}`
-      : "context=dashboard";
+      : `context=${ctx.type}`;
   try {
     return await request<PopupPublicDTO[]>(`/popups/active?${qs}`, {
       auth: false,

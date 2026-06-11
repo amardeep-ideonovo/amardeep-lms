@@ -47,6 +47,9 @@ type Settings = {
   borderRadius: number;
   padding: number;
   showOnDashboard: boolean;
+  showOnClasses: boolean;
+  showOnCourses: boolean;
+  showOnLessons: boolean;
   pageMode: PopupPageMode;
   pageIds: string[];
   trigger: PopupTrigger;
@@ -72,6 +75,18 @@ const PAGE_MODE_OPTIONS: { value: PopupPageMode; label: string }[] = [
   { value: "ALL", label: "Show on all pages" },
   { value: "INCLUDE", label: "Show only on selected pages" },
   { value: "EXCLUDE", label: "Show on all pages except selected" },
+];
+
+// Member-area surfaces (one on/off checkbox each; CMS pages have their own
+// include/exclude targeting below).
+const SURFACE_OPTIONS: {
+  key: "showOnDashboard" | "showOnClasses" | "showOnCourses" | "showOnLessons";
+  label: string;
+}[] = [
+  { key: "showOnDashboard", label: "Dashboard" },
+  { key: "showOnClasses", label: "Class pages" },
+  { key: "showOnCourses", label: "Course pages" },
+  { key: "showOnLessons", label: "Lesson pages" },
 ];
 
 const TRIGGER_OPTIONS: { value: PopupTrigger; label: string }[] = [
@@ -237,6 +252,9 @@ export default function PopupEditor() {
           borderRadius: popup.borderRadius,
           padding: popup.padding,
           showOnDashboard: popup.showOnDashboard,
+          showOnClasses: popup.showOnClasses,
+          showOnCourses: popup.showOnCourses,
+          showOnLessons: popup.showOnLessons,
           pageMode: popup.pageMode,
           pageIds: popup.pageIds,
           trigger: popup.trigger,
@@ -849,24 +867,31 @@ export default function PopupEditor() {
               {/* Visibility */}
               <div style={drawerSection}>Visibility</div>
 
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 14,
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={settings.showOnDashboard}
-                  onChange={(e) =>
-                    updateSettings({ showOnDashboard: e.target.checked })
-                  }
-                />
-                <span>Show on the member dashboard</span>
-              </label>
+              <div style={drawerLabel}>In member areas</div>
+              <div style={{ display: "grid", gap: 6, marginBottom: 14 }}>
+                {SURFACE_OPTIONS.map((o) => (
+                  <label
+                    key={o.key}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={settings[o.key]}
+                      onChange={(e) =>
+                        updateSettings({
+                          [o.key]: e.target.checked,
+                        } as Partial<Settings>)
+                      }
+                    />
+                    <span>{o.label}</span>
+                  </label>
+                ))}
+              </div>
 
               <div style={drawerLabel}>On CMS pages</div>
               <div style={{ display: "grid", gap: 6, marginBottom: 12 }}>

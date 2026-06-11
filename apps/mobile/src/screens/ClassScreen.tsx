@@ -23,6 +23,7 @@ import { fmtTotalDuration, money, vimeoEmbed } from "../format";
 import { CourseRow } from "../components/CourseRow";
 import { ErrorState } from "../components/Screen";
 import { HeroBand } from "../components/HeroBand";
+import { PopupHost } from "../components/PopupHost";
 import { Badge } from "../components/Chip";
 import { Skeleton } from "../components/Skeleton";
 import { VideoPlayerView } from "../components/VideoPlayerView";
@@ -148,135 +149,138 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
     ) : null;
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      style={styles.scroll}
-      contentContainerStyle={styles.content}
-    >
-      <HeroBand
-        title={cls.name}
-        imageUrl={cls.imageUrl}
-        gradientSeed={cls.id}
-        chips={cls.categories.map((c) => c.name)}
-        progress={progress && progress.total > 0 ? progress : null}
-        minHeight={300}
+    <>
+      <PopupHost context={{ type: "classes" }} />
+      <ScrollView
+        ref={scrollRef}
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
       >
-        {owned ? (
-          <View style={styles.ownedBadge}>
-            <Badge label="You own this class" />
-          </View>
-        ) : null}
-        {cls.description ? (
-          <Text style={styles.heroDesc} numberOfLines={3}>
-            {cls.description}
-          </Text>
-        ) : null}
-        {meta ? <Text style={styles.heroMeta}>{meta}</Text> : null}
-        {!owned ? (
-          <View style={styles.buyCard}>
-            <TouchableOpacity
-              style={styles.buyBtn}
-              activeOpacity={0.85}
-              onPress={openCheckout}
-            >
-              <Text style={styles.buyBtnText}>Get Class</Text>
-            </TouchableOpacity>
-            <Text style={styles.buySub}>
-              {priceLabel ? (
-                <>
-                  Starting at <Text style={styles.buyStrong}>{priceLabel}</Text>.
-                </>
-              ) : (
-                "Full lifetime access."
-              )}
-            </Text>
-            {cls.trailerUrl ? (
-              <Text style={styles.buyLink} onPress={scrollToTrailer}>
-                Watch the trailer ↓
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
-      </HeroBand>
-
-      {owned ? (
-        <>
-        <View style={styles.section}>
-          <Text style={styles.eyebrow}>Your library</Text>
-          <Text style={styles.sectionTitle}>Your Courses</Text>
-          <Text style={styles.sectionSub}>Continue where you left off.</Text>
-          <View style={styles.courseList}>
-            {courses.length === 0 ? (
-              <Text style={styles.empty}>No courses in this class yet.</Text>
-            ) : (
-              courses.map((c) => (
-                <CourseRow
-                  key={c.id}
-                  course={c}
-                  onPress={() =>
-                    navigation.navigate("Course", {
-                      courseId: c.id,
-                      title: c.title,
-                    })
-                  }
-                />
-              ))
-            )}
-          </View>
-        </View>
-        {skillsSection}
-        </>
-      ) : (
-        <>
-          {skillsSection}
-          {trailer || cls.trailerUrl ? (
-            <View
-              style={styles.section}
-              onLayout={(e) => {
-                trailerY.current = e.nativeEvent.layout.y;
-              }}
-            >
-              <Text style={styles.eyebrow}>Preview</Text>
-              <Text style={styles.sectionTitle}>Class Trailer</Text>
-              <Text style={styles.sectionSub}>A two-minute look inside.</Text>
-              <View style={[styles.trailer, { height: trailerHeight }]}>
-                {trailer ? (
-                  <WebView
-                    style={StyleSheet.absoluteFill}
-                    source={{ uri: trailer }}
-                    allowsFullscreenVideo
-                    allowsInlineMediaPlayback
-                    javaScriptEnabled
-                    domStorageEnabled
-                  />
-                ) : (
-                  <VideoPlayerView
-                    style={StyleSheet.absoluteFill}
-                    uri={cls.trailerUrl as string}
-                  />
-                )}
-              </View>
+        <HeroBand
+          title={cls.name}
+          imageUrl={cls.imageUrl}
+          gradientSeed={cls.id}
+          chips={cls.categories.map((c) => c.name)}
+          progress={progress && progress.total > 0 ? progress : null}
+          minHeight={300}
+        >
+          {owned ? (
+            <View style={styles.ownedBadge}>
+              <Badge label="You own this class" />
             </View>
           ) : null}
-          <View style={styles.closing}>
-            <Text style={styles.closingEyebrow}>Start today</Text>
-            <Text style={styles.closingTitle}>Begin {cls.name}</Text>
-            <TouchableOpacity
-              style={[styles.buyBtn, styles.closingBtn]}
-              activeOpacity={0.85}
-              onPress={openCheckout}
-            >
-              <Text style={styles.buyBtnText}>Get Class</Text>
-            </TouchableOpacity>
-            {priceLabel ? (
-              <Text style={styles.closingPrice}>Starting at {priceLabel}</Text>
-            ) : null}
-          </View>
-        </>
-      )}
+          {cls.description ? (
+            <Text style={styles.heroDesc} numberOfLines={3}>
+              {cls.description}
+            </Text>
+          ) : null}
+          {meta ? <Text style={styles.heroMeta}>{meta}</Text> : null}
+          {!owned ? (
+            <View style={styles.buyCard}>
+              <TouchableOpacity
+                style={styles.buyBtn}
+                activeOpacity={0.85}
+                onPress={openCheckout}
+              >
+                <Text style={styles.buyBtnText}>Get Class</Text>
+              </TouchableOpacity>
+              <Text style={styles.buySub}>
+                {priceLabel ? (
+                  <>
+                    Starting at <Text style={styles.buyStrong}>{priceLabel}</Text>.
+                  </>
+                ) : (
+                  "Full lifetime access."
+                )}
+              </Text>
+              {cls.trailerUrl ? (
+                <Text style={styles.buyLink} onPress={scrollToTrailer}>
+                  Watch the trailer ↓
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+        </HeroBand>
 
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+        {owned ? (
+          <>
+          <View style={styles.section}>
+            <Text style={styles.eyebrow}>Your library</Text>
+            <Text style={styles.sectionTitle}>Your Courses</Text>
+            <Text style={styles.sectionSub}>Continue where you left off.</Text>
+            <View style={styles.courseList}>
+              {courses.length === 0 ? (
+                <Text style={styles.empty}>No courses in this class yet.</Text>
+              ) : (
+                courses.map((c) => (
+                  <CourseRow
+                    key={c.id}
+                    course={c}
+                    onPress={() =>
+                      navigation.navigate("Course", {
+                        courseId: c.id,
+                        title: c.title,
+                      })
+                    }
+                  />
+                ))
+              )}
+            </View>
+          </View>
+          {skillsSection}
+          </>
+        ) : (
+          <>
+            {skillsSection}
+            {trailer || cls.trailerUrl ? (
+              <View
+                style={styles.section}
+                onLayout={(e) => {
+                  trailerY.current = e.nativeEvent.layout.y;
+                }}
+              >
+                <Text style={styles.eyebrow}>Preview</Text>
+                <Text style={styles.sectionTitle}>Class Trailer</Text>
+                <Text style={styles.sectionSub}>A two-minute look inside.</Text>
+                <View style={[styles.trailer, { height: trailerHeight }]}>
+                  {trailer ? (
+                    <WebView
+                      style={StyleSheet.absoluteFill}
+                      source={{ uri: trailer }}
+                      allowsFullscreenVideo
+                      allowsInlineMediaPlayback
+                      javaScriptEnabled
+                      domStorageEnabled
+                    />
+                  ) : (
+                    <VideoPlayerView
+                      style={StyleSheet.absoluteFill}
+                      uri={cls.trailerUrl as string}
+                    />
+                  )}
+                </View>
+              </View>
+            ) : null}
+            <View style={styles.closing}>
+              <Text style={styles.closingEyebrow}>Start today</Text>
+              <Text style={styles.closingTitle}>Begin {cls.name}</Text>
+              <TouchableOpacity
+                style={[styles.buyBtn, styles.closingBtn]}
+                activeOpacity={0.85}
+                onPress={openCheckout}
+              >
+                <Text style={styles.buyBtnText}>Get Class</Text>
+              </TouchableOpacity>
+              {priceLabel ? (
+                <Text style={styles.closingPrice}>Starting at {priceLabel}</Text>
+              ) : null}
+            </View>
+          </>
+        )}
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+    </>
   );
 }
 

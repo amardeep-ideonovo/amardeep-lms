@@ -738,7 +738,7 @@ export type PopupPosition =
   | "BOTTOM_LEFT"
   | "BOTTOM_RIGHT";
 
-// How a popup targets CMS pages (independent of the dashboard toggle).
+// How a popup targets CMS pages (independent of the member-area toggles).
 //   NONE    — not shown on any CMS page
 //   ALL     — shown on every CMS page
 //   INCLUDE — shown only on the pages listed in pageIds
@@ -807,6 +807,9 @@ export interface PopupListItem {
   status: PopupStatus;
   position: PopupPosition;
   showOnDashboard: boolean;
+  showOnClasses: boolean;
+  showOnCourses: boolean;
+  showOnLessons: boolean;
   pageMode: PopupPageMode;
   pageCount: number; // number of targeted page ids (for INCLUDE/EXCLUDE)
   views: number;
@@ -829,6 +832,9 @@ export interface PopupAdminRow {
   borderRadius: number;
   padding: number;
   showOnDashboard: boolean;
+  showOnClasses: boolean;
+  showOnCourses: boolean;
+  showOnLessons: boolean;
   pageMode: PopupPageMode;
   pageIds: string[];
   trigger: PopupTrigger;
@@ -856,6 +862,9 @@ export interface CreatePopupInput {
   borderRadius?: number;
   padding?: number;
   showOnDashboard?: boolean;
+  showOnClasses?: boolean;
+  showOnCourses?: boolean;
+  showOnLessons?: boolean;
   pageMode?: PopupPageMode;
   pageIds?: string[];
   trigger?: PopupTrigger;
@@ -867,10 +876,14 @@ export interface CreatePopupInput {
 }
 export type UpdatePopupInput = Partial<CreatePopupInput>;
 
-// Context the public renderer asks about. Dashboard has no id; a CMS page
-// passes its page id so INCLUDE/EXCLUDE targeting can be evaluated.
+// Member-area surfaces a popup can target with a simple on/off flag (CMS pages
+// have their own include/exclude targeting via PopupPageMode).
+export type PopupSurface = "dashboard" | "classes" | "courses" | "lessons";
+
+// Context the public renderer asks about. Member-area surfaces carry no id; a
+// CMS page passes its page id so INCLUDE/EXCLUDE targeting can be evaluated.
 export type PopupContext =
-  | { type: "dashboard" }
+  | { type: PopupSurface }
   | { type: "page"; pageId: string };
 
 // Analytics events the renderer reports (fire-and-forget, public).

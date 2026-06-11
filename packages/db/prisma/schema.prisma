@@ -470,7 +470,11 @@ model Popup {
   padding      Int           @default(24) // px
 
   // ----- visibility / targeting -----
-  showOnDashboard Boolean       @default(false) // show on the member dashboard
+  // Member-area surfaces, one flag each (server-side filter via ?context=…).
+  showOnDashboard Boolean       @default(false) // member dashboard
+  showOnClasses   Boolean       @default(false) // class landing pages
+  showOnCourses   Boolean       @default(false) // course detail screens
+  showOnLessons   Boolean       @default(false) // lesson player screens
   pageMode        PopupPageMode @default(NONE)
   pageIds         String[]      @default([]) // referenced Page ids for INCLUDE/EXCLUDE
 

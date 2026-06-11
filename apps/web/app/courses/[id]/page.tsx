@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import type { CourseCard, LessonDTO } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
+import PopupHost from "@/components/PopupHost";
 import ProgressBar from "@/components/ProgressBar";
 
 function CourseInner() {
@@ -134,6 +135,7 @@ function CourseInner() {
 
   return (
     <div className="course-cinema">
+      <PopupHost context={{ type: "courses" }} />
       <div className="cd-wrap">{body}</div>
     </div>
   );

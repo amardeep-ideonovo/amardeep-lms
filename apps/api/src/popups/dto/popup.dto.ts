@@ -105,6 +105,18 @@ export class CreatePopupDto {
   showOnDashboard?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  showOnClasses?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showOnCourses?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showOnLessons?: boolean;
+
+  @IsOptional()
   @IsIn(PAGE_MODES)
   pageMode?: PopupPageMode;
 
@@ -197,6 +209,18 @@ export class UpdatePopupDto {
   @IsOptional()
   @IsBoolean()
   showOnDashboard?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showOnClasses?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showOnCourses?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showOnLessons?: boolean;
 
   @IsOptional()
   @IsIn(PAGE_MODES)

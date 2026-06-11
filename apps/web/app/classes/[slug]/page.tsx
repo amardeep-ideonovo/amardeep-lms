@@ -4,6 +4,7 @@ import type { ClassPublicDTO } from "@lms/types";
 import { fetchClassPage } from "@/lib/api";
 import { buildMetadata } from "@/lib/seo";
 import ClassMemberArea from "@/components/ClassMemberArea";
+import PopupHost from "@/components/PopupHost";
 
 // Public, server-rendered class landing page (cinematic dark theme). Dynamic so
 // we never reach the API at build time and the page always reflects admin edits.
@@ -51,6 +52,7 @@ export default async function ClassPage({ params }: Params) {
 
   return (
     <article className="class-cinema">
+      <PopupHost context={{ type: "classes" }} />
       {/* ---------- HERO (static, public, SEO) ---------- */}
       <header className="cc-hero">
         <div

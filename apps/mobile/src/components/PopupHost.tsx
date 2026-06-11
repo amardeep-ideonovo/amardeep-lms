@@ -1,5 +1,6 @@
 // Native popup host. Shows the ACTIVE popups that match the current context
-// (the dashboard, or a CMS page) in a RN <Modal>. The API does all visibility
+// (a member-area surface — dashboard/classes/courses/lessons — or a CMS
+// page) in a RN <Modal>. The API does all visibility
 // filtering — this just fetches + renders. The popup body is a Puck document
 // rendered by the SAME native PageRenderer used for CMS pages, wrapped in a box
 // styled from the popup's presentation settings (background/border/radius/
@@ -306,7 +307,7 @@ export function PopupHost({ context }: { context: PopupContext }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const ctxKey =
-    context.type === "page" ? `page:${context.pageId}` : "dashboard";
+    context.type === "page" ? `page:${context.pageId}` : context.type;
 
   const load = useCallback(async () => {
     try {

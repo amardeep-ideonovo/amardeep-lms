@@ -1,8 +1,8 @@
 "use client";
 
 // Client overlay that shows the ACTIVE popups matching the current context
-// (the member dashboard, or a CMS page). The API does the WHERE filtering
-// (dashboard/page targeting); this host enforces the WHEN:
+// (a member-area surface — dashboard/classes/courses/lessons — or a CMS
+// page). The API does the WHERE filtering; this host enforces the WHEN:
 //
 //   trigger   — IMMEDIATE | DELAY (s) | SCROLL (% of page) | EXIT_INTENT
 //   frequency — EVERY_VISIT | ONCE_PER_SESSION | ONCE_PER_DAYS | ONCE,
@@ -296,7 +296,7 @@ export default function PopupHost({ context }: { context: PopupContext }) {
 
   // Stable dependency: re-fetch when the targeted surface changes.
   const ctxKey =
-    context.type === "page" ? `page:${context.pageId}` : "dashboard";
+    context.type === "page" ? `page:${context.pageId}` : context.type;
 
   useEffect(() => {
     let alive = true;

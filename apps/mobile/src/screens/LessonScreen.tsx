@@ -19,6 +19,7 @@ import { api, ApiError, getToken, noteDownloadUrl } from "../api";
 import { API_BASE_URL, WEB_ACCOUNT_URL } from "../config";
 import { Loading, ErrorState, Centered } from "../components/Screen";
 import { LockedPanel } from "../components/LockedPanel";
+import { PopupHost } from "../components/PopupHost";
 import { VideoPlayerView } from "../components/VideoPlayerView";
 import { vimeoEmbed } from "../format";
 import type { ScreenProps } from "../navigation";
@@ -194,80 +195,83 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
   const notes = lesson.notes ?? [];
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{lesson.title}</Text>
+    <>
+      <PopupHost context={{ type: "lessons" }} />
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <Text style={styles.title}>{lesson.title}</Text>
 
-      {vimeo ? (
-        <WebView
-          style={styles.video}
-          source={{ uri: vimeo }}
-          allowsFullscreenVideo
-          allowsInlineMediaPlayback
-          javaScriptEnabled
-          domStorageEnabled
-        />
-      ) : videoUri ? (
-        <VideoPlayerView style={styles.video} uri={videoUri} />
-      ) : lesson.thumbnailUrl ? (
-        <Image
-          style={styles.video}
-          source={{ uri: lesson.thumbnailUrl }}
-          resizeMode="cover"
-        />
-      ) : null}
+        {vimeo ? (
+          <WebView
+            style={styles.video}
+            source={{ uri: vimeo }}
+            allowsFullscreenVideo
+            allowsInlineMediaPlayback
+            javaScriptEnabled
+            domStorageEnabled
+          />
+        ) : videoUri ? (
+          <VideoPlayerView style={styles.video} uri={videoUri} />
+        ) : lesson.thumbnailUrl ? (
+          <Image
+            style={styles.video}
+            source={{ uri: lesson.thumbnailUrl }}
+            resizeMode="cover"
+          />
+        ) : null}
 
-      {notes.length > 0 ? (
-        <View style={styles.notes}>
-          <Text style={styles.notesTitle}>Downloads</Text>
-          {noteError ? <Text style={styles.error}>{noteError}</Text> : null}
-          {savedMsg ? <Text style={styles.savedMsg}>{savedMsg}</Text> : null}
-          {notes.map((n) => (
-            <TouchableOpacity
-              key={n.id}
-              style={styles.noteRow}
-              activeOpacity={0.8}
-              onPress={() => saveNote(n)}
-              disabled={savingNoteId === n.id}
-            >
-              <Text style={styles.noteName} numberOfLines={1}>
-                {n.originalName}
-              </Text>
-              <Text style={styles.noteSize}>{fmtSize(n.size)}</Text>
-              <Text style={styles.noteIcon}>
-                {savingNoteId === n.id ? "…" : "⬇"}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      ) : null}
+        {notes.length > 0 ? (
+          <View style={styles.notes}>
+            <Text style={styles.notesTitle}>Downloads</Text>
+            {noteError ? <Text style={styles.error}>{noteError}</Text> : null}
+            {savedMsg ? <Text style={styles.savedMsg}>{savedMsg}</Text> : null}
+            {notes.map((n) => (
+              <TouchableOpacity
+                key={n.id}
+                style={styles.noteRow}
+                activeOpacity={0.8}
+                onPress={() => saveNote(n)}
+                disabled={savingNoteId === n.id}
+              >
+                <Text style={styles.noteName} numberOfLines={1}>
+                  {n.originalName}
+                </Text>
+                <Text style={styles.noteSize}>{fmtSize(n.size)}</Text>
+                <Text style={styles.noteIcon}>
+                  {savingNoteId === n.id ? "…" : "⬇"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
 
-      {completeError ? <Text style={styles.error}>{completeError}</Text> : null}
+        {completeError ? <Text style={styles.error}>{completeError}</Text> : null}
 
-      <TouchableOpacity
-        style={[styles.button, (completed || completing) && styles.buttonDone]}
-        onPress={onComplete}
-        disabled={completed || completing}
-        activeOpacity={0.8}
-      >
-        {completing ? (
-          <ActivityIndicator color={colors.text} />
+        <TouchableOpacity
+          style={[styles.button, (completed || completing) && styles.buttonDone]}
+          onPress={onComplete}
+          disabled={completed || completing}
+          activeOpacity={0.8}
+        >
+          {completing ? (
+            <ActivityIndicator color={colors.text} />
+          ) : (
+            <Text style={[styles.buttonText, completed && styles.buttonTextDone]}>
+              {completed ? "✓ Completed" : "Mark complete"}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        {lesson.content ? (
+          <Text style={[styles.body, styles.bodyBelow]}>{lesson.content}</Text>
         ) : (
-          <Text style={[styles.buttonText, completed && styles.buttonTextDone]}>
-            {completed ? "✓ Completed" : "Mark complete"}
+          <Text style={[styles.bodyMuted, styles.bodyBelow]}>
+            No written content for this lesson.
           </Text>
         )}
-      </TouchableOpacity>
 
-      {lesson.content ? (
-        <Text style={[styles.body, styles.bodyBelow]}>{lesson.content}</Text>
-      ) : (
-        <Text style={[styles.bodyMuted, styles.bodyBelow]}>
-          No written content for this lesson.
-        </Text>
-      )}
-
-      <View style={styles.spacer} />
-    </ScrollView>
+        <View style={styles.spacer} />
+      </ScrollView>
+    </>
   );
 }
 

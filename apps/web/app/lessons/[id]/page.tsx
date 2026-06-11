@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
+import PopupHost from "@/components/PopupHost";
 
 // Parse a Vimeo URL into its player embed URL (or null if not a Vimeo link).
 // Production videos are hosted on Vimeo; lesson.videoUrl holds the Vimeo link.
@@ -206,6 +207,7 @@ function LessonInner() {
 
   return (
     <div className="course-cinema">
+      <PopupHost context={{ type: "lessons" }} />
       <div className="cd-wrap">{body}</div>
     </div>
   );

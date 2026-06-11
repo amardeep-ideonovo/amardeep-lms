@@ -11,6 +11,9 @@ import { dialog } from "@/components/DialogProvider";
 function visibilitySummary(p: PopupListItem): string {
   const parts: string[] = [];
   if (p.showOnDashboard) parts.push("Dashboard");
+  if (p.showOnClasses) parts.push("Classes");
+  if (p.showOnCourses) parts.push("Courses");
+  if (p.showOnLessons) parts.push("Lessons");
   switch (p.pageMode) {
     case "ALL":
       parts.push("All pages");

@@ -14,6 +14,7 @@ import type { CourseCard, LessonDTO } from "@lms/types";
 import { api } from "../api";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { ProgressBar } from "../components/ProgressBar";
+import { PopupHost } from "../components/PopupHost";
 import type { ScreenProps } from "../navigation";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -62,65 +63,68 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
   const completed = lessons.filter((l) => l.completed).length;
 
   return (
-    <FlatList
-      style={styles.list}
-      contentContainerStyle={styles.content}
-      data={lessons}
-      keyExtractor={(item) => item.id}
-      ListHeaderComponent={
-        <View>
-          {course?.coverImageUrl ? (
-            // Cinematic hero: cover + bottom scrim + overlaid title. Without a
-            // cover the nav header title carries the screen alone.
-            <View style={styles.hero}>
-              <Image
-                source={{ uri: course.coverImageUrl }}
-                style={styles.cover}
-                resizeMode="cover"
-              />
-              <LinearGradient
-                colors={[colors.overlayFaint, colors.overlayStrong]}
-                style={StyleSheet.absoluteFill}
-              />
-              <Text style={styles.heroTitle} numberOfLines={2}>
-                {course.title}
-              </Text>
+    <>
+      <PopupHost context={{ type: "courses" }} />
+      <FlatList
+        style={styles.list}
+        contentContainerStyle={styles.content}
+        data={lessons}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          <View>
+            {course?.coverImageUrl ? (
+              // Cinematic hero: cover + bottom scrim + overlaid title. Without a
+              // cover the nav header title carries the screen alone.
+              <View style={styles.hero}>
+                <Image
+                  source={{ uri: course.coverImageUrl }}
+                  style={styles.cover}
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={[colors.overlayFaint, colors.overlayStrong]}
+                  style={StyleSheet.absoluteFill}
+                />
+                <Text style={styles.heroTitle} numberOfLines={2}>
+                  {course.title}
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressTitle}>Course progress</Text>
+              <ProgressBar completed={completed} total={lessons.length} />
             </View>
-          ) : null}
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressTitle}>Course progress</Text>
-            <ProgressBar completed={completed} total={lessons.length} />
           </View>
-        </View>
-      }
-      renderItem={({ item, index }) => (
-        <TouchableOpacity
-          style={styles.row}
-          activeOpacity={0.8}
-          onPress={() =>
-            navigation.navigate("Lesson", {
-              lessonId: item.id,
-              title: item.title,
-            })
-          }
-        >
-          <View style={styles.numberBadge}>
-            <Text style={styles.numberText}>{index + 1}</Text>
-          </View>
-          {item.thumbnailUrl ? (
-            <Image source={{ uri: item.thumbnailUrl }} style={styles.rowThumb} />
-          ) : (
-            <View style={[styles.rowThumb, styles.rowThumbEmpty]}>
-              <Text style={styles.rowThumbGlyph}>▶</Text>
+        }
+        renderItem={({ item, index }) => (
+          <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.8}
+            onPress={() =>
+              navigation.navigate("Lesson", {
+                lessonId: item.id,
+                title: item.title,
+              })
+            }
+          >
+            <View style={styles.numberBadge}>
+              <Text style={styles.numberText}>{index + 1}</Text>
             </View>
-          )}
-          <Text style={styles.rowTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          {item.completed ? <Text style={styles.check}>✓</Text> : null}
-        </TouchableOpacity>
-      )}
-    />
+            {item.thumbnailUrl ? (
+              <Image source={{ uri: item.thumbnailUrl }} style={styles.rowThumb} />
+            ) : (
+              <View style={[styles.rowThumb, styles.rowThumbEmpty]}>
+                <Text style={styles.rowThumbGlyph}>▶</Text>
+              </View>
+            )}
+            <Text style={styles.rowTitle} numberOfLines={2}>
+              {item.title}
+            </Text>
+            {item.completed ? <Text style={styles.check}>✓</Text> : null}
+          </TouchableOpacity>
+        )}
+      />
+    </>
   );
 }
 

@@ -1,8 +1,9 @@
 Feature: Popups
   Admins build popups in the same visual editor as pages, then choose where they
   appear. Only ACTIVE popups are exposed by the public targeting endpoint, and
-  visibility is enforced server-side per context (the member dashboard, or a
-  specific CMS page). All write operations are restricted to admins.
+  visibility is enforced server-side per context (a member-area surface —
+  dashboard, classes, courses, lessons — or a specific CMS page). All write
+  operations are restricted to admins.
 
   Scenario: Anonymous visitors cannot create popups
     When I POST "/admin/popups" without a token and body:
@@ -42,6 +43,23 @@ Feature: Popups
       """
     And I GET active popups for page "seed-page-about" without a token
     Then the response should include the created popup
+    When I GET active popups for the dashboard without a token
+    Then the response should not include the created popup
+
+  Scenario: A surface-targeted popup shows only in its member areas
+    When I create a popup via admin with body:
+      """
+      { "name": "BDD surfaces popup", "status": "ACTIVE", "showOnClasses": true, "showOnLessons": true }
+      """
+    Then the response status should be 201
+    And the response field "showOnClasses" should be "true"
+    And the response field "showOnLessons" should be "true"
+    When I GET active popups for context "lessons" without a token
+    Then the response should include the created popup
+    When I GET active popups for context "classes" without a token
+    Then the response should include the created popup
+    When I GET active popups for context "courses" without a token
+    Then the response should not include the created popup
     When I GET active popups for the dashboard without a token
     Then the response should not include the created popup
 

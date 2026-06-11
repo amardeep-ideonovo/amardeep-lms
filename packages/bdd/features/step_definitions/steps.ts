@@ -279,6 +279,18 @@ When(
   },
 );
 
+// Member-area surfaces beyond the dashboard (classes / courses / lessons).
+When(
+  "I GET active popups for context {string} without a token",
+  async function (this: LmsWorld, context: string) {
+    await this.request(
+      "GET",
+      `/popups/active?context=${encodeURIComponent(context)}`,
+      { token: null },
+    );
+  },
+);
+
 Then(
   "the response should include the created popup",
   function (this: LmsWorld) {
