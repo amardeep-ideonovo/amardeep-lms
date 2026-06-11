@@ -2,6 +2,7 @@ import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { CourseCard } from "@lms/types";
 
+import { Chip } from "./Chip";
 import { ProgressBar } from "./ProgressBar";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -30,9 +31,12 @@ export function CourseRow({
           <Image source={{ uri: course.thumbnailUrl }} style={styles.thumb} />
         ) : null}
         <View style={styles.cardText}>
-          <Text style={[styles.cardTitle, locked && styles.lockedText]}>
-            {course.title}
-          </Text>
+          <View style={styles.titleRow}>
+            <Text style={[styles.cardTitle, locked && styles.lockedText]}>
+              {course.title}
+            </Text>
+            {locked ? <Chip label="Locked" /> : null}
+          </View>
           {course.description ? (
             <Text style={styles.cardDesc} numberOfLines={2}>
               {course.description}
@@ -56,6 +60,8 @@ export function CourseRow({
 const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
     borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.sm,
@@ -70,7 +76,8 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   },
   cardLocked: { opacity: 0.6 },
   cardText: { flex: 1, paddingRight: spacing.sm },
-  cardTitle: { color: colors.text, fontSize: 16, fontWeight: "600" },
+  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
+  cardTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "600" },
   cardDesc: { color: colors.textMuted, fontSize: 13, marginTop: spacing.xs },
   indicator: { color: colors.text, fontSize: 18 },
   lockedText: { color: colors.locked },

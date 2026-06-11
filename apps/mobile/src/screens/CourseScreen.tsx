@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import type { CourseCard, LessonDTO } from "@lms/types";
 
 import { api } from "../api";
@@ -16,10 +17,11 @@ import { ProgressBar } from "../components/ProgressBar";
 import type { ScreenProps } from "../navigation";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
-import { useStyles } from "../theme-provider";
+import { useStyles, useTheme } from "../theme-provider";
 
 export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
   const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
   const { courseId } = route.params;
   const [lessons, setLessons] = useState<LessonDTO[]>([]);
   const [course, setCourse] = useState<CourseCard | null>(null);
@@ -68,11 +70,22 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
       ListHeaderComponent={
         <View>
           {course?.coverImageUrl ? (
-            <Image
-              source={{ uri: course.coverImageUrl }}
-              style={styles.cover}
-              resizeMode="cover"
-            />
+            // Cinematic hero: cover + bottom scrim + overlaid title. Without a
+            // cover the nav header title carries the screen alone.
+            <View style={styles.hero}>
+              <Image
+                source={{ uri: course.coverImageUrl }}
+                style={styles.cover}
+                resizeMode="cover"
+              />
+              <LinearGradient
+                colors={[colors.overlayFaint, colors.overlayStrong]}
+                style={StyleSheet.absoluteFill}
+              />
+              <Text style={styles.heroTitle} numberOfLines={2}>
+                {course.title}
+              </Text>
+            </View>
           ) : null}
           <View style={styles.progressHeader}>
             <Text style={styles.progressTitle}>Course progress</Text>
@@ -114,16 +127,30 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
 const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
+  hero: {
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: spacing.sm,
+  },
   cover: {
     width: "100%",
     aspectRatio: 16 / 9,
-    borderRadius: 12,
     backgroundColor: colors.surfaceMuted,
-    marginBottom: spacing.sm,
+  },
+  heroTitle: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    bottom: spacing.md,
+    color: colors.heroText,
+    fontSize: 24,
+    fontWeight: "800",
   },
   progressHeader: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    borderRadius: 14,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
@@ -132,6 +159,8 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
     borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.sm,
@@ -140,7 +169,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.chipBg,
     alignItems: "center",
     justifyContent: "center",
     marginRight: spacing.sm,
@@ -156,5 +185,5 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   rowThumbEmpty: { alignItems: "center", justifyContent: "center" },
   rowThumbGlyph: { color: colors.textMuted, fontSize: 16 },
   rowTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "500" },
-  check: { color: colors.primary, fontSize: 18, fontWeight: "700" },
+  check: { color: colors.success, fontSize: 18, fontWeight: "700" },
 });

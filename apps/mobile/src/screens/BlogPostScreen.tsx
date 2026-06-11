@@ -10,6 +10,7 @@ import {
 import type { PostDetailDTO } from "@lms/types";
 
 import { api } from "../api";
+import { Chip } from "../components/Chip";
 import { HtmlView } from "../components/HtmlView";
 import { Loading, ErrorState } from "../components/Screen";
 import type { ScreenProps } from "../navigation";
@@ -68,6 +69,14 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
         />
       ) : null}
 
+      {post.categories.length > 0 ? (
+        <View style={styles.catRow}>
+          {post.categories.map((c) => (
+            <Chip key={c.id} label={c.name} />
+          ))}
+        </View>
+      ) : null}
+
       <Text style={styles.title}>{post.title}</Text>
 
       <View style={styles.metaRow}>
@@ -76,12 +85,6 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
         ) : null}
         {post.publishedAt ? (
           <Text style={styles.meta}> · {fmtDate(post.publishedAt)}</Text>
-        ) : null}
-        {post.categories.length > 0 ? (
-          <Text style={styles.cat}>
-            {" · "}
-            {post.categories.map((c) => c.name).join(", ")}
-          </Text>
         ) : null}
       </View>
 
@@ -112,9 +115,15 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   cover: {
     width: "100%",
     height: 200,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: colors.surfaceMuted,
     marginBottom: spacing.md,
+  },
+  catRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
   },
   title: {
     color: colors.text,
@@ -124,7 +133,6 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   },
   metaRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: spacing.md },
   meta: { color: colors.textMuted, fontSize: 13 },
-  cat: { color: colors.primary, fontSize: 13, fontWeight: "600" },
   htmlBase: { color: colors.text },
   tags: {
     flexDirection: "row",
@@ -135,7 +143,9 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   tag: {
     color: colors.textMuted,
     fontSize: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.chipBg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: 999,

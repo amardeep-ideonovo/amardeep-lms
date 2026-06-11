@@ -16,27 +16,15 @@ import * as SecureStore from "expo-secure-store";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 
 import { api, ApiError, getToken, noteDownloadUrl } from "../api";
-import { API_BASE_URL } from "../config";
-import { Loading, ErrorState } from "../components/Screen";
+import { API_BASE_URL, WEB_ACCOUNT_URL } from "../config";
+import { Loading, ErrorState, Centered } from "../components/Screen";
+import { LockedPanel } from "../components/LockedPanel";
 import { VideoPlayerView } from "../components/VideoPlayerView";
+import { vimeoEmbed } from "../format";
 import type { ScreenProps } from "../navigation";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
-
-// Parse a Vimeo URL into its player embed URL (or null if not a Vimeo link).
-function vimeoEmbed(url: string | null | undefined): string | null {
-  if (!url) return null;
-  const id = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1];
-  if (!id) return null;
-  const h =
-    url.match(/[?&]h=([0-9A-Za-z]+)/)?.[1] ??
-    url.match(/vimeo\.com\/\d+\/([0-9A-Za-z]+)/)?.[1];
-  const params = [h ? `h=${h}` : "", "title=0", "byline=0", "portrait=0"]
-    .filter(Boolean)
-    .join("&");
-  return `https://player.vimeo.com/video/${id}?${params}`;
-}
 
 function fmtSize(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -181,9 +169,17 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
 
   if (locked) {
     return (
-      <ErrorState
-        message={"🔒 This lesson is locked.\nUpgrade your membership on the web to unlock it."}
-      />
+      <Centered>
+        <View style={styles.lockedWrap}>
+          <LockedPanel
+            title="This lesson is locked"
+            message="Your current membership doesn't include this lesson."
+            note="Manage your plan on the web."
+            ctaLabel="Open my account"
+            onPress={() => Linking.openURL(WEB_ACCOUNT_URL)}
+          />
+        </View>
+      </Centered>
     );
   }
 
@@ -295,10 +291,13 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   bodyMuted: { color: colors.textMuted, fontSize: 15, fontStyle: "italic" },
   bodyBelow: { marginTop: spacing.lg },
   error: { color: colors.danger, marginTop: spacing.md },
-  savedMsg: { color: "#34d399", marginBottom: spacing.sm, fontSize: 14 },
+  savedMsg: { color: colors.success, marginBottom: spacing.sm, fontSize: 14 },
+  lockedWrap: { alignSelf: "stretch" },
   notes: {
     marginTop: spacing.lg,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
     borderRadius: 12,
     padding: spacing.md,
   },
@@ -325,9 +324,9 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     alignItems: "center",
     marginTop: spacing.lg,
   },
-  buttonDone: { backgroundColor: colors.surfaceMuted },
+  buttonDone: { backgroundColor: colors.successBg },
   buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
-  // The done state sits on a muted surface, so it follows the theme text again.
-  buttonTextDone: { color: colors.text },
+  // The done state sits on the success tint, so the label goes success too.
+  buttonTextDone: { color: colors.success },
   spacer: { height: spacing.lg },
 });
