@@ -95,6 +95,9 @@ function openPath(pathname: string, browserFallback: string): void {
       else nav.navigate("Account");
       return;
     case "pricing":
+      // The plans LIST is native now; actual checkout stays on the web.
+      nav.navigate("Plans");
+      return;
     case "checkout":
     case "login":
     case "signup":

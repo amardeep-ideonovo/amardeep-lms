@@ -13,6 +13,7 @@ import type {
   InvoiceDTO,
   LessonDTO,
   LessonNoteDTO,
+  LevelDTO,
   LoginResponse,
   MyClassCoursesDTO,
   PagePublicDTO,
@@ -167,6 +168,7 @@ export const api = {
     }),
 
   // billing — read + self-cancel + Stripe portal link (NO purchasing in-app)
+  levels: () => request<LevelDTO[]>("/levels"),
   mySubscriptionDetails: () =>
     request<SubscriptionDetailDTO[]>("/billing/subscription-details"),
   myInvoices: () => request<InvoiceDTO[]>("/billing/invoices"),

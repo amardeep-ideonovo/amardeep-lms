@@ -11,6 +11,7 @@ export type RootStackParamList = {
   Lesson: { lessonId: string; title?: string };
   Account: undefined;
   Payments: undefined;
+  Plans: undefined;
   Blog: undefined;
   BlogPost: { slug: string; title?: string };
   Page: { slug: string; title?: string };

@@ -26,6 +26,7 @@ import { CourseScreen } from "./src/screens/CourseScreen";
 import { LessonScreen } from "./src/screens/LessonScreen";
 import { AccountScreen } from "./src/screens/AccountScreen";
 import { PaymentsScreen } from "./src/screens/PaymentsScreen";
+import { PlansScreen } from "./src/screens/PlansScreen";
 import { BlogListScreen } from "./src/screens/BlogListScreen";
 import { BlogPostScreen } from "./src/screens/BlogPostScreen";
 import { PageScreen } from "./src/screens/PageScreen";
@@ -45,6 +46,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       BlogPost: "blog/:slug",
       Account: "account",
       Payments: "account/payments",
+      Plans: "pricing/all",
       Page: ":slug",
     },
   },
@@ -106,6 +108,11 @@ function AppNavigator() {
         name="Payments"
         component={PaymentsScreen}
         options={{ title: "Payment history" }}
+      />
+      <AppStack.Screen
+        name="Plans"
+        component={PlansScreen}
+        options={{ title: "All plans" }}
       />
       <AppStack.Screen
         name="Blog"

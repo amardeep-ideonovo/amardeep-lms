@@ -476,12 +476,10 @@ export function AccountScreen({ navigation }: ScreenProps<"Account">) {
               <View style={styles.actionsRow}>
                 <TouchableOpacity
                   style={[styles.btnSecondary, styles.grow]}
-                  onPress={() =>
-                    Linking.openURL(WEB_BASE_URL + "/pricing/all").catch(() => {})
-                  }
+                  onPress={() => navigation.navigate("Plans")}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.btnSecondaryText}>View all plans ↗</Text>
+                  <Text style={styles.btnSecondaryText}>View all plans</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.btnSecondary, styles.grow]}
