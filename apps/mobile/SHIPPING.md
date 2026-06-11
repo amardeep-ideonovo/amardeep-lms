@@ -1,19 +1,26 @@
 # Shipping the mobile app (iOS App Store + Google Play)
 
-> **⚠️ Step 0 — upgrade the Expo SDK first.** As of mid-2026 neither store
-> accepts builds from Expo SDK 51 (this app's current SDK): Google Play
-> requires target API 35+ for new apps/updates (API 36 from Aug 31, 2026), and
-> Apple requires Xcode 26 / iOS 26 SDK builds since Apr 28, 2026. Upgrade to
-> the newest Expo SDK before building for the stores. The upgrade also forces
-> the expo-av → expo-video migration (expo-av is removed in SDK 54; used in
-> `LessonScreen` and `PageRenderer`).
+> **✅ Step 0 — DONE (2026-06-11): the app is on Expo SDK 56** (RN 0.85 /
+> React 19.2, targetSdk 36, EAS default image Xcode 26.4) — satisfies both
+> store gates: Google Play target API 35+/36 and Apple's Xcode 26 / iOS 26 SDK
+> requirement. The upgrade also replaced expo-av with expo-video, the legacy
+> file-system API with the new File/Directory API, and
+> react-native-render-html with the in-house `HtmlView`.
+> **Note:** SDK 51 development clients can NOT load the new runtime — rebuild
+> the dev client (`npx expo run:android` / `run:ios`, or
+> `eas build --profile development`) before local device testing. Building
+> `run:ios` locally requires full Xcode 26.4 (Command Line Tools alone are
+> not enough); without it, use the EAS development profile (its
+> `ios.simulator: true` produces a simulator build in the cloud).
 
 The steps below need **your** accounts / credentials — fill the placeholders
 in `eas.json`, then build & submit.
 
-## 1. Replace placeholder assets
-See [assets/README.md](assets/README.md): swap `icon.png`, `adaptive-icon.png`,
-and `splash.png` for real brand art (keep the same filenames).
+## 1. Brand assets (now automatic)
+EAS builds pull the admin-uploaded icon/splash (Admin → App Customization,
+**PNG only**) into the binary via the `eas-build-pre-install` hook — see
+[assets/README.md](assets/README.md). If those fields are unset, the checked-in
+files ship instead; manual replacement (same filenames) remains the fallback.
 
 ## 2. Set the production API URL — REQUIRED
 The app currently points at placeholder URLs. In `eas.json`, under

@@ -1,9 +1,16 @@
 # Mobile app assets
 
-> ⚠️ These are **PLACEHOLDER** assets (a solid `#0f172a` fill). Replace each with
-> real brand art, keeping the **same filenames** so `app.json` needs no changes.
-> They exist so `expo` / `eas build` succeed today; they are baked into the binary,
-> so swapping them in requires a new build + store submission (not live).
+> ✅ **EAS builds brand themselves automatically**: the `eas-build-pre-install`
+> hook ([scripts/sync-brand-assets.js](../scripts/sync-brand-assets.js)) downloads
+> the admin-uploaded icon/splash (Admin → App Customization, PNG only) from
+> `GET /app/config` and overwrites these files before the build. The admin's
+> icon is used for BOTH `icon.png` and `adaptive-icon.png` (Android masks the
+> adaptive foreground — keep key content centered). Manual replacement below
+> remains the fallback when those fields are unset.
+>
+> ⚠️ The current files are **PLACEHOLDER** art (a solid `#0f172a` fill). However
+> they get replaced, assets are baked into the binary — changing them requires a
+> new build + store submission (never live).
 
 | File | Spec | Used for |
 |---|---|---|

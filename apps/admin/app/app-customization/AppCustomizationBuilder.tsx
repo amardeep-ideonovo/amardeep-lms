@@ -217,9 +217,11 @@ export default function AppCustomizationBuilder({
               paddingLeft: 10,
             }}
           >
-            ⚠ The installed app icon and launch splash are part of the app build.
-            Changing them here needs a new app build &amp; store submission — they
-            don’t update live like the colors above.
+            ⚠ The installed app icon and launch splash are part of the app build:
+            they don’t update live like the colors above. Upload{" "}
+            <strong>PNG</strong>s (icon 1024×1024 opaque, splash ≥1242×2436) —
+            the next app build bakes them in automatically; a store submission
+            is still required.
           </p>
           <div className="field">
             <label>App icon</label>
