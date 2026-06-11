@@ -1,13 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   PopupAdminRow,
+  PopupAnimation,
+  PopupBehaviorDTO,
   PopupEventType,
+  PopupFrequency,
   PopupListItem,
   PopupPageMode,
   PopupPosition,
   PopupPublicDTO,
   PopupStatus,
   PopupStyleDTO,
+  PopupTrigger,
   PuckComponentData,
   PuckDocument,
 } from '@lms/types';
@@ -61,6 +65,12 @@ type PopupRow = {
   showOnDashboard: boolean;
   pageMode: PopupPageMode;
   pageIds: string[];
+  trigger: PopupTrigger;
+  triggerValue: number;
+  frequency: PopupFrequency;
+  frequencyDays: number;
+  closeOnOverlay: boolean;
+  animation: PopupAnimation;
   views: number;
   clicks: number;
   dismissals: number;
@@ -140,6 +150,12 @@ export class PopupsService {
         showOnDashboard: dto.showOnDashboard ?? undefined,
         pageMode: dto.pageMode ?? undefined,
         pageIds: dto.pageIds ?? undefined,
+        trigger: dto.trigger ?? undefined,
+        triggerValue: dto.triggerValue ?? undefined,
+        frequency: dto.frequency ?? undefined,
+        frequencyDays: dto.frequencyDays ?? undefined,
+        closeOnOverlay: dto.closeOnOverlay ?? undefined,
+        animation: dto.animation ?? undefined,
       },
     })) as PopupRow;
     return this.toAdminRow(popup);
@@ -166,6 +182,12 @@ export class PopupsService {
         showOnDashboard: dto.showOnDashboard ?? undefined,
         pageMode: dto.pageMode ?? undefined,
         pageIds: dto.pageIds ?? undefined,
+        trigger: dto.trigger ?? undefined,
+        triggerValue: dto.triggerValue ?? undefined,
+        frequency: dto.frequency ?? undefined,
+        frequencyDays: dto.frequencyDays ?? undefined,
+        closeOnOverlay: dto.closeOnOverlay ?? undefined,
+        animation: dto.animation ?? undefined,
       },
     })) as PopupRow;
     return this.toAdminRow(popup);
@@ -265,12 +287,24 @@ export class PopupsService {
     };
   }
 
+  private toBehavior(p: PopupRow): PopupBehaviorDTO {
+    return {
+      trigger: p.trigger,
+      triggerValue: p.triggerValue,
+      frequency: p.frequency,
+      frequencyDays: p.frequencyDays,
+      closeOnOverlay: p.closeOnOverlay,
+      animation: p.animation,
+    };
+  }
+
   private toPublic(p: PopupRow): PopupPublicDTO {
     return {
       id: p.id,
       name: p.name,
       data: this.asDoc(p.data),
       style: this.toStyle(p),
+      behavior: this.toBehavior(p),
     };
   }
 
@@ -306,6 +340,12 @@ export class PopupsService {
       showOnDashboard: p.showOnDashboard,
       pageMode: p.pageMode,
       pageIds: p.pageIds,
+      trigger: p.trigger,
+      triggerValue: p.triggerValue,
+      frequency: p.frequency,
+      frequencyDays: p.frequencyDays,
+      closeOnOverlay: p.closeOnOverlay,
+      animation: p.animation,
       views: p.views,
       clicks: p.clicks,
       dismissals: p.dismissals,

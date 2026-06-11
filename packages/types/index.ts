@@ -745,6 +745,40 @@ export type PopupPosition =
 //   EXCLUDE — shown on every CMS page except those listed in pageIds
 export type PopupPageMode = "NONE" | "ALL" | "INCLUDE" | "EXCLUDE";
 
+// When the popup fires once its surface is open (Elementor-style triggers).
+//   IMMEDIATE   — as soon as the page/dashboard loads (legacy behaviour)
+//   DELAY       — triggerValue seconds after load
+//   SCROLL      — after the visitor scrolls triggerValue % of the page (web;
+//                 the native app approximates with a short delay)
+//   EXIT_INTENT — when the cursor leaves the viewport top (web desktop; other
+//                 surfaces approximate with a delay)
+export type PopupTrigger = "IMMEDIATE" | "DELAY" | "SCROLL" | "EXIT_INTENT";
+
+// How often the popup may re-appear for the same visitor (client-enforced via
+// local storage — popups are marketing surfaces, not security boundaries).
+//   EVERY_VISIT      — no capping (legacy behaviour)
+//   ONCE_PER_SESSION — once per browser session / app run
+//   ONCE_PER_DAYS    — at most once every frequencyDays days
+//   ONCE             — once ever per device
+export type PopupFrequency =
+  | "EVERY_VISIT"
+  | "ONCE_PER_SESSION"
+  | "ONCE_PER_DAYS"
+  | "ONCE";
+
+// Entrance animation of the popup box.
+export type PopupAnimation = "NONE" | "FADE" | "SLIDE_UP" | "ZOOM";
+
+// Behaviour settings sent to the renderer alongside style.
+export interface PopupBehaviorDTO {
+  trigger: PopupTrigger;
+  triggerValue: number; // DELAY: seconds; SCROLL: percent (0–100)
+  frequency: PopupFrequency;
+  frequencyDays: number; // used when frequency = ONCE_PER_DAYS
+  closeOnOverlay: boolean; // tap/click on the dim backdrop dismisses
+  animation: PopupAnimation;
+}
+
 // Presentation settings sent to the renderer.
 export interface PopupStyleDTO {
   width: string; // CSS length (e.g. "480px", "90%", "auto")
@@ -763,6 +797,7 @@ export interface PopupPublicDTO {
   name: string;
   data: PuckDocument;
   style: PopupStyleDTO;
+  behavior: PopupBehaviorDTO;
 }
 
 // Admin list row (table view — omits the heavy document body).
@@ -796,6 +831,12 @@ export interface PopupAdminRow {
   showOnDashboard: boolean;
   pageMode: PopupPageMode;
   pageIds: string[];
+  trigger: PopupTrigger;
+  triggerValue: number;
+  frequency: PopupFrequency;
+  frequencyDays: number;
+  closeOnOverlay: boolean;
+  animation: PopupAnimation;
   views: number;
   clicks: number;
   dismissals: number;
@@ -817,6 +858,12 @@ export interface CreatePopupInput {
   showOnDashboard?: boolean;
   pageMode?: PopupPageMode;
   pageIds?: string[];
+  trigger?: PopupTrigger;
+  triggerValue?: number;
+  frequency?: PopupFrequency;
+  frequencyDays?: number;
+  closeOnOverlay?: boolean;
+  animation?: PopupAnimation;
 }
 export type UpdatePopupInput = Partial<CreatePopupInput>;
 

@@ -15,9 +15,12 @@ import { createPuckConfig } from "@lms/puck";
 import type { PageProps, RootProps } from "@lms/puck";
 import type {
   PageListItem,
+  PopupAnimation,
+  PopupFrequency,
   PopupPageMode,
   PopupPosition,
   PopupStatus,
+  PopupTrigger,
   PuckDocument,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
@@ -27,11 +30,13 @@ import RichTextEditor from "@/components/RichTextEditor";
 import FormPickerField from "@/components/FormPickerField";
 import MediaPicker from "@/components/MediaPicker";
 import MenuPickerField from "@/components/MenuPickerField";
+import PuckColorField from "@/components/PuckColorField";
 
 type PopupData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-// The popup presentation + visibility settings (everything except the Puck doc).
+// The popup presentation + visibility + behaviour settings (everything except
+// the Puck doc).
 type Settings = {
   width: string;
   height: string;
@@ -43,6 +48,12 @@ type Settings = {
   showOnDashboard: boolean;
   pageMode: PopupPageMode;
   pageIds: string[];
+  trigger: PopupTrigger;
+  triggerValue: number;
+  frequency: PopupFrequency;
+  frequencyDays: number;
+  closeOnOverlay: boolean;
+  animation: PopupAnimation;
 };
 
 const POSITION_OPTIONS: { value: PopupPosition; label: string }[] = [
@@ -60,6 +71,27 @@ const PAGE_MODE_OPTIONS: { value: PopupPageMode; label: string }[] = [
   { value: "ALL", label: "Show on all pages" },
   { value: "INCLUDE", label: "Show only on selected pages" },
   { value: "EXCLUDE", label: "Show on all pages except selected" },
+];
+
+const TRIGGER_OPTIONS: { value: PopupTrigger; label: string }[] = [
+  { value: "IMMEDIATE", label: "Immediately on load" },
+  { value: "DELAY", label: "After a delay" },
+  { value: "SCROLL", label: "After scrolling down the page" },
+  { value: "EXIT_INTENT", label: "On exit intent (desktop web)" },
+];
+
+const FREQUENCY_OPTIONS: { value: PopupFrequency; label: string }[] = [
+  { value: "EVERY_VISIT", label: "Every visit" },
+  { value: "ONCE_PER_SESSION", label: "Once per session" },
+  { value: "ONCE_PER_DAYS", label: "Once every X days" },
+  { value: "ONCE", label: "Once ever" },
+];
+
+const ANIMATION_OPTIONS: { value: PopupAnimation; label: string }[] = [
+  { value: "FADE", label: "Fade in" },
+  { value: "SLIDE_UP", label: "Slide up" },
+  { value: "ZOOM", label: "Zoom in" },
+  { value: "NONE", label: "None" },
 ];
 
 // A safe #rrggbb for the native color picker; non-hex CSS colors keep the text
@@ -154,12 +186,29 @@ export default function PopupEditor() {
         onChange: (v: string) => void;
       }) => <MenuPickerField value={value} onChange={onChange} />,
     } as Field;
+    const colorField = {
+      type: "custom" as const,
+      render: ({
+        field,
+        value,
+        onChange,
+      }: {
+        field?: { label?: string };
+        value?: string;
+        onChange: (v: string) => void;
+      }) => (
+        <PuckColorField label={field?.label} value={value} onChange={onChange} />
+      ),
+    } as Field;
     return createPuckConfig({
       richTextField,
       formComponent: FormPreview,
       formField,
       imageField,
       menuField,
+      colorField,
+      // Popups have no SEO surface — drop the root SEO fields from the rail.
+      surface: "popup",
     });
   }, []);
 
@@ -187,6 +236,12 @@ export default function PopupEditor() {
           showOnDashboard: popup.showOnDashboard,
           pageMode: popup.pageMode,
           pageIds: popup.pageIds,
+          trigger: popup.trigger,
+          triggerValue: popup.triggerValue,
+          frequency: popup.frequency,
+          frequencyDays: popup.frequencyDays,
+          closeOnOverlay: popup.closeOnOverlay,
+          animation: popup.animation,
         });
         setPages(pageList);
         setStats({
@@ -647,6 +702,146 @@ export default function PopupEditor() {
                   />
                 </label>
               </div>
+
+              {/* Behaviour */}
+              <div style={drawerSection}>Behaviour</div>
+
+              <label style={fieldWrap}>
+                <span style={drawerLabel}>Show the popup</span>
+                <select
+                  value={settings.trigger}
+                  onChange={(e) =>
+                    updateSettings({ trigger: e.target.value as PopupTrigger })
+                  }
+                  style={inputStyle}
+                >
+                  {TRIGGER_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {settings.trigger === "DELAY" && (
+                <label style={fieldWrap}>
+                  <span style={drawerLabel}>Delay (seconds)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={600}
+                    value={settings.triggerValue}
+                    onChange={(e) =>
+                      updateSettings({
+                        triggerValue: Math.max(
+                          0,
+                          Math.min(600, Number(e.target.value) || 0)
+                        ),
+                      })
+                    }
+                    style={inputStyle}
+                  />
+                </label>
+              )}
+
+              {settings.trigger === "SCROLL" && (
+                <label style={fieldWrap}>
+                  <span style={drawerLabel}>Scroll depth (% of the page)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={settings.triggerValue}
+                    onChange={(e) =>
+                      updateSettings({
+                        triggerValue: Math.max(
+                          1,
+                          Math.min(100, Number(e.target.value) || 0)
+                        ),
+                      })
+                    }
+                    style={inputStyle}
+                  />
+                </label>
+              )}
+
+              <label style={fieldWrap}>
+                <span style={drawerLabel}>How often</span>
+                <select
+                  value={settings.frequency}
+                  onChange={(e) =>
+                    updateSettings({
+                      frequency: e.target.value as PopupFrequency,
+                    })
+                  }
+                  style={inputStyle}
+                >
+                  {FREQUENCY_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {settings.frequency === "ONCE_PER_DAYS" && (
+                <label style={fieldWrap}>
+                  <span style={drawerLabel}>Days between showings</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={settings.frequencyDays}
+                    onChange={(e) =>
+                      updateSettings({
+                        frequencyDays: Math.max(
+                          1,
+                          Math.min(365, Number(e.target.value) || 1)
+                        ),
+                      })
+                    }
+                    style={inputStyle}
+                  />
+                </label>
+              )}
+
+              <label style={fieldWrap}>
+                <span style={drawerLabel}>Entrance animation</span>
+                <select
+                  value={settings.animation}
+                  onChange={(e) =>
+                    updateSettings({
+                      animation: e.target.value as PopupAnimation,
+                    })
+                  }
+                  style={inputStyle}
+                >
+                  {ANIMATION_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 14,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={settings.closeOnOverlay}
+                  onChange={(e) =>
+                    updateSettings({ closeOnOverlay: e.target.checked })
+                  }
+                />
+                <span>Clicking the dim backdrop closes the popup</span>
+              </label>
 
               {/* Visibility */}
               <div style={drawerSection}>Visibility</div>

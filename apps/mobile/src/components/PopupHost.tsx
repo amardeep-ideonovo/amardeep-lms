@@ -13,9 +13,11 @@
 // brand colors (primary/danger/onPrimary) stay from the app theme. With no
 // configured background, the box and content fall back to the theme.
 //
-// Display behaviour: EVERY visit — appears on mount/focus; the close button
-// hides it for this view only (no persistence), so it reappears next time.
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+// Display behaviour mirrors the web host: the popup's `behavior` decides WHEN
+// it fires (IMMEDIATE/DELAY honored natively; SCROLL and EXIT_INTENT have no
+// mobile equivalent and approximate with a short delay) and HOW OFTEN
+// (frequency capping persisted in SecureStore; per-session in app memory).
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Modal,
   Pressable,
@@ -26,6 +28,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import type {
   PopupContext,
   PopupPosition,
@@ -38,6 +41,64 @@ import { PageScope } from "./PageScope";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useTheme } from "../theme-provider";
+
+// ---------- frequency capping ----------
+// Map of popupId -> last-shown epoch ms, persisted across app runs. SecureStore
+// is the storage the app already ships (token + config cache); the value is a
+// tiny JSON object. Session scope is plain module memory (cleared on relaunch).
+const SEEN_KEY = "lmsPopupSeenV1";
+const sessionShown = new Set<string>();
+
+async function readSeen(): Promise<Record<string, number>> {
+  try {
+    const raw = await SecureStore.getItemAsync(SEEN_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, number>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+async function persistSeen(id: string): Promise<void> {
+  try {
+    const seen = await readSeen();
+    seen[id] = Date.now();
+    await SecureStore.setItemAsync(SEEN_KEY, JSON.stringify(seen));
+  } catch {
+    /* storage unavailable — popup behaves like EVERY_VISIT */
+  }
+}
+
+function isSuppressed(p: PopupPublicDTO, seen: Record<string, number>): boolean {
+  const b = p.behavior;
+  if (!b || b.frequency === "EVERY_VISIT") return false;
+  if (b.frequency === "ONCE_PER_SESSION") return sessionShown.has(p.id);
+  const at = seen[p.id] || 0;
+  if (!at) return false;
+  if (b.frequency === "ONCE") return true;
+  const days = Math.max(1, b.frequencyDays || 7);
+  return Date.now() - at < days * 86400000;
+}
+
+// The frequency clock starts when the popup actually shows.
+function markSeen(p: PopupPublicDTO): void {
+  const b = p.behavior;
+  if (!b || b.frequency === "EVERY_VISIT") return;
+  sessionShown.add(p.id);
+  if (b.frequency !== "ONCE_PER_SESSION") void persistSeen(p.id);
+}
+
+// Native trigger approximation: IMMEDIATE/DELAY are honored exactly; SCROLL
+// and EXIT_INTENT are web concepts, shown here after a short grace period.
+function triggerDelayMs(p: PopupPublicDTO): number {
+  const b = p.behavior;
+  if (!b || b.trigger === "IMMEDIATE") return 0;
+  if (b.trigger === "DELAY") return Math.max(0, b.triggerValue || 0) * 1000;
+  if (b.trigger === "SCROLL") return 3000;
+  return 15000; // EXIT_INTENT
+}
 
 // Map a popup position to overlay flex alignment (column layout:
 // justifyContent = vertical, alignItems = horizontal).
@@ -159,9 +220,11 @@ function PopupModal({
     [configuredBg, theme, light]
   );
 
-  // Count one impression when the popup appears.
+  // Count one impression + start the frequency clock when the popup appears.
   useEffect(() => {
     api.recordPopupEvent(popup.id, "view");
+    markSeen(popup);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [popup.id]);
 
   const handleClose = () => {
@@ -175,10 +238,28 @@ function PopupModal({
     api.recordPopupEvent(popup.id, "click");
   }, [popup.id]);
 
+  // NONE keeps the modal instant; SLIDE_UP maps to the native slide; FADE and
+  // ZOOM (no native zoom) use the fade transition.
+  const animationType =
+    popup.behavior?.animation === "NONE"
+      ? "none"
+      : popup.behavior?.animation === "SLIDE_UP"
+        ? "slide"
+        : "fade";
+  const closeOnOverlay = popup.behavior?.closeOnOverlay !== false;
+
   return (
-    <Modal transparent visible animationType="fade" onRequestClose={handleClose}>
-      {/* Dim backdrop — tap outside the box to dismiss. */}
-      <Pressable style={styles.backdrop} onPress={handleClose} />
+    <Modal
+      transparent
+      visible
+      animationType={animationType}
+      onRequestClose={handleClose}
+    >
+      {/* Dim backdrop — tapping it dismisses only when the admin allows it. */}
+      <Pressable
+        style={styles.backdrop}
+        onPress={closeOnOverlay ? handleClose : undefined}
+      />
       <View style={[styles.overlay, align]} pointerEvents="box-none">
         <View
           style={[
@@ -221,13 +302,20 @@ function PopupModal({
 export function PopupHost({ context }: { context: PopupContext }) {
   const [popups, setPopups] = useState<PopupPublicDTO[]>([]);
   const [closed, setClosed] = useState<Set<string>>(new Set());
+  const [armedId, setArmedId] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const ctxKey =
     context.type === "page" ? `page:${context.pageId}` : "dashboard";
 
   const load = useCallback(async () => {
     try {
-      setPopups(await api.activePopups(context));
+      const [list, seen] = await Promise.all([
+        api.activePopups(context),
+        readSeen(),
+      ]);
+      // Frequency-capped popups are dropped up front (web parity).
+      setPopups(list.filter((p) => !isSuppressed(p, seen)));
     } catch {
       setPopups([]);
     }
@@ -244,9 +332,26 @@ export function PopupHost({ context }: { context: PopupContext }) {
     };
   }, [load]);
 
-  // Show the first popup that hasn't been dismissed in this view.
+  // The next popup that hasn't been dismissed in this view.
   const popup = popups.find((p) => !closed.has(p.id)) ?? null;
-  if (!popup) return null;
+
+  // Arm its trigger: show after the behavior-derived delay (0 = instantly).
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    if (!popup) return;
+    const ms = triggerDelayMs(popup);
+    if (ms === 0) {
+      setArmedId(popup.id);
+      return;
+    }
+    timer.current = setTimeout(() => setArmedId(popup.id), ms);
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [popup?.id]);
+
+  if (!popup || armedId !== popup.id) return null;
 
   return (
     <PopupModal

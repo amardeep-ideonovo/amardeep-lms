@@ -430,6 +430,30 @@ enum PopupPageMode {
   EXCLUDE // shown on every CMS page except those listed in pageIds
 }
 
+// When the popup fires once its surface is open.
+enum PopupTrigger {
+  IMMEDIATE // on load (legacy behaviour)
+  DELAY // triggerValue seconds after load
+  SCROLL // after scrolling triggerValue % of the page (web)
+  EXIT_INTENT // cursor leaves the viewport top (web desktop)
+}
+
+// How often the popup may re-appear for the same visitor (client-enforced).
+enum PopupFrequency {
+  EVERY_VISIT // no capping (legacy behaviour)
+  ONCE_PER_SESSION // once per browser session / app run
+  ONCE_PER_DAYS // at most once every frequencyDays days
+  ONCE // once ever per device
+}
+
+// Entrance animation of the popup box.
+enum PopupAnimation {
+  NONE
+  FADE
+  SLIDE_UP
+  ZOOM
+}
+
 model Popup {
   id     String      @id @default(cuid())
   name   String
@@ -449,6 +473,14 @@ model Popup {
   showOnDashboard Boolean       @default(false) // show on the member dashboard
   pageMode        PopupPageMode @default(NONE)
   pageIds         String[]      @default([]) // referenced Page ids for INCLUDE/EXCLUDE
+
+  // ----- behaviour (defaults = the legacy "show instantly, every visit") -----
+  trigger        PopupTrigger   @default(IMMEDIATE)
+  triggerValue   Int            @default(0) // DELAY: seconds; SCROLL: percent
+  frequency      PopupFrequency @default(EVERY_VISIT)
+  frequencyDays  Int            @default(7) // used when frequency = ONCE_PER_DAYS
+  closeOnOverlay Boolean        @default(true) // backdrop tap dismisses
+  animation      PopupAnimation @default(FADE)
 
   // ----- analytics counters (incremented by the public event endpoint) -----
   views      Int @default(0) // times shown

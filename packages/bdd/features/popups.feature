@@ -54,3 +54,25 @@ Feature: Popups
     And I GET the created popup as admin
     Then the response status should be 200
     And the response field "views" should be 1
+
+  Scenario: Popup behaviour settings round-trip (trigger + frequency + animation)
+    When I create a popup via admin with body:
+      """
+      { "name": "BDD behaviour popup", "trigger": "DELAY", "triggerValue": 8, "frequency": "ONCE_PER_DAYS", "frequencyDays": 3, "closeOnOverlay": false, "animation": "SLIDE_UP" }
+      """
+    Then the response status should be 201
+    When I GET the created popup as admin
+    Then the response status should be 200
+    And the response field "trigger" should be "DELAY"
+    And the response field "triggerValue" should be 8
+    And the response field "frequency" should be "ONCE_PER_DAYS"
+    And the response field "frequencyDays" should be 3
+    And the response field "closeOnOverlay" should be "false"
+    And the response field "animation" should be "SLIDE_UP"
+
+  Scenario: Behaviour validation rejects unknown trigger values
+    When I create a popup via admin with body:
+      """
+      { "name": "BDD bad trigger", "trigger": "WHENEVER" }
+      """
+    Then the response status should be 400
