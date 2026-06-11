@@ -5,6 +5,8 @@ import type {
   AuthUser,
   CourseCard,
   DashboardResponse,
+  FormPublicDTO,
+  FormSubmitResult,
   LessonDTO,
   LessonNoteDTO,
   LoginResponse,
@@ -14,6 +16,7 @@ import type {
   PopupPublicDTO,
   PostDetailDTO,
   PostListItem,
+  ResolvedMenu,
   SignupInput,
 } from "@lms/types";
 
@@ -156,6 +159,24 @@ export const api = {
     request<PagePublicDTO>(`/pages/${encodeURIComponent(slug)}`, {
       auth: false,
     }),
+
+  // forms (public, Mailchimp-linked — embedded via the Puck "Form" block).
+  // getPublic 404s for inactive/missing forms; the embed treats that as "render
+  // nothing".
+  publicForm: (id: string) =>
+    request<FormPublicDTO>(`/forms/${encodeURIComponent(id)}`, { auth: false }),
+  submitForm: (id: string, values: Record<string, string | number | boolean>) =>
+    request<FormSubmitResult>(`/forms/${encodeURIComponent(id)}/submit`, {
+      method: "POST",
+      body: { values },
+      auth: false,
+    }),
+
+  // navigation menus (embedded via the Puck "Menu" block). The server resolves
+  // hrefs + filters by visibility; auth is OPTIONAL there, so the default
+  // Bearer header just unlocks AUTHED/LEVEL items for signed-in members.
+  resolvedMenu: (id: string) =>
+    request<ResolvedMenu | null>(`/menus/${encodeURIComponent(id)}/resolved`),
 
   // popups (public — only ACTIVE; server filters by context). The caller
   // catches failures so a popup hiccup never breaks the host screen.

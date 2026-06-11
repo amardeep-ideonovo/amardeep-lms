@@ -12,7 +12,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Image,
-  Linking,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -22,13 +21,25 @@ import {
 import RenderHtml from "react-native-render-html";
 import { WebView } from "react-native-webview";
 import { ResizeMode, Video } from "expo-av";
-import type { PagePublicDTO, PuckComponentData, PuckDocument } from "@lms/types";
+import type {
+  PagePublicDTO,
+  PuckComponentData,
+  PuckDocument,
+  ResolvedMenu,
+  ResolvedMenuItem,
+} from "@lms/types";
 
 import { api } from "../api";
+import { FormEmbed } from "./FormEmbed";
 import { Loading, ErrorState } from "./Screen";
+import {
+  openHref,
+  useInteraction,
+  useScopedStyles,
+  useScopedTheme,
+} from "./PageScope";
 import { spacing } from "../theme";
 import type { Theme, ThemePalette } from "../theme";
-import { useStyles, useTheme } from "../theme-provider";
 
 type Props = Record<string, any>;
 
@@ -68,11 +79,6 @@ function alignItems(align?: string): "flex-start" | "center" | "flex-end" {
 function textAlign(align?: string): "left" | "center" | "right" {
   return align === "center" ? "center" : align === "right" ? "right" : "left";
 }
-function openHref(href?: string) {
-  if (!href) return;
-  // Only external schemes can be opened from here; in-app routes are app-specific.
-  if (/^(https?:|mailto:|tel:)/i.test(href)) Linking.openURL(href).catch(() => {});
-}
 function toEmbed(url?: string): { kind: "iframe" | "video"; src: string } | null {
   if (!url) return null;
   const u = url.trim();
@@ -110,7 +116,7 @@ const makeHtmlTagsStyles = ({ colors }: Theme): any => ({
 
 // ---------- leaf components ----------
 function BlockImage({ uri, rounded }: { uri: string; rounded?: boolean }) {
-  const styles = useStyles(makeStyles);
+  const styles = useScopedStyles(makeStyles);
   const [ratio, setRatio] = useState(16 / 9);
   useEffect(() => {
     if (!uri) return;
@@ -137,7 +143,8 @@ function BlockImage({ uri, rounded }: { uri: string; rounded?: boolean }) {
 }
 
 function BlockButton(p: Props) {
-  const styles = useStyles(makeStyles);
+  const styles = useScopedStyles(makeStyles);
+  const onInteract = useInteraction();
   const variantStyle =
     p.variant === "secondary"
       ? styles.btnSecondary
@@ -155,7 +162,10 @@ function BlockButton(p: Props) {
       <TouchableOpacity
         style={[styles.btn, variantStyle]}
         activeOpacity={0.85}
-        onPress={() => openHref(p.href)}
+        onPress={() => {
+          onInteract?.();
+          openHref(p.href);
+        }}
       >
         <Text style={textStyle}>{p.label}</Text>
       </TouchableOpacity>
@@ -164,7 +174,7 @@ function BlockButton(p: Props) {
 }
 
 function FaqRow({ q, a }: { q: string; a: string }) {
-  const styles = useStyles(makeStyles);
+  const styles = useScopedStyles(makeStyles);
   const [open, setOpen] = useState(false);
   return (
     <View style={styles.faqItem}>
@@ -183,8 +193,8 @@ function FaqRow({ q, a }: { q: string; a: string }) {
 
 // ---------- block components ----------
 function HeroBlock(p: Props) {
-  const styles = useStyles(makeStyles);
-  const { colors } = useTheme();
+  const styles = useScopedStyles(makeStyles);
+  const { colors } = useScopedTheme();
   const bg = bgColor(colors, p.background);
   const band = bandText(colors, p.background);
   return (
@@ -230,13 +240,14 @@ function HeroBlock(p: Props) {
 }
 
 function HeadingBlock(p: Props) {
-  const styles = useStyles(makeStyles);
+  const styles = useScopedStyles(makeStyles);
   const size = p.level === "1" ? 28 : p.level === "2" ? 24 : p.level === "3" ? 20 : 18;
   return <Text style={[styles.heading, { fontSize: size, textAlign: textAlign(p.align) }]}>{p.text}</Text>;
 }
 
 function RichTextBlock(p: Props) {
-  const htmlTagsStyles = useStyles(makeHtmlTagsStyles);
+  const htmlTagsStyles = useScopedStyles(makeHtmlTagsStyles);
+  const onInteract = useInteraction();
   const { width } = useWindowDimensions();
   return (
     <RenderHtml
@@ -244,12 +255,26 @@ function RichTextBlock(p: Props) {
       source={{ html: p.html || "<p></p>" }}
       tagsStyles={htmlTagsStyles}
       defaultTextProps={{ selectable: true }}
+      // Inside a popup, anchor taps count as engagement (web parity); outside,
+      // keep the library's default link handling.
+      renderersProps={
+        onInteract
+          ? {
+              a: {
+                onPress: (_e: unknown, href: string) => {
+                  onInteract();
+                  openHref(href);
+                },
+              },
+            }
+          : undefined
+      }
     />
   );
 }
 
 function ImageBlock(p: Props) {
-  const styles = useStyles(makeStyles);
+  const styles = useScopedStyles(makeStyles);
   return (
     <View>
       <BlockImage uri={p.src} rounded={p.rounded} />
@@ -259,7 +284,7 @@ function ImageBlock(p: Props) {
 }
 
 function SectionBlock(p: Props) {
-  const { colors } = useTheme();
+  const { colors } = useScopedTheme();
   const bg = bgColor(colors, p.background);
   return (
     <View
@@ -279,7 +304,7 @@ function ColumnsBlock(p: Props) {
 }
 
 function VideoBlock(p: Props) {
-  const styles = useStyles(makeStyles);
+  const styles = useScopedStyles(makeStyles);
   const embed = toEmbed(p.url);
   return (
     <View>
@@ -308,7 +333,8 @@ function VideoBlock(p: Props) {
 }
 
 function CardsBlock(p: Props) {
-  const styles = useStyles(makeStyles);
+  const styles = useScopedStyles(makeStyles);
+  const onInteract = useInteraction();
   const items: Props[] = Array.isArray(p.items) ? p.items : [];
   return (
     <View style={{ gap: spacing.md }}>
@@ -321,7 +347,15 @@ function CardsBlock(p: Props) {
           </>
         );
         return it.href ? (
-          <TouchableOpacity key={i} style={styles.card} activeOpacity={0.85} onPress={() => openHref(it.href)}>
+          <TouchableOpacity
+            key={i}
+            style={styles.card}
+            activeOpacity={0.85}
+            onPress={() => {
+              onInteract?.();
+              openHref(it.href);
+            }}
+          >
             {body}
           </TouchableOpacity>
         ) : (
@@ -335,8 +369,8 @@ function CardsBlock(p: Props) {
 }
 
 function CtaBlock(p: Props) {
-  const styles = useStyles(makeStyles);
-  const { colors } = useTheme();
+  const styles = useScopedStyles(makeStyles);
+  const { colors } = useScopedTheme();
   const bg = bgColor(colors, p.background) ?? colors.primary;
   // The CTA band defaults to the primary color, so its text follows the band,
   // not the page theme (otherwise light mode paints dark text on indigo).
@@ -371,7 +405,7 @@ function FaqBlock(p: Props) {
 }
 
 function TestimonialBlock(p: Props) {
-  const styles = useStyles(makeStyles);
+  const styles = useScopedStyles(makeStyles);
   return (
     <View style={styles.quote}>
       <Text style={styles.quoteText}>“{p.quote}”</Text>
@@ -382,6 +416,59 @@ function TestimonialBlock(p: Props) {
           {p.role ? <Text style={styles.quoteRole}>{p.role}</Text> : null}
         </View>
       </View>
+    </View>
+  );
+}
+
+// Depth-first flatten with depth (mirrors web's flattenChildren) so nested
+// menu items render as one indented list.
+function flattenMenu(
+  items: ResolvedMenuItem[],
+  depth = 0
+): { item: ResolvedMenuItem; depth: number }[] {
+  const out: { item: ResolvedMenuItem; depth: number }[] = [];
+  for (const it of items) {
+    out.push({ item: it, depth });
+    out.push(...flattenMenu(it.children, depth + 1));
+  }
+  return out;
+}
+
+function MenuBlock({ menuId }: { menuId: string }) {
+  const styles = useScopedStyles(makeStyles);
+  const onInteract = useInteraction();
+  const [menu, setMenu] = useState<ResolvedMenu | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    api
+      .resolvedMenu(menuId)
+      .then((m) => {
+        if (alive) setMenu(m);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [menuId]);
+
+  if (!menu || menu.items.length === 0) return null;
+
+  return (
+    <View style={styles.menu}>
+      {flattenMenu(menu.items).map(({ item, depth }) => (
+        <TouchableOpacity
+          key={item.id}
+          style={[styles.menuLink, depth ? { marginLeft: depth * spacing.md } : null]}
+          activeOpacity={0.7}
+          onPress={() => {
+            onInteract?.();
+            openHref(item.href);
+          }}
+        >
+          <Text style={styles.menuLinkText}>{item.label}</Text>
+        </TouchableOpacity>
+      ))}
     </View>
   );
 }
@@ -416,6 +503,11 @@ function Block({ item }: { item: PuckComponentData }) {
       return <FaqBlock {...p} />;
     case "Testimonial":
       return <TestimonialBlock {...p} />;
+    case "Form":
+      // Unset id = an unconfigured block; render nothing in the member app.
+      return p.formId ? <FormEmbed formId={String(p.formId)} /> : null;
+    case "Menu":
+      return p.menuId ? <MenuBlock menuId={String(p.menuId)} /> : null;
     default:
       return null;
   }
@@ -428,7 +520,7 @@ function renderItems(items?: PuckComponentData[]) {
 
 // ---------- public API ----------
 export function PageRenderer({ data }: { data: PuckDocument }) {
-  const styles = useStyles(makeStyles);
+  const styles = useScopedStyles(makeStyles);
   return <View style={styles.page}>{renderItems(data?.content)}</View>;
 }
 
@@ -538,4 +630,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   quoteAvatar: { width: 44, height: 44, borderRadius: 999, backgroundColor: colors.surfaceMuted },
   quoteAuthor: { color: colors.text, fontWeight: "700" },
   quoteRole: { color: colors.textMuted, fontSize: 13 },
+  menu: { gap: spacing.xs },
+  menuLink: { paddingVertical: spacing.sm, paddingHorizontal: 10, borderRadius: 8 },
+  menuLinkText: { color: colors.text, fontSize: 15, fontWeight: "500" },
 });
