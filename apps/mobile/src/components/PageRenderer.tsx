@@ -43,6 +43,56 @@ import type { Theme, ThemePalette } from "../theme";
 
 type Props = Record<string, any>;
 
+// ---------- per-block design overrides (subset of the web editor's group) ----------
+// The admin's Design group carries web-only typography/animation too; natively
+// we honor the layout subset — background, padding, margins, radius, text
+// color/size on the wrapper's cascade-free equivalents are web-only — and the
+// hide-per-device switch (hideOn:"mobile" suppresses the block here, while
+// hideOn:"desktop" blocks render ONLY here).
+type BlockDesign = {
+  background?: string;
+  paddingY?: number;
+  paddingX?: number;
+  marginTop?: number;
+  marginBottom?: number;
+  radius?: number;
+  hideOn?: string;
+};
+
+const num = (v: unknown): number | undefined =>
+  typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined;
+
+// RN can't paint CSS gradients/images — only accept plain color syntaxes here;
+// anything else (e.g. "linear-gradient(...)") falls back to the theme surface.
+function asNativeColor(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const c = v.trim();
+  return /^(#|rgb|hsl)/i.test(c) || /^[a-z]+$/i.test(c) ? c : undefined;
+}
+
+// `ownBackground` mirrors the web wrapper: the band blocks (Hero/CTA/Section)
+// paint design.background on their own band, so the wrapper must not.
+function designViewStyle(d?: BlockDesign, ownBackground = false): object | null {
+  if (!d || typeof d !== "object") return null;
+  const s: Record<string, unknown> = {};
+  const bg = ownBackground ? undefined : asNativeColor(d.background);
+  if (bg) s.backgroundColor = bg;
+  const py = num(d.paddingY);
+  if (py !== undefined) s.paddingVertical = py;
+  const px = num(d.paddingX);
+  if (px !== undefined) s.paddingHorizontal = px;
+  const mt = num(d.marginTop);
+  if (mt !== undefined) s.marginTop = mt;
+  const mb = num(d.marginBottom);
+  if (mb !== undefined) s.marginBottom = mb;
+  const r = num(d.radius);
+  if (r !== undefined) {
+    s.borderRadius = r;
+    s.overflow = "hidden";
+  }
+  return Object.keys(s).length ? s : null;
+}
+
 // ---------- helpers ----------
 function bgColor(colors: ThemePalette, bg?: string): string | undefined {
   switch (bg) {
@@ -173,8 +223,9 @@ function FaqRow({ q, a }: { q: string; a: string }) {
 function HeroBlock(p: Props) {
   const styles = useScopedStyles(makeStyles);
   const { colors } = useScopedTheme();
-  const bg = bgColor(colors, p.background);
-  const band = bandText(colors, p.background);
+  const d = (p.design ?? {}) as Props;
+  const bg = asNativeColor(d.background) ?? bgColor(colors, p.background);
+  const band = asNativeColor(d.textColor) ?? bandText(colors, p.background);
   return (
     <View
       style={[
@@ -252,7 +303,9 @@ function ImageBlock(p: Props) {
 
 function SectionBlock(p: Props) {
   const { colors } = useScopedTheme();
-  const bg = bgColor(colors, p.background);
+  const bg =
+    asNativeColor((p.design as Props | undefined)?.background) ??
+    bgColor(colors, p.background);
   return (
     <View
       style={[
@@ -333,13 +386,16 @@ function CardsBlock(p: Props) {
 function CtaBlock(p: Props) {
   const styles = useScopedStyles(makeStyles);
   const { colors } = useScopedTheme();
-  const bg = bgColor(colors, p.background) ?? colors.primary;
+  const d = (p.design ?? {}) as Props;
+  const bg =
+    asNativeColor(d.background) ?? bgColor(colors, p.background) ?? colors.primary;
   // The CTA band defaults to the primary color, so its text follows the band,
   // not the page theme (otherwise light mode paints dark text on indigo).
   const txt =
-    p.background === "muted"
+    asNativeColor(d.textColor) ??
+    (p.background === "muted"
       ? colors.text
-      : bandText(colors, p.background) ?? colors.onPrimary;
+      : bandText(colors, p.background) ?? colors.onPrimary);
   return (
     <View style={[styles.bandPad, { backgroundColor: bg, borderRadius: 14, alignItems: alignItems(p.align) }]}>
       <Text style={[styles.ctaTitle, { color: txt, textAlign: textAlign(p.align) }]}>{p.title}</Text>
@@ -379,6 +435,83 @@ function TestimonialBlock(p: Props) {
         </View>
       </View>
     </View>
+  );
+}
+
+function DividerBlock(p: Props) {
+  const { colors } = useScopedTheme();
+  const style = p.style === "dashed" ? "dashed" : p.style === "dotted" ? "dotted" : "solid";
+  return (
+    <View
+      style={{
+        borderBottomWidth: Math.max(1, Number(p.thickness) || 1),
+        borderStyle: style,
+        borderColor:
+          typeof p.color === "string" && p.color.trim() ? p.color : colors.border,
+      }}
+    />
+  );
+}
+
+// Same glyph semantics as the web's inline SVG set.
+const LIST_GLYPHS: Record<string, string> = {
+  check: "✓",
+  star: "★",
+  arrow: "→",
+  dot: "•",
+  cross: "✕",
+};
+
+function IconListBlock(p: Props) {
+  const styles = useScopedStyles(makeStyles);
+  const { colors } = useScopedTheme();
+  const items: Props[] = Array.isArray(p.items) ? p.items : [];
+  const glyph = LIST_GLYPHS[String(p.icon)] ?? LIST_GLYPHS.check;
+  const color =
+    typeof p.iconColor === "string" && p.iconColor.trim()
+      ? p.iconColor
+      : colors.primary;
+  return (
+    <View style={{ gap: spacing.sm }}>
+      {items.map((it, i) => (
+        <View key={i} style={styles.iconRow}>
+          <Text style={[styles.iconGlyph, { color }]}>{glyph}</Text>
+          <Text style={styles.iconText}>{it.text}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function StatsBlock(p: Props) {
+  const styles = useScopedStyles(makeStyles);
+  const items: Props[] = Array.isArray(p.items) ? p.items : [];
+  return (
+    <View style={styles.statsWrap}>
+      {items.map((it, i) => (
+        <View key={i} style={styles.stat}>
+          <Text style={styles.statValue}>{it.value}</Text>
+          <Text style={styles.statLabel}>{it.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function EmbedBlock(p: Props) {
+  const onInteract = useInteraction();
+  const { width } = useWindowDimensions();
+  if (!p.html) return null;
+  // Sanitized server-side like RichText; HtmlView renders the CMS tag set.
+  return (
+    <HtmlView
+      html={String(p.html)}
+      contentWidth={Math.max(0, width - spacing.md * 2)}
+      onLinkPress={(href) => {
+        onInteract?.();
+        openHref(href);
+      }}
+    />
   );
 }
 
@@ -436,8 +569,7 @@ function MenuBlock({ menuId }: { menuId: string }) {
 }
 
 // ---------- dispatcher ----------
-function Block({ item }: { item: PuckComponentData }) {
-  const p: Props = (item?.props as Props) ?? {};
+function blockBody(item: PuckComponentData, p: Props): React.ReactElement | null {
   switch (item?.type) {
     case "Hero":
       return <HeroBlock {...p} />;
@@ -465,6 +597,14 @@ function Block({ item }: { item: PuckComponentData }) {
       return <FaqBlock {...p} />;
     case "Testimonial":
       return <TestimonialBlock {...p} />;
+    case "Divider":
+      return <DividerBlock {...p} />;
+    case "IconList":
+      return <IconListBlock {...p} />;
+    case "Stats":
+      return <StatsBlock {...p} />;
+    case "Embed":
+      return <EmbedBlock {...p} />;
     case "Form":
       // Unset id = an unconfigured block; render nothing in the member app.
       return p.formId ? <FormEmbed formId={String(p.formId)} /> : null;
@@ -473,6 +613,21 @@ function Block({ item }: { item: PuckComponentData }) {
     default:
       return null;
   }
+}
+
+// Band blocks that paint design.background themselves (web parity).
+const OWN_BACKGROUND = new Set(["Hero", "CTA", "Section"]);
+
+function Block({ item }: { item: PuckComponentData }) {
+  const p: Props = (item?.props as Props) ?? {};
+  const design = p.design as BlockDesign | undefined;
+  // The admin's hide-per-device switch: "mobile" hides the block here;
+  // "desktop" means the block exists FOR this surface.
+  if (design?.hideOn === "mobile") return null;
+  const body = blockBody(item, p);
+  if (!body) return null;
+  const style = designViewStyle(design, OWN_BACKGROUND.has(item?.type));
+  return style ? <View style={style}>{body}</View> : body;
 }
 
 function renderItems(items?: PuckComponentData[]) {
@@ -595,4 +750,16 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   menu: { gap: spacing.xs },
   menuLink: { paddingVertical: spacing.sm, paddingHorizontal: 10, borderRadius: 8 },
   menuLinkText: { color: colors.text, fontSize: 15, fontWeight: "500" },
+  iconRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
+  iconGlyph: { fontSize: 16, fontWeight: "800", lineHeight: 22, width: 20 },
+  iconText: { color: colors.text, fontSize: 15, lineHeight: 22, flex: 1 },
+  statsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  stat: { alignItems: "center", minWidth: "42%", flexGrow: 1 },
+  statValue: { color: colors.text, fontSize: 28, fontWeight: "800" },
+  statLabel: { color: colors.textMuted, fontSize: 13, marginTop: 2, textAlign: "center" },
 });

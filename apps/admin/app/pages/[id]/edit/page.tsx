@@ -19,6 +19,7 @@ import RichTextEditor from "@/components/RichTextEditor";
 import FormPickerField from "@/components/FormPickerField";
 import MediaPicker from "@/components/MediaPicker";
 import MenuPickerField from "@/components/MenuPickerField";
+import PuckColorField from "@/components/PuckColorField";
 
 type PageData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -105,12 +106,29 @@ export default function PageEditor() {
         onChange: (v: string) => void;
       }) => <MenuPickerField value={value} onChange={onChange} />,
     } as Field;
+    // Clearable swatch for the Design group's color props (label comes from the
+    // field definition so one component serves every color control).
+    const colorField = {
+      type: "custom" as const,
+      render: ({
+        field,
+        value,
+        onChange,
+      }: {
+        field?: { label?: string };
+        value?: string;
+        onChange: (v: string) => void;
+      }) => (
+        <PuckColorField label={field?.label} value={value} onChange={onChange} />
+      ),
+    } as Field;
     return createPuckConfig({
       richTextField,
       formComponent: FormPreview,
       formField,
       imageField,
       menuField,
+      colorField,
     });
   }, []);
 

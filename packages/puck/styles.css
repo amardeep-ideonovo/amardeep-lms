@@ -5,7 +5,9 @@
  * All classes are prefixed `lmspb-` to avoid colliding with app styles.
  */
 .lmspb-root {
-  --lmspb-brand: #6d28d9;
+  /* Brand follows the site theme when the host app defines --primary (the
+     member site does: #4f46e5); the fallback matches that cross-stack default. */
+  --lmspb-brand: var(--primary, #4f46e5);
   --lmspb-brand-contrast: #ffffff;
   --lmspb-fg: #111827;
   --lmspb-muted-fg: #6b7280;
@@ -184,3 +186,93 @@
 .lmspb-video { position: relative; width: 100%; padding-top: 56.25%; border-radius: var(--lmspb-radius); overflow: hidden; background: #000; }
 .lmspb-video > iframe,
 .lmspb-video > video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+/* ---- Divider ---- */
+.lmspb-divider {
+  border: 0;
+  border-top: 1px solid var(--lmspb-border);
+  margin: 0;
+  width: 100%;
+}
+
+/* ---- Icon list ---- */
+.lmspb-iconlist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.lmspb-iconlist-2 { grid-template-columns: 1fr 1fr; }
+@media (max-width: 720px) {
+  .lmspb-iconlist-2 { grid-template-columns: 1fr; }
+}
+.lmspb-iconlist-item { display: flex; align-items: flex-start; gap: 10px; }
+.lmspb-iconlist-icon { flex: none; display: inline-flex; margin-top: 3px; }
+
+/* ---- Stats ---- */
+.lmspb-stats { display: grid; gap: 20px; text-align: center; }
+@media (max-width: 720px) {
+  .lmspb-stats { grid-template-columns: 1fr 1fr !important; }
+}
+.lmspb-stat-value { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 800; line-height: 1.1; }
+.lmspb-stat-label { color: var(--lmspb-muted-fg); margin-top: 6px; font-size: 0.95rem; }
+.lmspb-bg-dark .lmspb-stat-label,
+.lmspb-bg-brand .lmspb-stat-label { color: inherit; opacity: 0.85; }
+
+/* ---- Embed (custom HTML) ---- */
+.lmspb-embed img { max-width: 100%; height: auto; }
+.lmspb-embed table { border-collapse: collapse; width: 100%; }
+.lmspb-embed th,
+.lmspb-embed td { border: 1px solid var(--lmspb-border); padding: 8px 10px; text-align: left; }
+
+/* ============================================================
+   Design overrides (the per-block "Design" group)
+   ============================================================ */
+
+/* Font-size override cascades to the block's text roots only. */
+.lmspb-fs .lmspb-heading,
+.lmspb-fs .lmspb-richtext,
+.lmspb-fs .lmspb-hero-title,
+.lmspb-fs .lmspb-cta-title,
+.lmspb-fs .lmspb-iconlist-item,
+.lmspb-fs .lmspb-stat-value,
+.lmspb-fs .lmspb-quote-text { font-size: var(--lmspb-fs) !important; }
+
+/* Shadows */
+.lmspb-sh-soft { box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08); }
+.lmspb-sh-medium { box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14); }
+.lmspb-sh-large { box-shadow: 0 16px 48px rgba(15, 23, 42, 0.22); }
+
+/* Hide per device (breakpoint matches the grid collapse at 720px) */
+@media (max-width: 720px) {
+  .lmspb-hide-mobile { display: none !important; }
+}
+@media (min-width: 721px) {
+  .lmspb-hide-desktop { display: none !important; }
+}
+
+/* Entrance animations. Where scroll-driven animations are supported the block
+   animates as it ENTERS the viewport (Elementor-style waypoints); elsewhere it
+   simply plays once on load. */
+@keyframes lmspb-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lmspb-rise { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+@keyframes lmspb-zoom { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+.lmspb-anim-fade { animation: lmspb-fade 0.7s ease-out both; }
+.lmspb-anim-rise { animation: lmspb-rise 0.7s ease-out both; }
+.lmspb-anim-zoom { animation: lmspb-zoom 0.6s ease-out both; }
+@supports (animation-timeline: view()) {
+  .lmspb-anim-fade,
+  .lmspb-anim-rise,
+  .lmspb-anim-zoom {
+    animation-duration: auto;
+    animation-timeline: view();
+    animation-range: entry 0% entry 60%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lmspb-anim-fade,
+  .lmspb-anim-rise,
+  .lmspb-anim-zoom { animation: none; }
+}
