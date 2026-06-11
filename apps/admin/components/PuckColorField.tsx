@@ -19,7 +19,7 @@ export default function PuckColorField({
   return (
     <div style={{ display: "grid", gap: 4 }}>
       {label ? (
-        <label style={{ fontSize: 12, fontWeight: 600, color: "#475569" }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-soft)" }}>
           {label}
         </label>
       ) : null}
@@ -33,7 +33,7 @@ export default function PuckColorField({
             width: 34,
             height: 30,
             padding: 0,
-            border: "1px solid #cbd5e1",
+            border: "1px solid var(--border-strong)",
             borderRadius: 6,
             background: "none",
             cursor: "pointer",
@@ -48,9 +48,11 @@ export default function PuckColorField({
             flex: 1,
             minWidth: 0,
             padding: "6px 8px",
-            border: "1px solid #cbd5e1",
+            border: "1px solid var(--border-strong)",
             borderRadius: 6,
             fontSize: 13,
+            background: "var(--surface-2)",
+            color: "var(--text)",
           }}
         />
         {v ? (
@@ -59,14 +61,14 @@ export default function PuckColorField({
             onClick={() => onChange("")}
             title="Reset to default"
             style={{
-              border: "1px solid #cbd5e1",
-              background: "#fff",
+              border: "1px solid var(--border-strong)",
+              background: "var(--surface-2)",
               borderRadius: 6,
               width: 26,
               height: 26,
               lineHeight: 1,
               cursor: "pointer",
-              color: "#64748b",
+              color: "var(--muted)",
               flex: "none",
             }}
           >

@@ -2417,9 +2417,10 @@ a.card:hover {
 .nav-drawer-ctas { border-top-color: rgba(255, 255, 255, 0.1); }
 
 /* ===========================================================================
-   Dark CMS pages — scoped to `.cms-dark` (the PUBLIC /[slug] render only). The
-   admin Puck editor renders `.lmspb-root` WITHOUT this wrapper, so it stays
-   light. Full-bleed dark canvas + dark Puck design-system vars.
+   Dark CMS pages — `.cms-dark` (the PUBLIC /[slug] render only) provides the
+   full-bleed layout breakout; the dark Puck design-system tokens now live in
+   the SHARED @lms/puck/styles.css (`.cms-dark .lmspb-root`), so the admin
+   editor canvas can apply the same skin and preview the real site.
    =========================================================================== */
 .cms-dark {
   position: relative;
@@ -2433,13 +2434,3 @@ a.card:hover {
   min-height: 80vh;
   background: #0b0b0d;
 }
-.cms-dark .lmspb-root {
-  --lmspb-fg: #f4f4f6;
-  --lmspb-muted-fg: #9aa1ad;
-  --lmspb-muted-bg: #16161b;
-  --lmspb-border: rgba(255, 255, 255, 0.12);
-  color: var(--lmspb-fg);
-}
-.cms-dark .lmspb-card,
-.cms-dark .lmspb-faq-item { background: #16161b; }
-.cms-dark .lmspb-bg-muted { background: #16161b; }

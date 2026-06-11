@@ -187,6 +187,27 @@
 .lmspb-video > iframe,
 .lmspb-video > video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
+/* ---- Dark CMS skin (single source) ----
+   The PUBLIC site applies it through its `.cms-dark` page wrapper; the admin
+   editor applies `.lmspb-dark` directly on the canvas root so the canvas
+   previews the real (dark) member site rather than the admin chrome theme. */
+.cms-dark .lmspb-root,
+.lmspb-root.lmspb-dark {
+  --lmspb-fg: #f4f4f6;
+  --lmspb-muted-fg: #9aa1ad;
+  --lmspb-muted-bg: #16161b;
+  --lmspb-border: rgba(255, 255, 255, 0.12);
+  color: var(--lmspb-fg);
+}
+.cms-dark .lmspb-card,
+.lmspb-root.lmspb-dark .lmspb-card,
+.cms-dark .lmspb-faq-item,
+.lmspb-root.lmspb-dark .lmspb-faq-item,
+.cms-dark .lmspb-bg-muted,
+.lmspb-root.lmspb-dark .lmspb-bg-muted {
+  background: #16161b;
+}
+
 /* ---- Divider ---- */
 .lmspb-divider {
   border: 0;

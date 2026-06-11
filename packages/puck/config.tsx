@@ -342,6 +342,13 @@ export type PuckConfigOptions = {
    * surface:"popup" removes the root SEO fields from the right rail.
    */
   surface?: "page" | "popup";
+  /**
+   * Admin editors only: skin the canvas like the REAL render target instead of
+   * inheriting the admin chrome theme — pages get the member site's dark CMS
+   * skin, popups get the white popup box. The matching CSS lives in the
+   * admin's puck-theme.css; public surfaces never set this.
+   */
+  editorCanvas?: boolean;
 };
 
 export function createPuckConfig(
@@ -428,8 +435,21 @@ export function createPuckConfig(
             },
       defaultProps: { seoTitle: "", description: "", ogImage: "" },
       // Wrap all page content so block CSS variables + base styles apply in
-      // BOTH the editor canvas and the public <Render> output.
-      render: ({ children }) => <div className="lmspb-root">{children}</div>,
+      // BOTH the editor canvas and the public <Render> output. In the admin
+      // editor the canvas additionally carries the render target's skin.
+      render: ({ children }) => (
+        <div
+          className={cx(
+            "lmspb-root",
+            opts.editorCanvas &&
+              (opts.surface === "popup"
+                ? "lmspb-canvas-popup"
+                : "lmspb-dark lmspb-canvas-page"),
+          )}
+        >
+          {children}
+        </div>
+      ),
     },
 
     categories: {

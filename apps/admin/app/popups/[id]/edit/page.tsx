@@ -6,6 +6,7 @@
 // live in a slide-over drawer (the "⚙ Settings" button), NOT in the Puck doc.
 import "@puckeditor/core/puck.css";
 import "@lms/puck/styles.css";
+import "@/app/puck-theme.css";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -105,10 +106,10 @@ function FormPreview({ formId }: { formId: string }) {
   return (
     <div
       style={{
-        border: "1px dashed #cbd5e1",
+        border: "1px dashed var(--border-strong)",
         borderRadius: 8,
         padding: 16,
-        color: "#64748b",
+        color: "var(--muted)",
         textAlign: "center",
       }}
     >
@@ -209,6 +210,8 @@ export default function PopupEditor() {
       colorField,
       // Popups have no SEO surface — drop the root SEO fields from the rail.
       surface: "popup",
+      // Canvas previews the popup's white box, not the admin chrome theme.
+      editorCanvas: true,
     });
   }, []);
 
@@ -405,7 +408,7 @@ export default function PopupEditor() {
         inset: 0,
         display: "flex",
         flexDirection: "column",
-        background: "#fff",
+        background: "var(--bg)",
         zIndex: 1000,
       }}
     >
@@ -418,7 +421,7 @@ export default function PopupEditor() {
           alignItems: "center",
           gap: 10,
           padding: "8px 14px",
-          borderBottom: "1px solid #e2e5ea",
+          borderBottom: "1px solid var(--border)",
           flex: "none",
         }}
       >
@@ -499,8 +502,8 @@ export default function PopupEditor() {
               bottom: 0,
               width: 360,
               maxWidth: "90vw",
-              background: "#fff",
-              borderLeft: "1px solid #e2e5ea",
+              background: "var(--surface)",
+              borderLeft: "1px solid var(--border)",
               boxShadow: "-8px 0 24px rgba(15,23,42,0.12)",
               zIndex: 1101,
               display: "flex",
@@ -513,7 +516,7 @@ export default function PopupEditor() {
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "12px 16px",
-                borderBottom: "1px solid #e2e5ea",
+                borderBottom: "1px solid var(--border)",
               }}
             >
               <strong>Popup settings</strong>
@@ -531,9 +534,9 @@ export default function PopupEditor() {
                 <div
                   style={{
                     fontSize: 12,
-                    color: "#475569",
-                    background: "#f8fafc",
-                    border: "1px solid #eef2f7",
+                    color: "var(--text-soft)",
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
                     borderRadius: 8,
                     padding: "8px 10px",
                     marginBottom: 16,
@@ -950,26 +953,28 @@ const drawerSection: React.CSSProperties = {
   fontWeight: 700,
   textTransform: "uppercase",
   letterSpacing: 0.4,
-  color: "#64748b",
+  color: "var(--muted)",
   margin: "18px 0 10px",
-  borderTop: "1px solid #eef2f7",
+  borderTop: "1px solid var(--border)",
   paddingTop: 14,
 };
 const drawerLabel: React.CSSProperties = {
   display: "block",
   fontSize: 12,
   fontWeight: 600,
-  color: "#475569",
+  color: "var(--text-soft)",
   marginBottom: 4,
 };
 const fieldWrap: React.CSSProperties = { display: "block", marginBottom: 12 };
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "7px 9px",
-  border: "1px solid #cbd5e1",
+  border: "1px solid var(--border-strong)",
   borderRadius: 6,
   fontSize: 14,
   boxSizing: "border-box",
+  background: "var(--surface-2)",
+  color: "var(--text)",
 };
 const twoCol: React.CSSProperties = {
   display: "grid",
@@ -985,7 +990,7 @@ const swatch: React.CSSProperties = {
   width: 38,
   height: 34,
   padding: 0,
-  border: "1px solid #cbd5e1",
+  border: "1px solid var(--border-strong)",
   borderRadius: 6,
   background: "none",
   cursor: "pointer",

@@ -4,6 +4,7 @@
 // heavy editor CSS only loads on this full-screen page.
 import "@puckeditor/core/puck.css";
 import "@lms/puck/styles.css";
+import "@/app/puck-theme.css";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -32,10 +33,10 @@ function FormPreview({ formId }: { formId: string }) {
   return (
     <div
       style={{
-        border: "1px dashed #cbd5e1",
+        border: "1px dashed var(--border-strong)",
         borderRadius: 8,
         padding: 16,
-        color: "#64748b",
+        color: "var(--muted)",
         textAlign: "center",
       }}
     >
@@ -129,6 +130,8 @@ export default function PageEditor() {
       imageField,
       menuField,
       colorField,
+      // Canvas previews the dark member site, not the admin chrome theme.
+      editorCanvas: true,
     });
   }, []);
 
@@ -265,7 +268,7 @@ export default function PageEditor() {
         inset: 0,
         display: "flex",
         flexDirection: "column",
-        background: "#fff",
+        background: "var(--bg)",
         zIndex: 1000,
       }}
     >
@@ -277,7 +280,7 @@ export default function PageEditor() {
           alignItems: "center",
           gap: 10,
           padding: "8px 14px",
-          borderBottom: "1px solid #e2e5ea",
+          borderBottom: "1px solid var(--border)",
           flex: "none",
         }}
       >

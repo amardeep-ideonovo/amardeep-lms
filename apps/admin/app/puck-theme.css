@@ -1,0 +1,73 @@
+/* =========================================================================
+   Puck editor chrome ↔ admin theme bridge.
+
+   Problem this solves: the admin's dark theme cascades `color: var(--text)`
+   (near-white) into Puck's LIGHT-styled chrome — light text on white drag
+   cards is unreadable. Puck's entire chrome reads a 12-step variable scale
+   (--puck-color-grey/azure-01..12 + black/white), so under
+   `html[data-theme="dark"]` we remap that scale onto the admin palette:
+   the grey ramp is INVERTED (01 stays "strongest text", 12 stays "subtlest
+   background" — just dark now) and azure becomes the admin teal accent.
+   Under the light admin theme, Puck's stock light palette already matches.
+
+   These rules are also copied into the canvas iframe by Puck's style sync,
+   where they are inert: the iframe's <html> carries no data-theme attribute.
+   ========================================================================= */
+
+html[data-theme="dark"] {
+  --puck-color-white: #131316; /* --surface */
+  --puck-color-black: #ededf0; /* --text */
+
+  /* greys: 01 = strongest foreground … 12 = subtlest background */
+  --puck-color-grey-01: #f2f2f5;
+  --puck-color-grey-02: #e6e6ea;
+  --puck-color-grey-03: #cfcfd6;
+  --puck-color-grey-04: #b6b6bd; /* --text-soft */
+  --puck-color-grey-05: #9a9aa2;
+  --puck-color-grey-06: #82828a;
+  --puck-color-grey-07: #64646c;
+  --puck-color-grey-08: #3f3f46;
+  --puck-color-grey-09: #2b2b31; /* the chrome's main border tone */
+  --puck-color-grey-10: #1c1c21; /* --surface-hover */
+  --puck-color-grey-11: #17171b; /* --surface-2 */
+  --puck-color-grey-12: #0f0f12;
+
+  /* azure: action color becomes the admin teal; tints become teal-dark fills */
+  --puck-color-azure-01: #e9fafd;
+  --puck-color-azure-02: #d3f4fa;
+  --puck-color-azure-03: #a8e9f4;
+  --puck-color-azure-04: #1cb6cf; /* --accent */
+  --puck-color-azure-05: #3ec5db;
+  --puck-color-azure-06: #66d2e4;
+  --puck-color-azure-07: #15505c;
+  --puck-color-azure-08: #123f4a;
+  --puck-color-azure-09: #10333c;
+  --puck-color-azure-10: #0e2a32;
+  --puck-color-azure-11: #0c2128; /* selected/hover fills */
+  --puck-color-azure-12: #0a1b21;
+}
+
+/* =========================================================================
+   Canvas fidelity — the iframe previews the RENDER TARGET, not the admin.
+
+   Pages render on the member site's dark shell; popups render in a white
+   box. Pinning both here (plus the site's brand color, since the iframe
+   would otherwise inherit the admin's teal --primary through style sync)
+   keeps the canvas truthful in BOTH admin themes. `.lmspb-dark` (shared
+   styles.css) supplies the dark CMS tokens for the page canvas.
+   ========================================================================= */
+
+.lmspb-root.lmspb-canvas-page {
+  --primary: #4f46e5; /* member-site brand, NOT the admin teal */
+  background: #0b0b0d; /* member site page background */
+  min-height: 100vh;
+  padding: 16px 0 48px;
+}
+
+.lmspb-root.lmspb-canvas-popup {
+  --primary: #4f46e5;
+  background: #ffffff; /* popups live in a white box by default */
+  color: #111827;
+  min-height: 100vh;
+  padding: 16px;
+}
