@@ -1,13 +1,17 @@
 import React, { useMemo } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
+import type { LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import * as ExpoLinking from "expo-linking";
 
 import { AuthProvider, useAuth } from "./src/auth";
 import { BrandHeaderTitle } from "./src/components/BrandHeaderTitle";
+import { WEB_BASE_URL } from "./src/config";
 import { ConfigProvider, useAppConfig } from "./src/config-provider";
+import { navigationRef } from "./src/nav-ref";
 import { ThemeProvider, useTheme } from "./src/theme-provider";
 import type {
   AuthStackParamList,
@@ -16,13 +20,35 @@ import type {
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { SignupScreen } from "./src/screens/SignupScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
+import { ClassScreen } from "./src/screens/ClassScreen";
 import { CourseListScreen } from "./src/screens/CourseListScreen";
 import { CourseScreen } from "./src/screens/CourseScreen";
 import { LessonScreen } from "./src/screens/LessonScreen";
 import { AccountScreen } from "./src/screens/AccountScreen";
+import { PaymentsScreen } from "./src/screens/PaymentsScreen";
 import { BlogListScreen } from "./src/screens/BlogListScreen";
 import { BlogPostScreen } from "./src/screens/BlogPostScreen";
 import { PageScreen } from "./src/screens/PageScreen";
+
+// OS-level deep links (lms:// + the web origin) map straight onto the authed
+// stack — same table as src/links.ts. The Page catch-all MUST stay last.
+// Logged-out cold starts fall back to the Login stack (known v1 limit).
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: [ExpoLinking.createURL("/"), WEB_BASE_URL],
+  config: {
+    screens: {
+      Dashboard: "dashboard",
+      Class: "classes/:slugOrId",
+      Course: "courses/:courseId",
+      Lesson: "lessons/:lessonId",
+      Blog: "blog",
+      BlogPost: "blog/:slug",
+      Account: "account",
+      Payments: "account/payments",
+      Page: ":slug",
+    },
+  },
+};
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -56,6 +82,11 @@ function AppNavigator() {
         options={{ headerTitle: () => <BrandHeaderTitle /> }}
       />
       <AppStack.Screen
+        name="Class"
+        component={ClassScreen}
+        options={({ route }) => ({ title: route.params.title ?? "Class" })}
+      />
+      <AppStack.Screen
         name="CourseList"
         component={CourseListScreen}
         options={({ route }) => ({ title: route.params.title })}
@@ -63,14 +94,19 @@ function AppNavigator() {
       <AppStack.Screen
         name="Course"
         component={CourseScreen}
-        options={({ route }) => ({ title: route.params.title })}
+        options={({ route }) => ({ title: route.params.title ?? "Course" })}
       />
       <AppStack.Screen
         name="Lesson"
         component={LessonScreen}
-        options={({ route }) => ({ title: route.params.title })}
+        options={({ route }) => ({ title: route.params.title ?? "Lesson" })}
       />
       <AppStack.Screen name="Account" component={AccountScreen} />
+      <AppStack.Screen
+        name="Payments"
+        component={PaymentsScreen}
+        options={{ title: "Payment history" }}
+      />
       <AppStack.Screen
         name="Blog"
         component={BlogListScreen}
@@ -79,12 +115,12 @@ function AppNavigator() {
       <AppStack.Screen
         name="BlogPost"
         component={BlogPostScreen}
-        options={({ route }) => ({ title: route.params.title })}
+        options={({ route }) => ({ title: route.params.title ?? "Post" })}
       />
       <AppStack.Screen
         name="Page"
         component={PageScreen}
-        options={({ route }) => ({ title: route.params.title })}
+        options={({ route }) => ({ title: route.params.title ?? "Page" })}
       />
     </AppStack.Navigator>
   );
@@ -129,7 +165,7 @@ function ThemedApp() {
   );
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} linking={linking} theme={navTheme}>
       <StatusBar style={mode === "light" ? "dark" : "light"} />
       <RootNavigator />
     </NavigationContainer>

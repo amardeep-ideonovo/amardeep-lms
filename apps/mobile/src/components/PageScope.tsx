@@ -9,8 +9,8 @@
 //     click-capture on a/button elements)
 // Outside a scope the hooks fall through to the app theme / a null callback.
 import React, { createContext, useContext, useMemo } from "react";
-import { Linking } from "react-native";
 
+import { openAppHref } from "../links";
 import type { Theme } from "../theme";
 import { useTheme } from "../theme-provider";
 
@@ -52,8 +52,9 @@ export function useInteraction(): (() => void) | null {
 }
 
 // Shared link handler for page blocks (buttons, cards, menu links, redirects).
-// Only external schemes can be opened from here; in-app routes are app-specific.
+// Internal paths and our own web-origin URLs navigate natively via the href
+// resolver; true externals (foreign https, mailto, tel) open outside the app.
 export function openHref(href?: string) {
   if (!href) return;
-  if (/^(https?:|mailto:|tel:)/i.test(href)) Linking.openURL(href).catch(() => {});
+  openAppHref(href);
 }

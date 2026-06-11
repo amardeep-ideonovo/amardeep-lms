@@ -3,13 +3,18 @@ import * as SecureStore from "expo-secure-store";
 import type {
   AppConfig,
   AuthUser,
+  ChangePasswordInput,
+  ClassPublicDTO,
+  ClassTileDTO,
   CourseCard,
   DashboardResponse,
   FormPublicDTO,
   FormSubmitResult,
+  InvoiceDTO,
   LessonDTO,
   LessonNoteDTO,
   LoginResponse,
+  MyClassCoursesDTO,
   PagePublicDTO,
   PopupContext,
   PopupEventType,
@@ -18,6 +23,8 @@ import type {
   PostListItem,
   ResolvedMenu,
   SignupInput,
+  SubscriptionDetailDTO,
+  UpdateProfileInput,
 } from "@lms/types";
 
 import { API_BASE_URL } from "./config";
@@ -136,6 +143,39 @@ export const api = {
   appConfig: () => request<AppConfig>("/app/config", { auth: false }),
 
   dashboard: () => request<DashboardResponse>("/dashboard"),
+
+  // classes (member dashboard tiles + landing pages)
+  myClasses: () => request<ClassTileDTO[]>("/levels/my-classes"),
+  myClassCourses: (slugOrId: string) =>
+    request<MyClassCoursesDTO>(
+      `/levels/${encodeURIComponent(slugOrId)}/my-courses`,
+    ),
+  // public marketing data for a class landing page (no auth)
+  classPage: (slugOrId: string) =>
+    request<ClassPublicDTO>(`/levels/page/${encodeURIComponent(slugOrId)}`, {
+      auth: false,
+    }),
+
+  // account self-service (profile + password; purchases stay on the web)
+  me: () => request<AuthUser>("/auth/me"),
+  updateMe: (input: UpdateProfileInput) =>
+    request<AuthUser>("/auth/me", { method: "PATCH", body: input }),
+  changePassword: (input: ChangePasswordInput) =>
+    request<{ ok: true }>("/auth/change-password", {
+      method: "POST",
+      body: input,
+    }),
+
+  // billing — read + self-cancel + Stripe portal link (NO purchasing in-app)
+  mySubscriptionDetails: () =>
+    request<SubscriptionDetailDTO[]>("/billing/subscription-details"),
+  myInvoices: () => request<InvoiceDTO[]>("/billing/invoices"),
+  cancelMyMembership: (subId: string) =>
+    request<SubscriptionDetailDTO[]>(
+      `/billing/subscriptions/${encodeURIComponent(subId)}/cancel`,
+      { method: "POST" },
+    ),
+  portal: () => request<{ url: string }>("/billing/portal"),
 
   courses: () => request<CourseCard[]>("/courses"),
 

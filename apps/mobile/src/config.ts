@@ -7,3 +7,7 @@ export const API_BASE_URL =
 // Members manage billing/account on the web (Apple/Google IAP rules forbid in-app billing).
 export const WEB_ACCOUNT_URL =
   process.env.EXPO_PUBLIC_WEB_ACCOUNT_URL ?? "http://localhost:3002/account";
+
+// The member website's origin — used to recognize our own absolute URLs in
+// hrefs (deep-link them natively) and to build web links like /pricing/all.
+export const WEB_BASE_URL = new URL(WEB_ACCOUNT_URL).origin;

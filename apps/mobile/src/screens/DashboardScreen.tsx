@@ -1,110 +1,89 @@
-import React, { useCallback, useEffect, useState } from "react";
+// Member dashboard — classes-first, mirroring the web's /dashboard: welcome
+// head, continue-learning hero (first owned class), My Classes / Explore More
+// tile grids, plus search across classes, class categories, and course titles.
+// The legacy all-courses list stays reachable via the quiet footer link.
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Image,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import type { CategoryDTO, CourseCard, DashboardResponse } from "@lms/types";
+import type { ClassTileDTO, CourseCard, DashboardResponse } from "@lms/types";
 
 import { api } from "../api";
 import { useAuth } from "../auth";
-import { Loading, ErrorState, EmptyState } from "../components/Screen";
+import { ErrorState } from "../components/Screen";
+import { ClassTile } from "../components/ClassTile";
 import { CourseRow } from "../components/CourseRow";
+import { HeroBand } from "../components/HeroBand";
 import { PopupHost } from "../components/PopupHost";
+import { Skeleton } from "../components/Skeleton";
 import type { ScreenProps } from "../navigation";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
 
-type Section = { category: CategoryDTO; courses: CourseCard[] };
-
-function CategoryTile({
-  section,
-  onPress,
-}: {
-  section: Section;
-  onPress: () => void;
-}) {
-  const styles = useStyles(makeStyles);
-  const { category, courses } = section;
-  return (
-    <TouchableOpacity style={styles.catCard} onPress={onPress} activeOpacity={0.8}>
-      {category.thumbnailUrl ? (
-        <Image source={{ uri: category.thumbnailUrl }} style={styles.catThumb} />
-      ) : (
-        <View style={[styles.catThumb, styles.catThumbEmpty]}>
-          <Text style={styles.catThumbLetter}>
-            {category.name.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-      )}
-      <View style={styles.cardText}>
-        <Text style={styles.cardTitle}>{category.name}</Text>
-        <Text style={styles.cardDesc}>
-          {courses.length} course{courses.length === 1 ? "" : "s"}
-        </Text>
-      </View>
-      <Text style={styles.indicator}>›</Text>
-    </TouchableOpacity>
-  );
-}
-
-function AllCoursesTile({
-  count,
-  onPress,
-}: {
-  count: number;
-  onPress: () => void;
-}) {
-  const styles = useStyles(makeStyles);
-  return (
-    <TouchableOpacity style={styles.catCard} onPress={onPress} activeOpacity={0.8}>
-      <View style={[styles.catThumb, styles.catThumbAll]}>
-        <Text style={styles.catThumbLetter}>▦</Text>
-      </View>
-      <View style={styles.cardText}>
-        <Text style={styles.cardTitle}>All courses</Text>
-        <Text style={styles.cardDesc}>
-          {count} course{count === 1 ? "" : "s"}
-        </Text>
-      </View>
-      <Text style={styles.indicator}>›</Text>
-    </TouchableOpacity>
-  );
-}
-
 export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
   const { signOut } = useAuth();
-  const [data, setData] = useState<DashboardResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { width } = useWindowDimensions();
+
+  const [classes, setClasses] = useState<ClassTileDTO[] | null>(null);
+  const [dash, setDash] = useState<DashboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [featProgress, setFeatProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const [q, setQ] = useState("");
+  const loadedOnce = useRef(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
     setError(null);
-    try {
-      setData(await api.dashboard());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load your dashboard.");
-    } finally {
-      setLoading(false);
+    // Keep previous data on refocus (no spinner flash) — only the very first
+    // load shows skeletons.
+    const [cls, d] = await Promise.allSettled([api.myClasses(), api.dashboard()]);
+    if (cls.status === "fulfilled") {
+      setClasses(cls.value);
+    } else if (!loadedOnce.current) {
+      setError("Could not load your dashboard.");
+      return;
     }
+    if (d.status === "fulfilled") setDash(d.value);
+    loadedOnce.current = true;
   }, []);
 
-  // Reload on focus so progress reflects lessons completed since last visit.
   useFocusEffect(
     useCallback(() => {
       load();
     }, [load])
   );
+
+  // Featured-class progress (the continue-learning hero) — best effort.
+  const featured = classes?.find((c) => c.owned) ?? null;
+  useEffect(() => {
+    let alive = true;
+    setFeatProgress(null);
+    if (!featured) return;
+    api
+      .myClassCourses(featured.slug ?? featured.id)
+      .then((res) => {
+        if (!alive) return;
+        const total = res.courses.reduce((n, c) => n + c.lessonCount, 0);
+        const done = res.courses.reduce((n, c) => n + c.completedCount, 0);
+        if (total > 0) setFeatProgress({ done, total });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [featured?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     navigation.setOptions({
@@ -126,153 +105,213 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
     // links when the admin config or the system light/dark scheme changes.
   }, [navigation, signOut, styles]);
 
-  if (loading) return <Loading />;
   if (error) return <ErrorState message={error} onRetry={load} />;
-  if (!data) return <EmptyState message="No courses available yet." />;
 
-  const sections: Section[] = data.categories;
-  const allCourses = sections.flatMap((s) => s.courses);
-  const withCourses = sections.filter((s) => s.courses.length > 0);
-  const hasCategories = withCourses.some((s) => s.category.id !== "");
-  const query = q.trim().toLowerCase();
-
-  const openCourse = (c: CourseCard) =>
-    navigation.navigate("Course", { courseId: c.id, title: c.title });
-  const openCategory = (s: Section) =>
-    navigation.navigate("CourseList", {
-      title: s.category.name,
-      categoryId: s.category.id,
-    });
-  const openAll = () =>
-    navigation.navigate("CourseList", { title: "All courses", all: true });
-
-  if (allCourses.length === 0) {
-    return <EmptyState message="No courses available yet." />;
+  if (!classes) {
+    return (
+      <View style={styles.skeletonWrap}>
+        <Skeleton height={24} width="50%" />
+        <Skeleton height={240} radius={20} />
+        <View style={styles.skeletonRow}>
+          <Skeleton height={170} width="48%" radius={14} />
+          <Skeleton height={170} width="48%" radius={14} />
+        </View>
+      </View>
+    );
   }
 
-  const matchCats = withCourses.filter(
-    (s) => s.category.id !== "" && s.category.name.toLowerCase().includes(query)
-  );
-  const matchCourses = allCourses.filter((c) =>
-    c.title.toLowerCase().includes(query)
+  const enrolled = classes.filter((c) => c.owned);
+  const available = classes.filter((c) => !c.owned);
+  const gridEnrolled = enrolled.filter((c) => c.id !== featured?.id);
+  const allCourses = dash?.categories.flatMap((s) => s.courses) ?? [];
+  const tileWidth = (width - spacing.md * 2 - spacing.sm) / 2;
+
+  const openClass = (c: ClassTileDTO) =>
+    navigation.navigate("Class", { slugOrId: c.slug ?? c.id, title: c.name });
+  const openCourse = (c: CourseCard) =>
+    navigation.navigate("Course", { courseId: c.id, title: c.title });
+
+  const query = q.trim().toLowerCase();
+  const matchClasses = query
+    ? classes.filter(
+        (c) =>
+          c.name.toLowerCase().includes(query) ||
+          c.categories.some((cat) => cat.name.toLowerCase().includes(query))
+      )
+    : [];
+  const matchCourses = query
+    ? allCourses.filter((c) => c.title.toLowerCase().includes(query))
+    : [];
+
+  const grid = (items: ClassTileDTO[]) => (
+    <View style={styles.grid}>
+      {items.map((c) => (
+        <ClassTile
+          key={c.id}
+          cls={c}
+          style={{ width: tileWidth }}
+          onPress={() => openClass(c)}
+        />
+      ))}
+    </View>
   );
 
   return (
     <>
       <PopupHost context={{ type: "dashboard" }} />
       <ScrollView style={styles.list} contentContainerStyle={styles.content}>
-      <TextInput
-        style={styles.search}
-        placeholder="Search categories or courses…"
-        placeholderTextColor={colors.textMuted}
-        value={q}
-        onChangeText={setQ}
-        autoCorrect={false}
-        autoCapitalize="none"
-      />
+        <Text style={styles.h1}>
+          {enrolled.length > 0 ? "Welcome back." : "Welcome."}
+        </Text>
+        <Text style={styles.sub}>
+          {enrolled.length > 0
+            ? `You're enrolled in ${enrolled.length} class${
+                enrolled.length === 1 ? "" : "es"
+              }.`
+            : classes.length > 0
+              ? "Explore the classes below to get started."
+              : "No classes are available yet."}
+        </Text>
 
-      {query ? (
-        matchCats.length === 0 && matchCourses.length === 0 ? (
-          <Text style={styles.empty}>Nothing matches “{q}”.</Text>
+        <TextInput
+          style={styles.search}
+          placeholder="Search classes or courses…"
+          placeholderTextColor={colors.textMuted}
+          value={q}
+          onChangeText={setQ}
+          autoCorrect={false}
+          autoCapitalize="none"
+        />
+
+        {query ? (
+          matchClasses.length === 0 && matchCourses.length === 0 ? (
+            <Text style={styles.empty}>Nothing matches “{q}”.</Text>
+          ) : (
+            <>
+              {matchClasses.length > 0 ? (
+                <Text style={styles.sectionHeader}>Classes</Text>
+              ) : null}
+              {grid(matchClasses)}
+              {matchCourses.length > 0 ? (
+                <Text style={styles.sectionHeader}>Courses</Text>
+              ) : null}
+              {matchCourses.map((c) => (
+                <CourseRow key={c.id} course={c} onPress={() => openCourse(c)} />
+              ))}
+            </>
+          )
         ) : (
           <>
-            {matchCats.length > 0 ? (
-              <Text style={styles.sectionHeader}>Categories</Text>
-            ) : null}
-            {matchCats.map((s) => (
-              <CategoryTile
-                key={s.category.id}
-                section={s}
-                onPress={() => openCategory(s)}
+            {featured ? (
+              <HeroBand
+                eyebrow="Continue learning"
+                title={featured.name}
+                imageUrl={featured.imageUrl}
+                gradientSeed={featured.id}
+                chips={featured.categories.slice(0, 2).map((c) => c.name)}
+                progress={featProgress}
+                buttonLabel="Resume class"
+                onButtonPress={() => openClass(featured)}
+                minHeight={240}
+                style={styles.hero}
               />
-            ))}
-            {matchCourses.length > 0 ? (
-              <Text style={styles.sectionHeader}>Courses</Text>
             ) : null}
-            {matchCourses.map((c) => (
-              <CourseRow key={c.id} course={c} onPress={() => openCourse(c)} />
-            ))}
+
+            {gridEnrolled.length > 0 ? (
+              <>
+                <View style={styles.sectionRow}>
+                  <Text style={styles.sectionTitle}>My Classes</Text>
+                  <Text style={styles.sectionCount}>{enrolled.length}</Text>
+                </View>
+                {grid(gridEnrolled)}
+              </>
+            ) : null}
+
+            {available.length > 0 ? (
+              <>
+                <Text style={styles.sectionTitle}>Explore More Classes</Text>
+                {grid(available)}
+              </>
+            ) : null}
+
+            {allCourses.length > 0 ? (
+              <TouchableOpacity
+                style={styles.browseAll}
+                onPress={() =>
+                  navigation.navigate("CourseList", {
+                    title: "All courses",
+                    all: true,
+                  })
+                }
+              >
+                <Text style={styles.browseAllText}>Browse all courses ›</Text>
+              </TouchableOpacity>
+            ) : null}
           </>
-        )
-      ) : !hasCategories ? (
-        allCourses.map((c) => (
-          <CourseRow key={c.id} course={c} onPress={() => openCourse(c)} />
-        ))
-      ) : (
-        <>
-          {withCourses.map((s) => (
-            <CategoryTile
-              key={s.category.id || "uncategorized"}
-              section={s}
-              onPress={() => openCategory(s)}
-            />
-          ))}
-          <AllCoursesTile count={allCourses.length} onPress={openAll} />
-        </>
-      )}
+        )}
       </ScrollView>
     </>
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
-  list: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md },
-  search: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    color: colors.text,
-    fontSize: 15,
-    marginBottom: spacing.md,
-  },
-  sectionHeader: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  empty: {
-    color: colors.textMuted,
-    fontSize: 15,
-    textAlign: "center",
-    marginTop: spacing.lg,
-  },
-  catCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  catThumb: {
-    width: 56,
-    height: 56,
-    borderRadius: 10,
-    marginRight: spacing.md,
-    backgroundColor: colors.surfaceMuted,
-  },
-  catThumbEmpty: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.primary,
-  },
-  catThumbAll: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.primary,
-  },
-  catThumbLetter: { color: colors.onPrimary, fontSize: 24, fontWeight: "700" },
-  cardText: { flex: 1, paddingRight: spacing.sm },
-  cardTitle: { color: colors.text, fontSize: 16, fontWeight: "600" },
-  cardDesc: { color: colors.textMuted, fontSize: 13, marginTop: spacing.xs },
-  indicator: { color: colors.text, fontSize: 18 },
-  headerActions: { flexDirection: "row", gap: spacing.md },
-  headerLink: { color: colors.primary, fontSize: 15, fontWeight: "600" },
-  signOut: { color: colors.textMuted },
-});
+const makeStyles = ({ colors }: Theme) =>
+  StyleSheet.create({
+    list: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: spacing.md, gap: spacing.md },
+    skeletonWrap: {
+      flex: 1,
+      backgroundColor: colors.bg,
+      padding: spacing.md,
+      gap: spacing.md,
+    },
+    skeletonRow: { flexDirection: "row", justifyContent: "space-between" },
+    h1: { color: colors.text, fontSize: 26, fontWeight: "800" },
+    sub: { color: colors.textMuted, fontSize: 15, marginTop: -spacing.sm },
+    search: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 10,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      color: colors.text,
+      fontSize: 15,
+    },
+    hero: { marginTop: spacing.xs },
+    sectionRow: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    sectionTitle: {
+      color: colors.text,
+      fontSize: 19,
+      fontWeight: "800",
+      marginTop: spacing.sm,
+    },
+    sectionCount: { color: colors.textMuted, fontSize: 14, fontWeight: "700" },
+    sectionHeader: {
+      color: colors.textMuted,
+      fontSize: 13,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
+    grid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+    },
+    empty: {
+      color: colors.textMuted,
+      fontSize: 15,
+      textAlign: "center",
+      marginTop: spacing.lg,
+    },
+    browseAll: { paddingVertical: spacing.sm },
+    browseAllText: { color: colors.textMuted, fontSize: 14, fontWeight: "600" },
+    headerActions: { flexDirection: "row", gap: spacing.md },
+    headerLink: { color: colors.primary, fontSize: 15, fontWeight: "600" },
+    signOut: { color: colors.textMuted },
+  });

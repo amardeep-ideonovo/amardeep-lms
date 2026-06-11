@@ -1,15 +1,19 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
-// Param list for the authenticated stack.
+// Param list for the authenticated stack. Titles are optional where a screen
+// can be entered by deep link / internal href (the screen sets the real title
+// after its fetch).
 export type RootStackParamList = {
   Dashboard: undefined;
+  Class: { slugOrId: string; title?: string };
   CourseList: { title: string; categoryId?: string; all?: boolean };
-  Course: { courseId: string; title: string };
-  Lesson: { lessonId: string; title: string };
+  Course: { courseId: string; title?: string };
+  Lesson: { lessonId: string; title?: string };
   Account: undefined;
+  Payments: undefined;
   Blog: undefined;
-  BlogPost: { slug: string; title: string };
-  Page: { slug: string; title: string };
+  BlogPost: { slug: string; title?: string };
+  Page: { slug: string; title?: string };
 };
 
 // Param list for the unauthenticated stack (Login + Signup).
