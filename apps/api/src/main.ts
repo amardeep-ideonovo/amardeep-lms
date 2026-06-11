@@ -8,6 +8,7 @@ import { ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
 import { AppModule } from './app.module';
+import { isProduction } from './common/env.util';
 import { IMAGES_ROOT, IMAGES_ROUTE, ensureUploadDirs } from './blog/upload.config';
 import { ensureLmsUploadDirs } from './lms/upload.config';
 import { MEDIA_ROOT, MEDIA_ROUTE, ensureMediaDir } from './media/media.config';
@@ -20,10 +21,22 @@ async function bootstrap() {
     bodyParser: false,
   });
 
-  // Trust X-Forwarded-* so req.ip is the real client IP behind a CDN / load
-  // balancer. Without this, throttler keys all requests by the proxy's IP
-  // and either no one gets rate-limited or everyone gets blocked together.
-  app.set('trust proxy', true);
+  // Trust X-Forwarded-* ONLY when explicitly behind a CDN / load balancer
+  // (TRUST_PROXY="1" = hop count, "true" = whole chain, or an express preset
+  // like "loopback"). Without it the throttler keys on the proxy's IP; but
+  // trusting it on a directly-exposed API lets clients spoof X-Forwarded-For
+  // and dodge per-IP rate limits — so the default is OFF.
+  const trustProxy = process.env.TRUST_PROXY;
+  if (trustProxy) {
+    app.set(
+      'trust proxy',
+      trustProxy === 'true'
+        ? true
+        : /^\d+$/.test(trustProxy)
+          ? Number(trustProxy)
+          : trustProxy,
+    );
+  }
 
   // The PUBLIC form routes (read, submit, embed.js) must be embeddable on ANY
   // origin — a popup, an external site. Registered BEFORE enableCors so this
@@ -44,8 +57,19 @@ async function bootstrap() {
     },
   );
 
+  // Explicit allow-list from CORS_ORIGIN. In production an unset list means
+  // NO cross-origin browser access — reflecting any origin with credentials
+  // would let an arbitrary site ride a logged-in session. Dev stays open for
+  // the local clients.
+  const corsOrigins = process.env.CORS_ORIGIN?.split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  if (!corsOrigins?.length && isProduction()) {
+    // eslint-disable-next-line no-console
+    console.warn('[api] CORS_ORIGIN unset — cross-origin requests disabled');
+  }
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') ?? true,
+    origin: corsOrigins?.length ? corsOrigins : isProduction() ? false : true,
     credentials: true,
   });
 

@@ -8,6 +8,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtDownloadStrategy } from './jwt-download.strategy';
 import { MediaModule } from '../media/media.module';
+import { jwtSecret } from '../common/env.util';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { MediaModule } from '../media/media.module';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') || 'dev-insecure-secret',
+        secret: jwtSecret(config.get<string>('JWT_SECRET')),
         signOptions: { expiresIn: config.get<string>('JWT_TTL') || '7d' },
       }),
     }),

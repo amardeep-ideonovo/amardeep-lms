@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import type { Request } from 'express';
+import { jwtSecret } from '../common/env.util';
 import type {
   AuthenticatedPrincipal,
   JwtPayload,
@@ -27,7 +28,7 @@ export class JwtDownloadStrategy extends PassportStrategy(
           typeof req?.query?.token === 'string' ? req.query.token : null,
       ]),
       ignoreExpiration: false,
-      secretOrKey: config.get<string>('JWT_SECRET') || 'dev-insecure-secret',
+      secretOrKey: jwtSecret(config.get<string>('JWT_SECRET')),
     });
   }
 
