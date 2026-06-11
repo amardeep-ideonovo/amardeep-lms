@@ -159,10 +159,8 @@ function DashboardInner() {
   const enrolled = classes.filter((c) => c.owned);
   const available = classes.filter((c) => !c.owned);
   const featured = enrolled[0] ?? null;
-  // The featured class headlines the hero; don't repeat it in the grid below.
-  const gridEnrolled = featured
-    ? enrolled.filter((c) => c.id !== featured.id)
-    : enrolled;
+  // The hero is a shortcut to the featured class; "My Classes" stays the
+  // COMPLETE library (count must match what the member owns).
 
   return (
     <div className="member-dash">
@@ -219,13 +217,13 @@ function DashboardInner() {
           </div>
         )}
 
-        {gridEnrolled.length > 0 && (
+        {enrolled.length > 0 && (
           <section className="md-section">
             <div className="md-section-head">
-              <h2>My Classes<span className="md-count">{gridEnrolled.length}</span></h2>
+              <h2>My Classes<span className="md-count">{enrolled.length}</span></h2>
             </div>
             <div className="md-grid">
-              {gridEnrolled.map((c) => <ClassTile key={c.id} cls={c} />)}
+              {enrolled.map((c) => <ClassTile key={c.id} cls={c} />)}
             </div>
           </section>
         )}

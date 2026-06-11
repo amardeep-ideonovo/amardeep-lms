@@ -122,7 +122,6 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
 
   const enrolled = classes.filter((c) => c.owned);
   const available = classes.filter((c) => !c.owned);
-  const gridEnrolled = enrolled.filter((c) => c.id !== featured?.id);
   const allCourses = dash?.categories.flatMap((s) => s.courses) ?? [];
   const tileWidth = (width - spacing.md * 2 - spacing.sm) / 2;
 
@@ -217,13 +216,13 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
               />
             ) : null}
 
-            {gridEnrolled.length > 0 ? (
+            {enrolled.length > 0 ? (
               <>
                 <View style={styles.sectionRow}>
                   <Text style={styles.sectionTitle}>My Classes</Text>
                   <Text style={styles.sectionCount}>{enrolled.length}</Text>
                 </View>
-                {grid(gridEnrolled)}
+                {grid(enrolled)}
               </>
             ) : null}
 
