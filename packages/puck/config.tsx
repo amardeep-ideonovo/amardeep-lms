@@ -307,6 +307,19 @@ function ListIcon({ icon, color }: { icon: IconListProps["icon"]; color: string 
   }
 }
 
+// Editor-only placeholder for blocks whose media/reference is still unset.
+// Without it those blocks render ZERO-HEIGHT in the canvas — invisible,
+// unselectable, and their selection chrome lands on top of the previous
+// sibling (looks like blocks stacked "over each other"). The public site
+// renders unconfigured blocks as nothing.
+function EmptyHint({ label }: { label: string }) {
+  return (
+    <div className="lmspb-container lmspb-w-normal">
+      <div className="lmspb-form-placeholder">{label}</div>
+    </div>
+  );
+}
+
 // The Rich Text edit field defaults to a plain textarea; the admin overrides it
 // with a TipTap-backed custom field via createPuckConfig({ richTextField }).
 const DEFAULT_RICH_TEXT_FIELD: Field = { type: "textarea" };
@@ -589,23 +602,30 @@ export function createPuckConfig(
           design: designField,
         },
         defaultProps: { src: "", alt: "", width: "normal", rounded: true, caption: "", design: DESIGN_DEFAULT },
-        render: ({ src, alt, width, rounded, caption, design }) => (
-          <Designed d={design}>
-            <div className={cx("lmspb-container", "lmspb-w-wide")}>
-              <figure className="lmspb-figure">
-                {src ? (
-                  // eslint-disable-next-line @next/next/no-img-element
+        render: ({ src, alt, width, rounded, caption, design, puck }) => {
+          if (!src) {
+            return puck?.isEditing ? (
+              <EmptyHint label="Image — choose one in the field panel" />
+            ) : (
+              <></>
+            );
+          }
+          return (
+            <Designed d={design}>
+              <div className={cx("lmspb-container", "lmspb-w-wide")}>
+                <figure className="lmspb-figure">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={src}
                     alt={alt || ""}
                     className={cx("lmspb-img", `lmspb-img-${width}`, rounded && "lmspb-img-rounded")}
                   />
-                ) : null}
-                {caption ? <figcaption className="lmspb-caption">{caption}</figcaption> : null}
-              </figure>
-            </div>
-          </Designed>
-        ),
+                  {caption ? <figcaption className="lmspb-caption">{caption}</figcaption> : null}
+                </figure>
+              </div>
+            </Designed>
+          );
+        },
       },
 
       // ---------------- Button ----------------
@@ -719,8 +739,15 @@ export function createPuckConfig(
           design: designField,
         },
         defaultProps: { url: "", caption: "", design: DESIGN_DEFAULT },
-        render: ({ url, caption, design }) => {
+        render: ({ url, caption, design, puck }) => {
           const embed = toEmbed(url);
+          if (!embed) {
+            return puck?.isEditing ? (
+              <EmptyHint label="Video — paste a YouTube / Vimeo / MP4 URL in the field panel" />
+            ) : (
+              <></>
+            );
+          }
           return (
             <Designed d={design}>
               <div className={cx("lmspb-container", "lmspb-w-normal")}>
@@ -1074,17 +1101,22 @@ export function createPuckConfig(
           design: designField,
         },
         defaultProps: { html: "", design: DESIGN_DEFAULT },
-        render: ({ html, design }) => (
-          <Designed d={design}>
-            <div className={cx("lmspb-container", "lmspb-w-normal")}>
-              {html ? (
+        render: ({ html, design, puck }) => {
+          if (!html) {
+            return puck?.isEditing ? (
+              <EmptyHint label="Custom HTML — paste markup in the field panel" />
+            ) : (
+              <></>
+            );
+          }
+          return (
+            <Designed d={design}>
+              <div className={cx("lmspb-container", "lmspb-w-normal")}>
                 <div className="lmspb-embed" dangerouslySetInnerHTML={{ __html: html }} />
-              ) : (
-                <div className="lmspb-form-placeholder">Custom HTML — paste markup in the field panel</div>
-              )}
-            </div>
-          </Designed>
-        ),
+              </div>
+            </Designed>
+          );
+        },
       },
 
       // ---------------- Form (Mailchimp-linked) ----------------
@@ -1094,18 +1126,15 @@ export function createPuckConfig(
           formId: formField,
         },
         defaultProps: { formId: "" },
-        render: ({ formId }) =>
-          FormComponent && formId ? (
-            <FormComponent formId={formId} />
-          ) : (
-            <div className="lmspb-container lmspb-w-normal">
-              <div className="lmspb-form-placeholder">
-                {formId
-                  ? `Form: ${formId}`
-                  : "Form block — set a Form ID in the field panel"}
-              </div>
-            </div>
-          ),
+        render: ({ formId, puck }) => {
+          if (FormComponent && formId) return <FormComponent formId={formId} />;
+          if (!puck?.isEditing && !formId) return <></>; // unconfigured: hidden on the site
+          return (
+            <EmptyHint
+              label={formId ? `Form: ${formId}` : "Form — pick one in the field panel"}
+            />
+          );
+        },
       },
 
       // ---------------- Menu (embedded navigation) ----------------
@@ -1113,18 +1142,15 @@ export function createPuckConfig(
         label: "Menu",
         fields: { menuId: menuField },
         defaultProps: { menuId: "" },
-        render: ({ menuId }) =>
-          MenuComponent && menuId ? (
-            <MenuComponent menuId={menuId} />
-          ) : (
-            <div className="lmspb-container lmspb-w-normal">
-              <div className="lmspb-form-placeholder">
-                {menuId
-                  ? `Menu: ${menuId}`
-                  : "Menu block — pick a menu in the field panel"}
-              </div>
-            </div>
-          ),
+        render: ({ menuId, puck }) => {
+          if (MenuComponent && menuId) return <MenuComponent menuId={menuId} />;
+          if (!puck?.isEditing && !menuId) return <></>; // unconfigured: hidden on the site
+          return (
+            <EmptyHint
+              label={menuId ? `Menu: ${menuId}` : "Menu — pick one in the field panel"}
+            />
+          );
+        },
       },
     },
   };
