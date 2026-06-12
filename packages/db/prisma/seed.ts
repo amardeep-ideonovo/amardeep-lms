@@ -2029,22 +2029,24 @@ async function seedNav() {
   }
 
   // Site header (shapes per apps/api/src/site/site.service.ts sanitizers).
+  // Colors snapshot the admin's live styling (set in Admin → Appearance on
+  // 2026-06-12: dark indigo bar) so a re-seed restores THEIR look, not ours.
   const headerConfig = {
     layout: "THREE_COL",
     width: "BOXED",
     maxWidth: 1080,
-    bgColor: "#ffffff",
+    bgColor: "#2d337b",
     paddingX: 24,
     paddingY: 10,
     logoUrl: null,
     menuId: "seed-menu-header",
-    linkColor: "#3f3f46",
-    menuActiveColor: "#b91c1c",
+    linkColor: "#c6c6d7",
+    menuActiveColor: "#dbc2c2",
     ctas: [
       {
         id: "cta-join",
         label: "Browse classes",
-        bgColor: "#b91c1c",
+        bgColor: "#ca5353",
         textColor: "#ffffff",
         paddingX: 16,
         paddingY: 8,
@@ -2113,8 +2115,11 @@ async function seedNav() {
 // ---------- app customization (mobile branding) ----------
 
 async function seedAppConfig() {
-  // Cross-stack palette defaults with a cinematic red primary:
-  // light #b91c1c on white ≈ 6.3:1, dark #f87171 on #0b0b0d ≈ 7.6:1.
+  // The app must LOOK LIKE THE WEB (user request 2026-06-12): the web member
+  // area (globals.css .member-dash/.class-cinema/...) is ALWAYS dark with the
+  // indigo #6366f1 primary, so the app forces colorScheme "dark" and both
+  // palettes are the web's exact CSS tokens (= cross-stack defaults in
+  // apps/mobile/src/theme.ts / app-config.service.ts).
   const config = {
     title: "Spotlight Academy",
     tagline: "Learn from the best. Love what you make.",
@@ -2123,7 +2128,7 @@ async function seedAppConfig() {
     logoUrl: null,
     iconUrl: null,
     splashUrl: null,
-    colorScheme: "system",
+    colorScheme: "dark",
     light: {
       bg: "#f6f7f9",
       surface: "#ffffff",
@@ -2131,7 +2136,7 @@ async function seedAppConfig() {
       border: "#e4e7ec",
       text: "#101828",
       textMuted: "#667085",
-      primary: "#b91c1c",
+      primary: "#4f46e5",
       danger: "#d92d20",
     },
     dark: {
@@ -2141,7 +2146,7 @@ async function seedAppConfig() {
       border: "#2d2d32",
       text: "#f4f4f6",
       textMuted: "#8a8a95",
-      primary: "#f87171",
+      primary: "#6366f1",
       danger: "#ef4444",
     },
   } as Prisma.InputJsonValue;
