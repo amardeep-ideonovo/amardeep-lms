@@ -141,6 +141,11 @@ When(
   async function (this: LmsWorld, path: string, docString: string) {
     const token = await this.adminToken();
     await this.request("POST", path, { token, body: JSON.parse(docString) });
+    // Track created content so the After hook can delete it — scenario rows
+    // otherwise pile up in the shared dev DB (and PUBLISHED ones go live).
+    const id = this.last.body?.id ?? null;
+    if (path === "/admin/blog/posts") this.createdPostId = id;
+    if (path === "/admin/pages") this.createdPageId = id;
   },
 );
 

@@ -21,6 +21,8 @@ export class LmsWorld extends World {
   last: HttpResult = { status: 0, body: null };
   formId: string | null = null;
   popupId: string | null = null;
+  createdPostId: string | null = null; // blog post created via the admin POST step
+  createdPageId: string | null = null; // CMS page created via the admin POST step
   savedAppConfig: unknown = null; // captured by the app-config round-trip for restore
 
   async request(

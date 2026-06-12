@@ -19,15 +19,28 @@ After({ tags: "@paypal-settings" }, async function (this: LmsWorld) {
   }
 });
 
-// Popups created by scenarios are real rows in the shared dev database — and
-// ACTIVE ones immediately surface on the live member site (dashboard, class/
-// course/lesson screens). Delete whatever the scenario created so a test run
-// leaves no trace.
+// Content created by scenarios lands as real rows in the shared dev database —
+// ACTIVE popups and PUBLISHED posts/pages immediately surface on the live
+// member site. Delete whatever the scenario created so a test run leaves no
+// trace. (Forms are covered too: 60+ "BDD form" rows had accumulated.)
 After(async function (this: LmsWorld) {
-  if (!this.popupId) return;
+  const targets: Array<[string | null, string]> = [
+    [this.popupId, "/admin/popups"],
+    [this.createdPostId, "/admin/blog/posts"],
+    [this.createdPageId, "/admin/pages"],
+    [this.formId, "/admin/forms"],
+  ];
+  if (!targets.some(([id]) => id)) return;
   try {
     const token = await this.adminToken();
-    await this.request("DELETE", `/admin/popups/${this.popupId}`, { token });
+    for (const [id, base] of targets) {
+      if (!id) continue;
+      try {
+        await this.request("DELETE", `${base}/${id}`, { token });
+      } catch {
+        /* per-row best effort */
+      }
+    }
   } catch {
     /* cleanup is best-effort — a failed delete must not fail the scenario */
   }
