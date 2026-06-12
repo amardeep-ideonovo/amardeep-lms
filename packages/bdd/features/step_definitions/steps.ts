@@ -419,6 +419,22 @@ When(
 );
 
 When(
+  "I GET {string} with an admin token",
+  async function (this: LmsWorld, path: string) {
+    const token = await this.adminToken();
+    await this.request("GET", path, { token });
+  },
+);
+
+When(
+  "I DELETE {string} with an admin token",
+  async function (this: LmsWorld, path: string) {
+    const token = await this.adminToken();
+    await this.request("DELETE", path, { token });
+  },
+);
+
+When(
   "I PUT {string} with an admin token and body:",
   async function (this: LmsWorld, path: string, docString: string) {
     const token = await this.adminToken();
