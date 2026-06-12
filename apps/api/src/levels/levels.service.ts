@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import type {
@@ -17,6 +19,7 @@ import type {
 import { PrismaService } from '../prisma/prisma.service';
 import { AccessService } from '../lms/access.service';
 import { StripeService } from '../billing/stripe.service';
+import { PayPalService } from '../billing/paypal.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
 import {
   CreateLevelCategoryDto,
@@ -41,7 +44,8 @@ type LevelWithPrices = {
   skills: unknown; // Json column — normalized via normalizeSkills()
   prices: {
     id: string;
-    stripePriceId: string;
+    stripePriceId: string | null;
+    paypalPlanId: string | null;
     interval: string;
     amount: number;
     currency: string;
@@ -52,9 +56,11 @@ type LevelWithPrices = {
 
 @Injectable()
 export class LevelsService {
+  private readonly logger = new Logger(LevelsService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly stripe: StripeService,
+    private readonly paypal: PayPalService,
     private readonly mailchimp: MailchimpProducer,
     private readonly access: AccessService,
   ) {}
@@ -330,27 +336,43 @@ export class LevelsService {
     const slug = await this.resolveLevelSlug(dto.slug);
     let stripeProductId: string | null = null;
     const priceRows: {
-      stripePriceId: string;
+      stripePriceId: string | null;
       interval: string;
       amount: number;
       currency: string;
       installments: number | null;
     }[] = [];
 
-    // PAID levels get a Stripe Product + a Price per requested interval.
+    // PAID levels get a Stripe Product + a Price per requested interval when
+    // Stripe is configured. Under a PayPal-only setup the rows are created
+    // without a stripePriceId — PayPal plans provision lazily at checkout
+    // (billing/paypal/prepare), and ensureStripePrice backfills if Stripe is
+    // connected later.
     if (dto.type === 'PAID' && dto.prices?.length) {
-      const product = await this.stripe.createProduct(dto.name);
-      stripeProductId = product.id;
+      const stripeOk = await this.stripe.isConfigured();
+      if (!stripeOk && !(await this.paypal.isConfigured())) {
+        throw new BadRequestException(
+          'Connect Stripe or PayPal in Settings before adding prices to a paid class.',
+        );
+      }
+      if (stripeOk) {
+        const product = await this.stripe.createProduct(dto.name);
+        stripeProductId = product.id;
+      }
       for (const price of dto.prices) {
         const currency = price.currency ?? 'usd';
-        const stripePrice = await this.stripe.createPrice({
-          productId: product.id,
-          interval: price.interval,
-          amount: price.amount,
-          currency,
-        });
+        let stripePriceId: string | null = null;
+        if (stripeOk && stripeProductId) {
+          const stripePrice = await this.stripe.createPrice({
+            productId: stripeProductId,
+            interval: price.interval,
+            amount: price.amount,
+            currency,
+          });
+          stripePriceId = stripePrice.id;
+        }
         priceRows.push({
-          stripePriceId: stripePrice.id,
+          stripePriceId,
           interval: price.interval,
           amount: price.amount,
           currency,
@@ -449,13 +471,21 @@ export class LevelsService {
       await this.ensureCourseAssigned(dto.featuredCourseId, id);
     }
 
-    // Keep the Stripe Product name in step with a rename (PAID levels only).
-    if (
-      dto.name !== undefined &&
-      dto.name !== existing.name &&
-      existing.stripeProductId
-    ) {
-      await this.stripe.updateProduct(existing.stripeProductId, level.name);
+    // Keep the provider product names in step with a rename (PAID levels only).
+    // PayPal is best-effort: a stale catalog name must not block the save.
+    if (dto.name !== undefined && dto.name !== existing.name) {
+      if (existing.stripeProductId) {
+        await this.stripe.updateProduct(existing.stripeProductId, level.name);
+      }
+      if (existing.paypalProductId) {
+        try {
+          await this.paypal.updateProduct(existing.paypalProductId, level.name);
+        } catch (err) {
+          this.logger.warn(
+            `paypal updateProduct ${existing.paypalProductId} failed: ${err instanceof Error ? err.message : err}`,
+          );
+        }
+      }
     }
 
     // Reconcile offered prices when the caller sends a `prices` array. A
@@ -521,7 +551,8 @@ export class LevelsService {
     productId: string | null,
     existingActive: {
       id: string;
-      stripePriceId: string;
+      stripePriceId: string | null;
+      paypalPlanId: string | null;
       interval: string;
       amount: number;
       currency: string;
@@ -556,9 +587,19 @@ export class LevelsService {
     const toArchive = existingActive.filter((e) => !desiredKeys.has(key(e)));
     if (toAdd.length === 0 && toArchive.length === 0) return; // nothing changed
 
-    // A Product must exist before Prices can be created against it.
+    // New prices need at least one configured provider. Stripe provisions
+    // eagerly here; PayPal plans provision lazily at checkout (paypal/prepare).
+    const stripeOk =
+      toAdd.length > 0 ? await this.stripe.isConfigured() : false;
+    if (toAdd.length > 0 && !stripeOk && !(await this.paypal.isConfigured())) {
+      throw new BadRequestException(
+        'Connect Stripe or PayPal in Settings before adding prices to a paid class.',
+      );
+    }
+
+    // A Product must exist before Stripe Prices can be created against it.
     let pid = productId;
-    if (toAdd.length > 0 && !pid) {
+    if (toAdd.length > 0 && stripeOk && !pid) {
       const product = await this.stripe.createProduct(levelName);
       pid = product.id;
       await this.prisma.level.update({
@@ -568,16 +609,20 @@ export class LevelsService {
     }
 
     for (const d of toAdd) {
-      const stripePrice = await this.stripe.createPrice({
-        productId: pid as string,
-        interval: d.interval,
-        amount: d.amount,
-        currency: d.currency,
-      });
+      let stripePriceId: string | null = null;
+      if (stripeOk && pid) {
+        const stripePrice = await this.stripe.createPrice({
+          productId: pid,
+          interval: d.interval,
+          amount: d.amount,
+          currency: d.currency,
+        });
+        stripePriceId = stripePrice.id;
+      }
       await this.prisma.price.create({
         data: {
           levelId,
-          stripePriceId: stripePrice.id,
+          stripePriceId,
           interval: d.interval,
           amount: d.amount,
           currency: d.currency,
@@ -586,8 +631,28 @@ export class LevelsService {
       });
     }
 
+    // Archive at every provider that holds the price, best-effort: existing
+    // subscriptions keep billing either way, and a provider hiccup (or removed
+    // credentials) must not block the admin from editing the catalog.
     for (const e of toArchive) {
-      await this.stripe.archivePrice(e.stripePriceId);
+      if (e.stripePriceId) {
+        try {
+          await this.stripe.archivePrice(e.stripePriceId);
+        } catch (err) {
+          this.logger.warn(
+            `archivePrice ${e.stripePriceId} failed: ${err instanceof Error ? err.message : err}`,
+          );
+        }
+      }
+      if (e.paypalPlanId) {
+        try {
+          await this.paypal.deactivatePlan(e.paypalPlanId);
+        } catch (err) {
+          this.logger.warn(
+            `deactivatePlan ${e.paypalPlanId} failed: ${err instanceof Error ? err.message : err}`,
+          );
+        }
+      }
       await this.prisma.price.update({
         where: { id: e.id },
         data: { active: false },

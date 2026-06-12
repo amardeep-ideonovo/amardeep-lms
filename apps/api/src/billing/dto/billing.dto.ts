@@ -33,3 +33,18 @@ export class CancelSubDto {
   @IsIn(['immediate', 'period_end'])
   mode!: 'immediate' | 'period_end';
 }
+
+// PayPal checkout step 1: lazily provision the billing plan for a price.
+export class PayPalPrepareDto {
+  // Local Price.id (preferred) or a stripePriceId — the server resolves both.
+  @IsString()
+  @MinLength(1)
+  priceId!: string;
+}
+
+// PayPal checkout step 2: verify the approved subscription and grant access.
+export class PayPalActivateDto {
+  @IsString()
+  @MinLength(1)
+  subscriptionId!: string;
+}

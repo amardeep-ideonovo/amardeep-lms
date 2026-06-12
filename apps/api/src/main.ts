@@ -73,8 +73,10 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Raw body ONLY for the Stripe webhook so the signature stays verifiable.
+  // Raw body ONLY for the provider webhooks so signatures stay verifiable
+  // (PayPal's verify-webhook-signature needs the byte-exact original body).
   app.use('/billing/webhook', express.raw({ type: '*/*' }));
+  app.use('/billing/paypal/webhook', express.raw({ type: '*/*' }));
   // JSON parsing for everything else.
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true }));

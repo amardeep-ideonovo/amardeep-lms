@@ -21,6 +21,8 @@ import {
   CancelSubDto,
   CheckoutDto,
   CouponValidateDto,
+  PayPalActivateDto,
+  PayPalPrepareDto,
   SubscribeDto,
 } from './dto/billing.dto';
 
@@ -136,6 +138,30 @@ export class BillingController {
     return this.billing.cancelSub(id, subId, dto.mode);
   }
 
+  // ----- PayPal checkout (active when the admin selects the paypal provider) -----
+
+  // Step 1: lazily provision the billing plan for a price and return what the
+  // PayPal Buttons need (plan id + the member id to stamp as custom_id).
+  @UseGuards(JwtAuthGuard)
+  @Post('paypal/prepare')
+  paypalPrepare(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: PayPalPrepareDto,
+  ) {
+    return this.billing.paypalPrepare(principal.sub, dto.priceId);
+  }
+
+  // Step 2 (after Buttons onApprove): verify ownership + plan, grant inline.
+  // Also the manual reconcile fallback when webhooks can't reach this box.
+  @UseGuards(JwtAuthGuard)
+  @Post('paypal/activate')
+  paypalActivate(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: PayPalActivateDto,
+  ) {
+    return this.billing.paypalActivate(principal.sub, dto.subscriptionId);
+  }
+
   // Public (Stripe-signed). Raw body is provided by the express.raw() parser
   // registered for this exact path in main.ts.
   @Post('webhook')
@@ -150,6 +176,23 @@ export class BillingController {
       throw new BadRequestException('Expected raw body for webhook');
     }
     await this.billing.handleWebhook(rawBody, signature);
+    return { received: true };
+  }
+
+  // Public (PayPal-signed via verify-webhook-signature). Raw body parser is
+  // registered for this exact path in main.ts — verification needs the
+  // byte-exact original payload.
+  @Post('paypal/webhook')
+  @HttpCode(200)
+  async paypalWebhook(@Req() req: Request) {
+    const rawBody = req.body as Buffer;
+    if (!Buffer.isBuffer(rawBody)) {
+      throw new BadRequestException('Expected raw body for webhook');
+    }
+    await this.billing.handlePayPalWebhook(
+      rawBody,
+      req.headers as Record<string, string | string[] | undefined>,
+    );
     return { received: true };
   }
 }
