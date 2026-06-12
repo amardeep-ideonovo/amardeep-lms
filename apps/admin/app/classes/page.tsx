@@ -52,6 +52,11 @@ export default function ClassesPage() {
   const [skills, setSkills] = useState<{ title: string; imageUrl: string }[]>(
     []
   );
+  // Completion-certificate template override ('' = use the default template).
+  const [certificateTemplateId, setCertificateTemplateId] = useState("");
+  const [certTemplates, setCertTemplates] = useState<
+    { id: string; name: string; isDefault: boolean }[] | null
+  >(null);
   const [saving, setSaving] = useState(false);
   // Create/edit happen in a modal (opened by the top button or a row's Edit).
   const [modalOpen, setModalOpen] = useState(false);
@@ -117,6 +122,27 @@ export default function ClassesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
+  // Certificate templates for the override select. Admins without the
+  // certificates section just don't see the picker (403 -> null).
+  useEffect(() => {
+    if (authLoading || !can("classes", "read")) return;
+    let alive = true;
+    api
+      .listCertificateTemplates()
+      .then(
+        (ts) =>
+          alive &&
+          setCertTemplates(
+            ts.map((t) => ({ id: t.id, name: t.name, isDefault: t.isDefault }))
+          )
+      )
+      .catch(() => alive && setCertTemplates(null));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
+
   function resetForm() {
     setEditingId(null);
     setName("");
@@ -133,6 +159,7 @@ export default function ClassesPage() {
     setDescription("");
     setTrailerUrl("");
     setSkills([]);
+    setCertificateTemplateId("");
     setFormError(null);
   }
   function openCreate() {
@@ -158,6 +185,7 @@ export default function ClassesPage() {
     setImageUrl(level.imageUrl ?? "");
     setDescription(level.description ?? "");
     setTrailerUrl(level.trailerUrl ?? "");
+    setCertificateTemplateId(level.certificateTemplateId ?? "");
     setSkills(
       level.skills?.map((s) => ({
         title: s.title,
@@ -224,6 +252,7 @@ export default function ClassesPage() {
             title: s.title.trim(),
             imageUrl: s.imageUrl.trim() || undefined,
           })),
+        certificateTemplateId, // '' = clear back to the default template
         prices: type === "PAID" ? cleanedPrices : [],
       };
       if (editingId) await api.updateLevel(editingId, input);
@@ -620,6 +649,34 @@ export default function ClassesPage() {
               kind="video"
             />
           </div>
+
+          {certTemplates !== null && (
+            <div className="field">
+              <label>
+                Certificate template{" "}
+                <span className="muted">
+                  (members get it after completing every lesson)
+                </span>
+              </label>
+              <select
+                value={certificateTemplateId}
+                onChange={(e) => setCertificateTemplateId(e.target.value)}
+              >
+                <option value="">
+                  Use default
+                  {(() => {
+                    const d = certTemplates.find((t) => t.isDefault);
+                    return d ? ` (${d.name})` : " (none set — certificates off)";
+                  })()}
+                </option>
+                {certTemplates.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="field">
             <label>Skills you&apos;ll learn</label>

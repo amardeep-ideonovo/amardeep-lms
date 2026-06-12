@@ -41,6 +41,12 @@ const COMMANDS: Cmd[] = [
   { id: "go-popups", title: "Popups", href: "/popups", section: "popups" },
   { id: "go-forms", title: "Forms", href: "/forms", section: "forms" },
   {
+    id: "go-certificates",
+    title: "Certificates",
+    href: "/certificates",
+    section: "certificates",
+  },
+  {
     id: "go-subscriptions",
     title: "Subscriptions",
     href: "/subscriptions",

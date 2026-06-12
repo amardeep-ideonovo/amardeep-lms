@@ -118,6 +118,12 @@ const I = {
       <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  certificates: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <circle cx="12" cy="9" r="6" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M9 14.5 8 22l4-2.5L16 22l-1-7.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
   settings: (
     <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
@@ -142,6 +148,7 @@ const GROUPS: NavGroup[] = [
       { href: "/", label: "Dashboard", icon: I.dashboard },
       { href: "/classes", label: "Classes", section: "classes", icon: I.classes },
       { href: "/courses", label: "Courses", section: "courses", icon: I.courses },
+      { href: "/certificates", label: "Certificates", section: "certificates", icon: I.certificates },
     ],
   },
   {

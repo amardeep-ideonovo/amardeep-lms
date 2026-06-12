@@ -1,9 +1,13 @@
 // Typed fetch client for the admin app. Wraps the REST contract in @lms/types.
 import type {
+  AdminCertificateListDTO,
   AdminDTO,
   AdminNotificationListDTO,
   AdminSearchResponse,
   AuthAdmin,
+  CertificateTemplateDTO,
+  CreateCertificateTemplateInput,
+  UpdateCertificateTemplateInput,
   CouponDTO,
   CreateAdminInput,
   UpdateAdminInput,
@@ -68,6 +72,10 @@ import { withBase } from "./base-path";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:3000";
+
+// Public API origin for asset URLs the browser loads directly (media previews,
+// certificate fonts in the template editor's @font-face rules).
+export const API_BASE_URL = BASE_URL;
 
 const TOKEN_KEY = "lms.admin.token";
 
@@ -585,5 +593,39 @@ export const api = {
     request<MailchimpMergeFieldDTO[]>(
       "GET",
       `/admin/mailchimp/audiences/${audienceId}/merge-fields`
+    ),
+
+  // certificates (templates + issued)
+  listCertificateTemplates: () =>
+    request<CertificateTemplateDTO[]>("GET", "/admin/certificate-templates"),
+  getCertificateTemplate: (id: string) =>
+    request<CertificateTemplateDTO>("GET", `/admin/certificate-templates/${id}`),
+  createCertificateTemplate: (input: CreateCertificateTemplateInput) =>
+    request<CertificateTemplateDTO>("POST", "/admin/certificate-templates", input),
+  updateCertificateTemplate: (id: string, input: UpdateCertificateTemplateInput) =>
+    request<CertificateTemplateDTO>(
+      "PATCH",
+      `/admin/certificate-templates/${id}`,
+      input
+    ),
+  deleteCertificateTemplate: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/certificate-templates/${id}`),
+  listCertificates: (params: { q?: string; page?: number; pageSize?: number } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set("q", params.q);
+    if (params.page) qs.set("page", String(params.page));
+    if (params.pageSize) qs.set("pageSize", String(params.pageSize));
+    const tail = qs.toString();
+    return request<AdminCertificateListDTO>(
+      "GET",
+      `/admin/certificates${tail ? `?${tail}` : ""}`
+    );
+  },
+  deleteCertificate: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/certificates/${id}`),
+  downloadCertificate: (row: { id: string; serial: string; className: string }) =>
+    downloadBlob(
+      `/certificates/${row.id}/download`,
+      `Certificate ${row.serial} - ${row.className}.pdf`
     ),
 };
