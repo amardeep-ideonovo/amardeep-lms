@@ -1,0 +1,12 @@
+Bundled certificate fonts — all licensed under the SIL Open Font License 1.1
+(https://openfontlicense.org). Downloaded from Google Fonts (fonts.google.com).
+
+- PlayfairDisplay-Regular.ttf — Playfair Display, © The Playfair Display Project Authors
+- GreatVibes-Regular.ttf — Great Vibes, © TypeSETit / Robert E. Leuschke
+- Inter-Regular.ttf — Inter, © The Inter Project Authors
+- EBGaramond-Regular.ttf — EB Garamond, © The EB Garamond Project Authors
+
+These files are embedded (subset) into generated certificate PDFs and served
+at GET /cert-fonts/<file> so the admin template editor previews with the exact
+same glyphs/metrics the renderer uses. The OFL permits both uses, including
+commercial, provided the fonts themselves are not sold standalone.

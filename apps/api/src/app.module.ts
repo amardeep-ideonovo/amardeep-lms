@@ -19,6 +19,7 @@ import { BlogModule } from './blog/blog.module';
 import { PagesModule } from './pages/pages.module';
 import { FormsModule } from './forms/forms.module';
 import { PopupsModule } from './popups/popups.module';
+import { CertificatesModule } from './certificates/certificates.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { SearchModule } from './search/search.module';
 import { MenusModule } from './menus/menus.module';
@@ -54,6 +55,7 @@ import { HealthModule } from './health/health.module';
     PagesModule,
     FormsModule,
     PopupsModule,
+    CertificatesModule,
     DashboardModule,
     SearchModule,
     MenusModule,

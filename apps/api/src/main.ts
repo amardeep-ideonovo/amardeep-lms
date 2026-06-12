@@ -12,6 +12,11 @@ import { isProduction } from './common/env.util';
 import { IMAGES_ROOT, IMAGES_ROUTE, ensureUploadDirs } from './blog/upload.config';
 import { ensureLmsUploadDirs } from './lms/upload.config';
 import { MEDIA_ROOT, MEDIA_ROUTE, ensureMediaDir } from './media/media.config';
+import {
+  CERT_FONTS_DIR,
+  CERT_FONTS_ROUTE,
+  ensureCertificateDirs,
+} from './certificates/certificates.config';
 
 async function bootstrap() {
   // bodyParser disabled here so we can register a raw-body parser for the
@@ -96,6 +101,20 @@ async function bootstrap() {
   app.use(
     MEDIA_ROUTE,
     express.static(MEDIA_ROOT, {
+      setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+    }),
+  );
+
+  // Certificate fonts: immutable repo TTFs served publicly so the admin
+  // template editor previews with the EXACT bytes the PDF renderer embeds.
+  // Rendered certificate PDFs are deliberately NOT static — they stream via
+  // an owner-checked route (CertificatesController).
+  ensureCertificateDirs();
+  app.use(
+    CERT_FONTS_ROUTE,
+    express.static(CERT_FONTS_DIR, {
+      immutable: true,
+      maxAge: '365d',
       setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
     }),
   );
