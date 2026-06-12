@@ -4,10 +4,13 @@ import type {
   AppConfig,
   AuthUser,
   ChangePasswordInput,
+  ClaimCertificateInput,
   ClassPublicDTO,
   ClassTileDTO,
+  CompleteLessonResponse,
   CourseCard,
   DashboardResponse,
+  MyCertificateDTO,
   FormPublicDTO,
   FormSubmitResult,
   InvoiceDTO,
@@ -186,8 +189,20 @@ export const api = {
 
   lesson: (lessonId: string) => request<LessonDTO>(`/lessons/${lessonId}`),
 
+  // Completing the final lesson of a class returns fresh certificate state so
+  // the "Get certificate" button can appear without a refetch.
   completeLesson: (lessonId: string) =>
-    request<void>(`/lessons/${lessonId}/complete`, { method: "POST" }),
+    request<CompleteLessonResponse>(`/lessons/${lessonId}/complete`, {
+      method: "POST",
+    }),
+
+  // certificates (class completion)
+  claimCertificate: (input: ClaimCertificateInput) =>
+    request<MyCertificateDTO>("/certificates/claim", {
+      method: "POST",
+      body: input,
+    }),
+  myCertificates: () => request<MyCertificateDTO[]>("/certificates/mine"),
 
   // blog (public — no auth needed; visible to logged-in members)
   posts: () => request<PostListItem[]>("/blog/posts", { auth: false }),
@@ -248,6 +263,18 @@ export async function noteDownloadUrl(note: LessonNoteDTO): Promise<string> {
   const token = await getToken();
   const sep = note.downloadUrl.includes("?") ? "&" : "?";
   return `${API_BASE_URL}${note.downloadUrl}${
+    token ? `${sep}token=${encodeURIComponent(token)}` : ""
+  }`;
+}
+
+// Same contract for certificate PDFs: the download route accepts ?token=, so
+// the device browser can open/save the file without native file modules.
+export async function certificateDownloadUrl(cert: {
+  downloadUrl: string;
+}): Promise<string> {
+  const token = await getToken();
+  const sep = cert.downloadUrl.includes("?") ? "&" : "?";
+  return `${API_BASE_URL}${cert.downloadUrl}${
     token ? `${sep}token=${encodeURIComponent(token)}` : ""
   }`;
 }

@@ -15,7 +15,11 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { WebView } from "react-native-webview";
-import type { ClassPublicDTO, CourseCard } from "@lms/types";
+import type {
+  ClassCertificateStatusDTO,
+  ClassPublicDTO,
+  CourseCard,
+} from "@lms/types";
 
 import { api } from "../api";
 import { WEB_BASE_URL } from "../config";
@@ -27,11 +31,16 @@ import { PopupHost } from "../components/PopupHost";
 import { Badge } from "../components/Chip";
 import { Skeleton } from "../components/Skeleton";
 import { VideoPlayerView } from "../components/VideoPlayerView";
+import CertificateClaim from "../components/CertificateClaim";
 import type { ScreenProps } from "../navigation";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
 
-type Ownership = { owned: boolean; courses: CourseCard[] };
+type Ownership = {
+  owned: boolean;
+  courses: CourseCard[];
+  certificate?: ClassCertificateStatusDTO | null;
+};
 
 export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
   const styles = useStyles(makeStyles);
@@ -168,6 +177,11 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
             <View style={styles.ownedBadge}>
               <Badge label="You own this class" />
             </View>
+          ) : null}
+          {owned &&
+          ownership.certificate &&
+          (ownership.certificate.eligible || ownership.certificate.claimed) ? (
+            <CertificateClaim status={ownership.certificate} />
           ) : null}
           {cls.description ? (
             <Text style={styles.heroDesc} numberOfLines={3}>

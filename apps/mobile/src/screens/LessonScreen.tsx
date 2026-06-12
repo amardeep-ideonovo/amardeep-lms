@@ -20,6 +20,7 @@ import { API_BASE_URL, WEB_ACCOUNT_URL } from "../config";
 import { Loading, ErrorState, Centered } from "../components/Screen";
 import { LockedPanel } from "../components/LockedPanel";
 import { PopupHost } from "../components/PopupHost";
+import CertificateClaim from "../components/CertificateClaim";
 import { VideoPlayerView } from "../components/VideoPlayerView";
 import { vimeoEmbed } from "../format";
 import type { ScreenProps } from "../navigation";
@@ -74,8 +75,18 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
     setCompleting(true);
     setCompleteError(null);
     try {
-      await api.completeLesson(lessonId);
-      setLesson((prev) => (prev ? { ...prev, completed: true } : prev));
+      const res = await api.completeLesson(lessonId);
+      // Completing the final lesson of a class returns fresh certificate
+      // state — surface the "Get certificate" button without a refetch.
+      setLesson((prev) =>
+        prev
+          ? {
+              ...prev,
+              completed: true,
+              certificates: res?.certificates ?? prev.certificates,
+            }
+          : prev,
+      );
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
         setCompleteError("You no longer have access to this lesson.");
@@ -260,6 +271,12 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
             </Text>
           )}
         </TouchableOpacity>
+
+        {(lesson.certificates ?? [])
+          .filter((c) => c.eligible || c.claimed)
+          .map((c) => (
+            <CertificateClaim key={c.levelId} status={c} />
+          ))}
 
         {lesson.content ? (
           <Text style={[styles.body, styles.bodyBelow]}>{lesson.content}</Text>

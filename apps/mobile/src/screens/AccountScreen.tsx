@@ -13,9 +13,13 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import type { AuthUser, SubscriptionDetailDTO } from "@lms/types";
+import type {
+  AuthUser,
+  MyCertificateDTO,
+  SubscriptionDetailDTO,
+} from "@lms/types";
 
-import { api } from "../api";
+import { api, certificateDownloadUrl } from "../api";
 import { useAuth } from "../auth";
 import { Chip } from "../components/Chip";
 import { ErrorState } from "../components/Screen";
@@ -69,6 +73,7 @@ export function AccountScreen({ navigation }: ScreenProps<"Account">) {
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [subs, setSubs] = useState<SubscriptionDetailDTO[]>([]);
+  const [certificates, setCertificates] = useState<MyCertificateDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,12 +100,14 @@ export function AccountScreen({ navigation }: ScreenProps<"Account">) {
     setError(null);
     try {
       // A billing hiccup shouldn't blank the profile — only me() is fatal.
-      const [u, s] = await Promise.all([
+      const [u, s, certs] = await Promise.all([
         api.me(),
         api.mySubscriptionDetails().catch(() => [] as SubscriptionDetailDTO[]),
+        api.myCertificates().catch(() => [] as MyCertificateDTO[]),
       ]);
       setUser(u);
       setSubs(s);
+      setCertificates(certs);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load your account.");
     } finally {
@@ -491,6 +498,37 @@ export function AccountScreen({ navigation }: ScreenProps<"Account">) {
               </View>
             </View>
 
+            {certificates.length > 0 ? (
+              <View style={styles.card}>
+                <Text style={styles.heading}>My certificates</Text>
+                {certificates.map((c, i) => (
+                  <View
+                    key={c.id}
+                    style={[styles.planRow, i > 0 && styles.planRowDivider]}
+                  >
+                    <View style={styles.planTop}>
+                      <Text style={styles.planName}>{c.className}</Text>
+                    </View>
+                    <Text style={styles.planMeta}>
+                      {c.serial} · issued{" "}
+                      {new Date(c.issuedAt).toLocaleDateString()}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={async () => {
+                        // Opens the access-checked PDF in the device browser
+                        // (?token= URL — same contract as lesson notes).
+                        const url = await certificateDownloadUrl(c);
+                        Linking.openURL(url).catch(() => {});
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.downloadLink}>Download PDF</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+
             {/* Card management is a Stripe-portal feature. PayPal members
                 manage their payment method in their PayPal account. */}
             {subs.some((s) => s.provider === "stripe") ? (
@@ -717,6 +755,12 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   planMeta: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
   cancelLink: {
     color: colors.danger,
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: spacing.sm,
+  },
+  downloadLink: {
+    color: colors.primarySoft,
     fontSize: 14,
     fontWeight: "600",
     marginTop: spacing.sm,
