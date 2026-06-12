@@ -63,6 +63,7 @@ export const ADMIN_SECTIONS = [
   { key: "appCustomization", label: "App Customization" },
   // Read-only: the Reports tab only generates/downloads exports (no create/edit/delete).
   { key: "reports", label: "Reports", readOnly: true },
+  { key: "certificates", label: "Certificates" },
 ] as const;
 export type AdminSection = (typeof ADMIN_SECTIONS)[number]["key"];
 
@@ -169,6 +170,9 @@ export interface LevelDTO {
   trailerUrl: string | null; // Vimeo/MP4 or Gallery video URL
   featuredCourseId: string | null; // course whose lessons are the curriculum
   skills: SkillDTO[];
+  // Certificate template override for this class; null = use the default
+  // template (Certificates section). Resolution happens server-side.
+  certificateTemplateId: string | null;
   // Distinct members currently holding this level (ACTIVE). Only populated for
   // admin requests; 0 for member-facing calls so subscriber counts aren't leaked.
   memberCount: number;
@@ -231,6 +235,7 @@ export interface CreateLevelInput {
   trailerUrl?: string; // Vimeo/MP4 or Gallery video URL
   featuredCourseId?: string; // course supplying the curriculum
   skills?: SkillInput[];
+  certificateTemplateId?: string | null; // per-class template override; null clears (use default)
   prices?: {
     interval: "month" | "year";
     amount: number;
@@ -482,6 +487,11 @@ export interface LessonDTO {
   order: number;
   completed?: boolean;
   notes?: LessonNoteDTO[]; // downloadable attachments (present on detail views)
+  // Present on member detail views ONLY when this lesson is the terminal lesson
+  // (last by order) of a class whose certificate feature is active — one entry
+  // per such class (a course can sit in several classes). Drives the
+  // "Get certificate" button on the lesson screen.
+  certificates?: ClassCertificateStatusDTO[];
 }
 export interface DashboardResponse {
   categories: { category: CategoryDTO; courses: CourseCard[] }[];
@@ -505,6 +515,119 @@ export interface ClassTileDTO {
 export interface MyClassCoursesDTO {
   owned: boolean;
   courses: CourseCard[];
+  // Certificate state for this class (owned requests only; omitted when no
+  // template resolves — feature dormant). Drives the class-page button.
+  certificate?: ClassCertificateStatusDTO | null;
+}
+
+// ---------- Certificates ----------
+// A member who completes EVERY lesson of EVERY course in a class can claim a
+// PDF certificate. Admins upload artwork images and position the dynamic text
+// fields visually; the layout below is the single contract shared by the
+// template rows (Json column), the admin drag-editor preview, and the server
+// PDF renderer — both sides compute from the same normalized percentages.
+
+// Bundled fonts: TTFs live in apps/api/src/certificates/fonts/ and are served
+// at GET /cert-fonts/<file> so the admin preview @font-faces the EXACT bytes
+// the PDF embeds (WYSIWYG parity).
+export const CERTIFICATE_FONTS = [
+  { id: "playfair", label: "Playfair Display", file: "PlayfairDisplay-Regular.ttf" },
+  { id: "greatvibes", label: "Great Vibes", file: "GreatVibes-Regular.ttf" },
+  { id: "inter", label: "Inter", file: "Inter-Regular.ttf" },
+  { id: "ebgaramond", label: "EB Garamond", file: "EBGaramond-Regular.ttf" },
+] as const;
+export type CertificateFontId = (typeof CERTIFICATE_FONTS)[number]["id"];
+
+export type CertificateFieldKind = "memberName" | "className" | "issueDate" | "serial";
+
+// Normalized field layout. xPct/yPct are the text box's LEFT/TOP edges as % of
+// the artwork (CSS convention; the PDF renderer converts top → baseline).
+// fontSizePct is % of the artwork WIDTH so text scales with any artwork size.
+export interface CertificateFieldLayout {
+  kind: CertificateFieldKind;
+  enabled: boolean; // memberName/className are always true; issueDate/serial are admin-toggleable
+  xPct: number; // 0..100
+  yPct: number; // 0..100
+  widthPct: number; // 5..100 — box width; long values auto-shrink to fit
+  align: "left" | "center" | "right";
+  fontFamily: CertificateFontId;
+  fontSizePct: number; // 0.5..20
+  color: string; // #rrggbb
+  uppercase: boolean;
+  letterSpacing?: number; // optional tracking in em
+}
+
+export interface CertificateTemplateDTO {
+  id: string;
+  name: string;
+  artworkUrl: string; // always a local "/media/<key>" path (validated at save)
+  imageWidth: number; // artwork pixel size, derived server-side at save
+  imageHeight: number;
+  fields: CertificateFieldLayout[];
+  isDefault: boolean; // exactly one template; classes without an override use it
+  issuedCount: number; // admin list convenience
+  createdAt: string; // ISO
+}
+export interface CreateCertificateTemplateInput {
+  name: string;
+  artworkUrl: string;
+  fields: CertificateFieldLayout[];
+  isDefault?: boolean;
+}
+export type UpdateCertificateTemplateInput = Partial<CreateCertificateTemplateInput>;
+
+// Per-class certificate state on member surfaces (lesson + class pages).
+export interface ClassCertificateStatusDTO {
+  levelId: string;
+  levelName: string;
+  eligible: boolean; // every lesson of every course complete (and >=1 lesson exists)
+  claimed: boolean;
+  certificateId: string | null;
+  serial: string | null;
+  needsName: boolean; // profile first/last blank -> claim UI prompts for a name once
+}
+
+export interface ClaimCertificateInput {
+  levelId: string;
+  name?: string; // required by the server only when the profile name is blank
+}
+export interface MyCertificateDTO {
+  id: string;
+  serial: string;
+  levelId: string;
+  className: string; // snapshot at claim time
+  memberName: string; // snapshot at claim time
+  issuedAt: string; // ISO
+  downloadUrl: string; // "/certificates/:id/download" (Bearer header or ?token=)
+}
+export interface AdminCertificateRow {
+  id: string;
+  serial: string;
+  memberName: string;
+  memberEmail: string;
+  className: string;
+  templateName: string | null; // null when the template was later deleted
+  issuedAt: string;
+}
+export interface AdminCertificateListDTO {
+  items: AdminCertificateRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+// Public verification (serial printed on the PDF). Unknown serials return
+// {valid:false} with HTTP 200 — no existence oracle beyond the cert itself.
+export interface CertificateVerifyDTO {
+  valid: boolean;
+  memberName?: string;
+  className?: string;
+  issuedAt?: string;
+}
+// POST /lessons/:id/complete response: completing the FINAL lesson of a class
+// returns the fresh certificate state so the button appears without a refetch.
+export interface CompleteLessonResponse {
+  ok: true;
+  certificates?: ClassCertificateStatusDTO[];
 }
 
 // ---------- Course / lesson admin inputs ----------
@@ -972,7 +1095,8 @@ export type AdminNotificationType =
   | "SUBSCRIPTION_RESUMED"
   | "PAYMENT_FAILED"
   | "PAYMENT_SUCCEEDED"
-  | "INSTALLMENT_PLAN_COMPLETED";
+  | "INSTALLMENT_PLAN_COMPLETED"
+  | "CERTIFICATE_ISSUED";
 
 export type AdminNotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
 
@@ -1509,6 +1633,22 @@ export const ROUTES = {
   adminCreatePopup: "POST /admin/popups", // body CreatePopupInput -> PopupAdminRow
   adminUpdatePopup: "PATCH /admin/popups/:id", // body UpdatePopupInput -> PopupAdminRow
   adminDeletePopup: "DELETE /admin/popups/:id",
+
+  // certificates — MEMBER
+  claimCertificate: "POST /certificates/claim", // body ClaimCertificateInput -> MyCertificateDTO (idempotent)
+  myCertificates: "GET /certificates/mine", // -> MyCertificateDTO[]
+  downloadCertificate: "GET /certificates/:id/download", // owner/admin; Bearer or ?token= -> PDF stream
+  // certificates — PUBLIC
+  verifyCertificate: "GET /certificates/verify/:serial", // -> CertificateVerifyDTO (always 200)
+  certificateFonts: "GET /cert-fonts/:file", // static TTFs (admin preview = PDF parity)
+  // certificates — ADMIN
+  adminListCertificateTemplates: "GET /admin/certificate-templates", // -> CertificateTemplateDTO[]
+  adminGetCertificateTemplate: "GET /admin/certificate-templates/:id", // -> CertificateTemplateDTO
+  adminCreateCertificateTemplate: "POST /admin/certificate-templates", // body CreateCertificateTemplateInput
+  adminUpdateCertificateTemplate: "PATCH /admin/certificate-templates/:id", // body UpdateCertificateTemplateInput
+  adminDeleteCertificateTemplate: "DELETE /admin/certificate-templates/:id", // issued certs keep snapshots (SetNull)
+  adminListCertificates: "GET /admin/certificates", // ?q&page&pageSize -> AdminCertificateListDTO
+  adminDeleteCertificate: "DELETE /admin/certificates/:id", // revoke: row + PDF file removed
 
   // billing (member)
   checkout: "POST /billing/checkout", // body {priceId} -> {url}

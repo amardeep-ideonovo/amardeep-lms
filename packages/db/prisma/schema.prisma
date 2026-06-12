@@ -18,21 +18,22 @@ datasource db {
 // ---------- Identity ----------
 
 model User {
-  id               String          @id @default(cuid())
-  email            String          @unique
-  username         String          @unique
+  id               String   @id @default(cuid())
+  email            String   @unique
+  username         String   @unique
   passwordHash     String
-  firstName        String?         // optional profile fields (admin-managed)
+  firstName        String? // optional profile fields (admin-managed)
   lastName         String?
   phone            String?
-  wpId             Int?            @unique // original WordPress user ID, for migration reconciliation
-  stripeCustomerId String?         @unique // cus_… on the SAME Stripe account
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  emailOptOut      Boolean         @default(false) // set by Mailchimp unsubscribe webhook
+  wpId             Int?     @unique // original WordPress user ID, for migration reconciliation
+  stripeCustomerId String?  @unique // cus_… on the SAME Stripe account
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  emailOptOut      Boolean  @default(false) // set by Mailchimp unsubscribe webhook
 
-  levels    UserLevel[]
-  progress  LessonProgress[]
+  levels       UserLevel[]
+  progress     LessonProgress[]
+  certificates Certificate[]
 }
 
 enum AdminRole {
@@ -60,9 +61,9 @@ model Admin {
   prefs        Json      @default("{}")
   createdAt    DateTime  @default(now())
 
-  posts Post[]
-  pages Page[]
-  media MediaAsset[]
+  posts             Post[]
+  pages             Page[]
+  media             MediaAsset[]
   notificationReads AdminNotificationRead[]
 }
 
@@ -75,44 +76,48 @@ enum LevelType {
 }
 
 model Level {
-  id                    String      @id @default(cuid())
+  id                    String    @id @default(cuid())
   name                  String
-  slug                  String?     @unique // pretty checkout URL key: /checkout/<slug> (admin-editable)
-  published             Boolean     @default(false) // show this class as a tile on the member dashboard
-  type                  LevelType   @default(PAID)
-  mailchimpTags         String[]    @default([]) // tag names applied within the audience
-  mailchimpAudienceId   String?     // Mailchimp list this level subscribes members to (falls back to the global Settings audience)
-  mailchimpAudienceName String?     // cached name for admin display
-  stripeProductId       String?     // prod_… for PAID levels
-  paypalProductId       String?     // PayPal catalog product id (lazy-provisioned when PayPal is active)
+  slug                  String?   @unique // pretty checkout URL key: /checkout/<slug> (admin-editable)
+  published             Boolean   @default(false) // show this class as a tile on the member dashboard
+  type                  LevelType @default(PAID)
+  mailchimpTags         String[]  @default([]) // tag names applied within the audience
+  mailchimpAudienceId   String? // Mailchimp list this level subscribes members to (falls back to the global Settings audience)
+  mailchimpAudienceName String? // cached name for admin display
+  stripeProductId       String? // prod_… for PAID levels
+  paypalProductId       String? // PayPal catalog product id (lazy-provisioned when PayPal is active)
   // ----- MasterClass-style landing-page fields (all optional) -----
-  imageUrl              String?     // hero/cover image for the class page
-  description           String?     // marketing description
-  trailerUrl            String?     // trailer: Vimeo/MP4 URL or a Gallery video URL
-  skills                Json        @default("[]") // [{ title, imageUrl }] — "Skills You'll Learn"
-  featuredCourseId      String?     // course whose lessons appear as the curriculum
-  createdAt             DateTime    @default(now())
+  imageUrl              String? // hero/cover image for the class page
+  description           String? // marketing description
+  trailerUrl            String? // trailer: Vimeo/MP4 URL or a Gallery video URL
+  skills                Json      @default("[]") // [{ title, imageUrl }] — "Skills You'll Learn"
+  featuredCourseId      String? // course whose lessons appear as the curriculum
+  // Completion-certificate template override; null = use the default template.
+  certificateTemplateId String?
+  createdAt             DateTime  @default(now())
 
-  prices         Price[]
-  userLevels     UserLevel[]
-  courseLevels   CourseLevel[]
-  categories     LevelCategory[]
-  featuredCourse Course?         @relation("ClassFeaturedCourse", fields: [featuredCourseId], references: [id], onDelete: SetNull)
+  prices              Price[]
+  userLevels          UserLevel[]
+  courseLevels        CourseLevel[]
+  categories          LevelCategory[]
+  featuredCourse      Course?              @relation("ClassFeaturedCourse", fields: [featuredCourseId], references: [id], onDelete: SetNull)
+  certificateTemplate CertificateTemplate? @relation(fields: [certificateTemplateId], references: [id], onDelete: SetNull)
+  certificates        Certificate[]
 }
 
 model Price {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   levelId       String
-  level         Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  level         Level   @relation(fields: [levelId], references: [id], onDelete: Cascade)
   // Provider price ids — each provisioned lazily under the provider that needs
   // it, so a site configured for only one provider still works. A row may hold
   // either or both.
-  stripePriceId String?  @unique // price_…
-  paypalPlanId  String?  @unique // PayPal billing plan id (P-…)
-  interval      String   // "month" | "year"
-  amount        Int      // minor units (cents)
-  currency      String   @default("usd")
-  active        Boolean  @default(true)
+  stripePriceId String? @unique // price_…
+  paypalPlanId  String? @unique // PayPal billing plan id (P-…)
+  interval      String // "month" | "year"
+  amount        Int // minor units (cents)
+  currency      String  @default("usd")
+  active        Boolean @default(true)
   // Installment plan: bill this many times, then the member keeps the level for
   // life (the webhook sets UserLevel.lifetime and cancels the sub; PayPal plans
   // use total_cycles natively). null = an ongoing subscription that bills until
@@ -143,19 +148,19 @@ enum UserLevelStatus {
 }
 
 model UserLevel {
-  id                  String          @id @default(cuid())
-  userId              String
-  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  levelId             String
-  level               Level           @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  source              UserLevelSource
-  status              UserLevelStatus @default(ACTIVE)
+  id              String          @id @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  levelId         String
+  level           Level           @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  source          UserLevelSource
+  status          UserLevelStatus @default(ACTIVE)
   // Once true the grant is permanent (a paid-in-full installment plan converted
   // to lifetime) and Stripe reconciliation will never revoke it.
-  lifetime            Boolean         @default(false)
-  stripeSubItemId     String?         // si_… when source = STRIPE; PayPal sub id (I-…) when source = PAYPAL
-  expiresAt           DateTime?       // for manual grants or period-end access
-  grantedAt           DateTime        @default(now())
+  lifetime        Boolean         @default(false)
+  stripeSubItemId String? // si_… when source = STRIPE; PayPal sub id (I-…) when source = PAYPAL
+  expiresAt       DateTime? // for manual grants or period-end access
+  grantedAt       DateTime        @default(now())
 
   @@unique([userId, levelId, source])
   @@index([userId])
@@ -175,13 +180,13 @@ model LevelCategory {
 // ---------- LMS content ----------
 
 model Course {
-  id            String        @id @default(cuid())
+  id            String   @id @default(cuid())
   title         String
   description   String?
-  thumbnailUrl  String?       // squared thumbnail shown on course cards
-  coverImageUrl String?       // wide cover/hero image shown on the course page
-  order         Int           @default(0)
-  createdAt     DateTime      @default(now())
+  thumbnailUrl  String? // squared thumbnail shown on course cards
+  coverImageUrl String? // wide cover/hero image shown on the course page
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
 
   lessons          Lesson[]
   courseLevels     CourseLevel[]
@@ -199,16 +204,16 @@ model CourseLevel {
 }
 
 model Lesson {
-  id           String          @id @default(cuid())
-  courseId     String
-  course       Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  title        String
-  content      String?         // markdown / rich text — doubles as the lesson description/body
-  thumbnailUrl String?         // lesson thumbnail
-  videoUrl     String?         // Vimeo link or direct video URL (e.g. MP4)
-  durationSeconds Int?         // lesson length in seconds (admin enters mm:ss); drives the curriculum total
-  order        Int             @default(0)
-  createdAt    DateTime        @default(now())
+  id              String   @id @default(cuid())
+  courseId        String
+  course          Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title           String
+  content         String? // markdown / rich text — doubles as the lesson description/body
+  thumbnailUrl    String? // lesson thumbnail
+  videoUrl        String? // Vimeo link or direct video URL (e.g. MP4)
+  durationSeconds Int? // lesson length in seconds (admin enters mm:ss); drives the curriculum total
+  order           Int      @default(0)
+  createdAt       DateTime @default(now())
 
   progress LessonProgress[]
   notes    LessonNote[]
@@ -232,10 +237,10 @@ model LessonNote {
   id           String   @id @default(cuid())
   lessonId     String
   lesson       Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  filename     String   // stored filename on disk (timestamp-based, unique)
-  originalName String   // original upload name (shown to member; used as download filename)
+  filename     String // stored filename on disk (timestamp-based, unique)
+  originalName String // original upload name (shown to member; used as download filename)
   mimeType     String
-  size         Int      // bytes
+  size         Int // bytes
   order        Int      @default(0)
   createdAt    DateTime @default(now())
 
@@ -261,19 +266,19 @@ enum SubStatus {
 // userId/priceId are populated for PAYPAL rows: PayPal has no merchant-wide
 // list API, so this mirror IS the index for PayPal subscriptions.
 model SubscriptionMirror {
-  id                 String          @id @default(cuid())
-  provider           PaymentProvider @default(STRIPE)
-  stripeSubId        String          @unique // sub_… | I-…
-  stripeCustomerId   String          // cus_… | PayPal payer id
-  userId             String?         // set for PAYPAL rows (mirror-as-index)
-  priceId            String?         // local Price.id, set for PAYPAL rows
-  status             SubStatus
-  currentPeriodEnd   DateTime?
+  id                String          @id @default(cuid())
+  provider          PaymentProvider @default(STRIPE)
+  stripeSubId       String          @unique // sub_… | I-…
+  stripeCustomerId  String // cus_… | PayPal payer id
+  userId            String? // set for PAYPAL rows (mirror-as-index)
+  priceId           String? // local Price.id, set for PAYPAL rows
+  status            SubStatus
+  currentPeriodEnd  DateTime?
   // For PayPal this flag is OURS (PayPal only cancels immediately): period-end
   // cancels set it BEFORE calling PayPal so the CANCELLED webhook keeps access
   // until currentPeriodEnd via UserLevel.expiresAt.
-  cancelAtPeriodEnd  Boolean         @default(false)
-  updatedAt          DateTime        @updatedAt
+  cancelAtPeriodEnd Boolean         @default(false)
+  updatedAt         DateTime        @updatedAt
 
   @@index([provider])
   @@index([userId])
@@ -283,7 +288,7 @@ model SubscriptionMirror {
 // rest; never returned to any client — admin UI is write-only for secrets.
 model Setting {
   key       String   @id // e.g. "stripe.secretKey", "stripe.webhookSecret", "mailchimp.apiKey"
-  value     String   // ciphertext
+  value     String // ciphertext
   updatedAt DateTime @updatedAt
 }
 
@@ -377,7 +382,7 @@ model Page {
   title       String
   data        Json       @default("{}") // Puck document: { content, root, zones }
   status      PageStatus @default(DRAFT)
-  publishedAt DateTime?  // set when first published; drives public visibility
+  publishedAt DateTime? // set when first published; drives public visibility
   authorId    String?
   author      Admin?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
   createdAt   DateTime   @default(now())
@@ -567,6 +572,7 @@ enum AdminNotificationType {
   PAYMENT_FAILED
   PAYMENT_SUCCEEDED // invoice.paid renewal (first invoice suppressed in favor of CREATED)
   INSTALLMENT_PLAN_COMPLETED // paid-in-full installment plan converted to lifetime
+  CERTIFICATE_ISSUED // member claimed a class-completion certificate
 }
 
 enum AdminNotificationSeverity {
@@ -679,4 +685,47 @@ model MenuItem {
 
   @@index([menuId])
   @@index([parentId])
+}
+
+// ---------- Class-completion certificates ----------
+
+// Admin-designed certificate template: uploaded artwork + a visual field
+// layout (CertificateFieldLayout[] from @lms/types) stored as Json. Exactly
+// one row is the default (enforced transactionally in the service); classes
+// may override via Level.certificateTemplateId.
+model CertificateTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  artworkUrl  String // local "/media/<key>" URL only — renders never fetch remote bytes
+  imageWidth  Int // artwork pixel size, derived server-side at save (image-size)
+  imageHeight Int
+  fields      Json     @default("[]") // CertificateFieldLayout[]
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  levels       Level[]
+  certificates Certificate[]
+}
+
+// An issued certificate. memberName/className are SNAPSHOTS taken at claim
+// time and the PDF is rendered once to fileKey — later template edits or
+// deletions never change an issued certificate (templateId just goes null).
+model Certificate {
+  id         String               @id @default(cuid())
+  serial     String               @unique // CERT-<year>-<6 chars>, printed on the PDF + publicly verifiable
+  userId     String
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  levelId    String
+  level      Level                @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  templateId String?
+  template   CertificateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  memberName String
+  className  String
+  issuedAt   DateTime             @default(now())
+  fileKey    String // "<serial>.pdf" under CERT_FILES_DIR
+
+  @@unique([userId, levelId]) // one certificate per member per class; claim is idempotent
+  @@index([levelId])
+  @@index([templateId])
 }

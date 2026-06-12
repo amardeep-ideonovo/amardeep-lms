@@ -114,6 +114,8 @@ async function wipeDatabase() {
   // Child → parent order. Most relations cascade, but being explicit keeps
   // this independent of cascade settings. Admin + Setting are PRESERVED.
   await prisma.$transaction([
+    prisma.certificate.deleteMany(), // before User/Level (FKs)
+    prisma.certificateTemplate.deleteMany(), // before Level (Level.certificateTemplateId is SetNull, but be tidy)
     prisma.lessonProgress.deleteMany(),
     prisma.lessonNote.deleteMany(),
     prisma.lesson.deleteMany(),

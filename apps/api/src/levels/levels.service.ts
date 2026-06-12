@@ -41,6 +41,7 @@ type LevelWithPrices = {
   description: string | null;
   trailerUrl: string | null;
   featuredCourseId: string | null;
+  certificateTemplateId: string | null;
   skills: unknown; // Json column — normalized via normalizeSkills()
   prices: {
     id: string;
@@ -80,6 +81,7 @@ export class LevelsService {
       description: level.description,
       trailerUrl: level.trailerUrl,
       featuredCourseId: level.featuredCourseId,
+      certificateTemplateId: level.certificateTemplateId,
       skills: this.normalizeSkills(level.skills),
       prices: level.prices.map((p) => ({
         id: p.id,
