@@ -1,6 +1,7 @@
-// Dev/demo seed for "Unlocking Your Book" — idempotent (fixed ids + upserts
-// with FULL update payloads, so a plain re-run restores every seeded row to
-// spec; admin edits to seeded rows are intentionally reverted on re-seed).
+// Dev/demo seed — "Spotlight Academy", a MasterClass-style entertainment
+// catalog (music, food, photography, dance, film, comedy). Idempotent (fixed
+// ids + upserts with FULL update payloads, so a plain re-run restores every
+// seeded row to spec; admin edits to seeded rows are intentionally reverted).
 //
 // Destructive mode: SEED_WIPE=1 wipes ALL content tables (and the upload
 // dirs on disk) before seeding. The wipe NEVER touches:
@@ -12,6 +13,9 @@
 //
 //   SEED_WIPE=1 npm run seed -w @lms/db   # wipe + reseed (the only destructive path)
 //   npm run seed -w @lms/db               # plain idempotent refresh (migrate-dev safe)
+//
+// Class/course cover art hotlinks masterclass.com course images (public CDN
+// paths, verified to serve without auth/referer) — dev/demo use only.
 //
 // QA fixtures: the BDD suite (packages/bdd/features/*.feature) hard-codes the
 // ids/slugs/titles in seedFixtureCluster() — see the comment there before
@@ -26,23 +30,77 @@ const WIPE = process.env.SEED_WIPE === "1";
 
 // ---------- shared helpers ----------
 
-// Public sample videos that play on web (Vimeo embed / native <video>) and
-// mobile (WebView player / expo-video). Rotated across lessons for variety.
+// Public sample videos. The Vimeo clip is the user-chosen free video; two
+// Google sample MP4s stay in rotation so both player paths (Vimeo embed and
+// native <video>/expo-video) keep demo coverage.
+const FREE_VIMEO = "https://vimeo.com/1189998581";
 const VIDEOS = [
-  "https://vimeo.com/1043569034", // proven public Vimeo test video
+  FREE_VIMEO,
+  FREE_VIMEO,
   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+  FREE_VIMEO,
   "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-  "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
 ];
-const TRAILER = VIDEOS[0]; // class trailers render in the web embed — keep Vimeo
+const TRAILER = FREE_VIMEO; // class trailers render in the web Vimeo embed
 
-// Deterministic sample images (picsum) so everything has art out of the box.
+// MasterClass course-image CDN (public, unsigned). Grouped per theme so each
+// class's covers/courses rotate through on-theme art.
+const MC = "https://www.masterclass.com/course-images/attachments";
+const ART: Record<string, string[]> = {
+  music: [
+    `${MC}/QpxuNEFhJE8MsFqsiKQ11u1C`, // songwriting & creativity
+    `${MC}/TXdwv2Ztz1wa8C83dCVCRf72`, // songwriting & producing
+    `${MC}/jwzsuraseau3qbmcx13dxs4ewgsg`, // the voice as an instrument
+    `${MC}/jybjfjy5f2tadf5s6lrl5v8j3gv7`, // songwriting
+    `${MC}/wjzyWzh7DvbAZyVmVyiRTLQ7`, // singing
+  ],
+  food: [
+    `${MC}/ce3SwsNJRtiLU96MqFEfa3WU`, // cooking I
+    `${MC}/M9gAFDV18n8Z1ULC54QB8YXH`,
+    `${MC}/YPStdCGCyV5658a5zcWUJGf9`,
+    `${MC}/2qogs1ilsevi3s8geruqx3jcp2mt`, // modern vegetarian
+    `${MC}/ytDCxGh9USkRaFbphiuAdszK`, // bread baking
+    `${MC}/59o1zn2bn6d0pyk1h9jmlfrr15h6`, // southern cooking
+  ],
+  photo: [
+    `${MC}/DHTYrpiQ7QJediHA387veDhg`, // photography
+    `${MC}/ycGSPAPHkfDjBQcGtRDcMyo5`,
+    `${MC}/e2G987xiZ8vHPcotZ994k2bm`,
+    `${MC}/wsyt1jeo5j0k1xgoa1cqir6qjrse`,
+  ],
+  dance: [
+    `${MC}/XkV5JF4hBKEMwamsMaiuDj4f`, // ballet technique
+    `${MC}/JSnpNqo1BusYpZwAWp3HyWiw`,
+    `${MC}/beRishN5NrJ9mx2fNiJXjtWi`, // choreography
+    `${MC}/t2SrkYWHnLATBozjaXs78g3W`,
+    `${MC}/Ld1sTjJLfL2BTuq9gpoirRRB`,
+  ],
+  film: [
+    `${MC}/2DMQb6ABKGnNhenm9cznKPGP`, // filmmaking
+    `${MC}/gsaVP3JmiRSuzvLcWaLF5cfB`, // independent filmmaking
+    `${MC}/nvZw5QgUPta9GANg8MFV6bxs`,
+    `${MC}/K42EgdcRWTFa8ifP1go8BDoQ`, // directing
+    `${MC}/kQwuneEoWaodkAEAcQDXsmSg`,
+    `${MC}/mQXVmmeUxifyBWPAUavGtVCT`, // documentary
+  ],
+  comedy: [
+    `${MC}/RvoH3zg9Ao1JfaGkdXymf1UM`, // comedy
+    `${MC}/rfwmdniWpGRpCRDjG9sf58QZ`,
+    `${MC}/sl76691dyobvrq3p1kvsv6ip7xfr`,
+  ],
+};
+const art = (theme: string, i: number) => {
+  const set = ART[theme] ?? ART.film;
+  return set[i % set.length];
+};
+
+// Deterministic fillers (picsum) for skills/avatars/blog covers.
 const thumb = (key: string) => `https://picsum.photos/seed/${key}-thumb/600/600`;
-const cover = (key: string) => `https://picsum.photos/seed/${key}-cover/1200/630`;
 const lessonThumb = (key: string) =>
   `https://picsum.photos/seed/${key}-lt/640/400`;
 const skillImg = (key: string) => `https://picsum.photos/seed/${key}-sk/400/300`;
 const avatarImg = (key: string) => `https://picsum.photos/seed/${key}-av/200/200`;
+const cover = (key: string) => `https://picsum.photos/seed/${key}-cover/1200/630`;
 
 // Lesson bodies are PLAIN TEXT: the web lesson page renders {lesson.content}
 // with white-space: pre-wrap and mobile uses a bare <Text> — HTML tags would
@@ -227,7 +285,7 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
       title: "Watch: a quick tour (video)",
       content: "A short sample video showing how a video lesson plays.",
       order: 1,
-      videoUrl: VIDEOS[0],
+      videoUrl: FREE_VIMEO,
     },
     {
       id: "seed-lesson-pro-1",
@@ -328,6 +386,7 @@ type LessonSeed = { title: string; minutes: number; seconds: number; body: strin
 type CourseSeed = { key: string; title: string; description: string; lessons: LessonSeed[] };
 type ClassSeed = {
   key: string;
+  theme: string; // ART image set
   name: string;
   slug: string;
   type: "FREE" | "PAID";
@@ -349,94 +408,95 @@ const L = (title: string, minutes: number, seconds: number, body: string): Lesso
 
 const CLASSES: ClassSeed[] = [
   {
-    key: "foundations",
-    name: "Book Writing Foundations",
-    slug: "book-writing-foundations",
+    key: "music",
+    theme: "music",
+    name: "Music Production & Songwriting",
+    slug: "music-production-songwriting",
     type: "FREE",
     description:
-      "Everything you need to go from “I've always wanted to write a book” to a working outline and a writing habit that sticks. Free for every member — start here.",
-    categories: ["seed-lvlcat-writing", "seed-lvlcat-craft"],
+      "Write songs people remember and produce them from your bedroom. Melody, lyrics, structure and a home-studio workflow that turns ideas into finished tracks — free for every member.",
+    categories: ["seed-lvlcat-music"],
     skills: [
-      "Find the book only you can write",
-      "Turn a vague idea into a one-sentence premise",
-      "Build an outline that actually gets used",
-      "Design a writing routine around a real life",
-      "Beat the blank page with warm-up rituals",
+      "Turn a hum into a hook",
+      "Write lyrics that say something",
+      "Arrange a song that builds",
+      "Record clean takes at home",
+      "Mix to a release-ready rough",
     ],
     prices: [],
     courses: [
       {
-        key: "foundations-1",
-        title: "Start Your Book: From Idea to Outline",
+        key: "music-1",
+        title: "Songwriting Fundamentals",
         description:
-          "Choose the right idea, sharpen it into a premise, and shape a working outline you can draft from.",
+          "Hooks, lyrics and song structure — the craft behind every track you can't stop humming.",
         lessons: [
           L(
-            "Find the book only you can write",
-            6,
-            30,
-            paras(
-              "Most first books die because the writer picked an idea they admired instead of an idea they owned. In this lesson we separate the books you could write from the one book only you can write — the intersection of what you know deeply, what you care about, and what a reader needs.",
-              "You'll make a short list of ten possible books, then run each through three filters: Do I have standing to write this? Will I still care in month six? Can I name the reader?",
-              "By the end you'll have circled one idea — not forever, just for now. Commitment to a draft beats loyalty to a fantasy.",
-            ),
-          ),
-          L(
-            "Shape your premise in one sentence",
-            8,
-            15,
-            paras(
-              "A premise is a promise: who the book is for, what changes for them, and why you're the one writing it. If you can't say it in one breath, the manuscript will wander.",
-              "We'll use a simple frame — “This is a book about X for Y, so that Z” — and iterate it out loud. You'll hear immediately which version has a pulse.",
-              "Write your final sentence on a card and keep it where you draft. Every chapter either serves that sentence or gets cut.",
-            ),
-          ),
-          L(
-            "Build a working outline",
-            11,
+            "Start with the hook",
+            7,
             20,
             paras(
-              "An outline isn't a cage — it's scaffolding you can climb while the real building goes up. We'll build a flexible chapter map: the spine of your argument or story in 10 to 14 beats.",
-              "For non-fiction, each beat is a transformation the reader makes. For memoir and fiction, each beat is a scene where something irreversible happens.",
-              "Your outline is done when you can tell the whole book to a friend in five minutes without notes. That retelling — recorded and transcribed — is often your best first draft of the introduction.",
+              "Almost every great song is built around one irresistible moment — a melodic phrase, a lyric, a rhythm that your ear wants again. Professional writers don't wait for that moment; they hunt it deliberately.",
+              "In this lesson you'll capture twenty tiny ideas in twenty minutes: hum into your phone, tap rhythms on the table, sing nonsense syllables over two chords. Quantity is the strategy — taste comes later, at the listening pass.",
+              "Then we pick ONE idea and loop it until it tells us what it wants to be. A hook isn't precious; it's a seed you water with repetition.",
+            ),
+          ),
+          L(
+            "Lyrics: say one true thing",
+            9,
+            10,
+            paras(
+              "Weak lyrics try to say everything; strong lyrics say one true thing from a specific place. 'I miss you' is a greeting card — 'your coffee cup is still in the sink' is a song.",
+              "We'll practice the object exercise: pick a feeling, then write only about physical things — rooms, weather, receipts, shoes. The feeling sneaks in through the details, which is exactly how listeners like to receive it.",
+              "You'll finish with a verse built from your own object list, plus the one-line test: can you say what the song is about in seven words? If not, it's two songs fighting.",
+            ),
+          ),
+          L(
+            "Song structure that builds",
+            10,
+            45,
+            paras(
+              "Verse, pre-chorus, chorus, bridge — structure isn't a formula, it's energy management. Each section's job is to make the next one feel inevitable.",
+              "We'll map three hit songs bar by bar and watch the pattern: every eight bars something changes — a new instrument, a lifted melody, a dropped drum. Boredom is the only real rule violation.",
+              "Then you'll storyboard your own song's energy on paper before recording a note: where it whispers, where it opens up, and what gets saved for the final chorus.",
             ),
           ),
         ],
       },
       {
-        key: "foundations-2",
-        title: "The Daily Writing Habit",
+        key: "music-2",
+        title: "Home Studio Production",
         description:
-          "Word counts, calendars and rituals that survive contact with a busy life.",
+          "From a quiet room to a finished track: recording, arranging and the rough mix.",
         lessons: [
           L(
-            "Design a routine that sticks",
-            7,
-            45,
+            "Your room is your first instrument",
+            8,
+            30,
             paras(
-              "Habits beat moods. The writers who finish aren't the ones who feel like writing — they're the ones with an appointment they keep. We'll design yours: same trigger, same place, same minimum.",
-              "The minimum matters most. Two hundred words is a floor anyone can hit on the worst day, and floors — not ceilings — are what keep streaks alive.",
-              "You'll leave this lesson with a written contract: days, time, place, minimum, and the one thing you'll give up to protect it.",
+              "Before you buy gear, treat the room. A duvet behind the mic kills more problems than a thousand-dollar preamp. We'll find your room's quietest corner and build a vocal nook with what you own.",
+              "Gear order for a first studio: a decent USB or budget XLR mic, closed headphones, then — only when something specific hurts — an interface upgrade. Every purchase should fix a problem you can name.",
+              "You'll record the same eight bars three ways tonight and hear exactly what placement changes. Trust your ears over the spec sheet.",
             ),
           ),
           L(
-            "Beat the blank page",
+            "Arranging in the box",
+            11,
+            15,
+            paras(
+              "An arrangement is a conversation: every part either talks, answers, or shuts up. The number-one amateur tell is everything playing all the time.",
+              "We'll build a track in layers — drums and bass agree first, chords sit in the middle, and anything new must either replace something or wait its turn. The mute button is your best arranger.",
+              "Listen in mono while you work. If parts disappear, they were fighting; carve space by octave, rhythm or simply deleting the weakest idea.",
+            ),
+          ),
+          L(
+            "The rough mix that travels",
             9,
-            5,
+            40,
             paras(
-              "The blank page isn't a talent problem, it's a transition problem — your brain needs an on-ramp. We'll build a five-minute warm-up: re-read yesterday's last paragraph, write one ugly sentence, and only then write a real one.",
-              "We'll also steal Hemingway's trick: stop mid-sentence while you still know what comes next, so tomorrow starts on rails.",
-              "Perfectionism gets a containment zone, not a ban — you'll keep a “later list” where every mid-draft doubt gets parked instead of obeyed.",
-            ),
-          ),
-          L(
-            "Track progress without obsessing",
-            5,
-            50,
-            paras(
-              "What gets measured gets done — but measure the wrong thing and writing becomes a scoreboard you start avoiding. We track sessions kept, not words produced.",
-              "You'll set up a simple calendar chain and a weekly fifteen-minute review: what moved, what stalled, what one change next week makes the chain easier to keep.",
-              "When a week collapses (it will), the rule is the 48-hour restart: no make-up sessions, no guilt math — just the next appointment, kept.",
+              "A rough mix has one job: sound good everywhere — phone speaker, car, earbuds. We chase balance, not polish: vocals you can always hear, a kick you can always feel, nothing that makes you reach for the volume.",
+              "The workflow: set levels with faders only, pan for width, ONE EQ move per channel (cut, don't boost), a touch of bus compression, and a reference track you A/B every ten minutes.",
+              "Bounce it, play it on three devices, write down what bugs you, fix the top item only. Mixing is a loop, not a destination — and done beats perfect on a demo.",
             ),
           ),
         ],
@@ -444,19 +504,21 @@ const CLASSES: ClassSeed[] = [
     ],
   },
   {
-    key: "memoir",
-    name: "Memoir Masterclass",
-    slug: "memoir-masterclass",
+    key: "cooking",
+    theme: "food",
+    name: "The Art of Cooking",
+    slug: "the-art-of-cooking",
     type: "PAID",
     description:
-      "Turn lived experience into a memoir readers can't put down. Mine your memories for scenes, handle the hard chapters with care, and structure decades of life into one story with a spine.",
-    categories: ["seed-lvlcat-writing"],
+      "Cook with confidence instead of recipes. Knife skills, heat control, seasoning by taste and the flavor instincts that turn whatever's in the fridge into dinner people talk about.",
+    categories: ["seed-lvlcat-food"],
     skills: [
-      "Scene-building from memory",
-      "Emotional truth on the page",
-      "Ethical storytelling about real people",
-      "Structuring decades into chapters",
-      "Finding your narrator's voice",
+      "Knife skills that feel automatic",
+      "Control heat instead of fearing it",
+      "Season by taste, not by teaspoon",
+      "Build flavor in layers",
+      "Plate food people photograph",
+      "Host without losing your evening",
     ],
     prices: [
       { interval: "month", amount: 2900 },
@@ -464,105 +526,104 @@ const CLASSES: ClassSeed[] = [
     ],
     courses: [
       {
-        key: "memoir-1",
-        title: "Mining Your Memories",
+        key: "cooking-1",
+        title: "Kitchen Foundations",
         description:
-          "Inventory the moments that matter and turn raw memory into scenes with heat.",
+          "The unglamorous skills that make everything else easy: knives, heat and salt.",
         lessons: [
           L(
-            "The memory inventory",
-            8,
-            40,
+            "Knife skills: speed comes last",
+            9,
+            25,
             paras(
-              "Before you can structure a memoir you need raw material on the table. We'll build a memory inventory: a hundred-item list of moments, images, rooms, smells and sentences you've never forgotten.",
-              "Speed matters more than quality here — you're dredging, not curating. The list will surprise you: clusters will form around two or three wounds and wonders, and those clusters are your book.",
-              "You'll finish by starring the ten memories that scare you a little. As Tristine Rainer says, the memoir lives where the heat is.",
+              "Every cooking show makes speed look like the goal. It isn't — consistency is. Same-size pieces cook at the same rate, and that single fact is most of what separates home food from restaurant food.",
+              "We'll set your grip (pinch the blade, not the handle), your guide hand (claw, knuckles forward) and your board setup (damp towel underneath, scraps bowl beside). Then: onions three ways, slowly.",
+              "Ten slow minutes a day for two weeks beats one ambitious Sunday. Speed arrives on its own, as a side effect of repetition — never chase it.",
             ),
           ),
           L(
-            "Scenes vs. summary",
+            "Heat is a language",
             10,
-            15,
+            50,
             paras(
-              "Memoir fails when it explains and succeeds when it re-enacts. A scene puts the reader in the room: a specific day, real dialogue, objects you can touch. Summary connects scenes and compresses time.",
-              "We'll take one starred memory and write it twice — once as summary, once as scene — and compare what each version makes the reader feel.",
-              "The working ratio for most memoir is roughly 70% scene, 30% summary. You'll audit a favorite memoir chapter and see the rhythm: scene, breath, scene.",
+              "Most home cooking fails at the dial: too timid to sear, too impatient to sweat. Pans talk — the sizzle pitch, the smell, the way oil moves — and this lesson teaches you to listen.",
+              "We'll cook the same chicken thigh at three heats and taste the difference between steamed-in-its-own-juices, properly seared, and scorched. You'll learn the hand-hover test and when to simply walk away from the pan.",
+              "The rule that changes everything: get the pan ready before the food, and stop cooking things one minute before they look done. Carryover heat finishes the job.",
             ),
           ),
           L(
-            "Writing the hard chapters",
-            12,
-            30,
+            "Salt, fat, acid: season by taste",
+            8,
+            35,
             paras(
-              "Every memoir has chapters you've been avoiding for years. We'll approach them with protective equipment: write in third person first if you need distance, set a timer so the session has walls, and plan something kind for afterwards.",
-              "You are allowed to write badly about important things. The first draft of a hard chapter is for you; revision is where it becomes for the reader.",
-              "We'll also talk about when NOT to write a chapter yet — some stories need more healed distance, and the book can wait for them or work around them.",
+              "Recipes give you teaspoons; cooks taste. Salt opens flavor, fat carries it, acid wakes it up — and the only way to learn the triangle is on your tongue.",
+              "We'll run the carrot-soup experiment: one pot, four bowls, four adjustments. You'll taste exactly what 'needs salt', 'needs acid' and 'needs richness' mean, and you'll never un-taste it.",
+              "From today: taste at every stage, season in small layers, and finish with something bright. Your food will improve before your knife skills do.",
             ),
           ),
         ],
       },
       {
-        key: "memoir-2",
-        title: "Truth, Memory & Ethics",
-        description:
-          "Whose story is it? Navigating real people, imperfect memory and the law of your own life.",
+        key: "cooking-2",
+        title: "Mastering Flavor",
+        description: "Layering, balancing and rescuing — how flavor actually gets built.",
         lessons: [
           L(
-            "Whose story is it?",
-            9,
-            20,
+            "Build flavor in layers",
+            11,
+            5,
             paras(
-              "You own your story — and your story overlaps with other people's. This lesson lays out the working ethics: write the truth as you experienced it, mark speculation as speculation, and give the people you love the dignity of complexity.",
-              "We'll cover the practical options for protecting others: changed names, composite details, letting key figures read pages before publication — and the trade-offs of each.",
-              "The test that keeps you honest: could you read this paragraph aloud with that person in the room? You don't need their approval — you need your own integrity.",
+              "Deep flavor isn't one ingredient — it's a stack of small decisions: brown the aromatics, toast the spices, deglaze the pan, reduce, finish with fresh herbs. Each layer is thirty seconds of intention.",
+              "We'll build the same tomato sauce twice — dump-and-simmer versus layered — and taste them side by side. The difference will feel illegal.",
+              "You'll leave with the universal layering map (aromatics → spice → main → liquid → reduce → finish) that works for curries, ragùs, braises and beans alike.",
             ),
           ),
           L(
-            "Composite characters and compressed time",
+            "Fix it: too salty, too flat, too much",
             7,
             55,
             paras(
-              "Memory is already an editor: it compresses years and merges minor characters. Craft can do the same — openly. We'll cover when compositing and compression serve the reader, and how an author's note keeps the contract honest.",
-              "The line you don't cross: inventing events that change the emotional truth. Rearranging furniture is craft; building a new house is fiction.",
-              "You'll practice compressing a two-year stretch of your timeline into a single transitional page that loses nothing the reader needs.",
+              "Great cooks aren't people who never miss — they're people who can rescue. Too salty wants dilution, starch or dairy. Flat wants acid or salt. Bitter wants fat and a pinch of sugar. Greasy wants acid and heat.",
+              "We'll deliberately break a pan sauce four ways and repair it four ways, so the fixes live in your hands, not your notes.",
+              "The meta-skill: taste, name the problem out loud, change ONE thing, taste again. Panic seasons by the handful; cooks season by the pinch.",
             ),
           ),
         ],
       },
       {
-        key: "memoir-3",
-        title: "Structuring a Life Story",
+        key: "cooking-3",
+        title: "Cooking for People You Love",
         description:
-          "Theme as throughline, structures beyond chronology, and endings that earn their weight.",
+          "Menus, timing and plating — dinner parties without the meltdown.",
         lessons: [
           L(
-            "Theme is your throughline",
+            "Menu math for hosts",
             8,
-            5,
+            15,
             paras(
-              "A memoir is not an autobiography. You're not writing everything that happened — you're writing one question your life kept asking. That question is your theme, and it decides what stays.",
-              "We'll extract your theme from the memory inventory: what do the starred memories argue about with each other? Belonging, escape, debt, forgiveness?",
-              "Once named, the theme becomes a bouncer. Wonderful scenes that don't serve it wait outside for the next book.",
+              "The secret of relaxed hosts: one dish with drama, everything else humble and make-ahead. Three courses where two are done before the doorbell is a dinner party; three à-la-minute dishes is a hostage situation.",
+              "We'll design your house menu — a starter that sits happily, a main with one finishing step, a dessert from the fridge — and write the shopping list backwards from it.",
+              "Cook your house menu three times for family before any guests see it. Familiarity is the actual ingredient people call 'effortless'.",
             ),
           ),
           L(
-            "Braided and framed structures",
-            11,
+            "The timeline is the recipe",
+            9,
             45,
             paras(
-              "Chronology is the default, not the law. A braided memoir weaves two or three timelines; a framed memoir tells the past from inside a present-day container; a thematic memoir moves room by room instead of year by year.",
-              "We'll map your starred scenes onto each structure and see which arrangement creates the most tension with the least explaining.",
-              "Structure is a promise about payoff — whichever shape you pick, the reader should feel the strands tightening toward each other by the middle of the book.",
+              "Food rarely fails at the stove on the night — it fails in the sequencing. We'll write a T-minus timeline: T-1 day (shop, marinate, dessert), T-3 hours (mise en place, table), T-30 (starter out, main staged), T-0 (pour drinks, breathe).",
+              "Every dish gets a parking spot: what can hold warm, what holds cold, what genuinely must be last-minute (almost nothing).",
+              "You'll also plan the host's golden rule: be IN the room. A slightly-too-simple menu served by a present, laughing host beats a tasting menu served by a ghost.",
             ),
           ),
           L(
-            "Endings that earn their weight",
+            "Plating: the thirty-second upgrade",
             6,
-            40,
+            50,
             paras(
-              "A memoir can't end with “and then I kept living” — it ends when the question changes. Not solved: changed. The narrator knows something now that reframes every earlier chapter.",
-              "We'll study three classic ending moves: the return (same place, new eyes), the release (the thing carried is set down), and the handoff (the story turns toward someone else's beginning).",
-              "You'll draft your final image first — many memoirists write toward a destination photo. It's allowed to change; it's not allowed to be vague.",
+              "We eat with our eyes first, and plating is cheaper than truffles. Warm plates, odd numbers, height over sprawl, sauce under not over, and one element of contrast — crunch, color or fresh green.",
+              "We'll plate the same stew three ways — straight from the pot, family-style with intention, and restaurant-style — and photograph each. The food never changed; the experience did.",
+              "Steal the home-cook's finishing kit: flaky salt, good olive oil, a lemon, soft herbs. Four touches, every plate, thirty seconds.",
             ),
           ),
         ],
@@ -570,109 +631,111 @@ const CLASSES: ClassSeed[] = [
     ],
   },
   {
-    key: "story",
-    name: "Storytelling & Plot Essentials",
-    slug: "storytelling-plot-essentials",
+    key: "photo",
+    theme: "photo",
+    name: "Photography: Seeing the Frame",
+    slug: "photography-seeing-the-frame",
     type: "PAID",
     description:
-      "The craft class for narrative drive: want and need, structure without formula, characters readers follow anywhere, and scenes that pull the page forward.",
-    categories: ["seed-lvlcat-craft", "seed-lvlcat-writing"],
+      "Make photographs, not snapshots. Light, composition and a simple manual-mode workflow — then portraits with real presence and an editing style that's recognizably yours.",
+    categories: ["seed-lvlcat-photo"],
     skills: [
-      "Build stakes readers feel",
-      "Structure acts without formulas",
-      "Write characters with desire lines",
-      "Craft scenes with turn and consequence",
-      "Dialogue that does double duty",
+      "Read light like a photographer",
+      "Compose frames that hold attention",
+      "Shoot manual without fear",
+      "Direct people into natural portraits",
+      "Edit with a consistent style",
     ],
     prices: [{ interval: "month", amount: 2400 }],
     courses: [
       {
-        key: "story-1",
-        title: "The Shape of Story",
-        description: "Want, need, stakes — and a three-act spine that breathes.",
+        key: "photo-1",
+        title: "Seeing Light",
+        description:
+          "Exposure, direction and quality of light — the only subject photography has.",
         lessons: [
           L(
-            "Want, need, and stakes",
-            9,
-            30,
-            paras(
-              "Every story engine has the same two pistons: what the character wants (the goal they'd name out loud) and what they need (the change they'd deny). Plot is what happens when pursuing the want collides with avoiding the need.",
-              "Stakes aren't explosions — they're the answer to “what breaks if she fails?” We'll sharpen stakes until a reader could state them in one sentence.",
-              "You'll fill out a one-page engine sheet for your protagonist and stress-test it: if the want is achievable in chapter two, or the need is already met, there is no book yet.",
-            ),
-          ),
-          L(
-            "Three acts without the formula",
-            12,
-            10,
-            paras(
-              "Act structure isn't a template to fill — it's a description of how pressure accumulates. Act one makes a promise, act two makes it expensive, act three makes it true.",
-              "We'll mark the only three structural moments that are non-negotiable: the door that closes behind the protagonist, the midpoint reversal that changes the question, and the dark moment where the want and the need finally face each other.",
-              "Then we'll map your outline against those moments — not to force scenes in, but to find where your draft's pressure leaks.",
-            ),
-          ),
-        ],
-      },
-      {
-        key: "story-2",
-        title: "Characters Readers Follow",
-        description: "Desire lines, voice and antagonists who think they're right.",
-        lessons: [
-          L(
-            "Desire lines",
+            "Light first, subject second",
             8,
-            25,
-            paras(
-              "Readers follow desire the way eyes follow motion. Every named character should want something on every page — even if it's a glass of water, as Vonnegut said.",
-              "We'll chart your cast's desire lines and look for collisions: two sympathetic characters whose wants are mutually exclusive give you conflict without a villain.",
-              "Flat secondary characters are almost always desireless characters. The fix is one specific want and one surprising line of dialogue.",
-            ),
-          ),
-          L(
-            "Voice on the page",
-            10,
-            0,
-            paras(
-              "Voice isn't decoration — it's worldview leaking through word choice. A character who calls a house a “property” and one who calls it a “home” see different worlds.",
-              "We'll run the diary exercise: one paragraph about the same rainy morning in three characters' voices. No names allowed — if a reader can't tell who's who, the voices are still yours, not theirs.",
-              "You'll build a small voice card per major character: pet phrases, what they notice first in a room, what they never say out loud.",
-            ),
-          ),
-          L(
-            "Antagonists with a point",
-            7,
-            15,
-            paras(
-              "A villain who's wrong about everything teaches the protagonist nothing. The antagonists that haunt readers are the ones who are right about something important.",
-              "We'll write your antagonist's case in their own voice — a one-page letter justifying everything they do. Somewhere in that letter is a sentence you secretly agree with; that sentence is gold.",
-              "Then we'll make the antagonist the hero of their own subplot: give them a want, a need and a wound, and watch every confrontation scene get sharper.",
-            ),
-          ),
-        ],
-      },
-      {
-        key: "story-3",
-        title: "Scenes That Pull",
-        description: "Scene-and-sequel rhythm and dialogue that earns its keep.",
-        lessons: [
-          L(
-            "Scene and sequel",
-            9,
             50,
             paras(
-              "A scene is a unit of change: a character enters with a goal, meets resistance, and leaves worse off or changed. A sequel is the breath after — reaction, dilemma, decision — that launches the next scene.",
-              "We'll dissect one of your existing scenes against the goal-conflict-disaster frame. If nothing changed by the end, it's not a scene yet; it's a setting with people in it.",
-              "Pacing is just the ratio of scene to sequel. Thrillers run long scenes and short sequels; literary fiction often inverts it. You'll choose your default ratio on purpose.",
+              "Beginners hunt subjects; photographers hunt light. The same doorway is a throwaway at noon and a masterpiece at golden hour — nothing changed but the light.",
+              "This week's exercise: photograph ONE boring object — a chair, a mug — ten times in ten different lights. Window light, backlight, lamp light, phone-torch light, dusk.",
+              "Reviewing those ten frames teaches more than a month of tutorials: you'll start seeing direction, softness and color temperature everywhere you go.",
             ),
           ),
           L(
-            "Dialogue that does double duty",
-            8,
+            "Manual mode in one afternoon",
+            12,
+            20,
+            paras(
+              "The exposure triangle sounds like math until you touch it. Aperture is how much light AND how blurry the background; shutter is how much light AND how frozen the motion; ISO is the volume knob with a noise tax.",
+              "We'll run the kitchen-table drill: same scene, one dial at a time, watching what each stop actually does. Twenty minutes of turning knobs beats twenty diagrams.",
+              "Your training wheels: aperture priority with auto-ISO capped at 3200. You choose the look, the camera handles the bookkeeping — full manual arrives naturally when you start disagreeing with it.",
+            ),
+          ),
+          L(
+            "Composition: guide the eye",
+            9,
             35,
             paras(
-              "Good dialogue does at least two jobs at once: it advances the scene's conflict AND reveals character. If a line only delivers information, it's narration wearing a costume.",
-              "We'll practice subtext: characters who talk about the dishes while fighting about the marriage. The rule of thumb — people rarely say the thing; they say around the thing.",
-              "You'll also learn the attribution diet: “said” is invisible, adverbs are confessions, and action beats place bodies in the room better than any dialogue tag.",
+              "A photograph is an argument about where to look. Thirds, leading lines, frames within frames — these aren't rules, they're tools for steering attention.",
+              "We'll practice subtraction: before every shutter press, ask 'what can leave this frame?' Step closer, change angle, wait for the pedestrian to pass. The strongest composition is usually the simplest one you almost took.",
+              "Then: edges. Amateurs watch the center; photographers patrol the edges, where poles grow out of heads and half-cars sneak in. Scan the border, then shoot.",
+            ),
+          ),
+        ],
+      },
+      {
+        key: "photo-2",
+        title: "Portraits with Presence",
+        description: "Directing people, choosing light and getting past the stiff smile.",
+        lessons: [
+          L(
+            "Direct, don't pose",
+            10,
+            10,
+            paras(
+              "Nobody relaxes when you say 'act natural'. People relax when they have something to DO. Give actions, not poses: 'walk toward me slowly', 'fix your sleeve', 'look at the window, now back to me'.",
+              "We'll build your direction playbook — ten prompts that produce movement, laughter and in-between moments. The frame you want is usually the one between the ones they think you're taking.",
+              "Keep talking, keep shooting, show them a good frame early. Confidence is contagious in both directions, and the camera records it.",
+            ),
+          ),
+          L(
+            "Window-light portraits",
+            8,
+            5,
+            paras(
+              "The best portrait light you own is a window with the sun NOT shining straight through it. Big, soft, directional — studio softboxes spend thousands imitating it.",
+              "We'll work the clock: subject at 45° to the window for classic modeling, face-on for beauty light, back-to-window for rim-lit mood. A white wall or foam board is your fill crew.",
+              "Watch the eyes — the catchlight is the portrait's pulse. If the eyes are dead, move two steps and try again; if they sparkle, you're done scouting.",
+            ),
+          ),
+        ],
+      },
+      {
+        key: "photo-3",
+        title: "Editing & Your Style",
+        description: "A fast, repeatable edit — and the taste that makes photos yours.",
+        lessons: [
+          L(
+            "The five-slider edit",
+            9,
+            0,
+            paras(
+              "Most photos need five moves: exposure to taste, white balance to honesty, contrast to intention, highlights down, shadows up. Everything else is seasoning.",
+              "We'll edit five very different frames with only those sliders and watch them land at 90% finished. The discipline matters: a constrained edit keeps your library coherent and your evenings free.",
+              "Edit the day after the shoot, never the same night — and cull ruthlessly first. Editing twelve keepers is craft; editing four hundred frames is punishment.",
+            ),
+          ),
+          L(
+            "Finding your look",
+            7,
+            45,
+            paras(
+              "Style isn't a preset you buy; it's a pattern in your choices. Collect thirty photographs you love — yours and others' — and write down what repeats. Warm or cool? Clean or grainy? Close or wide? Busy or empty?",
+              "That list is your style brief. Edit toward it for a month: same tones, same crop instincts, same subjects. Consistency reads as voice long before mastery does.",
+              "Revisit the brief each season. Style is a direction you keep choosing, not a destination you arrive at.",
             ),
           ),
         ],
@@ -680,19 +743,20 @@ const CLASSES: ClassSeed[] = [
     ],
   },
   {
-    key: "editing",
-    name: "Editing & Revision Bootcamp",
-    slug: "editing-revision-bootcamp",
+    key: "dance",
+    theme: "dance",
+    name: "Dance & Choreography",
+    slug: "dance-and-choreography",
     type: "PAID",
     description:
-      "The unglamorous superpower. Triage a messy draft, revise structure before sentences, and polish lines until they disappear — plus how to work with a professional editor.",
-    categories: ["seed-lvlcat-craft"],
+      "Move with confidence — at any age, in any body. Musicality, grounded technique and the choreographic tools to turn eight counts of nothing into a piece people feel.",
+    categories: ["seed-lvlcat-dance"],
     skills: [
-      "Triage a finished draft calmly",
-      "Reverse-outline like an editor",
-      "Cut darlings without bleeding",
-      "Line-edit for rhythm and clarity",
-      "Brief and work with a pro editor",
+      "Find the beat and stay in it",
+      "Move big without losing balance",
+      "Learn choreography faster",
+      "Build an eight-count from scratch",
+      "Perform instead of just executing",
     ],
     prices: [
       { interval: "month", amount: 1900 },
@@ -700,75 +764,75 @@ const CLASSES: ClassSeed[] = [
     ],
     courses: [
       {
-        key: "editing-1",
-        title: "The Big-Picture Revision",
-        description: "Structure first: triage, reverse outlines and brave cuts.",
+        key: "dance-1",
+        title: "Foundations of Movement",
+        description: "Rhythm, posture and the confidence to take up space.",
         lessons: [
           L(
-            "Triage your draft",
-            10,
-            40,
+            "Musicality before moves",
+            8,
+            20,
             paras(
-              "You finished a draft — do not start fixing commas. Revision runs top-down: story problems first, scene problems second, sentence problems last. Polishing a scene you'll later delete is how revisions eat years.",
-              "We'll do a cold read-through with only three margin marks allowed: ✓ works, ? confusing, ✗ dead. No rewriting permitted on this pass — you're a surveyor, not a builder.",
-              "The output is a one-page diagnosis: the three biggest structural problems, named bluntly. Everything else waits.",
+              "Dancers don't count because they love math — they count because the music is the choreography's skeleton. Before any steps, we train your ear: find the 1, feel the 8, hear where the music breathes.",
+              "The daily drill: one song, no moves allowed — just walk the beat, clap the accents, nod the phrases. Boring for three days, transformative by day seven.",
+              "Once your body knows where the 1 lives, every step you ever learn will land twice as fast. Rhythm is the slowest skill to build and the most permanent.",
             ),
           ),
           L(
-            "The reverse outline",
+            "Grounded: posture and weight",
             9,
-            15,
-            paras(
-              "A reverse outline is the X-ray of the draft you actually wrote (not the one you meant to write). One line per scene: who wants what, what changes, why the next scene needs this one.",
-              "Gaps announce themselves: scenes where nothing changes, chapters that repeat a beat, a middle where the protagonist goes passive for forty pages.",
-              "We'll re-sequence on index cards before touching the manuscript. Moving a card costs nothing; moving ten thousand words hurts — do the cheap surgery first.",
-            ),
-          ),
-          L(
-            "Cutting your darlings",
-            6,
             55,
             paras(
-              "“Kill your darlings” doesn't mean delete what you love — it means delete what only you love. The test: does the book get worse for the READER without it, or just smaller for you?",
-              "Every cut goes to a graveyard file, which makes the knife painless: nothing is destroyed, it's just benched. (You will almost never go back for any of it. That's the lesson.)",
-              "We'll practice the 10% pass: whatever the draft's length, cut a tenth. The discipline isn't about the number — it's about discovering how much was scaffolding.",
+              "Confidence on the floor is physics: knees soft, weight low, chest proud. Stiff knees and a held breath read as fear from across the room — and feel like it from inside.",
+              "We'll drill weight shifts until they're invisible: side to side, front to back, through the hips not the shoulders. Every style — hip-hop, salsa, contemporary — is weight transfer wearing different clothes.",
+              "Film yourself for thirty seconds today and watch it without cringing. That's not vanity; it's the fastest feedback loop in dance.",
+            ),
+          ),
+          L(
+            "Learn choreography faster",
+            7,
+            30,
+            paras(
+              "Picking up choreography is its own skill, separate from dancing. The trick: chunk it. Eight counts at a time, name each chunk out loud ('punch, slide, roll'), and mark it small before you dance it big.",
+              "Watch the teacher's feet first, arms second — feet carry the structure, arms carry the style. And dance it wrong at full energy rather than right at half energy; corrections stick to moving bodies.",
+              "End every session by performing what you have, even if it's four counts. Memory consolidates under mild pressure, and performing IS the skill.",
             ),
           ),
         ],
       },
       {
-        key: "editing-2",
-        title: "Line Editing & Polish",
-        description: "Sentence-level craft, a self-edit checklist, and working with pros.",
+        key: "dance-2",
+        title: "Choreography: From Idea to Stage",
+        description: "Build phrases, shape space and turn movement into meaning.",
         lessons: [
           L(
-            "Sentences that sing",
-            8,
-            50,
+            "Your first eight counts",
+            10,
+            25,
             paras(
-              "Line editing is rhythm work. Read the paragraph aloud: where you stumble, the reader falls. We'll vary sentence length on purpose — long sentences carry thought, short ones land blows.",
-              "The usual suspects get a sweep: weak verbs propped up by adverbs, nouns buried in “-tion” phrases, three adjectives doing the job of one specific noun.",
-              "The goal isn't beautiful sentences — it's invisible ones. Prose is working when the reader forgets they're reading.",
+              "A blank studio is scarier than a blank page. So we never start blank: steal a pedestrian gesture — checking a phone, waving, falling asleep — and stylize it: bigger, slower, sharper, on the beat.",
+              "Three gestures, three treatments, and you have an eight-count with a point of view. Originality isn't inventing movement from nothing; it's a personal filter on the ordinary.",
+              "Record everything. Choreography evaporates — the phone in the corner is your notebook.",
             ),
           ),
           L(
-            "Self-editing checklist",
-            7,
-            30,
+            "Space, levels and the audience's eye",
+            9,
+            15,
             paras(
-              "We'll assemble your personal pass list — because every writer has signature tics. Mine might be “just” and weather reports; yours might be characters who nod and smile every page.",
-              "Run focused passes, one tic at a time: a “very/really/just” pass, a filter-words pass (saw, felt, noticed), an opening-paragraph pass across all chapters in one sitting.",
-              "Then the format trick: change the font, export to your e-reader, or have the computer read it aloud. New container, new eyes — typos you've skimmed forty times suddenly wave.",
+              "Choreography is composition in motion: where bodies are, how high, facing where. A phrase performed in a line, then a diagonal, then a cluster becomes three different pieces.",
+              "We'll play with levels (floor, mid, air), unison versus canon, and stillness — the most underused move in dance. The eye goes where the change is; control the change and you control the room.",
+              "Block your piece on paper with dots and arrows before the studio. Five minutes of drawing saves an hour of 'wait, where do I stand?'",
             ),
           ),
           L(
-            "Working with an editor",
-            11,
-            5,
+            "Perform it like you mean it",
+            6,
+            40,
             paras(
-              "Know what you're buying: a developmental edit interrogates the story, a line edit tunes the prose, a copyedit enforces correctness, and proofreading catches what survived. Buying them out of order wastes money.",
-              "We'll write a one-page editorial brief: what the book is, who it's for, what you're worried about, and what kind of feedback helps you (and what shuts you down).",
-              "When the edit letter arrives, the 48-hour rule applies: read it, close it, walk. The notes that still sting two days later are usually the true ones.",
+              "The last ten percent — face, breath, intention — is what audiences actually remember. Steps executed perfectly with dead eyes lose to simple movement performed with conviction, every single time.",
+              "We'll attach one word to each section of your piece — 'defiant', 'playful', 'done' — and let the word drive the face and the breath. Acting and dancing are the same job at this layer.",
+              "Then the dress-rehearsal rule: full out, in costume shoes, filmed, twice. The performance you rehearse is the one that shows up under lights.",
             ),
           ),
         ],
@@ -776,20 +840,21 @@ const CLASSES: ClassSeed[] = [
     ],
   },
   {
-    key: "selfpub",
-    name: "Self-Publishing Pro",
-    slug: "self-publishing-pro",
+    key: "film",
+    theme: "film",
+    name: "Filmmaking: Script to Screen",
+    slug: "filmmaking-script-to-screen",
     type: "PAID",
     description:
-      "Your book, your imprint, your timeline. The complete production-and-launch system: choose your path, build a professional package, and run a launch week that sells books while you sleep.",
-    categories: ["seed-lvlcat-publishing"],
+      "Make the short film you keep talking about. Story, directing, cinematography, sound and the edit — a complete path from idea to a finished film you're proud to screen.",
+    categories: ["seed-lvlcat-film"],
     skills: [
-      "Choose self vs. traditional vs. hybrid with clear eyes",
-      "Budget a launch like a producer",
-      "Commission covers that sell the genre",
-      "Format interiors without tears",
-      "Run a launch-team playbook",
-      "Price and promo beyond launch week",
+      "Write a short that fits your budget",
+      "Direct actors with playable notes",
+      "Light and frame with what you have",
+      "Record sound people can actually hear",
+      "Cut for emotion, not coverage",
+      "Finish and screen the thing",
     ],
     prices: [
       // 6 monthly installments, then lifetime access — the installments demo.
@@ -798,102 +863,102 @@ const CLASSES: ClassSeed[] = [
     ],
     courses: [
       {
-        key: "selfpub-1",
-        title: "Your Publishing Roadmap",
-        description: "Paths, money and a realistic production calendar.",
+        key: "film-1",
+        title: "The Director's Craft",
+        description: "Story, shot-listing and getting performances you can cut to.",
         lessons: [
           L(
-            "Self vs. traditional vs. hybrid",
-            10,
-            20,
+            "Write small, mean it",
+            9,
+            30,
             paras(
-              "There is no morally superior path — there are trade-offs. Traditional buys you distribution and validation and costs you years and control. Self-publishing buys you speed and royalties and costs you a second job as a producer.",
-              "We'll score your specific book and goals across five axes: speed, control, budget, platform, and shelf-life. Niche non-fiction with an audience scores differently than a debut literary novel.",
-              "Hybrid presses get a hard-eyed look too: the legitimate ones are transparent about costs; the predatory ones are flattery with an invoice. You'll get the checklist that tells them apart.",
+              "Your first films should be small enough to finish and sharp enough to matter: one location, two characters, one irreversible moment. Constraint isn't the enemy of ambition — it's the disguise ambition wears on no budget.",
+              "We'll pressure-test your idea with three questions: What changes? Whose film is it? Why today and not any other day of these characters' lives?",
+              "Then the one-page treatment: beginning, turn, end — no dialogue yet. If the silent version doesn't work, dialogue won't save it; film is pictures first.",
             ),
           ),
           L(
-            "Budgeting your launch",
+            "The shot list is the film",
+            11,
+            40,
+            paras(
+              "A director's real job happens before the set: deciding what the camera sees and why. Wide establishes, medium relates, close-up testifies — each size is a sentence in the visual grammar.",
+              "We'll break your script into beats and give each beat a shot with a REASON: whose scene is it, where's the power, what must the audience notice? Coverage without intention is just expensive indecision.",
+              "Storyboard with stick figures or phone photos of action figures — beauty irrelevant, clarity everything. On the day, the list is your spine; the inspired extra shot is dessert, never dinner.",
+            ),
+          ),
+          L(
+            "Directing actors: playable notes",
+            10,
+            15,
+            paras(
+              "'Be sadder' is not a note — it's a wish. Actors play actions, not adjectives: 'try to make her stay' is playable; 'be desperate' is homework you just handed them mid-take.",
+              "We'll build your verb vocabulary (to convince, to punish, to confess, to hide) and practice the thirty-second adjustment: one verb change between takes, never a paragraph.",
+              "Cast people you like, feed everyone, and protect take three — the first is mechanics, the second is memory, the third is where the accident you'll keep usually lives.",
+            ),
+          ),
+        ],
+      },
+      {
+        key: "film-2",
+        title: "Cinematography & Sound",
+        description: "Lighting, lenses and the sound that secretly carries your film.",
+        lessons: [
+          L(
+            "Light with motivation",
+            10,
+            55,
+            paras(
+              "Good lighting looks like it came from somewhere: a window, a lamp, a streetlight. Start with the practical source the room gives you, then help it — bounce it, soften it, cut it.",
+              "The one-light film school: a single soft source 45° off the face, white card opposite for fill, and the room's own lamps as background interest. That setup shoots ninety percent of indie scenes.",
+              "We'll also steal time of day: golden hour for romance, overcast for honesty, night windows for menace. The sun is the best gaffer who works for free.",
+            ),
+          ),
+          L(
+            "Lenses tell the story",
             8,
             45,
             paras(
-              "A professional indie book typically needs four line items: editing, cover, interior, and marketing seed money. We'll price each at economy, standard and premium tiers so you can budget on purpose instead of by surprise.",
-              "The order of spending matters: editing is the last place to cut, covers are judged in thumbnail size, and most paid marketing is wasted before you have reviews.",
-              "You'll build your production calendar backwards from a launch date — with the two buffers everyone forgets: proof copies take time, and editors book out months ahead.",
-            ),
-          ),
-        ],
-      },
-      {
-        key: "selfpub-2",
-        title: "Production: Covers, Interiors, ISBNs",
-        description: "The package readers judge before they read a word.",
-        lessons: [
-          L(
-            "Covers that sell the genre",
-            9,
-            40,
-            paras(
-              "Your cover's job is not to depict your book — it's to signal its genre at thumbnail size in under a second. Readers buy what looks like the last thing they loved.",
-              "We'll build a comp board of the current top fifty in your category and extract the visual grammar: typography weight, palette, imagery, where the author name sits.",
-              "Then: how to brief a designer (comps, not adjectives), what rights to ask for, and the three thumbnail tests a cover must pass before you approve it.",
+              "Wide lenses make spaces and isolation; long lenses make intimacy and compression. The same conversation shot at 24mm and 85mm is two different scenes — pick by feeling, not by what's on the camera.",
+              "We'll define your film's lens rules in one line ('we live on a 35 and only go long when she lies') so the photography has a spine the audience feels without naming.",
+              "Movement earns its keep the same way: a push-in means something is changing; handheld means stability is gone. If the camera moves, the story moved first.",
             ),
           ),
           L(
-            "Interior formatting without tears",
+            "Sound is half the picture",
             12,
             0,
             paras(
-              "Interiors are where amateur books expose themselves: cramped margins, widows and orphans, fourteen fonts. The good news — modern tools (Vellum, Atticus, even clean templates) make professional interiors a day's work.",
-              "We'll set the non-negotiables: consistent chapter openers, readable trim-size-appropriate type, front matter in the right order, and a back matter that sells your next book.",
-              "Print and ebook are different animals: fixed pages versus reflowing text. You'll produce both from one master file and check each on real devices and a real proof copy.",
-            ),
-          ),
-          L(
-            "Metadata, ISBNs and categories",
-            7,
-            50,
-            paras(
-              "Metadata is invisible marketing. Your title, subtitle, description, keywords and categories decide whether the right reader ever sees the cover you paid for.",
-              "We'll write a description that sells (hook, stakes, social proof, call to action — not a synopsis), choose seven keywords readers actually type, and pick categories where you can realistically rank.",
-              "ISBNs, imprint names and the own-vs-free decision get sorted too: owning your ISBN means owning your publisher identity across every store.",
+              "Audiences forgive soft focus; they do not forgive unintelligible dialogue. The boom mic two feet above the actor beats the camera mic across the room, every time, no exceptions.",
+              "We'll cover the no-budget kit — one shotgun mic, one pole, one set of headphones actually worn by an actual human — and the on-set ritual: thirty seconds of room tone before anyone wraps a location.",
+              "Layer in post: clean dialogue, room tone under everything, two or three honest effects, music last and quieter than you want. Sound design is where cheap films become invisible-budget films.",
             ),
           ),
         ],
       },
       {
-        key: "selfpub-3",
-        title: "Launch Week",
-        description: "The playbook: review teams, pricing, promos and the long tail.",
+        key: "film-3",
+        title: "The Edit Room",
+        description: "Where the film is actually written — rhythm, ruthlessness, release.",
         lessons: [
           L(
-            "The launch-team playbook",
+            "The edit is the final rewrite",
             9,
+            50,
+            paras(
+              "Your footage is not your film; it's the lumber. First assembly will be long and flabby — that's its job. Watch it once, no stopping, notes on paper: where were you bored, where were you confused, where did you feel something?",
+              "Cut for the performance, not the plan. The shot list got you the material; loyalty to it now is sunk-cost filmmaking. If the scene plays better without your favorite shot, the favorite goes.",
+              "Rhythm rule of thumb: enter scenes late, leave early, and let reactions — not lines — carry the cuts. The story lives on the listener's face.",
+            ),
+          ),
+          L(
+            "Finish it: color, mix, screen",
+            8,
             10,
             paras(
-              "A launch team is a small group of readers who get the book early in exchange for honest reviews in week one. Reviews are the currency — stores and readers both count them.",
-              "We'll recruit from your warmest circles (newsletter, clients, writing groups), onboard them with dates and a one-page guide, and make review-leaving embarrassingly easy.",
-              "The cadence: advance copies four weeks out, a reminder at launch, a thank-you with the review link the day after. Twenty genuine reviews in week one changes a book's trajectory.",
-            ),
-          ),
-          L(
-            "Pricing and promos",
-            8,
-            20,
-            paras(
-              "Pricing is positioning. We'll cover the standard indie ladders: a launch-week price that rewards early buyers, the 2.99–5.99 ebook sweet spots, and print pricing that survives store cuts.",
-              "Promo sites and countdown deals get a sober review — which ones still move copies, and why stacking three small promos beats one big one.",
-              "The metric that matters isn't launch-day rank; it's the read-through and the email signups. A launch is an audience-building event wearing a sales costume.",
-            ),
-          ),
-          L(
-            "After the launch",
-            6,
-            30,
-            paras(
-              "Week two is where most indie books die quietly — and where pros go to work. The long tail runs on three engines: also-boughts, your email list, and the next book.",
-              "We'll set a 90-day rhythm: one promo a month, one piece of evergreen content a week, and a quarterly price experiment with actual notes.",
-              "And the most reliable marketing for book one is writing book two. Series momentum is the closest thing publishing has to compound interest.",
+              "Finishing is a discipline: a light color pass for consistency before style, a dialogue-first mix with music pulled down two more dB than feels right, titles that are readable and brief.",
+              "Then export, watch it ONCE on a TV with people who love you, fix only what's broken, and stop. Version seventeen is where short films go to die.",
+              "Screen it — a festival, a bar night, a living room with folding chairs. A film isn't finished when you export; it's finished when strangers have felt it. Then start writing the next one.",
             ),
           ),
         ],
@@ -901,19 +966,20 @@ const CLASSES: ClassSeed[] = [
     ],
   },
   {
-    key: "platform",
-    name: "Author Platform & Marketing",
-    slug: "author-platform-marketing",
+    key: "comedy",
+    theme: "comedy",
+    name: "Stand-Up Comedy & Performance",
+    slug: "stand-up-comedy-performance",
     type: "PAID",
     description:
-      "Build the audience before you need it. A working author website, a newsletter engine that grows weekly, social that doesn't eat your writing time, and ads that pay for themselves.",
-    categories: ["seed-lvlcat-marketing", "seed-lvlcat-publishing"],
+      "Be funnier on purpose. Find your premises, build jokes with real mechanics, survive your first open mics and turn stage fright into stage presence.",
+    categories: ["seed-lvlcat-comedy", "seed-lvlcat-film"],
     skills: [
-      "Ship an author site in a weekend",
-      "Grow a newsletter with a reader magnet",
-      "Run a sustainable social cadence",
-      "Read Amazon ads data without panic",
-      "Build funnels that sell the backlist",
+      "Mine your life for premises",
+      "Build setups and punchlines that hit",
+      "Handle silence without dying",
+      "Work a crowd, not against it",
+      "Turn five okay minutes into five tight ones",
     ],
     prices: [
       { interval: "month", amount: 2500 },
@@ -921,65 +987,65 @@ const CLASSES: ClassSeed[] = [
     ],
     courses: [
       {
-        key: "platform-1",
-        title: "Build Your Author Platform",
-        description: "Website, newsletter and a social presence that serves the books.",
+        key: "comedy-1",
+        title: "Finding the Funny",
+        description: "Premises, punchlines and the notebook habit behind every tight five.",
         lessons: [
           L(
-            "Your author website in a weekend",
-            11,
-            30,
-            paras(
-              "An author site has exactly four jobs: say who you are, show the books, capture emails, and give media a press page. Everything else is decoration — ship the four jobs first.",
-              "We'll wireframe the five pages that matter (home, books, about, contact, newsletter) and write the home page above-the-fold line: one sentence, one button.",
-              "Perfection is the enemy here. A simple live site collecting emails this weekend beats the redesign you'll finish someday.",
-            ),
-          ),
-          L(
-            "The newsletter engine",
-            9,
-            55,
-            paras(
-              "Your email list is the only audience you own. Social platforms rent you reach and change the locks whenever they like; the list goes wherever you go.",
-              "We'll build the engine: a reader magnet (novella, checklist, first three chapters) traded for an address, a welcome sequence that introduces you in three emails, and a sustainable cadence — monthly is plenty.",
-              "Write to one reader, not “my list.” The unsubscribes you'll obsess over are the system working: the room slowly fills with the right people.",
-            ),
-          ),
-          L(
-            "Social without the burnout",
-            7,
+            "Premises are everywhere",
+            8,
             40,
             paras(
-              "You don't need to be everywhere — you need to be findable in one place your readers already are. We'll choose a primary platform by audience, not by trend.",
-              "The sustainable cadence is the one you can keep in a deadline month: three posts a week from a simple rotation (process, life, book) batched in one sitting.",
-              "Hard rule: social feeds the newsletter, the newsletter sells the books. If a platform stops sending people up that ladder, you're allowed to leave.",
+              "Comedy starts with noticing, not with jokes. The premise is your honest, specific take on something real: what's weird, what's annoying, what does everyone pretend about?",
+              "We'll start the comic's notebook: every day, three observations written as 'It's weird that…', 'I hate it when…', 'Nobody admits…'. No punchlines allowed yet — premises first, like a cook prepping before the flame.",
+              "Your funniest material will come from what you actually know: your job, your family, your body, your phone. Specific is funny; general is a greeting card.",
+            ),
+          ),
+          L(
+            "Joke mechanics: setup, punch, tag",
+            10,
+            30,
+            paras(
+              "A joke is a tiny machine: the setup creates an assumption, the punchline breaks it, the tag breaks it again for free. Economy is everything — every unnecessary word is a speed bump before the laugh.",
+              "We'll take three premises from your notebook and build each one out: list ten angles, write the punch FIRST sometimes, then sand the setup down to the fewest words that still load the assumption.",
+              "Then the rule of threes, act-outs and the comparison engine ('X is just Y for Z'). Mechanics won't make you funny — they make your funny land.",
+            ),
+          ),
+          L(
+            "Your first open mic",
+            9,
+            20,
+            paras(
+              "The open mic is the gym, not the show. Three minutes, material you've actually rehearsed out loud, recorded on your phone from the back of the room. That recording is the whole point of the night.",
+              "Expect silence — newcomers' material is usually 30% as funny on stage as in their head, and that's NORMAL. The gap closes with stage time and nothing else.",
+              "Afterwards: listen to the tape once, mark what got anything (a laugh, a smile, a breath), keep those seconds, rewrite the rest. Five mics in, you'll have one real minute. That's how everyone starts — everyone.",
             ),
           ),
         ],
       },
       {
-        key: "platform-2",
-        title: "Selling More Books",
-        description: "Amazon ads fundamentals and reader funnels that compound.",
+        key: "comedy-2",
+        title: "Owning the Stage",
+        description: "Presence, crowd work and turning panic into timing.",
         lessons: [
           L(
-            "Amazon ads fundamentals",
-            12,
-            25,
+            "Stage presence is borrowed confidence",
+            7,
+            50,
             paras(
-              "Amazon ads are a vending machine with a learning curve: you put in money and keywords, and the data tells you what readers actually search. We'll start with low-budget auto campaigns purely as research.",
-              "Then the harvest: move the converting search terms into manual campaigns, bid down the browsers, bid up the buyers. ACOS targets depend on your goal — visibility, break-even, or profit.",
-              "The discipline is weekly fifteen-minute reviews, not daily panic. Ads reward boring consistency and punish enthusiastic fiddling.",
+              "The audience decides if you're funny in the first fifteen seconds — mostly from how you walk, plant and breathe. Move with intention, take the mic out of the stand like you've done it before, and pause before your first word.",
+              "Slow is power. Nerves rush; pros let silence sit while the room leans in. We'll drill the two-second hold after every punchline — the laugh needs room to land.",
+              "And memorize your opener and closer cold. A strong first joke buys you five minutes of goodwill; a strong last one is what the room remembers in the car.",
             ),
           ),
           L(
-            "Reader magnets and funnels",
-            8,
-            55,
+            "Crowd work and recovery",
+            9,
+            5,
             paras(
-              "A funnel is just a kind path from stranger to superfan: free taste, email relationship, fair offer. For novelists that's magnet → welcome sequence → series starter; for non-fiction, checklist → case-study emails → flagship book or course.",
-              "We'll map your funnel on one page and find the leak — usually the handoff between the free thing and the first ask.",
-              "Then we wire the back matter: every book's final pages should invite the reader one step deeper. The cheapest marketing you'll ever run is a link in a book someone just loved.",
+              "Crowd work isn't insult comedy — it's curiosity with timing. Ask real questions, listen for the gift in the answer, and always punch sideways or up, never down at the person who trusted you with a reply.",
+              "Bombing is a rite, not a verdict. Have your recovery lines ready ('I'll wait', 'that one's for the ride home') and remember the room's secret: they're rooting for you — silence embarrasses them too.",
+              "Heckles get one warning shot, then the host. The audience hires you to keep the night safe and funny, in that order — and handling it gracefully IS the bit.",
             ),
           ),
         ],
@@ -991,10 +1057,12 @@ const CLASSES: ClassSeed[] = [
 async function seedCatalog() {
   // Categories shown as chips on class tiles and landing pages.
   const cats: Array<[string, string, number]> = [
-    ["seed-lvlcat-writing", "Writing", 0],
-    ["seed-lvlcat-craft", "Craft", 1],
-    ["seed-lvlcat-publishing", "Publishing", 2],
-    ["seed-lvlcat-marketing", "Marketing", 3],
+    ["seed-lvlcat-music", "Music", 0],
+    ["seed-lvlcat-food", "Food", 1],
+    ["seed-lvlcat-photo", "Photography", 2],
+    ["seed-lvlcat-dance", "Dance", 3],
+    ["seed-lvlcat-film", "Film & TV", 4],
+    ["seed-lvlcat-comedy", "Comedy", 5],
   ];
   for (const [id, name, order] of cats) {
     await prisma.levelCategory.upsert({
@@ -1014,7 +1082,7 @@ async function seedCatalog() {
       published: true,
       type: cls.type,
       description: cls.description,
-      imageUrl: cover(cls.slug),
+      imageUrl: art(cls.theme, 0),
       trailerUrl: TRAILER,
       mailchimpTags: [cls.slug],
       skills: cls.skills.map((title, i) => ({
@@ -1044,16 +1112,16 @@ async function seedCatalog() {
           title: course.title,
           description: course.description,
           order: c,
-          thumbnailUrl: thumb(course.key),
-          coverImageUrl: cover(course.key),
+          thumbnailUrl: art(cls.theme, c + 1),
+          coverImageUrl: art(cls.theme, c + 1),
         },
         create: {
           id: courseId,
           title: course.title,
           description: course.description,
           order: c,
-          thumbnailUrl: thumb(course.key),
-          coverImageUrl: cover(course.key),
+          thumbnailUrl: art(cls.theme, c + 1),
+          coverImageUrl: art(cls.theme, c + 1),
         },
       });
       await prisma.courseLevel.upsert({
@@ -1119,7 +1187,7 @@ async function seedCatalog() {
 // Member demo state: enrolled in two classes with visible progress, so the
 // dashboard opens on "Welcome back" with a non-zero continue-learning hero.
 async function seedMemberState(memberId: string) {
-  for (const levelId of ["seed-class-foundations", "seed-class-memoir"]) {
+  for (const levelId of ["seed-class-music", "seed-class-cooking"]) {
     await prisma.userLevel.upsert({
       where: {
         userId_levelId_source: { userId: memberId, levelId, source: "MANUAL" },
@@ -1129,9 +1197,9 @@ async function seedMemberState(memberId: string) {
     });
   }
   for (const lessonId of [
-    "seed-lesson-foundations-1-1",
-    "seed-lesson-foundations-1-2",
-    "seed-lesson-memoir-1-1",
+    "seed-lesson-music-1-1",
+    "seed-lesson-music-1-2",
+    "seed-lesson-cooking-1-1",
   ]) {
     await prisma.lessonProgress.upsert({
       where: { userId_lessonId: { userId: memberId, lessonId } },
@@ -1147,9 +1215,9 @@ async function seedBlog(adminId: string) {
   const cats: Array<[string, string, string, number]> = [
     ["seed-postcat-news", "Latest News", "latest-news", 0],
     ["seed-postcat-featured", "Featured Stories", "featured-stories", 1],
-    ["seed-postcat-writing-tips", "Writing Tips", "writing-tips", 2],
-    ["seed-postcat-publishing", "Publishing", "publishing", 3],
-    ["seed-postcat-author-life", "Author Life", "author-life", 4],
+    ["seed-postcat-tips", "Tips & Technique", "tips-and-technique", 2],
+    ["seed-postcat-behind", "Behind the Scenes", "behind-the-scenes", 3],
+    ["seed-postcat-creative", "Creative Living", "creative-living", 4],
   ];
   for (const [id, name, slug, order] of cats) {
     await prisma.postCategory.upsert({
@@ -1177,9 +1245,9 @@ async function seedBlog(adminId: string) {
       slug: "welcome-to-the-new-member-portal",
       title: "Welcome to the new member portal",
       excerpt:
-        "Unlocking Your Book has a new home — faster, cleaner, and built around your writing.",
+        "A faster home for your classes — on the web and in the app, always in sync.",
       content:
-        "<p>Welcome to the new Unlocking Your Book member portal — rebuilt from the ground up around the way working writers actually learn.</p><h2>What's new</h2><ul><li>A classes-first dashboard that remembers where you left off</li><li>Every lesson on web and mobile, always in sync</li><li>A brand-new public blog with weekly craft and publishing articles</li></ul><p>Log in, pick up your class, and keep writing. We'll handle the rest.</p>",
+        "<p>Welcome to the new member portal — rebuilt from the ground up around the way people actually learn a craft.</p><h2>What's new</h2><ul><li>A classes-first dashboard that remembers where you left off</li><li>Every lesson on web and mobile, always in sync</li><li>A brand-new public blog with weekly tips from every discipline</li></ul><p>Log in, pick your class, and make something today.</p>",
       status: "PUBLISHED",
       publishedAt: "2026-05-01T09:00:00Z",
       categoryIds: ["seed-postcat-news"],
@@ -1199,82 +1267,82 @@ async function seedBlog(adminId: string) {
     },
     // ----- real content -----
     {
-      id: "seed-post-first-draft",
-      slug: "how-to-finish-your-first-draft-in-90-days",
-      title: "How to finish your first draft in 90 days",
+      id: "seed-post-practice",
+      slug: "practice-habits-that-actually-stick",
+      title: "Practice habits that actually stick",
       excerpt:
-        "Not by writing faster — by deciding more before you start and quitting less in the middle.",
+        "Musicians, dancers, comics — the craft changes, the practice psychology doesn't. Five rules from people who kept going.",
       content:
-        "<p>Ninety days is enough time to draft a book. Not to write a <em>good</em> book — drafts aren't supposed to be good, they're supposed to be <strong>done</strong>. Here's the system our members use.</p><h2>Weeks 1–2: decide everything you can</h2><p>Most mid-draft quitting is really mid-draft <em>deciding</em>. Lock your premise in one sentence, sketch a 12-beat outline, and write your ending's final image first. You're allowed to change these later; you're not allowed to start without them.</p><h2>Weeks 3–12: protect the floor</h2><ul><li>Set a daily minimum so small it's embarrassing (200 words)</li><li>Stop mid-sentence so tomorrow starts on rails</li><li>Park every doubt on a “later list” instead of obeying it</li><li>Miss a day? The streak restarts within 48 hours, no make-up math</li></ul><p>At 500 words a day, five days a week, you'll cross 30,000 words by week ten — which is when the draft starts pulling you instead of you pushing it.</p><h2>The only rule that matters</h2><p>Forward, never back. Revision is a different sport, played after the whistle. The draft's one job is to exist.</p>",
+        "<p>Every craft on this platform — music, dance, cooking, comedy — runs on the same hidden engine: practice you actually do. Here's what the people who stuck with it have in common.</p><h2>1. Shrink the session</h2><p>Twenty focused minutes beats the mythical free Saturday. The floor should be so low it's embarrassing to skip: one song section, one eight-count, one knife drill.</p><h2>2. Same time, same trigger</h2><p>Habits attach to existing routines. After coffee, before dinner, when the dishwasher starts — the trigger matters more than the hour.</p><h2>3. Practice the hard 20%</h2><ul><li>Musicians: loop the four bars you fumble, not the whole song</li><li>Dancers: drill the transition, not the choreography</li><li>Comics: rewrite the bit that died, don't re-read the one that killed</li></ul><h2>4. Record everything</h2><p>The phone in the corner is the most honest teacher you'll ever have — and proof, three months later, of how far you've come.</p><h2>5. End on a win</h2><p>Finish each session with something you can already do well. Your brain files the session under \"that went great\", and tomorrow's session gets easier to start.</p>",
       status: "PUBLISHED",
       publishedAt: "2026-05-05T09:00:00Z",
-      categoryIds: ["seed-postcat-writing-tips"],
-      tags: ["drafting", "habits", "productivity"],
+      categoryIds: ["seed-postcat-tips"],
+      tags: ["practice", "habits", "music", "dance"],
     },
     {
-      id: "seed-post-author-voice",
-      slug: "finding-your-author-voice",
-      title: "Finding your author voice (it's not what you think)",
+      id: "seed-post-plating",
+      slug: "plate-like-a-chef-five-rules",
+      title: "Plate like a chef: five rules that change everything",
       excerpt:
-        "Voice isn't something you find — it's what's left when you stop imitating and start noticing.",
+        "The food is already good — these thirty-second moves make it look like it came from a kitchen with a pass.",
       content:
-        "<p>New writers hunt for their “voice” like it's a lost wallet. But voice isn't found — it's <em>uncovered</em>, and the tools are unglamorous: volume, honesty, and noticing.</p><h2>Voice is worldview leaking through word choice</h2><p>Two writers describe the same kitchen. One sees “granite counters, barely used.” The other sees “the kind of kitchen that gets photographed more than cooked in.” Same room, different mind. That difference is voice.</p><h2>Three exercises that uncover it</h2><ol><li><strong>The rant transcript.</strong> Record yourself explaining something you care about to a friend. Transcribe it. That rhythm — those run-ons, those jokes — is closer to your voice than anything you've typed.</li><li><strong>The imitation purge.</strong> Write one page deliberately imitating your favorite author. Getting it out of your system on purpose stops it leaking out by accident.</li><li><strong>The notice list.</strong> For one week, write down the first thing you notice in every room. Your attention has a signature; your prose inherits it.</li></ol><p>Stop auditioning. The readers who are yours will recognize you the moment you sound like yourself.</p>",
+        "<p>Restaurant plates aren't magic; they're habits. Steal these five and tonight's dinner photographs itself.</p><h2>1. Warm plates, always</h2><p>A cold plate kills sauces and shortens the meal's best minutes. Thirty seconds under hot tap water is enough.</p><h2>2. Odd numbers, off center</h2><p>Three things look composed; four look catered. Let the food sit slightly off-center — symmetry reads as cafeteria.</p><h2>3. Height beats sprawl</h2><p>Stack and lean instead of spreading. A plate with a skyline looks intentional; a plate with suburbs looks like leftovers.</p><h2>4. Sauce under, not over</h2><p>A spoonful swept under the protein keeps textures crisp and looks deliberate. The squeeze-bottle zigzag retired in 2009.</p><h2>5. Finish with contrast</h2><ol><li>Something green (soft herbs, micro anything)</li><li>Something crunchy (toasted seeds, crispy shallots)</li><li>Something glossy (good olive oil, a citrus wedge)</li></ol><p>Four touches, thirty seconds, every plate. Your stew didn't change — dinner did.</p>",
       status: "PUBLISHED",
       publishedAt: "2026-05-12T09:00:00Z",
-      categoryIds: ["seed-postcat-writing-tips"],
-      tags: ["voice", "craft"],
+      categoryIds: ["seed-postcat-tips"],
+      tags: ["cooking", "plating", "hosting"],
     },
     {
-      id: "seed-post-selfpub-vs-trad",
-      slug: "self-publishing-vs-traditional-an-honest-look",
-      title: "Self-publishing vs. traditional: an honest look",
+      id: "seed-post-golden-hour",
+      slug: "golden-hour-is-a-cheat-code",
+      title: "Golden hour is a cheat code (use it this week)",
       excerpt:
-        "No tribalism, no horror stories — just the actual trade-offs, and a way to decide for your book.",
+        "The hour after sunrise and before sunset makes everyone a better photographer. Here's how to actually use it.",
       content:
-        "<p>The publishing-path debate generates more heat than light. Here's the honest version: <strong>both paths work, for different books and different authors.</strong></p><h2>What traditional really buys you</h2><p>Distribution into physical bookstores, an advance (median: modest), professional editing and design at no upfront cost, and the validation that still opens certain doors. The price: querying season, contract terms, a 18–30 month timeline, and creative control shared with a committee.</p><h2>What self-publishing really buys you</h2><p>Speed (months, not years), 35–70% royalties instead of 8–15%, total creative control, and a direct line to your readers. The price: you become the producer — hiring editors and designers, managing metadata and marketing, and funding it all upfront.</p><h2>A quick scoring exercise</h2><ul><li>Niche non-fiction with an existing audience → self-publishing usually wins on math alone</li><li>Debut literary fiction → traditional's curation and prizes still matter</li><li>Genre fiction written fast in a series → indie royalties compound</li><li>One beautiful book you want in libraries → traditional's distribution is hard to replicate</li></ul><p>Choose with a spreadsheet, not an identity. And remember: it's a per-book decision, not a marriage. Hybrid careers are now the norm among working authors.</p>",
+        "<p>Ask any photographer their secret and half will say the same thing: show up when the light is already doing the work. Golden hour — the soft hour after sunrise and before sunset — flatters faces, buildings, food and dogs alike.</p><h2>Why it works</h2><p>The sun sits low, so light travels through more atmosphere: softer shadows, warmer color, and a direction you can actually use instead of harsh overhead glare.</p><h2>Three setups to try</h2><ul><li><strong>Backlight:</strong> subject between you and the sun — instant halo, dreamy flare. Expose for the face, let the background glow.</li><li><strong>Side light:</strong> sun at 90° — texture and drama for portraits and streets.</li><li><strong>Open shade + golden bounce:</strong> subject just inside shade, lit by the warm bounce — the most flattering portrait light that exists for free.</li></ul><h2>The one-week assignment</h2><p>Check tonight's golden hour time, set an alarm, and shoot the same subject three evenings this week. Same subject, same spot, different minutes — then watch what twenty minutes of sun angle does to a photograph.</p>",
       status: "PUBLISHED",
       publishedAt: "2026-05-19T09:00:00Z",
-      categoryIds: ["seed-postcat-publishing"],
-      tags: ["self-publishing", "traditional", "strategy"],
+      categoryIds: ["seed-postcat-tips", "seed-postcat-featured"],
+      tags: ["photography", "light"],
     },
     {
-      id: "seed-post-platform-before-launch",
-      slug: "build-your-author-platform-before-you-launch",
-      title: "Build your author platform before you need it",
+      id: "seed-post-adult-dance",
+      slug: "learning-to-dance-as-an-adult",
+      title: "Learning to dance as an adult (yes, you)",
       excerpt:
-        "The worst time to start building an audience is launch week. The best time is while you're still writing.",
+        "No childhood ballet, no rhythm, no problem. What actually happens in your first three months on the floor.",
       content:
-        "<p>Every month, an author finishes a wonderful book, looks up, and discovers they have no one to tell. Platform-building feels like a distraction from writing — until launch week, when it's suddenly the only thing that matters.</p><h2>Platform is permission, not popularity</h2><p>A platform isn't follower counts. It's a group of people who have given you permission to tell them about your work. One thousand engaged newsletter subscribers outsell fifty thousand passive followers, every time.</p><h2>The minimum viable platform</h2><ol><li><strong>A simple website</strong> — who you are, what you write, one button to subscribe</li><li><strong>A newsletter</strong> — monthly is plenty; consistency beats frequency</li><li><strong>A reader magnet</strong> — a novella, a checklist, three chapters — traded for an email address</li><li><strong>One social platform</strong> — wherever your readers already gather, fed on a sustainable cadence</li></ol><h2>Fifteen minutes a day</h2><p>While drafting, platform work gets fifteen minutes a day, no more: answer one reader email, share one process note, invite one person to the list. Two years of fifteen-minute days is how “overnight” launch successes are actually built.</p>",
+        "<p>The biggest myth in dance is that the door closes at twelve years old. Studios are full of adults who started at thirty, forty and well past — here's the honest version of those first months.</p><h2>Weeks 1–2: everything is left</h2><p>You will mix up left and right. Everyone does. Stand in the middle of the room (not the back — you'll only see other confused beginners) and steal glances at the teacher's feet.</p><h2>Weeks 3–6: your body starts listening</h2><p>The counts stop being math and start being music. The win at this stage isn't looking good — it's finishing a combination without your brain bluescreening.</p><h2>Months 2–3: the first real dance</h2><p>One class, one song, something clicks: you stop translating and just move. It lasts eight counts. It's the hook that keeps every dancer coming back.</p><h2>Stack the deck</h2><ul><li>Pick a style you love watching — joy survives plateaus, obligation doesn't</li><li>Go twice a week; once a week is permanent beginner mode</li><li>Film the last two minutes of every class — progress hides from mirrors but not from cameras</li></ul><p>The room isn't judging you. The room is concentrating on its own feet.</p>",
       status: "PUBLISHED",
       publishedAt: "2026-05-26T09:00:00Z",
-      categoryIds: ["seed-postcat-author-life", "seed-postcat-publishing"],
-      tags: ["platform", "marketing", "newsletter"],
+      categoryIds: ["seed-postcat-creative"],
+      tags: ["dance", "beginners"],
     },
     {
-      id: "seed-post-memoir-toolkit",
-      slug: "the-memoir-writers-toolkit",
-      title: "The memoir writer's toolkit",
+      id: "seed-post-watch-movies",
+      slug: "how-to-watch-movies-like-a-filmmaker",
+      title: "How to watch movies like a filmmaker",
       excerpt:
-        "Five tools for turning lived experience into a story strangers will care about.",
+        "Turn your watchlist into film school: a simple rewatch ritual that trains your eye without ruining the fun.",
       content:
-        "<p>Memoir is the hardest easy-looking genre: the material is all there, and that's exactly the problem. These five tools separate a memoir from a diary.</p><h2>1. The memory inventory</h2><p>List one hundred moments you've never forgotten — fast, uncurated. Clusters will form around two or three wounds and wonders. Those clusters are your book; the rest is biography.</p><h2>2. The scene/summary dial</h2><p>Scenes re-enact (a specific day, real dialogue, objects you can touch); summary compresses. Most working memoir runs about 70% scene. If a chapter explains more than it shows, the dial has drifted.</p><h2>3. The theme bouncer</h2><p>A memoir is one question your life kept asking — belonging, escape, forgiveness. Name it, write it on a card, and let it bounce every wonderful scene that doesn't serve it.</p><h2>4. The dignity test</h2><p>For every real person on your pages: could you read that paragraph aloud with them in the room? You don't need their approval — you need your own integrity, and complexity is kinder than caricature.</p><h2>5. The protective gear</h2><p>For the hard chapters: third person first if you need distance, a timer so the session has walls, something kind planned for after. You're allowed to write badly about important things — revision is where it becomes for the reader.</p>",
+        "<p>Filmmakers don't watch more movies than you — they watch them differently. The good news: the skill is learnable, and it makes movies better, not worse.</p><h2>First watch: stay a civilian</h2><p>Feel the film the way audiences will. Notice only one thing: the moments that got you — a cut that made you gasp, a scene you leaned into. Write down the timestamps.</p><h2>Second watch: visit your timestamps</h2><p>Go back to the three moments that worked and ask the filmmaker questions:</p><ul><li>Where is the camera, and whose scene does that make it?</li><li>When did the cut happen — on the line, or on the reaction?</li><li>What do you hear besides dialogue?</li><li>What color is this scene, and when did the palette change?</li></ul><h2>Steal one thing per film</h2><p>One technique per movie goes into your notebook: the late scene entrance, the silence before the punchline, the push-in on a lie. Ten films later you'll own a toolbox; thirty films later you'll spot the tools in your own footage.</p><p>That's the whole ritual. The popcorn still tastes the same — but now the movie is teaching while it plays.</p>",
       status: "PUBLISHED",
       publishedAt: "2026-06-02T09:00:00Z",
-      categoryIds: ["seed-postcat-writing-tips", "seed-postcat-featured"],
-      tags: ["memoir", "craft", "toolkit"],
+      categoryIds: ["seed-postcat-behind", "seed-postcat-featured"],
+      tags: ["film", "directing", "watchlist"],
     },
     {
-      id: "seed-post-publish-checklist",
-      slug: "from-manuscript-to-published-the-complete-checklist",
-      title: "From manuscript to published: the complete checklist",
+      id: "seed-post-stage-fright",
+      slug: "stage-fright-into-stage-presence",
+      title: "Turning stage fright into stage presence",
       excerpt:
-        "Every step between “the draft is done” and “the book is live”, in order, with nothing forgotten.",
+        "Comics, singers, speakers — the fear is identical, and so is the fix. A field guide to the first sixty seconds.",
       content:
-        "<p>The distance between a finished manuscript and a published book is about forty small decisions. Here they are in order — print this.</p><h2>Edit (8–12 weeks)</h2><ol><li>Cool-down: four weeks minimum in a drawer</li><li>Self-revision: structure first, sentences last</li><li>Developmental edit or beta readers (pick your poison)</li><li>Line edit, copyedit, then — after layout — proofread</li></ol><h2>Produce (4–8 weeks)</h2><ol><li>Cover brief built from a fifty-book comp board</li><li>Interior formatting: print and ebook from one master</li><li>ISBNs (own them), imprint name, copyright page</li><li>Metadata: description that sells, seven real keywords, two categories you can rank in</li><li>Physical proof copy — approve nothing on screen alone</li></ol><h2>Launch (4 weeks)</h2><ol><li>Launch team recruited and onboarded (advance copies four weeks out)</li><li>Preorder window if your strategy uses one</li><li>Launch-week pricing decided in advance</li><li>Newsletter announcement drafted and scheduled</li><li>Week-one review push, thank-yous, and then: start the next book</li></ol><p>None of these steps is hard. The craft is doing them <em>in order</em> — every horror story you've heard is a step done early, late, or never.</p>",
+        "<p>Every performer you admire still feels it: the dry mouth, the fast heart, the sudden amnesia in the wings. The pros haven't deleted fear — they've changed its job description.</p><h2>Rename the feeling</h2><p>Adrenaline before fear and excitement is chemically identical. Saying \"I'm ready\" instead of \"I'm nervous\" sounds like a trick because it is one — and in studies it works anyway.</p><h2>Own the first sixty seconds</h2><p>Panic lives in uncertainty, so remove it from the open: memorize your first minute cold — the walk, the plant, the first line, the pause. After sixty scripted seconds, the body settles and the craft takes over.</p><h2>The pre-stage ritual</h2><ol><li>Slow exhale, twice as long as the inhale — four rounds</li><li>Shoulders down, jaw loose, one big silent yawn</li><li>One physical anchor: feet on the floor, hand on the mic stand</li></ol><h2>And after: log the win</h2><p>The fear's favorite lie is \"that was a disaster\". The recording says otherwise. Watch it once, write down two things that worked, one to fix. Presence is just fright plus repetitions — every stage you've loved was built on knees that shook.</p>",
       status: "PUBLISHED",
       publishedAt: "2026-06-09T09:00:00Z",
-      categoryIds: ["seed-postcat-publishing"],
-      tags: ["checklist", "self-publishing", "launch"],
+      categoryIds: ["seed-postcat-creative", "seed-postcat-tips"],
+      tags: ["performance", "comedy", "confidence"],
     },
   ];
 
@@ -1312,7 +1380,7 @@ async function seedForms() {
       label: "Your name",
       name: "name",
       required: true,
-      placeholder: "Jane Author",
+      placeholder: "Alex Rivera",
       mergeTag: "FNAME",
     },
     {
@@ -1330,7 +1398,7 @@ async function seedForms() {
       label: "What's this about?",
       name: "topic",
       required: false,
-      options: ["Classes & membership", "Coaching", "Something else"],
+      options: ["Classes & membership", "Billing", "Something else"],
     },
     {
       id: "f-message",
@@ -1338,7 +1406,7 @@ async function seedForms() {
       label: "How can we help?",
       name: "message",
       required: true,
-      placeholder: "Tell us about your book…",
+      placeholder: "Tell us what you're working on…",
     },
   ] as Prisma.InputJsonValue;
   await prisma.form.upsert({
@@ -1374,19 +1442,19 @@ async function seedForms() {
   await prisma.form.upsert({
     where: { id: "seed-form-newsletter" },
     update: {
-      name: "The Author's Notebook (newsletter)",
+      name: "Backstage Notes (newsletter)",
       fields: newsletterFields,
       status: "ACTIVE",
       tags: ["newsletter"],
-      successMessage: "Welcome aboard — check your inbox.",
+      successMessage: "You're in — see you backstage.",
     },
     create: {
       id: "seed-form-newsletter",
-      name: "The Author's Notebook (newsletter)",
+      name: "Backstage Notes (newsletter)",
       fields: newsletterFields,
       status: "ACTIVE",
       tags: ["newsletter"],
-      successMessage: "Welcome aboard — check your inbox.",
+      successMessage: "You're in — see you backstage.",
     },
   });
 }
@@ -1399,10 +1467,10 @@ function aboutPageDoc(): Prisma.InputJsonValue {
   return {
     root: {
       props: {
-        seoTitle: "About Unlocking Your Book",
+        seoTitle: "About Spotlight Academy",
         description:
-          "Author coaching, classes and community that take your book from first idea to published.",
-        ogImage: cover("about-og"),
+          "Online classes in music, food, photography, dance, film and comedy — learn from working artists, at your pace.",
+        ogImage: art("film", 0),
       },
     },
     content: [
@@ -1410,14 +1478,14 @@ function aboutPageDoc(): Prisma.InputJsonValue {
         type: "Hero",
         props: {
           id: "about-hero",
-          eyebrow: "Unlocking Your Book",
-          title: "Every writer has a book. We help you finish yours.",
+          eyebrow: "Spotlight Academy",
+          title: "Everyone deserves a craft they love.",
           subtitle:
-            "Classes, coaching and a community of working writers — from the first spark of an idea to the day your book goes live.",
+            "Music, cooking, photography, dance, film and comedy — taught the way working artists actually learned: short lessons, real practice, honest feedback.",
           buttonLabel: "Explore the classes",
           buttonHref: "/pricing/all",
           align: "center",
-          background: "brand",
+          background: "dark",
           backgroundColor: "",
         },
       },
@@ -1427,9 +1495,9 @@ function aboutPageDoc(): Prisma.InputJsonValue {
           id: "about-stats",
           columns: "3",
           items: [
-            { value: "1,200+", label: "Writers coached" },
-            { value: "94", label: "Books published by members" },
-            { value: "12 years", label: "Teaching the craft" },
+            { value: "6", label: "Crafts, one membership" },
+            { value: "40+", label: "Lessons in the catalog" },
+            { value: "10 min", label: "Average lesson length" },
           ],
           design: { paddingY: 32 },
         },
@@ -1442,7 +1510,7 @@ function aboutPageDoc(): Prisma.InputJsonValue {
         type: "RichText",
         props: {
           id: "about-story",
-          html: "<p>Most books die in a drawer — not because the writer lacked talent, but because nobody showed them the road. Unlocking Your Book exists to be that road: practical classes taught by working authors, a method that respects your real life, and a community that won't let you quit quietly.</p><p>We don't sell magic. We teach the unglamorous skills that finish books: premise before prose, scenes before sentences, structure before polish — and a publishing path chosen with a spreadsheet instead of a dream.</p>",
+          html: "<p>Most people quietly carry a craft they've always wanted: the guitar in the corner, the camera from two birthdays ago, the dinner party they keep postponing. Spotlight Academy exists to get you past wanting and into doing — with classes built from short, watchable lessons and assignments you can finish on a weeknight.</p><p>No gatekeeping, no five-hour theory dumps. Every lesson teaches one thing you can practice today, because the people who get good aren't the most talented — they're the ones who kept showing up.</p>",
           align: "center",
         },
       },
@@ -1454,11 +1522,11 @@ function aboutPageDoc(): Prisma.InputJsonValue {
           columns: "2",
           iconColor: "",
           items: [
-            { text: "Short lessons designed for busy lives" },
-            { text: "Real feedback from working authors" },
-            { text: "A clear path from idea to published" },
-            { text: "Web and mobile — your progress everywhere" },
-            { text: "No gatekeeping, no gurus, no fluff" },
+            { text: "Short lessons built for busy lives" },
+            { text: "Real assignments, not just videos" },
+            { text: "Six crafts under one membership" },
+            { text: "Web and mobile — progress everywhere" },
+            { text: "Beginner-safe, never beginner-only" },
             { text: "Cancel anytime; keep what you learned" },
           ],
           design: { paddingY: 24 },
@@ -1471,22 +1539,22 @@ function aboutPageDoc(): Prisma.InputJsonValue {
           columns: "3",
           items: [
             {
-              title: "Write",
-              text: "Foundations, storytelling and memoir classes that get words on pages.",
-              imageUrl: thumb("about-write"),
-              href: "/classes/book-writing-foundations",
+              title: "Make music",
+              text: "Songwriting and home production — free with every membership.",
+              imageUrl: art("music", 0),
+              href: "/classes/music-production-songwriting",
             },
             {
-              title: "Polish",
-              text: "Editing bootcamps that turn a messy draft into a manuscript.",
-              imageUrl: thumb("about-polish"),
-              href: "/classes/editing-revision-bootcamp",
+              title: "Cook with confidence",
+              text: "Knife skills, heat and flavor instincts that retire your recipes.",
+              imageUrl: art("food", 0),
+              href: "/classes/the-art-of-cooking",
             },
             {
-              title: "Publish",
-              text: "Production, launch and marketing — your book in readers' hands.",
-              imageUrl: thumb("about-publish"),
-              href: "/classes/self-publishing-pro",
+              title: "Tell stories on screen",
+              text: "From script to screening night — the complete filmmaking path.",
+              imageUrl: art("film", 1),
+              href: "/classes/filmmaking-script-to-screen",
             },
           ],
         },
@@ -1496,11 +1564,11 @@ function aboutPageDoc(): Prisma.InputJsonValue {
         props: {
           id: "about-quote",
           quote:
-            "I'd been 'writing a book' for six years. Eleven months after joining, I held it in my hands. The difference wasn't motivation — it was finally having a map.",
-          author: "Priya N.",
-          role: "Author of “The Long Way Home”",
-          avatarUrl: avatarImg("priya"),
-          design: { background: "#faf5ef", radius: 16, paddingY: 24, paddingX: 24 },
+            "I joined for the cooking class and somehow ended up performing five minutes at an open mic. This place is dangerous in the best way.",
+          author: "Dana M.",
+          role: "Member since 2025",
+          avatarUrl: avatarImg("dana"),
+          design: { background: "#18181b", textColor: "#fafafa", radius: 16, paddingY: 24, paddingX: 24 },
         },
       },
       {
@@ -1509,19 +1577,19 @@ function aboutPageDoc(): Prisma.InputJsonValue {
           id: "about-faq",
           items: [
             {
-              question: "I've never written anything. Can I start here?",
+              question: "I'm a complete beginner. Is this for me?",
               answer:
-                "Yes — Book Writing Foundations is free for every member and assumes nothing but the itch to write.",
+                "Yes — every class starts from zero and builds in small steps. Music Production & Songwriting is free with every membership, so you can start today.",
             },
             {
-              question: "How much time do I need each week?",
+              question: "How much time do I need?",
               answer:
-                "Lessons run 5–12 minutes, and the method is built around a daily minimum small enough to survive a busy life. Most members invest 2–3 hours a week.",
+                "Lessons average about ten minutes, and every class is built around short daily practice rather than marathon sessions. Most members spend 2–3 hours a week.",
             },
             {
-              question: "Do you cover self-publishing AND traditional?",
+              question: "Can I switch between crafts?",
               answer:
-                "Both, without tribalism. Self-Publishing Pro covers the full indie path; the same class teaches you to evaluate traditional and hybrid offers with clear eyes.",
+                "Anytime. One membership, six crafts — binge one class or sample them all; your progress is saved everywhere.",
             },
             {
               question: "Can I cancel anytime?",
@@ -1535,11 +1603,11 @@ function aboutPageDoc(): Prisma.InputJsonValue {
         type: "CTA",
         props: {
           id: "about-cta",
-          title: "Your book is waiting.",
-          subtitle: "Start free with Book Writing Foundations — today's the day.",
-          buttonLabel: "Start writing",
-          buttonHref: "/classes/book-writing-foundations",
-          background: "dark",
+          title: "Pick your craft.",
+          subtitle: "Start free with Music Production & Songwriting — today counts.",
+          buttonLabel: "Start learning",
+          buttonHref: "/classes/music-production-songwriting",
+          background: "brand",
           backgroundColor: "",
           align: "center",
         },
@@ -1553,8 +1621,8 @@ function startHerePageDoc(): Prisma.InputJsonValue {
   return {
     root: {
       props: {
-        seoTitle: "Start Here — Unlocking Your Book",
-        description: "New to Unlocking Your Book? Here's your first week, mapped.",
+        seoTitle: "Start Here — Spotlight Academy",
+        description: "New to Spotlight Academy? Your first week, mapped.",
         ogImage: "",
       },
     },
@@ -1566,7 +1634,7 @@ function startHerePageDoc(): Prisma.InputJsonValue {
           eyebrow: "Welcome",
           title: "Start here",
           subtitle:
-            "Five minutes of orientation, then straight into the work. Here's exactly what to do first.",
+            "Five minutes of orientation, then straight into the fun part. Here's exactly what to do first.",
           buttonLabel: "Go to my dashboard",
           buttonHref: "/dashboard",
           align: "center",
@@ -1591,7 +1659,7 @@ function startHerePageDoc(): Prisma.InputJsonValue {
               type: "RichText",
               props: {
                 id: "sh-week1-t",
-                html: "<p>Don't binge — build. The members who finish books all start the same way:</p>",
+                html: "<p>Don't binge — build. The members who actually get good all start the same way:</p>",
                 align: "left",
               },
             },
@@ -1603,11 +1671,11 @@ function startHerePageDoc(): Prisma.InputJsonValue {
                 columns: "1",
                 iconColor: "",
                 items: [
-                  { text: "Day 1: Watch the first two Foundations lessons (13 minutes)" },
-                  { text: "Day 2: Write your one-sentence premise and pin it above your desk" },
-                  { text: "Day 3–4: Build your 12-beat outline with the lesson worksheet" },
-                  { text: "Day 5: Set your daily minimum and book your writing appointment" },
-                  { text: "Weekend: Write your first 200 words. That's the whole assignment." },
+                  { text: "Day 1: Pick ONE craft (you can switch anytime — but start with one)" },
+                  { text: "Day 2: Watch the first two lessons of its first course (~15 minutes)" },
+                  { text: "Day 3–4: Do the lesson assignment — make something small and bad, on purpose" },
+                  { text: "Day 5: Book your practice slot: 20 minutes, same time, most days" },
+                  { text: "Weekend: Finish the first course and tell one person what you made" },
                 ],
               },
             },
@@ -1625,15 +1693,15 @@ function startHerePageDoc(): Prisma.InputJsonValue {
               type: "RichText",
               props: {
                 id: "sh-path-new",
-                html: "<h3>New to writing?</h3><p>Start with <strong>Book Writing Foundations</strong> — it's free with your membership and walks you from idea to outline to a habit that sticks. Everything else builds on it.</p>",
+                html: "<h3>Not sure where to start?</h3><p><strong>Music Production & Songwriting</strong> is free with every membership — six lessons in, you'll have written a hook and recorded it. It's the fastest 'I made a thing' on the platform.</p>",
                 align: "left",
               },
             },
             {
               type: "RichText",
               props: {
-                id: "sh-path-draft",
-                html: "<h3>Already have a draft?</h3><p>Jump into the <strong>Editing & Revision Bootcamp</strong> to whip it into shape, or <strong>Self-Publishing Pro</strong> if your manuscript is ready for the world.</p>",
+                id: "sh-path-goal",
+                html: "<h3>Chasing something specific?</h3><p>Dinner party in three weeks → <strong>The Art of Cooking</strong>. A short film by summer → <strong>Filmmaking: Script to Screen</strong>. Five minutes on a stage → <strong>Stand-Up Comedy & Performance</strong>.</p>",
                 align: "left",
               },
             },
@@ -1666,8 +1734,8 @@ function contactPageDoc(): Prisma.InputJsonValue {
   return {
     root: {
       props: {
-        seoTitle: "Contact — Unlocking Your Book",
-        description: "Questions about classes, coaching or your membership? Write to us.",
+        seoTitle: "Contact — Spotlight Academy",
+        description: "Questions about classes or your membership? Write to us.",
         ogImage: "",
       },
     },
@@ -1680,7 +1748,7 @@ function contactPageDoc(): Prisma.InputJsonValue {
         type: "RichText",
         props: {
           id: "ct-intro",
-          html: "<p>Questions about a class, your membership, or whether your book idea has legs? Send a note — a real person (usually the person who taught your last lesson) reads every message, and we reply within two business days.</p>",
+          html: "<p>Questions about a class, your membership, or which craft to pick first? Send a note — a real person reads every message, and we reply within two business days.</p>",
           align: "center",
         },
       },
@@ -1693,7 +1761,7 @@ function contactPageDoc(): Prisma.InputJsonValue {
         type: "RichText",
         props: {
           id: "ct-alt",
-          html: "<p>Prefer email? Write to <a href=\"mailto:hello@unlockingyourbook.com\">hello@unlockingyourbook.com</a>.</p>",
+          html: "<p>Prefer email? Write to <a href=\"mailto:hello@spotlightacademy.example\">hello@spotlightacademy.example</a>.</p>",
           align: "center",
         },
       },
@@ -1775,13 +1843,13 @@ async function seedPages(adminId: string) {
 async function seedPopups() {
   // Welcome popup: dashboard only, 2s after load, once per session.
   const welcome = {
-    name: "Welcome to Unlocking Your Book",
+    name: "Welcome to Spotlight Academy",
     status: "ACTIVE" as const,
     position: "CENTER" as const,
     width: "480px",
     height: "auto",
     background: "#ffffff",
-    borderColor: "#e7e5e4",
+    borderColor: "#e4e4e7",
     borderRadius: 16,
     padding: 28,
     showOnDashboard: true,
@@ -1801,13 +1869,13 @@ async function seedPopups() {
       content: [
         {
           type: "Heading",
-          props: { id: "wp-h", text: "Welcome back, writer ✍️", level: "2", align: "center" },
+          props: { id: "wp-h", text: "Welcome back 👋", level: "2", align: "center" },
         },
         {
           type: "RichText",
           props: {
             id: "wp-t",
-            html: "<p>Your book moves forward one session at a time — and the next one is right here. New to the community? The Start Here page maps your first week.</p>",
+            html: "<p>Your craft gets better one session at a time — and the next one is right here. New around the Academy? The Start Here page maps your first week.</p>",
             align: "center",
           },
         },
@@ -1834,13 +1902,13 @@ async function seedPopups() {
 
   // Promo popup: class landing pages, fires at 40% scroll, max once / 3 days.
   const promo = {
-    name: "Finish-your-book promo",
+    name: "Filmmaking installment promo",
     status: "ACTIVE" as const,
     position: "BOTTOM_RIGHT" as const,
     width: "400px",
     height: "auto",
-    background: "#1c1917",
-    borderColor: "#44403c",
+    background: "#18181b",
+    borderColor: "#3f3f46",
     borderRadius: 14,
     padding: 24,
     showOnDashboard: false,
@@ -1862,19 +1930,19 @@ async function seedPopups() {
           type: "Heading",
           props: {
             id: "pp-h",
-            text: "This is the year your book ships",
+            text: "Make your film this year",
             level: "3",
             align: "left",
-            design: { textColor: "#fafaf9" },
+            design: { textColor: "#fafafa" },
           },
         },
         {
           type: "RichText",
           props: {
             id: "pp-t",
-            html: "<p>Self-Publishing Pro now has a 6-payment plan — finish paying, keep it for life.</p>",
+            html: "<p>Filmmaking: Script to Screen now has a 6-payment plan — finish paying, keep it for life.</p>",
             align: "left",
-            design: { textColor: "#d6d3d1" },
+            design: { textColor: "#d4d4d8" },
           },
         },
         {
@@ -1882,7 +1950,7 @@ async function seedPopups() {
           props: {
             id: "pp-b",
             label: "See the plan",
-            href: "/checkout/self-publishing-pro",
+            href: "/checkout/filmmaking-script-to-screen",
             variant: "primary",
             align: "left",
             newTab: false,
@@ -1970,13 +2038,13 @@ async function seedNav() {
     paddingY: 10,
     logoUrl: null,
     menuId: "seed-menu-header",
-    linkColor: "#44403c",
-    menuActiveColor: "#b45309",
+    linkColor: "#3f3f46",
+    menuActiveColor: "#b91c1c",
     ctas: [
       {
         id: "cta-join",
-        label: "Join a class",
-        bgColor: "#b45309",
+        label: "Browse classes",
+        bgColor: "#b91c1c",
         textColor: "#ffffff",
         paddingX: 16,
         paddingY: 8,
@@ -2010,26 +2078,26 @@ async function seedNav() {
   // Footer singleton (shape per apps/api/src/site/footer.service.ts).
   const footerConfig = {
     enabled: true,
-    bgColor: "#1c1917",
-    textColor: "#d6d3d1",
+    bgColor: "#111113",
+    textColor: "#d4d4d8",
     headingColor: "#ffffff",
-    linkColor: "#e7e5e4",
+    linkColor: "#e4e4e7",
     paddingY: 48,
     logoUrl: null,
-    tagline: "Write it. Publish it. Share it.",
+    tagline: "Learn from the best. Love what you make.",
     menuHeading: "Explore",
     menuId: "seed-menu-footer",
     email: {
-      heading: "The Author's Notebook",
-      text: "One craft lesson and one publishing tip, every Tuesday.",
+      heading: "Backstage Notes",
+      text: "One technique and one piece of inspiration, every Tuesday.",
       placeholder: "you@email.com",
       buttonText: "Subscribe",
       audienceId: null,
       audienceName: null,
       doubleOptIn: false,
-      successMessage: "Welcome aboard — check your inbox.",
+      successMessage: "You're in — see you backstage.",
     },
-    copyright: "© {year} Unlocking Your Book. All rights reserved.",
+    copyright: "© {year} Spotlight Academy. All rights reserved.",
     bottomLinks: [
       { id: "bl-about", label: "About", url: "/about" },
       { id: "bl-contact", label: "Contact", url: "/contact" },
@@ -2045,13 +2113,13 @@ async function seedNav() {
 // ---------- app customization (mobile branding) ----------
 
 async function seedAppConfig() {
-  // Cross-stack palette defaults with a literary amber primary:
-  // light #b45309 on white ≈ 4.8:1, dark #f59e0b on #0b0b0d ≈ 10:1.
+  // Cross-stack palette defaults with a cinematic red primary:
+  // light #b91c1c on white ≈ 6.3:1, dark #f87171 on #0b0b0d ≈ 7.6:1.
   const config = {
-    title: "Unlocking Your Book",
-    tagline: "Write it. Publish it. Share it.",
+    title: "Spotlight Academy",
+    tagline: "Learn from the best. Love what you make.",
     description:
-      "Author coaching, classes and community that take your book from first idea to published.",
+      "Online classes in music, food, photography, dance, film and comedy — short lessons, real practice, taught by working artists.",
     logoUrl: null,
     iconUrl: null,
     splashUrl: null,
@@ -2063,7 +2131,7 @@ async function seedAppConfig() {
       border: "#e4e7ec",
       text: "#101828",
       textMuted: "#667085",
-      primary: "#b45309",
+      primary: "#b91c1c",
       danger: "#d92d20",
     },
     dark: {
@@ -2073,7 +2141,7 @@ async function seedAppConfig() {
       border: "#2d2d32",
       text: "#f4f4f6",
       textMuted: "#8a8a95",
-      primary: "#f59e0b",
+      primary: "#f87171",
       danger: "#ef4444",
     },
   } as Prisma.InputJsonValue;
@@ -2123,10 +2191,10 @@ async function main() {
       0,
     ),
   };
-  console.log("Seed complete — Unlocking Your Book demo content.");
+  console.log("Seed complete — Spotlight Academy demo content.");
   console.log(`  Admin:   admin@example.com / ${adminPassword}`);
   console.log(
-    "  Member:  member@example.com / member123 (enrolled in Foundations + Memoir)",
+    "  Member:  member@example.com / member123 (enrolled in Music + Cooking)",
   );
   console.log(
     `  Catalog: ${counts.classes} classes · ${counts.courses} courses · ${counts.lessons} lessons (+ QA fixtures)`,
@@ -2135,7 +2203,7 @@ async function main() {
   console.log("  Pages:   /about · /start-here · /contact (+ coming-soon draft)");
   console.log("  Popups:  welcome (dashboard) + promo (class pages)");
   console.log("  Nav:     header menu + CTA · footer with newsletter");
-  console.log("  App:     'Unlocking Your Book' branding (amber primary)");
+  console.log("  App:     'Spotlight Academy' branding (cinematic red primary)");
 }
 
 main()
