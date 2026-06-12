@@ -10,6 +10,9 @@ import type {
   ClassTileDTO,
   CourseCard,
   InvoiceDTO,
+  PayPalActivateInput,
+  PayPalPrepareInput,
+  PayPalPrepareResult,
   SubscribeInput,
   SubscribeResult,
   SubscriptionDetailDTO,
@@ -225,6 +228,18 @@ export const api = {
   cancelMyMembership: (subId: string) =>
     request<SubscriptionDetailDTO[]>(`/billing/subscriptions/${subId}/cancel`, {
       method: "POST",
+    }),
+
+  // PayPal checkout (active when the admin selects the paypal provider).
+  paypalPrepare: (input: PayPalPrepareInput) =>
+    request<PayPalPrepareResult>("/billing/paypal/prepare", {
+      method: "POST",
+      body: input,
+    }),
+  paypalActivate: (input: PayPalActivateInput) =>
+    request<SubscriptionDetailDTO[]>("/billing/paypal/activate", {
+      method: "POST",
+      body: input,
     }),
 };
 

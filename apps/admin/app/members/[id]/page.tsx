@@ -124,6 +124,7 @@ export default function MemberBillingPage() {
                       <div className="sub-tile__info">
                         <strong>{s.levelName}</strong>
                         <span className="muted">
+                          {s.provider === "paypal" ? "PayPal" : "Stripe"} ·{" "}
                           {money(s.amount, s.currency)} / {s.interval} ·{" "}
                           {s.paused ? "paused" : s.status}
                           {s.cancelAtPeriodEnd ? " · cancels at period end" : ""}
@@ -268,6 +269,9 @@ export default function MemberBillingPage() {
               <p className="muted" style={{ marginTop: 0 }}>
                 Billing stops renewing now. Choose when access ends — this
                 can&apos;t be undone (no resume).
+                {cancelFor.provider === "paypal"
+                  ? " (PayPal cancels the subscription immediately either way; “End at period end” keeps access until the paid period runs out.)"
+                  : ""}
               </p>
               <div className="row-actions">
                 <button

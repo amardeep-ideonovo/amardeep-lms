@@ -461,6 +461,7 @@ function AccountInner() {
                       </span>
                     </div>
                     <span className="plan-tile__meta">
+                      {sub.provider === "paypal" ? "PayPal · " : ""}
                       {money(sub.amount, sub.currency)} / {sub.interval}
                       {sub.currentPeriodEnd
                         ? ` · renews ${fmtDate(sub.currentPeriodEnd)}`
@@ -504,20 +505,32 @@ function AccountInner() {
         </div>
       </section>
 
-      <section className="account-section">
-        <h2>Manage/Update Your Card Details</h2>
-        <p>
-          Update your card details through the secure Stripe customer portal.
-        </p>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={openPortal}
-          disabled={busy}
-        >
-          {busy ? "Redirecting…" : "Update Card Details"}
-        </button>
-      </section>
+      {/* Card management is a Stripe-portal feature; PayPal members manage
+          their payment method in their PayPal account instead. */}
+      {subs.some((s) => s.provider === "stripe") ? (
+        <section className="account-section">
+          <h2>Manage/Update Your Card Details</h2>
+          <p>
+            Update your card details through the secure Stripe customer portal.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={openPortal}
+            disabled={busy}
+          >
+            {busy ? "Redirecting…" : "Update Card Details"}
+          </button>
+        </section>
+      ) : subs.some((s) => s.provider === "paypal") ? (
+        <section className="account-section">
+          <h2>Payment method</h2>
+          <p>
+            Your subscription is billed through PayPal. Manage your payment
+            method in your PayPal account at paypal.com.
+          </p>
+        </section>
+      ) : null}
       </div>
 
       {cancelFor && (

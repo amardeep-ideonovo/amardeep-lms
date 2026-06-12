@@ -247,6 +247,23 @@ export interface MailchimpSettingsMasked {
   serverPrefix: string | null;
   audienceId: string | null;
 }
+export interface PayPalSettings {
+  clientId?: string;
+  clientSecret?: string;
+  webhookId?: string;
+  mode?: "sandbox" | "live";
+}
+export interface PayPalSettingsMasked {
+  clientId: string | null; // public — shown in full
+  clientSecretLast4: string | null;
+  webhookId: string | null;
+  mode: "sandbox" | "live" | null;
+}
+// Active processor for NEW checkouts; `warning` surfaces a missing webhook id.
+export interface PaymentProviderSetting {
+  provider: "stripe" | "paypal";
+  warning?: string | null;
+}
 
 // ---------- API surface (one helper per ROUTE used) ----------
 export const api = {
@@ -506,6 +523,18 @@ export const api = {
     ),
   clearMailchimpSettings: () =>
     request<MailchimpSettingsMasked>("DELETE", "/admin/settings/mailchimp"),
+  getPayPalSettings: () =>
+    request<PayPalSettingsMasked>("GET", "/admin/settings/paypal"),
+  putPayPalSettings: (input: PayPalSettings) =>
+    request<PayPalSettingsMasked>("PUT", "/admin/settings/paypal", input),
+  clearPayPalSettings: () =>
+    request<PayPalSettingsMasked>("DELETE", "/admin/settings/paypal"),
+  getPaymentProvider: () =>
+    request<PaymentProviderSetting>("GET", "/admin/settings/payment-provider"),
+  putPaymentProvider: (provider: "stripe" | "paypal") =>
+    request<PaymentProviderSetting>("PUT", "/admin/settings/payment-provider", {
+      provider,
+    }),
 
   // blog
   listPosts: () => request<PostAdminRow[]>("GET", "/admin/blog/posts"),

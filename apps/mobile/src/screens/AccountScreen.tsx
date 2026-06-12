@@ -491,26 +491,38 @@ export function AccountScreen({ navigation }: ScreenProps<"Account">) {
               </View>
             </View>
 
-            <View style={styles.card}>
-              <Text style={styles.heading}>Card details</Text>
-              <Text style={styles.note}>
-                Update your card details through the secure Stripe customer
-                portal.
-              </Text>
-              {portalError ? (
-                <Text style={styles.formError}>{portalError}</Text>
-              ) : null}
-              <TouchableOpacity
-                style={[styles.btnPrimary, portalBusy && styles.btnDisabled]}
-                onPress={openPortal}
-                disabled={portalBusy}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.btnPrimaryText}>
-                  {portalBusy ? "Opening…" : "Update card details"}
+            {/* Card management is a Stripe-portal feature. PayPal members
+                manage their payment method in their PayPal account. */}
+            {subs.some((s) => s.provider === "stripe") ? (
+              <View style={styles.card}>
+                <Text style={styles.heading}>Card details</Text>
+                <Text style={styles.note}>
+                  Update your card details through the secure Stripe customer
+                  portal.
                 </Text>
-              </TouchableOpacity>
-            </View>
+                {portalError ? (
+                  <Text style={styles.formError}>{portalError}</Text>
+                ) : null}
+                <TouchableOpacity
+                  style={[styles.btnPrimary, portalBusy && styles.btnDisabled]}
+                  onPress={openPortal}
+                  disabled={portalBusy}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.btnPrimaryText}>
+                    {portalBusy ? "Opening…" : "Update card details"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : subs.some((s) => s.provider === "paypal") ? (
+              <View style={styles.card}>
+                <Text style={styles.heading}>Payment method</Text>
+                <Text style={styles.note}>
+                  Your subscription is billed through PayPal. Manage your
+                  payment method in your PayPal account at paypal.com.
+                </Text>
+              </View>
+            ) : null}
 
             <Text style={styles.storeNote}>
               Plan upgrades and payments are completed on our website.

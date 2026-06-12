@@ -17,10 +17,17 @@ export type CheckoutProductOption = {
   subLabel: string; // small caption, e.g. "12 MONTHLY PAYMENTS"
   priceText: string; // right-aligned price/terms, e.g. "$167.00/Month"
   kind: "recurring" | "one_time";
-  stripePriceId: string; // the Stripe price this option charges (price_…)
+  stripePriceId: string | null; // the Stripe price this option charges (price_…)
+  localPriceId: string | null; // backend Price.id — the provider-neutral id (PayPal needs it)
   amount: number; // minor units — drives the summary total + coupon math
   currency: string; // ISO currency, e.g. "usd"
 };
+
+// The id the API accepts for this option (it resolves both forms). Null when
+// the option carries neither (an unfilled hand-tuned placeholder).
+export function optionWireId(opt: CheckoutProductOption): string | null {
+  return opt.localPriceId ?? opt.stripePriceId;
+}
 
 export type LevelCheckoutConfig = {
   slug: string; // URL key: /checkout/<slug>
@@ -46,6 +53,7 @@ export const CHECKOUT_LEVELS: Record<string, LevelCheckoutConfig> = {
         priceText: "$167.00/Month",
         kind: "recurring",
         stripePriceId: "price_REPLACE_MONTHLY",
+        localPriceId: null,
         amount: 16700,
         currency: "usd",
       },
@@ -56,6 +64,7 @@ export const CHECKOUT_LEVELS: Record<string, LevelCheckoutConfig> = {
         priceText: "$1997.00 One Time Payment",
         kind: "one_time",
         stripePriceId: "price_REPLACE_ONETIME",
+        localPriceId: null,
         amount: 199700,
         currency: "usd",
       },
@@ -76,6 +85,7 @@ export const CHECKOUT_LEVELS: Record<string, LevelCheckoutConfig> = {
         priceText: "$10.00/Month",
         kind: "recurring",
         stripePriceId: "price_1TcoZ0L80rvd0GTRyVsyoRqk",
+        localPriceId: null,
         amount: 1000,
         currency: "usd",
       },
@@ -86,6 +96,7 @@ export const CHECKOUT_LEVELS: Record<string, LevelCheckoutConfig> = {
         priceText: "$100.00/Year",
         kind: "recurring",
         stripePriceId: "price_1TdPFuL80rvd0GTRJYnOWliT",
+        localPriceId: null,
         amount: 10000,
         currency: "usd",
       },
@@ -113,6 +124,7 @@ function priceToOption(levelName: string, p: PriceDTO): CheckoutProductOption {
       priceText: `${money}/${p.interval}`,
       kind: "recurring",
       stripePriceId: p.stripePriceId,
+      localPriceId: p.id,
       amount: p.amount,
       currency: p.currency || "usd",
     };
@@ -124,6 +136,7 @@ function priceToOption(levelName: string, p: PriceDTO): CheckoutProductOption {
     priceText: `${money}/${p.interval}`,
     kind: "recurring",
     stripePriceId: p.stripePriceId,
+    localPriceId: p.id,
     amount: p.amount,
     currency: p.currency || "usd",
   };

@@ -3,12 +3,18 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import type { AuthUser, CouponPreviewDTO } from "@lms/types";
+import type {
+  AuthUser,
+  BillingConfigDTO,
+  CouponPreviewDTO,
+} from "@lms/types";
 import {
   ApiError,
   getBillingConfig,
   getCurrentUser,
   logout,
+  paypalActivate,
+  paypalPrepare,
   signup,
   subscribe,
   syncSubscriptions,
@@ -16,6 +22,7 @@ import {
 } from "@/lib/checkout-service";
 import {
   formatMoney,
+  optionWireId,
   resolveCheckoutConfig,
   type CheckoutProductOption,
   type LevelCheckoutConfig,
@@ -25,7 +32,17 @@ import CountrySelect from "@/components/checkout/CountrySelect";
 import LoginModal from "@/components/checkout/LoginModal";
 import PaymentSection, {
   type PaymentHandle,
+  type PayPalDriver,
 } from "@/components/checkout/PaymentSection";
+
+// Fallback when the public billing config can't be reached: Stripe mock mode
+// (the page stays fully usable).
+const FALLBACK_BILLING: BillingConfigDTO = {
+  provider: "stripe",
+  publishableKey: null,
+  paypalClientId: null,
+  paypalMode: null,
+};
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
@@ -48,7 +65,7 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [config, setConfig] = useState<LevelCheckoutConfig | null>(null);
-  const [publishableKey, setPublishableKey] = useState<string | null>(null);
+  const [billing, setBilling] = useState<BillingConfigDTO>(FALLBACK_BILLING);
 
   // auth
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -80,7 +97,9 @@ export default function CheckoutPage() {
   // re-renders, so a fast second click could fire onSubmit (and create a second
   // subscription) before that. This ref flips synchronously, closing that gap.
   const submittingRef = useRef(false);
-  const mockMode = !publishableKey;
+  const provider = billing.provider;
+  const mockMode =
+    provider === "paypal" ? !billing.paypalClientId : !billing.publishableKey;
 
   // Prefill identity from the signed-in profile (State B). Kept editable.
   function applyUser(u: AuthUser | null) {
@@ -99,12 +118,12 @@ export default function CheckoutPage() {
         const [u, cfg, resolved] = await Promise.all([
           getCurrentUser(),
           // billing config is best-effort; default to mock if it fails.
-          getBillingConfig().catch(() => ({ publishableKey: null })),
+          getBillingConfig().catch(() => FALLBACK_BILLING),
           // public — resolves by slug or raw id, works logged-out.
           resolveCheckoutConfig(slugOrId),
         ]);
         if (!active) return;
-        setPublishableKey(cfg.publishableKey);
+        setBilling(cfg);
         applyUser(u);
         setConfig(resolved);
         if (resolved && resolved.options.length > 0) {
@@ -159,7 +178,9 @@ export default function CheckoutPage() {
           message: null,
         });
       } else {
-        const preview = await validateCoupon(code, selected.stripePriceId);
+        const wireId = optionWireId(selected);
+        if (!wireId) throw new ApiError(404, "Plan not found");
+        const preview = await validateCoupon(code, wireId);
         setCouponPreview(preview);
       }
     } catch (err) {
@@ -189,6 +210,117 @@ export default function CheckoutPage() {
     return null;
   }
 
+  // Ensure an authenticated member (guests sign up inline with the form's
+  // email + password). Returns null when aborted — an existing email opens the
+  // login modal instead. Shared by the Submit flow and the PayPal Buttons.
+  async function ensureAccount(): Promise<AuthUser | null> {
+    if (user) return user;
+    try {
+      const created = await signup({
+        email: email.trim(),
+        password,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+      });
+      applyUser(created);
+      return created;
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setError(
+          "An account with this email already exists — use “Already a member?” to log in.",
+        );
+        setShowLogin(true);
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  // PayPal approved the subscription in the popup — verify it server-side
+  // (which grants access inline) and land on the thank-you page.
+  async function completePayPal(subscriptionId: string) {
+    submittingRef.current = true;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await paypalActivate(subscriptionId);
+      router.push(
+        `/checkout/thank-you?class=${encodeURIComponent(config?.heading ?? "")}`,
+      );
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "We couldn’t confirm your PayPal subscription. Please contact support.",
+      );
+      setSubmitting(false);
+      submittingRef.current = false;
+    }
+  }
+
+  // Mock PayPal path (no client id configured): validate + account, simulate.
+  async function mockPayPalPay() {
+    setError(null);
+    const v = validate();
+    if (v) {
+      setError(v);
+      return;
+    }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
+    try {
+      const current = await ensureAccount();
+      if (!current) {
+        setSubmitting(false);
+        submittingRef.current = false;
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 600)); // simulate the popup
+      router.push(
+        `/checkout/thank-you?class=${encodeURIComponent(config?.heading ?? "")}`,
+      );
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Something went wrong. Please try again.",
+      );
+      setSubmitting(false);
+      submittingRef.current = false;
+    }
+  }
+
+  // Handlers the PayPal Buttons call (PaymentSection reads these through a
+  // ref, so fresh state is always visible).
+  const paypalDriver: PayPalDriver = {
+    validate,
+    createSubscription: async () => {
+      setError(null);
+      const current = await ensureAccount();
+      if (!current) throw new Error("Sign in to continue.");
+      const wireId = selected ? optionWireId(selected) : null;
+      if (!wireId) {
+        throw new Error("This plan isn’t available for PayPal checkout yet.");
+      }
+      const prepared = await paypalPrepare(wireId);
+      return { planId: prepared.planId, customId: prepared.customId };
+    },
+    onApproved: (subscriptionId) => {
+      void completePayPal(subscriptionId);
+    },
+    onError: (message) => {
+      setError(message);
+      setSubmitting(false);
+      submittingRef.current = false;
+    },
+    onMockPay: () => {
+      void mockPayPalPay();
+    },
+  };
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -203,28 +335,11 @@ export default function CheckoutPage() {
     setSubmitting(true);
     try {
       // 1) Ensure an authenticated member (State A signs up inline).
-      let current = user;
+      const current = await ensureAccount();
       if (!current) {
-        try {
-          current = await signup({
-            email: email.trim(),
-            password,
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-          });
-          applyUser(current);
-        } catch (err) {
-          if (err instanceof ApiError && err.status === 409) {
-            setError(
-              "An account with this email already exists — use “Already a member?” to log in.",
-            );
-            setShowLogin(true);
-            setSubmitting(false);
-            submittingRef.current = false;
-            return;
-          }
-          throw err;
-        }
+        setSubmitting(false);
+        submittingRef.current = false;
+        return;
       }
 
       // 2) Pay. Recurring + real Stripe → server PaymentIntent then confirm.
@@ -232,8 +347,15 @@ export default function CheckoutPage() {
       const useRealStripe = !mockMode && selected.kind === "recurring";
       let clientSecret: string | null = null;
       if (useRealStripe) {
+        const wireId = optionWireId(selected);
+        if (!wireId) {
+          setError("This plan isn’t configured for checkout yet.");
+          setSubmitting(false);
+          submittingRef.current = false;
+          return;
+        }
         const res = await subscribe({
-          priceId: selected.stripePriceId,
+          priceId: wireId,
           couponCode: couponPreview?.valid ? coupon.trim() : undefined,
         });
         if (res.status === "active") {
@@ -443,36 +565,46 @@ export default function CheckoutPage() {
 
         {/* PAYMENT INFORMATION */}
         <SectionHead>PAYMENT INFORMATION</SectionHead>
-        <PaymentSection ref={payRef} publishableKey={publishableKey} />
+        <PaymentSection
+          ref={payRef}
+          provider={provider}
+          publishableKey={billing.publishableKey}
+          paypalClientId={billing.paypalClientId}
+          paypal={provider === "paypal" ? paypalDriver : undefined}
+        />
 
-        {/* Coupon */}
-        <div className="co-coupon">
-          <input
-            className="co-input"
-            placeholder="Discount code"
-            value={coupon}
-            onChange={(e) => setCoupon(e.target.value)}
-            aria-label="Discount code"
-          />
-          <button
-            type="button"
-            className="co-btn co-btn--ghost"
-            onClick={applyCoupon}
-            disabled={couponBusy || !coupon.trim()}
-          >
-            {couponBusy ? "Applying…" : "Apply"}
-          </button>
-        </div>
-        {couponPreview && (
-          <p
-            className={
-              couponPreview.valid ? "co-coupon-ok" : "co-coupon-bad"
-            }
-          >
-            {couponPreview.valid
-              ? `Coupon “${couponPreview.code}” applied${couponPreview.label ? ` — ${couponPreview.label}` : ""}.`
-              : couponPreview.message || "Invalid code."}
-          </p>
+        {/* Coupon — Stripe promotion codes only; PayPal has no coupon engine. */}
+        {provider !== "paypal" && (
+          <>
+            <div className="co-coupon">
+              <input
+                className="co-input"
+                placeholder="Discount code"
+                value={coupon}
+                onChange={(e) => setCoupon(e.target.value)}
+                aria-label="Discount code"
+              />
+              <button
+                type="button"
+                className="co-btn co-btn--ghost"
+                onClick={applyCoupon}
+                disabled={couponBusy || !coupon.trim()}
+              >
+                {couponBusy ? "Applying…" : "Apply"}
+              </button>
+            </div>
+            {couponPreview && (
+              <p
+                className={
+                  couponPreview.valid ? "co-coupon-ok" : "co-coupon-bad"
+                }
+              >
+                {couponPreview.valid
+                  ? `Coupon “${couponPreview.code}” applied${couponPreview.label ? ` — ${couponPreview.label}` : ""}.`
+                  : couponPreview.message || "Invalid code."}
+              </p>
+            )}
+          </>
         )}
 
         {/* Summary (collapsible) */}
@@ -515,13 +647,24 @@ export default function CheckoutPage() {
 
         {error && <div className="co-alert co-alert-error">{error}</div>}
 
-        <button
-          type="submit"
-          className="co-btn co-btn--navy co-btn--block co-submit"
-          disabled={submitting}
-        >
-          {submitting ? "Processing…" : "Submit"}
-        </button>
+        {provider === "paypal" ? (
+          <>
+            {submitting && (
+              <div className="co-alert">Confirming your subscription…</div>
+            )}
+            <p className="co-footer-note">
+              Complete your purchase with the PayPal button above.
+            </p>
+          </>
+        ) : (
+          <button
+            type="submit"
+            className="co-btn co-btn--navy co-btn--block co-submit"
+            disabled={submitting}
+          >
+            {submitting ? "Processing…" : "Submit"}
+          </button>
+        )}
         <p className="co-footer-note">
           We Never Share Your Information With Anyone
         </p>

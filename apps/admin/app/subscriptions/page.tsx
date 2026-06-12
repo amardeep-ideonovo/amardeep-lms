@@ -112,8 +112,8 @@ export default function SubscriptionsPage() {
         <div>
           <h1>Subscriptions</h1>
           <p className="subtitle">
-            Every Stripe subscription — active and historical. Read live from
-            Stripe; manage an individual member’s plan from their billing page.
+            Every subscription — active and historical, across Stripe and
+            PayPal. Manage an individual member’s plan from their billing page.
           </p>
         </div>
         <button className="btn btn--ghost" onClick={load} disabled={loading}>
@@ -192,14 +192,15 @@ export default function SubscriptionsPage() {
                     <tr key={r.id}>
                       <td>
                         <StatusBadge s={r} />
-                        {r.cancelAtPeriodEnd && !r.paused ? (
-                          <div
-                            className="muted"
-                            style={{ fontSize: 11, marginTop: 4 }}
-                          >
-                            cancels at period end
-                          </div>
-                        ) : null}
+                        <div
+                          className="muted"
+                          style={{ fontSize: 11, marginTop: 4 }}
+                        >
+                          {r.provider === "paypal" ? "PayPal" : "Stripe"}
+                          {r.cancelAtPeriodEnd && !r.paused
+                            ? " · cancels at period end"
+                            : ""}
+                        </div>
                       </td>
                       <td>
                         {r.memberId ? (

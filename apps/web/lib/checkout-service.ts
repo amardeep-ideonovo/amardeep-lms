@@ -7,9 +7,11 @@ import type {
   BillingConfigDTO,
   CouponPreviewDTO,
   LevelDTO,
+  PayPalPrepareResult,
   SignupInput,
   SubscribeInput,
   SubscribeResult,
+  SubscriptionDetailDTO,
 } from "@lms/types";
 import { api, ApiError, clearToken, getToken, setToken } from "./api";
 
@@ -62,4 +64,16 @@ export function subscribe(input: SubscribeInput): Promise<SubscribeResult> {
 
 export function syncSubscriptions(): Promise<{ ok: true }> {
   return api.syncSubscriptions();
+}
+
+// PayPal checkout (active provider = paypal): provision the plan, then verify
+// the approved subscription server-side (which grants access inline).
+export function paypalPrepare(priceId: string): Promise<PayPalPrepareResult> {
+  return api.paypalPrepare({ priceId });
+}
+
+export function paypalActivate(
+  subscriptionId: string,
+): Promise<SubscriptionDetailDTO[]> {
+  return api.paypalActivate({ subscriptionId });
 }
