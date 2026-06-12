@@ -36,6 +36,10 @@ import { PageScreen } from "./src/screens/PageScreen";
 // Logged-out cold starts fall back to the Login stack (known v1 limit).
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [ExpoLinking.createURL("/"), WEB_BASE_URL],
+  // The expo-dev-client launch URL (lms://expo-development-client/?url=…) is
+  // for the dev launcher, not the app — without this filter the Page catch-all
+  // below swallows it and every dev launch lands on "Page not found".
+  filter: (url) => !url.includes("expo-development-client"),
   config: {
     screens: {
       Dashboard: "dashboard",
