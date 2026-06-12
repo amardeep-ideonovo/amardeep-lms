@@ -1635,6 +1635,7 @@ export const ROUTES = {
   adminDeletePopup: "DELETE /admin/popups/:id",
 
   // certificates — MEMBER
+  uncompleteLesson: "DELETE /lessons/:id/complete", // member; undo mark-complete -> { ok: true }
   claimCertificate: "POST /certificates/claim", // body ClaimCertificateInput -> MyCertificateDTO (idempotent)
   myCertificates: "GET /certificates/mine", // -> MyCertificateDTO[]
   downloadCertificate: "GET /certificates/:id/download", // owner/admin; Bearer or ?token= -> PDF stream

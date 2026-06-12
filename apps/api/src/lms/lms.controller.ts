@@ -229,6 +229,16 @@ export class LmsController {
     return this.lms.completeLesson(id, principal.sub);
   }
 
+  // Undo a mark-complete (member self-service; also lets tests reset state).
+  @UseGuards(JwtAuthGuard)
+  @Delete('lessons/:id/complete')
+  uncompleteLesson(
+    @Param('id') id: string,
+    @CurrentUser() principal: AuthenticatedPrincipal,
+  ) {
+    return this.lms.uncompleteLesson(id, principal.sub);
+  }
+
   // ----- Lesson notes (downloadable attachments) -----
 
   @UseGuards(PermissionsGuard)

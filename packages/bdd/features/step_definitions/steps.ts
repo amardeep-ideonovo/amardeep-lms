@@ -33,6 +33,15 @@ When(
       token: this.memberToken,
       body: JSON.parse(docString),
     });
+    // Track a claimed certificate for cleanup + idempotency assertions. The
+    // serial is captured on the FIRST claim only, so a re-claim in the same
+    // scenario can be compared against it.
+    if (path === "/certificates/claim" && this.last.body?.id) {
+      this.certificateId = this.last.body.id;
+      if (!this.certificateSerial) {
+        this.certificateSerial = this.last.body.serial ?? null;
+      }
+    }
   },
 );
 
@@ -140,12 +149,121 @@ When(
   "I POST {string} with an admin token and body:",
   async function (this: LmsWorld, path: string, docString: string) {
     const token = await this.adminToken();
-    await this.request("POST", path, { token, body: JSON.parse(docString) });
+    // __ARTWORK_URL__ lets certificate-template payloads reference the media
+    // file uploaded earlier in the scenario (its URL is minted at runtime).
+    const payload = docString.replace(
+      /__ARTWORK_URL__/g,
+      this.certificateMediaUrl ?? "",
+    );
+    await this.request("POST", path, { token, body: JSON.parse(payload) });
     // Track created content so the After hook can delete it — scenario rows
     // otherwise pile up in the shared dev DB (and PUBLISHED ones go live).
     const id = this.last.body?.id ?? null;
     if (path === "/admin/blog/posts") this.createdPostId = id;
     if (path === "/admin/pages") this.createdPageId = id;
+    if (path === "/admin/certificate-templates") this.certificateTemplateId = id;
+  },
+);
+
+// ---------- certificates ----------
+
+Given(
+  "the admin has uploaded a test artwork image",
+  async function (this: LmsWorld) {
+    await this.uploadMedia();
+  },
+);
+
+// Deterministic "not completed" setup: earlier scenarios (and previous suite
+// runs against the shared dev DB) may have completed the fixture lesson.
+Given(
+  "the member has not completed the {string} lesson",
+  async function (this: LmsWorld, lessonId: string) {
+    await this.ensureMemberLoggedIn();
+    await this.request("DELETE", `/lessons/${lessonId}/complete`, {
+      token: this.memberToken,
+    });
+  },
+);
+
+When("I download the claimed certificate", async function (this: LmsWorld) {
+  await this.request("GET", `/certificates/${this.certificateId}/download`, {
+    token: this.memberToken,
+  });
+});
+
+When(
+  "I download the claimed certificate without a token",
+  async function (this: LmsWorld) {
+    await this.request("GET", `/certificates/${this.certificateId}/download`, {
+      token: null,
+    });
+  },
+);
+
+When(
+  "I verify the claimed certificate serial",
+  async function (this: LmsWorld) {
+    await this.request(
+      "GET",
+      `/certificates/verify/${this.certificateSerial}`,
+      { token: null },
+    );
+  },
+);
+
+Then(
+  "the response body should start with {string}",
+  function (this: LmsWorld, prefix: string) {
+    const body = this.last.body;
+    assert.ok(
+      typeof body === "string" && body.startsWith(prefix),
+      `expected raw body starting with "${prefix}", got: ${String(body).slice(0, 40)}`,
+    );
+  },
+);
+
+Then(
+  "the response field {string} should match {string}",
+  function (this: LmsWorld, field: string, pattern: string) {
+    const value = this.last.body?.[field];
+    assert.ok(
+      new RegExp(pattern).test(String(value)),
+      `expected field "${field}" (${String(value)}) to match /${pattern}/`,
+    );
+  },
+);
+
+Then(
+  "the response serial should equal the previously claimed serial",
+  function (this: LmsWorld) {
+    assert.ok(this.certificateSerial, "no serial was captured by a claim");
+    assert.equal(this.last.body?.serial, this.certificateSerial);
+  },
+);
+
+Then(
+  "the response should offer a certificate for {string}",
+  function (this: LmsWorld, levelId: string) {
+    const certs = this.last.body?.certificates;
+    assert.ok(Array.isArray(certs), `expected certificates[] in the response`);
+    const entry = certs.find((c: any) => c?.levelId === levelId);
+    assert.ok(entry, `no certificate entry for level "${levelId}"`);
+    assert.equal(entry.eligible, true, "expected eligible: true");
+  },
+);
+
+Then(
+  "exactly one certificate template should be the default",
+  async function (this: LmsWorld) {
+    const token = await this.adminToken();
+    await this.request("GET", "/admin/certificate-templates", { token });
+    const defaults = (this.last.body as any[]).filter((t) => t.isDefault);
+    assert.equal(
+      defaults.length,
+      1,
+      `expected exactly one default, got ${defaults.length}`,
+    );
   },
 );
 

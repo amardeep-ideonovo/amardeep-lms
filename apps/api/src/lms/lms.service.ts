@@ -367,6 +367,17 @@ export class LmsService {
     return { ok: true, ...(certificates.length ? { certificates } : {}) };
   }
 
+  /** Undo a mark-complete. Idempotent — no row, no error. */
+  async uncompleteLesson(
+    lessonId: string,
+    userId: string,
+  ): Promise<{ ok: true }> {
+    const lesson = await this.prisma.lesson.findUnique({ where: { id: lessonId } });
+    if (!lesson) throw new NotFoundException('Lesson not found');
+    await this.prisma.lessonProgress.deleteMany({ where: { userId, lessonId } });
+    return { ok: true };
+  }
+
   // ---------- Lesson notes (downloadable attachments) ----------
 
   private toNoteDTO(n: LessonNote): LessonNoteDTO {
