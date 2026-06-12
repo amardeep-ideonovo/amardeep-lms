@@ -6,13 +6,19 @@ import {
 } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { CourseCard, LessonDTO, LessonNoteDTO } from '@lms/types';
+import type {
+  CompleteLessonResponse,
+  CourseCard,
+  LessonDTO,
+  LessonNoteDTO,
+} from '@lms/types';
 import type { LessonNote } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccessService } from './access.service';
 import { isCourseLocked } from '../common/access.util';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { LESSON_NOTES_DIR } from './upload.config';
+import { CertificatesService } from '../certificates/certificates.service';
 import {
   CreateCourseDto,
   CreateLessonDto,
@@ -25,6 +31,7 @@ export class LmsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
+    private readonly certificates: CertificatesService,
   ) {}
 
   // ---------- Courses ----------
@@ -299,9 +306,14 @@ export class LmsService {
       throw new ForbiddenException('You do not have access to this lesson');
     }
 
-    const completed = await this.prisma.lessonProgress.findUnique({
-      where: { userId_lessonId: { userId, lessonId } },
-    });
+    const [completed, certificates] = await Promise.all([
+      this.prisma.lessonProgress.findUnique({
+        where: { userId_lessonId: { userId, lessonId } },
+      }),
+      // Present only when this lesson is the terminal lesson of an actively
+      // held class with certificates configured — drives "Get certificate".
+      this.certificates.statusForLesson(userId, lessonId, assigned, activeLevels),
+    ]);
 
     return {
       id: lesson.id,
@@ -314,13 +326,14 @@ export class LmsService {
       order: lesson.order,
       completed: !!completed,
       notes: lesson.notes.map((n) => this.toNoteDTO(n)),
+      ...(certificates.length ? { certificates } : {}),
     };
   }
 
   async completeLesson(
     lessonId: string,
     userId: string,
-  ): Promise<{ ok: true }> {
+  ): Promise<CompleteLessonResponse> {
     const lesson = await this.prisma.lesson.findUnique({
       where: { id: lessonId },
       include: {
@@ -343,7 +356,15 @@ export class LmsService {
       create: { userId, lessonId },
       update: { completedAt: new Date() },
     });
-    return { ok: true };
+    // Completing the FINAL lesson of a class returns the fresh certificate
+    // state so clients can surface "Get certificate" without a refetch.
+    const certificates = await this.certificates.statusForLesson(
+      userId,
+      lessonId,
+      assigned,
+      activeLevels,
+    );
+    return { ok: true, ...(certificates.length ? { certificates } : {}) };
   }
 
   // ---------- Lesson notes (downloadable attachments) ----------

@@ -18,6 +18,7 @@ import type {
 } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccessService } from '../lms/access.service';
+import { CertificatesService } from '../certificates/certificates.service';
 import { StripeService } from '../billing/stripe.service';
 import { PayPalService } from '../billing/paypal.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
@@ -64,6 +65,7 @@ export class LevelsService {
     private readonly paypal: PayPalService,
     private readonly mailchimp: MailchimpProducer,
     private readonly access: AccessService,
+    private readonly certificates: CertificatesService,
   ) {}
 
   private toDTO(level: LevelWithPrices, memberCount = 0): LevelDTO {
@@ -273,7 +275,7 @@ export class LevelsService {
   ): Promise<MyClassCoursesDTO> {
     const level = await this.prisma.level.findFirst({
       where: { OR: [{ slug: slugOrId }, { id: slugOrId }] },
-      select: { id: true },
+      select: { id: true, name: true, certificateTemplateId: true },
     });
     if (!level) throw new NotFoundException('Class not found');
 
@@ -303,7 +305,23 @@ export class LevelsService {
       lessonCount: c._count.lessons,
       completedCount: completedByCourse.get(c.id) ?? 0,
     }));
-    return { owned: true, courses: courseCards };
+
+    // Class-page certificate state (omitted while no template resolves). The
+    // lesson totals are already in hand, so this only adds claim state.
+    const totals = courseCards.reduce(
+      (acc, c) => ({
+        total: acc.total + c.lessonCount,
+        done: acc.done + Math.min(c.completedCount, c.lessonCount),
+      }),
+      { total: 0, done: 0 },
+    );
+    const certificate = await this.certificates.statusForLevel(userId, level, totals);
+
+    return {
+      owned: true,
+      courses: courseCards,
+      ...(certificate ? { certificate } : {}),
+    };
   }
 
   // Ensure the featured course is unlockable by buying this class (so "Get
@@ -397,6 +415,9 @@ export class LevelsService {
         description: dto.description || null,
         trailerUrl: dto.trailerUrl || null,
         featuredCourseId: dto.featuredCourseId || null,
+        certificateTemplateId: await this.validCertificateTemplateId(
+          dto.certificateTemplateId,
+        ),
         skills: dto.skills
           ? dto.skills.map((s) => ({
               title: s.title.trim(),
@@ -454,6 +475,10 @@ export class LevelsService {
         featuredCourseId:
           dto.featuredCourseId !== undefined
             ? dto.featuredCourseId || null
+            : undefined,
+        certificateTemplateId:
+          dto.certificateTemplateId !== undefined
+            ? await this.validCertificateTemplateId(dto.certificateTemplateId)
             : undefined,
         skills:
           dto.skills !== undefined
@@ -692,8 +717,25 @@ export class LevelsService {
   async remove(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.level.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Level not found');
+    // Issued-certificate rows cascade with the level; their rendered PDFs
+    // don't, so unlink them first (best-effort).
+    await this.certificates.unlinkFilesForLevel(id).catch(() => undefined);
     await this.prisma.level.delete({ where: { id } });
     return { ok: true };
+  }
+
+  // '' clears the override (-> null); a non-empty id must exist or the save
+  // would die later on the FK with an opaque 500.
+  private async validCertificateTemplateId(
+    value: string | null | undefined,
+  ): Promise<string | null> {
+    if (!value) return null;
+    const row = await this.prisma.certificateTemplate.findUnique({
+      where: { id: value },
+      select: { id: true },
+    });
+    if (!row) throw new BadRequestException('Certificate template not found');
+    return row.id;
   }
 
   // ---------- categories (admin-only grouping for classes) ----------

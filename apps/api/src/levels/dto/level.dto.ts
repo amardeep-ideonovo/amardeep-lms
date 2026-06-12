@@ -103,6 +103,11 @@ export class CreateLevelDto {
   @IsString()
   featuredCourseId?: string;
 
+  // Certificate template override; '' (or omitted) = use the default template.
+  @IsOptional()
+  @IsString()
+  certificateTemplateId?: string;
+
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
@@ -172,6 +177,11 @@ export class UpdateLevelDto {
   @IsOptional()
   @IsString()
   featuredCourseId?: string;
+
+  // Certificate template override; '' clears it (back to the default template).
+  @IsOptional()
+  @IsString()
+  certificateTemplateId?: string;
 
   @IsOptional()
   @IsArray()
