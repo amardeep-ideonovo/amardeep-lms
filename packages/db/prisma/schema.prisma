@@ -84,6 +84,7 @@ model Level {
   mailchimpAudienceId   String?     // Mailchimp list this level subscribes members to (falls back to the global Settings audience)
   mailchimpAudienceName String?     // cached name for admin display
   stripeProductId       String?     // prod_… for PAID levels
+  paypalProductId       String?     // PayPal catalog product id (lazy-provisioned when PayPal is active)
   // ----- MasterClass-style landing-page fields (all optional) -----
   imageUrl              String?     // hero/cover image for the class page
   description           String?     // marketing description
@@ -103,20 +104,34 @@ model Price {
   id            String   @id @default(cuid())
   levelId       String
   level         Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  stripePriceId String   @unique // price_…
+  // Provider price ids — each provisioned lazily under the provider that needs
+  // it, so a site configured for only one provider still works. A row may hold
+  // either or both.
+  stripePriceId String?  @unique // price_…
+  paypalPlanId  String?  @unique // PayPal billing plan id (P-…)
   interval      String   // "month" | "year"
   amount        Int      // minor units (cents)
   currency      String   @default("usd")
   active        Boolean  @default(true)
   // Installment plan: bill this many times, then the member keeps the level for
-  // life (the webhook sets UserLevel.lifetime and cancels the sub). null = an
-  // ongoing subscription that bills until canceled.
+  // life (the webhook sets UserLevel.lifetime and cancels the sub; PayPal plans
+  // use total_cycles natively). null = an ongoing subscription that bills until
+  // canceled.
   installments  Int?
 }
 
 enum UserLevelSource {
   STRIPE
   MANUAL
+  PAYPAL
+}
+
+// Which payment processor issued a subscription. The admin-selected ACTIVE
+// provider (Setting "payments.provider") governs NEW checkouts only — existing
+// subscriptions keep living on the provider that created them.
+enum PaymentProvider {
+  STRIPE
+  PAYPAL
 }
 
 enum UserLevelStatus {
@@ -138,7 +153,7 @@ model UserLevel {
   // Once true the grant is permanent (a paid-in-full installment plan converted
   // to lifetime) and Stripe reconciliation will never revoke it.
   lifetime            Boolean         @default(false)
-  stripeSubItemId     String?         // si_… when source = STRIPE
+  stripeSubItemId     String?         // si_… when source = STRIPE; PayPal sub id (I-…) when source = PAYPAL
   expiresAt           DateTime?       // for manual grants or period-end access
   grantedAt           DateTime        @default(now())
 
@@ -239,15 +254,29 @@ enum SubStatus {
   PAUSED // pause_collection set — billing paused, access suspended
 }
 
-// Local mirror of Stripe subscriptions, kept current by webhooks.
+// Local mirror of provider subscriptions, kept current by webhooks.
+// Column naming note: stripeSubId holds the provider's subscription id —
+// `sub_…` for Stripe, `I-…` for PayPal; stripeCustomerId holds `cus_…` or the
+// PayPal payer id. Kept under the legacy names to avoid churning every DTO.
+// userId/priceId are populated for PAYPAL rows: PayPal has no merchant-wide
+// list API, so this mirror IS the index for PayPal subscriptions.
 model SubscriptionMirror {
-  id                 String    @id @default(cuid())
-  stripeSubId        String    @unique // sub_…
-  stripeCustomerId   String
+  id                 String          @id @default(cuid())
+  provider           PaymentProvider @default(STRIPE)
+  stripeSubId        String          @unique // sub_… | I-…
+  stripeCustomerId   String          // cus_… | PayPal payer id
+  userId             String?         // set for PAYPAL rows (mirror-as-index)
+  priceId            String?         // local Price.id, set for PAYPAL rows
   status             SubStatus
   currentPeriodEnd   DateTime?
-  cancelAtPeriodEnd  Boolean   @default(false)
-  updatedAt          DateTime  @updatedAt
+  // For PayPal this flag is OURS (PayPal only cancels immediately): period-end
+  // cancels set it BEFORE calling PayPal so the CANCELLED webhook keeps access
+  // until currentPeriodEnd via UserLevel.expiresAt.
+  cancelAtPeriodEnd  Boolean         @default(false)
+  updatedAt          DateTime        @updatedAt
+
+  @@index([provider])
+  @@index([userId])
 }
 
 // Encrypted integration secrets (Stripe/Mailchimp). Values stored encrypted at

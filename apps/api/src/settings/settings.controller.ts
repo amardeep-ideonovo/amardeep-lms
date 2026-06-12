@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -11,6 +12,8 @@ import { RequirePermission } from '../auth/require-permission.decorator';
 import { SettingsService, SETTING_KEYS } from './settings.service';
 import {
   UpdateMailchimpSettingsDto,
+  UpdatePaymentProviderDto,
+  UpdatePayPalSettingsDto,
   UpdateStripeSettingsDto,
 } from './dto/settings.dto';
 
@@ -99,5 +102,109 @@ export class SettingsController {
   async deleteMailchimp() {
     await this.settings.clearMailchimp();
     return this.getMailchimp();
+  }
+
+  // ----- PayPal credentials (same write-only pattern as Stripe) -----
+
+  @Get('paypal')
+  @RequirePermission('settings', 'read')
+  async getPayPal() {
+    const [clientId, clientSecret, webhookId, mode] = await Promise.all([
+      this.settings.getSecret(SETTING_KEYS.paypalClientId),
+      this.settings.getSecret(SETTING_KEYS.paypalClientSecret),
+      this.settings.getSecret(SETTING_KEYS.paypalWebhookId),
+      this.settings.getSecret(SETTING_KEYS.paypalMode),
+    ]);
+    return {
+      // client id is public (the browser loads the PayPal SDK with it) and the
+      // webhook id is an identifier — both returned in full for the admin.
+      clientId: clientId ?? null,
+      clientSecretLast4: last4(clientSecret),
+      webhookId: webhookId ?? null,
+      mode: mode === 'live' ? 'live' : mode === 'sandbox' ? 'sandbox' : null,
+    };
+  }
+
+  @Put('paypal')
+  @RequirePermission('settings', 'edit')
+  async putPayPal(@Body() dto: UpdatePayPalSettingsDto) {
+    // Plan/product ids are environment-scoped at PayPal — a different app or a
+    // sandbox↔live switch invalidates them all, so detect the change first.
+    const [prevClientId, prevMode] = await Promise.all([
+      this.settings.getSecret(SETTING_KEYS.paypalClientId),
+      this.settings.getSecret(SETTING_KEYS.paypalMode),
+    ]);
+    await this.settings.setSecret(SETTING_KEYS.paypalClientId, dto.clientId);
+    await this.settings.setSecret(
+      SETTING_KEYS.paypalClientSecret,
+      dto.clientSecret,
+    );
+    await this.settings.setSecret(SETTING_KEYS.paypalWebhookId, dto.webhookId);
+    await this.settings.setSecret(SETTING_KEYS.paypalMode, dto.mode);
+    const clientChanged =
+      dto.clientId !== undefined &&
+      dto.clientId !== '' &&
+      dto.clientId !== prevClientId;
+    const modeChanged =
+      dto.mode !== undefined && dto.mode !== (prevMode ?? 'sandbox');
+    if (clientChanged || modeChanged) {
+      await this.settings.clearPayPalProvisionedIds();
+    }
+    return this.getPayPal();
+  }
+
+  @Delete('paypal')
+  @RequirePermission('settings', 'delete')
+  async deletePayPal() {
+    await this.settings.clearPayPal();
+    // Whatever app these ids belonged to is no longer configured.
+    await this.settings.clearPayPalProvisionedIds();
+    return this.getPayPal();
+  }
+
+  // ----- Active payment provider (governs NEW checkouts only) -----
+
+  @Get('payment-provider')
+  @RequirePermission('settings', 'read')
+  async getPaymentProvider() {
+    return { provider: await this.settings.getPaymentProvider() };
+  }
+
+  @Put('payment-provider')
+  @RequirePermission('settings', 'edit')
+  async putPaymentProvider(@Body() dto: UpdatePaymentProviderDto) {
+    // Refuse to point new checkouts at an unconfigured processor.
+    if (dto.provider === 'paypal') {
+      const [clientId, secret] = await Promise.all([
+        this.settings.getPayPalClientId(),
+        this.settings.getPayPalClientSecret(),
+      ]);
+      if (!clientId || !secret) {
+        throw new BadRequestException(
+          'Add the PayPal client ID and secret before making PayPal the active provider.',
+        );
+      }
+      const webhookId = await this.settings.getPayPalWebhookId();
+      await this.settings.setSecret(
+        SETTING_KEYS.paymentProvider,
+        dto.provider,
+      );
+      return {
+        provider: 'paypal' as const,
+        // Checkouts work without a webhook id (the activate endpoint reconciles
+        // inline), but renewals/cancellations made AT PayPal won't sync.
+        warning: webhookId
+          ? null
+          : 'No PayPal webhook ID saved — subscription changes made at PayPal will not sync automatically.',
+      };
+    }
+    const secretKey = await this.settings.getStripeSecretKey();
+    if (!secretKey) {
+      throw new BadRequestException(
+        'Add the Stripe secret key before making Stripe the active provider.',
+      );
+    }
+    await this.settings.setSecret(SETTING_KEYS.paymentProvider, dto.provider);
+    return { provider: 'stripe' as const, warning: null };
   }
 }

@@ -28,6 +28,11 @@ export class StripeService {
     return this.settings.getStripeWebhookSecret();
   }
 
+  /** True when a secret key is configured (Setting table or env). */
+  async isConfigured(): Promise<boolean> {
+    return !!(await this.settings.getStripeSecretKey());
+  }
+
   // --- Product / Price provisioning for PAID levels ---
 
   async createProduct(name: string): Promise<Stripe.Product> {

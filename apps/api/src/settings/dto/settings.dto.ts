@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 
 export class UpdateStripeSettingsDto {
   @IsOptional()
@@ -28,4 +28,31 @@ export class UpdateMailchimpSettingsDto {
   @IsOptional()
   @IsString()
   audienceId?: string;
+}
+
+export class UpdatePayPalSettingsDto {
+  // Client id is public (it ships to the browser for the PayPal JS SDK) but
+  // managed here alongside the secret.
+  @IsOptional()
+  @IsString()
+  clientId?: string;
+
+  @IsOptional()
+  @IsString()
+  clientSecret?: string;
+
+  // Webhook id from the PayPal app's webhook registration — needed to call
+  // verify-webhook-signature. An identifier, not a secret.
+  @IsOptional()
+  @IsString()
+  webhookId?: string;
+
+  @IsOptional()
+  @IsIn(['sandbox', 'live'])
+  mode?: 'sandbox' | 'live';
+}
+
+export class UpdatePaymentProviderDto {
+  @IsIn(['stripe', 'paypal'])
+  provider!: 'stripe' | 'paypal';
 }

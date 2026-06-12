@@ -3,7 +3,11 @@
 
 // ---------- Enums (mirror Prisma) ----------
 export type LevelType = "PAID" | "FREE" | "MANUAL";
-export type UserLevelSource = "STRIPE" | "MANUAL";
+export type UserLevelSource = "STRIPE" | "MANUAL" | "PAYPAL";
+// Payment processor a subscription lives on. The admin-selected ACTIVE provider
+// (PUT /admin/settings/payment-provider) governs NEW checkouts only — existing
+// subscriptions keep billing on the provider that created them.
+export type PaymentProviderId = "stripe" | "paypal";
 export type UserLevelStatus =
   | "ACTIVE"
   | "PAST_DUE"
@@ -126,8 +130,8 @@ export interface ChangePasswordInput {
 }
 
 export interface PriceDTO {
-  id: string;
-  stripePriceId: string;
+  id: string; // local Price id — the provider-neutral checkout identifier
+  stripePriceId: string | null; // price_… (null until provisioned under Stripe)
   interval: "month" | "year";
   amount: number; // cents
   currency: string;
@@ -243,18 +247,37 @@ export interface MySubscriptionDTO {
   status: Extract<UserLevelStatus, "ACTIVE" | "PAST_DUE">;
 }
 
-// ---------- Checkout / Stripe Elements (member) ----------
-// Public config the checkout page needs to mount Stripe Elements. When
-// `publishableKey` is null, Stripe isn't configured on this environment and the
-// web app falls back to a mock payment path (UI stays fully testable).
+// ---------- Checkout (member) ----------
+// Public config the checkout page needs to render the active provider's payment
+// UI. `provider` is the admin-selected processor for NEW checkouts. When the
+// active provider's key is null, it isn't configured on this environment and
+// the web app falls back to a mock payment path (UI stays fully testable).
 export interface BillingConfigDTO {
-  publishableKey: string | null;
+  provider: PaymentProviderId;
+  publishableKey: string | null; // Stripe Elements key (pk_…)
+  paypalClientId: string | null; // PayPal JS SDK client id (public)
+  paypalMode: "sandbox" | "live" | null;
 }
 // Start an embedded (Elements) subscription. `couponCode` is an optional Stripe
 // promotion code applied to the subscription.
 export interface SubscribeInput {
-  priceId: string; // our Stripe price id (price_…)
+  priceId: string; // Stripe price id (price_…) or the local Price id
   couponCode?: string;
+}
+// ---------- PayPal checkout (member) ----------
+// Flow: prepare (server lazily provisions the PayPal product+plan for a local
+// price) → PayPal Buttons approve → activate (server verifies the subscription
+// belongs to the member + plan, grants access inline — also the manual
+// reconcile fallback when webhooks can't reach the environment).
+export interface PayPalPrepareInput {
+  priceId: string; // local Price id (preferred) or a stripePriceId
+}
+export interface PayPalPrepareResult {
+  planId: string; // PayPal billing plan id (P-…) for Buttons createSubscription
+  customId: string; // stamped on the subscription (the member's user id)
+}
+export interface PayPalActivateInput {
+  subscriptionId: string; // I-… returned by PayPal Buttons onApprove
 }
 // Result of POST /billing/subscribe. `clientSecret` confirms the first invoice's
 // PaymentIntent on the client via Stripe.js. The web layer substitutes a
@@ -314,10 +337,11 @@ export interface CreateCouponInput {
 // A live subscription's real terms — the actual price the member is on (fixes
 // "showing /month when they bought /year"), plus status + pause/cancel flags.
 export interface SubscriptionDetailDTO {
-  stripeSubId: string;
+  stripeSubId: string; // the provider's subscription id: sub_… (Stripe) | I-… (PayPal)
+  provider: PaymentProviderId;
   levelId: string;
   levelName: string;
-  status: string; // stripe sub status: active | past_due | paused | trialing | …
+  status: string; // provider sub status, normalized: active | past_due | paused | trialing | …
   interval: string; // "month" | "year" (the subscribed price's interval)
   amount: number; // minor units (the actual subscribed price)
   currency: string;
@@ -327,7 +351,8 @@ export interface SubscriptionDetailDTO {
   installmentsTotal: number | null; // installment plan size (null = ongoing subscription)
   installmentsPaid: number | null; // installments paid so far (null = ongoing)
 }
-// One row of payment history (a Stripe invoice).
+// One row of payment history (a Stripe invoice or a PayPal transaction —
+// PayPal rows have no hosted receipt/PDF, those stay null).
 export interface InvoiceDTO {
   id: string;
   number: string | null;
@@ -337,7 +362,7 @@ export interface InvoiceDTO {
   currency: string;
   status: string; // paid | open | void | uncollectible | draft
   description: string | null; // first line item / plan
-  hostedInvoiceUrl: string | null; // Stripe-hosted receipt
+  hostedInvoiceUrl: string | null; // Stripe-hosted receipt (null for PayPal)
   invoicePdf: string | null;
 }
 // Admin per-member billing bundle (subscriptions + payment history).
@@ -359,11 +384,13 @@ export interface MemberBillingDTO {
 // period run out (no renewal) then auto-cancel. Cancellation is final (no resume).
 export type SubscriptionCancelMode = "immediate" | "period_end";
 
-// One row of the admin Subscriptions tab — every Stripe subscription (active +
-// historical) joined to the local member + level, with an order count and last
-// order date derived from invoices. Read live from Stripe.
+// One row of the admin Subscriptions tab — every subscription (active +
+// historical, both providers) joined to the local member + level, with an order
+// count and last order date. Stripe rows read live; PayPal rows come from the
+// local mirror enriched with live lookups.
 export interface SubscriptionRowDTO {
-  id: string; // stripe subscription id (row key)
+  id: string; // provider subscription id (row key): sub_… | I-…
+  provider: PaymentProviderId;
   memberId: string | null; // local user id (links to the member billing page); null if no local user
   memberName: string; // "First Last" (falls back to email / Stripe name)
   memberEmail: string | null;
@@ -1495,6 +1522,12 @@ export const ROUTES = {
   mySubscriptionDetails: "GET /billing/subscription-details", // -> SubscriptionDetailDTO[]
   myInvoices: "GET /billing/invoices", // -> InvoiceDTO[] (member's own payment history)
   cancelMyMembership: "POST /billing/subscriptions/:subId/cancel", // member: cancel own sub at period end -> SubscriptionDetailDTO[]
+
+  // billing — PayPal (member; active when admin selects the paypal provider)
+  paypalPrepare: "POST /billing/paypal/prepare", // body PayPalPrepareInput -> PayPalPrepareResult (lazy-provisions the plan)
+  paypalActivate: "POST /billing/paypal/activate", // body PayPalActivateInput -> SubscriptionDetailDTO[] (verify + grant inline)
+  paypalWebhook: "POST /billing/paypal/webhook", // public; verified via PayPal verify-webhook-signature
+
   adminMemberBilling: "GET /billing/members/:id", // admin -> MemberBillingDTO
   adminPauseMemberSub: "POST /billing/members/:id/subscriptions/:subId/pause", // admin -> MemberBillingDTO
   adminResumeMemberSub: "POST /billing/members/:id/subscriptions/:subId/resume", // admin -> MemberBillingDTO
@@ -1507,6 +1540,11 @@ export const ROUTES = {
   getMailchimpSettings: "GET /admin/settings/mailchimp",
   putMailchimpSettings: "PUT /admin/settings/mailchimp",
   deleteMailchimpSettings: "DELETE /admin/settings/mailchimp", // clears all Mailchimp creds
+  getPayPalSettings: "GET /admin/settings/paypal", // -> {clientId, clientSecretLast4, webhookId, mode}
+  putPayPalSettings: "PUT /admin/settings/paypal", // body {clientId?, clientSecret?, webhookId?, mode?}
+  deletePayPalSettings: "DELETE /admin/settings/paypal", // clears all PayPal creds
+  getPaymentProvider: "GET /admin/settings/payment-provider", // -> {provider}
+  putPaymentProvider: "PUT /admin/settings/payment-provider", // body {provider}; 400 if target provider unconfigured
 
   // infra
   health: "GET /health", // public probe -> { status, env, uptime, checks: { db, redis } }

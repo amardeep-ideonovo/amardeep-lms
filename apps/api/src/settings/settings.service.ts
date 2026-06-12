@@ -11,6 +11,13 @@ export const SETTING_KEYS = {
   mailchimpApiKey: 'mailchimp.apiKey',
   mailchimpServerPrefix: 'mailchimp.serverPrefix',
   mailchimpAudienceId: 'mailchimp.audienceId',
+  paypalClientId: 'paypal.clientId',
+  paypalClientSecret: 'paypal.clientSecret',
+  paypalWebhookId: 'paypal.webhookId',
+  paypalMode: 'paypal.mode',
+  // Which processor NEW checkouts use ("stripe" | "paypal"). Existing
+  // subscriptions keep billing on the provider that created them.
+  paymentProvider: 'payments.provider',
 } as const;
 
 @Injectable()
@@ -70,6 +77,35 @@ export class SettingsService {
     ]);
   }
 
+  /** Clear all PayPal credentials (client id + secret + webhook id + mode). */
+  async clearPayPal(): Promise<void> {
+    await Promise.all([
+      this.clearSecret(SETTING_KEYS.paypalClientId),
+      this.clearSecret(SETTING_KEYS.paypalClientSecret),
+      this.clearSecret(SETTING_KEYS.paypalWebhookId),
+      this.clearSecret(SETTING_KEYS.paypalMode),
+    ]);
+  }
+
+  /**
+   * Forget every provisioned PayPal catalog/plan id. Plan and product ids are
+   * environment-scoped at PayPal (sandbox ids are invalid in live and across
+   * apps), so any change of client id or mode must reset them — they re-create
+   * lazily at the next PayPal checkout.
+   */
+  async clearPayPalProvisionedIds(): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.price.updateMany({
+        where: { paypalPlanId: { not: null } },
+        data: { paypalPlanId: null },
+      }),
+      this.prisma.level.updateMany({
+        where: { paypalProductId: { not: null } },
+        data: { paypalProductId: null },
+      }),
+    ]);
+  }
+
   // --- Convenience accessors used by integration services ---
 
   getStripeSecretKey(): Promise<string | null> {
@@ -102,5 +138,27 @@ export class SettingsService {
       SETTING_KEYS.mailchimpAudienceId,
       'MAILCHIMP_AUDIENCE_ID',
     );
+  }
+  // Client id is public (ships to the browser for the PayPal JS SDK).
+  getPayPalClientId(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.paypalClientId, 'PAYPAL_CLIENT_ID');
+  }
+  getPayPalClientSecret(): Promise<string | null> {
+    return this.getSecret(
+      SETTING_KEYS.paypalClientSecret,
+      'PAYPAL_CLIENT_SECRET',
+    );
+  }
+  getPayPalWebhookId(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.paypalWebhookId, 'PAYPAL_WEBHOOK_ID');
+  }
+  async getPayPalMode(): Promise<'sandbox' | 'live'> {
+    const v = await this.getSecret(SETTING_KEYS.paypalMode, 'PAYPAL_MODE');
+    return v === 'live' ? 'live' : 'sandbox'; // default + unknown → sandbox
+  }
+  /** The processor NEW checkouts use. Default + unknown values → stripe. */
+  async getPaymentProvider(): Promise<'stripe' | 'paypal'> {
+    const v = await this.getSecret(SETTING_KEYS.paymentProvider);
+    return v === 'paypal' ? 'paypal' : 'stripe';
   }
 }
