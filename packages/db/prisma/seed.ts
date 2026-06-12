@@ -158,6 +158,7 @@ function wipeUploadDirs() {
     path.join(imagesRoot, "lesson"),
     path.join(imagesRoot, "page"),
     process.env.LESSON_FILES_DIR || path.join(apiSrc, "files", "lesson-notes"),
+    process.env.CERT_FILES_DIR || path.join(apiSrc, "files", "certificates"),
   ];
   let removed = 0;
   for (const dir of dirs) {
@@ -2114,6 +2115,103 @@ async function seedNav() {
   });
 }
 
+// ---------- certificate templates ----------
+
+// Two demo templates with committed artwork (assets/certificates/*.png). The
+// PNGs are COPIED into the API's media dir under stable keys so templates
+// reference normal /media/<key> URLs (renders never leave the box). The
+// "classic" cream design is the default; "spotlight" is the dark variant —
+// admins can flip the default or assign per class. Field layouts follow the
+// shared CertificateFieldLayout contract (% of artwork; fonts from
+// CERTIFICATE_FONTS).
+async function seedCertificateTemplates() {
+  const apiSrc = path.resolve(__dirname, "../../../apps/api/src");
+  const mediaRoot = process.env.MEDIA_DIR || path.join(apiSrc, "media-uploads");
+  fs.mkdirSync(mediaRoot, { recursive: true });
+
+  const assets = [
+    {
+      file: "cert-classic.png",
+      key: "seed-cert-classic.png",
+      mediaId: "seed-media-cert-classic",
+      title: "Certificate artwork — Classic Cream",
+    },
+    {
+      file: "cert-spotlight.png",
+      key: "seed-cert-spotlight.png",
+      mediaId: "seed-media-cert-spotlight",
+      title: "Certificate artwork — Spotlight Dark",
+    },
+  ];
+  for (const a of assets) {
+    const src = path.join(__dirname, "assets", "certificates", a.file);
+    fs.copyFileSync(src, path.join(mediaRoot, a.key));
+    const size = fs.statSync(src).size;
+    const mediaData = {
+      key: a.key,
+      originalName: a.file,
+      mimeType: "image/png",
+      size,
+      width: 1600,
+      height: 1131,
+      title: a.title,
+    };
+    await prisma.mediaAsset.upsert({
+      where: { id: a.mediaId },
+      update: mediaData,
+      create: { id: a.mediaId, ...mediaData },
+    });
+  }
+
+  // Shared placement: script name above a serif class title, date + serial in
+  // the bottom corners (inside the artwork's frame).
+  const fieldsFor = (text: string, soft: string) => [
+    { kind: "memberName", enabled: true, xPct: 10, yPct: 40, widthPct: 80, align: "center", fontFamily: "greatvibes", fontSizePct: 7, color: text, uppercase: false },
+    { kind: "className", enabled: true, xPct: 10, yPct: 57, widthPct: 80, align: "center", fontFamily: "playfair", fontSizePct: 3.4, color: text, uppercase: false },
+    { kind: "issueDate", enabled: true, xPct: 9, yPct: 87, widthPct: 30, align: "left", fontFamily: "inter", fontSizePct: 1.5, color: soft, uppercase: false },
+    { kind: "serial", enabled: true, xPct: 61, yPct: 87, widthPct: 30, align: "right", fontFamily: "inter", fontSizePct: 1.3, color: soft, uppercase: false, letterSpacing: 0.06 },
+  ];
+
+  const templates = [
+    {
+      id: "seed-cert-template-classic",
+      name: "Classic Cream",
+      artworkUrl: "/media/seed-cert-classic.png",
+      isDefault: true,
+      fields: fieldsFor("#18181b", "#52525b"),
+    },
+    {
+      id: "seed-cert-template-spotlight",
+      name: "Spotlight Dark",
+      artworkUrl: "/media/seed-cert-spotlight.png",
+      isDefault: false,
+      fields: fieldsFor("#f4f4f6", "#b48e3c"),
+    },
+  ];
+  for (const t of templates) {
+    const data = {
+      name: t.name,
+      artworkUrl: t.artworkUrl,
+      imageWidth: 1600,
+      imageHeight: 1131,
+      fields: t.fields as Prisma.InputJsonValue,
+      isDefault: t.isDefault,
+    };
+    await prisma.certificateTemplate.upsert({
+      where: { id: t.id },
+      update: data,
+      create: { id: t.id, ...data },
+    });
+  }
+  // Exactly one default: if an admin promoted another template, the re-seed
+  // restores the canonical state (full-update convention).
+  await prisma.certificateTemplate.updateMany({
+    where: { id: { notIn: templates.map((t) => t.id) }, isDefault: true },
+    data: { isDefault: false },
+  });
+  console.log("✓ certificate templates (classic default + spotlight dark)");
+}
+
 // ---------- app customization (mobile branding) ----------
 
 async function seedAppConfig() {
@@ -2188,6 +2286,7 @@ async function main() {
   await seedPopups();
   await seedNav();
   await seedAppConfig();
+  await seedCertificateTemplates();
   await seedMemberState(memberId);
 
   const counts = {
@@ -2210,7 +2309,8 @@ async function main() {
   console.log("  Pages:   /about · /start-here · /contact (+ coming-soon draft)");
   console.log("  Popups:  welcome (dashboard) + promo (class pages)");
   console.log("  Nav:     header menu + CTA · footer with newsletter");
-  console.log("  App:     'Spotlight Academy' branding (cinematic red primary)");
+  console.log("  App:     'Spotlight Academy' branding (dark, matches the web)");
+  console.log("  Certs:   2 templates (Classic Cream default + Spotlight Dark)");
 }
 
 main()
