@@ -3,10 +3,15 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import type { LessonDTO, LessonNoteDTO } from "@lms/types";
+import type {
+  ClassCertificateStatusDTO,
+  LessonDTO,
+  LessonNoteDTO,
+} from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
+import CertificateClaimButton from "@/components/CertificateClaimButton";
 
 // Parse a Vimeo URL into its player embed URL (or null if not a Vimeo link).
 // Production videos are hosted on Vimeo; lesson.videoUrl holds the Vimeo link.
@@ -36,6 +41,9 @@ function LessonInner() {
   const [completed, setCompleted] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [noteError, setNoteError] = useState<string | null>(null);
+  // Per-class certificate state — present only when this is the final lesson
+  // of a class with certificates configured.
+  const [certificates, setCertificates] = useState<ClassCertificateStatusDTO[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -45,6 +53,7 @@ function LessonInner() {
         if (!active) return;
         setLesson(l);
         setCompleted(!!l.completed);
+        setCertificates(l.certificates ?? []);
       })
       .catch((err) => {
         if (!active) return;
@@ -68,8 +77,10 @@ function LessonInner() {
     setCompleting(true);
     setError(null);
     try {
-      await api.completeLesson(lessonId);
+      const res = await api.completeLesson(lessonId);
       setCompleted(true);
+      // Completing the final lesson unlocks the claim instantly (no refetch).
+      if (res?.certificates) setCertificates(res.certificates);
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
         setLocked(true);
@@ -194,6 +205,26 @@ function LessonInner() {
           >
             {completing ? "Saving…" : "Mark complete"}
           </button>
+        )}
+
+        {certificates.length > 0 && (
+          <div style={{ marginTop: 18, display: "grid", gap: 14 }}>
+            {certificates.map((c) => (
+              <div key={c.levelId} style={{ display: "grid", gap: 6 }}>
+                {(c.eligible || c.claimed) && certificates.length > 1 && (
+                  <span style={{ fontSize: 13, opacity: 0.8 }}>{c.levelName}</span>
+                )}
+                {c.eligible || c.claimed ? (
+                  <CertificateClaimButton status={c} />
+                ) : (
+                  <span style={{ fontSize: 13, opacity: 0.7 }}>
+                    Finish every lesson in “{c.levelName}” to earn your
+                    certificate.
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
         )}
 
         {lesson.content && (

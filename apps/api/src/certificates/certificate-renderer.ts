@@ -76,7 +76,10 @@ export async function renderCertificatePdf(input: RenderCertificateInput): Promi
   const image = kind === 'png' ? await doc.embedPng(input.artwork) : await doc.embedJpg(input.artwork);
   page.drawImage(image, { x: 0, y: 0, width: PAGE_WIDTH, height: pageHeight });
 
-  // Embed each used font once (subset keeps certificate PDFs ~50-150 KB).
+  // Embed each used font once — WHOLE, not subset: fontkit's subsetter drops
+  // glyphs from some of these TTFs (observed: Great Vibes + Inter lost most
+  // letters). Full embedding costs ~300 KB per used font; correct beats small
+  // for a keepsake document.
   const fonts = new Map<CertificateFontId, PDFFont>();
   for (const field of input.fields) {
     if (!field.enabled || fonts.has(field.fontFamily)) continue;
@@ -86,7 +89,7 @@ export async function renderCertificatePdf(input: RenderCertificateInput): Promi
     } catch {
       bytes = loadFontBytes('inter'); // fall back; boot logs flag missing files
     }
-    fonts.set(field.fontFamily, await doc.embedFont(bytes, { subset: true }));
+    fonts.set(field.fontFamily, await doc.embedFont(bytes));
   }
 
   for (const field of input.fields) {

@@ -3,12 +3,16 @@
 import type {
   AuthUser,
   BillingConfigDTO,
+  CertificateVerifyDTO,
+  ClaimCertificateInput,
+  CompleteLessonResponse,
   CouponPreviewDTO,
   CouponValidateInput,
   CheckoutLevelDTO,
   ClassPublicDTO,
   ClassTileDTO,
   CourseCard,
+  MyCertificateDTO,
   InvoiceDTO,
   PayPalActivateInput,
   PayPalPrepareInput,
@@ -152,10 +156,44 @@ export const api = {
   courseLessons: (courseId: string) =>
     request<LessonDTO[]>(`/courses/${courseId}/lessons`),
   lesson: (lessonId: string) => request<LessonDTO>(`/lessons/${lessonId}`),
+  // Completing the final lesson of a class returns fresh certificate state so
+  // the "Get certificate" button can appear without a refetch.
   completeLesson: (lessonId: string) =>
-    request<LessonDTO | void>(`/lessons/${lessonId}/complete`, {
+    request<CompleteLessonResponse>(`/lessons/${lessonId}/complete`, {
       method: "POST",
     }),
+
+  // certificates (class completion)
+  claimCertificate: (input: ClaimCertificateInput) =>
+    request<MyCertificateDTO>("/certificates/claim", {
+      method: "POST",
+      body: input,
+    }),
+  myCertificates: () => request<MyCertificateDTO[]>("/certificates/mine"),
+  verifyCertificate: (serial: string) =>
+    request<CertificateVerifyDTO>(
+      `/certificates/verify/${encodeURIComponent(serial)}`,
+      { auth: false },
+    ),
+  // Same authed blob-download pattern as lesson notes.
+  downloadCertificate: async (cert: { downloadUrl: string; serial: string; className: string }) => {
+    const token = getToken();
+    const res = await fetch(`${API_BASE}${cert.downloadUrl}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      cache: "no-store",
+    });
+    if (!res.ok)
+      throw new ApiError(res.status, `Download failed (${res.status})`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Certificate ${cert.serial} - ${cert.className}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
 
   // Download a lesson note. The endpoint is access-checked on the server; we
   // fetch it with the member's token and save the blob via a temp <a download>.

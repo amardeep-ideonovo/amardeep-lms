@@ -3,7 +3,11 @@
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { AuthUser, SubscriptionDetailDTO } from "@lms/types";
+import type {
+  AuthUser,
+  MyCertificateDTO,
+  SubscriptionDetailDTO,
+} from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 
@@ -36,6 +40,65 @@ function planStatus(sub: SubscriptionDetailDTO): { label: string; cls: string } 
     label: s.charAt(0).toUpperCase() + s.slice(1),
     cls: "plan-status--active",
   };
+}
+
+// Class-completion certificates the member has earned (claimed on the final
+// lesson or the class page). Self-contained: own fetch, own empty state.
+function CertificatesSection() {
+  const [certs, setCerts] = useState<MyCertificateDTO[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    api
+      .myCertificates()
+      .then((rows) => active && setCerts(rows))
+      .catch(() => active && setCerts([]));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (certs === null || certs.length === 0) return null; // nothing earned yet
+
+  return (
+    <section className="account-section">
+      <h2>My certificates</h2>
+      <div className="plan-list">
+        {certs.map((c) => (
+          <div key={c.id} className="plan-tile">
+            <div className="plan-tile__info">
+              <div className="plan-tile__top">
+                <strong>{c.className}</strong>
+              </div>
+              <span className="plan-tile__meta">
+                {c.serial} · issued {fmtDate(c.issuedAt)} ·{" "}
+                <Link href={`/verify/${c.serial}`} style={{ textDecoration: "underline" }}>
+                  verify
+                </Link>
+              </span>
+            </div>
+            <div className="plan-tile__actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() =>
+                  api
+                    .downloadCertificate(c)
+                    .catch((e) =>
+                      setError(e instanceof Error ? e.message : "Download failed"),
+                    )
+                }
+              >
+                Download
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {error && <p className="alert-error" style={{ marginTop: 10 }}>{error}</p>}
+    </section>
+  );
 }
 
 // Stripe redirects back to /account?checkout=success|cancel after a Checkout
@@ -504,6 +567,8 @@ function AccountInner() {
           </a>
         </div>
       </section>
+
+      <CertificatesSection />
 
       {/* Card management is a Stripe-portal feature; PayPal members manage
           their payment method in their PayPal account instead. */}

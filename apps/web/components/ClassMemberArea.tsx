@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { CourseCard } from "@lms/types";
+import type { ClassCertificateStatusDTO, CourseCard } from "@lms/types";
 import { api, getToken } from "@/lib/api";
+import CertificateClaimButton from "@/components/CertificateClaimButton";
 
 // Vimeo URL -> player embed URL; null for non-Vimeo (then we use <video>).
 function vimeoEmbed(url: string): string | null {
@@ -27,18 +28,27 @@ type Props = {
   skills?: React.ReactNode;
 };
 
-type Ownership = { owned: boolean; courses: CourseCard[] };
+type Ownership = {
+  owned: boolean;
+  courses: CourseCard[];
+  certificate: ClassCertificateStatusDTO | null;
+};
 
 // Module-level cache so the two instances (hero card + body) share ONE request.
 const cache = new Map<string, Promise<Ownership>>();
 function resolveOwnership(slugOrId: string): Promise<Ownership> {
-  if (!getToken()) return Promise.resolve({ owned: false, courses: [] });
+  if (!getToken())
+    return Promise.resolve({ owned: false, courses: [], certificate: null });
   let p = cache.get(slugOrId);
   if (!p) {
     p = api
       .myClassCourses(slugOrId)
-      .then((res) => ({ owned: res.owned, courses: res.courses }))
-      .catch(() => ({ owned: false, courses: [] }));
+      .then((res) => ({
+        owned: res.owned,
+        courses: res.courses,
+        certificate: res.certificate ?? null,
+      }))
+      .catch(() => ({ owned: false, courses: [], certificate: null }));
     cache.set(slugOrId, p);
   }
   return p;
@@ -64,6 +74,8 @@ export default function ClassMemberArea({
   const [resolved, setResolved] = useState(false);
   const [owned, setOwned] = useState(false);
   const [courses, setCourses] = useState<CourseCard[]>([]);
+  const [certificate, setCertificate] =
+    useState<ClassCertificateStatusDTO | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -71,6 +83,7 @@ export default function ClassMemberArea({
       if (!active) return;
       setOwned(res.owned);
       setCourses(res.courses);
+      setCertificate(res.certificate);
       setResolved(true);
     });
     return () => {
@@ -105,7 +118,13 @@ export default function ClassMemberArea({
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
             Continue learning
           </a>
-          <p className="cc-buy-sub">Pick up where you left off.</p>
+          {certificate && (certificate.eligible || certificate.claimed) ? (
+            <div style={{ marginTop: 14 }}>
+              <CertificateClaimButton status={certificate} />
+            </div>
+          ) : (
+            <p className="cc-buy-sub">Pick up where you left off.</p>
+          )}
         </aside>
       );
     }
