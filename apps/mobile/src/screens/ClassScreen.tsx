@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { WebView } from "react-native-webview";
+import { LinearGradient } from "expo-linear-gradient";
 import type {
   ClassCertificateStatusDTO,
   ClassPublicDTO,
@@ -25,14 +26,14 @@ import { WEB_BASE_URL } from "../config";
 import { fmtTotalDuration, money, vimeoEmbed } from "../format";
 import { CourseRow } from "../components/CourseRow";
 import { ErrorState } from "../components/Screen";
-import { HeroBand } from "../components/HeroBand";
 import { Press } from "../components/Press";
 import { PopupHost } from "../components/PopupHost";
-import { Badge } from "../components/Chip";
+import { Badge, Chip } from "../components/Chip";
 import { Skeleton } from "../components/Skeleton";
 import { VideoPlayerView } from "../components/VideoPlayerView";
 import CertificateClaim from "../components/CertificateClaim";
 import type { ScreenProps } from "../navigation";
+import { letterGradient } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
 
@@ -165,52 +166,104 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
         style={styles.scroll}
         contentContainerStyle={styles.content}
       >
-        <HeroBand
-          title={cls.name}
-          imageUrl={cls.imageUrl}
-          gradientSeed={cls.id}
-          chips={cls.categories.map((c) => c.name)}
-          progress={progress && progress.total > 0 ? progress : null}
-          minHeight={300}
-        >
-          {owned ? (
-            <View style={styles.ownedBadge}>
-              <Badge label="You own this class" />
-            </View>
-          ) : null}
-          {owned &&
-          ownership.certificate &&
-          (ownership.certificate.eligible || ownership.certificate.claimed) ? (
-            <CertificateClaim status={ownership.certificate} />
-          ) : null}
-          {cls.description ? (
-            <Text style={styles.heroDesc} numberOfLines={3}>
-              {cls.description}
-            </Text>
-          ) : null}
-          {meta ? <Text style={styles.heroMeta}>{meta}</Text> : null}
-          {!owned ? (
-            <View style={styles.buyCard}>
-              <Press style={styles.buyBtn} onPress={openCheckout}>
-                <Text style={styles.buyBtnText}>Get Class</Text>
-              </Press>
-              <Text style={styles.buySub}>
-                {priceLabel ? (
-                  <>
-                    Starting at <Text style={styles.buyStrong}>{priceLabel}</Text>.
-                  </>
-                ) : (
-                  "Full lifetime access."
-                )}
-              </Text>
-              {cls.trailerUrl ? (
-                <Text style={styles.buyLink} onPress={scrollToTrailer}>
-                  Watch the trailer ↓
-                </Text>
+        <View style={styles.classHero}>
+          {/* Image-prominent cover (~70%): the class image stays clear; only a
+              soft bottom scrim carries the overlaid category + title. */}
+          <View style={styles.heroImage}>
+            {cls.imageUrl ? (
+              <Image
+                source={{ uri: cls.imageUrl }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+              />
+            ) : (
+              <LinearGradient
+                colors={letterGradient(cls.id)}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0.8, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
+            <LinearGradient
+              colors={["transparent", "rgba(8,8,10,0.9)"]}
+              style={styles.heroImageScrim}
+            />
+            <View style={styles.heroImageContent}>
+              {cls.categories.length > 0 ? (
+                <View style={styles.heroChips}>
+                  {cls.categories.map((c) => (
+                    <Chip key={c.id} label={c.name} onHero />
+                  ))}
+                </View>
               ) : null}
+              <Text style={styles.heroTitle}>{cls.name}</Text>
             </View>
-          ) : null}
-        </HeroBand>
+          </View>
+
+          {/* Details panel (~30%) below the image. */}
+          <View style={styles.heroContent}>
+            {owned ? (
+              <View style={styles.ownedBadge}>
+                <Badge label="You own this class" />
+              </View>
+            ) : null}
+            {owned &&
+            ownership.certificate &&
+            (ownership.certificate.eligible || ownership.certificate.claimed) ? (
+              <CertificateClaim status={ownership.certificate} />
+            ) : null}
+            {cls.description ? (
+              <Text style={styles.heroDesc} numberOfLines={4}>
+                {cls.description}
+              </Text>
+            ) : null}
+            {meta ? <Text style={styles.heroMeta}>{meta}</Text> : null}
+            {owned && progress && progress.total > 0 ? (
+              <View style={styles.heroProgress}>
+                <View style={styles.heroProgressLabels}>
+                  <Text style={styles.heroProgressLabel}>
+                    {Math.round((progress.done / progress.total) * 100)}% complete
+                  </Text>
+                  <Text style={styles.heroProgressLabel}>
+                    {progress.done} / {progress.total} lessons
+                  </Text>
+                </View>
+                <View style={styles.heroTrack}>
+                  <View
+                    style={[
+                      styles.heroFill,
+                      {
+                        width: `${Math.round((progress.done / progress.total) * 100)}%`,
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            ) : null}
+            {!owned ? (
+              <View style={styles.buyCard}>
+                <Press style={styles.buyBtn} onPress={openCheckout}>
+                  <Text style={styles.buyBtnText}>Get Class</Text>
+                </Press>
+                <Text style={styles.buySub}>
+                  {priceLabel ? (
+                    <>
+                      Starting at{" "}
+                      <Text style={styles.buyStrong}>{priceLabel}</Text>.
+                    </>
+                  ) : (
+                    "Full lifetime access."
+                  )}
+                </Text>
+                {cls.trailerUrl ? (
+                  <Text style={styles.buyLink} onPress={scrollToTrailer}>
+                    Watch the trailer ↓
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+        </View>
 
         {owned ? (
           <>
@@ -302,8 +355,55 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
     },
     skeletonRow: { flexDirection: "row", justifyContent: "space-between" },
     ownedBadge: { flexDirection: "row" },
-    heroDesc: { color: colors.heroTextSoft, fontSize: 15, lineHeight: 22, fontFamily: fonts.regular },
-    heroMeta: { color: colors.heroTextSoft, fontSize: 13, fontWeight: "600", fontFamily: fonts.semibold },
+    // Image-prominent class hero: a clear cover on top with the category + title
+    // overlaid at its base (per request, ~70% image), then a details panel below.
+    classHero: {
+      borderRadius: 20,
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      backgroundColor: colors.surface,
+    },
+    heroImage: {
+      width: "100%",
+      aspectRatio: 5 / 7,
+      justifyContent: "flex-end",
+      backgroundColor: colors.surfaceMuted,
+    },
+    heroImageScrim: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: "48%",
+    },
+    heroImageContent: { padding: spacing.md, gap: spacing.sm },
+    heroChips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+    heroTitle: {
+      color: colors.heroText,
+      fontSize: 26,
+      fontWeight: "800",
+      fontFamily: fonts.display,
+      lineHeight: 32,
+    },
+    heroContent: { padding: spacing.md, gap: spacing.sm },
+    heroProgress: { gap: 6, marginTop: spacing.xs },
+    heroProgressLabels: { flexDirection: "row", justifyContent: "space-between" },
+    heroProgressLabel: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
+    heroTrack: {
+      height: 6,
+      borderRadius: 999,
+      backgroundColor: colors.surfaceMuted,
+      overflow: "hidden",
+    },
+    heroFill: { height: "100%", backgroundColor: colors.primary, borderRadius: 999 },
+    heroDesc: { color: colors.text, fontSize: 15, lineHeight: 22, fontFamily: fonts.regular },
+    heroMeta: { color: colors.textMuted, fontSize: 13, fontWeight: "600", fontFamily: fonts.semibold },
     section: { gap: spacing.xs },
     eyebrow: {
       color: colors.primarySoft,
@@ -357,7 +457,7 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
     // text uses the hero tokens.
     buyCard: {
       marginTop: spacing.sm,
-      backgroundColor: colors.overlayMid,
+      backgroundColor: colors.surfaceMuted,
       borderWidth: 1,
       borderColor: colors.borderSoft,
       borderRadius: 14,
@@ -373,10 +473,10 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       alignItems: "center",
     },
     buyBtnText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700", fontFamily: fonts.bold },
-    buySub: { color: colors.heroTextSoft, fontSize: 13, textAlign: "center", fontFamily: fonts.regular },
-    buyStrong: { color: colors.heroText, fontWeight: "700", fontFamily: fonts.bold },
+    buySub: { color: colors.textMuted, fontSize: 13, textAlign: "center", fontFamily: fonts.regular },
+    buyStrong: { color: colors.text, fontWeight: "700", fontFamily: fonts.bold },
     buyLink: {
-      color: colors.heroTextSoft,
+      color: colors.primarySoft,
       fontSize: 13,
       textDecorationLine: "underline",
       fontFamily: fonts.regular,
