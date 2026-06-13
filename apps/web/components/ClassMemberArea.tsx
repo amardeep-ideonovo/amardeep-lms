@@ -114,7 +114,7 @@ export default function ClassMemberArea({
           <div className="cc-track" style={{ marginBottom: 18 }}>
             <div className="cc-fill" style={{ width: `${pct}%` }} />
           </div>
-          <a href="#your-courses" className="cc-btn">
+          <a href="#your-courses" className="cc-btn press">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
             Continue learning
           </a>
@@ -131,7 +131,7 @@ export default function ClassMemberArea({
 
     return (
       <aside className="cc-buy">
-        <Link href={checkoutHref} className="cc-btn">Get Class</Link>
+        <Link href={checkoutHref} className="cc-btn press">Get Class</Link>
         <p className="cc-buy-sub">
           {priceLabel ? <>Starting at <b>{priceLabel}</b>.<br /></> : null}
           {trailerUrl ? <a href="#trailer" style={{ color: "var(--cc-soft)" }}>Watch the trailer ↓</a> : "Full lifetime access."}
@@ -229,8 +229,8 @@ export default function ClassMemberArea({
       <section className="cc-closing">
         <div className="cc-wrap">
           <p className="cc-eyebrow">Start today</p>
-          <h2 className="cc-h2">Begin {name}</h2>
-          <Link href={checkoutHref} className="cc-btn">Get Class</Link>
+          <h2 className="cc-h2">Begin <span className="t-gradient">{name}</span></h2>
+          <Link href={checkoutHref} className="cc-btn press">Get Class</Link>
           {priceLabel && <p className="cc-closing-price">Starting at {priceLabel}</p>}
         </div>
       </section>

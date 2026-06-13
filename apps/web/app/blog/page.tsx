@@ -27,9 +27,11 @@ function fmtDate(iso: string | null): string {
 // Deterministic gradient from a post id, so imageless posts each get a
 // distinct—but stable—cover instead of a blank tile.
 function coverGradient(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 360;
-  return `linear-gradient(150deg, hsl(${h} 55% 38%), hsl(${(h + 42) % 360} 50% 20%))`;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) % 75;
+  // Constrain the base hue to the violet→magenta band so auto covers stay on-brand.
+  const h = 255 + hash;
+  return `linear-gradient(150deg, hsl(${h} 55% 38%), hsl(${h + 42} 50% 20%))`;
 }
 
 // Hero treatment for the lead post (overlay, like the dashboard continue card).

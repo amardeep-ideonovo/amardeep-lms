@@ -6,13 +6,13 @@
  */
 .lmspb-root {
   /* Brand follows the site theme when the host app defines --primary (the
-     member site does: #4f46e5); the fallback matches that cross-stack default. */
-  --lmspb-brand: var(--primary, #4f46e5);
+     member site does: #7c5cfc); the fallback matches that cross-stack default. */
+  --lmspb-brand: var(--primary, #7c5cfc);
   --lmspb-brand-contrast: #ffffff;
   --lmspb-fg: #111827;
   --lmspb-muted-fg: #6b7280;
   --lmspb-muted-bg: #f4f4f5;
-  --lmspb-dark-bg: #0f172a;
+  --lmspb-dark-bg: #100c1b;
   --lmspb-dark-fg: #f8fafc;
   --lmspb-border: #e5e7eb;
   --lmspb-radius: 12px;
@@ -195,7 +195,7 @@
 .lmspb-root.lmspb-dark {
   --lmspb-fg: #f4f4f6;
   --lmspb-muted-fg: #9aa1ad;
-  --lmspb-muted-bg: #16161b;
+  --lmspb-muted-bg: #211a33;
   --lmspb-border: rgba(255, 255, 255, 0.12);
   color: var(--lmspb-fg);
 }
@@ -205,7 +205,7 @@
 .lmspb-root.lmspb-dark .lmspb-faq-item,
 .cms-dark .lmspb-bg-muted,
 .lmspb-root.lmspb-dark .lmspb-bg-muted {
-  background: #16161b;
+  background: #211a33;
 }
 
 /* ---- Divider ---- */

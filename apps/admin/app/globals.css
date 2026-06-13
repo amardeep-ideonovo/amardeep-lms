@@ -9,40 +9,69 @@
      to match the theme. Flipped to `light` in the light-theme block below. */
   color-scheme: dark;
 
-  /* surfaces */
-  --bg: #0a0a0c;
-  --sidebar: #0c0c0f;
-  --surface: #131316;
-  --surface-2: #17171b;
-  --surface-hover: #1c1c21;
+  /* surfaces — deep violet-ink (shared with the member web + app) */
+  --bg: #100c1b;
+  --sidebar: #1b1530;
+  --surface: #211a33;
+  --surface-2: #2a2240;
+  --surface-hover: #342a4f;
 
   /* lines */
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.12);
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.16);
 
   /* text */
-  --text: #ededf0;
-  --text-soft: #b6b6bd;
-  --muted: #8b8b93;
-  --faint: #5a5a62;
+  --text: #f4f1fb;
+  --text-soft: #cac3e0;
+  --muted: #948cb4;
+  --faint: #645c83;
 
-  /* accents (teal -> blue) */
-  --accent: #1cb6cf;
-  --accent-2: #3b82f6;
-  --accent-grad: linear-gradient(120deg, #1cb6cf, #3b82f6);
+  /* accents — violet primary, pink accent */
+  --accent: #7c5cfc;
+  --accent-2: #ec58a8;
+  --accent-grad: linear-gradient(120deg, #8b6ff7, #ec58a8);
 
   /* status */
-  --green: #34d399;
-  --amber: #f5b13d;
-  --purple: #a78bfa;
-  --danger: #f4607a;
+  --green: #46c9a0;
+  --amber: #f6a623;
+  --purple: #9577fb;
+  --danger: #f2557b;
 
   /* legacy aliases (kept so inline references keep resolving) */
-  --primary: #1cb6cf;
-  --primary-dark: #1597b4;
+  --primary: #7c5cfc;
+  --primary-dark: #6a47e8;
 
-  --radius: 14px;
+  /* fonts (next/font vars injected on <html>) */
+  --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-montserrat), system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+
+  /* gradients */
+  --grad-primary: linear-gradient(120deg, #8b6ff7, #6c4af0);
+  --grad-accent: linear-gradient(120deg, #f873bb, #b14fe0);
+  --grad-brand: linear-gradient(120deg, #f45fb0, #7c5cfc);
+  --grad-progress: linear-gradient(90deg, #7c5cfc, #ec58a8);
+
+  /* liquid glass (dark defaults; re-based under [data-theme="light"]) */
+  --glass-bg: rgba(33, 26, 51, 0.55);
+  --glass-bg-strong: rgba(33, 26, 51, 0.72);
+  --glass-blur: blur(28px) saturate(200%);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.12);
+  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 10px 34px rgba(10, 6, 24, 0.4);
+
+  /* shadows + motion */
+  --shadow-card: 0 10px 30px rgba(10, 6, 24, 0.3);
+  --shadow-pop: 0 16px 40px rgba(10, 6, 24, 0.45);
+  --shadow-primary: 0 12px 26px rgba(124, 92, 252, 0.4);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-back: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  --radius: 16px;
   --radius-sm: 10px;
+  --radius-md: 20px;
+  --radius-pill: 999px;
   --sidebar-w: 264px;
 }
 
@@ -56,8 +85,7 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -134,7 +162,7 @@ a {
   place-items: center;
   color: #fff;
   flex: none;
-  box-shadow: 0 4px 14px rgba(28, 182, 207, 0.32);
+  box-shadow: 0 4px 14px rgba(124, 92, 252, 0.32);
 }
 .brand-name {
   font-weight: 700;
@@ -170,6 +198,7 @@ a {
   border-radius: var(--radius-sm);
   color: var(--text-soft);
   font-weight: 500;
+  transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
 }
 .nav-link .ico {
   color: var(--muted);
@@ -178,6 +207,7 @@ a {
 .nav-link:hover {
   background: var(--surface-hover);
   color: var(--text);
+  transform: translateX(3px);
 }
 .nav-link:hover .ico {
   color: var(--text-soft);
@@ -185,8 +215,8 @@ a {
 .nav-link--active {
   background: linear-gradient(
     100deg,
-    rgba(28, 182, 207, 0.14),
-    rgba(59, 130, 246, 0.1)
+    rgba(124, 92, 252, 0.14),
+    rgba(236, 88, 168, 0.1)
   );
   color: #fff;
   box-shadow: inset 0 0 0 1px var(--border-strong);
@@ -229,8 +259,9 @@ a {
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  background: rgba(10, 10, 12, 0.78);
-  backdrop-filter: blur(14px);
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   z-index: 30;
 }
 .topbar-search {
@@ -287,7 +318,7 @@ a {
   border: none;
   padding: 0;
   border-radius: 50%;
-  background: linear-gradient(150deg, #3b82f6, #a78bfa);
+  background: linear-gradient(150deg, #8b6ff7, #ec58a8);
   display: grid;
   place-items: center;
   color: #fff;
@@ -447,7 +478,7 @@ a {
   flex: none;
   display: grid;
   place-items: center;
-  background: linear-gradient(150deg, #3b82f6, #a78bfa);
+  background: linear-gradient(150deg, #8b6ff7, #ec58a8);
   color: #fff;
   overflow: hidden;
 }
@@ -756,7 +787,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(28, 182, 207, 0.18);
+  box-shadow: 0 0 0 3px rgba(124, 92, 252, 0.18);
 }
 /* Browser autofill forces a light background + dark text (Chrome/Safari), which
    breaks the themed inputs (looks white in dark mode). Repaint autofilled fields
@@ -779,9 +810,9 @@ textarea:-webkit-autofill:focus,
 select:-webkit-autofill:focus {
   border-color: var(--accent);
   -webkit-box-shadow: 0 0 0 1000px var(--surface-2) inset,
-    0 0 0 3px rgba(28, 182, 207, 0.18);
+    0 0 0 3px rgba(124, 92, 252, 0.18);
   box-shadow: 0 0 0 1000px var(--surface-2) inset,
-    0 0 0 3px rgba(28, 182, 207, 0.18);
+    0 0 0 3px rgba(124, 92, 252, 0.18);
 }
 .form-row {
   display: flex;
@@ -803,10 +834,17 @@ select:-webkit-autofill:focus {
   cursor: pointer;
   background: var(--accent-grad);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(28, 182, 207, 0.22);
+  box-shadow: 0 4px 14px rgba(124, 92, 252, 0.22);
+  transition: transform 0.16s var(--ease-spring), filter 0.18s ease,
+    box-shadow 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 .btn:hover {
   filter: brightness(1.07);
+  transform: translateY(-1px);
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 .btn:disabled {
   opacity: 0.5;
@@ -884,7 +922,7 @@ select:-webkit-autofill:focus {
   gap: 6px;
   padding: 3px 9px;
   border-radius: 999px;
-  background: rgba(28, 182, 207, 0.13);
+  background: rgba(124, 92, 252, 0.13);
   color: #6fd6e6;
   font-size: 12px;
   font-weight: 600;
@@ -967,7 +1005,7 @@ select:-webkit-autofill:focus {
   min-height: 100vh;
   padding: 24px;
   background:
-    radial-gradient(60% 60% at 50% 0%, rgba(59, 130, 246, 0.1), transparent 60%),
+    radial-gradient(60% 60% at 50% 0%, rgba(236, 88, 168, 0.1), transparent 60%),
     radial-gradient(50% 50% at 50% 100%, rgba(167, 139, 250, 0.08), transparent 60%);
 }
 .login-card {
@@ -1435,7 +1473,7 @@ select:-webkit-autofill:focus {
   background: var(--surface-hover);
 }
 .notif-item--unread {
-  background: rgba(28, 182, 207, 0.07);
+  background: rgba(124, 92, 252, 0.07);
 }
 .notif-item__dot {
   width: 8px;
@@ -1512,7 +1550,7 @@ select:-webkit-autofill:focus {
   border: none;
   cursor: pointer;
   flex: none;
-  box-shadow: 0 6px 18px rgba(28, 182, 207, 0.32);
+  box-shadow: 0 6px 18px rgba(124, 92, 252, 0.32);
 }
 .stat-grid {
   display: grid;
@@ -1525,6 +1563,13 @@ select:-webkit-autofill:focus {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  transition: transform 0.22s var(--ease-out-back), box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-pop);
+  border-color: var(--border-strong);
 }
 .stat-top {
   display: flex;
@@ -1578,7 +1623,7 @@ select:-webkit-autofill:focus {
   display: grid;
   place-items: center;
   font-size: 30px;
-  box-shadow: 0 0 0 4px rgba(28, 182, 207, 0.18);
+  box-shadow: 0 0 0 4px rgba(124, 92, 252, 0.18);
   position: relative;
 }
 .dash-hero-avatar .live {
@@ -1667,7 +1712,7 @@ select:-webkit-autofill:focus {
   width: 34px;
   height: 34px;
   border-radius: 9px;
-  background: rgba(28, 182, 207, 0.12);
+  background: rgba(124, 92, 252, 0.12);
   color: var(--accent);
   display: grid;
   place-items: center;
@@ -1799,7 +1844,7 @@ select:-webkit-autofill:focus {
   z-index: 1;
   display: grid;
   place-items: center;
-  background: rgba(28, 182, 207, 0.13);
+  background: rgba(124, 92, 252, 0.13);
   color: var(--accent);
 }
 .feed-main {
@@ -1875,21 +1920,31 @@ select:-webkit-autofill:focus {
    ========================================================================= */
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f4f6f9;
+  --bg: #f5f3fc;
   --sidebar: #ffffff;
   --surface: #ffffff;
-  --surface-2: #f3f5f8;
-  --surface-hover: #eaeef3;
+  --surface-2: #f2eefb;
+  --surface-hover: #ece7f8;
 
-  --border: rgba(15, 23, 42, 0.09);
-  --border-strong: rgba(15, 23, 42, 0.16);
+  --border: #e7e2f4;
+  --border-strong: #d8d2ec;
 
-  --text: #161c27;
-  --text-soft: #41505f;
-  --muted: #66707d;
-  --faint: #9aa3b0;
+  --text: #251f3d;
+  --text-soft: #4a4368;
+  --muted: #8b84a4;
+  --faint: #b7b1cc;
 
   --danger: #e11d48;
+
+  /* frosted glass re-based for light surfaces */
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.72);
+  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.4);
+  --glass-shadow: 0 12px 34px rgba(38, 20, 78, 0.14);
+  --shadow-card: 0 10px 30px rgba(38, 20, 78, 0.1);
+  --shadow-pop: 0 16px 40px rgba(38, 20, 78, 0.16);
 }
 :root[data-theme="light"] body {
   background: var(--bg);
@@ -1926,8 +1981,8 @@ select:-webkit-autofill:focus {
   background: rgba(15, 23, 42, 0.03);
 }
 :root[data-theme="light"] .chip:not(.chip--muted) {
-  /* light-cyan text was low-contrast on the pale chip in light mode */
-  color: #0e7490;
+  /* violet text on the pale chip in light mode */
+  color: #6a47e8;
 }
 :root[data-theme="light"] .lesson-item__body {
   /* rgba(0,0,0,.2) read as a muddy grey on light — use a faint recess */
@@ -2078,4 +2133,71 @@ select:-webkit-autofill:focus {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   text-transform: uppercase;
+}
+
+/* =========================================================================
+   DISPLAY TYPE — Playfair on page-level headings + the dashboard hero name.
+   Montserrat (--font-sans, set on body) handles the rest.
+   ========================================================================= */
+h1,
+.dash-hero-title {
+  font-family: var(--font-display);
+}
+.t-gradient {
+  background: linear-gradient(100deg, #ec58a8, #7c5cfc);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* =========================================================================
+   LIQUID GLASS utilities + tactile micro-interactions — shared vocabulary
+   with the member web/app. Use on floating chrome / clickables.
+   ========================================================================= */
+.glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shine), var(--glass-shadow);
+}
+.glass--strong { background: var(--glass-bg-strong); }
+.glass-sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.1) 24%,
+    rgba(255, 255, 255, 0) 46%
+  );
+}
+.press {
+  transition: transform 0.16s var(--ease-spring), filter 0.18s ease,
+    box-shadow 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.press:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.press:active { transform: scale(0.95); }
+.lift {
+  transition: transform 0.22s var(--ease-out-back), box-shadow 0.22s ease;
+}
+.lift:hover { transform: translateY(-4px); box-shadow: var(--shadow-pop); }
+.icon-btn {
+  transition: transform 0.2s var(--ease-spring), background 0.2s ease,
+    border-color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.icon-btn:hover { transform: scale(1.09); }
+.icon-btn:active { transform: scale(0.88); }
+.hover-pop { transition: transform 0.22s var(--ease-spring); }
+.hover-pop:hover { transform: scale(1.12); }
+
+@media (prefers-reduced-motion: reduce) {
+  .press, .lift, .icon-btn, .hover-pop, .btn, .stat-card, .nav-link {
+    transition: none;
+  }
 }

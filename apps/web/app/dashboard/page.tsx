@@ -14,9 +14,11 @@ import PopupHost from "@/components/PopupHost";
 // Deterministic gradient from a class id, so imageless classes each get a
 // distinct—but stable—tile color instead of all sharing one purple.
 function letterGradient(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 360;
-  return `linear-gradient(150deg, hsl(${h} 68% 56%), hsl(${(h + 38) % 360} 60% 46%))`;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) % 75;
+  // Constrain the base hue to the violet→magenta band so auto tiles stay on-brand.
+  const h = 255 + hash;
+  return `linear-gradient(150deg, hsl(${h} 68% 56%), hsl(${h + 38} 60% 46%))`;
 }
 
 function ClassTile({ cls }: { cls: ClassTileDTO }) {
@@ -40,7 +42,7 @@ function ClassTile({ cls }: { cls: ClassTileDTO }) {
             {cls.name.charAt(0).toUpperCase()}
           </div>
         )}
-        <span className="md-card-play">
+        <span className="md-card-play hover-pop">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
         </span>
       </div>
@@ -166,7 +168,13 @@ function DashboardInner() {
     <div className="member-dash">
       <div className="md-wrap">
         <div className="md-head">
-          <h1>{enrolled.length > 0 ? "Welcome back." : "Welcome."}</h1>
+          <h1>
+            {enrolled.length > 0 ? (
+              <>Welcome <span className="t-gradient">back</span>.</>
+            ) : (
+              <><span className="t-gradient">Welcome</span>.</>
+            )}
+          </h1>
           <p>
             {classes.length === 0
               ? "No classes are available yet."
@@ -209,7 +217,7 @@ function DashboardInner() {
                   </div>
                 </div>
               )}
-              <Link href={`/classes/${featured.slug ?? featured.id}`} className="md-btn">
+              <Link href={`/classes/${featured.slug ?? featured.id}`} className="md-btn press">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
                 Resume class
               </Link>

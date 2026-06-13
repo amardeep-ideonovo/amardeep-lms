@@ -111,8 +111,8 @@ export default function DashboardPage() {
     {
       label: "Total Members",
       value: totalMembers,
-      tint: "rgba(59,130,246,.13)",
-      color: "#6ba5ff",
+      tint: "rgba(124,92,252,.14)",
+      color: "#9577fb",
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />

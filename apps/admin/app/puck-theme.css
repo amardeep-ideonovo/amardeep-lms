@@ -32,19 +32,19 @@ html[data-theme="dark"] {
   --puck-color-grey-11: #17171b; /* --surface-2 */
   --puck-color-grey-12: #0f0f12;
 
-  /* azure: action color becomes the admin teal; tints become teal-dark fills */
-  --puck-color-azure-01: #e9fafd;
-  --puck-color-azure-02: #d3f4fa;
-  --puck-color-azure-03: #a8e9f4;
-  --puck-color-azure-04: #1cb6cf; /* --accent */
-  --puck-color-azure-05: #3ec5db;
-  --puck-color-azure-06: #66d2e4;
-  --puck-color-azure-07: #15505c;
-  --puck-color-azure-08: #123f4a;
-  --puck-color-azure-09: #10333c;
-  --puck-color-azure-10: #0e2a32;
-  --puck-color-azure-11: #0c2128; /* selected/hover fills */
-  --puck-color-azure-12: #0a1b21;
+  /* azure: action color becomes the admin violet; tints become violet-dark fills */
+  --puck-color-azure-01: #efe9ff;
+  --puck-color-azure-02: #e0d6ff;
+  --puck-color-azure-03: #c9bbff;
+  --puck-color-azure-04: #7c5cfc; /* --accent */
+  --puck-color-azure-05: #9577fb;
+  --puck-color-azure-06: #ad97ff;
+  --puck-color-azure-07: #3f2a86;
+  --puck-color-azure-08: #35246f;
+  --puck-color-azure-09: #2a1d5c;
+  --puck-color-azure-10: #241850;
+  --puck-color-azure-11: #1d1442; /* selected/hover fills */
+  --puck-color-azure-12: #160f33;
 }
 
 /* =========================================================================
@@ -58,14 +58,14 @@ html[data-theme="dark"] {
    ========================================================================= */
 
 .lmspb-root.lmspb-canvas-page {
-  --primary: #4f46e5; /* member-site brand, NOT the admin teal */
-  background: #0b0b0d; /* member site page background */
+  --primary: #7c5cfc; /* member-site brand violet, NOT the admin chrome */
+  background: #100c1b; /* member site page background (violet-ink) */
   min-height: 100vh;
   padding: 16px 0 48px;
 }
 
 .lmspb-root.lmspb-canvas-popup {
-  --primary: #4f46e5;
+  --primary: #7c5cfc;
   background: #ffffff; /* popups live in a white box by default */
   color: #111827;
   min-height: 100vh;

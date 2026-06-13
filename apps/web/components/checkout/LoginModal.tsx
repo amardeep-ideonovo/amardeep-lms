@@ -54,7 +54,7 @@ export default function LoginModal({
           <h2>Log in</h2>
           <button
             type="button"
-            className="co-modal-x"
+            className="co-modal-x icon-btn"
             aria-label="Close"
             onClick={onClose}
           >
@@ -84,7 +84,7 @@ export default function LoginModal({
           />
           <button
             type="submit"
-            className="co-btn co-btn--navy co-btn--block"
+            className="co-btn co-btn--navy co-btn--block press"
             disabled={busy || !email || !password}
           >
             {busy ? "Signing in…" : "Log in"}

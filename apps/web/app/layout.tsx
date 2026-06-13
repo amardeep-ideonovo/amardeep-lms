@@ -1,9 +1,28 @@
 import type { Metadata, Viewport } from "next";
+import { Montserrat, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { fetchFooter, fetchSiteHeader } from "@/lib/api";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+
+// UI/body sans + display serif — exposed as CSS vars consumed by globals.css
+// (--font-sans / --font-display reference these).
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-montserrat",
+  display: "swap",
+});
+const playfair = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800", "900"],
+  variable: "--font-playfair",
+  display: "swap",
+});
+
+// Resolve the saved theme (default dark) before first paint to avoid a flash.
+const themeScript = `(function(){try{var p=localStorage.getItem('lms.theme')||'dark';var d=p==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;document.documentElement.setAttribute('data-theme',d);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
 
 export const metadata: Metadata = {
   // Resolves canonical tags + relative OG images to the public origin.
@@ -31,7 +50,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#4f46e5",
+  themeColor: "#7c5cfc",
 };
 
 export default async function RootLayout({
@@ -44,8 +63,14 @@ export default async function RootLayout({
     fetchFooter(),
   ]);
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      data-theme="dark"
+      className={`${montserrat.variable} ${playfair.variable}`}
+      suppressHydrationWarning
+    >
       <body>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <Nav initialHeader={header} />
         <main className="container">{children}</main>
         <Footer config={footer} />

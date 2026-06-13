@@ -72,7 +72,7 @@ export default function CertificateClaimButton({
     <div className="cert-claim" style={{ display: "grid", gap: 8 }}>
       {claimed ? (
         <>
-          <button type="button" className="btn btn-primary" onClick={download}>
+          <button type="button" className="btn btn-primary press" onClick={download}>
             Download certificate
           </button>
           {serial && (
@@ -113,7 +113,7 @@ export default function CertificateClaimButton({
           <div style={{ display: "flex", gap: 8 }}>
             <button
               type="submit"
-              className="btn btn-primary"
+              className="btn btn-primary press"
               disabled={claiming || !name.trim()}
             >
               {claiming ? "Issuing…" : "Issue certificate"}
@@ -130,7 +130,7 @@ export default function CertificateClaimButton({
       ) : (
         <button
           type="button"
-          className="btn btn-primary"
+          className="btn btn-primary press"
           disabled={claiming}
           onClick={() => (status.needsName ? setAskName(true) : void claim())}
         >

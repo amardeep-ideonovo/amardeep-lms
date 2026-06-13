@@ -199,7 +199,7 @@ const PaymentSection = forwardRef<PaymentHandle, Props>(
           <div className="co-pay-mock">
             <button
               type="button"
-              className="co-btn co-btn--navy co-btn--block"
+              className="co-btn co-btn--navy co-btn--block press"
               onClick={() => paypal?.onMockPay()}
             >
               Pay with PayPal

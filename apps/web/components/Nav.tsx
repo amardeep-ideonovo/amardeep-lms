@@ -10,6 +10,7 @@ import type {
 } from "@lms/types";
 import { api, clearToken, fetchSiteHeader, getToken } from "@/lib/api";
 import { MenuLink, flattenChildren, isExternal } from "./MenuLink";
+import ThemeToggle from "./ThemeToggle";
 
 // Top navigation. Styling/layout (background, width, padding, columns, logo,
 // CTAs, link colors) come from the admin "Header" builder, SSR'd via `header`.
@@ -95,7 +96,7 @@ export default function Nav({
     v["--hdr-active"] = h.menuActiveColor ?? h.linkColor;
     v["--hdr-active-bg"] = h.menuActiveColor
       ? `color-mix(in srgb, ${h.menuActiveColor} 14%, transparent)`
-      : "#eef2ff";
+      : "var(--fill-primary)";
   }
 
   const Brand = h?.logoUrl ? (
@@ -202,6 +203,7 @@ export default function Nav({
               Logout
             </button>
           )}
+          <ThemeToggle />
         </nav>
 
         {layout3 && (
@@ -279,6 +281,7 @@ export default function Nav({
                   {ctas.map((c) => renderCta(c, "nav-drawer-cta"))}
                 </div>
               )}
+              <ThemeToggle className="nav-theme--drawer" />
               {authed && (
                 <button type="button" className="nav-logout" onClick={logout}>
                   Logout

@@ -435,7 +435,7 @@ export default function CheckoutPage() {
         <p className="page-sub">
           We couldn’t find a plan for “{slugOrId}”. The link may be out of date.
         </p>
-        <Link href="/pricing/all" className="btn btn-primary">
+        <Link href="/pricing/all" className="btn btn-primary press">
           View all plans
         </Link>
           </div>
@@ -619,7 +619,7 @@ export default function CheckoutPage() {
             <span className="co-summary-hint">
               {summaryOpen ? "Hide details" : "For more details, fill the form"}
             </span>
-            <span className="co-chevron" aria-hidden>
+            <span className="co-chevron hover-pop" aria-hidden>
               {summaryOpen ? "▴" : "▾"}
             </span>
           </button>
@@ -659,7 +659,7 @@ export default function CheckoutPage() {
         ) : (
           <button
             type="submit"
-            className="co-btn co-btn--navy co-btn--block co-submit"
+            className="co-btn co-btn--navy co-btn--block co-submit press"
             disabled={submitting}
           >
             {submitting ? "Processing…" : "Submit"}
