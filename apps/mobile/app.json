@@ -13,9 +13,10 @@
         {
           "image": "./assets/splash.png",
           "resizeMode": "contain",
-          "backgroundColor": "#0b0b0d"
+          "backgroundColor": "#100c1b"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "assetBundlePatterns": [
       "**/*"
@@ -31,7 +32,7 @@
       "package": "com.lms.mobile",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0b0b0d"
+        "backgroundColor": "#100c1b"
       }
     },
     "web": {

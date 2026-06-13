@@ -129,11 +129,11 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   heroWrap: { marginBottom: spacing.md },
-  heroExcerpt: { color: colors.heroTextSoft, fontSize: 14, lineHeight: 20 },
+  heroExcerpt: { color: colors.heroTextSoft, fontSize: 14, lineHeight: 20, fontFamily: fonts.regular },
   card: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -148,7 +148,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   coverLetterBox: { alignItems: "center", justifyContent: "center" },
-  coverLetter: { color: colors.heroText, fontSize: 44, fontWeight: "800" },
+  coverLetter: { color: colors.heroText, fontSize: 44, fontWeight: "800", fontFamily: fonts.extrabold },
   cardBody: { padding: spacing.md },
   metaRow: {
     flexDirection: "row",
@@ -156,18 +156,20 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.sm,
   },
-  meta: { color: colors.textMuted, fontSize: 12 },
-  title: { color: colors.text, fontSize: 16, fontWeight: "700" },
+  meta: { color: colors.textMuted, fontSize: 12, fontFamily: fonts.regular },
+  title: { color: colors.text, fontSize: 16, fontWeight: "700", fontFamily: fonts.bold },
   excerpt: {
     color: colors.textMuted,
     fontSize: 14,
     marginTop: spacing.xs,
     lineHeight: 20,
+    fontFamily: fonts.regular,
   },
   readMore: {
     color: colors.primarySoft,
     fontSize: 13,
     fontWeight: "700",
     marginTop: spacing.sm,
+    fontFamily: fonts.bold,
   },
 });

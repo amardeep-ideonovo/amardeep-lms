@@ -625,7 +625,7 @@ export function AccountScreen({ navigation }: ScreenProps<"Account">) {
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md, paddingBottom: spacing.lg },
   brandHeader: {
@@ -640,6 +640,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     color: colors.text,
     fontSize: 22,
     fontWeight: "800",
+    fontFamily: fonts.extrabold,
   },
   brandDesc: {
     color: colors.textMuted,
@@ -647,6 +648,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     lineHeight: 18,
     textAlign: "center",
     marginTop: spacing.xs,
+    fontFamily: fonts.regular,
   },
   skeleton: { marginBottom: spacing.md },
   card: {
@@ -662,6 +664,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
     marginBottom: spacing.md,
+    fontFamily: fonts.extrabold,
   },
   successBanner: {
     backgroundColor: colors.successBg,
@@ -670,7 +673,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
   },
-  successText: { color: colors.success, fontSize: 14, fontWeight: "600" },
+  successText: { color: colors.success, fontSize: 14, fontWeight: "600", fontFamily: fonts.semibold },
   detailRow: { marginBottom: spacing.md },
   detailLabel: {
     color: colors.textMuted,
@@ -679,14 +682,16 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 2,
+    fontFamily: fonts.bold,
   },
-  detailValue: { color: colors.text, fontSize: 15 },
-  formError: { color: colors.danger, fontSize: 14, marginBottom: spacing.sm },
+  detailValue: { color: colors.text, fontSize: 15, fontFamily: fonts.regular },
+  formError: { color: colors.danger, fontSize: 14, marginBottom: spacing.sm, fontFamily: fonts.regular },
   inputLabel: {
     color: colors.textMuted,
     fontSize: 13,
     fontWeight: "600",
     marginBottom: spacing.xs,
+    fontFamily: fonts.semibold,
   },
   input: {
     backgroundColor: colors.bg,
@@ -698,6 +703,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
     marginBottom: spacing.md,
+    fontFamily: fonts.regular,
   },
   readonlyBox: {
     backgroundColor: colors.surfaceMuted,
@@ -705,13 +711,14 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
   },
-  readonlyText: { color: colors.textMuted, fontSize: 15 },
+  readonlyText: { color: colors.textMuted, fontSize: 15, fontFamily: fonts.regular },
   hint: {
     color: colors.textMuted,
     fontSize: 12,
     lineHeight: 17,
     marginTop: spacing.xs,
     marginBottom: spacing.sm,
+    fontFamily: fonts.regular,
   },
   actionsRow: {
     flexDirection: "row",
@@ -725,7 +732,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
   },
-  btnPrimaryText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700" },
+  btnPrimaryText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700", fontFamily: fonts.bold },
   btnSecondary: {
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
@@ -734,9 +741,9 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
   },
-  btnSecondaryText: { color: colors.text, fontSize: 15, fontWeight: "600" },
+  btnSecondaryText: { color: colors.text, fontSize: 15, fontWeight: "600", fontFamily: fonts.semibold },
   btnDisabled: { opacity: 0.6 },
-  empty: { color: colors.textMuted, fontSize: 15, lineHeight: 22 },
+  empty: { color: colors.textMuted, fontSize: 15, lineHeight: 22, fontFamily: fonts.regular },
   planRow: { paddingVertical: spacing.sm },
   planRowDivider: {
     borderTopWidth: 1,
@@ -751,25 +758,28 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.xs,
   },
-  planName: { color: colors.text, fontSize: 16, fontWeight: "700", flexShrink: 1 },
-  planMeta: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
+  planName: { color: colors.text, fontSize: 16, fontWeight: "700", flexShrink: 1, fontFamily: fonts.bold },
+  planMeta: { color: colors.textMuted, fontSize: 13, lineHeight: 19, fontFamily: fonts.regular },
   cancelLink: {
     color: colors.danger,
     fontSize: 14,
     fontWeight: "600",
     marginTop: spacing.sm,
+    fontFamily: fonts.semibold,
   },
   downloadLink: {
     color: colors.primarySoft,
     fontSize: 14,
     fontWeight: "600",
     marginTop: spacing.sm,
+    fontFamily: fonts.semibold,
   },
   note: {
     color: colors.textMuted,
     fontSize: 14,
     lineHeight: 20,
     marginBottom: spacing.md,
+    fontFamily: fonts.regular,
   },
   storeNote: {
     color: colors.textMuted,
@@ -777,13 +787,14 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     lineHeight: 17,
     textAlign: "center",
     marginTop: spacing.xs,
+    fontFamily: fonts.regular,
   },
   signOut: {
     marginTop: spacing.lg,
     alignItems: "center",
     paddingVertical: spacing.md,
   },
-  signOutText: { color: colors.danger, fontSize: 16, fontWeight: "600" },
+  signOutText: { color: colors.danger, fontSize: 16, fontWeight: "600", fontFamily: fonts.semibold },
   modalOverlay: {
     flex: 1,
     backgroundColor: colors.overlayMid,
@@ -802,12 +813,14 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
     marginBottom: spacing.sm,
+    fontFamily: fonts.extrabold,
   },
   modalBody: {
     color: colors.textMuted,
     fontSize: 14,
     lineHeight: 21,
     marginBottom: spacing.md,
+    fontFamily: fonts.regular,
   },
   btnDanger: {
     backgroundColor: colors.danger,
@@ -815,6 +828,6 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     paddingVertical: 12,
     alignItems: "center",
   },
-  btnDangerText: { color: "#ffffff", fontSize: 15, fontWeight: "700" },
+  btnDangerText: { color: "#ffffff", fontSize: 15, fontWeight: "700", fontFamily: fonts.bold },
   modalKeep: { marginTop: spacing.sm },
 });

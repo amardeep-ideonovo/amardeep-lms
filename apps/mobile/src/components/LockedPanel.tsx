@@ -36,7 +36,7 @@ export function LockedPanel({
   );
 }
 
-const makeStyles = ({ colors, spacing }: Theme) =>
+const makeStyles = ({ colors, spacing, fonts }: Theme) =>
   StyleSheet.create({
     panel: {
       backgroundColor: colors.surface,
@@ -48,12 +48,19 @@ const makeStyles = ({ colors, spacing }: Theme) =>
       gap: spacing.sm,
     },
     lock: { fontSize: 28 },
-    title: { color: colors.text, fontSize: 17, fontWeight: "700", textAlign: "center" },
+    title: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+      textAlign: "center",
+    },
     message: {
       color: colors.textMuted,
       fontSize: 14,
       lineHeight: 21,
       textAlign: "center",
+      fontFamily: fonts.regular,
     },
     cta: {
       marginTop: spacing.xs,
@@ -62,6 +69,11 @@ const makeStyles = ({ colors, spacing }: Theme) =>
       paddingVertical: 10,
       paddingHorizontal: 18,
     },
-    ctaText: { color: colors.text, fontSize: 14, fontWeight: "700" },
-    note: { color: colors.textMuted, fontSize: 12.5, textAlign: "center" },
+    ctaText: { color: colors.text, fontSize: 14, fontWeight: "700", fontFamily: fonts.bold },
+    note: {
+      color: colors.textMuted,
+      fontSize: 12.5,
+      textAlign: "center",
+      fontFamily: fonts.regular,
+    },
   });

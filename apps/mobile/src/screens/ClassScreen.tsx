@@ -10,7 +10,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
   useWindowDimensions,
 } from "react-native";
@@ -27,6 +26,7 @@ import { fmtTotalDuration, money, vimeoEmbed } from "../format";
 import { CourseRow } from "../components/CourseRow";
 import { ErrorState } from "../components/Screen";
 import { HeroBand } from "../components/HeroBand";
+import { Press } from "../components/Press";
 import { PopupHost } from "../components/PopupHost";
 import { Badge } from "../components/Chip";
 import { Skeleton } from "../components/Skeleton";
@@ -191,13 +191,9 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
           {meta ? <Text style={styles.heroMeta}>{meta}</Text> : null}
           {!owned ? (
             <View style={styles.buyCard}>
-              <TouchableOpacity
-                style={styles.buyBtn}
-                activeOpacity={0.85}
-                onPress={openCheckout}
-              >
+              <Press style={styles.buyBtn} onPress={openCheckout}>
                 <Text style={styles.buyBtnText}>Get Class</Text>
-              </TouchableOpacity>
+              </Press>
               <Text style={styles.buySub}>
                 {priceLabel ? (
                   <>
@@ -278,13 +274,9 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
             <View style={styles.closing}>
               <Text style={styles.closingEyebrow}>Start today</Text>
               <Text style={styles.closingTitle}>Begin {cls.name}</Text>
-              <TouchableOpacity
-                style={[styles.buyBtn, styles.closingBtn]}
-                activeOpacity={0.85}
-                onPress={openCheckout}
-              >
+              <Press style={[styles.buyBtn, styles.closingBtn]} onPress={openCheckout}>
                 <Text style={styles.buyBtnText}>Get Class</Text>
-              </TouchableOpacity>
+              </Press>
               {priceLabel ? (
                 <Text style={styles.closingPrice}>Starting at {priceLabel}</Text>
               ) : null}
@@ -298,7 +290,7 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
   );
 }
 
-const makeStyles = ({ colors, spacing }: Theme) =>
+const makeStyles = ({ colors, spacing, fonts }: Theme) =>
   StyleSheet.create({
     scroll: { flex: 1, backgroundColor: colors.bg },
     content: { padding: spacing.md, gap: spacing.lg },
@@ -310,18 +302,24 @@ const makeStyles = ({ colors, spacing }: Theme) =>
     },
     skeletonRow: { flexDirection: "row", justifyContent: "space-between" },
     ownedBadge: { flexDirection: "row" },
-    heroDesc: { color: colors.heroTextSoft, fontSize: 15, lineHeight: 22 },
-    heroMeta: { color: colors.heroTextSoft, fontSize: 13, fontWeight: "600" },
+    heroDesc: { color: colors.heroTextSoft, fontSize: 15, lineHeight: 22, fontFamily: fonts.regular },
+    heroMeta: { color: colors.heroTextSoft, fontSize: 13, fontWeight: "600", fontFamily: fonts.semibold },
     section: { gap: spacing.xs },
     eyebrow: {
       color: colors.primarySoft,
       fontSize: 12,
       fontWeight: "700",
+      fontFamily: fonts.bold,
       textTransform: "uppercase",
       letterSpacing: 1.6,
     },
-    sectionTitle: { color: colors.text, fontSize: 22, fontWeight: "800" },
-    sectionSub: { color: colors.textMuted, fontSize: 14, marginBottom: spacing.xs },
+    sectionTitle: { color: colors.text, fontSize: 22, fontWeight: "800", fontFamily: fonts.display },
+    sectionSub: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginBottom: spacing.xs,
+      fontFamily: fonts.regular,
+    },
     skillsGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -347,14 +345,14 @@ const makeStyles = ({ colors, spacing }: Theme) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    skillNumText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800" },
+    skillNumText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800", fontFamily: fonts.extrabold },
     skillTitleWrap: {
       padding: spacing.sm,
       backgroundColor: colors.overlayMid,
     },
-    skillTitle: { color: colors.heroText, fontSize: 14, fontWeight: "700" },
+    skillTitle: { color: colors.heroText, fontSize: 14, fontWeight: "700", fontFamily: fonts.bold },
     courseList: { gap: spacing.sm, marginTop: spacing.xs },
-    empty: { color: colors.textMuted, fontSize: 14 },
+    empty: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
     // Buy card on the hero (web .cc-buy parity) — sits on the scrim, so its
     // text uses the hero tokens.
     buyCard: {
@@ -374,19 +372,21 @@ const makeStyles = ({ colors, spacing }: Theme) =>
       paddingVertical: 12,
       alignItems: "center",
     },
-    buyBtnText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700" },
-    buySub: { color: colors.heroTextSoft, fontSize: 13, textAlign: "center" },
-    buyStrong: { color: colors.heroText, fontWeight: "700" },
+    buyBtnText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700", fontFamily: fonts.bold },
+    buySub: { color: colors.heroTextSoft, fontSize: 13, textAlign: "center", fontFamily: fonts.regular },
+    buyStrong: { color: colors.heroText, fontWeight: "700", fontFamily: fonts.bold },
     buyLink: {
       color: colors.heroTextSoft,
       fontSize: 13,
       textDecorationLine: "underline",
+      fontFamily: fonts.regular,
     },
     closing: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.lg },
     closingEyebrow: {
       color: colors.primarySoft,
       fontSize: 12,
       fontWeight: "700",
+      fontFamily: fonts.bold,
       textTransform: "uppercase",
       letterSpacing: 1.6,
     },
@@ -394,10 +394,11 @@ const makeStyles = ({ colors, spacing }: Theme) =>
       color: colors.text,
       fontSize: 24,
       fontWeight: "800",
+      fontFamily: fonts.display,
       textAlign: "center",
     },
     closingBtn: { alignSelf: "center", paddingHorizontal: 28 },
-    closingPrice: { color: colors.textMuted, fontSize: 13 },
+    closingPrice: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.regular },
     trailer: {
       borderRadius: 14,
       overflow: "hidden",

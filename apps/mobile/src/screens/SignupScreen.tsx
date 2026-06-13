@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
+import { Press } from "../components/Press";
 import { useAppConfig } from "../config-provider";
 import type { AuthScreenProps } from "../navigation";
 import { spacing } from "../theme";
@@ -168,18 +169,17 @@ export function SignupScreen({ navigation }: Props) {
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <TouchableOpacity
+          <Press
             style={[styles.button, !canSubmit && styles.buttonDisabled]}
             onPress={onSubmit}
             disabled={!canSubmit}
-            activeOpacity={0.8}
           >
             {submitting ? (
               <ActivityIndicator color={colors.onPrimary} />
             ) : (
               <Text style={styles.buttonText}>Create account</Text>
             )}
-          </TouchableOpacity>
+          </Press>
 
           <TouchableOpacity
             onPress={() => navigation.navigate("Login")}
@@ -196,7 +196,7 @@ export function SignupScreen({ navigation }: Props) {
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   container: {
@@ -210,6 +210,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     fontSize: 40,
     fontWeight: "800",
     textAlign: "center",
+    fontFamily: fonts.display,
   },
   logo: {
     height: 56,
@@ -221,6 +222,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     fontSize: 14,
     textAlign: "center",
     marginTop: spacing.xs,
+    fontFamily: fonts.regular,
   },
   subtitle: {
     color: colors.textMuted,
@@ -228,6 +230,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     textAlign: "center",
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
+    fontFamily: fonts.regular,
   },
   input: {
     backgroundColor: colors.surface,
@@ -239,6 +242,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     marginBottom: spacing.md,
+    fontFamily: fonts.regular,
   },
   button: {
     backgroundColor: colors.primary,
@@ -248,13 +252,14 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     marginTop: spacing.sm,
   },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
+  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700", fontFamily: fonts.bold },
   error: {
     color: colors.danger,
     marginBottom: spacing.sm,
     textAlign: "center",
+    fontFamily: fonts.regular,
   },
   linkButton: { marginTop: spacing.lg, alignItems: "center" },
-  linkText: { color: colors.textMuted, fontSize: 14 },
-  linkTextStrong: { color: colors.primary, fontWeight: "700" },
+  linkText: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
+  linkTextStrong: { color: colors.primary, fontWeight: "700", fontFamily: fonts.bold },
 });

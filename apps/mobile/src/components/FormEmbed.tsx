@@ -16,6 +16,7 @@ import type { FormFieldDef, FormPublicDTO } from "@lms/types";
 import { api, ApiError } from "../api";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
+import { Press } from "./Press";
 import {
   openHref,
   useInteraction,
@@ -120,16 +121,15 @@ export function FormEmbed({ formId }: { formId: string }) {
         </View>
       ))}
       {submitError ? <Text style={styles.error}>{submitError}</Text> : null}
-      <TouchableOpacity
+      <Press
         style={[styles.submit, submitting && styles.submitDisabled]}
         onPress={onSubmit}
         disabled={submitting}
-        activeOpacity={0.8}
       >
         <Text style={styles.submitText}>
           {submitting ? "Submitting…" : "Submit"}
         </Text>
-      </TouchableOpacity>
+      </Press>
     </View>
   );
 }
@@ -233,11 +233,11 @@ function FieldInput({
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   form: { gap: spacing.md },
   field: { gap: 6 },
-  note: { color: colors.textMuted, fontSize: 14 },
-  label: { color: colors.text, fontSize: 14, fontWeight: "600" },
+  note: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
+  label: { color: colors.text, fontSize: 14, fontWeight: "600", fontFamily: fonts.semibold },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
@@ -246,6 +246,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     paddingVertical: 10,
     color: colors.text,
     fontSize: 15,
+    fontFamily: fonts.regular,
   },
   textarea: { minHeight: 90, textAlignVertical: "top" },
   selectRow: {
@@ -253,9 +254,9 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  selectValue: { color: colors.text, fontSize: 15 },
-  selectPlaceholder: { color: colors.textMuted, fontSize: 15 },
-  selectCaret: { color: colors.textMuted, fontSize: 12 },
+  selectValue: { color: colors.text, fontSize: 15, fontFamily: fonts.regular },
+  selectPlaceholder: { color: colors.textMuted, fontSize: 15, fontFamily: fonts.regular },
+  selectCaret: { color: colors.textMuted, fontSize: 12, fontFamily: fonts.regular },
   options: {
     marginTop: spacing.xs,
     borderWidth: 1,
@@ -265,8 +266,8 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     overflow: "hidden",
   },
   option: { paddingHorizontal: 12, paddingVertical: 10 },
-  optionText: { color: colors.text, fontSize: 15 },
-  optionTextActive: { color: colors.primary, fontWeight: "700" },
+  optionText: { color: colors.text, fontSize: 15, fontFamily: fonts.regular },
+  optionTextActive: { color: colors.primary, fontWeight: "700", fontFamily: fonts.bold },
   checkboxRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   checkbox: {
     width: 22,
@@ -278,8 +279,14 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     justifyContent: "center",
   },
   checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
-  checkboxMark: { color: colors.onPrimary, fontSize: 14, fontWeight: "700", lineHeight: 16 },
-  checkboxLabel: { color: colors.text, fontSize: 14, flex: 1 },
+  checkboxMark: {
+    color: colors.onPrimary,
+    fontSize: 14,
+    fontWeight: "700",
+    fontFamily: fonts.bold,
+    lineHeight: 16,
+  },
+  checkboxLabel: { color: colors.text, fontSize: 14, flex: 1, fontFamily: fonts.regular },
   submit: {
     backgroundColor: colors.primary,
     borderRadius: 999,
@@ -289,8 +296,8 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     alignSelf: "flex-start",
   },
   submitDisabled: { opacity: 0.6 },
-  submitText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700" },
-  error: { color: colors.danger, fontSize: 14 },
+  submitText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700", fontFamily: fonts.bold },
+  error: { color: colors.danger, fontSize: 14, fontFamily: fonts.regular },
   success: {
     padding: spacing.md,
     borderRadius: 10,
@@ -298,5 +305,5 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(34,197,94,0.4)",
   },
-  successText: { color: colors.text, fontSize: 14, lineHeight: 20 },
+  successText: { color: colors.text, fontSize: 14, lineHeight: 20, fontFamily: fonts.regular },
 });

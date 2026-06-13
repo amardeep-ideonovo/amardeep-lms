@@ -18,6 +18,7 @@ import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 import { api, ApiError, getToken, noteDownloadUrl } from "../api";
 import { API_BASE_URL, WEB_ACCOUNT_URL } from "../config";
 import { Loading, ErrorState, Centered } from "../components/Screen";
+import { Press } from "../components/Press";
 import { LockedPanel } from "../components/LockedPanel";
 import { PopupHost } from "../components/PopupHost";
 import CertificateClaim from "../components/CertificateClaim";
@@ -257,11 +258,10 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
 
         {completeError ? <Text style={styles.error}>{completeError}</Text> : null}
 
-        <TouchableOpacity
+        <Press
           style={[styles.button, (completed || completing) && styles.buttonDone]}
           onPress={onComplete}
           disabled={completed || completing}
-          activeOpacity={0.8}
         >
           {completing ? (
             <ActivityIndicator color={colors.text} />
@@ -270,7 +270,7 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
               {completed ? "✓ Completed" : "Mark complete"}
             </Text>
           )}
-        </TouchableOpacity>
+        </Press>
 
         {(lesson.certificates ?? [])
           .filter((c) => c.eligible || c.claimed)
@@ -292,7 +292,7 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   title: {
@@ -300,6 +300,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     marginBottom: spacing.md,
+    fontFamily: fonts.bold,
   },
   video: {
     width: "100%",
@@ -308,11 +309,11 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     backgroundColor: "#000",
     marginBottom: spacing.md,
   },
-  body: { color: colors.text, fontSize: 16, lineHeight: 24 },
-  bodyMuted: { color: colors.textMuted, fontSize: 15, fontStyle: "italic" },
+  body: { color: colors.text, fontSize: 16, lineHeight: 24, fontFamily: fonts.regular },
+  bodyMuted: { color: colors.textMuted, fontSize: 15, fontStyle: "italic", fontFamily: fonts.regular },
   bodyBelow: { marginTop: spacing.lg },
-  error: { color: colors.danger, marginTop: spacing.md },
-  savedMsg: { color: colors.success, marginBottom: spacing.sm, fontSize: 14 },
+  error: { color: colors.danger, marginTop: spacing.md, fontFamily: fonts.regular },
+  savedMsg: { color: colors.success, marginBottom: spacing.sm, fontSize: 14, fontFamily: fonts.regular },
   lockedWrap: { alignSelf: "stretch" },
   notes: {
     marginTop: spacing.lg,
@@ -327,6 +328,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     marginBottom: spacing.sm,
+    fontFamily: fonts.bold,
   },
   noteRow: {
     flexDirection: "row",
@@ -335,9 +337,9 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.surfaceMuted,
   },
-  noteName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "500" },
-  noteSize: { color: colors.textMuted, fontSize: 13, marginHorizontal: spacing.sm },
-  noteIcon: { color: colors.primary, fontSize: 18, fontWeight: "700" },
+  noteName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "500", fontFamily: fonts.medium },
+  noteSize: { color: colors.textMuted, fontSize: 13, marginHorizontal: spacing.sm, fontFamily: fonts.regular },
+  noteIcon: { color: colors.primary, fontSize: 18, fontWeight: "700", fontFamily: fonts.bold },
   button: {
     backgroundColor: colors.primary,
     borderRadius: 10,
@@ -346,7 +348,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     marginTop: spacing.lg,
   },
   buttonDone: { backgroundColor: colors.successBg },
-  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
+  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700", fontFamily: fonts.bold },
   // The done state sits on the success tint, so the label goes success too.
   buttonTextDone: { color: colors.success },
   spacer: { height: spacing.lg },

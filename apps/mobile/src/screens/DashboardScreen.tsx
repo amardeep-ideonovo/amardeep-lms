@@ -253,7 +253,7 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
   );
 }
 
-const makeStyles = ({ colors }: Theme) =>
+const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
     list: { flex: 1, backgroundColor: colors.bg },
     content: { padding: spacing.md, gap: spacing.md },
@@ -264,8 +264,13 @@ const makeStyles = ({ colors }: Theme) =>
       gap: spacing.md,
     },
     skeletonRow: { flexDirection: "row", justifyContent: "space-between" },
-    h1: { color: colors.text, fontSize: 26, fontWeight: "800" },
-    sub: { color: colors.textMuted, fontSize: 15, marginTop: -spacing.sm },
+    h1: { color: colors.text, fontSize: 26, fontWeight: "800", fontFamily: fonts.display },
+    sub: {
+      color: colors.textMuted,
+      fontSize: 15,
+      marginTop: -spacing.sm,
+      fontFamily: fonts.regular,
+    },
     search: {
       backgroundColor: colors.surface,
       borderWidth: 1,
@@ -275,6 +280,7 @@ const makeStyles = ({ colors }: Theme) =>
       paddingVertical: spacing.sm,
       color: colors.text,
       fontSize: 15,
+      fontFamily: fonts.regular,
     },
     hero: { marginTop: spacing.xs },
     sectionRow: {
@@ -287,13 +293,15 @@ const makeStyles = ({ colors }: Theme) =>
       color: colors.text,
       fontSize: 19,
       fontWeight: "800",
+      fontFamily: fonts.extrabold,
       marginTop: spacing.sm,
     },
-    sectionCount: { color: colors.textMuted, fontSize: 14, fontWeight: "700" },
+    sectionCount: { color: colors.textMuted, fontSize: 14, fontWeight: "700", fontFamily: fonts.bold },
     sectionHeader: {
       color: colors.textMuted,
       fontSize: 13,
       fontWeight: "700",
+      fontFamily: fonts.bold,
       textTransform: "uppercase",
       letterSpacing: 0.5,
     },
@@ -307,10 +315,11 @@ const makeStyles = ({ colors }: Theme) =>
       fontSize: 15,
       textAlign: "center",
       marginTop: spacing.lg,
+      fontFamily: fonts.regular,
     },
     browseAll: { paddingVertical: spacing.sm },
-    browseAllText: { color: colors.textMuted, fontSize: 14, fontWeight: "600" },
+    browseAllText: { color: colors.textMuted, fontSize: 14, fontWeight: "600", fontFamily: fonts.semibold },
     headerActions: { flexDirection: "row", gap: spacing.md },
-    headerLink: { color: colors.primary, fontSize: 15, fontWeight: "600" },
+    headerLink: { color: colors.primary, fontSize: 15, fontWeight: "600", fontFamily: fonts.semibold },
     signOut: { color: colors.textMuted },
   });

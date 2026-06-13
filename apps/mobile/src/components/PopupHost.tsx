@@ -39,7 +39,7 @@ import type {
 import { api } from "../api";
 import { PageRenderer } from "./PageRenderer";
 import { PageScope } from "./PageScope";
-import { spacing } from "../theme";
+import { fonts, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useTheme } from "../theme-provider";
 
@@ -187,6 +187,7 @@ function popupTheme(app: Theme, bg: string, light: boolean): Theme {
   return {
     mode: light ? "light" : "dark",
     spacing: app.spacing,
+    fonts: app.fonts,
     colors: { ...app.colors, bg, ...(light ? LIGHT_CONTENT : DARK_CONTENT) },
   };
 }
@@ -402,7 +403,7 @@ const styles = StyleSheet.create({
   // The × follows the BOX background, not the app theme.
   closeLight: { backgroundColor: "rgba(15,23,42,0.08)" },
   closeDark: { backgroundColor: "rgba(248,250,252,0.16)" },
-  closeText: { fontSize: 18, lineHeight: 20 },
+  closeText: { fontSize: 18, lineHeight: 20, fontFamily: fonts.regular },
   closeTextLight: { color: "#101828" },
   closeTextDark: { color: "#f8fafc" },
 });

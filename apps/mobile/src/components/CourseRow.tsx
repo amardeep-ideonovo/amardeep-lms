@@ -57,7 +57,7 @@ export function CourseRow({
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -77,8 +77,19 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   cardLocked: { opacity: 0.6 },
   cardText: { flex: 1, paddingRight: spacing.sm },
   titleRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-  cardTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "600" },
-  cardDesc: { color: colors.textMuted, fontSize: 13, marginTop: spacing.xs },
-  indicator: { color: colors.text, fontSize: 18 },
+  cardTitle: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "600",
+    fontFamily: fonts.semibold,
+  },
+  cardDesc: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginTop: spacing.xs,
+    fontFamily: fonts.regular,
+  },
+  indicator: { color: colors.text, fontSize: 18, fontFamily: fonts.regular },
   lockedText: { color: colors.locked },
 });

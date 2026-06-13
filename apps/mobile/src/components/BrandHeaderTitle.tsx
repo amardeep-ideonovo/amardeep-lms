@@ -24,8 +24,14 @@ export function BrandHeaderTitle() {
   );
 }
 
-const makeStyles = ({ colors }: Theme) =>
+const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
     logo: { height: 26, width: 120 },
-    title: { color: colors.text, fontSize: 17, fontWeight: "800", maxWidth: 220 },
+    title: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: "800",
+      fontFamily: fonts.extrabold,
+      maxWidth: 220,
+    },
   });

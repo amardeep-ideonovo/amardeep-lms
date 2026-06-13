@@ -333,31 +333,34 @@ export function HtmlView({
 
 // Union of the two former react-native-render-html tagsStyles factories
 // (BlogPostScreen + PageRenderer) — values preserved verbatim.
-const makeHtmlStyles = ({ colors }: Theme) =>
+const makeHtmlStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
-    body: { color: colors.text, fontSize: 16, lineHeight: 24 },
+    body: { color: colors.text, fontSize: 16, lineHeight: 24, fontFamily: fonts.regular },
     p: { marginBottom: spacing.md },
-    h1: { fontSize: 22, fontWeight: "700", marginBottom: spacing.sm },
+    h1: { fontSize: 22, fontWeight: "700", fontFamily: fonts.bold, marginBottom: spacing.sm },
     h2: {
       fontSize: 20,
       fontWeight: "700",
+      fontFamily: fonts.bold,
       marginTop: spacing.md,
       marginBottom: spacing.sm,
     },
     h3: {
       fontSize: 18,
       fontWeight: "700",
+      fontFamily: fonts.bold,
       marginTop: spacing.md,
       marginBottom: spacing.sm,
     },
     h4: {
       fontSize: 16,
       fontWeight: "700",
+      fontFamily: fonts.bold,
       marginTop: spacing.md,
       marginBottom: spacing.sm,
     },
     a: { color: colors.primary, textDecorationLine: "underline" },
-    strong: { fontWeight: "700" },
+    strong: { fontWeight: "700", fontFamily: fonts.bold },
     em: { fontStyle: "italic" },
     u: { textDecorationLine: "underline" },
     code: { color: colors.text, fontFamily: "monospace" },

@@ -6,6 +6,19 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as ExpoLinking from "expo-linking";
+import { useFonts } from "expo-font";
+import {
+  Montserrat_400Regular,
+  Montserrat_500Medium,
+  Montserrat_600SemiBold,
+  Montserrat_700Bold,
+  Montserrat_800ExtraBold,
+} from "@expo-google-fonts/montserrat";
+import {
+  PlayfairDisplay_600SemiBold,
+  PlayfairDisplay_700Bold,
+  PlayfairDisplay_800ExtraBold,
+} from "@expo-google-fonts/playfair-display";
 
 import { AuthProvider, useAuth } from "./src/auth";
 import { BrandHeaderTitle } from "./src/components/BrandHeaderTitle";
@@ -13,6 +26,7 @@ import { WEB_BASE_URL } from "./src/config";
 import { ConfigProvider, useAppConfig } from "./src/config-provider";
 import { navigationRef } from "./src/nav-ref";
 import { ThemeProvider, useTheme } from "./src/theme-provider";
+import { fonts } from "./src/theme";
 import type {
   AuthStackParamList,
   RootStackParamList,
@@ -76,6 +90,7 @@ function AppNavigator() {
   const screenOptions = {
     headerStyle: { backgroundColor: colors.surface },
     headerTintColor: colors.text,
+    headerTitleStyle: { fontFamily: fonts.bold, fontSize: 17 },
     contentStyle: { backgroundColor: colors.bg },
   };
   return (
@@ -184,6 +199,19 @@ function ThemedApp() {
 }
 
 export default function App() {
+  // Load the brand faces before first paint. On error we proceed anyway so a
+  // font hiccup never hangs the app (text falls back to the system face).
+  const [fontsLoaded, fontError] = useFonts({
+    Montserrat_400Regular,
+    Montserrat_500Medium,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
+    Montserrat_800ExtraBold,
+    PlayfairDisplay_600SemiBold,
+    PlayfairDisplay_700Bold,
+    PlayfairDisplay_800ExtraBold,
+  });
+  if (!fontsLoaded && !fontError) return null;
   return (
     <SafeAreaProvider>
       <ConfigProvider>

@@ -54,7 +54,7 @@ export function EmptyState({ message }: { message: string }) {
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   center: {
     flex: 1,
     alignItems: "center",
@@ -67,13 +67,19 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     fontSize: 15,
     textAlign: "center",
     marginBottom: spacing.md,
+    fontFamily: fonts.regular,
   },
-  emptyText: { color: colors.textMuted, fontSize: 15, textAlign: "center" },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 15,
+    textAlign: "center",
+    fontFamily: fonts.regular,
+  },
   retry: {
     backgroundColor: colors.surfaceMuted,
     borderRadius: 8,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
   },
-  retryText: { color: colors.text, fontWeight: "600" },
+  retryText: { color: colors.text, fontWeight: "600", fontFamily: fonts.semibold },
 });

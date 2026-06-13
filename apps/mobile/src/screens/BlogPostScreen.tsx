@@ -109,7 +109,7 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   cover: {
@@ -130,9 +130,10 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     fontSize: 24,
     fontWeight: "800",
     marginBottom: spacing.sm,
+    fontFamily: fonts.display,
   },
   metaRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: spacing.md },
-  meta: { color: colors.textMuted, fontSize: 13 },
+  meta: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.regular },
   htmlBase: { color: colors.text },
   tags: {
     flexDirection: "row",
@@ -150,6 +151,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 999,
     overflow: "hidden",
+    fontFamily: fonts.regular,
   },
   spacer: { height: spacing.lg },
 });

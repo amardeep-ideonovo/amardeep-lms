@@ -32,30 +32,31 @@ export type Theme = {
   mode: "light" | "dark"; // active resolved mode (drives the status bar)
   colors: ThemePalette;
   spacing: typeof spacing;
+  fonts: typeof fonts;
 };
 
 // The 8 admin-configurable colors — the member website's theme (see
 // apps/web/app/globals.css and its cinematic dark scopes), so web, API
 // defaults, and the app agree out of the box.
 const APP_DARK: AppThemePalette = {
-  bg: "#0b0b0d",
-  surface: "#16161b",
-  surfaceMuted: "#1c1c22",
-  border: "#2d2d32",
-  text: "#f4f4f6",
-  textMuted: "#8a8a95",
-  primary: "#6366f1",
-  danger: "#ef4444",
+  bg: "#100c1b",
+  surface: "#211a33",
+  surfaceMuted: "#2a2240",
+  border: "#342a4f",
+  text: "#f4f1fb",
+  textMuted: "#948cb4",
+  primary: "#7c5cfc",
+  danger: "#f2557b",
 };
 const APP_LIGHT: AppThemePalette = {
-  bg: "#f6f7f9",
+  bg: "#f5f3fc",
   surface: "#ffffff",
-  surfaceMuted: "#eef0f4",
-  border: "#e4e7ec",
-  text: "#101828",
-  textMuted: "#667085",
-  primary: "#4f46e5",
-  danger: "#d92d20",
+  surfaceMuted: "#f2eefb",
+  border: "#e7e2f4",
+  text: "#251f3d",
+  textMuted: "#8b84a4",
+  primary: "#7c5cfc",
+  danger: "#e11d48",
 };
 
 const LOCKED = { dark: "#5c5c66", light: "#98a2b3" } as const;
@@ -65,10 +66,10 @@ const LOCKED = { dark: "#5c5c66", light: "#98a2b3" } as const;
 const SEMANTIC = {
   dark: {
     chipBg: "rgba(255,255,255,0.05)",
-    success: "#6ee7b7",
-    successBg: "rgba(52,211,153,0.16)",
-    warning: "#fbbf24",
-    warningBg: "rgba(251,191,36,0.14)",
+    success: "#46c9a0",
+    successBg: "rgba(70,201,160,0.16)",
+    warning: "#f6a623",
+    warningBg: "rgba(246,166,35,0.14)",
   },
   light: {
     chipBg: "rgba(16,24,40,0.05)",
@@ -161,9 +162,13 @@ export function paletteFrom(p: AppThemePalette, mode: "light" | "dark"): ThemePa
 // Deterministic per-item gradient for image-less tiles (parity with the web
 // dashboard's letterGradient).
 export function letterGradient(seed: string): [string, string] {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 360;
-  return [`hsl(${h}, 68%, 56%)`, `hsl(${(h + 38) % 360}, 60%, 46%)`];
+  // Deterministic per seed, constrained to the violet→magenta brand band
+  // (255–330°) so image-less tiles read on-brand (parity with web).
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) % 75;
+  const h = 255 + hash;
+  const h2 = 255 + ((hash + 30) % 75);
+  return [`hsl(${h}, 68%, 56%)`, `hsl(${h2}, 60%, 46%)`];
 }
 
 // Elevated-card shadow. Android's `elevation` only renders on views with an
@@ -183,6 +188,31 @@ export const spacing = {
   lg: 24,
 };
 
+// Montserrat (UI/body) + Playfair Display (headlines), loaded via expo-font in
+// App.tsx. RN doesn't synthesize custom-font weights, so each weight is its own
+// family — use fontFamily(weight) or theme.fonts.* instead of bare fontWeight.
+export const fonts = {
+  regular: "Montserrat_400Regular",
+  medium: "Montserrat_500Medium",
+  semibold: "Montserrat_600SemiBold",
+  bold: "Montserrat_700Bold",
+  extrabold: "Montserrat_800ExtraBold",
+  display: "PlayfairDisplay_700Bold",
+  displaySemi: "PlayfairDisplay_600SemiBold",
+  displayBlack: "PlayfairDisplay_800ExtraBold",
+} as const;
+
+// Map a fontWeight to the matching Montserrat family (so existing `fontWeight`
+// values pick the right loaded face rather than synthetic bold).
+export function fontFamily(weight?: string | number): string {
+  const w = typeof weight === "string" ? parseInt(weight, 10) || 400 : weight ?? 400;
+  if (w >= 800) return fonts.extrabold;
+  if (w >= 700) return fonts.bold;
+  if (w >= 600) return fonts.semibold;
+  if (w >= 500) return fonts.medium;
+  return fonts.regular;
+}
+
 // Default config used for the very first paint and when offline. Mirrors the API
 // default-merge so an unconfigured / disconnected app looks like it does today.
 export const DEFAULT_APP_CONFIG: AppConfig = {
@@ -192,7 +222,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   logoUrl: null,
   iconUrl: null,
   splashUrl: null,
-  colorScheme: "system",
+  colorScheme: "dark",
   light: APP_LIGHT,
   dark: APP_DARK,
 };

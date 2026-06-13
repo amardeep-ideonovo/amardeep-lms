@@ -2,7 +2,7 @@ import React, { createContext, useContext, useMemo } from "react";
 import { useColorScheme } from "react-native";
 
 import { useAppConfig } from "./config-provider";
-import { paletteFrom, spacing, type Theme } from "./theme";
+import { paletteFrom, spacing, fonts, type Theme } from "./theme";
 
 const ThemeContext = createContext<Theme | undefined>(undefined);
 
@@ -21,7 +21,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       : config.colorScheme;
 
   const theme = useMemo<Theme>(
-    () => ({ mode, colors: paletteFrom(config[mode], mode), spacing }),
+    () => ({ mode, colors: paletteFrom(config[mode], mode), spacing, fonts }),
     [config, mode],
   );
 

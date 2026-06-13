@@ -5,7 +5,7 @@
 // seeded gradient is always light; over the brand gradient it follows the mode
 // (the light-mode brand gradient is a pale tint).
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import type { ImageStyle, StyleProp, ViewStyle } from "react-native";
 import { Image } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,6 +13,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { letterGradient } from "../theme";
 import type { Theme } from "../theme";
 import { useScopedStyles, useScopedTheme } from "./PageScope";
+import { Press } from "./Press";
 import { Chip } from "./Chip";
 
 export function HeroBand({
@@ -112,20 +113,16 @@ export function HeroBand({
           </View>
         ) : null}
         {buttonLabel && onButtonPress ? (
-          <TouchableOpacity
-            style={styles.button}
-            activeOpacity={0.85}
-            onPress={onButtonPress}
-          >
+          <Press style={styles.button} onPress={onButtonPress}>
             <Text style={styles.buttonText}>▶ {buttonLabel}</Text>
-          </TouchableOpacity>
+          </Press>
         ) : null}
       </View>
     </View>
   );
 }
 
-const makeStyles = ({ colors, spacing }: Theme) =>
+const makeStyles = ({ colors, spacing, fonts }: Theme) =>
   StyleSheet.create({
     band: {
       borderRadius: 20,
@@ -139,14 +136,15 @@ const makeStyles = ({ colors, spacing }: Theme) =>
       color: colors.primarySoft,
       fontSize: 12,
       fontWeight: "700",
+      fontFamily: fonts.bold,
       textTransform: "uppercase",
       letterSpacing: 1.6,
     },
-    title: { fontSize: 28, fontWeight: "800", lineHeight: 34 },
+    title: { fontSize: 28, fontWeight: "800", fontFamily: fonts.display, lineHeight: 34 },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
     progressWrap: { gap: 6, marginTop: spacing.xs },
     progressLabels: { flexDirection: "row", justifyContent: "space-between" },
-    progressLabel: { fontSize: 12, fontWeight: "600" },
+    progressLabel: { fontSize: 12, fontWeight: "600", fontFamily: fonts.semibold },
     track: {
       height: 6,
       borderRadius: 999,
@@ -162,5 +160,10 @@ const makeStyles = ({ colors, spacing }: Theme) =>
       paddingVertical: 11,
       paddingHorizontal: 18,
     },
-    buttonText: { color: colors.onPrimary, fontSize: 14, fontWeight: "700" },
+    buttonText: {
+      color: colors.onPrimary,
+      fontSize: 14,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
   });

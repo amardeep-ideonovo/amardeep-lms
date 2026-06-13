@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import type { ClassCertificateStatusDTO, MyCertificateDTO } from "@lms/types";
 import { api, certificateDownloadUrl } from "../api";
+import { Press } from "./Press";
 import { useStyles, useTheme } from "../theme-provider";
 import { spacing, type Theme } from "../theme";
 
@@ -77,24 +78,23 @@ export default function CertificateClaim({
     <View style={styles.wrap}>
       {claimed ? (
         <>
-          <TouchableOpacity style={styles.button} onPress={download} activeOpacity={0.8}>
+          <Press style={styles.button} onPress={download}>
             <Text style={styles.buttonText}>Download certificate</Text>
-          </TouchableOpacity>
+          </Press>
           {serial ? <Text style={styles.serial}>{serial}</Text> : null}
         </>
       ) : (
-        <TouchableOpacity
+        <Press
           style={styles.button}
           onPress={() => (status.needsName ? setAskName(true) : claim())}
           disabled={claiming}
-          activeOpacity={0.8}
         >
           {claiming ? (
             <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <Text style={styles.buttonText}>🎓 Get certificate</Text>
           )}
-        </TouchableOpacity>
+        </Press>
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -143,7 +143,7 @@ export default function CertificateClaim({
   );
 }
 
-const makeStyles = ({ colors }: Theme) =>
+const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
     wrap: { marginTop: spacing.md },
     button: {
@@ -152,7 +152,12 @@ const makeStyles = ({ colors }: Theme) =>
       paddingVertical: 13,
       alignItems: "center",
     },
-    buttonText: { color: colors.onPrimary, fontSize: 15.5, fontWeight: "700" },
+    buttonText: {
+      color: colors.onPrimary,
+      fontSize: 15.5,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
     buttonGhost: {
       borderRadius: 11,
       paddingVertical: 13,
@@ -160,14 +165,20 @@ const makeStyles = ({ colors }: Theme) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
-    buttonGhostText: { color: colors.text, fontSize: 15.5, fontWeight: "600" },
+    buttonGhostText: {
+      color: colors.text,
+      fontSize: 15.5,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
     serial: {
       color: colors.textMuted,
       fontSize: 12.5,
       marginTop: 6,
       textAlign: "center",
+      fontFamily: fonts.regular,
     },
-    error: { color: colors.danger, marginTop: 8, fontSize: 13.5 },
+    error: { color: colors.danger, marginTop: 8, fontSize: 13.5, fontFamily: fonts.regular },
     modalBackdrop: {
       flex: 1,
       backgroundColor: "rgba(0,0,0,0.55)",
@@ -181,8 +192,19 @@ const makeStyles = ({ colors }: Theme) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
-    modalTitle: { color: colors.text, fontSize: 17, fontWeight: "700" },
-    modalSub: { color: colors.textMuted, fontSize: 13, marginTop: 4, marginBottom: 12 },
+    modalTitle: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    modalSub: {
+      color: colors.textMuted,
+      fontSize: 13,
+      marginTop: 4,
+      marginBottom: 12,
+      fontFamily: fonts.regular,
+    },
     input: {
       borderWidth: 1,
       borderColor: colors.border,
@@ -192,6 +214,7 @@ const makeStyles = ({ colors }: Theme) =>
       paddingHorizontal: 12,
       paddingVertical: 10,
       fontSize: 15.5,
+      fontFamily: fonts.regular,
       marginBottom: 12,
     },
     modalRow: { flexDirection: "row", gap: 10 },

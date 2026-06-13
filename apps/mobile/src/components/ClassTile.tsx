@@ -74,7 +74,7 @@ export function ClassTile({
   );
 }
 
-const makeStyles = ({ colors, spacing }: Theme) =>
+const makeStyles = ({ colors, spacing, fonts }: Theme) =>
   StyleSheet.create({
     tile: {
       backgroundColor: colors.surface,
@@ -85,10 +85,15 @@ const makeStyles = ({ colors, spacing }: Theme) =>
     },
     media: { aspectRatio: 16 / 10, backgroundColor: colors.surfaceMuted },
     letterWrap: { alignItems: "center", justifyContent: "center" },
-    letter: { color: "#ffffff", fontSize: 44, fontWeight: "800" },
+    letter: {
+      color: "#ffffff",
+      fontSize: 44,
+      fontWeight: "800",
+      fontFamily: fonts.extrabold,
+    },
     badge: { position: "absolute", top: spacing.sm, left: spacing.sm },
     body: { padding: spacing.sm + 4, gap: 6 },
-    name: { color: colors.text, fontSize: 16, fontWeight: "700" },
+    name: { color: colors.text, fontSize: 16, fontWeight: "700", fontFamily: fonts.bold },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-    cta: { color: colors.textMuted, fontSize: 13, fontWeight: "700" },
+    cta: { color: colors.textMuted, fontSize: 13, fontWeight: "700", fontFamily: fonts.bold },
   });

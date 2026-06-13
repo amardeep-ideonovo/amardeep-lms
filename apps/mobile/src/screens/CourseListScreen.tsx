@@ -89,7 +89,7 @@ export function CourseListScreen({
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   search: {
@@ -100,11 +100,13 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     color: colors.text,
     fontSize: 15,
     marginBottom: spacing.md,
+    fontFamily: fonts.regular,
   },
   empty: {
     color: colors.textMuted,
     fontSize: 15,
     textAlign: "center",
     marginTop: spacing.lg,
+    fontFamily: fonts.regular,
   },
 });

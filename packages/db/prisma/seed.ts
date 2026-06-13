@@ -2215,11 +2215,11 @@ async function seedCertificateTemplates() {
 // ---------- app customization (mobile branding) ----------
 
 async function seedAppConfig() {
-  // The app must LOOK LIKE THE WEB (user request 2026-06-12): the web member
-  // area (globals.css .member-dash/.class-cinema/...) is ALWAYS dark with the
-  // indigo #6366f1 primary, so the app forces colorScheme "dark" and both
-  // palettes are the web's exact CSS tokens (= cross-stack defaults in
-  // apps/mobile/src/theme.ts / app-config.service.ts).
+  // The app mirrors the web member area's "liquid glass" design: a deep
+  // violet-ink canvas with a violet #7c5cfc primary (pink accents come from the
+  // gradients). The app ships dark by default; both palettes are the web's exact
+  // tokens (= cross-stack defaults in apps/mobile/src/theme.ts /
+  // app-config.service.ts). Admins can still recolor live via App Customization.
   const config = {
     title: "Spotlight Academy",
     tagline: "Learn from the best. Love what you make.",
@@ -2230,24 +2230,24 @@ async function seedAppConfig() {
     splashUrl: null,
     colorScheme: "dark",
     light: {
-      bg: "#f6f7f9",
+      bg: "#f5f3fc",
       surface: "#ffffff",
-      surfaceMuted: "#eef0f4",
-      border: "#e4e7ec",
-      text: "#101828",
-      textMuted: "#667085",
-      primary: "#4f46e5",
-      danger: "#d92d20",
+      surfaceMuted: "#f2eefb",
+      border: "#e7e2f4",
+      text: "#251f3d",
+      textMuted: "#8b84a4",
+      primary: "#7c5cfc",
+      danger: "#e11d48",
     },
     dark: {
-      bg: "#0b0b0d",
-      surface: "#16161b",
-      surfaceMuted: "#1c1c22",
-      border: "#2d2d32",
-      text: "#f4f4f6",
-      textMuted: "#8a8a95",
-      primary: "#6366f1",
-      danger: "#ef4444",
+      bg: "#100c1b",
+      surface: "#211a33",
+      surfaceMuted: "#2a2240",
+      border: "#342a4f",
+      text: "#f4f1fb",
+      textMuted: "#948cb4",
+      primary: "#7c5cfc",
+      danger: "#f2557b",
     },
   } as Prisma.InputJsonValue;
   // Singleton: drop any stray rows, keep exactly one.

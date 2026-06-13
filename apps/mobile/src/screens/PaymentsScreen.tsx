@@ -100,7 +100,7 @@ export function PaymentsScreen(_props: ScreenProps<"Payments">) {
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   skeletons: { flex: 1, backgroundColor: colors.bg, padding: spacing.md },
@@ -115,9 +115,9 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     marginBottom: spacing.sm,
   },
   rowLeft: { flex: 1, paddingRight: spacing.sm },
-  date: { color: colors.text, fontSize: 15, fontWeight: "600" },
-  desc: { color: colors.textMuted, fontSize: 13, marginTop: spacing.xs },
+  date: { color: colors.text, fontSize: 15, fontWeight: "600", fontFamily: fonts.semibold },
+  desc: { color: colors.textMuted, fontSize: 13, marginTop: spacing.xs, fontFamily: fonts.regular },
   rowRight: { alignItems: "flex-end", gap: spacing.xs },
-  amount: { color: colors.text, fontSize: 15, fontWeight: "700" },
-  receipt: { color: colors.primarySoft, fontSize: 13, fontWeight: "600" },
+  amount: { color: colors.text, fontSize: 15, fontWeight: "700", fontFamily: fonts.bold },
+  receipt: { color: colors.primarySoft, fontSize: 13, fontWeight: "600", fontFamily: fonts.semibold },
 });

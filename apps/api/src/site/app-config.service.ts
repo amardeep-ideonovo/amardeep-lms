@@ -10,24 +10,24 @@ const SCHEMES: AppColorScheme[] = ['light', 'dark', 'system'];
 // cinematic dark scopes), so web, app, and admin preview agree out of the box.
 // MUST stay in sync with apps/mobile/src/theme.ts (the offline fallback).
 const DARK: AppThemePalette = {
-  bg: '#0b0b0d',
-  surface: '#16161b',
-  surfaceMuted: '#1c1c22',
-  border: '#2d2d32',
-  text: '#f4f4f6',
-  textMuted: '#8a8a95',
-  primary: '#6366f1',
-  danger: '#ef4444',
+  bg: '#100c1b',
+  surface: '#211a33',
+  surfaceMuted: '#2a2240',
+  border: '#342a4f',
+  text: '#f4f1fb',
+  textMuted: '#948cb4',
+  primary: '#7c5cfc',
+  danger: '#f2557b',
 };
 const LIGHT: AppThemePalette = {
-  bg: '#f6f7f9',
+  bg: '#f5f3fc',
   surface: '#ffffff',
-  surfaceMuted: '#eef0f4',
-  border: '#e4e7ec',
-  text: '#101828',
-  textMuted: '#667085',
-  primary: '#4f46e5',
-  danger: '#d92d20',
+  surfaceMuted: '#f2eefb',
+  border: '#e7e2f4',
+  text: '#251f3d',
+  textMuted: '#8b84a4',
+  primary: '#7c5cfc',
+  danger: '#e11d48',
 };
 const DEFAULT_APP_CONFIG: AppConfig = {
   title: 'LMS',
@@ -36,7 +36,7 @@ const DEFAULT_APP_CONFIG: AppConfig = {
   logoUrl: null,
   iconUrl: null,
   splashUrl: null,
-  colorScheme: 'system',
+  colorScheme: 'dark',
   light: LIGHT,
   dark: DARK,
 };

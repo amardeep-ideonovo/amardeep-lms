@@ -128,7 +128,7 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   hero: {
@@ -149,6 +149,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     color: colors.heroText,
     fontSize: 24,
     fontWeight: "800",
+    fontFamily: fonts.display,
   },
   progressHeader: {
     backgroundColor: colors.surface,
@@ -158,7 +159,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
-  progressTitle: { color: colors.text, fontSize: 14, fontWeight: "700" },
+  progressTitle: { color: colors.text, fontSize: 14, fontWeight: "700", fontFamily: fonts.bold },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -178,7 +179,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     justifyContent: "center",
     marginRight: spacing.sm,
   },
-  numberText: { color: colors.text, fontWeight: "700" },
+  numberText: { color: colors.text, fontWeight: "700", fontFamily: fonts.bold },
   rowThumb: {
     width: 44,
     height: 44,
@@ -187,7 +188,7 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   rowThumbEmpty: { alignItems: "center", justifyContent: "center" },
-  rowThumbGlyph: { color: colors.textMuted, fontSize: 16 },
-  rowTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "500" },
-  check: { color: colors.success, fontSize: 18, fontWeight: "700" },
+  rowThumbGlyph: { color: colors.textMuted, fontSize: 16, fontFamily: fonts.regular },
+  rowTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "500", fontFamily: fonts.medium },
+  check: { color: colors.success, fontSize: 18, fontWeight: "700", fontFamily: fonts.bold },
 });

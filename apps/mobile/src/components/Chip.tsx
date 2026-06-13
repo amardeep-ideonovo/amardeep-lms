@@ -47,7 +47,7 @@ export function Badge({ label, icon = "✓" }: { label: string; icon?: string })
   return <Chip label={`${icon} ${label}`} tone="success" />;
 }
 
-const makeStyles = ({ colors }: Theme) =>
+const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
     chip: {
       alignSelf: "flex-start",
@@ -62,6 +62,7 @@ const makeStyles = ({ colors }: Theme) =>
       color: colors.textMuted,
       fontSize: 11.5,
       fontWeight: "700",
+      fontFamily: fonts.bold,
       textTransform: "uppercase",
       letterSpacing: 0.5,
     },

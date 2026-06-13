@@ -28,7 +28,7 @@ export function ProgressBar({
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   wrap: { marginTop: spacing.sm },
   track: {
     height: 6,
@@ -37,5 +37,10 @@ const makeStyles = ({ colors }: Theme) => StyleSheet.create({
     overflow: "hidden",
   },
   fill: { height: "100%", backgroundColor: colors.primary, borderRadius: 999 },
-  label: { color: colors.textMuted, fontSize: 12, marginTop: 4 },
+  label: {
+    color: colors.textMuted,
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: fonts.regular,
+  },
 });

@@ -140,7 +140,7 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
   );
 }
 
-const makeStyles = ({ colors, spacing }: Theme) =>
+const makeStyles = ({ colors, spacing, fonts }: Theme) =>
   StyleSheet.create({
     scroll: { flex: 1, backgroundColor: colors.bg },
     content: { padding: spacing.md, gap: spacing.sm },
@@ -150,13 +150,14 @@ const makeStyles = ({ colors, spacing }: Theme) =>
       padding: spacing.md,
       gap: spacing.sm,
     },
-    h1: { color: colors.text, fontSize: 24, fontWeight: "800" },
-    sub: { color: colors.textMuted, fontSize: 14, marginBottom: spacing.sm },
+    h1: { color: colors.text, fontSize: 24, fontWeight: "800", fontFamily: fonts.display },
+    sub: { color: colors.textMuted, fontSize: 14, marginBottom: spacing.sm, fontFamily: fonts.regular },
     sectionTitle: {
       color: colors.text,
       fontSize: 18,
       fontWeight: "800",
       marginTop: spacing.sm,
+      fontFamily: fonts.extrabold,
     },
     card: {
       backgroundColor: colors.surface,
@@ -173,13 +174,14 @@ const makeStyles = ({ colors, spacing }: Theme) =>
       justifyContent: "space-between",
       gap: spacing.sm,
     },
-    name: { color: colors.text, fontSize: 16, fontWeight: "700" },
-    meta: { color: colors.textMuted, fontSize: 14 },
-    link: { color: colors.primarySoft, fontSize: 14, fontWeight: "700" },
+    name: { color: colors.text, fontSize: 16, fontWeight: "700", fontFamily: fonts.bold },
+    meta: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
+    link: { color: colors.primarySoft, fontSize: 14, fontWeight: "700", fontFamily: fonts.bold },
     note: {
       color: colors.textMuted,
       fontSize: 12.5,
       textAlign: "center",
       marginTop: spacing.md,
+      fontFamily: fonts.regular,
     },
   });
