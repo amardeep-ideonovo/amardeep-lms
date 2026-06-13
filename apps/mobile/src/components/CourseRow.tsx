@@ -1,8 +1,9 @@
 import React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import type { CourseCard } from "@lms/types";
 
 import { Chip } from "./Chip";
+import { Press } from "./Press";
 import { ProgressBar } from "./ProgressBar";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -20,11 +21,10 @@ export function CourseRow({
   const styles = useStyles(makeStyles);
   const locked = course.locked;
   return (
-    <TouchableOpacity
+    <Press
       style={[styles.card, locked && styles.cardLocked]}
       onPress={onPress}
       disabled={locked}
-      activeOpacity={0.8}
     >
       <View style={styles.cardRow}>
         {course.thumbnailUrl ? (
@@ -53,7 +53,7 @@ export function CourseRow({
           total={course.lessonCount}
         />
       ) : null}
-    </TouchableOpacity>
+    </Press>
   );
 }
 

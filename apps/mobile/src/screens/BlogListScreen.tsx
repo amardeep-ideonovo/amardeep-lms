@@ -1,18 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
-import {
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { FlatList, Image, StyleSheet, Text, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import type { PostListItem } from "@lms/types";
 
 import { api } from "../api";
 import { Chip } from "../components/Chip";
 import { HeroBand } from "../components/HeroBand";
+import { Press } from "../components/Press";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { fmtDate } from "../format";
 import type { ScreenProps } from "../navigation";
@@ -59,11 +53,7 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
       data={rest}
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
-        <TouchableOpacity
-          style={styles.heroWrap}
-          activeOpacity={0.85}
-          onPress={() => open(featured)}
-        >
+        <Press style={styles.heroWrap} onPress={() => open(featured)}>
           <HeroBand
             eyebrow="Featured"
             title={featured.title}
@@ -80,14 +70,10 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
               </Text>
             ) : null}
           </HeroBand>
-        </TouchableOpacity>
+        </Press>
       }
       renderItem={({ item }) => (
-        <TouchableOpacity
-          style={styles.card}
-          activeOpacity={0.85}
-          onPress={() => open(item)}
-        >
+        <Press style={styles.card} onPress={() => open(item)}>
           {item.coverImageUrl ? (
             <Image
               source={{ uri: item.coverImageUrl }}
@@ -123,7 +109,7 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
             ) : null}
             <Text style={styles.readMore}>Read →</Text>
           </View>
-        </TouchableOpacity>
+        </Press>
       )}
     />
   );

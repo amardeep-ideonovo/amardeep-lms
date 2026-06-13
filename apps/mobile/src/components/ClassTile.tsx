@@ -2,7 +2,7 @@
 // deterministic letter-gradient), "✓ Enrolled" badge for owned classes, up to
 // two category chips, and a quiet CTA line.
 import React from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import type { ClassTileDTO } from "@lms/types";
@@ -11,6 +11,7 @@ import { letterGradient } from "../theme";
 import type { Theme } from "../theme";
 import { useScopedStyles, useScopedTheme } from "./PageScope";
 import { Badge, Chip } from "./Chip";
+import { Press } from "./Press";
 
 export function ClassTile({
   cls,
@@ -24,11 +25,7 @@ export function ClassTile({
   const styles = useScopedStyles(makeStyles);
   const { colors } = useScopedTheme();
   return (
-    <TouchableOpacity
-      style={[styles.tile, style]}
-      activeOpacity={0.85}
-      onPress={onPress}
-    >
+    <Press style={[styles.tile, style]} onPress={onPress}>
       <View style={styles.media}>
         {cls.imageUrl ? (
           <Image
@@ -70,7 +67,7 @@ export function ClassTile({
           {cls.owned ? "Continue →" : "View class →"}
         </Text>
       </View>
-    </TouchableOpacity>
+    </Press>
   );
 }
 

@@ -16,6 +16,7 @@ import type { LevelDTO, PriceDTO, SubscriptionDetailDTO } from "@lms/types";
 import { api } from "../api";
 import { money } from "../format";
 import { Chip } from "../components/Chip";
+import { Press } from "../components/Press";
 import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import type { ScreenProps } from "../navigation";
@@ -111,10 +112,9 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
           {available.map((l) => {
             const low = lowestPrice(l.prices);
             return (
-              <TouchableOpacity
+              <Press
                 key={l.id}
                 style={styles.card}
-                activeOpacity={0.85}
                 disabled={!l.published}
                 onPress={() => openLanding(l)}
               >
@@ -127,7 +127,7 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
                 {l.published ? (
                   <Text style={styles.link}>View details →</Text>
                 ) : null}
-              </TouchableOpacity>
+              </Press>
             );
           })}
         </>
