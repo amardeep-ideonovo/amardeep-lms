@@ -31,7 +31,8 @@ function coverGradient(seed: string): string {
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) % 75;
   // Constrain the base hue to the violet→magenta band so auto covers stay on-brand.
   const h = 255 + hash;
-  return `linear-gradient(150deg, hsl(${h} 55% 38%), hsl(${h + 42} 50% 20%))`;
+  const h2 = 255 + ((hash + 42) % 75); // keep the 2nd stop inside the band too
+  return `linear-gradient(150deg, hsl(${h} 55% 38%), hsl(${h2} 50% 20%))`;
 }
 
 // Hero treatment for the lead post (overlay, like the dashboard continue card).

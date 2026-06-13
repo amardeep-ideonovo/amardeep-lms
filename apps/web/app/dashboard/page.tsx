@@ -18,7 +18,8 @@ function letterGradient(seed: string): string {
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) % 75;
   // Constrain the base hue to the violet→magenta band so auto tiles stay on-brand.
   const h = 255 + hash;
-  return `linear-gradient(150deg, hsl(${h} 68% 56%), hsl(${h + 38} 60% 46%))`;
+  const h2 = 255 + ((hash + 38) % 75); // keep the 2nd stop inside the band too
+  return `linear-gradient(150deg, hsl(${h} 68% 56%), hsl(${h2} 60% 46%))`;
 }
 
 function ClassTile({ cls }: { cls: ClassTileDTO }) {
