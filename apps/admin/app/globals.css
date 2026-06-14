@@ -410,6 +410,8 @@ a {
   flex: none;
 }
 .top-avatar-img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   border-radius: 50%;
@@ -1203,6 +1205,76 @@ select:-webkit-autofill:focus {
 .modal--wide {
   max-width: 720px;
   width: 100%;
+}
+
+/* ---------- avatar cropper ---------- */
+.modal--crop {
+  max-width: 380px;
+}
+.cropper-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.cropper-stage {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-inset);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.cropper-stage:active {
+  cursor: grabbing;
+}
+.cropper-img {
+  position: absolute;
+  max-width: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.cropper-mask {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 9999px rgba(8, 6, 16, 0.62),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}
+.cropper-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 300px;
+}
+.cropper-controls input[type="range"] {
+  flex: 1;
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.cropper-zoom-ic {
+  color: var(--muted);
+  font-size: 18px;
+  width: 14px;
+  text-align: center;
+  flex: none;
+}
+.cropper-hint {
+  font-size: 12px;
+  text-align: center;
+  margin: 0;
+}
+.cropper-actions {
+  width: 100%;
+}
+.cropper-upload-error {
+  margin: 4px 0 0;
+  text-align: center;
 }
 
 /* ---------- confirm / notify / prompt dialog ---------- */

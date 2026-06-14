@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import AvatarCropper from "@/components/AvatarCropper";
 
 function initials(name: string | null, email: string): string {
   const src = (name && name.trim()) || email;
@@ -19,6 +20,7 @@ export default function ProfilePage() {
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
   const [profileErr, setProfileErr] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [curPw, setCurPw] = useState("");
@@ -56,7 +58,7 @@ export default function ProfilePage() {
     }
   }
 
-  async function onPickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+  function onPickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file later
     if (!file) return;
@@ -64,13 +66,22 @@ export default function ProfilePage() {
       setProfileErr("Please choose an image file.");
       return;
     }
+    // Open the cropper; the actual upload happens once the admin frames the crop.
+    setProfileErr(null);
+    setProfileMsg(null);
+    setCropFile(file);
+  }
+
+  async function uploadCropped(blob: Blob) {
     setUploading(true);
     setProfileErr(null);
     setProfileMsg(null);
     try {
-      const updated = await api.uploadAvatar(file);
+      const cropped = new File([blob], "avatar.jpg", { type: "image/jpeg" });
+      const updated = await api.uploadAvatar(cropped);
       applyAdmin(updated);
       setProfileMsg("Photo updated.");
+      setCropFile(null);
     } catch (err) {
       setProfileErr(
         err instanceof ApiError ? err.message : "Couldn't upload the photo.",
@@ -273,6 +284,18 @@ export default function ProfilePage() {
           </button>
         </form>
       </div>
+
+      {cropFile && (
+        <AvatarCropper
+          file={cropFile}
+          busy={uploading}
+          error={profileErr}
+          onCancel={() => {
+            if (!uploading) setCropFile(null);
+          }}
+          onApply={uploadCropped}
+        />
+      )}
     </div>
   );
 }
