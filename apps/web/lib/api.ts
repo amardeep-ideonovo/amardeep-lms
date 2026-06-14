@@ -49,6 +49,7 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:3000";
 
 const TOKEN_KEY = "lms_member_token";
+const ME_CACHE_KEY = "lms_member_me";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -63,6 +64,29 @@ export function setToken(token: string): void {
 export function clearToken(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(TOKEN_KEY);
+  window.localStorage.removeItem(ME_CACHE_KEY);
+}
+
+// Last-known member profile, cached so the nav avatar paints instantly on
+// refresh (no flicker) before the live /auth/me round-trip resolves.
+export function getCachedMe(): AuthUser | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(ME_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as AuthUser) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedMe(u: AuthUser | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (u) window.localStorage.setItem(ME_CACHE_KEY, JSON.stringify(u));
+    else window.localStorage.removeItem(ME_CACHE_KEY);
+  } catch {
+    /* private mode / quota — non-fatal */
+  }
 }
 
 export class ApiError extends Error {
@@ -134,6 +158,29 @@ export const api = {
   me: () => request<AuthUser>("/auth/me"),
   updateMe: (input: UpdateProfileInput) =>
     request<AuthUser>("/auth/me", { method: "PATCH", body: input }),
+  // Member profile photo upload (multipart; the cropper hands us a JPEG blob).
+  uploadAvatar: async (file: Blob): Promise<AuthUser> => {
+    const token = getToken();
+    const fd = new FormData();
+    fd.append("file", file, "avatar.jpg");
+    const res = await fetch(`${API_BASE}/auth/me/avatar`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    if (!res.ok) {
+      let message = res.statusText;
+      try {
+        const d = await res.json();
+        message = (d && (d.message || d.error)) || message;
+        if (Array.isArray(message)) message = message.join(", ");
+      } catch {
+        /* non-JSON error body */
+      }
+      throw new ApiError(res.status, message);
+    }
+    return res.json();
+  },
   changePassword: (input: ChangePasswordInput) =>
     request<{ ok: true }>("/auth/change-password", {
       method: "POST",
@@ -294,6 +341,21 @@ export async function fetchSiteHeader(
     return await request<ResolvedHeader>(`/site/header${qs}`, {
       auth: !!path,
     });
+  } catch {
+    return null;
+  }
+}
+
+// ---------- Header nav menu (PUBLIC) ----------
+// SSR'd in the root layout alongside the header so <Nav> paints the configured
+// menu on first load instead of flashing the built-in fallback. Items are
+// public/token-independent; null on failure (Nav falls back).
+export async function fetchHeaderMenu(
+  menuId?: string | null,
+): Promise<ResolvedMenu | null> {
+  try {
+    const path = menuId ? `/menus/${menuId}/resolved` : `/menus/location/HEADER`;
+    return await request<ResolvedMenu>(path, { auth: false });
   } catch {
     return null;
   }

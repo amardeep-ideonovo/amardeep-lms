@@ -3,7 +3,7 @@ import { Montserrat, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
-import { fetchFooter, fetchSiteHeader } from "@/lib/api";
+import { fetchFooter, fetchHeaderMenu, fetchSiteHeader } from "@/lib/api";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 
 // UI/body sans + display serif — exposed as CSS vars consumed by globals.css
@@ -62,6 +62,9 @@ export default async function RootLayout({
     fetchSiteHeader(),
     fetchFooter(),
   ]);
+  // Resolve the header menu using whichever menu the header points at, so the
+  // first paint shows the real nav (no fallback flash on refresh).
+  const headerMenu = await fetchHeaderMenu(header?.menuId);
   return (
     <html
       lang="en"
@@ -71,7 +74,7 @@ export default async function RootLayout({
     >
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <Nav initialHeader={header} />
+        <Nav initialHeader={header} initialMenu={headerMenu} />
         <main className="container">{children}</main>
         <Footer config={footer} />
       </body>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, type FormEvent } from "react";
+import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
@@ -10,6 +10,15 @@ import type {
 } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
+import AvatarCropper from "@/components/AvatarCropper";
+
+// Avatar fallback initials from the member's name, else username/email.
+function avatarInitials(u: AuthUser): string {
+  const src =
+    [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email;
+  const parts = src.split(/[\s@._-]+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "M") + (parts[1]?.[0] ?? "")).toUpperCase();
+}
 
 function money(amount: number, currency: string): string {
   return (amount / 100).toLocaleString(undefined, {
@@ -146,6 +155,11 @@ function AccountInner() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwOk, setPwOk] = useState(false);
+  // Profile photo: cropper file + upload state.
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarErr, setAvatarErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   function fail(err: unknown) {
     if (err instanceof ApiError && err.status === 401) {
@@ -256,6 +270,57 @@ function AccountInner() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  function onPickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setAvatarErr("Please choose an image file.");
+      return;
+    }
+    setAvatarErr(null);
+    setCropFile(file);
+  }
+
+  async function uploadCroppedAvatar(blob: Blob) {
+    setAvatarBusy(true);
+    setAvatarErr(null);
+    try {
+      const updated = await api.uploadAvatar(blob);
+      setUser(updated);
+      setCropFile(null);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        fail(err);
+        return;
+      }
+      setAvatarErr(
+        err instanceof ApiError ? err.message : "Couldn’t upload the photo.",
+      );
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function removeAvatar() {
+    setAvatarBusy(true);
+    setAvatarErr(null);
+    try {
+      const updated = await api.updateMe({ removeAvatar: true });
+      setUser(updated);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        fail(err);
+        return;
+      }
+      setAvatarErr(
+        err instanceof ApiError ? err.message : "Couldn’t remove the photo.",
+      );
+    } finally {
+      setAvatarBusy(false);
     }
   }
 
@@ -488,20 +553,73 @@ function AccountInner() {
             </div>
           </form>
         ) : (
-          <dl className="detail-list">
-            <div>
-              <dt>Name</dt>
-              <dd>{fullName}</dd>
+          <>
+            <div className="account-avatar-row">
+              <div className="account-avatar">
+                {user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={user.avatarUrl}
+                    alt=""
+                    className="account-avatar-img"
+                  />
+                ) : (
+                  <span className="account-avatar-initials">
+                    {avatarInitials(user)}
+                  </span>
+                )}
+              </div>
+              <div className="account-avatar-actions">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={onPickAvatar}
+                />
+                <div className="account-avatar-btns">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={avatarBusy}
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    {avatarBusy
+                      ? "Working…"
+                      : user.avatarUrl
+                        ? "Change photo"
+                        : "Upload photo"}
+                  </button>
+                  {user.avatarUrl && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={avatarBusy}
+                      onClick={removeAvatar}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <p className="field-hint">JPG, PNG, WebP or GIF, up to 8 MB.</p>
+              </div>
             </div>
-            <div>
-              <dt>Email</dt>
-              <dd>{user.email}</dd>
-            </div>
-            <div>
-              <dt>Username</dt>
-              <dd>{user.username}</dd>
-            </div>
-          </dl>
+            {avatarErr && <div className="alert alert-error">{avatarErr}</div>}
+            <dl className="detail-list">
+              <div>
+                <dt>Name</dt>
+                <dd>{fullName}</dd>
+              </div>
+              <div>
+                <dt>Email</dt>
+                <dd>{user.email}</dd>
+              </div>
+              <div>
+                <dt>Username</dt>
+                <dd>{user.username}</dd>
+              </div>
+            </dl>
+          </>
         )}
       </section>
 
@@ -649,6 +767,18 @@ function AccountInner() {
             </div>
           </div>
         </div>
+      )}
+
+      {cropFile && (
+        <AvatarCropper
+          file={cropFile}
+          busy={avatarBusy}
+          error={avatarErr}
+          onCancel={() => {
+            if (!avatarBusy) setCropFile(null);
+          }}
+          onApply={uploadCroppedAvatar}
+        />
       )}
     </div>
   );

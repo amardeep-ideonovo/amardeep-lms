@@ -2,15 +2,31 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type {
+  AuthUser,
   ResolvedHeader,
   ResolvedHeaderCta,
   ResolvedMenu,
 } from "@lms/types";
-import { api, clearToken, fetchSiteHeader, getToken } from "@/lib/api";
+import {
+  api,
+  clearToken,
+  fetchSiteHeader,
+  getCachedMe,
+  getToken,
+  setCachedMe,
+} from "@/lib/api";
 import { MenuLink, flattenChildren, isExternal } from "./MenuLink";
 import ThemeToggle from "./ThemeToggle";
+
+// Avatar fallback initials from the member's name, else username/email.
+function avatarInitials(u: AuthUser): string {
+  const src =
+    [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email;
+  const parts = src.split(/[\s@._-]+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "M") + (parts[1]?.[0] ?? "")).toUpperCase();
+}
 
 // Top navigation. Styling/layout (background, width, padding, columns, logo,
 // CTAs, link colors) come from the admin "Header" builder, SSR'd via `header`.
@@ -19,8 +35,10 @@ import ThemeToggle from "./ThemeToggle";
 // CSS-var fallbacks reproduce the original header exactly.
 export default function Nav({
   initialHeader,
+  initialMenu,
 }: {
   initialHeader?: ResolvedHeader | null;
+  initialMenu?: ResolvedMenu | null;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -28,9 +46,18 @@ export default function Nav({
   const [header, setHeader] = useState<ResolvedHeader | null>(
     initialHeader ?? null,
   );
-  const [menu, setMenu] = useState<ResolvedMenu | null>(null);
+  // Seeded from the SSR'd menu so the first paint shows the real nav (no flash
+  // of the built-in fallback on refresh).
+  const [menu, setMenu] = useState<ResolvedMenu | null>(initialMenu ?? null);
   const [mobile, setMobile] = useState<ResolvedMenu | null>(null);
   const [drawer, setDrawer] = useState(false);
+
+  // Member identity for the account dropdown (replaces the bare Logout button).
+  // Seeded from the localStorage cache so the avatar paints immediately on
+  // refresh — no flicker — then refreshed by the live /auth/me call below.
+  const [me, setMe] = useState<AuthUser | null>(() => getCachedMe());
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const h = header;
   const menuId = h?.menuId ?? null;
@@ -66,6 +93,39 @@ export default function Nav({
   }, [pathname, menuId, authed]);
 
   useEffect(() => setDrawer(false), [pathname]);
+
+  // Load (or clear) the member's profile for the account dropdown, keeping the
+  // cache in sync so the next refresh paints instantly.
+  useEffect(() => {
+    if (!authed) {
+      setMe(null);
+      setCachedMe(null);
+      return;
+    }
+    let alive = true;
+    api
+      .me()
+      .then((u) => {
+        if (!alive) return;
+        setMe(u);
+        setCachedMe(u);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [authed]);
+
+  // Close the account dropdown on outside click or navigation.
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node))
+        setProfileOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, []);
+  useEffect(() => setProfileOpen(false), [pathname]);
 
   if (pathname === "/login") return null;
 
@@ -170,6 +230,57 @@ export default function Nav({
     );
   };
 
+  // Account dropdown: avatar button → menu with name/email, Account, Log out.
+  // Mirrors the admin topbar avatar menu. Only shown to signed-in members.
+  const profileName = me
+    ? [me.firstName, me.lastName].filter(Boolean).join(" ") || me.username
+    : "Your account";
+  const ProfileMenu = authed ? (
+    <div className="nav-profile" ref={profileRef}>
+      <button
+        type="button"
+        className="nav-avatar"
+        title="Account"
+        aria-haspopup="menu"
+        aria-expanded={profileOpen}
+        onClick={() => setProfileOpen((v) => !v)}
+      >
+        {me?.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={me.avatarUrl} alt="" className="nav-avatar-img" />
+        ) : (
+          <span className="nav-avatar-initials">
+            {me ? avatarInitials(me) : ""}
+          </span>
+        )}
+      </button>
+      {profileOpen && (
+        <div className="nav-avatar-menu" role="menu">
+          <div className="nav-avatar-head">
+            <div className="nav-avatar-name">{profileName}</div>
+            {me?.email && <div className="nav-avatar-email">{me.email}</div>}
+          </div>
+          <Link
+            href="/account"
+            role="menuitem"
+            className="nav-avatar-item"
+            onClick={() => setProfileOpen(false)}
+          >
+            Your account
+          </Link>
+          <button
+            type="button"
+            role="menuitem"
+            className="nav-avatar-item nav-avatar-item--danger"
+            onClick={logout}
+          >
+            Log out
+          </button>
+        </div>
+      )}
+    </div>
+  ) : null;
+
   return (
     <header className="nav" style={styleVars}>
       <div className={layout3 ? "nav-inner nav-inner--3" : "nav-inner"}>
@@ -198,22 +309,15 @@ export default function Nav({
                 </div>
               ))
             : Fallback}
-          {authed && !layout3 && (
-            <button type="button" className="nav-logout" onClick={logout}>
-              Logout
-            </button>
-          )}
+          <span className="nav-sep" aria-hidden="true" />
           <ThemeToggle />
+          {!layout3 && ProfileMenu}
         </nav>
 
         {layout3 && (
           <div className="nav-ctas">
             {ctas.map((c) => renderCta(c, "nav-cta"))}
-            {authed && (
-              <button type="button" className="nav-logout" onClick={logout}>
-                Logout
-              </button>
-            )}
+            {ProfileMenu}
           </div>
         )}
 
@@ -283,9 +387,22 @@ export default function Nav({
               )}
               <ThemeToggle className="nav-theme--drawer" />
               {authed && (
-                <button type="button" className="nav-logout" onClick={logout}>
-                  Logout
-                </button>
+                <>
+                  <Link
+                    href="/account"
+                    className="nav-drawer-link"
+                    onClick={() => setDrawer(false)}
+                  >
+                    Your account
+                  </Link>
+                  <button
+                    type="button"
+                    className="nav-logout"
+                    onClick={logout}
+                  >
+                    Log out
+                  </button>
+                </>
               )}
             </div>
           </div>

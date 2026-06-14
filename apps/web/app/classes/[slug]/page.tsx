@@ -53,22 +53,28 @@ export default async function ClassPage({ params }: Params) {
   return (
     <article className="class-cinema">
       <PopupHost context={{ type: "classes" }} />
-      {/* ---------- HERO (static, public, SEO) ---------- */}
+      {/* ---------- HERO: image-prominent (image band on top, details below) ---- */}
       <header className="cc-hero">
         <div
           className={cls.imageUrl ? "cc-hero-bg" : "cc-hero-bg cc-hero-bg--empty"}
           style={cls.imageUrl ? { backgroundImage: `url(${cls.imageUrl})` } : undefined}
         />
         <div className="cc-hero-inner">
-          <div className="cc-hero-left">
-            {cls.categories.length > 0 && (
-              <div className="cc-cats">
-                {cls.categories.map((c) => (
-                  <span key={c.id} className="cc-chip">{c.name}</span>
-                ))}
-              </div>
-            )}
-            <h1 className="cc-title">{cls.name}</h1>
+          {cls.categories.length > 0 && (
+            <div className="cc-cats">
+              {cls.categories.map((c) => (
+                <span key={c.id} className="cc-chip">{c.name}</span>
+              ))}
+            </div>
+          )}
+          <h1 className="cc-title">{cls.name}</h1>
+        </div>
+      </header>
+
+      {/* details panel below the image (~30%): blurb, meta + the buy/resume card */}
+      <div className="cc-hero-panel">
+        <div className="cc-hero-panel-inner">
+          <div className="cc-hero-panel-info">
             {cls.description && <p className="cc-teaches">{cls.description}</p>}
             <div className="cc-meta">
               {cls.lessonCount > 0 && (
@@ -93,7 +99,7 @@ export default async function ClassPage({ params }: Params) {
             slot="hero-card"
           />
         </div>
-      </header>
+      </div>
 
       {/* ---------- BODY: skills + trailer + courses + closing CTA ---------- */}
       {/* Ownership-gated ORDER: guests see Skills first (marketing), members
