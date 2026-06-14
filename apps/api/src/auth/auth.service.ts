@@ -9,7 +9,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
-import type { Admin } from '@prisma/client';
+import type { Admin, User } from '@prisma/client';
 import type {
   AdminPermissions,
   AdminPrefs,
@@ -65,6 +65,19 @@ export class AuthService {
     };
   }
 
+  // Single source of truth for the member-facing user shape (so avatarUrl and
+  // future fields are never dropped from one of the several return sites).
+  private toAuthUser(user: User): AuthUser {
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      avatarUrl: user.avatarUrl ?? null,
+    };
+  }
+
   async loginMember(
     email: string,
     password: string,
@@ -83,13 +96,7 @@ export class AuthService {
     };
     return {
       token: await this.jwt.signAsync(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-      },
+      user: this.toAuthUser(user),
     };
   }
 
@@ -169,13 +176,7 @@ export class AuthService {
     };
     return {
       token: await this.jwt.signAsync(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-      },
+      user: this.toAuthUser(user),
     };
   }
 
@@ -251,13 +252,7 @@ export class AuthService {
       where: { id: principal.sub },
     });
     if (!user) throw new UnauthorizedException();
-    return {
-      id: user.id,
-      email: user.email,
-      username: user.username,
-      firstName: user.firstName,
-      lastName: user.lastName,
-    };
+    return this.toAuthUser(user);
   }
 
   /**
@@ -293,6 +288,10 @@ export class AuthService {
       data.username = username;
     }
 
+    // Clear the profile photo when asked (the on-disk file is removed after the
+    // row update succeeds, mirroring the admin self-service flow).
+    if (dto.removeAvatar) data.avatarUrl = null;
+
     let updated = user;
     if (Object.keys(data).length > 0) {
       try {
@@ -311,13 +310,12 @@ export class AuthService {
       }
     }
 
-    return {
-      id: updated.id,
-      email: updated.email,
-      username: updated.username,
-      firstName: updated.firstName,
-      lastName: updated.lastName,
-    };
+    // Remove the now-orphaned file after the row no longer references it.
+    if (dto.removeAvatar && user.avatarUrl) {
+      await this.deleteAvatarFile(user.avatarUrl);
+    }
+
+    return this.toAuthUser(updated);
   }
 
   /**
@@ -485,6 +483,43 @@ export class AuthService {
       data: { avatarUrl: `${baseUrl}${MEDIA_ROUTE}/${key}` },
     });
     return this.toAuthAdmin(updated);
+  }
+
+  /**
+   * Member self-service: upload a profile photo. Same storage path and image
+   * rules as the admin avatar (image-only, ≤8 MB, stored via MediaStorage with
+   * no gallery MediaAsset). Replaces and deletes any prior photo.
+   */
+  async setUserAvatar(
+    userId: string,
+    file: Express.Multer.File | undefined,
+    baseUrl: string,
+  ): Promise<AuthUser> {
+    if (!file) throw new BadRequestException('No file provided');
+    const ext = AVATAR_EXT[file.mimetype];
+    if (!ext) {
+      throw new BadRequestException(
+        'Please choose a JPG, PNG, WebP or GIF image.',
+      );
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      throw new BadRequestException('Image too large (max 8 MB).');
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, avatarUrl: true },
+    });
+    if (!user) throw new UnauthorizedException();
+
+    const key = `avatar-${userId}-${Date.now()}${ext}`;
+    await this.storage.put(key, file.buffer, file.mimetype);
+    await this.deleteAvatarFile(user.avatarUrl); // best-effort cleanup of the old file
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: `${baseUrl}${MEDIA_ROUTE}/${key}` },
+    });
+    return this.toAuthUser(updated);
   }
 
   // Delete a previously-stored avatar file (best effort). Only removes keys we

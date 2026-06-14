@@ -31,6 +31,7 @@ import type {
   UpdateProfileInput,
 } from "@lms/types";
 
+import { File, UploadType } from "expo-file-system";
 import { API_BASE_URL } from "./config";
 
 const TOKEN_KEY = "lms.auth.token";
@@ -164,6 +165,44 @@ export const api = {
   me: () => request<AuthUser>("/auth/me"),
   updateMe: (input: UpdateProfileInput) =>
     request<AuthUser>("/auth/me", { method: "PATCH", body: input }),
+  // Member profile photo upload. RN multipart: FormData with the picked file's
+  // local URI (already square-cropped by the image picker's editor). The boundary
+  // header is set by fetch automatically, so we only attach Authorization.
+  uploadAvatar: async (uri: string, mimeType?: string): Promise<AuthUser> => {
+    const token = await getToken();
+    const type = mimeType || "image/jpeg";
+    // expo-file-system's multipart upload streams the file from its URI — RN's
+    // FormData/fetch rejects the classic { uri } file part ("Unsupported
+    // FormDataPart implementation") on this SDK, so use the native uploader.
+    let result: { status: number; body: string };
+    try {
+      result = await new File(uri).upload(`${API_BASE_URL}/auth/me/avatar`, {
+        httpMethod: "POST",
+        uploadType: UploadType.MULTIPART,
+        fieldName: "file",
+        mimeType: type,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+    } catch {
+      throw new ApiError(
+        0,
+        "Network error. Check your connection and try again.",
+      );
+    }
+    if (result.status < 200 || result.status >= 300) {
+      if (result.status === 401) onUnauthorized?.();
+      let message = `Request failed (${result.status})`;
+      try {
+        const d = JSON.parse(result.body);
+        if (d?.message)
+          message = Array.isArray(d.message) ? d.message.join(", ") : d.message;
+      } catch {
+        // non-JSON error body; keep default
+      }
+      throw new ApiError(result.status, message);
+    }
+    return JSON.parse(result.body) as AuthUser;
+  },
   changePassword: (input: ChangePasswordInput) =>
     request<{ ok: true }>("/auth/change-password", {
       method: "POST",

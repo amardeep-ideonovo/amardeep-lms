@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
 import type {
   AuthUser,
   MyCertificateDTO,
@@ -64,6 +65,14 @@ function planMeta(sub: SubscriptionDetailDTO): string {
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,30}$/;
 
+// Avatar fallback initials from the member's name, else username/email.
+function initialsOf(u: AuthUser): string {
+  const src =
+    [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email;
+  const parts = src.split(/[\s@._-]+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "M") + (parts[1]?.[0] ?? "")).toUpperCase();
+}
+
 type DetailsMode = "view" | "edit" | "password";
 
 export function AccountScreen({ navigation }: ScreenProps<"Account">) {
@@ -94,6 +103,10 @@ export function AccountScreen({ navigation }: ScreenProps<"Account">) {
 
   const [portalBusy, setPortalBusy] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
+
+  // Profile photo upload/remove state.
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -139,6 +152,51 @@ export function AccountScreen({ navigation }: ScreenProps<"Account">) {
     setPwError(null);
     setPwOk(false);
     setMode("password");
+  }
+
+  // Pick a photo from the library, square-cropped via the native editor, then
+  // upload. The picker's allowsEditing flow IS the resize/crop step on mobile.
+  async function pickAvatar() {
+    setAvatarError(null);
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        setAvatarError("Photo access is needed to choose a picture.");
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      setAvatarBusy(true);
+      const updated = await api.uploadAvatar(asset.uri, asset.mimeType);
+      setUser(updated);
+    } catch (e) {
+      setAvatarError(
+        e instanceof Error ? e.message : "Couldn't update your photo.",
+      );
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function removeAvatar() {
+    setAvatarBusy(true);
+    setAvatarError(null);
+    try {
+      const updated = await api.updateMe({ removeAvatar: true });
+      setUser(updated);
+    } catch (e) {
+      setAvatarError(
+        e instanceof Error ? e.message : "Couldn't remove the photo.",
+      );
+    } finally {
+      setAvatarBusy(false);
+    }
   }
 
   async function saveProfile() {
@@ -281,6 +339,49 @@ export function AccountScreen({ navigation }: ScreenProps<"Account">) {
 
               {mode === "view" ? (
                 <>
+                  <View style={styles.avatarBlock}>
+                    {user.avatarUrl ? (
+                      <Image
+                        source={{ uri: user.avatarUrl }}
+                        style={styles.avatarImg}
+                      />
+                    ) : (
+                      <View style={styles.avatarFallback}>
+                        <Text style={styles.avatarInitials}>
+                          {initialsOf(user)}
+                        </Text>
+                      </View>
+                    )}
+                    <View style={styles.avatarActions}>
+                      <TouchableOpacity
+                        style={[styles.btnSecondary, styles.grow]}
+                        onPress={pickAvatar}
+                        disabled={avatarBusy}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.btnSecondaryText}>
+                          {avatarBusy
+                            ? "Working…"
+                            : user.avatarUrl
+                              ? "Change photo"
+                              : "Add photo"}
+                        </Text>
+                      </TouchableOpacity>
+                      {user.avatarUrl ? (
+                        <TouchableOpacity
+                          style={[styles.btnSecondary, styles.grow]}
+                          onPress={removeAvatar}
+                          disabled={avatarBusy}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.btnSecondaryText}>Remove</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  </View>
+                  {avatarError ? (
+                    <Text style={styles.formError}>{avatarError}</Text>
+                  ) : null}
                   <View style={styles.detailRow}>
                     <Text style={styles.detailLabel}>Name</Text>
                     <Text style={styles.detailValue}>{fullName}</Text>
@@ -726,6 +827,28 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
     marginTop: spacing.sm,
   },
   grow: { flex: 1 },
+  avatarBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  avatarImg: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.surfaceMuted,
+  },
+  avatarFallback: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarInitials: { color: colors.onPrimary, fontSize: 26, fontFamily: fonts.bold },
+  avatarActions: { flex: 1, flexDirection: "row", gap: spacing.sm },
   btnPrimary: {
     backgroundColor: colors.primary,
     borderRadius: 10,

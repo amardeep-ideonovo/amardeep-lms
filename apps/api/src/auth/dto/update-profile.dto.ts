@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsOptional,
   IsString,
   Matches,
@@ -27,4 +28,9 @@ export class UpdateProfileDto {
     message: 'Username must be 3–30 characters: letters, numbers, or underscore',
   })
   username?: string;
+
+  // Clear the profile photo. Sent on its own from the "Remove" action.
+  @IsOptional()
+  @IsBoolean()
+  removeAvatar?: boolean;
 }

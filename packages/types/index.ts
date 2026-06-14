@@ -23,6 +23,7 @@ export interface AuthUser {
   username: string;
   firstName: string | null;
   lastName: string | null;
+  avatarUrl: string | null; // profile photo URL (served from /media); null if unset
 }
 export interface AuthAdmin {
   id: string;
@@ -122,6 +123,7 @@ export interface UpdateProfileInput {
   firstName?: string;
   lastName?: string;
   username?: string;
+  removeAvatar?: boolean; // clear the profile photo (mutually exclusive with an upload)
 }
 
 // Member changes their own password (current password required to authorize).
@@ -1459,6 +1461,7 @@ export const ROUTES = {
   adminLogin: "POST /auth/admin/login", // -> LoginResponse<AuthAdmin>
   me: "GET /auth/me",
   updateMe: "PATCH /auth/me", // body UpdateProfileInput -> AuthUser (member self-service)
+  uploadAvatar: "POST /auth/me/avatar", // member self; multipart file -> AuthUser
   changePassword: "POST /auth/change-password", // body ChangePasswordInput -> { ok: true }
   adminChangeOwnPassword: "POST /auth/admin/change-password", // admin self; body ChangePasswordInput -> { ok: true }
   adminUpdateMyPrefs: "PATCH /auth/admin/prefs", // admin self; body UpdateAdminPrefsInput -> AuthAdmin

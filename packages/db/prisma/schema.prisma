@@ -24,6 +24,7 @@ model User {
   passwordHash     String
   firstName        String? // optional profile fields (admin-managed)
   lastName         String?
+  avatarUrl        String? // member self-service profile photo; served from /media
   phone            String?
   wpId             Int?     @unique // original WordPress user ID, for migration reconciliation
   stripeCustomerId String?  @unique // cus_… on the SAME Stripe account

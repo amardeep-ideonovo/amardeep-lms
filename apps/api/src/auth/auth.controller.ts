@@ -85,7 +85,8 @@ export class AuthController {
     return this.auth.me(principal);
   }
 
-  // Member self-service: update own name + username (NOT email).
+  // Member self-service: update own name + username (NOT email). Also clears
+  // the profile photo when { removeAvatar: true } is sent.
   @UseGuards(JwtAuthGuard)
   @Patch('me')
   updateMe(
@@ -93,6 +94,23 @@ export class AuthController {
     @Body() dto: UpdateProfileDto,
   ) {
     return this.auth.updateProfile(principal.sub, dto);
+  }
+
+  // Member self-service: upload own profile photo (image only, max 8 MB).
+  @UseGuards(JwtAuthGuard)
+  @Post('me/avatar')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 8 * 1024 * 1024 },
+    }),
+  )
+  uploadMyAvatar(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() principal: AuthenticatedPrincipal,
+  ) {
+    return this.auth.setUserAvatar(principal.sub, file, baseUrlOf(req));
   }
 
   // Change own password. Requires the current password; rate-limited (5/min/IP)
