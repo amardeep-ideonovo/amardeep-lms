@@ -28,6 +28,12 @@ export class UpdateMailchimpSettingsDto {
   @IsOptional()
   @IsString()
   audienceId?: string;
+
+  // Cutover dual-run flag. Off by default — when omitted the stored value is
+  // kept; sending a boolean persists it ('true'/'false').
+  @IsOptional()
+  @IsBoolean()
+  syncEnabled?: boolean;
 }
 
 export class UpdatePayPalSettingsDto {

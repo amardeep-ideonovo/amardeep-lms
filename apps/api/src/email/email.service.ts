@@ -3,6 +3,18 @@ import type { EmailLog } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailTemplateService } from './email-template.service';
 import { MAIL_SENDER, type MailSender } from './mail-sender.interface';
+import { makeUnsubscribeToken } from './unsubscribe.util';
+
+// Absolute base for the public unsubscribe link. PUBLIC_API_URL is the
+// established prod convention (same one auth/media/lms controllers use); we also
+// honor API_BASE_URL per the email spec, then fall back to localhost for dev.
+function apiBaseUrl(): string {
+  return (
+    process.env.PUBLIC_API_URL?.replace(/\/$/, '') ||
+    process.env.API_BASE_URL?.replace(/\/$/, '') ||
+    'http://localhost:3000'
+  );
+}
 
 // What a caller hands to EmailService.sendTemplate(): a recipient, the template
 // to render (by stable key OR by id), and the merge vars. Bookkeeping fields
@@ -30,6 +42,10 @@ export interface SendEmailInput {
   // Idempotency key (unique on EmailLog): a repeat send with the same key that
   // already succeeded is skipped and the prior row returned.
   dedupeKey?: string;
+  // One-click unsubscribe URL surfaced as a List-Unsubscribe header. Set
+  // automatically for templated sends (see sendTemplate); raw send() callers may
+  // pass their own. Not persisted — transport-only.
+  listUnsubscribe?: string;
 }
 
 // Central send path for ALL outbound mail. Owns the pre-send guarantees so no
@@ -57,9 +73,22 @@ export class EmailService {
     if (!input.templateKey && !input.templateId) {
       throw new Error('sendTemplate requires templateKey or templateId');
     }
+
+    // Per-recipient signed unsubscribe link. Merge it into the render vars so any
+    // template ({{unsubscribeUrl}}) can show a footer link, and pass it as a
+    // List-Unsubscribe header so clients offer a native unsubscribe. We never
+    // overwrite a caller-supplied unsubscribeUrl.
+    const unsubscribeUrl = `${apiBaseUrl()}/unsubscribe?token=${makeUnsubscribeToken(
+      input.to,
+    )}`;
+    const vars: Record<string, unknown> = {
+      unsubscribeUrl,
+      ...input.vars,
+    };
+
     const rendered = input.templateId
-      ? await this.templates.renderById(input.templateId, input.vars)
-      : await this.templates.renderByKey(input.templateKey!, input.vars);
+      ? await this.templates.renderById(input.templateId, vars)
+      : await this.templates.renderByKey(input.templateKey!, vars);
 
     return this.send({
       to: input.to,
@@ -69,6 +98,9 @@ export class EmailService {
       templateKey: input.templateKey,
       contactId: input.contactId,
       dedupeKey: input.dedupeKey,
+      // Prefer a caller-supplied unsubscribe target; else the signed default.
+      listUnsubscribe:
+        (input.vars?.unsubscribeUrl as string | undefined) || unsubscribeUrl,
     });
   }
 
@@ -114,6 +146,7 @@ export class EmailService {
         subject: input.subject,
         html: input.html,
         text: input.text,
+        listUnsubscribe: input.listUnsubscribe,
       });
       return this.prisma.emailLog.update({
         where: { id: log.id },

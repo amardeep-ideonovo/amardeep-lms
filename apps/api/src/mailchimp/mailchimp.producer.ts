@@ -2,11 +2,13 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { MAILCHIMP_QUEUE_TOKEN } from '../queue/queue.module';
 import type { MailchimpJob } from '../queue/queue.constants';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class MailchimpProducer {
   constructor(
     @Inject(MAILCHIMP_QUEUE_TOKEN) private readonly queue: Queue<MailchimpJob>,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -24,6 +26,9 @@ export class MailchimpProducer {
     tags: string[],
     audienceId?: string,
   ) {
+    // Cutover gate: by default we write nothing back to Mailchimp (the in-house
+    // contacts list is the system of record). Skip enqueuing entirely.
+    if (!(await this.settings.getMailchimpSyncEnabled())) return;
     const key = [...tags].sort().join(',');
     const jobId = `${type}|${email.toLowerCase()}|${audienceId ?? 'default'}|${key}`;
     await this.queue.add(
@@ -43,6 +48,8 @@ export class MailchimpProducer {
     newEmail: string,
     audienceIds: string[],
   ) {
+    // Cutover gate (see enqueueTags) — no write-back to Mailchimp by default.
+    if (!(await this.settings.getMailchimpSyncEnabled())) return;
     const jobId = `email-change|${oldEmail.toLowerCase()}|${newEmail.toLowerCase()}`;
     await this.queue.add(
       'email-change',

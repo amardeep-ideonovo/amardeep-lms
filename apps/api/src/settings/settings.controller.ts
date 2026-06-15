@@ -70,16 +70,19 @@ export class SettingsController {
   @Get('mailchimp')
   @RequirePermission('settings', 'read')
   async getMailchimp() {
-    const [apiKey, serverPrefix, audienceId] = await Promise.all([
+    const [apiKey, serverPrefix, audienceId, syncEnabled] = await Promise.all([
       this.settings.getSecret(SETTING_KEYS.mailchimpApiKey),
       this.settings.getSecret(SETTING_KEYS.mailchimpServerPrefix),
       this.settings.getSecret(SETTING_KEYS.mailchimpAudienceId),
+      this.settings.getMailchimpSyncEnabled(),
     ]);
     return {
       apiKeyLast4: last4(apiKey),
       // serverPrefix & audienceId are non-secret identifiers — safe to return.
       serverPrefix: serverPrefix ?? null,
       audienceId: audienceId ?? null,
+      // Whether write-back to Mailchimp is on (cutover dual-run). Default false.
+      syncEnabled,
     };
   }
 
@@ -95,6 +98,13 @@ export class SettingsController {
       SETTING_KEYS.mailchimpAudienceId,
       dto.audienceId,
     );
+    // Persist the cutover flag as a stable string so 'false' isn't dropped as ''.
+    if (dto.syncEnabled !== undefined) {
+      await this.settings.setSecret(
+        SETTING_KEYS.mailchimpSyncEnabled,
+        dto.syncEnabled ? 'true' : 'false',
+      );
+    }
     return this.getMailchimp();
   }
 

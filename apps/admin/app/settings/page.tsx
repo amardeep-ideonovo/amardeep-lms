@@ -641,6 +641,7 @@ function MailchimpSection() {
   const [apiKey, setApiKey] = useState("");
   const [serverPrefix, setServerPrefix] = useState("");
   const [audienceId, setAudienceId] = useState("");
+  const [syncEnabled, setSyncEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -652,6 +653,7 @@ function MailchimpSection() {
       setCurrent(s);
       setServerPrefix(s.serverPrefix ?? "");
       setAudienceId(s.audienceId ?? "");
+      setSyncEnabled(s.syncEnabled);
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -675,6 +677,7 @@ function MailchimpSection() {
         apiKey: apiKey.trim() || undefined,
         serverPrefix: serverPrefix.trim() || undefined,
         audienceId: audienceId.trim() || undefined,
+        syncEnabled,
       });
       setCurrent(updated);
       setApiKey("");
@@ -704,6 +707,7 @@ function MailchimpSection() {
       setApiKey("");
       setServerPrefix(cleared.serverPrefix ?? "");
       setAudienceId(cleared.audienceId ?? "");
+      setSyncEnabled(cleared.syncEnabled);
       setStatus("Mailchimp keys removed.");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Remove failed");
@@ -748,6 +752,21 @@ function MailchimpSection() {
               onChange={(e) => setAudienceId(e.target.value)}
             />
           </div>
+        </div>
+        <div className="field">
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={syncEnabled}
+              onChange={(e) => setSyncEnabled(e.target.checked)}
+            />
+            <span>
+              Sync changes back to Mailchimp (dual-run). Off by default — the
+              in-house contacts list is the system of record. Turn this on only
+              during a migration window; importing from Mailchimp still works
+              either way.
+            </span>
+          </label>
         </div>
         {error && <p className="error">{error}</p>}
         {status && <p className="muted">{status}</p>}

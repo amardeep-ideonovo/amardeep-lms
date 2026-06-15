@@ -177,7 +177,7 @@ export class EmailTemplateService {
         name: 'Welcome email',
         subject: 'Welcome to {{brand}}',
         mjml: WELCOME_MJML,
-        variables: ['firstName', 'brand', 'url'],
+        variables: ['firstName', 'brand', 'url', 'unsubscribeUrl'],
         category: 'system',
       });
     } catch (err) {
@@ -314,8 +314,9 @@ const WELCOME_MJML = `<mjml>
     </mj-section>
     <mj-section padding="16px 0 32px">
       <mj-column>
-        <mj-text align="center" font-size="12px" color="#a39db8">
-          You're receiving this because you created an account at {{brand}}.
+        <mj-text align="center" font-size="12px" color="#a39db8" line-height="1.6">
+          You're receiving this because you created an account at {{brand}}.<br />
+          <a href="{{unsubscribeUrl}}" style="color:#a39db8; text-decoration:underline;">Unsubscribe</a> from these emails.
         </mj-text>
       </mj-column>
     </mj-section>

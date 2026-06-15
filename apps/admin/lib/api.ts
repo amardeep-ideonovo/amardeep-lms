@@ -48,6 +48,7 @@ import type {
   UpdateEmailTemplateInput,
   RenderPreviewResult,
   EmailSendResultDTO,
+  EmailLogListDTO,
   CampaignDTO,
   CampaignInput,
   AutomationDTO,
@@ -272,11 +273,14 @@ export interface MailchimpSettings {
   apiKey?: string;
   serverPrefix?: string;
   audienceId?: string;
+  // Cutover dual-run flag. Off = no write-back to Mailchimp (in-house is canon).
+  syncEnabled?: boolean;
 }
 export interface MailchimpSettingsMasked {
   apiKeyLast4: string | null;
   serverPrefix: string | null;
   audienceId: string | null;
+  syncEnabled: boolean;
 }
 export interface EmailSettings {
   provider?: string;
@@ -772,6 +776,22 @@ export const api = {
     request<AutomationDTO>("PATCH", `/admin/email/automations/${id}`, input),
   deleteAutomation: (id: string) =>
     request<{ ok: true }>("DELETE", `/admin/email/automations/${id}`),
+
+  // email logs (the send ledger; paginated, filter by status + free-text search)
+  listEmailLogs: (
+    params: { status?: string; q?: string; page?: number; pageSize?: number } = {}
+  ) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set("status", params.status);
+    if (params.q) qs.set("q", params.q);
+    if (params.page) qs.set("page", String(params.page));
+    if (params.pageSize) qs.set("pageSize", String(params.pageSize));
+    const tail = qs.toString();
+    return request<EmailLogListDTO>(
+      "GET",
+      `/admin/email/logs${tail ? `?${tail}` : ""}`
+    );
+  },
 
   // certificates (templates + issued)
   listCertificateTemplates: () =>

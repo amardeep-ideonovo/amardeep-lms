@@ -1020,6 +1020,31 @@ export interface EmailSendResultDTO {
   error: string | null;
 }
 
+// ---------- Email logs (the send ledger / EmailLog rows) ----------
+// One row of the outbound-mail audit trail surfaced in the admin logs viewer.
+// `status` reuses EmailSendStatus (the EmailStatus enum). `templateKey` is the
+// template/automation that produced it (null for ad-hoc/campaign sends);
+// `providerId` is the transport message id used to correlate provider webhooks.
+export interface EmailLogDTO {
+  id: string;
+  to: string;
+  subject: string;
+  status: EmailSendStatus;
+  templateKey: string | null;
+  campaignId: string | null;
+  providerId: string | null;
+  error: string | null;
+  sentAt: string | null; // ISO
+  createdAt: string; // ISO
+}
+// Paginated EmailLog list (mirrors ContactListDTO / AdminCertificateListDTO).
+export interface EmailLogListDTO {
+  items: EmailLogDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 // ---------- Campaigns (scheduled broadcasts) ----------
 // A campaign sends a stored template to an audience (optionally narrowed by a
 // Segment). ONCE is a one-off at `runAt`; WEEKLY/MONTHLY recur from `runAt`;
@@ -1945,6 +1970,9 @@ export const ROUTES = {
   adminCreateAutomation: "POST /admin/email/automations", // body AutomationInput -> AutomationDTO
   adminUpdateAutomation: "PATCH /admin/email/automations/:id", // body AutomationInput -> AutomationDTO
   adminDeleteAutomation: "DELETE /admin/email/automations/:id", // -> { ok: true }
+
+  // email logs (the send ledger) — ADMIN (RBAC `email` read)
+  adminListEmailLogs: "GET /admin/email/logs", // ?status&q&page&pageSize -> EmailLogListDTO
 
   // popups — PUBLIC (no auth): only ACTIVE popups, filtered by context
   // ?context=dashboard | ?context=page&pageId=<id>  -> PopupPublicDTO[]

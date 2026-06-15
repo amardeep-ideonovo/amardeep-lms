@@ -10,8 +10,12 @@ import { EmailService } from './email.service';
 import { EmailTemplateService } from './email-template.service';
 import { CampaignService } from './campaign.service';
 import { AutomationService } from './automation.service';
+import { EmailLogService } from './email-log.service';
 import { SchedulerService } from './scheduler.service';
 import { EmailController } from './email.controller';
+import { EmailWebhookController } from './email-webhook.controller';
+import { UnsubscribeController } from './unsubscribe.controller';
+import { UnsubscribeService } from './unsubscribe.service';
 import { SmtpMailSender } from './smtp.sender';
 import { MAIL_SENDER } from './mail-sender.interface';
 
@@ -32,17 +36,20 @@ import { MAIL_SENDER } from './mail-sender.interface';
     EmailTemplateService,
     CampaignService,
     AutomationService,
+    EmailLogService,
     SchedulerService,
     SmtpMailSender,
     AppConfigService,
+    UnsubscribeService,
     { provide: MAIL_SENDER, useExisting: SmtpMailSender },
   ],
-  controllers: [EmailController],
+  controllers: [EmailController, UnsubscribeController, EmailWebhookController],
   exports: [
     EmailService,
     EmailTemplateService,
     CampaignService,
     AutomationService,
+    UnsubscribeService,
   ],
 })
 export class EmailModule implements OnApplicationBootstrap {

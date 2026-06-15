@@ -66,6 +66,8 @@ export class MailchimpService {
     tags: string[],
     audienceId?: string,
   ): Promise<void> {
+    // Cutover gate: by default nothing is written back to Mailchimp.
+    if (!(await this.settings.getMailchimpSyncEnabled())) return;
     const clean = (tags ?? []).map((t) => t.trim()).filter(Boolean);
     if (type === 'remove' && clean.length === 0) return; // nothing to deactivate
     const cfg = await this.resolveAudience(audienceId);
@@ -101,6 +103,8 @@ export class MailchimpService {
     newEmail: string,
     perLevelAudienceIds: string[],
   ): Promise<void> {
+    // Cutover gate: by default nothing is written back to Mailchimp.
+    if (!(await this.settings.getMailchimpSyncEnabled())) return;
     const [apiKey, server, globalAudience] = await Promise.all([
       this.settings.getMailchimpApiKey(),
       this.settings.getMailchimpServerPrefix(),
@@ -276,7 +280,11 @@ export class MailchimpService {
     email: string,
     mergeFields: Record<string, unknown>,
     opts: { doubleOptIn: boolean; updateExisting: boolean; tags?: string[] },
-  ): Promise<'subscribed' | 'pending' | 'existing'> {
+  ): Promise<'subscribed' | 'pending' | 'existing' | 'skipped'> {
+    // Cutover gate: by default nothing is written back to Mailchimp. Callers
+    // store this as a string `mailchimpStatus`, so 'skipped' is a safe value
+    // (the forms flow already uses 'skipped' when no audience is configured).
+    if (!(await this.settings.getMailchimpSyncEnabled())) return 'skipped';
     await this.requireBase();
     const hash = subscriberHash(email);
     const statusIfNew = opts.doubleOptIn ? 'pending' : 'subscribed';

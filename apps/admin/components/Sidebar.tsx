@@ -92,6 +92,12 @@ const I = {
       <path d="M13 2 4.5 12.5h6L11 22l8.5-10.5h-6L13 2Z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  emailLogs: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M5 3h11l3 3v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M8 9h8M8 13h8M8 17h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  ),
   menus: (
     <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
       <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
@@ -189,6 +195,7 @@ const GROUPS: NavGroup[] = [
       { href: "/email/templates", label: "Email templates", section: "email", icon: I.email },
       { href: "/email/campaigns", label: "Campaigns", section: "email", icon: I.campaigns },
       { href: "/email/automations", label: "Automations", section: "email", icon: I.automations },
+      { href: "/email/logs", label: "Email logs", section: "email", icon: I.emailLogs },
     ],
   },
   {

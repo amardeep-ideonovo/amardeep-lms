@@ -7,6 +7,13 @@ export interface OutboundMail {
   text?: string;
   // Optional override of the sender's default From ("Name <email>").
   from?: string;
+  // One-click unsubscribe target — surfaced as a `List-Unsubscribe` header so
+  // mail clients can offer a native "unsubscribe" affordance. EmailService sets
+  // this for every templated send.
+  listUnsubscribe?: string;
+  // Extra raw headers to pass through to the transport (merged after the
+  // sender's own headers). Reserved for future provider-specific needs.
+  headers?: Record<string, string>;
 }
 
 // Pluggable mail transport. The default implementation is SMTP via nodemailer,

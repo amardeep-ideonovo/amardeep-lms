@@ -6,9 +6,11 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import type {
+  EmailLogListDTO,
   EmailSendResultDTO,
   RenderPreviewResult,
 } from '@lms/types';
@@ -18,6 +20,7 @@ import { EmailService } from './email.service';
 import { EmailTemplateService } from './email-template.service';
 import { CampaignService } from './campaign.service';
 import { AutomationService } from './automation.service';
+import { EmailLogService } from './email-log.service';
 import {
   CreateEmailTemplateDto,
   RenderPreviewDto,
@@ -38,6 +41,7 @@ export class EmailController {
     private readonly email: EmailService,
     private readonly campaigns: CampaignService,
     private readonly automations: AutomationService,
+    private readonly logs: EmailLogService,
   ) {}
 
   @UseGuards(PermissionsGuard)
@@ -110,6 +114,27 @@ export class EmailController {
       status: log.status,
       error: log.error,
     };
+  }
+
+  // ───────────────────────── Logs (send ledger) ─────────────────────────
+
+  // Paginated EmailLog viewer. Optional ?status (QUEUED|SENT|FAILED|BOUNCED|
+  // COMPLAINED) and ?q (matches recipient or subject). Read-only.
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'read')
+  @Get('admin/email/logs')
+  listLogs(
+    @Query('status') status?: string,
+    @Query('q') q?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ): Promise<EmailLogListDTO> {
+    return this.logs.list({
+      status,
+      q,
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+    });
   }
 
   // ───────────────────────── Campaigns ─────────────────────────

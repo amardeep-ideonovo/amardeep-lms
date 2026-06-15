@@ -68,6 +68,13 @@ export class SmtpMailSender implements MailSender {
       subject: msg.subject,
       html: msg.html,
       text: msg.text,
+      // Native one-click unsubscribe: nodemailer renders `list.unsubscribe`
+      // into a `List-Unsubscribe` header (the bare URL form) so Gmail/Apple Mail
+      // show an "Unsubscribe" button. Any extra raw headers pass through verbatim.
+      ...(msg.listUnsubscribe
+        ? { list: { unsubscribe: msg.listUnsubscribe } }
+        : {}),
+      ...(msg.headers ? { headers: msg.headers } : {}),
     });
     return { providerId: info.messageId };
   }

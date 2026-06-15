@@ -951,3 +951,26 @@ model Automation {
 
   @@index([trigger, active])
 }
+
+enum EmailEventType {
+  DELIVERED
+  OPEN
+  CLICK
+  BOUNCE
+  COMPLAINT
+}
+
+// Provider feedback (bounce/complaint/open/click) ingested via webhook. Bounces
+// + complaints drive suppression (Contact → CLEANED).
+model EmailEvent {
+  id         String         @id @default(cuid())
+  emailLogId String? // correlated EmailLog when known
+  providerId String? // provider message id (correlation fallback)
+  type       EmailEventType
+  email      String?
+  meta       Json?
+  createdAt  DateTime       @default(now())
+
+  @@index([emailLogId])
+  @@index([providerId])
+}
