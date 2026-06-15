@@ -104,8 +104,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get audience() {
     return this.client.audience;
   }
+  get audienceField() {
+    return this.client.audienceField;
+  }
   get contact() {
     return this.client.contact;
+  }
+  get segment() {
+    return this.client.segment;
   }
   get consentEvent() {
     return this.client.consentEvent;

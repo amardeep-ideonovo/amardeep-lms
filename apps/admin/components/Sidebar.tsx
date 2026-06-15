@@ -69,6 +69,13 @@ const I = {
       <path d="M9 11l3 3 8-8M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  contacts: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1ZM1 8h2M1 12h2M1 16h2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="11" cy="10.5" r="2.2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M7.5 16.2a3.6 3.6 0 0 1 7 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  ),
   menus: (
     <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
       <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
@@ -162,6 +169,7 @@ const GROUPS: NavGroup[] = [
       { href: "/navigation", label: "Navigation", section: "menus", icon: I.menus },
       { href: "/popups", label: "Popups", section: "popups", icon: I.popups },
       { href: "/forms", label: "Forms", section: "forms", icon: I.forms },
+      { href: "/contacts", label: "Contacts", section: "contacts", icon: I.contacts },
     ],
   },
   {

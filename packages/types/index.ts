@@ -59,6 +59,7 @@ export const ADMIN_SECTIONS = [
   { key: "pages", label: "Pages" },
   { key: "popups", label: "Popups" },
   { key: "forms", label: "Forms" },
+  { key: "contacts", label: "Contacts" },
   { key: "menus", label: "Navigation" },
   { key: "settings", label: "Settings" },
   { key: "appCustomization", label: "App Customization" },
@@ -1732,6 +1733,24 @@ export const ROUTES = {
   getPublicForm: "GET /forms/:id", // -> FormPublicDTO (404 if inactive/missing)
   submitForm: "POST /forms/:id/submit", // body FormSubmitInput -> FormSubmitResult
   formEmbedScript: "GET /forms/:id/embed.js", // -> JS for <script> paste-anywhere embeds
+
+  // contacts / audiences (in-house list — replaces Mailchimp) — ADMIN (RBAC `contacts`)
+  adminListAudiences: "GET /admin/audiences", // -> AudienceDTO[] (with contact + subscribed counts)
+  adminCreateAudience: "POST /admin/audiences", // body CreateAudienceInput -> AudienceDTO
+  adminGetAudience: "GET /admin/audiences/:id", // -> AudienceDTO
+  adminUpdateAudience: "PATCH /admin/audiences/:id", // body UpdateAudienceInput -> AudienceDTO (isDefault:true unsets others)
+  adminDeleteAudience: "DELETE /admin/audiences/:id", // -> { ok: true } (cascades fields/contacts/segments)
+  adminListAudienceFields: "GET /admin/audiences/:id/fields", // -> AudienceFieldDTO[]
+  adminUpsertAudienceField: "POST /admin/audiences/:id/fields", // body UpsertAudienceFieldInput -> AudienceFieldDTO (upsert by tag)
+  adminDeleteAudienceField: "DELETE /admin/audiences/:id/fields/:tag", // -> { ok: true }
+  adminListContacts: "GET /admin/audiences/:id/contacts", // ?status&tag&q&page&pageSize -> ContactListDTO
+  adminCreateContact: "POST /admin/audiences/:id/contacts", // body CreateContactInput -> ContactDTO
+  adminUpdateContact: "PATCH /admin/contacts/:id", // body UpdateContactInput -> ContactDTO
+  adminDeleteContact: "DELETE /admin/contacts/:id", // -> { ok: true }
+  adminListSegments: "GET /admin/audiences/:id/segments", // -> SegmentDTO[] (each with resolved contactCount)
+  adminCreateSegment: "POST /admin/audiences/:id/segments", // body CreateSegmentInput -> SegmentDTO
+  adminUpdateSegment: "PATCH /admin/segments/:id", // body UpdateSegmentInput -> SegmentDTO
+  adminDeleteSegment: "DELETE /admin/segments/:id", // -> { ok: true }
 
   // popups — PUBLIC (no auth): only ACTIVE popups, filtered by context
   // ?context=dashboard | ?context=page&pageId=<id>  -> PopupPublicDTO[]

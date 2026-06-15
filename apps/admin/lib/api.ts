@@ -29,6 +29,19 @@ import type {
   UpdateFooterInput,
   AppConfig,
   UpdateAppConfigInput,
+  AudienceDTO,
+  AudienceFieldDTO,
+  ContactDTO,
+  ContactListDTO,
+  SegmentDTO,
+  ContactStatus,
+  CreateAudienceInput,
+  UpdateAudienceInput,
+  UpsertAudienceFieldInput,
+  CreateContactInput,
+  UpdateContactInput,
+  CreateSegmentInput,
+  UpdateSegmentInput,
   CourseCard,
   CreateCouponInput,
   CreateCourseInput,
@@ -594,6 +607,77 @@ export const api = {
       "GET",
       `/admin/mailchimp/audiences/${audienceId}/merge-fields`
     ),
+
+  // contacts / audiences (in-house list — replaces Mailchimp)
+  listAudiences: () => request<AudienceDTO[]>("GET", "/admin/audiences"),
+  createAudience: (input: CreateAudienceInput) =>
+    request<AudienceDTO>("POST", "/admin/audiences", input),
+  getAudience: (id: string) =>
+    request<AudienceDTO>("GET", `/admin/audiences/${id}`),
+  updateAudience: (id: string, input: UpdateAudienceInput) =>
+    request<AudienceDTO>("PATCH", `/admin/audiences/${id}`, input),
+  deleteAudience: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/audiences/${id}`),
+  // audience fields (merge tags)
+  listAudienceFields: (audienceId: string) =>
+    request<AudienceFieldDTO[]>("GET", `/admin/audiences/${audienceId}/fields`),
+  upsertAudienceField: (audienceId: string, input: UpsertAudienceFieldInput) =>
+    request<AudienceFieldDTO>(
+      "POST",
+      `/admin/audiences/${audienceId}/fields`,
+      input
+    ),
+  deleteAudienceField: (audienceId: string, tag: string) =>
+    request<{ ok: true }>(
+      "DELETE",
+      `/admin/audiences/${audienceId}/fields/${encodeURIComponent(tag)}`
+    ),
+  // contacts (paginated; filter by status / tag / search)
+  listContacts: (
+    audienceId: string,
+    params: {
+      status?: ContactStatus;
+      tag?: string;
+      q?: string;
+      page?: number;
+      pageSize?: number;
+    } = {}
+  ) => {
+    const qs = new URLSearchParams();
+    if (params.status) qs.set("status", params.status);
+    if (params.tag) qs.set("tag", params.tag);
+    if (params.q) qs.set("q", params.q);
+    if (params.page) qs.set("page", String(params.page));
+    if (params.pageSize) qs.set("pageSize", String(params.pageSize));
+    const tail = qs.toString();
+    return request<ContactListDTO>(
+      "GET",
+      `/admin/audiences/${audienceId}/contacts${tail ? `?${tail}` : ""}`
+    );
+  },
+  createContact: (audienceId: string, input: CreateContactInput) =>
+    request<ContactDTO>(
+      "POST",
+      `/admin/audiences/${audienceId}/contacts`,
+      input
+    ),
+  updateContact: (id: string, input: UpdateContactInput) =>
+    request<ContactDTO>("PATCH", `/admin/contacts/${id}`, input),
+  deleteContact: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/contacts/${id}`),
+  // segments (saved filters over an audience)
+  listSegments: (audienceId: string) =>
+    request<SegmentDTO[]>("GET", `/admin/audiences/${audienceId}/segments`),
+  createSegment: (audienceId: string, input: CreateSegmentInput) =>
+    request<SegmentDTO>(
+      "POST",
+      `/admin/audiences/${audienceId}/segments`,
+      input
+    ),
+  updateSegment: (id: string, input: UpdateSegmentInput) =>
+    request<SegmentDTO>("PATCH", `/admin/segments/${id}`, input),
+  deleteSegment: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/segments/${id}`),
 
   // certificates (templates + issued)
   listCertificateTemplates: () =>
