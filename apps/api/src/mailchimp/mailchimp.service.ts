@@ -11,6 +11,23 @@ function subscriberHash(email: string): string {
   return createHash('md5').update(email.trim().toLowerCase()).digest('hex');
 }
 
+// ---------- Migration export shapes (Mailchimp → in-house importer) ----------
+// A single Mailchimp member, flattened to the fields the importer maps from.
+export interface MailchimpExportMember {
+  email: string;
+  status: string; // subscribed | pending | unsubscribed | cleaned | archived
+  mergeFields: Record<string, unknown>; // raw merge_fields (EMAIL stripped by the importer)
+  tags: string[]; // tag names only
+}
+// One Mailchimp audience (list) with its merge fields and ALL members — the
+// full snapshot the one-time importer pulls into our internal contact system.
+export interface MailchimpExportAudience {
+  id: string; // Mailchimp list id (== Audience.externalId)
+  name: string;
+  mergeFields: { tag: string; name: string; type: string; required: boolean }[];
+  members: MailchimpExportMember[];
+}
+
 @Injectable()
 export class MailchimpService {
   private readonly logger = new Logger(MailchimpService.name);
@@ -183,6 +200,67 @@ export class MailchimpService {
       });
     }
     return fields;
+  }
+
+  /**
+   * Full export of every audience for the one-time migration into the in-house
+   * contact system: each list with its merge fields and ALL members (paginated
+   * 1000 at a time until total_items is reached). Per member we capture the
+   * email, status, raw merge fields and tag names. Throws a clear
+   * BadRequestException (same message as the rest of this service) when
+   * Mailchimp isn't configured, so the importer can surface it to the admin.
+   */
+  async exportAudiences(): Promise<MailchimpExportAudience[]> {
+    await this.requireBase();
+
+    const listsRes = await mailchimp.lists.getAllLists({ count: 100 });
+    const lists: any[] = listsRes.lists ?? [];
+    const out: MailchimpExportAudience[] = [];
+
+    for (const list of lists) {
+      // Merge fields for this list (EMAIL is the address itself — not returned
+      // here; the importer skips it explicitly anyway).
+      const fieldsRes = await mailchimp.lists.getListMergeFields(list.id, {
+        count: 100,
+      });
+      const mergeFields = (fieldsRes.merge_fields ?? []).map((m: any) => ({
+        tag: m.tag,
+        name: m.name,
+        type: m.type,
+        required: !!m.required,
+      }));
+
+      // All members, paged 1000 at a time until we've fetched total_items.
+      const members: MailchimpExportMember[] = [];
+      let offset = 0;
+      // total_items is reported on every page; default to one page if absent.
+      // The loop stops as soon as a page comes back empty (defensive).
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const page = await mailchimp.lists.getListMembersInfo(list.id, {
+          count: 1000,
+          offset,
+        });
+        const batch: any[] = page.members ?? [];
+        for (const m of batch) {
+          members.push({
+            email: m.email_address,
+            status: m.status,
+            mergeFields: (m.merge_fields ?? {}) as Record<string, unknown>,
+            tags: ((m.tags ?? []) as { id?: number; name?: string }[])
+              .map((t) => t?.name)
+              .filter((n): n is string => !!n),
+          });
+        }
+        offset += 1000;
+        const total = page.total_items ?? members.length;
+        if (batch.length === 0 || offset >= total) break;
+      }
+
+      out.push({ id: list.id, name: list.name, mergeFields, members });
+    }
+
+    return out;
   }
 
   /**

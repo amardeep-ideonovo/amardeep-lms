@@ -12,6 +12,7 @@ import {
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermission } from '../auth/require-permission.decorator';
 import { ContactsAdminService } from './contacts-admin.service';
+import { ContactsImportService } from './contacts-import.service';
 import {
   CreateAudienceDto,
   CreateContactDto,
@@ -28,7 +29,21 @@ import {
 // same guard/decorator pattern as FormsController.
 @Controller()
 export class ContactsController {
-  constructor(private readonly contacts: ContactsAdminService) {}
+  constructor(
+    private readonly contacts: ContactsAdminService,
+    private readonly importer: ContactsImportService,
+  ) {}
+
+  // ----- Import (one-time Mailchimp → in-house migration) -----
+
+  // Pulls the existing Mailchimp audience(s) into our DB. Idempotent; returns
+  // an ImportSummary. 400 (BadRequestException) when Mailchimp isn't configured.
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('contacts', 'create')
+  @Post('admin/contacts/import')
+  importFromMailchimp() {
+    return this.importer.importFromMailchimp();
+  }
 
   // ----- Audiences -----
 

@@ -916,6 +916,17 @@ export interface CreateSegmentInput {
   name: string;
   filter: ContactFilter;
 }
+
+// Result of the one-time Mailchimp → internal-contacts import. Counts are
+// totals across all imported audiences; `errors` holds a per-audience message
+// for any list that failed (the rest still import — the run is best-effort).
+export interface ImportSummary {
+  audiences: number; // audiences upserted
+  fields: number; // audience fields upserted (excl. implicit EMAIL)
+  contactsCreated: number;
+  contactsUpdated: number;
+  errors: string[]; // "<audience name>: <reason>" per failed list
+}
 export interface UpdateSegmentInput {
   name?: string;
   filter?: ContactFilter;
@@ -1747,6 +1758,7 @@ export const ROUTES = {
   adminCreateContact: "POST /admin/audiences/:id/contacts", // body CreateContactInput -> ContactDTO
   adminUpdateContact: "PATCH /admin/contacts/:id", // body UpdateContactInput -> ContactDTO
   adminDeleteContact: "DELETE /admin/contacts/:id", // -> { ok: true }
+  adminImportContacts: "POST /admin/contacts/import", // -> ImportSummary (one-time Mailchimp → in-house import; idempotent; 400 if Mailchimp unconfigured)
   adminListSegments: "GET /admin/audiences/:id/segments", // -> SegmentDTO[] (each with resolved contactCount)
   adminCreateSegment: "POST /admin/audiences/:id/segments", // body CreateSegmentInput -> SegmentDTO
   adminUpdateSegment: "PATCH /admin/segments/:id", // body UpdateSegmentInput -> SegmentDTO

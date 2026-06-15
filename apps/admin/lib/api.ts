@@ -35,6 +35,7 @@ import type {
   ContactListDTO,
   SegmentDTO,
   ContactStatus,
+  ImportSummary,
   CreateAudienceInput,
   UpdateAudienceInput,
   UpsertAudienceFieldInput,
@@ -609,6 +610,9 @@ export const api = {
     ),
 
   // contacts / audiences (in-house list — replaces Mailchimp)
+  // one-time Mailchimp → in-house import (idempotent; 400 if Mailchimp unconfigured)
+  importContacts: () =>
+    request<ImportSummary>("POST", "/admin/contacts/import"),
   listAudiences: () => request<AudienceDTO[]>("GET", "/admin/audiences"),
   createAudience: (input: CreateAudienceInput) =>
     request<AudienceDTO>("POST", "/admin/audiences", input),
