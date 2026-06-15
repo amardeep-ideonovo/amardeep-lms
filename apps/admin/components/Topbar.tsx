@@ -48,8 +48,20 @@ const COMMANDS: Cmd[] = [
   },
   {
     id: "go-email",
-    title: "Email",
+    title: "Email templates",
     href: "/email/templates",
+    section: "email",
+  },
+  {
+    id: "go-campaigns",
+    title: "Campaigns",
+    href: "/email/campaigns",
+    section: "email",
+  },
+  {
+    id: "go-automations",
+    title: "Automations",
+    href: "/email/automations",
     section: "email",
   },
   {

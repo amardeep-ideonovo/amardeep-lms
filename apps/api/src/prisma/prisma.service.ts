@@ -122,6 +122,12 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get emailTemplate() {
     return this.client.emailTemplate;
   }
+  get campaign() {
+    return this.client.campaign;
+  }
+  get automation() {
+    return this.client.automation;
+  }
 
   get $transaction() {
     return this.client.$transaction.bind(this.client);

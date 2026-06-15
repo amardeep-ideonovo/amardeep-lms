@@ -17,6 +17,8 @@ import type {
 } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AutomationService } from '../email/automation.service';
+import { AppConfigService } from '../site/app-config.service';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { MEDIA_ROOT, MEDIA_ROUTE } from '../media/media.config';
 import { CERT_FILES_DIR, newSerial } from './certificates.config';
@@ -52,6 +54,8 @@ export class CertificatesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly automations: AutomationService,
+    private readonly appConfig: AppConfigService,
   ) {}
 
   // ---------- completion math ----------
@@ -335,6 +339,29 @@ export class CertificatesService {
             dedupeKey: `certificate:${userId}:${level.id}`,
           })
           .catch(() => undefined);
+        // Member-facing automation hook (best-effort): fires the
+        // CERTIFICATE_ISSUED trigger so an admin-created automation can email
+        // the member their certificate. Nothing is seeded for this trigger, so
+        // this is a no-op until an admin wires one up — it proves the hook. We
+        // need an email to send to; skip silently if the user has none.
+        if (user?.email) {
+          const firstName = user.firstName?.trim() || 'there';
+          void this.appConfig
+            .read()
+            .then((cfg) =>
+              this.automations.fire('CERTIFICATE_ISSUED', {
+                email: user.email,
+                vars: { firstName, brand: cfg.title, className: level.name },
+              }),
+            )
+            .catch((err) =>
+              this.logger.warn(
+                `[certificate] CERTIFICATE_ISSUED automation failed: ${
+                  err instanceof Error ? err.message : err
+                }`,
+              ),
+            );
+        }
         return this.toMyDTO(row);
       } catch (err) {
         await fs.promises.unlink(absPath).catch(() => undefined);

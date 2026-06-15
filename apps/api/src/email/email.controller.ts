@@ -16,12 +16,15 @@ import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermission } from '../auth/require-permission.decorator';
 import { EmailService } from './email.service';
 import { EmailTemplateService } from './email-template.service';
+import { CampaignService } from './campaign.service';
+import { AutomationService } from './automation.service';
 import {
   CreateEmailTemplateDto,
   RenderPreviewDto,
   TestSendDto,
   UpdateEmailTemplateDto,
 } from './dto/email-template.dto';
+import { AutomationDto, CampaignDto } from './dto/campaign.dto';
 
 // Admin CRUD + live-editor tooling for email templates (MJML + Handlebars). All
 // routes sit under /admin/email/* behind the `email` permission — same
@@ -33,6 +36,8 @@ export class EmailController {
   constructor(
     private readonly templates: EmailTemplateService,
     private readonly email: EmailService,
+    private readonly campaigns: CampaignService,
+    private readonly automations: AutomationService,
   ) {}
 
   @UseGuards(PermissionsGuard)
@@ -105,5 +110,88 @@ export class EmailController {
       status: log.status,
       error: log.error,
     };
+  }
+
+  // ───────────────────────── Campaigns ─────────────────────────
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'read')
+  @Get('admin/email/campaigns')
+  listCampaigns() {
+    return this.campaigns.list();
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'create')
+  @Post('admin/email/campaigns')
+  createCampaign(@Body() dto: CampaignDto) {
+    return this.campaigns.create(dto);
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'read')
+  @Get('admin/email/campaigns/:id')
+  getCampaign(@Param('id') id: string) {
+    return this.campaigns.get(id);
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'edit')
+  @Patch('admin/email/campaigns/:id')
+  updateCampaign(@Param('id') id: string, @Body() dto: CampaignDto) {
+    return this.campaigns.update(id, dto);
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'delete')
+  @Delete('admin/email/campaigns/:id')
+  removeCampaign(@Param('id') id: string) {
+    return this.campaigns.remove(id);
+  }
+
+  // Arm the campaign (status → SCHEDULED, nextRunAt computed).
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'edit')
+  @Post('admin/email/campaigns/:id/schedule')
+  scheduleCampaign(@Param('id') id: string) {
+    return this.campaigns.schedule(id);
+  }
+
+  // Pause a scheduled campaign (the scheduler skips PAUSED).
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'edit')
+  @Post('admin/email/campaigns/:id/pause')
+  pauseCampaign(@Param('id') id: string) {
+    return this.campaigns.pause(id);
+  }
+
+  // ───────────────────────── Automations ─────────────────────────
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'read')
+  @Get('admin/email/automations')
+  listAutomations() {
+    return this.automations.list();
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'create')
+  @Post('admin/email/automations')
+  createAutomation(@Body() dto: AutomationDto) {
+    return this.automations.create(dto);
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'edit')
+  @Patch('admin/email/automations/:id')
+  updateAutomation(@Param('id') id: string, @Body() dto: AutomationDto) {
+    return this.automations.update(id, dto);
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'delete')
+  @Delete('admin/email/automations/:id')
+  removeAutomation(@Param('id') id: string) {
+    return this.automations.remove(id);
   }
 }

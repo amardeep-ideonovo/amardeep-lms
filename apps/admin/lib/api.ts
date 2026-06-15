@@ -48,6 +48,10 @@ import type {
   UpdateEmailTemplateInput,
   RenderPreviewResult,
   EmailSendResultDTO,
+  CampaignDTO,
+  CampaignInput,
+  AutomationDTO,
+  AutomationInput,
   CourseCard,
   CreateCouponInput,
   CreateCourseInput,
@@ -742,6 +746,32 @@ export const api = {
       `/admin/email/templates/${id}/test-send`,
       input,
     ),
+
+  // campaigns (scheduled broadcasts)
+  listCampaigns: () =>
+    request<CampaignDTO[]>("GET", "/admin/email/campaigns"),
+  getCampaign: (id: string) =>
+    request<CampaignDTO>("GET", `/admin/email/campaigns/${id}`),
+  createCampaign: (input: CampaignInput) =>
+    request<CampaignDTO>("POST", "/admin/email/campaigns", input),
+  updateCampaign: (id: string, input: CampaignInput) =>
+    request<CampaignDTO>("PATCH", `/admin/email/campaigns/${id}`, input),
+  deleteCampaign: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/email/campaigns/${id}`),
+  scheduleCampaign: (id: string) =>
+    request<CampaignDTO>("POST", `/admin/email/campaigns/${id}/schedule`),
+  pauseCampaign: (id: string) =>
+    request<CampaignDTO>("POST", `/admin/email/campaigns/${id}/pause`),
+
+  // automations (event-triggered emails)
+  listAutomations: () =>
+    request<AutomationDTO[]>("GET", "/admin/email/automations"),
+  createAutomation: (input: AutomationInput) =>
+    request<AutomationDTO>("POST", "/admin/email/automations", input),
+  updateAutomation: (id: string, input: AutomationInput) =>
+    request<AutomationDTO>("PATCH", `/admin/email/automations/${id}`, input),
+  deleteAutomation: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/email/automations/${id}`),
 
   // certificates (templates + issued)
   listCertificateTemplates: () =>

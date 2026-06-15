@@ -1020,6 +1020,76 @@ export interface EmailSendResultDTO {
   error: string | null;
 }
 
+// ---------- Campaigns (scheduled broadcasts) ----------
+// A campaign sends a stored template to an audience (optionally narrowed by a
+// Segment). ONCE is a one-off at `runAt`; WEEKLY/MONTHLY recur from `runAt`;
+// CRON recurs on a `cron` expression. The scheduler advances `nextRunAt`.
+export type CampaignCadence = "ONCE" | "WEEKLY" | "MONTHLY" | "CRON";
+export type CampaignStatus =
+  | "DRAFT" // created, not yet scheduled
+  | "SCHEDULED" // armed; scheduler will dispatch at nextRunAt
+  | "SENDING" // a run is in progress
+  | "SENT" // ONCE campaign finished
+  | "PAUSED"; // scheduled but held back by an admin
+export interface CampaignDTO {
+  id: string;
+  name: string;
+  templateId: string;
+  audienceId: string;
+  segmentId: string | null; // optional narrower target
+  cadence: CampaignCadence;
+  runAt: string | null; // ISO — ONCE: send time; recurring: first run
+  cron: string | null; // CRON cadence expression
+  status: CampaignStatus;
+  nextRunAt: string | null; // ISO — next scheduler dispatch
+  lastRunAt: string | null; // ISO — last dispatch
+  sentCount: number; // cumulative recipients sent across runs
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
+// Create/update body. Status is never set directly — it's driven by the
+// schedule/pause actions and the scheduler. All fields optional on update;
+// create requires name/templateId/audienceId (validated server-side).
+export interface CampaignInput {
+  name?: string;
+  templateId?: string;
+  audienceId?: string;
+  segmentId?: string | null;
+  cadence?: CampaignCadence;
+  runAt?: string | null; // ISO
+  cron?: string | null;
+}
+
+// ---------- Automations (event-triggered emails) ----------
+// An automation sends a template whenever its domain event fires. Triggers map
+// to wired event sites in the API (SIGNUP, CERTIFICATE_ISSUED, …). `delayMinutes`
+// is reserved for future delayed sends (0 = immediate today).
+export type AutomationTrigger =
+  | "SIGNUP"
+  | "SUBSCRIPTION_ACTIVE"
+  | "SUBSCRIPTION_CANCELED"
+  | "LESSON_COMPLETED"
+  | "CERTIFICATE_ISSUED";
+export interface AutomationDTO {
+  id: string;
+  name: string;
+  trigger: AutomationTrigger;
+  templateId: string;
+  active: boolean;
+  delayMinutes: number;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
+// Create/update body. Create requires name/trigger/templateId (validated
+// server-side); update patches only the provided keys.
+export interface AutomationInput {
+  name?: string;
+  trigger?: AutomationTrigger;
+  templateId?: string;
+  active?: boolean;
+  delayMinutes?: number;
+}
+
 // Public render payload (only ACTIVE forms are exposed).
 export interface FormPublicDTO {
   id: string;
@@ -1860,6 +1930,21 @@ export const ROUTES = {
   adminDeleteEmailTemplate: "DELETE /admin/email/templates/:id", // -> { ok: true }; 400 for system templates (key != null)
   adminPreviewEmailTemplate: "POST /admin/email/templates/preview", // body RenderPreviewInput -> RenderPreviewResult (ad-hoc; no saved row)
   adminTestSendEmailTemplate: "POST /admin/email/templates/:id/test-send", // body TestSendInput -> EmailSendResultDTO (no dedupe)
+
+  // campaigns (scheduled broadcasts) — ADMIN (RBAC `email`)
+  adminListCampaigns: "GET /admin/email/campaigns", // -> CampaignDTO[]
+  adminCreateCampaign: "POST /admin/email/campaigns", // body CampaignInput -> CampaignDTO (status DRAFT)
+  adminGetCampaign: "GET /admin/email/campaigns/:id", // -> CampaignDTO
+  adminUpdateCampaign: "PATCH /admin/email/campaigns/:id", // body CampaignInput -> CampaignDTO
+  adminDeleteCampaign: "DELETE /admin/email/campaigns/:id", // -> { ok: true }
+  adminScheduleCampaign: "POST /admin/email/campaigns/:id/schedule", // -> CampaignDTO (status SCHEDULED, nextRunAt set)
+  adminPauseCampaign: "POST /admin/email/campaigns/:id/pause", // -> CampaignDTO (status PAUSED)
+
+  // automations (event-triggered emails) — ADMIN (RBAC `email`)
+  adminListAutomations: "GET /admin/email/automations", // -> AutomationDTO[]
+  adminCreateAutomation: "POST /admin/email/automations", // body AutomationInput -> AutomationDTO
+  adminUpdateAutomation: "PATCH /admin/email/automations/:id", // body AutomationInput -> AutomationDTO
+  adminDeleteAutomation: "DELETE /admin/email/automations/:id", // -> { ok: true }
 
   // popups — PUBLIC (no auth): only ACTIVE popups, filtered by context
   // ?context=dashboard | ?context=page&pageId=<id>  -> PopupPublicDTO[]

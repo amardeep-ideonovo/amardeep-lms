@@ -891,3 +891,63 @@ model EmailTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ---------- Campaigns + Automations (scheduling & triggers) ----------
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  PAUSED
+}
+
+enum CampaignCadence {
+  ONCE
+  WEEKLY
+  MONTHLY
+  CRON
+}
+
+// A broadcast to an audience/segment — one-off or recurring (weekly/monthly/cron).
+model Campaign {
+  id         String          @id @default(cuid())
+  name       String
+  templateId String
+  audienceId String
+  segmentId  String? // optional narrower target
+  cadence    CampaignCadence @default(ONCE)
+  runAt      DateTime? // ONCE: when to send; recurring: first run
+  cron       String? // CRON cadence expression
+  status     CampaignStatus  @default(DRAFT)
+  nextRunAt  DateTime? // scheduler dispatch time
+  lastRunAt  DateTime?
+  sentCount  Int             @default(0)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([status, nextRunAt])
+}
+
+enum AutomationTrigger {
+  SIGNUP
+  SUBSCRIPTION_ACTIVE
+  SUBSCRIPTION_CANCELED
+  LESSON_COMPLETED
+  CERTIFICATE_ISSUED
+}
+
+// A triggered email — fired by a domain event (welcome, etc.). delayMinutes is
+// reserved for future delayed sends; 0 = immediate.
+model Automation {
+  id           String            @id @default(cuid())
+  name         String
+  trigger      AutomationTrigger
+  templateId   String
+  active       Boolean           @default(true)
+  delayMinutes Int               @default(0)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([trigger, active])
+}

@@ -21,7 +21,7 @@ import type {
 import { PrismaService } from '../prisma/prisma.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
 import { ContactsService } from '../contacts/contacts.service';
-import { EmailService } from '../email/email.service';
+import { AutomationService } from '../email/automation.service';
 import { AppConfigService } from '../site/app-config.service';
 import { MediaStorage } from '../media/media.storage';
 import { MEDIA_ROUTE } from '../media/media.config';
@@ -53,7 +53,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly mailchimp: MailchimpProducer,
     private readonly contacts: ContactsService,
-    private readonly email: EmailService,
+    private readonly automations: AutomationService,
     private readonly appConfig: AppConfigService,
     private readonly config: ConfigService,
     private readonly storage: MediaStorage,
@@ -193,12 +193,13 @@ export class AuthService {
     };
   }
 
-  // Branded welcome via the stored `welcome` system email template (MJML +
-  // Handlebars). Idempotent per user via dedupeKey so a retried signup (or a
-  // future re-run) won't double-send. Best-effort: sendTemplate can throw on a
-  // render/missing-template error, so we wrap it — signup must never break on
-  // the welcome path (EmailService.send itself already swallows transport
-  // failures).
+  // Branded welcome via the SIGNUP automation (seeded to the `welcome` system
+  // template on bootstrap). Routing through AutomationService.fire — instead of
+  // a hard-coded sendTemplate — makes the welcome mail admin-configurable
+  // (toggle/replace via the Automations page) and keeps a single send path.
+  // fire() resolves the active automation(s), applies its own per-recipient
+  // dedupeKey (idempotent across retried signups), and is best-effort (never
+  // throws); the outer try/catch is belt-and-braces so signup can't break here.
   private async sendWelcomeEmail(user: User): Promise<void> {
     try {
       const cfg = await this.appConfig.read();
@@ -206,11 +207,10 @@ export class AuthService {
       const siteUrl =
         this.config.get<string>('WEB_APP_URL') || 'http://localhost:3002';
       const firstName = user.firstName?.trim() || 'there';
-      await this.email.sendTemplate({
-        to: user.email,
-        templateKey: 'welcome',
+      await this.automations.fire('SIGNUP', {
+        email: user.email,
+        contactId: undefined,
         vars: { firstName, brand, url: siteUrl },
-        dedupeKey: `welcome:${user.id}`,
       });
     } catch (err) {
       this.logger.warn(
