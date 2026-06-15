@@ -812,6 +812,114 @@ export interface MailchimpMergeFieldDTO {
   required: boolean;
 }
 
+// ---------- Contacts / Audiences (in-house list — replaces Mailchimp) ----------
+// Mirrors Mailchimp's model: a contact belongs to one audience; email is unique
+// within an audience; tags + attributes (merge fields) are per-audience.
+export type ContactStatus =
+  | "SUBSCRIBED"
+  | "PENDING" // double opt-in, awaiting confirmation
+  | "UNSUBSCRIBED"
+  | "CLEANED"; // hard-bounced / complained
+export type ContactSource =
+  | "SIGNUP"
+  | "FORM"
+  | "FOOTER"
+  | "IMPORT"
+  | "MANUAL"
+  | "ADMIN";
+
+export interface AudienceDTO {
+  id: string;
+  name: string;
+  slug: string | null;
+  isDefault: boolean;
+  contactCount: number;
+  subscribedCount: number;
+  createdAt: string; // ISO
+}
+export interface AudienceFieldDTO {
+  tag: string; // FNAME, LNAME, PHONE … (EMAIL is implicit)
+  label: string;
+  type: string;
+  required: boolean;
+}
+export interface ContactDTO {
+  id: string;
+  audienceId: string;
+  email: string;
+  status: ContactStatus;
+  firstName: string | null;
+  lastName: string | null;
+  attributes: Record<string, unknown>; // mapped field values
+  tags: string[];
+  source: ContactSource;
+  userId: string | null; // member link when known
+  createdAt: string; // ISO
+}
+export interface ContactListDTO {
+  items: ContactDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+// Saved filter over an audience — the campaign/automation target shape.
+export interface ContactFilter {
+  status?: ContactStatus;
+  anyTags?: string[]; // contact has ANY of these tags
+  allTags?: string[]; // contact has ALL of these tags
+  search?: string; // email / name substring
+}
+export interface SegmentDTO {
+  id: string;
+  audienceId: string;
+  name: string;
+  filter: ContactFilter;
+  contactCount?: number; // resolved size (optional; admin list view)
+  createdAt: string; // ISO
+}
+
+export interface CreateAudienceInput {
+  name: string;
+  slug?: string;
+  isDefault?: boolean;
+}
+export interface UpdateAudienceInput {
+  name?: string;
+  slug?: string | null;
+  isDefault?: boolean;
+}
+export interface UpsertAudienceFieldInput {
+  tag: string; // uppercased server-side
+  label: string;
+  type?: string;
+  required?: boolean;
+}
+export interface CreateContactInput {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  attributes?: Record<string, unknown>;
+  tags?: string[];
+  status?: ContactStatus;
+  source?: ContactSource;
+}
+export interface UpdateContactInput {
+  email?: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  attributes?: Record<string, unknown>;
+  tags?: string[];
+  status?: ContactStatus;
+}
+export interface CreateSegmentInput {
+  name: string;
+  filter: ContactFilter;
+}
+export interface UpdateSegmentInput {
+  name?: string;
+  filter?: ContactFilter;
+}
+
 // Public render payload (only ACTIVE forms are exposed).
 export interface FormPublicDTO {
   id: string;

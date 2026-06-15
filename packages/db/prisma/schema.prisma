@@ -730,3 +730,116 @@ model Certificate {
   @@index([levelId])
   @@index([templateId])
 }
+
+// ---------- Contacts / Audiences (in-house list management) ----------
+// Replaces Mailchimp as the system-of-record for audiences, contacts, tags and
+// custom fields. Modelled 1:1 on Mailchimp (email unique WITHIN an audience;
+// tags + attributes are per-audience) so the importer is a straight copy and
+// Level/Form/Footer audience ids remap to Audience.id. Additive — the Mailchimp
+// path keeps running in parallel until the cutover phase.
+
+enum ContactStatus {
+  SUBSCRIBED
+  PENDING // double opt-in, awaiting confirmation
+  UNSUBSCRIBED
+  CLEANED // hard-bounced / complained — never mail again
+}
+
+enum ContactSource {
+  SIGNUP
+  FORM
+  FOOTER
+  IMPORT
+  MANUAL
+  ADMIN
+}
+
+enum ConsentKind {
+  OPTIN
+  CONFIRM
+  UNSUBSCRIBE
+  COMPLAINT
+  CLEANED
+}
+
+// An audience / list (= a Mailchimp audience).
+model Audience {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String?  @unique
+  isDefault Boolean  @default(false) // the single global default audience
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fields   AudienceField[]
+  contacts Contact[]
+  segments Segment[]
+}
+
+// A custom field on an audience (= a Mailchimp merge field). EMAIL is implicit
+// and always mappable; these are the extra mapped fields (FNAME, LNAME, …).
+model AudienceField {
+  id         String   @id @default(cuid())
+  audienceId String
+  audience   Audience @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  tag        String // FNAME, LNAME, PHONE … (uppercase, unique per audience)
+  label      String
+  type       String   @default("text")
+  required   Boolean  @default(false)
+
+  @@unique([audienceId, tag])
+}
+
+// A contact within an audience. Email is unique WITHIN an audience (mirrors
+// Mailchimp). Tags + attributes are per-audience. Links to a member when known
+// (no FK on userId, so history survives member deletion).
+model Contact {
+  id             String        @id @default(cuid())
+  audienceId     String
+  audience       Audience      @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  email          String
+  status         ContactStatus @default(SUBSCRIBED)
+  firstName      String?
+  lastName       String?
+  attributes     Json          @default("{}") // mapped field values (merge fields)
+  tags           String[]      @default([]) // per-audience tag names
+  source         ContactSource @default(MANUAL)
+  userId         String? // local User.id when the contact is a member
+  confirmedAt    DateTime? // double opt-in confirmation
+  unsubscribedAt DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  consents ConsentEvent[]
+
+  @@unique([audienceId, email])
+  @@index([audienceId, status])
+  @@index([userId])
+  @@index([email])
+}
+
+// A saved filter over an audience — used as a campaign/automation target.
+model Segment {
+  id         String   @id @default(cuid())
+  audienceId String
+  audience   Audience @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  name       String
+  filter     Json     @default("{}") // { status?, anyTags?, allTags?, search? }
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([audienceId])
+}
+
+// Consent / suppression audit trail (compliance: opt-in, confirm, unsubscribe).
+model ConsentEvent {
+  id        String      @id @default(cuid())
+  contactId String
+  contact   Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  kind      ConsentKind
+  source    String? // form id, footer, import, admin, unsubscribe-link …
+  ip        String?
+  createdAt DateTime    @default(now())
+
+  @@index([contactId])
+}
