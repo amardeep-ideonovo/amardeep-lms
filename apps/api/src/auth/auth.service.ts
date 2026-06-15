@@ -193,59 +193,32 @@ export class AuthService {
     };
   }
 
-  // Simple inline-HTML welcome, branded with the app title and linking back to
-  // the member site root. Idempotent per user via dedupeKey so a retried signup
-  // (or a future re-run) won't double-send.
+  // Branded welcome via the stored `welcome` system email template (MJML +
+  // Handlebars). Idempotent per user via dedupeKey so a retried signup (or a
+  // future re-run) won't double-send. Best-effort: sendTemplate can throw on a
+  // render/missing-template error, so we wrap it — signup must never break on
+  // the welcome path (EmailService.send itself already swallows transport
+  // failures).
   private async sendWelcomeEmail(user: User): Promise<void> {
     try {
       const cfg = await this.appConfig.read();
       const brand = cfg.title;
       const siteUrl =
         this.config.get<string>('WEB_APP_URL') || 'http://localhost:3002';
-      const greetName = user.firstName?.trim() || 'there';
-      const html = this.welcomeHtml(brand, greetName, siteUrl);
-      await this.email.send({
+      const firstName = user.firstName?.trim() || 'there';
+      await this.email.sendTemplate({
         to: user.email,
-        subject: `Welcome to ${brand}`,
-        html,
-        text:
-          `Hi ${greetName}, welcome to ${brand}! ` +
-          `Your account is ready — sign in at ${siteUrl}`,
         templateKey: 'welcome',
+        vars: { firstName, brand, url: siteUrl },
         dedupeKey: `welcome:${user.id}`,
       });
     } catch (err) {
-      // EmailService already swallows send failures; this guards the brand/url
-      // lookups so signup is never affected by the welcome path.
       this.logger.warn(
         `[signup] welcome email failed for ${user.email}: ${
           err instanceof Error ? err.message : err
         }`,
       );
     }
-  }
-
-  private welcomeHtml(brand: string, name: string, siteUrl: string): string {
-    return `<!doctype html>
-<html>
-  <body style="margin:0;background:#f5f3fc;font-family:Arial,Helvetica,sans-serif;color:#251f3d;">
-    <div style="max-width:560px;margin:0 auto;padding:32px 24px;">
-      <div style="background:#ffffff;border:1px solid #e7e2f4;border-radius:16px;padding:32px;">
-        <h1 style="margin:0 0 12px;font-size:22px;color:#251f3d;">Welcome to ${brand}, ${name}!</h1>
-        <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#5a5470;">
-          Your account is ready. Sign in any time to pick up where you left off.
-        </p>
-        <a href="${siteUrl}" style="display:inline-block;background:#7c5cfc;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 22px;border-radius:10px;">
-          Go to ${brand}
-        </a>
-        <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:#8b84a4;">
-          If the button doesn’t work, copy and paste this link into your browser:<br />
-          <a href="${siteUrl}" style="color:#7c5cfc;">${siteUrl}</a>
-        </p>
-      </div>
-    </div>
-  </body>
-</html>`;
   }
 
   private async ensureUniqueUsername(base: string): Promise<string> {

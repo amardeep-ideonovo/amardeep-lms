@@ -876,3 +876,18 @@ model EmailLog {
   @@index([status])
   @@index([createdAt])
 }
+
+// Reusable email template — MJML body + Handlebars merge vars. `key` is set for
+// system templates (welcome, …) so code can render by key; custom admin
+// templates have key null.
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  key       String?  @unique // stable id for system templates; null for custom
+  name      String
+  subject   String // Handlebars-enabled
+  mjml      String // MJML source (Handlebars-enabled)
+  variables String[] @default([]) // declared merge-var names (editor + preview)
+  category  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

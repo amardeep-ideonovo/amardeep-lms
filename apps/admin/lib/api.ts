@@ -43,6 +43,11 @@ import type {
   UpdateContactInput,
   CreateSegmentInput,
   UpdateSegmentInput,
+  EmailTemplateDTO,
+  CreateEmailTemplateInput,
+  UpdateEmailTemplateInput,
+  RenderPreviewResult,
+  EmailSendResultDTO,
   CourseCard,
   CreateCouponInput,
   CreateCourseInput,
@@ -708,6 +713,35 @@ export const api = {
     request<SegmentDTO>("PATCH", `/admin/segments/${id}`, input),
   deleteSegment: (id: string) =>
     request<{ ok: true }>("DELETE", `/admin/segments/${id}`),
+
+  // email templates (MJML + Handlebars)
+  listEmailTemplates: () =>
+    request<EmailTemplateDTO[]>("GET", "/admin/email/templates"),
+  getEmailTemplate: (id: string) =>
+    request<EmailTemplateDTO>("GET", `/admin/email/templates/${id}`),
+  createEmailTemplate: (input: CreateEmailTemplateInput) =>
+    request<EmailTemplateDTO>("POST", "/admin/email/templates", input),
+  updateEmailTemplate: (id: string, input: UpdateEmailTemplateInput) =>
+    request<EmailTemplateDTO>("PATCH", `/admin/email/templates/${id}`, input),
+  deleteEmailTemplate: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/email/templates/${id}`),
+  // ad-hoc render for the live editor preview (no saved row needed)
+  previewEmailTemplate: (input: {
+    subject: string;
+    mjml: string;
+    vars?: Record<string, unknown>;
+  }) =>
+    request<RenderPreviewResult>("POST", "/admin/email/templates/preview", input),
+  // send a real test of a saved template (no dedupe) -> EmailLog status
+  testSendEmailTemplate: (
+    id: string,
+    input: { to: string; vars?: Record<string, unknown> },
+  ) =>
+    request<EmailSendResultDTO>(
+      "POST",
+      `/admin/email/templates/${id}/test-send`,
+      input,
+    ),
 
   // certificates (templates + issued)
   listCertificateTemplates: () =>

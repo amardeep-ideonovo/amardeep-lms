@@ -1,7 +1,20 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { EmailLog } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailTemplateService } from './email-template.service';
 import { MAIL_SENDER, type MailSender } from './mail-sender.interface';
+
+// What a caller hands to EmailService.sendTemplate(): a recipient, the template
+// to render (by stable key OR by id), and the merge vars. Bookkeeping fields
+// (contactId/dedupeKey) flow through to the underlying send() / EmailLog row.
+export interface SendTemplateInput {
+  to: string;
+  templateKey?: string;
+  templateId?: string;
+  vars: Record<string, unknown>;
+  contactId?: string;
+  dedupeKey?: string;
+}
 
 // What a caller hands to EmailService.send(). Everything past `html` is
 // bookkeeping written onto the EmailLog row (so a later phase can correlate
@@ -32,7 +45,32 @@ export class EmailService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(MAIL_SENDER) private readonly sender: MailSender,
+    private readonly templates: EmailTemplateService,
   ) {}
+
+  // Render a stored template (by key or id) then hand the result to send(). The
+  // single entry point for templated mail (welcome, future automations) so the
+  // MJML/Handlebars render and the suppression/idempotency/ledger guarantees of
+  // send() stay in one path. A render failure (bad MJML / missing template)
+  // throws here — callers that must never break a flow (e.g. signup) wrap it.
+  async sendTemplate(input: SendTemplateInput): Promise<EmailLog> {
+    if (!input.templateKey && !input.templateId) {
+      throw new Error('sendTemplate requires templateKey or templateId');
+    }
+    const rendered = input.templateId
+      ? await this.templates.renderById(input.templateId, input.vars)
+      : await this.templates.renderByKey(input.templateKey!, input.vars);
+
+    return this.send({
+      to: input.to,
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      templateKey: input.templateKey,
+      contactId: input.contactId,
+      dedupeKey: input.dedupeKey,
+    });
+  }
 
   async send(input: SendEmailInput): Promise<EmailLog> {
     const to = input.to.trim().toLowerCase();

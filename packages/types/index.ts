@@ -60,6 +60,7 @@ export const ADMIN_SECTIONS = [
   { key: "popups", label: "Popups" },
   { key: "forms", label: "Forms" },
   { key: "contacts", label: "Contacts" },
+  { key: "email", label: "Email" },
   { key: "menus", label: "Navigation" },
   { key: "settings", label: "Settings" },
   { key: "appCustomization", label: "App Customization" },
@@ -957,6 +958,68 @@ export interface UpdateSegmentInput {
   filter?: ContactFilter;
 }
 
+// ---------- Email templates (MJML body + Handlebars merge vars) ----------
+// A reusable email template. `key` is set for system templates (welcome, …) so
+// code can render-by-key and the editor knows not to allow deletion; custom
+// admin templates have key null. `variables` are the declared merge-var names
+// the editor surfaces (and seeds sample values from for preview).
+export interface EmailTemplateDTO {
+  id: string;
+  key: string | null; // stable id for system templates; null for custom
+  name: string;
+  subject: string; // Handlebars-enabled
+  mjml: string; // MJML source (Handlebars-enabled)
+  variables: string[]; // declared merge-var names
+  category: string | null;
+  isSystem: boolean; // === (key != null); convenience for the UI
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
+export interface CreateEmailTemplateInput {
+  name: string;
+  subject: string;
+  mjml: string;
+  variables?: string[];
+  category?: string;
+}
+export interface UpdateEmailTemplateInput {
+  name?: string;
+  subject?: string;
+  mjml?: string;
+  variables?: string[];
+  category?: string;
+}
+// Ad-hoc render for the live editor preview (no saved row needed).
+export interface RenderPreviewInput {
+  subject: string;
+  mjml: string;
+  vars?: Record<string, unknown>;
+}
+export interface RenderPreviewResult {
+  subject: string;
+  html: string;
+}
+// Send a test of a saved template to an arbitrary address (no dedupe).
+export interface TestSendInput {
+  to: string;
+  vars?: Record<string, unknown>;
+}
+// Outcome of a template send/test — mirrors the EmailLog ledger row the
+// EmailService returns (status drives the admin toast).
+export type EmailSendStatus =
+  | "QUEUED"
+  | "SENT"
+  | "FAILED"
+  | "BOUNCED"
+  | "COMPLAINED";
+export interface EmailSendResultDTO {
+  id: string;
+  to: string;
+  subject: string;
+  status: EmailSendStatus;
+  error: string | null;
+}
+
 // Public render payload (only ACTIVE forms are exposed).
 export interface FormPublicDTO {
   id: string;
@@ -1788,6 +1851,15 @@ export const ROUTES = {
   adminCreateSegment: "POST /admin/audiences/:id/segments", // body CreateSegmentInput -> SegmentDTO
   adminUpdateSegment: "PATCH /admin/segments/:id", // body UpdateSegmentInput -> SegmentDTO
   adminDeleteSegment: "DELETE /admin/segments/:id", // -> { ok: true }
+
+  // email templates (MJML + Handlebars) — ADMIN (RBAC `email`)
+  adminListEmailTemplates: "GET /admin/email/templates", // -> EmailTemplateDTO[]
+  adminCreateEmailTemplate: "POST /admin/email/templates", // body CreateEmailTemplateInput -> EmailTemplateDTO
+  adminGetEmailTemplate: "GET /admin/email/templates/:id", // -> EmailTemplateDTO
+  adminUpdateEmailTemplate: "PATCH /admin/email/templates/:id", // body UpdateEmailTemplateInput -> EmailTemplateDTO
+  adminDeleteEmailTemplate: "DELETE /admin/email/templates/:id", // -> { ok: true }; 400 for system templates (key != null)
+  adminPreviewEmailTemplate: "POST /admin/email/templates/preview", // body RenderPreviewInput -> RenderPreviewResult (ad-hoc; no saved row)
+  adminTestSendEmailTemplate: "POST /admin/email/templates/:id/test-send", // body TestSendInput -> EmailSendResultDTO (no dedupe)
 
   // popups — PUBLIC (no auth): only ACTIVE popups, filtered by context
   // ?context=dashboard | ?context=page&pageId=<id>  -> PopupPublicDTO[]
