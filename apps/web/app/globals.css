@@ -655,6 +655,30 @@ a {
   }
 }
 
+/* Footer follows the light theme (was a fixed dark band). The admin Footer-
+   builder colors are applied INLINE on .site-footer (chosen for the default
+   dark theme), so the var re-pins need !important to beat the inline
+   declaration; the border/input rules just out-specify the base ones. Mirrors
+   the :root[data-theme="light"] .cms-dark override pattern. */
+:root[data-theme="light"] .site-footer {
+  --ftr-bg: var(--surface-inset) !important;
+  --ftr-text: var(--text-soft) !important;
+  --ftr-heading: var(--text) !important;
+  --ftr-link: var(--text-muted) !important;
+  border-top-color: var(--border);
+}
+:root[data-theme="light"] .site-footer-bottom {
+  border-top-color: var(--border);
+}
+:root[data-theme="light"] .footer-subscribe input {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+:root[data-theme="light"] .footer-subscribe input::placeholder {
+  color: var(--text-muted);
+}
+
 /* ---------- embedded page menu (Puck Menu block) ---------- */
 .page-menu {
   display: flex;
