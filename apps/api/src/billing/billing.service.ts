@@ -24,6 +24,7 @@ import { StripeService } from './stripe.service';
 import { PayPalService, type PayPalSubscription } from './paypal.service';
 import { SettingsService } from '../settings/settings.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
+import { ContactsService } from '../contacts/contacts.service';
 import {
   NotificationsService,
   type RecordNotificationInput,
@@ -114,6 +115,7 @@ export class BillingService implements OnModuleInit {
     private readonly paypal: PayPalService,
     private readonly settings: SettingsService,
     private readonly mailchimp: MailchimpProducer,
+    private readonly contacts: ContactsService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
   ) {}
@@ -1071,6 +1073,21 @@ export class BillingService implements OnModuleInit {
             info.mailchimpTags,
             info.mailchimpAudienceId ?? undefined,
           );
+          // In-house list dual-write (best-effort).
+          try {
+            await this.contacts.syncTags(
+              'add',
+              user.email,
+              info.mailchimpTags,
+              info.mailchimpAudienceId,
+            );
+          } catch (err) {
+            this.logger.warn(
+              `[billing] contacts add-tags failed for ${user.email}: ${
+                err instanceof Error ? err.message : err
+              }`,
+            );
+          }
         } else if (!nowActive && wasActive && statusForRow !== 'PAUSED') {
           await this.maybeRemoveTags(
             user.id,
@@ -1194,6 +1211,16 @@ export class BillingService implements OnModuleInit {
     });
     if (stillActive === 0) {
       await this.mailchimp.enqueueTags('remove', email, tags, audienceId);
+      // In-house list dual-write (best-effort).
+      try {
+        await this.contacts.syncTags('remove', email, tags, audienceId);
+      } catch (err) {
+        this.logger.warn(
+          `[billing] contacts remove-tags failed for ${email}: ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      }
     }
   }
 

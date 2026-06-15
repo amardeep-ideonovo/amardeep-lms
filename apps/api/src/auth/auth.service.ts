@@ -19,6 +19,7 @@ import type {
 } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
+import { ContactsService } from '../contacts/contacts.service';
 import { MediaStorage } from '../media/media.storage';
 import { MEDIA_ROUTE } from '../media/media.config';
 import type { JwtPayload } from './jwt-payload.interface';
@@ -48,6 +49,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly mailchimp: MailchimpProducer,
+    private readonly contacts: ContactsService,
     private readonly storage: MediaStorage,
   ) {}
 
@@ -232,6 +234,19 @@ export class AuthService {
       } catch (err) {
         this.logger.warn(
           `[signup] mailchimp enqueue failed for ${email}: ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      }
+      // In-house list dual-write (best-effort; never blocks signup).
+      try {
+        await this.contacts.syncTags('add', email, free.mailchimpTags, free.mailchimpAudienceId, {
+          userId,
+          source: 'SIGNUP',
+        });
+      } catch (err) {
+        this.logger.warn(
+          `[signup] contacts sync failed for ${email}: ${
             err instanceof Error ? err.message : err
           }`,
         );

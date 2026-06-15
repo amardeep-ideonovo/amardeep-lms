@@ -764,12 +764,13 @@ enum ConsentKind {
 
 // An audience / list (= a Mailchimp audience).
 model Audience {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String?  @unique
-  isDefault Boolean  @default(false) // the single global default audience
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  name       String
+  slug       String?  @unique
+  isDefault  Boolean  @default(false) // the single global default audience
+  externalId String?  @unique // Mailchimp list id this audience maps to (dual-write/import)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   fields   AudienceField[]
   contacts Contact[]

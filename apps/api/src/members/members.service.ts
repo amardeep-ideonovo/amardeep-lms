@@ -11,6 +11,7 @@ import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
+import { ContactsService } from '../contacts/contacts.service';
 import { StripeService } from '../billing/stripe.service';
 import { UpdateMemberDto } from './dto/member.dto';
 
@@ -26,6 +27,7 @@ export class MembersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailchimp: MailchimpProducer,
+    private readonly contacts: ContactsService,
     private readonly stripe: StripeService,
   ) {}
 
@@ -205,6 +207,16 @@ export class MembersService {
           }`,
         );
       }
+      // In-house list dual-write (best-effort; eventual consistency is fine).
+      try {
+        await this.contacts.changeEmail(existing.email, newEmail as string);
+      } catch (err) {
+        this.logger.warn(
+          `[members] contacts email-change failed for ${existing.email}: ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      }
     }
 
     return this.toRow(user);
@@ -251,6 +263,22 @@ export class MembersService {
         level.mailchimpTags,
         level.mailchimpAudienceId ?? undefined,
       );
+      // In-house list dual-write (best-effort).
+      try {
+        await this.contacts.syncTags(
+          'add',
+          user.email,
+          level.mailchimpTags,
+          level.mailchimpAudienceId,
+          { userId: user.id ?? userId, source: 'ADMIN' },
+        );
+      } catch (err) {
+        this.logger.warn(
+          `[members] contacts add-tags failed for ${user.email}: ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      }
     }
     return { ok: true };
   }
@@ -288,6 +316,21 @@ export class MembersService {
         level.mailchimpTags,
         level.mailchimpAudienceId ?? undefined,
       );
+      // In-house list dual-write (best-effort).
+      try {
+        await this.contacts.syncTags(
+          'remove',
+          user.email,
+          level.mailchimpTags,
+          level.mailchimpAudienceId,
+        );
+      } catch (err) {
+        this.logger.warn(
+          `[members] contacts remove-tags failed for ${user.email}: ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      }
     }
     return { ok: true };
   }

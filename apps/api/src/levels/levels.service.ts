@@ -22,6 +22,7 @@ import { CertificatesService } from '../certificates/certificates.service';
 import { StripeService } from '../billing/stripe.service';
 import { PayPalService } from '../billing/paypal.service';
 import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
+import { ContactsService } from '../contacts/contacts.service';
 import {
   CreateLevelCategoryDto,
   CreateLevelDto,
@@ -64,6 +65,7 @@ export class LevelsService {
     private readonly stripe: StripeService,
     private readonly paypal: PayPalService,
     private readonly mailchimp: MailchimpProducer,
+    private readonly contacts: ContactsService,
     private readonly access: AccessService,
     private readonly certificates: CertificatesService,
   ) {}
@@ -703,12 +705,38 @@ export class LevelsService {
     await Promise.all(
       emails.flatMap((email) => {
         const jobs: Promise<void>[] = [];
-        if (added.length)
+        if (added.length) {
           jobs.push(this.mailchimp.enqueueTags('add', email, added, audienceId));
-        if (removed.length)
+          // In-house list dual-write (best-effort; never reject the batch).
+          jobs.push(
+            this.contacts
+              .syncTags('add', email, added, audienceId)
+              .catch((err) =>
+                this.logger.warn(
+                  `[levels] contacts add-tags failed for ${email}: ${
+                    err instanceof Error ? err.message : err
+                  }`,
+                ),
+              ),
+          );
+        }
+        if (removed.length) {
           jobs.push(
             this.mailchimp.enqueueTags('remove', email, removed, audienceId),
           );
+          // In-house list dual-write (best-effort; never reject the batch).
+          jobs.push(
+            this.contacts
+              .syncTags('remove', email, removed, audienceId)
+              .catch((err) =>
+                this.logger.warn(
+                  `[levels] contacts remove-tags failed for ${email}: ${
+                    err instanceof Error ? err.message : err
+                  }`,
+                ),
+              ),
+          );
+        }
         return jobs;
       }),
     );

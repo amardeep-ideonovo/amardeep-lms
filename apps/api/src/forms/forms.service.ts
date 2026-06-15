@@ -17,6 +17,7 @@ import type {
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailchimpService } from '../mailchimp/mailchimp.service';
+import { ContactsService } from '../contacts/contacts.service';
 import { CreateFormDto, UpdateFormDto } from './dto/form.dto';
 
 type FormRow = {
@@ -45,6 +46,7 @@ export class FormsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailchimp: MailchimpService,
+    private readonly contacts: ContactsService,
   ) {}
 
   // ---------- Mailchimp passthrough (admin editor) ----------
@@ -296,6 +298,21 @@ mount.appendChild(f);
         mailchimpStatus = 'failed';
         this.logger.warn(
           `Mailchimp subscribe failed for form ${form.id}: ${
+            e instanceof Error ? e.message : String(e)
+          }`,
+        );
+      }
+      // In-house list dual-write (best-effort; does NOT affect mailchimpStatus).
+      try {
+        await this.contacts.subscribe(form.mailchimpAudienceId, email, mergeFields, {
+          doubleOptIn: form.doubleOptIn,
+          updateExisting: form.updateExisting,
+          tags: form.tags,
+          source: 'FORM',
+        });
+      } catch (e) {
+        this.logger.warn(
+          `Contacts subscribe failed for form ${form.id}: ${
             e instanceof Error ? e.message : String(e)
           }`,
         );

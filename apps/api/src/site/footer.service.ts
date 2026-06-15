@@ -8,6 +8,7 @@ import type {
 } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailchimpService } from '../mailchimp/mailchimp.service';
+import { ContactsService } from '../contacts/contacts.service';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,6 +45,7 @@ export class FooterService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailchimp: MailchimpService,
+    private readonly contacts: ContactsService,
   ) {}
 
   // --- sanitizers (also re-applied on read, so a hand-edited row can't inject
@@ -175,6 +177,22 @@ export class FooterService {
         {},
         { doubleOptIn: cfg.email.doubleOptIn, updateExisting: true },
       );
+      // In-house list dual-write (best-effort; swallowed so it never affects
+      // the subscribe result). No logger in this service — swallow silently.
+      try {
+        await this.contacts.subscribe(
+          cfg.email.audienceId,
+          e,
+          {},
+          {
+            doubleOptIn: cfg.email.doubleOptIn,
+            updateExisting: true,
+            source: 'FOOTER',
+          },
+        );
+      } catch {
+        /* best-effort dual-write */
+      }
       return {
         ok: true,
         status,
