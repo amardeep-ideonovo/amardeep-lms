@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
 
 export class UpdateStripeSettingsDto {
   @IsOptional()
@@ -55,4 +55,41 @@ export class UpdatePayPalSettingsDto {
 export class UpdatePaymentProviderDto {
   @IsIn(['stripe', 'paypal'])
   provider!: 'stripe' | 'paypal';
+}
+
+export class UpdateEmailSettingsDto {
+  // Only "smtp" today, but kept open as the pluggable sender id.
+  @IsOptional()
+  @IsString()
+  provider?: string;
+
+  @IsOptional()
+  @IsString()
+  host?: string;
+
+  // String on the wire (matches the form input); parsed to a number on read.
+  @IsOptional()
+  @IsString()
+  port?: string;
+
+  @IsOptional()
+  @IsString()
+  user?: string;
+
+  // The SMTP password — the only secret in this group (write-only).
+  @IsOptional()
+  @IsString()
+  pass?: string;
+
+  @IsOptional()
+  @IsString()
+  fromEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  fromName?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  secure?: boolean;
 }

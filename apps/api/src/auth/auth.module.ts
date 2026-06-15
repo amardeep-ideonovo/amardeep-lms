@@ -8,6 +8,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtDownloadStrategy } from './jwt-download.strategy';
 import { MediaModule } from '../media/media.module';
+import { AppConfigService } from '../site/app-config.service';
 import { jwtSecret } from '../common/env.util';
 
 @Module({
@@ -29,7 +30,10 @@ import { jwtSecret } from '../common/env.util';
     MediaModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, JwtDownloadStrategy],
+  // AppConfigService (brand title for the welcome email) is a stateless reader
+  // over the global PrismaService; SiteModule doesn't export it, so provide a
+  // local instance here. EmailService comes from the @Global EmailModule.
+  providers: [AuthService, JwtStrategy, JwtDownloadStrategy, AppConfigService],
   exports: [AuthService, JwtStrategy, PassportModule, JwtModule],
 })
 export class AuthModule {}

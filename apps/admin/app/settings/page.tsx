@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   ApiError,
   api,
+  type EmailSettingsMasked,
   type MailchimpSettingsMasked,
   type PayPalSettingsMasked,
   type StripeSettingsMasked,
@@ -35,6 +36,7 @@ export default function SettingsPage() {
       <PaymentProviderSection />
       <StripeSection />
       <PayPalSection />
+      <EmailSenderSection />
       <MailchimpSection />
     </div>
   );
@@ -431,6 +433,201 @@ function PayPalSection() {
             disabled={removing || saving}
           >
             {removing ? "Removing…" : "Remove credentials"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// Outbound email / SMTP sender (in-house Mailchimp replacement). Host/port/from
+// are plain config; the SMTP password is write-only (blank keeps the stored
+// value, and the form only ever shows whether one is set).
+function EmailSenderSection() {
+  const [current, setCurrent] = useState<EmailSettingsMasked | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [host, setHost] = useState("");
+  const [port, setPort] = useState("");
+  const [user, setUser] = useState("");
+  const [pass, setPass] = useState("");
+  const [fromEmail, setFromEmail] = useState("");
+  const [fromName, setFromName] = useState("");
+  const [secure, setSecure] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Mirror the loaded (non-secret) config into the editable fields.
+  function hydrate(s: EmailSettingsMasked) {
+    setCurrent(s);
+    setHost(s.host ?? "");
+    setPort(s.port ?? "");
+    setUser(s.user ?? "");
+    setFromEmail(s.fromEmail ?? "");
+    setFromName(s.fromName ?? "");
+    setSecure(s.secure);
+  }
+
+  async function load() {
+    setError(null);
+    try {
+      hydrate(await api.getEmailSettings());
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Failed to load email settings"
+      );
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const updated = await api.putEmailSettings({
+        host: host.trim() || undefined,
+        port: port.trim() || undefined,
+        user: user.trim() || undefined,
+        // Only send the password when the admin typed one (blank keeps stored).
+        pass: pass.trim() || undefined,
+        fromEmail: fromEmail.trim() || undefined,
+        fromName: fromName.trim() || undefined,
+        secure,
+      });
+      hydrate(updated);
+      setPass("");
+      setStatus("Email settings saved.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove() {
+    if (
+      !(await dialog.confirm({
+        message:
+          "Remove the SMTP host, credentials, and From address? This cannot be undone.",
+        danger: true,
+      }))
+    )
+      return;
+    setRemoving(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const cleared = await api.deleteEmailSettings();
+      hydrate(cleared);
+      setPass("");
+      setStatus("Email settings removed.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Remove failed");
+    } finally {
+      setRemoving(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <h2>Email sender (SMTP)</h2>
+      <p className="muted">
+        Transactional email is sent through this SMTP server. Until it’s
+        configured, messages (like the signup welcome) are logged but not
+        delivered.
+      </p>
+      <form onSubmit={save}>
+        <div className="form-row">
+          <div className="field">
+            <label>SMTP host</label>
+            <input
+              value={host}
+              placeholder="e.g. smtp.postmarkapp.com"
+              onChange={(e) => setHost(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label>Port</label>
+            <input
+              value={port}
+              placeholder="587"
+              inputMode="numeric"
+              onChange={(e) => setPort(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="field">
+            <label>Username</label>
+            <input
+              value={user}
+              placeholder="SMTP username"
+              onChange={(e) => setUser(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <div className="field">
+            <label>
+              Password{" "}
+              <span className="muted">
+                ({current?.passSet ? "saved" : "not set"})
+              </span>
+            </label>
+            <input
+              type="password"
+              value={pass}
+              placeholder="leave blank to keep"
+              onChange={(e) => setPass(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+        </div>
+        <div className="form-row">
+          <div className="field">
+            <label>From email</label>
+            <input
+              value={fromEmail}
+              placeholder="hello@yourdomain.com"
+              onChange={(e) => setFromEmail(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label>From name</label>
+            <input
+              value={fromName}
+              placeholder="defaults to the app name"
+              onChange={(e) => setFromName(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="field">
+          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={secure}
+              onChange={(e) => setSecure(e.target.checked)}
+            />
+            <span>Use implicit TLS (port 465). Leave off for STARTTLS (587).</span>
+          </label>
+        </div>
+        {error && <p className="error">{error}</p>}
+        {status && <p className="muted">{status}</p>}
+        <div className="row-actions">
+          <button className="btn" type="submit" disabled={saving || removing}>
+            {saving ? "Saving…" : "Save email settings"}
+          </button>
+          <button
+            type="button"
+            className="btn btn--danger"
+            onClick={remove}
+            disabled={removing || saving}
+          >
+            {removing ? "Removing…" : "Remove settings"}
           </button>
         </div>
       </form>

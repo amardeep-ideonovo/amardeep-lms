@@ -269,6 +269,26 @@ export interface MailchimpSettingsMasked {
   serverPrefix: string | null;
   audienceId: string | null;
 }
+export interface EmailSettings {
+  provider?: string;
+  host?: string;
+  port?: string;
+  user?: string;
+  pass?: string;
+  fromEmail?: string;
+  fromName?: string;
+  secure?: boolean;
+}
+export interface EmailSettingsMasked {
+  provider: string;
+  host: string | null;
+  port: string | null;
+  user: string | null;
+  passSet: boolean; // SMTP password is write-only; only whether one is stored
+  fromEmail: string | null;
+  fromName: string | null;
+  secure: boolean;
+}
 export interface PayPalSettings {
   clientId?: string;
   clientSecret?: string;
@@ -545,6 +565,12 @@ export const api = {
     ),
   clearMailchimpSettings: () =>
     request<MailchimpSettingsMasked>("DELETE", "/admin/settings/mailchimp"),
+  getEmailSettings: () =>
+    request<EmailSettingsMasked>("GET", "/admin/settings/email"),
+  putEmailSettings: (input: EmailSettings) =>
+    request<EmailSettingsMasked>("PUT", "/admin/settings/email", input),
+  deleteEmailSettings: () =>
+    request<EmailSettingsMasked>("DELETE", "/admin/settings/email"),
   getPayPalSettings: () =>
     request<PayPalSettingsMasked>("GET", "/admin/settings/paypal"),
   putPayPalSettings: (input: PayPalSettings) =>

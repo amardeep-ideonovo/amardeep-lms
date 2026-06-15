@@ -18,6 +18,17 @@ export const SETTING_KEYS = {
   // Which processor NEW checkouts use ("stripe" | "paypal"). Existing
   // subscriptions keep billing on the provider that created them.
   paymentProvider: 'payments.provider',
+  // Outbound email / SMTP sender (in-house Mailchimp replacement). `emailPass`
+  // is the only secret; the rest are config (host/port/from), stored the same
+  // way for a single source of truth + per-key env fallback.
+  emailProvider: 'email.provider',
+  emailHost: 'email.host',
+  emailPort: 'email.port',
+  emailUser: 'email.user',
+  emailPass: 'email.pass',
+  emailFromEmail: 'email.fromEmail',
+  emailFromName: 'email.fromName',
+  emailSecure: 'email.secure',
 } as const;
 
 @Injectable()
@@ -74,6 +85,20 @@ export class SettingsService {
       this.clearSecret(SETTING_KEYS.mailchimpApiKey),
       this.clearSecret(SETTING_KEYS.mailchimpServerPrefix),
       this.clearSecret(SETTING_KEYS.mailchimpAudienceId),
+    ]);
+  }
+
+  /** Clear all outbound-email / SMTP settings (provider, host/port/from, pass). */
+  async clearEmail(): Promise<void> {
+    await Promise.all([
+      this.clearSecret(SETTING_KEYS.emailProvider),
+      this.clearSecret(SETTING_KEYS.emailHost),
+      this.clearSecret(SETTING_KEYS.emailPort),
+      this.clearSecret(SETTING_KEYS.emailUser),
+      this.clearSecret(SETTING_KEYS.emailPass),
+      this.clearSecret(SETTING_KEYS.emailFromEmail),
+      this.clearSecret(SETTING_KEYS.emailFromName),
+      this.clearSecret(SETTING_KEYS.emailSecure),
     ]);
   }
 
@@ -160,5 +185,39 @@ export class SettingsService {
   async getPaymentProvider(): Promise<'stripe' | 'paypal'> {
     const v = await this.getSecret(SETTING_KEYS.paymentProvider);
     return v === 'paypal' ? 'paypal' : 'stripe';
+  }
+
+  // --- Outbound email / SMTP accessors (consumed by the email sender) ---
+
+  /** The active mail sender id. Default + unknown values → smtp. */
+  async getEmailProvider(): Promise<string> {
+    const v = await this.getSecret(SETTING_KEYS.emailProvider, 'EMAIL_PROVIDER');
+    return v || 'smtp';
+  }
+  getEmailHost(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.emailHost, 'SMTP_HOST');
+  }
+  /** SMTP port as a number (default 587 — STARTTLS submission). */
+  async getEmailPort(): Promise<number> {
+    const v = await this.getSecret(SETTING_KEYS.emailPort, 'SMTP_PORT');
+    const n = v ? Number(v) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : 587;
+  }
+  getEmailUser(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.emailUser, 'SMTP_USER');
+  }
+  getEmailPass(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.emailPass, 'SMTP_PASS');
+  }
+  getEmailFromEmail(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.emailFromEmail, 'EMAIL_FROM');
+  }
+  getEmailFromName(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.emailFromName, 'EMAIL_FROM_NAME');
+  }
+  /** Implicit-TLS flag (true ≈ port 465). Default false (STARTTLS on 587). */
+  async getEmailSecure(): Promise<boolean> {
+    const v = await this.getSecret(SETTING_KEYS.emailSecure, 'SMTP_SECURE');
+    return v === 'true' || v === '1';
   }
 }

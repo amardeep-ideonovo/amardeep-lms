@@ -6,6 +6,7 @@ import { QueueModule } from './queue/queue.module';
 import { SettingsModule } from './settings/settings.module';
 import { MailchimpModule } from './mailchimp/mailchimp.module';
 import { ContactsModule } from './contacts/contacts.module';
+import { EmailModule } from './email/email.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminsModule } from './admins/admins.module';
@@ -41,6 +42,7 @@ import { HealthModule } from './health/health.module';
     SettingsModule,
     MailchimpModule,
     ContactsModule,
+    EmailModule,
     NotificationsModule,
     // Feature modules.
     HealthModule,

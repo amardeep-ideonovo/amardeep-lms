@@ -259,6 +259,31 @@ export interface MySubscriptionDTO {
 // Public config the checkout page needs to render the active provider's payment
 // UI. `provider` is the admin-selected processor for NEW checkouts. When the
 // active provider's key is null, it isn't configured on this environment and
+// Outbound email / SMTP sender credentials (in-house Mailchimp replacement).
+// `pass` is write-only (sent on PUT, never returned); blank fields on PUT keep
+// the stored value. `provider` is the pluggable sender id (only "smtp" today).
+// `secure` toggles implicit TLS (typically port 465).
+export interface EmailSettingsInput {
+  provider?: string;
+  host?: string;
+  port?: string; // string on the wire; parsed to a number server-side
+  user?: string;
+  pass?: string;
+  fromEmail?: string;
+  fromName?: string;
+  secure?: boolean;
+}
+export interface EmailSettingsMasked {
+  provider: string; // defaults to "smtp"
+  host: string | null;
+  port: string | null;
+  user: string | null;
+  // The SMTP password is a secret — never returned; only whether one is stored.
+  passSet: boolean;
+  fromEmail: string | null;
+  fromName: string | null;
+  secure: boolean;
+}
 // the web app falls back to a mock payment path (UI stays fully testable).
 export interface BillingConfigDTO {
   provider: PaymentProviderId;
@@ -1823,6 +1848,9 @@ export const ROUTES = {
   getMailchimpSettings: "GET /admin/settings/mailchimp",
   putMailchimpSettings: "PUT /admin/settings/mailchimp",
   deleteMailchimpSettings: "DELETE /admin/settings/mailchimp", // clears all Mailchimp creds
+  getEmailSettings: "GET /admin/settings/email", // -> EmailSettingsMasked (password never returned, only passSet)
+  putEmailSettings: "PUT /admin/settings/email", // body EmailSettingsInput (blank pass keeps stored)
+  deleteEmailSettings: "DELETE /admin/settings/email", // clears all email/SMTP creds
   getPayPalSettings: "GET /admin/settings/paypal", // -> {clientId, clientSecretLast4, webhookId, mode}
   putPayPalSettings: "PUT /admin/settings/paypal", // body {clientId?, clientSecret?, webhookId?, mode?}
   deletePayPalSettings: "DELETE /admin/settings/paypal", // clears all PayPal creds

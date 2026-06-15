@@ -844,3 +844,35 @@ model ConsentEvent {
 
   @@index([contactId])
 }
+
+// ---------- Email engine (in-house templates/scheduling; pluggable sender) ----------
+// We own the pre-mail (templates, automations, scheduling, contacts) and put
+// bytes on the wire via a swappable provider (default: nodemailer SMTP). EmailLog
+// is the send ledger — idempotency (dedupeKey) + audit + provider correlation.
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+  BOUNCED
+  COMPLAINED
+}
+
+model EmailLog {
+  id          String      @id @default(cuid())
+  to          String
+  contactId   String? // internal Contact when known (no FK: survives deletion)
+  templateKey String? // template/automation that produced it
+  campaignId  String?
+  subject     String
+  status      EmailStatus @default(QUEUED)
+  providerId  String? // provider message id (webhook correlation)
+  error       String?
+  dedupeKey   String?     @unique // idempotency for triggered sends
+  sentAt      DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([to])
+  @@index([status])
+  @@index([createdAt])
+}
