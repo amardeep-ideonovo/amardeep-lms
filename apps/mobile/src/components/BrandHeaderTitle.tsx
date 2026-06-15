@@ -29,9 +29,10 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     logo: { height: 26, width: 120 },
     title: {
       color: colors.text,
-      fontSize: 17,
+      fontSize: 16,
       fontWeight: "800",
       fontFamily: fonts.extrabold,
-      maxWidth: 220,
+      // Wide enough for the full brand; iOS truncated it at the larger font.
+      maxWidth: 260,
     },
   });

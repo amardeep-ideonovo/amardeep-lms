@@ -13,7 +13,12 @@ import {
   useWindowDimensions,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
-import type { ClassTileDTO, CourseCard, DashboardResponse } from "@lms/types";
+import type {
+  AuthUser,
+  ClassTileDTO,
+  CourseCard,
+  DashboardResponse,
+} from "@lms/types";
 
 import { api } from "../api";
 import { useAuth } from "../auth";
@@ -28,6 +33,17 @@ import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
 
+// Member's display first name for the greeting: profile first name, else
+// username, else the email local-part. Empty when we have no identity yet.
+function greetingName(u: AuthUser | null): string {
+  if (!u) return "";
+  return (
+    u.firstName?.trim() ||
+    u.username?.trim() ||
+    (u.email ? u.email.split("@")[0] : "")
+  );
+}
+
 export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
@@ -36,6 +52,7 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
 
   const [classes, setClasses] = useState<ClassTileDTO[] | null>(null);
   const [dash, setDash] = useState<DashboardResponse | null>(null);
+  const [me, setMe] = useState<AuthUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [featProgress, setFeatProgress] = useState<{
     done: number;
@@ -48,7 +65,11 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
     setError(null);
     // Keep previous data on refocus (no spinner flash) — only the very first
     // load shows skeletons.
-    const [cls, d] = await Promise.allSettled([api.myClasses(), api.dashboard()]);
+    const [cls, d, meRes] = await Promise.allSettled([
+      api.myClasses(),
+      api.dashboard(),
+      api.me(),
+    ]);
     if (cls.status === "fulfilled") {
       setClasses(cls.value);
     } else if (!loadedOnce.current) {
@@ -56,6 +77,7 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
       return;
     }
     if (d.status === "fulfilled") setDash(d.value);
+    if (meRes.status === "fulfilled") setMe(meRes.value);
     loadedOnce.current = true;
   }, []);
 
@@ -122,6 +144,7 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
 
   const enrolled = classes.filter((c) => c.owned);
   const available = classes.filter((c) => !c.owned);
+  const name = greetingName(me);
   const allCourses = dash?.categories.flatMap((s) => s.courses) ?? [];
   const tileWidth = (width - spacing.md * 2 - spacing.sm) / 2;
 
@@ -160,7 +183,13 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
       <PopupHost context={{ type: "dashboard" }} />
       <ScrollView style={styles.list} contentContainerStyle={styles.content}>
         <Text style={styles.h1}>
-          {enrolled.length > 0 ? "Welcome back." : "Welcome."}
+          {enrolled.length > 0
+            ? name
+              ? `Welcome back, ${name}.`
+              : "Welcome back."
+            : name
+              ? `Welcome, ${name}.`
+              : "Welcome."}
         </Text>
         <Text style={styles.sub}>
           {enrolled.length > 0
@@ -319,7 +348,9 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     },
     browseAll: { paddingVertical: spacing.sm },
     browseAllText: { color: colors.textMuted, fontSize: 14, fontWeight: "600", fontFamily: fonts.semibold },
-    headerActions: { flexDirection: "row", gap: spacing.md },
-    headerLink: { color: colors.primary, fontSize: 15, fontWeight: "600", fontFamily: fonts.semibold },
+    // Compact so the brand (headerLeft) + these actions both fit inline on iOS,
+    // whose nav bar otherwise collapses the trailing items into a "•••" overflow.
+    headerActions: { flexDirection: "row", gap: spacing.sm },
+    headerLink: { color: colors.primary, fontSize: 14, fontWeight: "600", fontFamily: fonts.semibold },
     signOut: { color: colors.textMuted },
   });

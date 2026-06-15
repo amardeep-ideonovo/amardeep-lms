@@ -38,6 +38,7 @@ import type {
   PublicClassListItem,
   ResolvedMenu,
   ResolvedHeader,
+  AppConfig,
   FooterConfig,
   FooterSubscribeResult,
   ChangePasswordInput,
@@ -356,6 +357,18 @@ export async function fetchHeaderMenu(
   try {
     const path = menuId ? `/menus/${menuId}/resolved` : `/menus/location/HEADER`;
     return await request<ResolvedMenu>(path, { auth: false });
+  } catch {
+    return null;
+  }
+}
+
+// ---------- App config / brand (PUBLIC) ----------
+// The single, cross-platform brand source (also drives the mobile app). SSR'd
+// in the root layout so <Nav> shows the configured brand name (e.g. "Spotlight
+// Academy") instead of the built-in "LMS" fallback. null on failure.
+export async function fetchAppConfig(): Promise<AppConfig | null> {
+  try {
+    return await request<AppConfig>("/app/config", { auth: false });
   } catch {
     return null;
   }

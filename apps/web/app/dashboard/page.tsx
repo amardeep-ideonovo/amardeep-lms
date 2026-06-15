@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ClassTileDTO } from "@lms/types";
-import { ApiError, api, clearToken } from "@/lib/api";
+import type { AuthUser, ClassTileDTO } from "@lms/types";
+import { ApiError, api, clearToken, getCachedMe, setCachedMe } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
 
@@ -66,10 +66,25 @@ function ClassTile({ cls }: { cls: ClassTileDTO }) {
   );
 }
 
+// Member's display first name for the greeting: profile first name, else
+// username, else the email local-part. Empty when we have no identity yet, so
+// the greeting renders without a dangling comma.
+function greetingName(u: AuthUser | null): string {
+  if (!u) return "";
+  return (
+    u.firstName?.trim() ||
+    u.username?.trim() ||
+    (u.email ? u.email.split("@")[0] : "")
+  );
+}
+
 function DashboardInner() {
   const router = useRouter();
   const [classes, setClasses] = useState<ClassTileDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Member identity for the personalized greeting. Seeded from the localStorage
+  // cache so the name paints immediately (no flash), then refreshed by /auth/me.
+  const [me, setMe] = useState<AuthUser | null>(() => getCachedMe());
 
   useEffect(() => {
     let mounted = true;
@@ -103,6 +118,23 @@ function DashboardInner() {
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [router]);
+
+  // Refresh the member profile for the greeting (seeded from cache above), and
+  // keep the cache current so the name paints instantly on the next visit.
+  useEffect(() => {
+    let alive = true;
+    api
+      .me()
+      .then((u) => {
+        if (!alive) return;
+        setMe(u);
+        setCachedMe(u);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Featured (most recent enrolled) class headlines the hero — fetch its
   // progress so the hero can show "X% complete" without a new DTO field.
@@ -162,6 +194,7 @@ function DashboardInner() {
   const enrolled = classes.filter((c) => c.owned);
   const available = classes.filter((c) => !c.owned);
   const featured = enrolled[0] ?? null;
+  const name = greetingName(me);
   // The hero is a shortcut to the featured class; "My Classes" stays the
   // COMPLETE library (count must match what the member owns).
 
@@ -171,7 +204,13 @@ function DashboardInner() {
         <div className="md-head">
           <h1>
             {enrolled.length > 0 ? (
-              <>Welcome <span className="t-gradient">back</span>.</>
+              name ? (
+                <>Welcome back, <span className="t-gradient">{name}</span>.</>
+              ) : (
+                <>Welcome <span className="t-gradient">back</span>.</>
+              )
+            ) : name ? (
+              <>Welcome, <span className="t-gradient">{name}</span>.</>
             ) : (
               <><span className="t-gradient">Welcome</span>.</>
             )}

@@ -10,7 +10,15 @@ import { MenuLink, flattenChildren, isExternal } from "./MenuLink";
 // Site footer from the admin "Footer" builder: logo · menu · email opt-in, plus a
 // bottom bar. The config is SSR'd (no flash); the menu items are visibility-
 // filtered and re-resolved client-side. Renders nothing unless enabled.
-export default function Footer({ config }: { config?: FooterConfig | null }) {
+export default function Footer({
+  config,
+  brandTitle,
+}: {
+  config?: FooterConfig | null;
+  // Cross-platform brand name (AppConfig.title) — same source as the nav and
+  // the apps. Falls back to "LMS" when unset, so all surfaces stay aligned.
+  brandTitle?: string | null;
+}) {
   const pathname = usePathname();
   const [menu, setMenu] = useState<ResolvedMenu | null>(null);
 
@@ -54,7 +62,7 @@ export default function Footer({ config }: { config?: FooterConfig | null }) {
             <img src={f.logoUrl} alt="" className="footer-logo" />
           ) : (
             <Link href="/dashboard" className="footer-brand">
-              LMS
+              {brandTitle?.trim() || "LMS"}
             </Link>
           )}
           {f.tagline && <p className="footer-tagline">{f.tagline}</p>}

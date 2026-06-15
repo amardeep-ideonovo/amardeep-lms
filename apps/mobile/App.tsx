@@ -99,7 +99,10 @@ function AppNavigator() {
         name="Dashboard"
         component={DashboardScreen}
         // The home header carries the brand (admin-configured logo or title),
-        // not the screen name — matches the admin live-preview.
+        // not the screen name — matches the admin live-preview. The brand is the
+        // header title (its compact size + the slimmed Blog/Account/Sign-out
+        // actions leave room for the full name on iOS, which truncated it at the
+        // larger size).
         options={{ headerTitle: () => <BrandHeaderTitle /> }}
       />
       <AppStack.Screen

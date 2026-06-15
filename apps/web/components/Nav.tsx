@@ -36,9 +36,13 @@ function avatarInitials(u: AuthUser): string {
 export default function Nav({
   initialHeader,
   initialMenu,
+  brandTitle,
 }: {
   initialHeader?: ResolvedHeader | null;
   initialMenu?: ResolvedMenu | null;
+  // Cross-platform brand name (AppConfig.title) — the same source the mobile
+  // app uses. Falls back to "LMS" when unset, so web and apps stay aligned.
+  brandTitle?: string | null;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -166,7 +170,7 @@ export default function Nav({
     </Link>
   ) : (
     <Link href="/dashboard" className="nav-brand">
-      LMS
+      {brandTitle?.trim() || "LMS"}
     </Link>
   );
 
