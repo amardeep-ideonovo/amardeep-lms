@@ -7,6 +7,7 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
+import { IsOptional, IsString } from 'class-validator';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermission } from '../auth/require-permission.decorator';
 import { SettingsService, SETTING_KEYS } from './settings.service';
@@ -17,6 +18,16 @@ import {
   UpdatePayPalSettingsDto,
   UpdateStripeSettingsDto,
 } from './dto/settings.dto';
+
+// The webhook shared secret lives on its own endpoint (and its own DTO, declared
+// here rather than in the shared settings.dto so it can rotate independently of
+// SMTP config). Write-only, exactly like the SMTP password: GET reports only
+// whether it's set, PUT replaces it, DELETE clears it.
+class UpdateEmailWebhookSecretDto {
+  @IsOptional()
+  @IsString()
+  secret?: string;
+}
 
 // Last 4 chars of a secret for read-back (never the full plaintext).
 const last4 = (s: string | null): string | null => (s ? s.slice(-4) : null);
@@ -121,17 +132,27 @@ export class SettingsController {
   @Get('email')
   @RequirePermission('settings', 'read')
   async getEmail() {
-    const [provider, host, port, user, pass, fromEmail, fromName, secure] =
-      await Promise.all([
-        this.settings.getEmailProvider(),
-        this.settings.getSecret(SETTING_KEYS.emailHost),
-        this.settings.getSecret(SETTING_KEYS.emailPort),
-        this.settings.getSecret(SETTING_KEYS.emailUser),
-        this.settings.getSecret(SETTING_KEYS.emailPass),
-        this.settings.getSecret(SETTING_KEYS.emailFromEmail),
-        this.settings.getSecret(SETTING_KEYS.emailFromName),
-        this.settings.getEmailSecure(),
-      ]);
+    const [
+      provider,
+      host,
+      port,
+      user,
+      pass,
+      resendApiKey,
+      fromEmail,
+      fromName,
+      secure,
+    ] = await Promise.all([
+      this.settings.getEmailProvider(),
+      this.settings.getSecret(SETTING_KEYS.emailHost),
+      this.settings.getSecret(SETTING_KEYS.emailPort),
+      this.settings.getSecret(SETTING_KEYS.emailUser),
+      this.settings.getSecret(SETTING_KEYS.emailPass),
+      this.settings.getSecret(SETTING_KEYS.emailResendApiKey),
+      this.settings.getSecret(SETTING_KEYS.emailFromEmail),
+      this.settings.getSecret(SETTING_KEYS.emailFromName),
+      this.settings.getEmailSecure(),
+    ]);
     return {
       provider,
       // host/port/from/user are config, not secrets — returned in full.
@@ -139,6 +160,8 @@ export class SettingsController {
       port: port ?? null,
       user: user ?? null,
       passSet: !!pass,
+      // The Resend API key is a secret — never returned; only whether one is stored.
+      resendApiKeySet: !!resendApiKey,
       fromEmail: fromEmail ?? null,
       fromName: fromName ?? null,
       secure,
@@ -154,6 +177,11 @@ export class SettingsController {
     await this.settings.setSecret(SETTING_KEYS.emailUser, dto.user);
     // Blank/omitted password keeps the stored one (setSecret no-ops on '').
     await this.settings.setSecret(SETTING_KEYS.emailPass, dto.pass);
+    // Blank/omitted Resend key keeps the stored one (same write-only pattern).
+    await this.settings.setSecret(
+      SETTING_KEYS.emailResendApiKey,
+      dto.resendApiKey,
+    );
     await this.settings.setSecret(SETTING_KEYS.emailFromEmail, dto.fromEmail);
     await this.settings.setSecret(SETTING_KEYS.emailFromName, dto.fromName);
     // Boolean → stable string so setSecret persists it (and 'false' isn't '').
@@ -171,6 +199,36 @@ export class SettingsController {
   async deleteEmail() {
     await this.settings.clearEmail();
     return this.getEmail();
+  }
+
+  // ----- Webhook shared secret (guards the public bounce/complaint webhook).
+  // Same write-only contract as the SMTP password: GET never returns the value,
+  // only whether one is stored. Kept on its own route so an admin can rotate it
+  // without resending SMTP config.
+
+  @Get('email/webhook-secret')
+  @RequirePermission('settings', 'read')
+  async getEmailWebhookSecret() {
+    const secret = await this.settings.getEmailWebhookSecret();
+    return { secretSet: !!secret };
+  }
+
+  @Put('email/webhook-secret')
+  @RequirePermission('settings', 'edit')
+  async putEmailWebhookSecret(@Body() dto: UpdateEmailWebhookSecretDto) {
+    // Blank/omitted keeps the stored one (setSecret no-ops on '').
+    await this.settings.setSecret(
+      SETTING_KEYS.emailWebhookSecret,
+      dto.secret,
+    );
+    return this.getEmailWebhookSecret();
+  }
+
+  @Delete('email/webhook-secret')
+  @RequirePermission('settings', 'delete')
+  async deleteEmailWebhookSecret() {
+    await this.settings.clearEmailWebhookSecret();
+    return this.getEmailWebhookSecret();
   }
 
   // ----- PayPal credentials (same write-only pattern as Stripe) -----

@@ -29,6 +29,7 @@ import {
   NotificationsService,
   type RecordNotificationInput,
 } from '../notifications/notifications.service';
+import { AutomationService } from '../email/automation.service';
 
 // Maps Stripe subscription.status -> our SubStatus / UserLevelStatus.
 function mapSubStatus(status: Stripe.Subscription.Status): {
@@ -65,8 +66,8 @@ interface NormalizedSubItem {
   levelId: string;
   levelName: string;
   subItemId: string; // si_… (Stripe item) | I-… (PayPal sub id doubles as item)
-  mailchimpTags: string[];
-  mailchimpAudienceId: string | null;
+  audienceTags: string[];
+  audienceId: string | null; // INTERNAL Audience id (null = default "Members")
 }
 
 // A provider subscription reduced to exactly what reconciliation needs. Built
@@ -118,6 +119,7 @@ export class BillingService implements OnModuleInit {
     private readonly contacts: ContactsService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly automations: AutomationService,
   ) {}
 
   // PayPal "cancel at period end" keeps the grant ACTIVE with an expiresAt
@@ -137,6 +139,53 @@ export class BillingService implements OnModuleInit {
   // Where Stripe redirects users back to (the MEMBER WEB app, not the API).
   private appUrl(): string {
     return this.config.get<string>('WEB_APP_URL') || 'http://localhost:3002';
+  }
+
+  // Brand title for member-facing automation emails. Read straight from the
+  // AppConfig singleton (we don't inject AppConfigService — billing isn't in its
+  // module) and fall back to the default if the row is missing/blank.
+  private async brandTitle(): Promise<string> {
+    try {
+      const row = await this.prisma.appConfig.findUnique({
+        where: { id: 'singleton' },
+      });
+      const title = (row?.config as { title?: unknown } | null)?.title;
+      return typeof title === 'string' && title.trim() ? title : 'LMS';
+    } catch {
+      return 'LMS';
+    }
+  }
+
+  // Fire a member-facing automation for a subscription lifecycle event, off the
+  // hot path: resolves the member's firstName (s.user only carries id+email) and
+  // the brand, then hands off to AutomationService.fire (best-effort, never
+  // throws — but we still guard so reconcile can't break here). Mirrors the
+  // SIGNUP/CERTIFICATE_ISSUED wiring in auth/certificates services.
+  private async fireSubscriptionAutomation(
+    trigger: 'SUBSCRIPTION_ACTIVE' | 'SUBSCRIPTION_CANCELED',
+    user: { id: string; email: string },
+    planLabel: string,
+  ): Promise<void> {
+    try {
+      const [member, brand] = await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: user.id },
+          select: { firstName: true },
+        }),
+        this.brandTitle(),
+      ]);
+      const firstName = member?.firstName?.trim() || 'there';
+      await this.automations.fire(trigger, {
+        email: user.email,
+        vars: { firstName, brand, plan: planLabel },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[billing] ${trigger} automation failed for ${user.email}: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+    }
   }
 
   // ---------- Admin notifications (emit helpers) ----------
@@ -933,8 +982,8 @@ export class BillingService implements OnModuleInit {
         levelId: price.levelId,
         levelName: price.level.name,
         subItemId: item.id,
-        mailchimpTags: price.level.mailchimpTags,
-        mailchimpAudienceId: price.level.mailchimpAudienceId,
+        audienceTags: price.level.audienceTags,
+        audienceId: price.level.audienceId,
       });
     }
 
@@ -1062,41 +1111,47 @@ export class BillingService implements OnModuleInit {
 
       // Audience/tag sync: add when newly active, remove when transitioning to
       // non-active — but NOT for a mere pause (keep tags during a pause so a
-      // temporary suspension doesn't churn Mailchimp).
-      if (info.mailchimpTags.length || info.mailchimpAudienceId) {
-        const wasActive = prev?.status === 'ACTIVE';
-        const nowActive = statusForRow === 'ACTIVE';
-        if (nowActive && !wasActive) {
+      // temporary suspension doesn't churn the audience).
+      const wasActive = prev?.status === 'ACTIVE';
+      const nowActive = statusForRow === 'ACTIVE';
+      if (nowActive && !wasActive) {
+        // ALWAYS capture the member into the class's in-house audience on a
+        // newly-active grant (null audienceId → default "Members"). syncTags
+        // upserts the contact first, so it lands them even with empty tags.
+        // Best-effort.
+        try {
+          await this.contacts.syncTags(
+            'add',
+            user.email,
+            info.audienceTags,
+            info.audienceId ?? undefined,
+          );
+        } catch (err) {
+          this.logger.warn(
+            `[billing] contacts add-tags failed for ${user.email}: ${
+              err instanceof Error ? err.message : err
+            }`,
+          );
+        }
+        // Mirror tags to Mailchimp (gated/no-op by default). Pass undefined for
+        // the audience — Mailchimp wants a LIST id, not our internal Audience
+        // id. Only enqueue when there are tags to apply.
+        if (info.audienceTags.length) {
           await this.mailchimp.enqueueTags(
             'add',
             user.email,
-            info.mailchimpTags,
-            info.mailchimpAudienceId ?? undefined,
-          );
-          // In-house list dual-write (best-effort).
-          try {
-            await this.contacts.syncTags(
-              'add',
-              user.email,
-              info.mailchimpTags,
-              info.mailchimpAudienceId,
-            );
-          } catch (err) {
-            this.logger.warn(
-              `[billing] contacts add-tags failed for ${user.email}: ${
-                err instanceof Error ? err.message : err
-              }`,
-            );
-          }
-        } else if (!nowActive && wasActive && statusForRow !== 'PAUSED') {
-          await this.maybeRemoveTags(
-            user.id,
-            levelId,
-            user.email,
-            info.mailchimpTags,
-            info.mailchimpAudienceId ?? undefined,
+            info.audienceTags,
+            undefined,
           );
         }
+      } else if (!nowActive && wasActive && statusForRow !== 'PAUSED') {
+        await this.maybeRemoveTags(
+          user.id,
+          levelId,
+          user.email,
+          info.audienceTags,
+          info.audienceId ?? undefined,
+        );
       }
     }
 
@@ -1115,13 +1170,13 @@ export class BillingService implements OnModuleInit {
         where: { id: ul.id },
         data: { status: 'CANCELED' },
       });
-      if (ul.level.mailchimpTags.length && ul.status === 'ACTIVE') {
+      if (ul.level.audienceTags.length && ul.status === 'ACTIVE') {
         await this.maybeRemoveTags(
           user.id,
           ul.levelId,
           user.email,
-          ul.level.mailchimpTags,
-          ul.level.mailchimpAudienceId ?? undefined,
+          ul.level.audienceTags,
+          ul.level.audienceId ?? undefined,
         );
       }
     }
@@ -1148,6 +1203,10 @@ export class BillingService implements OnModuleInit {
         userId: user.id,
         dedupeKey: `sub:created:${s.externalSubId}`,
       });
+      // Member-facing automation: gated by the same `prevMirror == null`
+      // genuine-activation condition as the admin notification, so a webhook
+      // replay / re-reconcile won't re-fire it (fire()'s dedupeKey is a backstop).
+      await this.fireSubscriptionAutomation('SUBSCRIPTION_ACTIVE', user, planLabel);
     }
     if (prevStatus !== 'PAUSED' && subStatusFinal === 'PAUSED') {
       await this.notify({
@@ -1184,6 +1243,11 @@ export class BillingService implements OnModuleInit {
         userId: user.id,
         dedupeKey: `sub:canceled:${s.externalSubId}`,
       });
+      // Member-facing automation: same `prevStatus !== 'CANCELED'` gate as the
+      // admin notification means a re-reconcile of an already-canceled sub won't
+      // re-fire. Covers BOTH cancel paths (admin cancelSub + member
+      // cancelMyMembership), since both funnel through reconcile -> here.
+      await this.fireSubscriptionAutomation('SUBSCRIPTION_CANCELED', user, planLabel);
     }
     if (!prevCancelAtPe && newCancelAtPe && subStatusFinal !== 'CANCELED') {
       await this.notify({
@@ -1197,23 +1261,27 @@ export class BillingService implements OnModuleInit {
     }
   }
 
-  // Only enqueue a tag removal if the user has no OTHER active grant for the
-  // level (e.g. a manual grant), keeping Mailchimp state consistent.
+  // Only remove tags if the user has no OTHER active grant for the level (e.g. a
+  // manual grant), keeping audience state consistent. `audienceRef` is the
+  // class's INTERNAL Audience id (null/undefined → default "Members"): it keys
+  // the in-house syncTags only. Mailchimp expects a LIST id, never an internal
+  // Audience id, so its enqueueTags gets undefined (global Settings fallback);
+  // gated/no-op by default anyway.
   private async maybeRemoveTags(
     userId: string,
     levelId: string,
     email: string,
     tags: string[],
-    audienceId?: string,
+    audienceRef?: string,
   ): Promise<void> {
     const stillActive = await this.prisma.userLevel.count({
       where: { userId, levelId, status: 'ACTIVE' },
     });
     if (stillActive === 0) {
-      await this.mailchimp.enqueueTags('remove', email, tags, audienceId);
+      await this.mailchimp.enqueueTags('remove', email, tags, undefined);
       // In-house list dual-write (best-effort).
       try {
-        await this.contacts.syncTags('remove', email, tags, audienceId);
+        await this.contacts.syncTags('remove', email, tags, audienceRef);
       } catch (err) {
         this.logger.warn(
           `[billing] contacts remove-tags failed for ${email}: ${
@@ -1654,8 +1722,8 @@ export class BillingService implements OnModuleInit {
             levelId: price.levelId,
             levelName: price.level.name,
             subItemId: sub.id,
-            mailchimpTags: price.level.mailchimpTags,
-            mailchimpAudienceId: price.level.mailchimpAudienceId,
+            audienceTags: price.level.audienceTags,
+            audienceId: price.level.audienceId,
           },
         ],
         graceExpiresAt: graceEnd,
@@ -2072,13 +2140,13 @@ export class BillingService implements OnModuleInit {
         this.logger.log(
           `[paypal-sweep] grace expired sub=${ul.stripeSubItemId} level=${ul.levelId} user=${ul.userId} -> CANCELED`,
         );
-        if (ul.level.mailchimpTags.length) {
+        if (ul.level.audienceTags.length) {
           await this.maybeRemoveTags(
             ul.userId,
             ul.levelId,
             ul.user.email,
-            ul.level.mailchimpTags,
-            ul.level.mailchimpAudienceId ?? undefined,
+            ul.level.audienceTags,
+            ul.level.audienceId ?? undefined,
           );
         }
       }

@@ -219,19 +219,33 @@ export class EmailTemplateService {
   // Lightweight HTML→text for the multipart fallback: drop <style>/<head>,
   // strip tags, decode a few common entities, and collapse whitespace. Not a
   // full renderer — just a readable plain-text alternative.
+  //
+  // Decode ORDER is a correctness issue, not just cosmetic. We strip real markup
+  // FIRST (while `<`/`>` still unambiguously delimit tags), and only THEN decode
+  // entities — so the decode can never feed a second tag-strip pass and resurrect
+  // markup. Two ordering rules within the decode keep escaped markup inert:
+  //   • `&amp;` is decoded LAST, so a double-escaped `&amp;lt;script&amp;gt;`
+  //     collapses to the literal text `&lt;script&gt;` — never a live `<script>`
+  //     (the old code decoded `&amp;`→`&` and then `&lt;`→`<`, reviving the tag).
+  //   • `&lt;`/`&gt;` are decoded to literal `<`/`>` only as plain text at the
+  //     very end; with no tag-strip running afterward they stay inert characters,
+  //     which also preserves legitimate uses like `5 &lt; 10`.
   private htmlToText(html: string): string {
     return html
       .replace(/<!--[\s\S]*?-->/g, ' ')
       .replace(/<(style|head|script)[\s\S]*?<\/\1>/gi, ' ')
+      // Strip structural/real tags while brackets still mean "tag".
       .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, '\n')
       .replace(/<br\s*\/?>(?:\s*)/gi, '\n')
       .replace(/<[^>]+>/g, ' ')
+      // Text-only entities first; bracket + ampersand entities decoded last (and
+      // &amp; the very last) so escaped markup can't be reassembled into a tag.
       .replace(/&nbsp;/gi, ' ')
-      .replace(/&amp;/gi, '&')
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, '>')
       .replace(/&#39;/gi, "'")
       .replace(/&quot;/gi, '"')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&amp;/gi, '&')
       .replace(/[ \t]+/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
       .split('\n')

@@ -2,11 +2,11 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import type {
+  AudienceDTO,
   CreateLevelInput,
   LevelCategoryDTO,
   LevelDTO,
   LevelType,
-  MailchimpAudienceDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
@@ -40,10 +40,13 @@ export default function ClassesPage() {
   const [slug, setSlug] = useState("");
   const [type, setType] = useState<LevelType>("PAID");
   const [published, setPublished] = useState(false);
-  const [mailchimpTags, setMailchimpTags] = useState<string[]>([]);
+  const [audienceTags, setAudienceTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
-  const [mailchimpAudienceId, setMailchimpAudienceId] = useState("");
-  const [mailchimpAudienceName, setMailchimpAudienceName] = useState("");
+  const [audienceId, setAudienceId] = useState("");
+  // Display name of the class's linked audience, kept only so the edit form can
+  // label a stored audience that isn't in the fetched list (e.g. the picker
+  // 403'd for a class-only admin). null = falls back to the id.
+  const [audienceName, setAudienceName] = useState<string | null>(null);
   const [prices, setPrices] = useState<PriceForm[]>([emptyPrice()]);
   // ----- landing-page (MasterClass-style) fields -----
   const [imageUrl, setImageUrl] = useState("");
@@ -62,9 +65,11 @@ export default function ClassesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Live Mailchimp audiences for the dropdown (empty if Mailchimp unconfigured).
-  const [audiences, setAudiences] = useState<MailchimpAudienceDTO[]>([]);
-  const [mcError, setMcError] = useState<string | null>(null);
+  // In-house audiences for the picker. A class with no audience falls back to
+  // the default "Members" audience at grant time. The endpoint is gated by the
+  // 'contacts' permission, so a class-only admin gets an empty list (403) and
+  // simply sees the default-audience option.
+  const [audiences, setAudiences] = useState<AudienceDTO[]>([]);
 
   async function load() {
     setLoading(true);
@@ -100,22 +105,16 @@ export default function ClassesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modalOpen]);
 
-  // Fetch Mailchimp audiences once. If Mailchimp isn't configured the API
-  // returns 400 — surface a hint but keep the page usable (audience optional).
+  // Fetch the in-house audiences once for the picker. The endpoint needs the
+  // 'contacts' read permission; a class-only admin gets a 403, which we treat
+  // as "no audiences" — the picker then offers only the default audience.
   useEffect(() => {
     if (authLoading || !can("classes", "read")) return;
     let alive = true;
     api
-      .listMailchimpAudiences()
+      .listAudiences()
       .then((a) => alive && setAudiences(a))
-      .catch((err) => {
-        if (!alive) return;
-        setMcError(
-          err instanceof ApiError
-            ? err.message
-            : "Could not load Mailchimp audiences"
-        );
-      });
+      .catch(() => alive && setAudiences([]));
     return () => {
       alive = false;
     };
@@ -149,10 +148,10 @@ export default function ClassesPage() {
     setSlug("");
     setType("PAID");
     setPublished(false);
-    setMailchimpTags([]);
+    setAudienceTags([]);
     setTagInput("");
-    setMailchimpAudienceId("");
-    setMailchimpAudienceName("");
+    setAudienceId("");
+    setAudienceName(null);
     setPrices([emptyPrice()]);
     setCategoryIds([]);
     setImageUrl("");
@@ -177,10 +176,10 @@ export default function ClassesPage() {
     setSlug(level.slug ?? "");
     setType(level.type);
     setPublished(level.published);
-    setMailchimpTags(level.mailchimpTags ?? []);
+    setAudienceTags(level.audienceTags ?? []);
     setTagInput("");
-    setMailchimpAudienceId(level.mailchimpAudienceId ?? "");
-    setMailchimpAudienceName(level.mailchimpAudienceName ?? "");
+    setAudienceId(level.audienceId ?? "");
+    setAudienceName(level.audienceName ?? null);
     setCategoryIds(level.categories?.map((c) => c.id) ?? []);
     setImageUrl(level.imageUrl ?? "");
     setDescription(level.description ?? "");
@@ -207,11 +206,11 @@ export default function ClassesPage() {
 
   function addTag() {
     const t = tagInput.trim();
-    if (t && !mailchimpTags.includes(t)) setMailchimpTags((p) => [...p, t]);
+    if (t && !audienceTags.includes(t)) setAudienceTags((p) => [...p, t]);
     setTagInput("");
   }
   function removeTag(t: string) {
-    setMailchimpTags((p) => p.filter((x) => x !== t));
+    setAudienceTags((p) => p.filter((x) => x !== t));
   }
 
   async function onSubmit(e: FormEvent) {
@@ -231,17 +230,16 @@ export default function ClassesPage() {
       // Flush any tag still typed in the box but not yet added.
       const pending = tagInput.trim();
       const finalTags =
-        pending && !mailchimpTags.includes(pending)
-          ? [...mailchimpTags, pending]
-          : mailchimpTags;
+        pending && !audienceTags.includes(pending)
+          ? [...audienceTags, pending]
+          : audienceTags;
       const input: CreateLevelInput = {
         name: name.trim(),
         slug: slug.trim(),
         type,
         published,
-        mailchimpTags: finalTags,
-        mailchimpAudienceId: mailchimpAudienceId || undefined,
-        mailchimpAudienceName: mailchimpAudienceName || undefined,
+        audienceTags: finalTags,
+        audienceId: audienceId || undefined,
         categoryIds,
         imageUrl: imageUrl.trim(),
         description: description.trim(),
@@ -358,8 +356,8 @@ export default function ClassesPage() {
         <div>
           <h1>Classes</h1>
           <p className="subtitle">
-            Membership tiers. Each class can subscribe members to a Mailchimp
-            audience (and apply a tag within it), and — if PAID — has Stripe
+            Membership tiers. Each class subscribes granted members to an
+            audience (and applies tags within it), and — if PAID — has Stripe
             prices.
           </p>
         </div>
@@ -415,7 +413,13 @@ export default function ClassesPage() {
               </select>
             </div>
             <div className="field">
-              <label>Mailchimp tags</label>
+              <label>
+                Tags{" "}
+                <span className="muted">
+                  (applied within the audience when a member is granted this
+                  class)
+                </span>
+              </label>
               <input
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
@@ -428,9 +432,9 @@ export default function ClassesPage() {
                 onBlur={addTag}
                 placeholder="Type a tag, press Enter"
               />
-              {mailchimpTags.length > 0 && (
+              {audienceTags.length > 0 && (
                 <div className="chips" style={{ marginTop: 8 }}>
-                  {mailchimpTags.map((t) => (
+                  {audienceTags.map((t) => (
                     <span key={t} className="chip chip--muted">
                       {t}
                       <button
@@ -486,45 +490,34 @@ export default function ClassesPage() {
 
           <div className="field">
             <label>
-              Mailchimp audience{" "}
+              Audience{" "}
               <span className="muted">
-                (members granted this class subscribe here; the tag is applied
-                within it)
+                (members granted this class are subscribed to this audience; the
+                tags are applied within it — leave as default to use the default
+                “Members” audience)
               </span>
             </label>
             <select
-              value={mailchimpAudienceId}
-              onChange={(e) => {
-                const id = e.target.value;
-                const aud = audiences.find((a) => a.id === id);
-                setMailchimpAudienceId(id);
-                // keep the cached name in sync with the selection
-                setMailchimpAudienceName(
-                  aud ? aud.name : id ? mailchimpAudienceName : ""
-                );
-              }}
+              value={audienceId}
+              onChange={(e) => setAudienceId(e.target.value)}
             >
-              <option value="">— None (use the global audience) —</option>
+              <option value="">— None (use the default audience) —</option>
               {/* keep the stored audience selectable even if it isn't in the
-                  fetched list (e.g. Mailchimp unconfigured or list removed) */}
-              {mailchimpAudienceId &&
-                !audiences.some((a) => a.id === mailchimpAudienceId) && (
-                  <option value={mailchimpAudienceId}>
-                    {mailchimpAudienceName || mailchimpAudienceId}
-                  </option>
+                  fetched list (e.g. the picker 403'd for a class-only admin) */}
+              {audienceId &&
+                !audiences.some((a) => a.id === audienceId) && (
+                  <option value={audienceId}>{audienceName ?? audienceId}</option>
                 )}
               {audiences.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
-                  {typeof a.memberCount === "number"
-                    ? ` (${a.memberCount})`
-                    : ""}
+                  {a.isDefault ? " (default)" : ""}
                 </option>
               ))}
             </select>
-            {mcError && (
+            {audiences.length === 0 && (
               <span className="muted" style={{ fontSize: 12 }}>
-                {mcError} — set the key in Settings → Mailchimp to pick a list.
+                Using the default audience.
               </span>
             )}
           </div>

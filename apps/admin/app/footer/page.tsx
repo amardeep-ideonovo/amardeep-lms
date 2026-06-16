@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { MailchimpAudienceDTO, MenuListItem } from "@lms/types";
+import type { AudienceDTO, MenuListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import FooterBuilder from "./FooterBuilder";
@@ -11,15 +11,16 @@ import FooterBuilder from "./FooterBuilder";
 export default function FooterPage() {
   const { can, loading: authLoading } = useAdminAuth();
   const [menus, setMenus] = useState<MenuListItem[]>([]);
-  const [audiences, setAudiences] = useState<MailchimpAudienceDTO[]>([]);
+  const [audiences, setAudiences] = useState<AudienceDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading || !can("menus", "read")) return;
     Promise.all([
       api.listMenus(),
-      // Audiences need Mailchimp configured; degrade to empty (picker shows a note).
-      api.listMailchimpAudiences().catch(() => [] as MailchimpAudienceDTO[]),
+      // In-house audiences for the newsletter opt-in picker; degrade to empty
+      // (signups still land in the default audience server-side).
+      api.listAudiences().catch(() => [] as AudienceDTO[]),
     ])
       .then(([m, a]) => {
         setMenus(m);

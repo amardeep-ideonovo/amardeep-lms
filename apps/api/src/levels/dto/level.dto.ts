@@ -62,18 +62,16 @@ export class CreateLevelDto {
   @IsIn(['PAID', 'FREE', 'MANUAL'])
   type!: LevelType;
 
+  // Tag names applied within the in-house audience on grant.
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  mailchimpTags?: string[];
+  audienceTags?: string[];
 
+  // In-house Audience id to capture granted members into (omit = default audience).
   @IsOptional()
   @IsString()
-  mailchimpAudienceId?: string;
-
-  @IsOptional()
-  @IsString()
-  mailchimpAudienceName?: string;
+  audienceId?: string;
 
   @IsOptional()
   @IsArray()
@@ -134,18 +132,16 @@ export class UpdateLevelDto {
   @IsIn(['PAID', 'FREE', 'MANUAL'])
   type?: LevelType;
 
+  // Tag names applied within the in-house audience on grant.
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  mailchimpTags?: string[];
+  audienceTags?: string[];
 
+  // In-house Audience id to capture granted members into (omit = default audience).
   @IsOptional()
   @IsString()
-  mailchimpAudienceId?: string;
-
-  @IsOptional()
-  @IsString()
-  mailchimpAudienceName?: string;
+  audienceId?: string;
 
   // Desired set of offered prices (admin edit form always submits the full
   // list). The service reconciles it against Stripe: Stripe Prices are

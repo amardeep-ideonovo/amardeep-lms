@@ -115,6 +115,26 @@ export class ContactsImportService {
     private readonly mailchimp: MailchimpService,
   ) {}
 
+  // Append an OPTIN consent record for a freshly-imported subscribed contact.
+  // Best-effort but logs on failure (a broken trail must be visible, not
+  // silent) — mirrors ContactsService.recordConsent.
+  private async recordConsent(
+    contactId: string,
+    source?: string,
+  ): Promise<void> {
+    try {
+      await this.prisma.consentEvent.create({
+        data: { contactId, kind: 'OPTIN', source: source ?? null },
+      });
+    } catch (e: any) {
+      this.logger.warn(
+        `recordConsent failed for imported contact ${contactId}: ${
+          e?.message ?? String(e)
+        }`,
+      );
+    }
+  }
+
   /**
    * Import every Mailchimp audience into our DB. Throws (via the export call) a
    * BadRequestException when Mailchimp isn't configured. Each audience is
@@ -198,8 +218,10 @@ export class ContactsImportService {
               },
             });
             summary.contactsUpdated += 1;
+            // Re-running the import shouldn't re-stamp consent for a contact
+            // that's already on file — only record on first import (create).
           } else {
-            await this.prisma.contact.create({
+            const created = await this.prisma.contact.create({
               data: {
                 audienceId: data.audienceId,
                 email: data.email,
@@ -213,6 +235,12 @@ export class ContactsImportService {
               },
             });
             summary.contactsCreated += 1;
+            // Record the consent trail for each newly-imported SUBSCRIBED
+            // contact (the opt-in carried over from Mailchimp). PENDING/
+            // UNSUBSCRIBED/CLEANED rows didn't (re)consent here, so we skip them.
+            if (data.status === 'SUBSCRIBED') {
+              await this.recordConsent(created.id, 'import');
+            }
           }
         }
       } catch (e: any) {

@@ -61,11 +61,7 @@ export class CreateFormDto {
 
   @IsOptional()
   @IsString()
-  mailchimpAudienceId?: string;
-
-  @IsOptional()
-  @IsString()
-  mailchimpAudienceName?: string;
+  audienceId?: string; // in-house Audience id (omit = default "Members")
 
   @IsOptional()
   @IsBoolean()
@@ -107,11 +103,7 @@ export class UpdateFormDto {
 
   @IsOptional()
   @IsString()
-  mailchimpAudienceId?: string;
-
-  @IsOptional()
-  @IsString()
-  mailchimpAudienceName?: string;
+  audienceId?: string; // in-house Audience id (omit = default "Members")
 
   @IsOptional()
   @IsBoolean()

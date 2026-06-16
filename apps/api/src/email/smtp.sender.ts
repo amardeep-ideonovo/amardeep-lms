@@ -62,19 +62,33 @@ export class SmtpMailSender implements MailSender {
     });
 
     const from = msg.from || (await this.resolveFrom());
+
+    // RFC 8058 one-click unsubscribe. nodemailer renders `list.unsubscribe` into
+    // a `List-Unsubscribe: <URL>` header (the bracketed form Gmail/Apple Mail
+    // require to show a native "Unsubscribe" button). To advertise *one-click*
+    // (POST) support we must ALSO send `List-Unsubscribe-Post: List-Unsubscribe=
+    // One-Click`. That value is a fixed token, not a URL, so it can't go through
+    // nodemailer's `list` option (which wraps every value in <…> via
+    // _formatListUrl); we emit it as a raw pass-through header instead, merged
+    // ahead of any caller-supplied headers so callers can still override.
+    const headers: Record<string, string> = {
+      ...(msg.listUnsubscribe
+        ? { 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
+        : {}),
+      ...(msg.headers ?? {}),
+    };
+
     const info = await transport.sendMail({
       from,
       to: msg.to,
       subject: msg.subject,
       html: msg.html,
       text: msg.text,
-      // Native one-click unsubscribe: nodemailer renders `list.unsubscribe`
-      // into a `List-Unsubscribe` header (the bare URL form) so Gmail/Apple Mail
-      // show an "Unsubscribe" button. Any extra raw headers pass through verbatim.
+      // `list.unsubscribe` → `List-Unsubscribe: <URL>` (bracketed form).
       ...(msg.listUnsubscribe
         ? { list: { unsubscribe: msg.listUnsubscribe } }
         : {}),
-      ...(msg.headers ? { headers: msg.headers } : {}),
+      ...(Object.keys(headers).length ? { headers } : {}),
     });
     return { providerId: info.messageId };
   }

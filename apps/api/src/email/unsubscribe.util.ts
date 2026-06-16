@@ -1,24 +1,31 @@
 import { createHmac, timingSafeEqual } from 'crypto';
+import { isProduction } from '../common/env.util';
 
 // Signed, self-contained unsubscribe tokens for one-click List-Unsubscribe and
 // the public /unsubscribe page. A token is `base64url(email).HMAC` where the
 // HMAC is keyed by the same secret used for JWTs (falling back to the settings
-// encryption key, then a dev constant). It carries no DB row — verification is
-// purely cryptographic, so a token stays valid as long as the secret does and
-// can't be forged without it. The email is recoverable (not encrypted) which is
-// exactly what we want: the page needs to know who to unsubscribe.
+// encryption key, then — only outside production — a dev constant). It carries
+// no DB row — verification is purely cryptographic, so a token stays valid as
+// long as the secret does and can't be forged without it. The email is
+// recoverable (not encrypted) which is exactly what we want: the page needs to
+// know who to unsubscribe.
 
-// The signing secret, resolved once per process from the same sources the rest
-// of the API trusts. Mirrors common/env.util's jwtSecret precedence but without
-// the prod hard-fail (an unsubscribe link must keep working even if JWT_SECRET
-// is somehow unset — the SETTINGS_ENC_KEY fallback is a real 32-byte secret in
-// every configured environment).
+// The signing secret, resolved once per call from the same sources the rest of
+// the API trusts (JWT_SECRET, then the settings encryption key). FAILS CLOSED in
+// production: if neither is set we refuse to sign/verify with the public dev
+// constant — otherwise anyone could forge unsubscribe tokens for any address.
+// Outside production the dev constant keeps local links working.
 function unsubscribeSecret(): string {
-  return (
-    process.env.JWT_SECRET ||
-    process.env.SETTINGS_ENC_KEY ||
-    'dev-insecure-secret'
-  );
+  const configured = process.env.JWT_SECRET || process.env.SETTINGS_ENC_KEY;
+  if (configured) return configured;
+  if (isProduction()) {
+    throw new Error(
+      'No unsubscribe signing secret available (set JWT_SECRET or ' +
+        'SETTINGS_ENC_KEY). Refusing to use the insecure dev fallback in ' +
+        'production — it would let anyone forge unsubscribe tokens.',
+    );
+  }
+  return 'dev-insecure-secret';
 }
 
 function b64url(buf: Buffer): string {
@@ -66,7 +73,15 @@ export function verifyUnsubscribeToken(token: string | undefined | null): string
   }
   if (!email) return null;
 
-  const expected = sign(email);
+  // sign() fails closed (throws) in a misconfigured production with no signing
+  // secret. Verification must still degrade to "invalid token" (null → error
+  // page) rather than surfacing a 500 from a public, unauthenticated route.
+  let expected: string;
+  try {
+    expected = sign(email);
+  } catch {
+    return null;
+  }
   // Lengths must match before timingSafeEqual (it throws on length mismatch).
   if (mac.length !== expected.length) return null;
   let ok = false;

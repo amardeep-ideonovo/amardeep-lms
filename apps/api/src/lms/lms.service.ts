@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import * as fs from 'fs';
@@ -19,6 +20,7 @@ import { isCourseLocked } from '../common/access.util';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { LESSON_NOTES_DIR } from './upload.config';
 import { CertificatesService } from '../certificates/certificates.service';
+import { AutomationService } from '../email/automation.service';
 import {
   CreateCourseDto,
   CreateLessonDto,
@@ -28,10 +30,13 @@ import {
 
 @Injectable()
 export class LmsService {
+  private readonly logger = new Logger(LmsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly certificates: CertificatesService,
+    private readonly automations: AutomationService,
   ) {}
 
   // ---------- Courses ----------
@@ -351,11 +356,31 @@ export class LmsService {
       throw new ForbiddenException('You do not have access to this lesson');
     }
 
+    // Detect a GENUINE first completion: only fire the LESSON_COMPLETED
+    // automation when no progress row existed before this write. A re-POST (the
+    // upsert just bumps completedAt) is not a new completion and must NOT
+    // re-trigger the mail — fire()'s per-recipient dedupeKey is a backstop, but
+    // this keeps us off the send path entirely on repeats.
+    const alreadyCompleted = await this.prisma.lessonProgress.findUnique({
+      where: { userId_lessonId: { userId, lessonId } },
+      select: { id: true },
+    });
     await this.prisma.lessonProgress.upsert({
       where: { userId_lessonId: { userId, lessonId } },
       create: { userId, lessonId },
       update: { completedAt: new Date() },
     });
+    if (!alreadyCompleted) {
+      // Best-effort, off the response path: never let a misfiring automation
+      // break the lesson-complete response. lesson/course titles are already
+      // loaded above, so no extra query for vars; we only look up the member's
+      // email (this method only carries userId).
+      void this.fireLessonCompleted(
+        userId,
+        lesson.title,
+        lesson.course.title,
+      );
+    }
     // Completing the FINAL lesson of a class returns the fresh certificate
     // state so clients can surface "Get certificate" without a refetch.
     const certificates = await this.certificates.statusForLesson(
@@ -365,6 +390,52 @@ export class LmsService {
       activeLevels,
     );
     return { ok: true, ...(certificates.length ? { certificates } : {}) };
+  }
+
+  // Fire the LESSON_COMPLETED automation for a genuine new completion. Resolves
+  // the member's email + firstName (completeLesson only carries userId) and the
+  // brand, then hands off to AutomationService.fire (best-effort, never throws).
+  // The outer catch is belt-and-braces so a lookup/send hiccup can't surface on
+  // the lesson-complete response. Mirrors the SIGNUP/CERTIFICATE_ISSUED wiring.
+  private async fireLessonCompleted(
+    userId: string,
+    lessonTitle: string,
+    courseTitle: string,
+  ): Promise<void> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, firstName: true },
+      });
+      if (!user?.email) return;
+      const brand = await this.brandTitle();
+      const firstName = user.firstName?.trim() || 'there';
+      await this.automations.fire('LESSON_COMPLETED', {
+        email: user.email,
+        vars: { firstName, brand, lessonTitle, courseTitle },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[lesson] LESSON_COMPLETED automation failed for user ${userId}: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+    }
+  }
+
+  // Brand title for member-facing automation emails. Read straight from the
+  // AppConfig singleton (we don't inject AppConfigService — lms isn't in its
+  // module); fall back to the default if the row is missing/blank.
+  private async brandTitle(): Promise<string> {
+    try {
+      const row = await this.prisma.appConfig.findUnique({
+        where: { id: 'singleton' },
+      });
+      const title = (row?.config as { title?: unknown } | null)?.title;
+      return typeof title === 'string' && title.trim() ? title : 'LMS';
+    } catch {
+      return 'LMS';
+    }
   }
 
   /** Undo a mark-complete. Idempotent — no row, no error. */

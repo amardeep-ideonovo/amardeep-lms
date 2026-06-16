@@ -203,7 +203,7 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
       name: "Free (QA fixture)",
       type: "FREE",
       published: false,
-      mailchimpTags: ["free"],
+      audienceTags: ["free"],
     },
   });
   await prisma.level.upsert({
@@ -214,7 +214,7 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
       name: "Pro (QA fixture)",
       type: "PAID",
       published: false,
-      mailchimpTags: ["pro"],
+      audienceTags: ["pro"],
     },
   });
 
@@ -350,7 +350,7 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
       name: "Stripe Test",
       type: "PAID",
       published: false,
-      mailchimpTags: [],
+      audienceTags: [],
     },
   });
   await prisma.price.upsert({
@@ -1087,7 +1087,7 @@ async function seedCatalog() {
       description: cls.description,
       imageUrl: art(cls.theme, 0),
       trailerUrl: TRAILER,
-      mailchimpTags: [cls.slug],
+      audienceTags: [cls.slug],
       skills: cls.skills.map((title, i) => ({
         title,
         imageUrl: skillImg(`${cls.key}-${i}`),

@@ -35,9 +35,9 @@ type LevelWithPrices = {
   slug: string | null;
   published: boolean;
   type: any;
-  mailchimpTags: string[];
-  mailchimpAudienceId: string | null;
-  mailchimpAudienceName: string | null;
+  audienceTags: string[];
+  audienceId: string | null;
+  audience: { name: string } | null; // included Audience relation for the display name
   stripeProductId: string | null;
   imageUrl: string | null;
   description: string | null;
@@ -77,9 +77,9 @@ export class LevelsService {
       slug: level.slug,
       published: level.published,
       type: level.type,
-      mailchimpTags: level.mailchimpTags,
-      mailchimpAudienceId: level.mailchimpAudienceId,
-      mailchimpAudienceName: level.mailchimpAudienceName,
+      audienceTags: level.audienceTags,
+      audienceId: level.audienceId,
+      audienceName: level.audience?.name ?? null,
       stripeProductId: level.stripeProductId,
       imageUrl: level.imageUrl,
       description: level.description,
@@ -129,6 +129,7 @@ export class LevelsService {
       include: {
         prices: { where: { active: true } },
         categories: { orderBy: { order: 'asc' } },
+        audience: { select: { name: true } },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -409,9 +410,8 @@ export class LevelsService {
         slug,
         published: dto.published ?? false,
         type: dto.type,
-        mailchimpTags: dto.mailchimpTags ?? undefined,
-        mailchimpAudienceId: dto.mailchimpAudienceId ?? null,
-        mailchimpAudienceName: dto.mailchimpAudienceName ?? null,
+        audienceTags: dto.audienceTags ?? undefined,
+        audienceId: dto.audienceId ?? null,
         stripeProductId,
         imageUrl: dto.imageUrl || null,
         description: dto.description || null,
@@ -434,6 +434,7 @@ export class LevelsService {
       include: {
         prices: { where: { active: true } },
         categories: { orderBy: { order: 'asc' } },
+        audience: { select: { name: true } },
       },
     });
     if (dto.featuredCourseId) {
@@ -462,11 +463,10 @@ export class LevelsService {
         slug,
         published: dto.published !== undefined ? dto.published : undefined,
         type: dto.type ?? undefined,
-        mailchimpTags: dto.mailchimpTags ?? undefined,
+        audienceTags: dto.audienceTags ?? undefined,
         // The admin form always submits the full audience selection, so map
         // undefined/empty -> null (clears) and a value -> set.
-        mailchimpAudienceId: dto.mailchimpAudienceId ?? null,
-        mailchimpAudienceName: dto.mailchimpAudienceName ?? null,
+        audienceId: dto.audienceId ?? null,
         // Landing-page fields: only touch them when the caller actually sends
         // them (so a partial update can't accidentally blank them).
         imageUrl: dto.imageUrl !== undefined ? dto.imageUrl || null : undefined,
@@ -536,15 +536,15 @@ export class LevelsService {
     // currently holds this level: activate newly-added tags, deactivate
     // removed ones. (Editing the level reconciles existing members, not just
     // future grants.)
-    if (dto.mailchimpTags !== undefined) {
-      const before = new Set(existing.mailchimpTags);
-      const after = new Set(level.mailchimpTags);
-      const added = level.mailchimpTags.filter((t) => !before.has(t));
-      const removed = existing.mailchimpTags.filter((t) => !after.has(t));
+    if (dto.audienceTags !== undefined) {
+      const before = new Set(existing.audienceTags);
+      const after = new Set(level.audienceTags);
+      const added = level.audienceTags.filter((t) => !before.has(t));
+      const removed = existing.audienceTags.filter((t) => !after.has(t));
       if (added.length || removed.length) {
         await this.reconcileLevelTags(
           id,
-          level.mailchimpAudienceId ?? undefined,
+          level.audienceId ?? undefined,
           added,
           removed,
         );
@@ -558,6 +558,7 @@ export class LevelsService {
       include: {
         prices: { where: { active: true } },
         categories: { orderBy: { order: 'asc' } },
+        audience: { select: { name: true } },
       },
     });
     return this.toDTO(fresh as LevelWithPrices);
@@ -690,10 +691,14 @@ export class LevelsService {
   }
 
   // Enqueue tag add/remove jobs for every member who currently (ACTIVE) holds
-  // the level, so a tag edit syncs to Mailchimp. Deduped per email.
+  // the level, so a tag edit propagates. `audienceRef` is the class's in-house
+  // Audience id (null = default "Members" audience): it keys the in-house
+  // syncTags only. Mailchimp expects a LIST id, never an internal Audience id,
+  // so its enqueueTags gets `undefined` (global Settings audience fallback);
+  // those calls are gated/no-op by default anyway. Deduped per email.
   private async reconcileLevelTags(
     levelId: string,
-    audienceId: string | undefined,
+    audienceRef: string | undefined,
     added: string[],
     removed: string[],
   ): Promise<void> {
@@ -706,11 +711,11 @@ export class LevelsService {
       emails.flatMap((email) => {
         const jobs: Promise<void>[] = [];
         if (added.length) {
-          jobs.push(this.mailchimp.enqueueTags('add', email, added, audienceId));
+          jobs.push(this.mailchimp.enqueueTags('add', email, added, undefined));
           // In-house list dual-write (best-effort; never reject the batch).
           jobs.push(
             this.contacts
-              .syncTags('add', email, added, audienceId)
+              .syncTags('add', email, added, audienceRef)
               .catch((err) =>
                 this.logger.warn(
                   `[levels] contacts add-tags failed for ${email}: ${
@@ -722,12 +727,12 @@ export class LevelsService {
         }
         if (removed.length) {
           jobs.push(
-            this.mailchimp.enqueueTags('remove', email, removed, audienceId),
+            this.mailchimp.enqueueTags('remove', email, removed, undefined),
           );
           // In-house list dual-write (best-effort; never reject the batch).
           jobs.push(
             this.contacts
-              .syncTags('remove', email, removed, audienceId)
+              .syncTags('remove', email, removed, audienceRef)
               .catch((err) =>
                 this.logger.warn(
                   `[levels] contacts remove-tags failed for ${email}: ${

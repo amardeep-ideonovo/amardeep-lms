@@ -184,21 +184,16 @@ export class MembersService {
     // fine for marketing data).
     if (emailChanging) {
       try {
-        const levelAudiences = await this.prisma.userLevel.findMany({
-          where: { userId: id },
-          select: { level: { select: { mailchimpAudienceId: true } } },
-        });
-        const audienceIds = Array.from(
-          new Set(
-            levelAudiences
-              .map((ul) => ul.level.mailchimpAudienceId)
-              .filter((a): a is string => !!a),
-          ),
-        );
+        // Classes now link to an INTERNAL Audience, never a Mailchimp list, so we
+        // can no longer collect per-level Mailchimp audiences (their ids would be
+        // internal Audience ids Mailchimp would reject). Re-key Mailchimp once,
+        // globally — an empty audience list lets the producer fall back to the
+        // Settings audience. The in-house re-key below (changeEmail) is exhaustive
+        // across all in-house audiences. (Mailchimp is gated/no-op by default.)
         await this.mailchimp.enqueueEmailChange(
           existing.email,
           newEmail as string,
-          audienceIds,
+          [],
         );
       } catch (err) {
         this.logger.warn(
@@ -255,30 +250,37 @@ export class MembersService {
       update: { status: 'ACTIVE' },
     });
 
-    // Subscribe to the level's audience (or the global one) and apply its tags.
-    if (level.mailchimpTags.length || level.mailchimpAudienceId) {
+    // ALWAYS capture the granted member into the class's in-house audience
+    // (null audienceId → default "Members" audience). syncTags upserts the
+    // contact first, so it lands the member even when audienceTags is empty —
+    // this is what fixes a no-Mailchimp class adding nobody to any audience.
+    // Best-effort: a contacts blip must not fail the grant.
+    try {
+      await this.contacts.syncTags(
+        'add',
+        user.email,
+        level.audienceTags,
+        level.audienceId ?? undefined,
+        { userId: user.id ?? userId, source: 'ADMIN' },
+      );
+    } catch (err) {
+      this.logger.warn(
+        `[members] contacts add-tags failed for ${user.email}: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+    }
+    // Mirror the tags to Mailchimp (gated/no-op by default). Pass undefined for
+    // the audience — Mailchimp expects a LIST id, not our internal Audience id,
+    // so it falls back to the global Settings audience. Only worth enqueuing
+    // when there are tags to apply.
+    if (level.audienceTags.length) {
       await this.mailchimp.enqueueTags(
         'add',
         user.email,
-        level.mailchimpTags,
-        level.mailchimpAudienceId ?? undefined,
+        level.audienceTags,
+        undefined,
       );
-      // In-house list dual-write (best-effort).
-      try {
-        await this.contacts.syncTags(
-          'add',
-          user.email,
-          level.mailchimpTags,
-          level.mailchimpAudienceId,
-          { userId: user.id ?? userId, source: 'ADMIN' },
-        );
-      } catch (err) {
-        this.logger.warn(
-          `[members] contacts add-tags failed for ${user.email}: ${
-            err instanceof Error ? err.message : err
-          }`,
-        );
-      }
     }
     return { ok: true };
   }
@@ -307,22 +309,25 @@ export class MembersService {
     const stillActive = await this.prisma.userLevel.count({
       where: { userId, levelId, status: 'ACTIVE' },
     });
-    // Deactivate the tags on the level's audience (membership is left intact —
-    // we never auto-unsubscribe). Audience-only levels have no tags to remove.
-    if (level.mailchimpTags.length && stillActive === 0) {
+    // Deactivate the tags on the level's in-house audience (membership is left
+    // intact — we never auto-unsubscribe). A level with no tags has nothing to
+    // remove. Mailchimp gets undefined for the audience (internal Audience id
+    // would be rejected; falls back to the global Settings audience).
+    if (level.audienceTags.length && stillActive === 0) {
       await this.mailchimp.enqueueTags(
         'remove',
         user.email,
-        level.mailchimpTags,
-        level.mailchimpAudienceId ?? undefined,
+        level.audienceTags,
+        undefined,
       );
-      // In-house list dual-write (best-effort).
+      // In-house list dual-write (best-effort), keyed by the class's in-house
+      // audience (null → default "Members" audience).
       try {
         await this.contacts.syncTags(
           'remove',
           user.email,
-          level.mailchimpTags,
-          level.mailchimpAudienceId,
+          level.audienceTags,
+          level.audienceId ?? undefined,
         );
       } catch (err) {
         this.logger.warn(

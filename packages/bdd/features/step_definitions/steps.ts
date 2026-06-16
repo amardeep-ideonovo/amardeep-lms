@@ -329,7 +329,7 @@ Then(
   },
 );
 
-// ---------- forms (Mailchimp-linked) ----------
+// ---------- forms (Audience-linked) ----------
 
 When(
   "I create a form via admin with body:",
@@ -358,12 +358,12 @@ When(
 );
 
 Then(
-  'the response "mailchimpStatus" should be {string}',
+  'the response "subscribeStatus" should be {string}',
   function (this: LmsWorld, expected: string) {
     assert.equal(
-      this.last.body?.mailchimpStatus,
+      this.last.body?.subscribeStatus,
       expected,
-      `expected mailchimpStatus "${expected}" but got ${JSON.stringify(this.last.body)}`,
+      `expected subscribeStatus "${expected}" but got ${JSON.stringify(this.last.body)}`,
     );
   },
 );

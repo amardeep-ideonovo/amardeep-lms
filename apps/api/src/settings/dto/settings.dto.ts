@@ -64,7 +64,7 @@ export class UpdatePaymentProviderDto {
 }
 
 export class UpdateEmailSettingsDto {
-  // Only "smtp" today, but kept open as the pluggable sender id.
+  // The pluggable sender id: "smtp" (nodemailer) or "resend" (REST API).
   @IsOptional()
   @IsString()
   provider?: string;
@@ -86,6 +86,12 @@ export class UpdateEmailSettingsDto {
   @IsOptional()
   @IsString()
   pass?: string;
+
+  // The Resend REST API key (re_…) — write-only secret used when provider="resend".
+  // Blank/omitted keeps the stored value, exactly like `pass`.
+  @IsOptional()
+  @IsString()
+  resendApiKey?: string;
 
   @IsOptional()
   @IsString()

@@ -7,9 +7,12 @@ export interface OutboundMail {
   text?: string;
   // Optional override of the sender's default From ("Name <email>").
   from?: string;
-  // One-click unsubscribe target — surfaced as a `List-Unsubscribe` header so
-  // mail clients can offer a native "unsubscribe" affordance. EmailService sets
-  // this for every templated send.
+  // One-click unsubscribe target — surfaced as a `List-Unsubscribe: <URL>`
+  // header so mail clients can offer a native "unsubscribe" affordance.
+  // EmailService sets this for every templated send. When present, the sender is
+  // expected to ALSO emit the RFC 8058 one-click signal
+  // (`List-Unsubscribe-Post: List-Unsubscribe=One-Click`) so the client can
+  // unsubscribe via a background POST without opening the link.
   listUnsubscribe?: string;
   // Extra raw headers to pass through to the transport (merged after the
   // sender's own headers). Reserved for future provider-specific needs.

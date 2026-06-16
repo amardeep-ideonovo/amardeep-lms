@@ -13,8 +13,8 @@ import type {
   FormFieldType,
   FormStatus,
   FormSubmissionDTO,
-  MailchimpAudienceDTO,
-  MailchimpMergeFieldDTO,
+  AudienceDTO,
+  AudienceFieldDTO,
   CreateFormInput,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
@@ -35,14 +35,14 @@ function cellText(v: unknown): string {
 }
 
 // Build + download a CSV of a form's submissions. Columns come from the form's
-// own field definitions (stable order) plus the email + Mailchimp status + date.
+// own field definitions (stable order) plus the email + subscribe status + date.
 function exportSubmissionsCsv(form: FormAdminRow, rows: FormSubmissionDTO[]) {
   const fieldNames = form.fields.map((f) => f.name);
   const header = [
     "Submitted at",
     "Email",
     ...form.fields.map((f) => f.label || f.name),
-    "Mailchimp status",
+    "Subscribe status",
   ];
   const lines = [
     header,
@@ -50,7 +50,7 @@ function exportSubmissionsCsv(form: FormAdminRow, rows: FormSubmissionDTO[]) {
       r.createdAt,
       r.email ?? "",
       ...fieldNames.map((n) => r.data?.[n] ?? ""),
-      r.mailchimpStatus ?? "",
+      r.subscribeStatus ?? "",
     ]),
   ];
   const csv = lines.map((cols) => cols.map(csvCell).join(",")).join("\r\n");
@@ -75,13 +75,23 @@ const FIELD_TYPES: FormFieldType[] = [
   "select",
 ];
 
-// Fallback merge tags when Mailchimp isn't connected yet (so mapping still works).
-const FALLBACK_MERGE: MailchimpMergeFieldDTO[] = [
-  { tag: "EMAIL", name: "Email Address", type: "email", required: true },
-  { tag: "FNAME", name: "First Name", type: "text", required: false },
-  { tag: "LNAME", name: "Last Name", type: "text", required: false },
-  { tag: "PHONE", name: "Phone", type: "phone", required: false },
+// Fallback merge tags when an audience has no custom fields yet (so mapping still
+// works). EMAIL is always offered explicitly here — the audience fields endpoint
+// treats it as implicit and never returns it.
+const FALLBACK_MERGE: AudienceFieldDTO[] = [
+  { tag: "EMAIL", label: "Email Address", type: "email", required: true },
+  { tag: "FNAME", label: "First Name", type: "text", required: false },
+  { tag: "LNAME", label: "Last Name", type: "text", required: false },
+  { tag: "PHONE", label: "Phone", type: "phone", required: false },
 ];
+
+// The implicit email merge tag, always available to map a field to.
+const EMAIL_MERGE: AudienceFieldDTO = {
+  tag: "EMAIL",
+  label: "Email Address",
+  type: "email",
+  required: true,
+};
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const slugifyKey = (s: string) =>
@@ -136,8 +146,8 @@ function previewField(fld: FormFieldDef) {
 type EditorState = {
   name: string;
   fields: FormFieldDef[];
-  mailchimpAudienceId: string;
-  mailchimpAudienceName: string;
+  audienceId: string;
+  audienceName: string;
   doubleOptIn: boolean;
   updateExisting: boolean;
   tags: string;
@@ -154,8 +164,8 @@ function newForm(): EditorState {
       { id: uid(), type: "email", label: "Email", name: "email", required: true, mergeTag: "EMAIL" },
       { id: uid(), type: "text", label: "Name", name: "name", required: false, mergeTag: "FNAME" },
     ],
-    mailchimpAudienceId: "",
-    mailchimpAudienceName: "",
+    audienceId: "",
+    audienceName: "",
     doubleOptIn: false, // default: No
     updateExisting: true, // default: Yes
     tags: "",
@@ -178,9 +188,9 @@ export default function FormsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  const [audiences, setAudiences] = useState<MailchimpAudienceDTO[]>([]);
+  const [audiences, setAudiences] = useState<AudienceDTO[]>([]);
   const [audiencesError, setAudiencesError] = useState<string | null>(null);
-  const [mergeFields, setMergeFields] = useState<MailchimpMergeFieldDTO[]>([]);
+  const [mergeFields, setMergeFields] = useState<AudienceFieldDTO[]>([]);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   // Entries (submissions) viewer modal state.
@@ -226,28 +236,32 @@ export default function FormsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
-  // Fetch the live audience list (and merge fields for a chosen audience).
+  // Fetch the in-house audience list (and merge fields for a chosen audience).
+  // On error (e.g. forbidden) we keep the picker usable with just the default
+  // audience option, no Mailchimp-flavoured error text.
   const loadAudiences = useCallback(async () => {
     setAudiencesError(null);
     try {
-      setAudiences(await api.listMailchimpAudiences());
-    } catch (err) {
+      setAudiences(await api.listAudiences());
+    } catch {
       setAudiences([]);
       setAudiencesError(
-        err instanceof ApiError
-          ? err.message
-          : "Could not reach Mailchimp. Add your API key in Settings → Mailchimp."
+        "Could not load audiences — new submissions still go to the default audience."
       );
     }
   }, []);
 
+  // Merge tags come from the chosen audience's in-house fields. EMAIL is implicit
+  // (never returned by the fields endpoint) so we always prepend it. With no
+  // audience selected, fall back to the static list so mapping still works.
   const loadMergeFields = useCallback(async (audienceId: string) => {
     if (!audienceId) {
       setMergeFields([]);
       return;
     }
     try {
-      setMergeFields(await api.getMailchimpMergeFields(audienceId));
+      const fields = await api.listFormMergeFields(audienceId);
+      setMergeFields([EMAIL_MERGE, ...fields.filter((f) => f.tag !== "EMAIL")]);
     } catch {
       setMergeFields([]);
     }
@@ -272,8 +286,8 @@ export default function FormsPage() {
       setForm({
         name: f.name,
         fields: f.fields,
-        mailchimpAudienceId: f.mailchimpAudienceId ?? "",
-        mailchimpAudienceName: f.mailchimpAudienceName ?? "",
+        audienceId: f.audienceId ?? "",
+        audienceName: f.audienceName ?? "",
         doubleOptIn: f.doubleOptIn,
         updateExisting: f.updateExisting,
         tags: f.tags.join(", "),
@@ -282,7 +296,7 @@ export default function FormsPage() {
         afterSubmit: f.redirectUrl ? "redirect" : "message",
         status: f.status,
       });
-      if (f.mailchimpAudienceId) loadMergeFields(f.mailchimpAudienceId);
+      if (f.audienceId) loadMergeFields(f.audienceId);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Failed to load form");
     }
@@ -298,8 +312,8 @@ export default function FormsPage() {
     const a = audiences.find((x) => x.id === id);
     setForm((f) => ({
       ...f,
-      mailchimpAudienceId: id,
-      mailchimpAudienceName: a?.name ?? "",
+      audienceId: id,
+      audienceName: a?.name ?? "",
     }));
     loadMergeFields(id);
   }
@@ -358,8 +372,7 @@ export default function FormsPage() {
     return {
       name: form.name.trim() || "Untitled form",
       fields: form.fields,
-      mailchimpAudienceId: form.mailchimpAudienceId || undefined,
-      mailchimpAudienceName: form.mailchimpAudienceName || undefined,
+      audienceId: form.audienceId || undefined,
       doubleOptIn: form.doubleOptIn,
       updateExisting: form.updateExisting,
       tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
@@ -431,9 +444,9 @@ export default function FormsPage() {
           <div>
             <h1>Forms</h1>
             <p className="subtitle">
-              Build forms linked to a Mailchimp audience. Submissions subscribe
-              the person to that audience and are stored here too. Embed a form
-              with its id (Puck “Form” block, the <code>&lt;FormEmbed&gt;</code>{" "}
+              Build forms linked to an audience. Submissions subscribe the person
+              to that audience and are stored here too. Embed a form with its id
+              (Puck “Form” block, the <code>&lt;FormEmbed&gt;</code>{" "}
               component, or <code>/forms/&lt;id&gt;</code>).
             </p>
           </div>
@@ -466,7 +479,7 @@ export default function FormsPage() {
                 {forms.map((f) => (
                   <tr key={f.id}>
                     <td>{f.name}</td>
-                    <td className="muted">{f.mailchimpAudienceName ?? "—"}</td>
+                    <td className="muted">{f.audienceName ?? "Default (Members)"}</td>
                     <td className="muted">{f.fields.length}</td>
                     <td className="muted">{f.submissionCount}</td>
                     <td>
@@ -593,7 +606,7 @@ export default function FormsPage() {
                         {entriesForm.fields.map((f) => (
                           <th key={f.id}>{f.label || f.name}</th>
                         ))}
-                        <th>Mailchimp</th>
+                        <th>Subscribe status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -606,7 +619,7 @@ export default function FormsPage() {
                           {entriesForm.fields.map((f) => (
                             <td key={f.id}>{cellText(r.data?.[f.name])}</td>
                           ))}
-                          <td className="muted">{r.mailchimpStatus ?? "—"}</td>
+                          <td className="muted">{r.subscribeStatus ?? "—"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -627,7 +640,7 @@ export default function FormsPage() {
         <div>
           <h1>{editingId ? "Edit form" : "New form"}</h1>
           <p className="subtitle">
-            Map each field to a Mailchimp merge tag. The field mapped to{" "}
+            Map each field to an audience merge tag. The field mapped to{" "}
             <code>EMAIL</code> is the subscriber’s email.
           </p>
         </div>
@@ -659,16 +672,16 @@ export default function FormsPage() {
           </div>
 
           <div className="field">
-            <label>Mailchimp audience</label>
+            <label>Audience</label>
             <select
-              value={form.mailchimpAudienceId}
+              value={form.audienceId}
               onChange={(e) => onSelectAudience(e.target.value)}
             >
-              <option value="">— none (store submissions only) —</option>
+              <option value="">— None (use the default audience) —</option>
               {audiences.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
-                  {a.memberCount != null ? ` (${a.memberCount})` : ""}
+                  {a.isDefault ? " (default)" : ""} ({a.subscribedCount})
                 </option>
               ))}
             </select>
@@ -678,8 +691,8 @@ export default function FormsPage() {
               </p>
             ) : (
               <p className="muted" style={{ marginTop: 4 }}>
-                The list is fetched live from Mailchimp each time you open the
-                editor.
+                Submissions subscribe the person to this audience. Leave on “None”
+                to use the default “Members” audience.
               </p>
             )}
           </div>
@@ -746,7 +759,7 @@ export default function FormsPage() {
 
               <div className="form-row">
                 <div className="field">
-                  <label>Mailchimp field</label>
+                  <label>Audience field</label>
                   <select
                     value={fld.mergeTag ?? ""}
                     onChange={(e) => patchField(i, { mergeTag: e.target.value })}
@@ -754,7 +767,7 @@ export default function FormsPage() {
                     <option value="">— not synced —</option>
                     {mergeOptions.map((m) => (
                       <option key={m.tag} value={m.tag}>
-                        {m.name} ({m.tag})
+                        {m.label} ({m.tag})
                       </option>
                     ))}
                   </select>
@@ -817,7 +830,7 @@ export default function FormsPage() {
         </div>
 
         <div className="card">
-          <h2>Mailchimp behaviour</h2>
+          <h2>Subscribe behaviour</h2>
           <div className="form-row">
             <div className="field">
               <label>Use double opt-in?</label>

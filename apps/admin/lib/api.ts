@@ -43,6 +43,8 @@ import type {
   UpdateContactInput,
   CreateSegmentInput,
   UpdateSegmentInput,
+  EmailSettingsInput,
+  EmailSettingsMasked,
   EmailTemplateDTO,
   CreateEmailTemplateInput,
   UpdateEmailTemplateInput,
@@ -68,8 +70,6 @@ import type {
   LevelCategoryDTO,
   LevelDTO,
   LoginResponse,
-  MailchimpAudienceDTO,
-  MailchimpMergeFieldDTO,
   MediaDTO,
   MediaListDTO,
   MemberBillingDTO,
@@ -282,26 +282,10 @@ export interface MailchimpSettingsMasked {
   audienceId: string | null;
   syncEnabled: boolean;
 }
-export interface EmailSettings {
-  provider?: string;
-  host?: string;
-  port?: string;
-  user?: string;
-  pass?: string;
-  fromEmail?: string;
-  fromName?: string;
-  secure?: boolean;
-}
-export interface EmailSettingsMasked {
-  provider: string;
-  host: string | null;
-  port: string | null;
-  user: string | null;
-  passSet: boolean; // SMTP password is write-only; only whether one is stored
-  fromEmail: string | null;
-  fromName: string | null;
-  secure: boolean;
-}
+// Email sender settings live in @lms/types (write-only secrets: SMTP pass +
+// Resend API key). Re-exported so admin components import the contract from one
+// place. `provider` selects the pluggable sender ("smtp" | "resend").
+export type { EmailSettingsInput, EmailSettingsMasked } from "@lms/types";
 export interface PayPalSettings {
   clientId?: string;
   clientSecret?: string;
@@ -580,7 +564,7 @@ export const api = {
     request<MailchimpSettingsMasked>("DELETE", "/admin/settings/mailchimp"),
   getEmailSettings: () =>
     request<EmailSettingsMasked>("GET", "/admin/settings/email"),
-  putEmailSettings: (input: EmailSettings) =>
+  putEmailSettings: (input: EmailSettingsInput) =>
     request<EmailSettingsMasked>("PUT", "/admin/settings/email", input),
   deleteEmailSettings: () =>
     request<EmailSettingsMasked>("DELETE", "/admin/settings/email"),
@@ -630,7 +614,7 @@ export const api = {
     request<PopupAdminRow>("PATCH", `/admin/popups/${id}`, input),
   deletePopup: (id: string) => request<void>("DELETE", `/admin/popups/${id}`),
 
-  // forms (Mailchimp-linked)
+  // forms (in-house Audience-linked; submissions subscribe into an Audience)
   listForms: () => request<FormAdminRow[]>("GET", "/admin/forms"),
   getForm: (id: string) => request<FormAdminRow>("GET", `/admin/forms/${id}`),
   createForm: (input: CreateFormInput) =>
@@ -640,12 +624,13 @@ export const api = {
   deleteForm: (id: string) => request<void>("DELETE", `/admin/forms/${id}`),
   listFormSubmissions: (id: string) =>
     request<FormSubmissionDTO[]>("GET", `/admin/forms/${id}/submissions`),
-  listMailchimpAudiences: () =>
-    request<MailchimpAudienceDTO[]>("GET", "/admin/mailchimp/audiences"),
-  getMailchimpMergeFields: (audienceId: string) =>
-    request<MailchimpMergeFieldDTO[]>(
+  // Merge tags for the form field-mapping editor come from the chosen audience's
+  // in-house fields (GET /admin/audiences/:id/fields). EMAIL is implicit and not
+  // returned by that list, so callers prepend it (see forms/page.tsx).
+  listFormMergeFields: (audienceId: string) =>
+    request<AudienceFieldDTO[]>(
       "GET",
-      `/admin/mailchimp/audiences/${audienceId}/merge-fields`
+      `/admin/audiences/${audienceId}/fields`
     ),
 
   // contacts / audiences (in-house list — replaces Mailchimp)

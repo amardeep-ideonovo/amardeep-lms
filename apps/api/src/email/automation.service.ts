@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Prisma, type Automation, type AutomationTrigger } from '@prisma/client';
 import type { AutomationDTO, AutomationInput } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -56,14 +57,26 @@ export class AutomationService {
 
     const recipientKey = ctx.contactId || ctx.email;
     for (const automation of automations) {
+      // Same idempotency key whether we send now or defer — so a retried event
+      // can't both enqueue a deferred row AND fire an immediate send (the
+      // ScheduledEmail.dedupeKey is @unique, and the eventual EmailLog inherits
+      // it). Keep this in lockstep with drainScheduledEmails() below.
+      const dedupeKey = `automation:${automation.id}:${recipientKey}`;
       try {
-        await this.email.sendTemplate({
-          to: ctx.email,
-          templateId: automation.templateId,
-          vars: ctx.vars,
-          contactId: ctx.contactId,
-          dedupeKey: `automation:${automation.id}:${recipientKey}`,
-        });
+        if (automation.delayMinutes > 0) {
+          // Deferred: park a ScheduledEmail row that the minute cron drains once
+          // sendAt arrives. The @unique dedupeKey makes a re-fired event a no-op
+          // (the duplicate insert is swallowed below).
+          await this.enqueueDeferred(automation, ctx, dedupeKey);
+        } else {
+          await this.email.sendTemplate({
+            to: ctx.email,
+            templateId: automation.templateId,
+            vars: ctx.vars,
+            contactId: ctx.contactId,
+            dedupeKey,
+          });
+        }
       } catch (err) {
         // Render/missing-template errors land here; transport failures are
         // already recorded as FAILED EmailLog rows inside EmailService.
@@ -73,6 +86,127 @@ export class AutomationService {
           )}`,
         );
       }
+    }
+  }
+
+  // Park a delayed automation send as a ScheduledEmail row. sendAt = now +
+  // delayMinutes; the dedupeKey (@unique) carries the same idempotency the
+  // immediate path uses, so a re-fired event that already enqueued one is a
+  // no-op (P2002 is treated as "already scheduled" and swallowed).
+  private async enqueueDeferred(
+    automation: Automation,
+    ctx: AutomationFireContext,
+    dedupeKey: string,
+  ): Promise<void> {
+    const sendAt = new Date(Date.now() + automation.delayMinutes * 60_000);
+    try {
+      await this.prisma.scheduledEmail.create({
+        data: {
+          automationId: automation.id,
+          to: ctx.email,
+          templateId: automation.templateId,
+          vars: (ctx.vars ?? {}) as unknown as Prisma.InputJsonValue,
+          sendAt,
+          dedupeKey,
+          contactId: ctx.contactId,
+        },
+      });
+    } catch (err) {
+      // A repeat of the same event already scheduled this send — fine, leave it.
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        return;
+      }
+      throw err;
+    }
+  }
+
+  // ─────────────────── deferred drain (minute cron) ───────────────────
+
+  // Re-entrancy guard mirroring SchedulerService.running: if a drain is still
+  // running when the next tick fires, skip rather than double-process.
+  private draining = false;
+
+  // Drain due ScheduledEmail rows once a minute. Coexists with the campaign
+  // scheduler's @Cron (ScheduleModule is registered in EmailModule). Each row is
+  // CLAIMED with a guarded updateMany (status PENDING -> SENT) so an overlapping
+  // tick or a second instance can't double-send: only the worker whose update
+  // matched (count===1) proceeds to send. We mark SENT *before* the actual send
+  // because EmailService.sendTemplate is itself idempotent on dedupeKey (a
+  // SENT EmailLog short-circuits), so a crash mid-send at worst drops one
+  // best-effort deferred mail rather than re-sending it; a genuine send throw
+  // flips the row to FAILED with the error recorded.
+  @Cron(CronExpression.EVERY_MINUTE)
+  async drainScheduledEmails(): Promise<void> {
+    if (this.draining) {
+      this.logger.debug('scheduled-email drain skipped — previous run still in progress');
+      return;
+    }
+    this.draining = true;
+    try {
+      const now = new Date();
+      const due = await this.prisma.scheduledEmail.findMany({
+        where: { status: 'PENDING', sendAt: { lte: now } },
+        orderBy: { sendAt: 'asc' },
+        take: 200,
+      });
+      let sent = 0;
+      for (const row of due) {
+        // Atomic claim: only the worker that flips PENDING->SENT proceeds.
+        const claim = await this.prisma.scheduledEmail.updateMany({
+          where: { id: row.id, status: 'PENDING' },
+          data: { status: 'SENT', sentAt: new Date() },
+        });
+        if (claim.count !== 1) continue; // lost the race — another worker has it
+
+        try {
+          const log = await this.email.sendTemplate({
+            to: row.to,
+            templateId: row.templateId ?? undefined,
+            templateKey: row.templateKey ?? undefined,
+            vars: (row.vars ?? {}) as unknown as Record<string, unknown>,
+            contactId: row.contactId ?? undefined,
+            dedupeKey: row.dedupeKey ?? undefined,
+          });
+          // sendTemplate never throws: a non-SENT result (suppressed / sender not
+          // configured / render failure) means the deferred mail did NOT go out.
+          // Reflect that on the row instead of leaving the optimistic SENT claim.
+          if (log.status === 'SENT') {
+            sent++;
+          } else {
+            await this.prisma.scheduledEmail
+              .update({
+                where: { id: row.id },
+                data: {
+                  status: 'FAILED',
+                  error: (log.error ?? log.status).slice(0, 500),
+                },
+              })
+              .catch(() => undefined);
+          }
+        } catch (err) {
+          await this.prisma.scheduledEmail
+            .update({
+              where: { id: row.id },
+              data: { status: 'FAILED', error: this.msg(err).slice(0, 500) },
+            })
+            .catch(() => undefined);
+          this.logger.warn(
+            `scheduled email ${row.id} (automation ${row.automationId}) failed for ${row.to}: ${this.msg(
+              err,
+            )}`,
+          );
+        }
+      }
+      if (sent > 0) {
+        this.logger.log(`scheduled-email drain dispatched ${sent} deferred mail(s)`);
+      }
+    } catch (err) {
+      this.logger.error(`scheduled-email drain failed: ${this.msg(err)}`);
+    } finally {
+      this.draining = false;
     }
   }
 

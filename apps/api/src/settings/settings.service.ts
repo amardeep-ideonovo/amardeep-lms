@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { decryptSecret, encryptSecret } from '../common/crypto.util';
@@ -30,13 +30,23 @@ export const SETTING_KEYS = {
   emailPort: 'email.port',
   emailUser: 'email.user',
   emailPass: 'email.pass',
+  // Resend REST API key (the only Resend secret — provider="resend" sends via the
+  // Resend HTTP API instead of SMTP). Write-only, encrypted, exactly like emailPass.
+  emailResendApiKey: 'email.resendApiKey',
   emailFromEmail: 'email.fromEmail',
   emailFromName: 'email.fromName',
   emailSecure: 'email.secure',
+  // Shared secret for the public provider feedback webhook (bounce/complaint
+  // ingestion). The webhook is unauthenticated at the route level (providers
+  // can't carry our JWT), so a request must present this secret (header or
+  // ?key=) before it's allowed to suppress addresses. Write-only like emailPass.
+  emailWebhookSecret: 'email.webhookSecret',
 } as const;
 
 @Injectable()
 export class SettingsService {
+  private readonly logger = new Logger(SettingsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -48,8 +58,14 @@ export class SettingsService {
     if (row?.value) {
       try {
         return decryptSecret(row.value);
-      } catch {
-        // Corrupt/old ciphertext — treat as unset and fall back.
+      } catch (err) {
+        // Corrupt/old ciphertext (e.g. SETTINGS_ENC_KEY was rotated) — treat as
+        // unset and fall back, but surface it: silently masking the failure can
+        // make a "missing" secret look intentional when it's really unreadable.
+        this.logger.warn(
+          `failed to decrypt setting '${key}' — treating as unset and falling ` +
+            `back to env/null: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
     if (envFallback) {
@@ -101,10 +117,17 @@ export class SettingsService {
       this.clearSecret(SETTING_KEYS.emailPort),
       this.clearSecret(SETTING_KEYS.emailUser),
       this.clearSecret(SETTING_KEYS.emailPass),
+      this.clearSecret(SETTING_KEYS.emailResendApiKey),
       this.clearSecret(SETTING_KEYS.emailFromEmail),
       this.clearSecret(SETTING_KEYS.emailFromName),
       this.clearSecret(SETTING_KEYS.emailSecure),
     ]);
+  }
+
+  /** Clear just the webhook shared secret (kept separate from clearEmail so an
+   * admin can rotate it without wiping SMTP config). Idempotent. */
+  async clearEmailWebhookSecret(): Promise<void> {
+    await this.clearSecret(SETTING_KEYS.emailWebhookSecret);
   }
 
   /** Clear all PayPal credentials (client id + secret + webhook id + mode). */
@@ -207,9 +230,20 @@ export class SettingsService {
   // --- Outbound email / SMTP accessors (consumed by the email sender) ---
 
   /** The active mail sender id. Default + unknown values → smtp. */
-  async getEmailProvider(): Promise<string> {
+  async getEmailProvider(): Promise<'smtp' | 'resend'> {
     const v = await this.getSecret(SETTING_KEYS.emailProvider, 'EMAIL_PROVIDER');
-    return v || 'smtp';
+    return v === 'resend' ? 'resend' : 'smtp';
+  }
+  /**
+   * Resend REST API key (re_…). Write-only secret consumed by the Resend mail
+   * sender when provider="resend"; null when unset. Env fallback so a deployment
+   * can configure it without touching the DB.
+   */
+  getEmailResendApiKey(): Promise<string | null> {
+    return this.getSecret(
+      SETTING_KEYS.emailResendApiKey,
+      'RESEND_API_KEY',
+    );
   }
   getEmailHost(): Promise<string | null> {
     return this.getSecret(SETTING_KEYS.emailHost, 'SMTP_HOST');
@@ -236,5 +270,17 @@ export class SettingsService {
   async getEmailSecure(): Promise<boolean> {
     const v = await this.getSecret(SETTING_KEYS.emailSecure, 'SMTP_SECURE');
     return v === 'true' || v === '1';
+  }
+  /**
+   * Shared secret guarding the public provider feedback webhook. Returns null
+   * when unset (the webhook controller decides fail-open vs fail-closed from
+   * there — closed in production, open with a warning locally). Env fallback so
+   * a deployment can configure it without touching the DB.
+   */
+  getEmailWebhookSecret(): Promise<string | null> {
+    return this.getSecret(
+      SETTING_KEYS.emailWebhookSecret,
+      'EMAIL_WEBHOOK_SECRET',
+    );
   }
 }

@@ -1,7 +1,8 @@
-Feature: Mailchimp-linked forms
+Feature: Audience-linked forms
   Forms are admin-managed. Anyone can fetch an ACTIVE form and submit it without
-  logging in; submissions are stored locally and (when an audience is configured)
-  pushed to Mailchimp. Creating and managing forms is admin-only.
+  logging in; submissions are stored locally and the submitter is always captured
+  into the in-house Audience/Contact list (the form's configured audience, or the
+  default "Members" audience when none is set). Creating and managing forms is admin-only.
 
   Scenario: Anonymous visitors cannot create forms
     When I POST "/admin/forms" without a token and body:
@@ -23,7 +24,7 @@ Feature: Mailchimp-linked forms
       { "values": { "email": "bdd-tester@example.com" } }
       """
     Then the response status should be 201
-    And the response "mailchimpStatus" should be "skipped"
+    And the response "subscribeStatus" should be "subscribed"
 
   Scenario: Submitting without a required field is rejected
     When I create a form via admin with body:

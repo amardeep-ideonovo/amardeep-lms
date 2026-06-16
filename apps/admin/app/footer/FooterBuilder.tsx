@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import type {
   FooterBottomLink,
   FooterConfig,
-  MailchimpAudienceDTO,
+  AudienceDTO,
   MenuDTO,
   MenuListItem,
 } from "@lms/types";
@@ -32,7 +32,7 @@ export default function FooterBuilder({
   onError,
 }: {
   menus: MenuListItem[];
-  audiences: MailchimpAudienceDTO[];
+  audiences: AudienceDTO[];
   canEdit: boolean;
   onError: (m: string | null) => void;
 }) {
@@ -273,7 +273,7 @@ export default function FooterBuilder({
             <input value={cfg.email.heading} disabled={ro} onChange={(e) => updEmail({ heading: e.target.value })} />
           </div>
           <div className="field" style={{ flex: 2 }}>
-            <label>Mailchimp audience</label>
+            <label>Audience</label>
             <select
               value={cfg.email.audienceId ?? ""}
               disabled={ro}
@@ -285,10 +285,11 @@ export default function FooterBuilder({
                 });
               }}
             >
-              <option value="">— Select an audience —</option>
+              <option value="">— None (use the default audience) —</option>
               {audiences.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
+                  {a.isDefault ? " (default)" : ""}
                 </option>
               ))}
               {cfg.email.audienceId &&
@@ -327,11 +328,12 @@ export default function FooterBuilder({
             disabled={ro}
             onChange={(e) => updEmail({ doubleOptIn: e.target.checked })}
           />
-          Double opt-in (Mailchimp sends a confirmation email)
+          Double opt-in (send a confirmation email before subscribing)
         </label>
         {audiences.length === 0 && (
           <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
-            No Mailchimp audiences found — connect Mailchimp in Settings to enable signups.
+            No audiences listed — newsletter signups still go to the default
+            audience.
           </p>
         )}
       </div>

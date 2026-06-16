@@ -440,16 +440,20 @@ function PayPalSection() {
   );
 }
 
-// Outbound email / SMTP sender (in-house Mailchimp replacement). Host/port/from
-// are plain config; the SMTP password is write-only (blank keeps the stored
-// value, and the form only ever shows whether one is set).
+// Outbound email sender (in-house Mailchimp replacement). A pluggable provider
+// (SMTP via nodemailer, or Resend via REST) carries transactional + campaign
+// mail. The From address is shared by both providers; the per-provider secret
+// (SMTP password / Resend API key) is write-only — blank keeps the stored value
+// and the form only ever shows whether one is set.
 function EmailSenderSection() {
   const [current, setCurrent] = useState<EmailSettingsMasked | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [provider, setProvider] = useState<"smtp" | "resend">("smtp");
   const [host, setHost] = useState("");
   const [port, setPort] = useState("");
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
+  const [resendApiKey, setResendApiKey] = useState("");
   const [fromEmail, setFromEmail] = useState("");
   const [fromName, setFromName] = useState("");
   const [secure, setSecure] = useState(false);
@@ -460,6 +464,7 @@ function EmailSenderSection() {
   // Mirror the loaded (non-secret) config into the editable fields.
   function hydrate(s: EmailSettingsMasked) {
     setCurrent(s);
+    setProvider(s.provider);
     setHost(s.host ?? "");
     setPort(s.port ?? "");
     setUser(s.user ?? "");
@@ -489,18 +494,22 @@ function EmailSenderSection() {
     setError(null);
     setStatus(null);
     try {
+      // Always send the chosen provider + shared From; send each secret only
+      // when the admin typed one (blank keeps the stored value).
       const updated = await api.putEmailSettings({
+        provider,
         host: host.trim() || undefined,
         port: port.trim() || undefined,
         user: user.trim() || undefined,
-        // Only send the password when the admin typed one (blank keeps stored).
         pass: pass.trim() || undefined,
+        resendApiKey: resendApiKey.trim() || undefined,
         fromEmail: fromEmail.trim() || undefined,
         fromName: fromName.trim() || undefined,
         secure,
       });
       hydrate(updated);
       setPass("");
+      setResendApiKey("");
       setStatus("Email settings saved.");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Save failed");
@@ -513,7 +522,7 @@ function EmailSenderSection() {
     if (
       !(await dialog.confirm({
         message:
-          "Remove the SMTP host, credentials, and From address? This cannot be undone.",
+          "Remove the email provider settings (SMTP host/credentials, Resend key, and From address)? This cannot be undone.",
         danger: true,
       }))
     )
@@ -525,6 +534,7 @@ function EmailSenderSection() {
       const cleared = await api.deleteEmailSettings();
       hydrate(cleared);
       setPass("");
+      setResendApiKey("");
       setStatus("Email settings removed.");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Remove failed");
@@ -535,64 +545,128 @@ function EmailSenderSection() {
 
   return (
     <div className="card">
-      <h2>Email sender (SMTP)</h2>
+      <h2>Email sender</h2>
       <p className="muted">
-        Transactional email is sent through this SMTP server. Until it’s
-        configured, messages (like the signup welcome) are logged but not
-        delivered.
+        Transactional and campaign email is sent through the selected provider.
+        Until it’s configured, messages (like the signup welcome) are logged but
+        not delivered.
       </p>
       <form onSubmit={save}>
-        <div className="form-row">
-          <div className="field">
-            <label>SMTP host</label>
-            <input
-              value={host}
-              placeholder="e.g. smtp.postmarkapp.com"
-              onChange={(e) => setHost(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label>Port</label>
-            <input
-              value={port}
-              placeholder="587"
-              inputMode="numeric"
-              onChange={(e) => setPort(e.target.value)}
-            />
+        <div className="field" style={{ display: "grid", gap: 6 }}>
+          <label>Provider</label>
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            {(
+              [
+                { value: "smtp", label: "SMTP" },
+                { value: "resend", label: "Resend" },
+              ] as const
+            ).map((o) => (
+              <label
+                key={o.value}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="emailProvider"
+                  checked={provider === o.value}
+                  onChange={() => setProvider(o.value)}
+                />
+                <span>{o.label}</span>
+                {current?.provider === o.value && (
+                  <span className="badge badge--ok">Active</span>
+                )}
+              </label>
+            ))}
           </div>
         </div>
-        <div className="form-row">
-          <div className="field">
-            <label>Username</label>
-            <input
-              value={user}
-              placeholder="SMTP username"
-              onChange={(e) => setUser(e.target.value)}
-              autoComplete="off"
-            />
-          </div>
+
+        {provider === "smtp" && (
+          <>
+            <div className="form-row">
+              <div className="field">
+                <label>SMTP host</label>
+                <input
+                  value={host}
+                  placeholder="e.g. smtp.postmarkapp.com"
+                  onChange={(e) => setHost(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label>Port</label>
+                <input
+                  value={port}
+                  placeholder="587"
+                  inputMode="numeric"
+                  onChange={(e) => setPort(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="field">
+                <label>Username</label>
+                <input
+                  value={user}
+                  placeholder="SMTP username"
+                  onChange={(e) => setUser(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+              <div className="field">
+                <label>
+                  Password{" "}
+                  <span className="muted">
+                    ({current?.passSet ? "saved" : "not set"})
+                  </span>
+                </label>
+                <input
+                  type="password"
+                  value={pass}
+                  placeholder="leave blank to keep"
+                  onChange={(e) => setPass(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {provider === "resend" && (
           <div className="field">
             <label>
-              Password{" "}
+              Resend API key{" "}
               <span className="muted">
-                ({current?.passSet ? "saved" : "not set"})
+                ({current?.resendApiKeySet ? "configured" : "not set"})
               </span>
             </label>
             <input
               type="password"
-              value={pass}
-              placeholder="leave blank to keep"
-              onChange={(e) => setPass(e.target.value)}
+              value={resendApiKey}
+              placeholder="re_…  (leave blank to keep)"
+              onChange={(e) => setResendApiKey(e.target.value)}
               autoComplete="off"
             />
+            <p className="muted">
+              Add your Resend API key (re_…) and a From address on a domain
+              you’ve verified in Resend. Get a key at resend.com.
+            </p>
           </div>
-        </div>
+        )}
+
         <div className="form-row">
           <div className="field">
             <label>From email</label>
             <input
               value={fromEmail}
-              placeholder="hello@yourdomain.com"
+              placeholder={
+                provider === "resend"
+                  ? "hello@your-verified-domain.com"
+                  : "hello@yourdomain.com"
+              }
               onChange={(e) => setFromEmail(e.target.value)}
             />
           </div>
@@ -605,16 +679,22 @@ function EmailSenderSection() {
             />
           </div>
         </div>
-        <div className="field">
-          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={secure}
-              onChange={(e) => setSecure(e.target.checked)}
-            />
-            <span>Use implicit TLS (port 465). Leave off for STARTTLS (587).</span>
-          </label>
-        </div>
+
+        {provider === "smtp" && (
+          <div className="field">
+            <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={secure}
+                onChange={(e) => setSecure(e.target.checked)}
+              />
+              <span>
+                Use implicit TLS (port 465). Leave off for STARTTLS (587).
+              </span>
+            </label>
+          </div>
+        )}
+
         {error && <p className="error">{error}</p>}
         {status && <p className="muted">{status}</p>}
         <div className="row-actions">

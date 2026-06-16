@@ -82,9 +82,8 @@ model Level {
   slug                  String?   @unique // pretty checkout URL key: /checkout/<slug> (admin-editable)
   published             Boolean   @default(false) // show this class as a tile on the member dashboard
   type                  LevelType @default(PAID)
-  mailchimpTags         String[]  @default([]) // tag names applied within the audience
-  mailchimpAudienceId   String? // Mailchimp list this level subscribes members to (falls back to the global Settings audience)
-  mailchimpAudienceName String? // cached name for admin display
+  audienceTags          String[]  @default([]) // tag names applied within the in-house audience on grant
+  audienceId            String? // in-house Audience this class captures granted members into (null = default "Members" audience)
   stripeProductId       String? // prod_… for PAID levels
   paypalProductId       String? // PayPal catalog product id (lazy-provisioned when PayPal is active)
   // ----- MasterClass-style landing-page fields (all optional) -----
@@ -104,6 +103,9 @@ model Level {
   featuredCourse      Course?              @relation("ClassFeaturedCourse", fields: [featuredCourseId], references: [id], onDelete: SetNull)
   certificateTemplate CertificateTemplate? @relation(fields: [certificateTemplateId], references: [id], onDelete: SetNull)
   certificates        Certificate[]
+  audience            Audience?            @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+
+  @@index([audienceId])
 }
 
 model Price {
@@ -392,11 +394,10 @@ model Page {
   @@index([status, publishedAt])
 }
 
-// ---------- Mailchimp-linked Forms ----------
+// ---------- Forms ----------
 // Admin-authored forms (configurable field builder) that subscribe submitters
-// to a chosen Mailchimp audience. The Mailchimp API key/server prefix are the
-// one-time encrypted Settings; each form picks its own audience. Submissions are
-// stored locally too, so a Mailchimp hiccup never loses a lead.
+// to a chosen in-house Audience (null = default "Members" audience). Submissions
+// are stored locally too, so an email-engine hiccup never loses a lead.
 
 enum FormStatus {
   ACTIVE
@@ -404,21 +405,23 @@ enum FormStatus {
 }
 
 model Form {
-  id                    String     @id @default(cuid())
-  name                  String
-  fields                Json       @default("[]") // FormFieldDef[] (builder output)
-  mailchimpAudienceId   String? // Mailchimp list id this form subscribes to
-  mailchimpAudienceName String? // cached name for admin list display
-  doubleOptIn           Boolean    @default(false) // default: No
-  updateExisting        Boolean    @default(true) // default: Yes
-  tags                  String[]   @default([]) // applied to every subscriber
-  successMessage        String? // shown after submit when no redirect
-  redirectUrl           String? // optional redirect after a successful submit
-  status                FormStatus @default(ACTIVE)
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
+  id             String     @id @default(cuid())
+  name           String
+  fields         Json       @default("[]") // FormFieldDef[] (builder output)
+  audienceId     String? // in-house Audience this form captures submitters into (null = default "Members" audience)
+  audience       Audience?  @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+  doubleOptIn    Boolean    @default(false) // default: No
+  updateExisting Boolean    @default(true) // default: Yes
+  tags           String[]   @default([]) // applied to every subscriber
+  successMessage String? // shown after submit when no redirect
+  redirectUrl    String? // optional redirect after a successful submit
+  status         FormStatus @default(ACTIVE)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   submissions FormSubmission[]
+
+  @@index([audienceId])
 }
 
 model FormSubmission {
@@ -427,7 +430,7 @@ model FormSubmission {
   form            Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
   email           String? // extracted email, for quick reference
   data            Json     @default("{}") // all submitted field values
-  mailchimpStatus String? // subscribed | pending | existing | failed | skipped
+  subscribeStatus String? // subscribed | pending | existing | skipped
   createdAt       DateTime @default(now())
 
   @@index([formId, createdAt])
@@ -775,6 +778,8 @@ model Audience {
   fields   AudienceField[]
   contacts Contact[]
   segments Segment[]
+  levels   Level[]
+  forms    Form[]
 }
 
 // A custom field on an audience (= a Mailchimp merge field). EMAIL is implicit
@@ -919,6 +924,7 @@ model Campaign {
   cadence    CampaignCadence @default(ONCE)
   runAt      DateTime? // ONCE: when to send; recurring: first run
   cron       String? // CRON cadence expression
+  timezone   String? // IANA tz for cron/weekly/monthly schedules; null => UTC
   status     CampaignStatus  @default(DRAFT)
   nextRunAt  DateTime? // scheduler dispatch time
   lastRunAt  DateTime?
@@ -973,4 +979,35 @@ model EmailEvent {
 
   @@index([emailLogId])
   @@index([providerId])
+}
+
+// ---------- Deferred automation sends (delayMinutes) ----------
+
+enum ScheduledEmailStatus {
+  PENDING
+  SENT
+  CANCELED
+  FAILED
+}
+
+// A future-dated send queued by a delayed automation (delayMinutes > 0). The
+// scheduler sweeps PENDING rows whose sendAt has passed and dispatches them via
+// the EmailService. automationId is a plain field (no relation) so Automation
+// stays untouched; dedupeKey makes a (re)trigger idempotent.
+model ScheduledEmail {
+  id           String               @id @default(cuid())
+  automationId String? // source Automation (plain field, no FK)
+  to           String
+  templateId   String? // template/automation that will produce it
+  templateKey  String?
+  vars         Json // merge-var bag passed to the renderer
+  sendAt       DateTime // when the scheduler should dispatch
+  status       ScheduledEmailStatus @default(PENDING)
+  dedupeKey    String?              @unique // idempotency for the deferred trigger
+  contactId    String? // internal Contact when known (no FK: survives deletion)
+  createdAt    DateTime             @default(now())
+  sentAt       DateTime?
+  error        String?
+
+  @@index([status, sendAt])
 }

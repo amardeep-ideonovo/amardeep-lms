@@ -162,9 +162,9 @@ export interface LevelDTO {
   slug: string | null; // pretty checkout URL key (/checkout/<slug>); null = use raw id
   published: boolean; // show as a class tile on the member dashboard
   type: LevelType;
-  mailchimpTags: string[]; // tags applied within the audience on grant
-  mailchimpAudienceId: string | null; // Mailchimp list this level subscribes members to
-  mailchimpAudienceName: string | null; // cached name for display
+  audienceTags: string[]; // tag names applied within the in-house audience on grant
+  audienceId: string | null; // in-house Audience this class captures granted members into (null = default "Members" audience)
+  audienceName: string | null; // display name resolved from the linked Audience (null when unlinked → default at grant time)
   stripeProductId: string | null;
   prices: PriceDTO[];
   categories: LevelCategoryDTO[]; // admin-only grouping ("Classes" categories)
@@ -230,9 +230,8 @@ export interface CreateLevelInput {
   slug?: string; // optional pretty checkout URL slug (slugified server-side)
   published?: boolean; // show as a class tile on the member dashboard
   type: LevelType;
-  mailchimpTags?: string[];
-  mailchimpAudienceId?: string;
-  mailchimpAudienceName?: string;
+  audienceTags?: string[]; // tag names applied within the in-house audience on grant
+  audienceId?: string; // in-house Audience id to capture granted members into (omit = default "Members" audience)
   categoryIds?: string[]; // admin-only class categories to assign
   imageUrl?: string; // hero/cover image (Gallery URL)
   description?: string;
@@ -260,27 +259,32 @@ export interface MySubscriptionDTO {
 // Public config the checkout page needs to render the active provider's payment
 // UI. `provider` is the admin-selected processor for NEW checkouts. When the
 // active provider's key is null, it isn't configured on this environment and
-// Outbound email / SMTP sender credentials (in-house Mailchimp replacement).
-// `pass` is write-only (sent on PUT, never returned); blank fields on PUT keep
-// the stored value. `provider` is the pluggable sender id (only "smtp" today).
-// `secure` toggles implicit TLS (typically port 465).
+// Outbound email sender credentials (in-house Mailchimp replacement).
+// `pass` and `resendApiKey` are write-only (sent on PUT, never returned); blank
+// fields on PUT keep the stored value. `provider` is the pluggable sender id:
+// "smtp" (nodemailer) or "resend" (REST API). `secure` toggles implicit TLS
+// (typically port 465). SMTP fields apply when provider="smtp"; `resendApiKey`
+// applies when provider="resend".
 export interface EmailSettingsInput {
-  provider?: string;
+  provider?: "smtp" | "resend";
   host?: string;
   port?: string; // string on the wire; parsed to a number server-side
   user?: string;
   pass?: string;
+  resendApiKey?: string;
   fromEmail?: string;
   fromName?: string;
   secure?: boolean;
 }
 export interface EmailSettingsMasked {
-  provider: string; // defaults to "smtp"
+  provider: "smtp" | "resend"; // defaults to "smtp"
   host: string | null;
   port: string | null;
   user: string | null;
   // The SMTP password is a secret — never returned; only whether one is stored.
   passSet: boolean;
+  // The Resend API key is a secret — never returned; only whether one is stored.
+  resendApiKeySet: boolean;
   fromEmail: string | null;
   fromName: string | null;
   secure: boolean;
@@ -1065,6 +1069,7 @@ export interface CampaignDTO {
   cadence: CampaignCadence;
   runAt: string | null; // ISO — ONCE: send time; recurring: first run
   cron: string | null; // CRON cadence expression
+  timezone?: string; // IANA tz for cron/weekly/monthly schedules (null/undefined => UTC)
   status: CampaignStatus;
   nextRunAt: string | null; // ISO — next scheduler dispatch
   lastRunAt: string | null; // ISO — last dispatch
@@ -1083,6 +1088,7 @@ export interface CampaignInput {
   cadence?: CampaignCadence;
   runAt?: string | null; // ISO
   cron?: string | null;
+  timezone?: string | null; // IANA tz for cron/weekly/monthly schedules; null/omitted => UTC
 }
 
 // ---------- Automations (event-triggered emails) ----------
@@ -1128,8 +1134,8 @@ export interface FormAdminRow {
   id: string;
   name: string;
   fields: FormFieldDef[];
-  mailchimpAudienceId: string | null;
-  mailchimpAudienceName: string | null;
+  audienceId: string | null; // in-house Audience id (null = default "Members")
+  audienceName: string | null; // display name from the Audience relation (null = default)
   doubleOptIn: boolean;
   updateExisting: boolean;
   tags: string[];
@@ -1143,8 +1149,7 @@ export interface FormAdminRow {
 export interface CreateFormInput {
   name: string;
   fields?: FormFieldDef[];
-  mailchimpAudienceId?: string;
-  mailchimpAudienceName?: string;
+  audienceId?: string; // in-house Audience id (omit/null = default "Members")
   doubleOptIn?: boolean; // default false (No)
   updateExisting?: boolean; // default true (Yes)
   tags?: string[];
@@ -1160,7 +1165,7 @@ export interface FormSubmitInput {
 }
 export interface FormSubmitResult {
   ok: boolean;
-  mailchimpStatus: string | null; // subscribed | pending | existing | failed | skipped
+  subscribeStatus: string | null; // subscribed | pending | existing | skipped
   redirectUrl: string | null;
   message: string | null;
 }
@@ -1171,7 +1176,7 @@ export interface FormSubmissionDTO {
   id: string;
   email: string | null;
   data: Record<string, string | number | boolean>;
-  mailchimpStatus: string | null;
+  subscribeStatus: string | null; // subscribed | pending | existing | skipped
   createdAt: string; // ISO
 }
 
@@ -1689,8 +1694,8 @@ export interface FooterEmail {
   text?: string | null;
   placeholder: string;
   buttonText: string;
-  audienceId?: string | null; // Mailchimp audience
-  audienceName?: string | null;
+  audienceId?: string | null; // in-house Audience id (null = default "Members")
+  audienceName?: string | null; // display name from the Audience (null = default)
   doubleOptIn: boolean;
   successMessage: string;
 }
@@ -1707,7 +1712,7 @@ export interface FooterConfig {
   // col 2: menu
   menuHeading: string;
   menuId?: string | null; // null -> FOOTER-location menu
-  // col 3: email opt-in (built-in -> Mailchimp)
+  // col 3: email opt-in (built-in -> in-house audience)
   email: FooterEmail;
   // bottom bar
   copyright: string; // supports the {year} token
@@ -1913,15 +1918,13 @@ export const ROUTES = {
   adminDeletePage: "DELETE /admin/pages/:id",
   adminUploadPageImage: "POST /admin/pages/upload", // multipart {file} -> {url}
 
-  // forms (Mailchimp-linked) — ADMIN
+  // forms (in-house Audience) — ADMIN
   adminListForms: "GET /admin/forms", // -> FormAdminRow[]
   adminGetForm: "GET /admin/forms/:id", // -> FormAdminRow
   adminCreateForm: "POST /admin/forms", // body CreateFormInput -> FormAdminRow
   adminUpdateForm: "PATCH /admin/forms/:id", // body UpdateFormInput -> FormAdminRow
   adminDeleteForm: "DELETE /admin/forms/:id",
   adminListFormSubmissions: "GET /admin/forms/:id/submissions", // -> FormSubmissionDTO[]
-  adminListMailchimpAudiences: "GET /admin/mailchimp/audiences", // -> MailchimpAudienceDTO[] (live)
-  adminListMailchimpMergeFields: "GET /admin/mailchimp/audiences/:id/merge-fields", // -> MailchimpMergeFieldDTO[]
 
   // forms — PUBLIC (no auth): only ACTIVE forms
   getPublicForm: "GET /forms/:id", // -> FormPublicDTO (404 if inactive/missing)
@@ -1946,6 +1949,9 @@ export const ROUTES = {
   adminCreateSegment: "POST /admin/audiences/:id/segments", // body CreateSegmentInput -> SegmentDTO
   adminUpdateSegment: "PATCH /admin/segments/:id", // body UpdateSegmentInput -> SegmentDTO
   adminDeleteSegment: "DELETE /admin/segments/:id", // -> { ok: true }
+
+  // contacts — PUBLIC (no auth): double opt-in confirmation (PENDING -> SUBSCRIBED via the emailed token)
+  confirmContact: "GET/POST /contacts/confirm?token=...",
 
   // email templates (MJML + Handlebars) — ADMIN (RBAC `email`)
   adminListEmailTemplates: "GET /admin/email/templates", // -> EmailTemplateDTO[]
@@ -2033,8 +2039,8 @@ export const ROUTES = {
   getMailchimpSettings: "GET /admin/settings/mailchimp",
   putMailchimpSettings: "PUT /admin/settings/mailchimp",
   deleteMailchimpSettings: "DELETE /admin/settings/mailchimp", // clears all Mailchimp creds
-  getEmailSettings: "GET /admin/settings/email", // -> EmailSettingsMasked (password never returned, only passSet)
-  putEmailSettings: "PUT /admin/settings/email", // body EmailSettingsInput (blank pass keeps stored)
+  getEmailSettings: "GET /admin/settings/email", // -> EmailSettingsMasked (pass + Resend key never returned, only passSet/resendApiKeySet)
+  putEmailSettings: "PUT /admin/settings/email", // body EmailSettingsInput (blank pass/resendApiKey keeps stored; provider "smtp"|"resend")
   deleteEmailSettings: "DELETE /admin/settings/email", // clears all email/SMTP creds
   getPayPalSettings: "GET /admin/settings/paypal", // -> {clientId, clientSecretLast4, webhookId, mode}
   putPayPalSettings: "PUT /admin/settings/paypal", // body {clientId?, clientSecret?, webhookId?, mode?}

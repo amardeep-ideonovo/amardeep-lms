@@ -1,16 +1,31 @@
-import { Controller, Get, Header, Post, Query } from '@nestjs/common';
+import { Controller, Get, Header, Post, Query, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { UnsubscribeService } from './unsubscribe.service';
 import { verifyUnsubscribeToken } from './unsubscribe.util';
 
 // PUBLIC, no auth. The target of every email's unsubscribe link and the URL form
-// of the List-Unsubscribe header. GET renders a self-contained confirmation page
-// (so it works straight from a mail client); POST is the RFC 8058 one-click
-// endpoint some clients hit automatically. Both verify the signed token and,
-// when valid, suppress the address via UnsubscribeService.
+// of the List-Unsubscribe header.
+//
+// GET MUST NOT MUTATE. Mail clients, link scanners and anti-malware prefetchers
+// fire GET on every link in a message — if GET unsubscribed, those bots would
+// silently opt users out. So GET renders a CONFIRM page: a styled button that
+// POSTs the same token back here. Only the POST mutates.
+//
+// POST handles both that confirm-button submit AND the RFC 8058 one-click
+// List-Unsubscribe-Post that some clients fire automatically. It's idempotent and
+// always returns the same success-shaped HTML — a bad/missing token is a no-op
+// 200 so we never leak which addresses are real to an automated prefetcher.
+//
+// Both routes are IP rate-limited (public, unauthenticated) — mirrors the
+// @Throttle pattern in auth.controller.ts.
 @Controller('unsubscribe')
+@UseGuards(ThrottlerGuard)
+@Throttle({ default: { limit: 30, ttl: 60_000 } })
 export class UnsubscribeController {
   constructor(private readonly unsubscribe: UnsubscribeService) {}
 
+  // Render-only. Verifies the token to choose which page to show, but performs
+  // NO suppression. A valid token → a confirm page whose button POSTs the token.
   @Get()
   @Header('Content-Type', 'text/html; charset=utf-8')
   // Never let an unsubscribe page get cached/indexed.
@@ -19,16 +34,18 @@ export class UnsubscribeController {
   async page(@Query('token') token?: string): Promise<string> {
     const email = verifyUnsubscribeToken(token);
     if (!email) return errorPage();
-    await this.unsubscribe.unsubscribeEmail(email);
-    return successPage(email);
+    // token is non-empty here (verify returned an email), so it's safe to echo.
+    return confirmPage(email, token as string);
   }
 
-  // One-click (List-Unsubscribe-Post / RFC 8058). Idempotent; always returns the
-  // same confirmation HTML. A bad token is a no-op success-shaped 200 so we never
-  // leak which addresses are real to an automated prefetcher.
+  // The mutating endpoint: serves the confirm-button submit and RFC 8058
+  // one-click. Idempotent; always returns the same confirmation HTML. A bad
+  // token is a no-op success-shaped 200 so we never leak which addresses are
+  // real to an automated prefetcher.
   @Post()
   @Header('Content-Type', 'text/html; charset=utf-8')
   @Header('Cache-Control', 'no-store')
+  @Header('X-Robots-Tag', 'noindex')
   async oneClick(@Query('token') token?: string): Promise<string> {
     const email = verifyUnsubscribeToken(token);
     if (email) await this.unsubscribe.unsubscribeEmail(email);
@@ -89,6 +106,31 @@ function shell(title: string, body: string): string {
   <div class="card">${body}</div>
 </body>
 </html>`;
+}
+
+// Confirmation page shown on GET. A single button POSTs the token back to the
+// same route to actually unsubscribe — so a passive GET (mail scanner, link
+// prefetch) never opts anyone out. The token is interpolated into the form
+// action as a query string; it's base64url + hex (no HTML-special chars) but we
+// escape it anyway as defense-in-depth. Email is escaped before display.
+function confirmPage(email: string, token: string): string {
+  return shell(
+    'Confirm unsubscribe',
+    `<div class="badge" aria-hidden="true">✉</div>
+     <h1>Unsubscribe from emails?</h1>
+     <p>This will stop marketing emails to <span class="email">${escapeHtml(
+       email,
+     )}</span>.</p>
+     <form method="post" action="/unsubscribe?token=${escapeHtml(token)}" style="margin-top:22px;">
+       <button type="submit" style="
+         appearance:none;border:0;cursor:pointer;font:inherit;font-weight:600;
+         font-size:15px;color:#ffffff;background:#7c5cfc;border-radius:10px;
+         padding:13px 22px;width:100%;">
+         Unsubscribe
+       </button>
+     </form>
+     <p class="muted">Account and billing notices may still be sent where required. Changed your mind? Just close this page.</p>`,
+  );
 }
 
 function successPage(email: string): string {

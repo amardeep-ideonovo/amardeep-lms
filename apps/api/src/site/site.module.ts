@@ -8,7 +8,7 @@ import { AdminAppConfigController } from './admin-app-config.controller';
 import { PublicAppConfigController } from './public-app-config.controller';
 
 // PrismaService is global; the admin controllers use the global JWT/permissions
-// guards. MailchimpService (injected by FooterService) is also @Global.
+// guards. ContactsService (injected by FooterService) is also @Global.
 @Module({
   controllers: [
     SiteController,

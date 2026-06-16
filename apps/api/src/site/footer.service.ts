@@ -7,7 +7,6 @@ import type {
   FooterSubscribeResult,
 } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { MailchimpService } from '../mailchimp/mailchimp.service';
 import { ContactsService } from '../contacts/contacts.service';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -44,7 +43,6 @@ const DEFAULT_FOOTER: FooterConfig = {
 export class FooterService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mailchimp: MailchimpService,
     private readonly contacts: ContactsService,
   ) {}
 
@@ -121,7 +119,7 @@ export class FooterService {
     };
   }
 
-  /** Admin read — default-merged + sanitized (includes the Mailchimp audience). */
+  /** Admin read — default-merged + sanitized (includes the in-house audience). */
   async read(): Promise<FooterConfig> {
     const row = await this.prisma.footer.findUnique({
       where: { id: 'singleton' },
@@ -129,7 +127,7 @@ export class FooterService {
     return this.sanitize(row?.config);
   }
 
-  /** Public read — hides the Mailchimp audience id / opt-in details from the browser. */
+  /** Public read — hides the audience id / opt-in details from the browser. */
   async readPublic(): Promise<FooterConfig> {
     const cfg = await this.read();
     return {
@@ -156,50 +154,35 @@ export class FooterService {
     return clean;
   }
 
-  /** Public email opt-in -> Mailchimp. Never 500s: a misconfig is a soft result. */
+  /** Public email opt-in -> in-house list. Never 500s: a misconfig is a soft result. */
   async subscribe(email: string): Promise<FooterSubscribeResult> {
     const e = (email || '').trim().toLowerCase();
     if (!EMAIL_RE.test(e)) {
       throw new BadRequestException('Enter a valid email address.');
     }
     const cfg = await this.read();
-    if (!cfg.email.audienceId) {
-      return {
-        ok: false,
-        status: 'skipped',
-        message: 'Email signup isn’t available right now.',
-      };
-    }
     try {
-      const status = await this.mailchimp.subscribe(
-        cfg.email.audienceId,
+      // In-house list write. Fires whenever there's a valid email — NOT gated on
+      // a configured audience: a null audienceId resolves to the default
+      // "Members" audience, so an unconfigured footer still captures everyone.
+      const status = await this.contacts.subscribe(
+        // null (no configured audience) → default "Members" audience.
+        cfg.email.audienceId ?? null,
         e,
         {},
-        { doubleOptIn: cfg.email.doubleOptIn, updateExisting: true },
+        {
+          doubleOptIn: cfg.email.doubleOptIn,
+          updateExisting: true,
+          source: 'FOOTER',
+        },
       );
-      // In-house list dual-write (best-effort; swallowed so it never affects
-      // the subscribe result). No logger in this service — swallow silently.
-      try {
-        await this.contacts.subscribe(
-          cfg.email.audienceId,
-          e,
-          {},
-          {
-            doubleOptIn: cfg.email.doubleOptIn,
-            updateExisting: true,
-            source: 'FOOTER',
-          },
-        );
-      } catch {
-        /* best-effort dual-write */
-      }
       return {
         ok: true,
         status,
         message: cfg.email.successMessage || "Thanks! You're subscribed.",
       };
     } catch {
-      // Mailchimp not configured or an API error — surface a friendly message.
+      // Contacts hiccup — surface a friendly message, never 500.
       return {
         ok: false,
         status: 'error',

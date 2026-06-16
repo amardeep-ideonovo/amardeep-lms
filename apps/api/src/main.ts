@@ -82,8 +82,19 @@ async function bootstrap() {
   // (PayPal's verify-webhook-signature needs the byte-exact original body).
   app.use('/billing/webhook', express.raw({ type: '*/*' }));
   app.use('/billing/paypal/webhook', express.raw({ type: '*/*' }));
-  // JSON parsing for everything else.
-  app.use(express.json({ limit: '1mb' }));
+  // JSON parsing for everything else. The `verify` hook stashes the byte-exact
+  // payload on req.rawBody for routes that ALSO need the parsed body — namely the
+  // email feedback webhook, whose Svix (Resend) signature is computed over the raw
+  // bytes while normalization still drives off the parsed @Body(). Cheap (a buffer
+  // ref) and global, so it never changes how any existing route reads its body.
+  app.use(
+    express.json({
+      limit: '1mb',
+      verify: (req: express.Request & { rawBody?: Buffer }, _res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
   app.use(express.urlencoded({ extended: true }));
 
   // Serve uploaded blog images (see blog/upload.config.ts). On Render this

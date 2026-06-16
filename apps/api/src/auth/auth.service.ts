@@ -260,32 +260,35 @@ export class AuthService {
       },
       update: { status: 'ACTIVE' },
     });
-    // Mailchimp tag/audience sync — never block the signup response on a
-    // queue/Mailchimp blip; signup must succeed even if marketing infra fails.
-    if (free.mailchimpTags.length || free.mailchimpAudienceId) {
+    // ALWAYS capture the signed-up member into the Free class's in-house
+    // audience (null audienceId → default "Members"). syncTags upserts the
+    // contact first, so it lands the member even when audienceTags is empty.
+    // Best-effort: never block the signup response on a contacts blip.
+    try {
+      await this.contacts.syncTags(
+        'add',
+        email,
+        free.audienceTags,
+        free.audienceId ?? undefined,
+        { userId, source: 'SIGNUP' },
+      );
+    } catch (err) {
+      this.logger.warn(
+        `[signup] contacts sync failed for ${email}: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+    }
+    // Mirror the tags to Mailchimp (gated/no-op by default). Pass undefined for
+    // the audience — Mailchimp expects a LIST id, not our internal Audience id,
+    // so it falls back to the global Settings audience. Only worth enqueuing
+    // when there are tags to apply; never block signup on a Mailchimp blip.
+    if (free.audienceTags.length) {
       try {
-        await this.mailchimp.enqueueTags(
-          'add',
-          email,
-          free.mailchimpTags,
-          free.mailchimpAudienceId ?? undefined,
-        );
+        await this.mailchimp.enqueueTags('add', email, free.audienceTags, undefined);
       } catch (err) {
         this.logger.warn(
           `[signup] mailchimp enqueue failed for ${email}: ${
-            err instanceof Error ? err.message : err
-          }`,
-        );
-      }
-      // In-house list dual-write (best-effort; never blocks signup).
-      try {
-        await this.contacts.syncTags('add', email, free.mailchimpTags, free.mailchimpAudienceId, {
-          userId,
-          source: 'SIGNUP',
-        });
-      } catch (err) {
-        this.logger.warn(
-          `[signup] contacts sync failed for ${email}: ${
             err instanceof Error ? err.message : err
           }`,
         );
