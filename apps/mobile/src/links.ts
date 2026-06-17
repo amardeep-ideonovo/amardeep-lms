@@ -64,19 +64,22 @@ function openPath(pathname: string, browserFallback: string): void {
   }
   const nav = navigationRef;
 
+  // Dashboard / Blog / Account live inside the "Main" tab navigator now — a
+  // nested route is NOT found by a bare navigate from the root, so target the
+  // tab explicitly via Main → { screen }.
   if (segs.length === 0) {
-    nav.navigate("Dashboard");
+    nav.navigate("Main", { screen: "Dashboard" });
     return;
   }
 
   const [head, second] = segs;
   switch (head) {
     case "dashboard":
-      nav.navigate("Dashboard");
+      nav.navigate("Main", { screen: "Dashboard" });
       return;
     case "classes":
       if (second) nav.navigate("Class", { slugOrId: second });
-      else nav.navigate("Dashboard");
+      else nav.navigate("Main", { screen: "Dashboard" });
       return;
     case "courses":
       if (second) nav.navigate("Course", { courseId: second });
@@ -84,15 +87,15 @@ function openPath(pathname: string, browserFallback: string): void {
       return;
     case "lessons":
       if (second) nav.navigate("Lesson", { lessonId: second });
-      else nav.navigate("Dashboard");
+      else nav.navigate("Main", { screen: "Dashboard" });
       return;
     case "blog":
       if (second) nav.navigate("BlogPost", { slug: second });
-      else nav.navigate("Blog");
+      else nav.navigate("Main", { screen: "Blog" });
       return;
     case "account":
       if (second === "payments") nav.navigate("Payments");
-      else nav.navigate("Account");
+      else nav.navigate("Main", { screen: "Account" });
       return;
     case "pricing":
       // The plans LIST is native now; actual checkout stays on the web.

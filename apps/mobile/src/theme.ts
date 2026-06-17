@@ -168,7 +168,9 @@ export function letterGradient(seed: string): [string, string] {
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) % 75;
   const h = 255 + hash;
   const h2 = 255 + ((hash + 30) % 75);
-  return [`hsl(${h}, 68%, 56%)`, `hsl(${h2}, 60%, 46%)`];
+  // Muted dark-violet (low saturation + lightness) so image-less tiles read as
+  // quiet placeholders, not loud magenta.
+  return [`hsl(${h}, 36%, 34%)`, `hsl(${h2}, 32%, 26%)`];
 }
 
 // Elevated-card shadow. Android's `elevation` only renders on views with an

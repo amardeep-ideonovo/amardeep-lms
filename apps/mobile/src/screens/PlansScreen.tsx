@@ -97,7 +97,9 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
                     {sub.cancelAtPeriodEnd ? " · cancels at period end" : ""}
                   </Text>
                 ) : null}
-                <TouchableOpacity onPress={() => navigation.navigate("Account")}>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("Main", { screen: "Account" })}
+                >
                   <Text style={styles.link}>Manage subscription →</Text>
                 </TouchableOpacity>
               </View>

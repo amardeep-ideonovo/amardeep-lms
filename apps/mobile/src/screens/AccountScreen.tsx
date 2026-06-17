@@ -28,7 +28,7 @@ import { Skeleton } from "../components/Skeleton";
 import { useAppConfig } from "../config-provider";
 import { WEB_BASE_URL } from "../config";
 import { fmtDate, money } from "../format";
-import type { ScreenProps } from "../navigation";
+import type { TabScreenProps } from "../navigation";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
@@ -75,7 +75,7 @@ function initialsOf(u: AuthUser): string {
 
 type DetailsMode = "view" | "edit" | "password";
 
-export function AccountScreen({ navigation }: ScreenProps<"Account">) {
+export function AccountScreen({ navigation }: TabScreenProps<"Account">) {
   const styles = useStyles(makeStyles);
   const { config } = useAppConfig();
   const { signOut } = useAuth();

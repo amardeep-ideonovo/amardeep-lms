@@ -1168,7 +1168,7 @@ export function createPuckConfig(
         },
       },
 
-      // ---------------- Form (Mailchimp-linked) ----------------
+      // ---------------- Form (audience-linked) ----------------
       Form: {
         label: "Form",
         fields: {

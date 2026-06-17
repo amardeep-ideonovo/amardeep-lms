@@ -3,6 +3,8 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import type { LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import * as ExpoLinking from "expo-linking";
@@ -30,6 +32,7 @@ import { fonts } from "./src/theme";
 import type {
   AuthStackParamList,
   RootStackParamList,
+  TabParamList,
 } from "./src/navigation";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { SignupScreen } from "./src/screens/SignupScreen";
@@ -56,13 +59,19 @@ const linking: LinkingOptions<RootStackParamList> = {
   filter: (url) => !url.includes("expo-development-client"),
   config: {
     screens: {
-      Dashboard: "dashboard",
+      // Dashboard / Blog / Account now live inside the "Main" tab navigator, so
+      // their deep-link paths are declared as nested screens of Main.
+      Main: {
+        screens: {
+          Dashboard: "dashboard",
+          Blog: "blog",
+          Account: "account",
+        },
+      },
       Class: "classes/:slugOrId",
       Course: "courses/:courseId",
       Lesson: "lessons/:lessonId",
-      Blog: "blog",
       BlogPost: "blog/:slug",
-      Account: "account",
       Payments: "account/payments",
       Plans: "pricing/all",
       Page: ":slug",
@@ -72,6 +81,19 @@ const linking: LinkingOptions<RootStackParamList> = {
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+const Tab = createBottomTabNavigator<TabParamList>();
+
+// Bottom-tab icon (Ionicons, bundled with Expo). Active/inactive tint comes
+// from the navigator's tabBarActive/InactiveTintColor.
+function TabIcon({
+  name,
+  color,
+}: {
+  name: React.ComponentProps<typeof Ionicons>["name"];
+  color: string;
+}) {
+  return <Ionicons name={name} size={22} color={color} />;
+}
 
 // Unauthenticated screens — Login + Signup. Header is hidden so the screens
 // own their own layout.
@@ -84,7 +106,69 @@ function AuthNavigator() {
   );
 }
 
-// Authenticated screens — the main app. Header chrome follows the active theme.
+// The persistent authed shell — a bottom tab bar with Dashboard / Blog /
+// Account. Each tab owns its OWN header (styled like the stack chrome below);
+// detail screens push OVER the tabs from the root stack. The bottom safe-area
+// inset is handled automatically by bottom-tabs via safe-area-context.
+function MainTabs() {
+  const { colors } = useTheme();
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: true,
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
+        headerTitleStyle: { fontFamily: fonts.bold, fontSize: 17 },
+        // Dark glass tab bar.
+        tabBarStyle: {
+          backgroundColor: colors.surface,
+          borderTopColor: colors.borderSoft,
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 11 },
+      }}
+    >
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardScreen}
+        options={{
+          // The home header carries the brand (admin-configured logo or title),
+          // not the screen name — matches the admin live-preview.
+          headerTitle: () => <BrandHeaderTitle />,
+          title: "Home",
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name={focused ? "home" : "home-outline"} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Blog"
+        component={BlogListScreen}
+        options={{
+          title: "Blog",
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name={focused ? "newspaper" : "newspaper-outline"} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Account"
+        component={AccountScreen}
+        options={{
+          title: "Account",
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon name={focused ? "person" : "person-outline"} color={color} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+}
+
+// Authenticated screens — the main app. The "Main" tab shell carries its own
+// headers; the detail screens below push OVER the tabs with stack header chrome
+// that follows the active theme.
 function AppNavigator() {
   const { colors } = useTheme();
   const screenOptions = {
@@ -96,14 +180,9 @@ function AppNavigator() {
   return (
     <AppStack.Navigator screenOptions={screenOptions}>
       <AppStack.Screen
-        name="Dashboard"
-        component={DashboardScreen}
-        // The home header carries the brand (admin-configured logo or title),
-        // not the screen name — matches the admin live-preview. The brand is the
-        // header title (its compact size + the slimmed Blog/Account/Sign-out
-        // actions leave room for the full name on iOS, which truncated it at the
-        // larger size).
-        options={{ headerTitle: () => <BrandHeaderTitle /> }}
+        name="Main"
+        component={MainTabs}
+        options={{ headerShown: false }}
       />
       <AppStack.Screen
         name="Class"
@@ -125,7 +204,6 @@ function AppNavigator() {
         component={LessonScreen}
         options={({ route }) => ({ title: route.params.title ?? "Lesson" })}
       />
-      <AppStack.Screen name="Account" component={AccountScreen} />
       <AppStack.Screen
         name="Payments"
         component={PaymentsScreen}
@@ -135,11 +213,6 @@ function AppNavigator() {
         name="Plans"
         component={PlansScreen}
         options={{ title: "All plans" }}
-      />
-      <AppStack.Screen
-        name="Blog"
-        component={BlogListScreen}
-        options={{ title: "Blog" }}
       />
       <AppStack.Screen
         name="BlogPost"

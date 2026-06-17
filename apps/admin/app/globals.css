@@ -978,6 +978,52 @@ select:-webkit-autofill:focus {
   display: flex;
   gap: 8px;
 }
+/* Row overflow ("⋯") menu — keeps Edit/Delete tidy and a stray Delete behind a
+   click. Anchored to its trigger, right-aligned inside the actions column. */
+.row-menu {
+  position: relative;
+  display: inline-flex;
+  justify-content: flex-end;
+}
+.row-menu-trigger {
+  padding: 6px 8px;
+}
+.row-menu-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+.row-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.row-menu-item:hover {
+  background: var(--surface-hover);
+}
+.row-menu-item--danger {
+  color: var(--danger);
+}
+.row-menu-item--danger:hover {
+  background: rgba(242, 85, 123, 0.14);
+}
 .checkbox-list {
   display: flex;
   flex-direction: column;
@@ -2272,4 +2318,1362 @@ h1,
   .press, .lift, .icon-btn, .hover-pop, .btn, .stat-card, .nav-link {
     transition: none;
   }
+}
+
+/* =====================================================================
+   Projects (internal team chat + task lists). Scoped with `pj-`; reuses
+   the existing design tokens — no new colors invented.
+   ===================================================================== */
+
+/* Workspace layout: channel rail | message pane | (optional) thread panel. */
+.pj-shell {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.pj-shell:has(.pj-thread) {
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(280px, 360px);
+}
+.pj-rail,
+.pj-pane,
+.pj-thread {
+  margin: 0;
+}
+.pj-pane,
+.pj-thread {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: calc(100vh - 200px);
+}
+
+/* ---- channel rail ---- */
+.pj-channel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pj-channel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+.pj-channel:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.pj-channel--active {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.pj-channel-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-hash {
+  color: var(--muted);
+  font-weight: 700;
+}
+.pj-channel-bold {
+  font-weight: 700;
+  color: var(--text);
+}
+.pj-channel-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.pj-badge {
+  min-width: 18px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-soft);
+}
+.pj-badge--mention {
+  background: var(--accent-grad);
+  color: #fff;
+}
+
+/* ---- message pane ---- */
+.pj-pane-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.pj-pane-title {
+  margin: 0;
+  font-size: 18px;
+}
+.pj-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 6px;
+}
+
+/* ---- single message ---- */
+.pj-msg {
+  display: flex;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+}
+.pj-msg:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+.pj-msg:hover .pj-msg-actions {
+  opacity: 1;
+}
+.pj-avatar {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent-grad);
+}
+.pj-avatar--sm {
+  width: 24px;
+  height: 24px;
+  font-size: 10px;
+  border-radius: 7px;
+}
+.pj-msg-body {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+.pj-msg-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pj-author {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 14px;
+}
+.pj-time {
+  font-size: 12px;
+  color: var(--muted);
+}
+.pj-msg-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+.pj-icon-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 6px;
+  color: var(--text-soft);
+}
+.pj-icon-btn:hover {
+  background: var(--surface-hover);
+}
+.pj-msg-text {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--text-soft);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.pj-msg-deleted {
+  font-style: italic;
+  color: var(--muted);
+}
+.pj-mention-token {
+  color: var(--purple);
+  background: rgba(149, 119, 251, 0.14);
+  border-radius: 5px;
+  padding: 0 3px;
+  font-weight: 600;
+}
+
+/* ---- workflow author (auto-posted messages) ---- */
+.pj-avatar--workflow {
+  background: linear-gradient(120deg, #6fd6e6, #8b6ff7);
+  font-size: 16px;
+}
+.pj-wf-badge {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--purple);
+  background: rgba(149, 119, 251, 0.16);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+  line-height: 1.5;
+}
+
+/* ---- inline list-item card (the Image-1 task card) ---- */
+.pj-card {
+  margin-top: 8px;
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  padding: 10px 12px;
+  max-width: 520px;
+}
+.pj-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pj-card-icon {
+  font-size: 15px;
+}
+.pj-card-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+  word-break: break-word;
+}
+.pj-card-grid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: minmax(90px, max-content) 1fr;
+  gap: 4px 14px;
+  align-items: center;
+}
+.pj-card-field {
+  display: contents;
+}
+.pj-card-field-name {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.pj-card-field-value {
+  font-size: 13px;
+  color: var(--text-soft);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* ---- workflows manager panel ---- */
+.pj-wf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+}
+.pj-wf-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.pj-wf-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pj-wf-name {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+.pj-wf-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.pj-wf-create {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ---- reactions ---- */
+.pj-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+.pj-reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-soft);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+.pj-reaction:hover {
+  background: var(--surface-hover);
+}
+.pj-reaction-count {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* emoji quick-picker + the ⋯ row menu */
+.pj-emoji-picker {
+  display: inline-flex;
+  gap: 2px;
+  margin-top: 5px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4);
+  width: max-content;
+}
+.pj-emoji-opt {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 3px 5px;
+  border-radius: 7px;
+}
+.pj-emoji-opt:hover {
+  background: var(--surface-hover);
+}
+.pj-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.pj-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+.pj-menu-item {
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-soft);
+  padding: 7px 9px;
+  border-radius: 7px;
+}
+.pj-menu-item:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.pj-menu-item--danger {
+  color: var(--danger);
+}
+
+/* thread affordance */
+.pj-thread-link {
+  margin-top: 5px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--purple);
+  padding: 2px 0;
+}
+.pj-thread-link:hover {
+  text-decoration: underline;
+}
+
+/* ---- composer + @mention autocomplete ---- */
+/* Realtime (Phase 3): "…typing" line above the composer + presence dots. */
+.pj-typing {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  font-style: italic;
+  min-height: 16px;
+}
+.pj-online {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 10px;
+}
+.pj-online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3ad07a;
+  box-shadow: 0 0 0 2px rgba(58, 208, 122, 0.25);
+}
+
+.pj-composer {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.pj-composer-input {
+  flex: 1;
+  resize: vertical;
+  min-height: 42px;
+  max-height: 160px;
+}
+.pj-mention-pop {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  min-width: 260px;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+}
+.pj-mention-opt {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 7px 8px;
+  border-radius: 8px;
+  color: var(--text-soft);
+}
+.pj-mention-opt--active,
+.pj-mention-opt:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.pj-mention-name {
+  font-weight: 600;
+}
+.pj-mention-email {
+  font-size: 12px;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+/* ---- direct-message "new message" picker ---- */
+.pj-dm-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+}
+.pj-dm-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.pj-dm-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---- thread panel ---- */
+.pj-thread-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.pj-thread-divider {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 10px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ---- lists / task board ---- */
+.pj-task-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.pj-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (max-width: 880px) {
+  .pj-board {
+    grid-template-columns: 1fr;
+  }
+}
+.pj-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.pj-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.pj-col-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pj-task {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  padding: 10px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.pj-task-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+}
+.pj-task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.pj-task-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.pj-task-status {
+  font-size: 13px;
+  padding: 4px 8px;
+}
+
+/* =====================================================================
+   Lists → WEB QUEUE table (Slack-Lists / Airtable style). Same `pj-`
+   prefix + the existing tokens — a dark grid of typed, inline-editable
+   cells. No new color language.
+   ===================================================================== */
+
+/* ---- list picker tabs ---- */
+.pj-tbl-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.pj-tbl-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-soft);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 6px 12px;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+.pj-tbl-tab:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.pj-tbl-tab--active {
+  background: rgba(124, 92, 252, 0.16);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.pj-tbl-tab-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--surface);
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+}
+
+/* ---- channel header tab bar (Messages · List · Canvas · +) ----
+   Slack-style header tabs above the message pane / queue table / canvas. Reuses
+   the violet tokens; an underline accent marks the active tab. */
+.pj-tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 14px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--border);
+}
+.pj-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-soft);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  padding: 8px 12px;
+  margin-bottom: -3px; /* sit the active underline on the bar's own border */
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+.pj-tab:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.pj-tab--active {
+  color: var(--text);
+  border-bottom-color: var(--primary, #7c5cfc);
+}
+.pj-tab--add {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 6px 11px;
+  color: var(--muted);
+}
+.pj-tab-addwrap {
+  position: relative;
+  display: inline-flex;
+}
+.pj-tab-addwrap .pj-menu {
+  top: 100%;
+  left: 0;
+  right: auto;
+}
+
+/* Body wrapper for a List/Canvas tab — scrolls within the pane like messages. */
+.pj-tab-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ---- canvas editor (the "Web SOP" rich-text tab) ---- */
+.pj-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pj-canvas-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pj-canvas-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+.pj-canvas-title:hover:not(:disabled),
+.pj-canvas-title:focus {
+  background: var(--surface-2);
+  border-color: var(--border);
+  outline: none;
+}
+.pj-canvas-title:disabled {
+  cursor: default;
+}
+.pj-canvas-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.pj-canvas-readonly {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 16px;
+}
+
+/* ---- table shell ---- */
+.pj-tbl-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.pj-tbl-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--glass-bg-strong);
+}
+.pj-tbl-viewname {
+  font-weight: 700;
+  color: var(--text);
+}
+.pj-tbl-search {
+  margin-left: auto;
+  width: min(320px, 50%);
+  font-size: 13px;
+  padding: 7px 10px;
+}
+.pj-tbl-scroll {
+  overflow-x: auto;
+}
+.pj-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+/* ---- header cells ---- */
+.pj-tbl-th {
+  text-align: left;
+  font-weight: 700;
+  color: var(--text-soft);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 0;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.pj-tbl-th--title {
+  min-width: 260px;
+  padding: 10px 12px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface-2);
+}
+.pj-tbl-th--add {
+  width: 44px;
+  text-align: center;
+}
+.pj-tbl-th-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 10px 12px;
+  min-width: 130px;
+}
+.pj-tbl-th-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pj-tbl-th-menu {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.14s ease, background 0.14s ease;
+}
+.pj-tbl-th:hover .pj-tbl-th-menu {
+  opacity: 1;
+}
+.pj-tbl-th-menu:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* ---- body cells ---- */
+.pj-tbl-row {
+  border-bottom: 1px solid var(--border);
+}
+.pj-tbl-row:hover .pj-tbl-td {
+  background: rgba(255, 255, 255, 0.02);
+}
+.pj-tbl-td {
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 4px 8px;
+  vertical-align: middle;
+  max-width: 260px;
+}
+.pj-tbl-td--title {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  min-width: 260px;
+}
+.pj-tbl-row:hover .pj-tbl-td--title {
+  background: var(--surface-hover);
+}
+.pj-tbl-empty {
+  padding: 24px 14px;
+  text-align: center;
+  color: var(--muted);
+}
+.pj-tbl-muted {
+  color: var(--faint);
+}
+
+/* title cell layout */
+.pj-tbl-titlecell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pj-tbl-titletext {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  padding: 5px 4px;
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-tbl-titletext:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.pj-tbl-titletext:disabled {
+  cursor: default;
+}
+.pj-tbl-comments {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+}
+.pj-tbl-comments:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.pj-tbl-rowdel {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.14s ease;
+}
+.pj-tbl-row:hover .pj-tbl-rowdel,
+.pj-tbl-titlecell:hover .pj-tbl-rowdel {
+  opacity: 1;
+}
+.pj-tbl-rowdel:hover {
+  background: rgba(244, 96, 122, 0.15);
+  color: var(--danger);
+}
+
+/* generic inline cell buttons + inputs */
+.pj-tbl-cellbtn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text);
+  padding: 5px 6px;
+  border-radius: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-tbl-cellbtn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border);
+}
+.pj-tbl-cellbtn:disabled {
+  cursor: default;
+}
+.pj-tbl-cellempty {
+  color: var(--faint);
+}
+.pj-tbl-inline {
+  width: 100%;
+  font-size: 13px;
+  padding: 5px 7px;
+}
+.pj-tbl-inline--title {
+  font-weight: 600;
+}
+.pj-tbl-checkbox {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* URL + secret + edit-mini */
+.pj-tbl-urlcell,
+.pj-tbl-secretcell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+.pj-tbl-link {
+  color: var(--purple);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pj-tbl-link:hover {
+  text-decoration: underline;
+}
+.pj-tbl-secret {
+  font-family: var(--font-sans);
+  letter-spacing: 1px;
+  color: var(--text-soft);
+}
+.pj-tbl-editmini {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 5px;
+  opacity: 0.6;
+}
+.pj-tbl-editmini:hover {
+  opacity: 1;
+  background: var(--surface-hover);
+}
+
+/* select / multi-select / person cell */
+.pj-tbl-selectwrap {
+  position: relative;
+}
+.pj-tbl-chipbtn {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 6px;
+  border-radius: 6px;
+  min-height: 30px;
+}
+.pj-tbl-chipbtn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border);
+}
+.pj-tbl-chipbtn:disabled {
+  cursor: default;
+}
+.pj-tbl-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.pj-tbl-personname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+/* MULTI_PERSON — multiple removable person chips (reuses person + chip tokens) */
+.pj-multiperson-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  padding: 2px 6px 2px 2px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.pj-multiperson-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+  font-size: 13px;
+}
+.pj-multiperson-x:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+/* read-only stacked list (workflow item card) */
+.pj-multiperson-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+/* options menu (reuses .pj-menu but left-aligned + wider) */
+.pj-menu--options {
+  left: 0;
+  right: auto;
+  min-width: 200px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.pj-menu-item--opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pj-opt-check {
+  margin-left: auto;
+  color: var(--green);
+  font-weight: 700;
+}
+.pj-menu-empty {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 7px 9px;
+}
+
+/* swatch picker (column option colors) */
+.pj-swatch-wrap {
+  position: relative;
+}
+.pj-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid var(--border-strong);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.pj-swatch--sm {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+.pj-swatch-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(4, 18px);
+  gap: 6px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-pop);
+}
+
+/* add-column button + popover */
+.pj-tbl-addcol {
+  position: relative;
+  display: inline-flex;
+}
+.pj-tbl-addcol-btn,
+.pj-tbl-addcol-btn:focus {
+  border: 1px dashed var(--border-strong);
+  background: var(--surface);
+  color: var(--text-soft);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  margin: 8px auto;
+}
+.pj-tbl-addcol-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.pj-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+  font-weight: 400;
+}
+.pj-popover--col {
+  width: 260px;
+}
+.pj-pop-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.pj-pop-input {
+  font-size: 13px;
+  padding: 7px 9px;
+  width: 100%;
+}
+.pj-pop-input--sm {
+  flex: 1;
+}
+.pj-pop-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.pj-pop-optrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pj-pop-optrow .pj-tbl-rowdel {
+  opacity: 1;
+}
+.pj-pop-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* add-item row under the table */
+.pj-tbl-addrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.pj-tbl-plus {
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+}
+.pj-tbl-addinput {
+  flex: 1;
+  font-size: 13px;
+  padding: 7px 10px;
+}
+
+/* ---- item detail card (modal) ---- */
+.pj-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 22px;
+}
+@media (max-width: 760px) {
+  .pj-detail {
+    grid-template-columns: 1fr;
+  }
+}
+.pj-detail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pj-detail-row {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.pj-detail-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.pj-detail-value {
+  min-width: 0;
+}
+.pj-detail-comments {
+  border-left: 1px solid var(--border);
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+@media (max-width: 760px) {
+  .pj-detail-comments {
+    border-left: none;
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+}
+.pj-detail-comments-h {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+.pj-detail-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 340px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+.pj-comment {
+  display: flex;
+  gap: 9px;
+}
+.pj-comment-body {
+  flex: 1;
+  min-width: 0;
+}
+.pj-comment-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pj-comment-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 2px;
+}
+.pj-comment-edit {
+  margin-top: 6px;
+}
+.pj-detail-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.pj-detail-composer .btn {
+  align-self: flex-end;
 }

@@ -6,7 +6,7 @@
 // Destructive mode: SEED_WIPE=1 wipes ALL content tables (and the upload
 // dirs on disk) before seeding. The wipe NEVER touches:
 //   - Admin            (admin@example.com — the only way into the admin)
-//   - Setting          (encrypted Stripe/PayPal/Mailchimp creds + provider —
+//   - Setting          (encrypted Stripe/PayPal/email creds + provider —
 //                       cannot be re-derived; paired with SETTINGS_ENC_KEY)
 //   - _prisma_migrations
 // NEVER run `prisma migrate reset` against this database — it drops those too.
@@ -1844,15 +1844,18 @@ async function seedPages(adminId: string) {
 // ---------- popups ----------
 
 async function seedPopups() {
-  // Welcome popup: dashboard only, 2s after load, once per session.
+  // Welcome popup: dashboard only, 2s after load, once per session. A
+  // non-blocking dark-glass corner toast (NOT a center modal over the hero) so
+  // it nudges without interrupting, and themed to the site instead of a jarring
+  // white card.
   const welcome = {
     name: "Welcome to Spotlight Academy",
     status: "ACTIVE" as const,
-    position: "CENTER" as const,
-    width: "480px",
+    position: "BOTTOM_RIGHT" as const,
+    width: "420px",
     height: "auto",
-    background: "#ffffff",
-    borderColor: "#e4e4e7",
+    background: "#171326",
+    borderColor: "#322a52",
     borderRadius: 16,
     padding: 28,
     showOnDashboard: true,
@@ -1866,13 +1869,19 @@ async function seedPopups() {
     frequency: "ONCE_PER_SESSION" as const,
     frequencyDays: 7,
     closeOnOverlay: true,
-    animation: "FADE" as const,
+    animation: "SLIDE_UP" as const,
     data: {
       root: { props: {} },
       content: [
         {
           type: "Heading",
-          props: { id: "wp-h", text: "Welcome back 👋", level: "2", align: "center" },
+          props: {
+            id: "wp-h",
+            text: "Welcome back 👋",
+            level: "2",
+            align: "center",
+            design: { textColor: "#fafafa" },
+          },
         },
         {
           type: "RichText",
@@ -1880,6 +1889,7 @@ async function seedPopups() {
             id: "wp-t",
             html: "<p>Your craft gets better one session at a time — and the next one is right here. New around the Academy? The Start Here page maps your first week.</p>",
             align: "center",
+            design: { textColor: "#cbc6e0" },
           },
         },
         {

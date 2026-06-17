@@ -37,6 +37,22 @@ const config = createPuckConfig({
 
 const EDGE = 20; // px gap from the viewport edges for non-centered popups
 
+// Parse a #rgb / #rrggbb popup background and decide whether it's dark, so the
+// close button contrasts against it (a dark popup needs a light "×", not the
+// default dark one that would all but vanish). Non-hex values default to light
+// — our seeded popups use hex.
+function isDarkBg(color: string | undefined): boolean {
+  if (!color) return false;
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
+  if (!m) return false;
+  let hex = m[1];
+  if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b < 128; // sRGB-weighted luminance
+}
+
 // ---------- frequency capping (storage is best-effort; private-mode safe) ----------
 const seenKey = (id: string) => `lms-popup-seen:${id}`;
 
@@ -124,6 +140,7 @@ function PopupCard({
   const s = popup.style;
   const b = popup.behavior;
   const centered = s.position === "CENTER";
+  const darkBg = isDarkBg(s.background);
   const innerRef = useRef<HTMLDivElement | null>(null);
 
   // Count one impression + start the frequency clock when this popup appears.
@@ -209,8 +226,8 @@ function PopupCard({
               height: 28,
               borderRadius: 999,
               border: "none",
-              background: "rgba(15,23,42,0.08)",
-              color: "#0f172a",
+              background: darkBg ? "rgba(255,255,255,0.14)" : "rgba(15,23,42,0.08)",
+              color: darkBg ? "#f8fafc" : "#0f172a",
               fontSize: 16,
               lineHeight: 1,
               cursor: "pointer",

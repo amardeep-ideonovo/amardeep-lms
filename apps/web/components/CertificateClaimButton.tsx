@@ -72,7 +72,9 @@ export default function CertificateClaimButton({
     <div className="cert-claim" style={{ display: "grid", gap: 8 }}>
       {claimed ? (
         <>
-          <button type="button" className="btn btn-primary press" onClick={download}>
+          {/* Secondary weight: the class card's primary action is "Continue
+              learning"; the certificate download is the optional follow-up. */}
+          <button type="button" className="btn btn-secondary press" onClick={download}>
             Download certificate
           </button>
           {serial && (

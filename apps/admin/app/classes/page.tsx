@@ -12,6 +12,7 @@ import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
+import RowMenu from "@/components/RowMenu";
 
 type PriceForm = {
   interval: "month" | "year";
@@ -831,20 +832,17 @@ export default function ClassesPage() {
                     )}
                   </td>
                   <td>
-                    <div className="row-actions">
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => startEdit(lvl)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn--danger btn--sm"
-                        onClick={() => onDelete(lvl.id)}
-                      >
-                        Delete
-                      </button>
-                    </div>
+                    <RowMenu
+                      label={`Actions for ${lvl.name}`}
+                      items={[
+                        { label: "Edit", onClick: () => startEdit(lvl) },
+                        {
+                          label: "Delete",
+                          danger: true,
+                          onClick: () => onDelete(lvl.id),
+                        },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}

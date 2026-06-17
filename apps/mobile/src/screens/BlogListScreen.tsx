@@ -9,12 +9,12 @@ import { HeroBand } from "../components/HeroBand";
 import { Press } from "../components/Press";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { fmtDate } from "../format";
-import type { ScreenProps } from "../navigation";
+import type { TabScreenProps } from "../navigation";
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
 
-export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
+export function BlogListScreen({ navigation }: TabScreenProps<"Blog">) {
   const styles = useStyles(makeStyles);
   const [posts, setPosts] = useState<PostListItem[]>([]);
   const [loading, setLoading] = useState(true);

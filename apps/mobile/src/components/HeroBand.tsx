@@ -64,7 +64,8 @@ export function HeroBand({
             resizeMode="cover"
           />
           <LinearGradient
-            colors={[colors.overlayFaint, colors.overlayStrong]}
+            colors={[colors.overlayFaint, colors.overlayMid, colors.overlayStrong]}
+            locations={[0, 0.5, 1]}
             style={StyleSheet.absoluteFill}
           />
         </>

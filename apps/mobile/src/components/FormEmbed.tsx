@@ -1,4 +1,4 @@
-// Native renderer for the Puck "Form" block (admin-authored, Mailchimp-linked).
+// Native renderer for the Puck "Form" block (admin-authored, audience-linked).
 // Mirrors the web <FormEmbed>: fetches the public definition by id, renders the
 // configured fields, validates required ones client-side, submits to the public
 // endpoint, then shows the success message / opens the redirect URL. Renders

@@ -121,7 +121,7 @@ export default function Footer({
   );
 }
 
-// Built-in email capture -> /site/footer/subscribe -> Mailchimp (server-side).
+// Built-in email capture -> /site/footer/subscribe -> in-house audience (server-side).
 function FooterSubscribe({
   placeholder,
   buttonText,

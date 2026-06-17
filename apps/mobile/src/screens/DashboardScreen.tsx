@@ -2,7 +2,7 @@
 // head, continue-learning hero (first owned class), My Classes / Explore More
 // tile grids, plus search across classes, class categories, and course titles.
 // The legacy all-courses list stays reachable via the quiet footer link.
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -21,14 +21,13 @@ import type {
 } from "@lms/types";
 
 import { api } from "../api";
-import { useAuth } from "../auth";
 import { ErrorState } from "../components/Screen";
 import { ClassTile } from "../components/ClassTile";
 import { CourseRow } from "../components/CourseRow";
 import { HeroBand } from "../components/HeroBand";
 import { PopupHost } from "../components/PopupHost";
 import { Skeleton } from "../components/Skeleton";
-import type { ScreenProps } from "../navigation";
+import type { TabScreenProps } from "../navigation";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -44,20 +43,15 @@ function greetingName(u: AuthUser | null): string {
   );
 }
 
-export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
+export function DashboardScreen({ navigation }: TabScreenProps<"Dashboard">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
-  const { signOut } = useAuth();
   const { width } = useWindowDimensions();
 
   const [classes, setClasses] = useState<ClassTileDTO[] | null>(null);
   const [dash, setDash] = useState<DashboardResponse | null>(null);
   const [me, setMe] = useState<AuthUser | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [featProgress, setFeatProgress] = useState<{
-    done: number;
-    total: number;
-  } | null>(null);
   const [q, setQ] = useState("");
   const loadedOnce = useRef(false);
 
@@ -87,45 +81,23 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
     }, [load])
   );
 
-  // Featured-class progress (the continue-learning hero) — best effort.
-  const featured = classes?.find((c) => c.owned) ?? null;
-  useEffect(() => {
-    let alive = true;
-    setFeatProgress(null);
-    if (!featured) return;
-    api
-      .myClassCourses(featured.slug ?? featured.id)
-      .then((res) => {
-        if (!alive) return;
-        const total = res.courses.reduce((n, c) => n + c.lessonCount, 0);
-        const done = res.courses.reduce((n, c) => n + c.completedCount, 0);
-        if (total > 0) setFeatProgress({ done, total });
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [featured?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <View style={styles.headerActions}>
-          <TouchableOpacity onPress={() => navigation.navigate("Blog")}>
-            <Text style={styles.headerLink}>Blog</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate("Account")}>
-            <Text style={styles.headerLink}>Account</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={signOut}>
-            <Text style={[styles.headerLink, styles.signOut]}>Sign out</Text>
-          </TouchableOpacity>
-        </View>
-      ),
-    });
-    // `styles` is memoized per theme, so including it re-renders the header
-    // links when the admin config or the system light/dark scheme changes.
-  }, [navigation, signOut, styles]);
+  // Featured class = the continue-learning hero. Prefer the first owned class
+  // that's still INCOMPLETE (so members land on "what's next"); fall back to the
+  // first owned class when everything is done. Progress now ships on the tile
+  // (ClassTileDTO.progress), so no per-class fetch is needed.
+  const owned = classes?.filter((c) => c.owned) ?? [];
+  const incomplete = (p: ClassTileDTO["progress"]) =>
+    !!p && p.total > 0 && p.completed < p.total;
+  const featured =
+    owned.find((c) => incomplete(c.progress)) ?? owned[0] ?? null;
+  const featProgress =
+    featured?.progress && featured.progress.total > 0
+      ? { done: featured.progress.completed, total: featured.progress.total }
+      : null;
+  const featuredComplete =
+    !!featured?.progress &&
+    featured.progress.total > 0 &&
+    featured.progress.completed >= featured.progress.total;
 
   if (error) return <ErrorState message={error} onRetry={load} />;
 
@@ -232,13 +204,13 @@ export function DashboardScreen({ navigation }: ScreenProps<"Dashboard">) {
           <>
             {featured ? (
               <HeroBand
-                eyebrow="Continue learning"
+                eyebrow={featuredComplete ? "Completed" : "Continue learning"}
                 title={featured.name}
                 imageUrl={featured.imageUrl}
                 gradientSeed={featured.id}
                 chips={featured.categories.slice(0, 2).map((c) => c.name)}
                 progress={featProgress}
-                buttonLabel="Resume class"
+                buttonLabel={featuredComplete ? "Review class" : "Resume class"}
                 onButtonPress={() => openClass(featured)}
                 minHeight={240}
                 style={styles.hero}
@@ -348,9 +320,4 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     },
     browseAll: { paddingVertical: spacing.sm },
     browseAllText: { color: colors.textMuted, fontSize: 14, fontWeight: "600", fontFamily: fonts.semibold },
-    // Compact so the brand (headerLeft) + these actions both fit inline on iOS,
-    // whose nav bar otherwise collapses the trailing items into a "•••" overflow.
-    headerActions: { flexDirection: "row", gap: spacing.sm },
-    headerLink: { color: colors.primary, fontSize: 14, fontWeight: "600", fontFamily: fonts.semibold },
-    signOut: { color: colors.textMuted },
   });

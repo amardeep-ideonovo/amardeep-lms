@@ -83,7 +83,7 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
     media: { aspectRatio: 16 / 10, backgroundColor: colors.surfaceMuted },
     letterWrap: { alignItems: "center", justifyContent: "center" },
     letter: {
-      color: "#ffffff",
+      color: "rgba(255,255,255,0.5)",
       fontSize: 44,
       fontWeight: "800",
       fontFamily: fonts.extrabold,

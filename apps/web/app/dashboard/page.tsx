@@ -19,7 +19,9 @@ function letterGradient(seed: string): string {
   // Constrain the base hue to the violet→magenta band so auto tiles stay on-brand.
   const h = 255 + hash;
   const h2 = 255 + ((hash + 38) % 75); // keep the 2nd stop inside the band too
-  return `linear-gradient(150deg, hsl(${h} 68% 56%), hsl(${h2} 60% 46%))`;
+  // Muted saturation/lightness so an image-less tile reads as a quiet brand
+  // placeholder and never out-shouts the real cover photography beside it.
+  return `linear-gradient(150deg, hsl(${h} 36% 34%), hsl(${h2} 32% 26%))`;
 }
 
 function ClassTile({ cls }: { cls: ClassTileDTO }) {
@@ -136,43 +138,6 @@ function DashboardInner() {
     };
   }, []);
 
-  // Featured (most recent enrolled) class headlines the hero — fetch its
-  // progress so the hero can show "X% complete" without a new DTO field.
-  const featuredClass = classes?.find((c) => c.owned) ?? null;
-  const featuredKey = featuredClass
-    ? featuredClass.slug ?? featuredClass.id
-    : null;
-  const [progress, setProgress] = useState<{
-    pct: number;
-    done: number;
-    total: number;
-  } | null>(null);
-  useEffect(() => {
-    if (!featuredKey) {
-      setProgress(null);
-      return;
-    }
-    let active = true;
-    api
-      .myClassCourses(featuredKey)
-      .then((res) => {
-        if (!active) return;
-        const total = res.courses.reduce((n, c) => n + c.lessonCount, 0);
-        const done = res.courses.reduce((n, c) => n + c.completedCount, 0);
-        setProgress({
-          pct: total ? Math.round((done / total) * 100) : 0,
-          done,
-          total,
-        });
-      })
-      .catch(() => {
-        if (active) setProgress(null);
-      });
-    return () => {
-      active = false;
-    };
-  }, [featuredKey]);
-
   if (error) {
     return (
       <div className="member-dash">
@@ -193,7 +158,23 @@ function DashboardInner() {
   // Enrolled first, then the rest to explore (backend name ordering preserved).
   const enrolled = classes.filter((c) => c.owned);
   const available = classes.filter((c) => !c.owned);
-  const featured = enrolled[0] ?? null;
+  // Feature the next class to work on: the first enrolled class that still has
+  // lessons left. If everything's finished, fall back to the first enrolled
+  // class — the hero then reads "Completed" / "Review class" instead of asking
+  // the member to "resume" something they've already finished.
+  const featured =
+    enrolled.find(
+      (c) => c.progress && c.progress.total > 0 && c.progress.completed < c.progress.total,
+    ) ??
+    enrolled[0] ??
+    null;
+  const featProgress = featured?.progress ?? null;
+  const featPct =
+    featProgress && featProgress.total > 0
+      ? Math.round((featProgress.completed / featProgress.total) * 100)
+      : 0;
+  const featComplete =
+    !!featProgress && featProgress.total > 0 && featProgress.completed >= featProgress.total;
   const name = greetingName(me);
   // The hero is a shortcut to the featured class; "My Classes" stays the
   // COMPLETE library (count must match what the member owns).
@@ -232,7 +213,7 @@ function DashboardInner() {
               style={featured.imageUrl ? { backgroundImage: `url(${featured.imageUrl})` } : { background: letterGradient(featured.id) }}
             />
             <div className="md-continue-inner">
-              <p className="md-eyebrow">Continue learning</p>
+              <p className="md-eyebrow">{featComplete ? "Completed" : "Continue learning"}</p>
               <h2>{featured.name}</h2>
               {featured.categories && featured.categories.length > 0 && (
                 <div className="md-continue-meta">
@@ -241,25 +222,25 @@ function DashboardInner() {
                   ))}
                 </div>
               )}
-              {progress && progress.total > 0 && (
+              {featProgress && featProgress.total > 0 && (
                 <div className="md-prog">
                   <div className="md-prog-label">
-                    <span>{progress.pct}% complete</span>
+                    <span>{featPct}% complete</span>
                     <span>
-                      {progress.done} / {progress.total} lessons
+                      {featProgress.completed} / {featProgress.total} lessons
                     </span>
                   </div>
                   <div className="md-track">
                     <div
                       className="md-fill"
-                      style={{ width: `${progress.pct}%` }}
+                      style={{ width: `${featPct}%` }}
                     />
                   </div>
                 </div>
               )}
               <Link href={`/classes/${featured.slug ?? featured.id}`} className="md-btn press">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-                Resume class
+                {featComplete ? "Review class" : "Resume class"}
               </Link>
             </div>
           </div>

@@ -92,7 +92,7 @@ export default function DashboardPage() {
       done: paidPlans > 0,
     },
     {
-      title: "Connect Stripe & Mailchimp",
+      title: "Connect Stripe & email",
       desc: "Wire up billing and email in Settings",
       href: "/settings",
       done: false,

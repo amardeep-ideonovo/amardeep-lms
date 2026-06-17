@@ -4,9 +4,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { FormFieldDef, FormPublicDTO } from "@lms/types";
 import { ApiError, fetchPublicForm, submitForm } from "@/lib/api";
 
-// Interactive, embeddable Mailchimp-linked form. Drop <FormEmbed formId="…" />
+// Interactive, embeddable audience-linked form. Drop <FormEmbed formId="…" />
 // into any page, popup, or screen. Fetches its definition client-side, validates,
-// submits to the public API (which stores the entry + subscribes to Mailchimp),
+// submits to the public API (which stores the entry + subscribes to an audience),
 // then shows the success message or redirects.
 export default function FormEmbed({ formId }: { formId: string }) {
   const [def, setDef] = useState<FormPublicDTO | null>(null);

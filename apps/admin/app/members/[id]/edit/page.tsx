@@ -62,7 +62,7 @@ export default function EditMemberPage() {
     e.preventDefault();
     if (!member) return;
 
-    // Changing the email re-points login + Stripe + Mailchimp — confirm first.
+    // Changing the email re-points login + Stripe + contact record — confirm first.
     const nextEmail = form.email.trim().toLowerCase();
     if (nextEmail !== member.email) {
       const ok = await dialog.confirm({
@@ -71,7 +71,7 @@ export default function EditMemberPage() {
           `Change this member’s email to:\n\n${nextEmail}\n\n` +
           `• They will log in with the new email.\n` +
           `• Stripe receipts move to the new address.\n` +
-          `• Their Mailchimp contact is updated.\n\nContinue?`,
+          `• Their contact record is updated.\n\nContinue?`,
       });
       if (!ok) return;
     }
@@ -159,7 +159,7 @@ export default function EditMemberPage() {
               {form.email.trim().toLowerCase() !== member.email && (
                 <p className="muted" style={{ marginTop: 6, fontSize: 12 }}>
                   Changing the email updates the member’s login, Stripe receipts,
-                  and Mailchimp contact. You’ll confirm before saving.
+                  and contact record. You’ll confirm before saving.
                 </p>
               )}
             </div>
