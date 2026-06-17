@@ -3,15 +3,12 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { EmailModule } from '../email/email.module';
 import { ContactsService } from './contacts.service';
 import { ContactsAdminService } from './contacts-admin.service';
-import { ContactsImportService } from './contacts-import.service';
 import { ContactsController } from './contacts.controller';
 import { ContactsConfirmController } from './contacts-confirm.controller';
 
 // Global so Auth, Members, Billing, Levels, Forms & Footer can write contacts
-// directly (DB-backed, synchronous — no queue needed, unlike the Mailchimp path).
-// ContactsAdminService powers the admin Contacts UI via ContactsController;
-// ContactsImportService runs the one-time Mailchimp → in-house migration (it
-// injects the global MailchimpService for the export side).
+// directly (DB-backed, synchronous — no queue needed).
+// ContactsAdminService powers the admin Contacts UI via ContactsController.
 //
 // EmailModule (also @Global) is imported so ContactsService can inject
 // EmailService to send the double-opt-in confirmation mail. EmailModule does NOT
@@ -27,7 +24,7 @@ import { ContactsConfirmController } from './contacts-confirm.controller';
     EmailModule,
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 1000 }]),
   ],
-  providers: [ContactsService, ContactsAdminService, ContactsImportService],
+  providers: [ContactsService, ContactsAdminService],
   controllers: [ContactsController, ContactsConfirmController],
   exports: [ContactsService],
 })

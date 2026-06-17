@@ -19,8 +19,6 @@
       (`npm run -w @lms/db seed:staging` — added in PR #8)
 - [ ] Stripe is in **test mode** on staging
       (`STRIPE_SECRET_KEY` starts with `sk_test_`)
-- [ ] Mailchimp `MAILCHIMP_AUDIENCE_ID` points at the dedicated staging
-      audience (NOT the production one)
 
 ---
 
@@ -41,8 +39,8 @@ If any of these fail, **stop** — fix before continuing the checklist.
 - [ ] Members tab: create a new member with all fields
       (firstName/lastName/email/phone) → row appears with every field
 - [ ] Filter members by level → list narrows correctly
-- [ ] Levels tab: edit an existing level — add one Mailchimp tag, remove one,
-      save → on Mailchimp's dashboard, confirm both changes reflected within
+- [ ] Levels tab: edit an existing level — add one contact tag, remove one,
+      save → in the admin Contacts view, confirm both changes reflected within
       30 seconds on holders of that level
 - [ ] Pages tab: create a new page, publish it →
       `GET $STAGING_WEB/<slug>` renders the Puck blocks
@@ -71,7 +69,7 @@ If any of these fail, **stop** — fix before continuing the checklist.
       any CVC → redirected back to `/account?checkout=success`
 - [ ] Within 5 seconds, that member's `UserLevel` shows ACTIVE in admin
 - [ ] Customer Portal: from `/account` open portal → cancel subscription →
-      within 5 seconds, `UserLevel` shows CANCELED and Mailchimp tag removed
+      within 5 seconds, `UserLevel` shows CANCELED and contact tag removed
 - [ ] Past-due path: re-subscribe with card `4000 0000 0000 0341` →
       `UserLevel` eventually shows PAST_DUE after Stripe simulates the
       failed payment (allow ~30s)
@@ -81,12 +79,12 @@ highest-impact class of bug.
 
 ---
 
-## 5. Mailchimp sync (1 min)
+## 5. Contacts/email sync (1 min)
 
-- [ ] On the staging Mailchimp audience, confirm the test member from §2
+- [ ] In the admin Contacts view, confirm the test member from §2
       has the tags you expect from their levels
 - [ ] Confirm no stale tags from previous QA runs persist (housekeeping —
-      if many, do a one-time cleanup on the staging audience)
+      if many, do a one-time cleanup on the staging contact list)
 
 ---
 
@@ -97,7 +95,7 @@ highest-impact class of bug.
 - [ ] `embed.js` smoke: open
       `deploy/embed-test.html` (or any local HTML file with the embed
       snippet) → form renders cross-origin → submit → submission lands in
-      admin and Mailchimp
+      admin and the contact list
 
 ---
 
@@ -118,8 +116,6 @@ highest-impact class of bug.
 
 - [ ] Settings tab → Remove Stripe keys → reload page → admin still works
       (nothing crashes) → re-add the test keys
-- [ ] Settings tab → Remove Mailchimp keys → reload → audience picker on
-      Levels page shows the "Mailchimp unconfigured" hint → re-add keys
 
 ---
 

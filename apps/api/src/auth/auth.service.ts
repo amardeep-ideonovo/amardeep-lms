@@ -19,7 +19,6 @@ import type {
   LoginResponse,
 } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
 import { ContactsService } from '../contacts/contacts.service';
 import { AutomationService } from '../email/automation.service';
 import { AppConfigService } from '../site/app-config.service';
@@ -51,7 +50,6 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-    private readonly mailchimp: MailchimpProducer,
     private readonly contacts: ContactsService,
     private readonly automations: AutomationService,
     private readonly appConfig: AppConfigService,
@@ -173,7 +171,7 @@ export class AuthService {
 
     // Optional: auto-grant a level named "Free" if one exists. No-op if the
     // tenant hasn't configured one. Keeps existing-user signups from blowing
-    // up when Mailchimp/queue is misconfigured (we log + swallow).
+    // up when the contacts write hiccups (we log + swallow).
     await this.maybeGrantFreeLevel(user.id, user.email);
 
     // Branded welcome email — fires on EVERY signup (not only free-level grants).
@@ -278,21 +276,6 @@ export class AuthService {
           err instanceof Error ? err.message : err
         }`,
       );
-    }
-    // Mirror the tags to Mailchimp (gated/no-op by default). Pass undefined for
-    // the audience — Mailchimp expects a LIST id, not our internal Audience id,
-    // so it falls back to the global Settings audience. Only worth enqueuing
-    // when there are tags to apply; never block signup on a Mailchimp blip.
-    if (free.audienceTags.length) {
-      try {
-        await this.mailchimp.enqueueTags('add', email, free.audienceTags, undefined);
-      } catch (err) {
-        this.logger.warn(
-          `[signup] mailchimp enqueue failed for ${email}: ${
-            err instanceof Error ? err.message : err
-          }`,
-        );
-      }
     }
   }
 

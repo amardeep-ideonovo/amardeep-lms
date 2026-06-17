@@ -20,12 +20,11 @@ function apiBaseUrl(): string {
   );
 }
 
-// In-house list management — the DB-backed replacement for MailchimpService.
+// In-house list management — the DB-backed contacts platform.
 // Audiences/contacts/tags/merge-fields live in OUR database (system-of-record).
-// Public methods mirror the old MailchimpService so the call-sites are a
-// drop-in addition (dual-write) until the cutover. During the transition the
-// call-sites still pass Mailchimp list ids; resolveAudienceId() maps those to
-// (or provisions) an internal Audience via Audience.externalId.
+// Call-sites pass an internal Audience id (or null for the default audience);
+// resolveAudienceId() resolves it, provisioning the default audience on first
+// use so a contact is never dropped.
 @Injectable()
 export class ContactsService {
   private readonly logger = new Logger(ContactsService.name);
@@ -68,9 +67,9 @@ export class ContactsService {
   }
 
   /**
-   * Resolve a target audience by internal id OR external (Mailchimp) id, else
-   * the default audience. With `create:false` (used by tag-removal) a missing
-   * audience returns null instead of being provisioned.
+   * Resolve a target audience by internal id, else the default audience. With
+   * `create:false` (used by tag-removal) a missing audience returns null instead
+   * of being provisioned.
    */
   private async resolveAudienceId(
     ref?: string | null,
@@ -79,21 +78,14 @@ export class ContactsService {
     const create = opts.create ?? true;
     if (ref) {
       const found = await this.prisma.audience.findFirst({
-        where: { OR: [{ id: ref }, { externalId: ref }] },
+        where: { id: ref },
         select: { id: true },
       });
       if (found) return found.id;
       if (!create) return null;
-      // Unknown ref during the transition → treat as an external Mailchimp id and
-      // mint an audience for it (dual-write must never drop a contact).
-      // TODO(post-cutover): once Mailchimp is retired, dual-write call-sites no
-      // longer pass external list ids — an unknown ref here is then almost
-      // certainly stale config, so the caller should fall back to the default
-      // audience (ensureDefaultAudience) rather than mint an orphan "Audience
-      // xxxx". Left as-is for now so the transition keeps capturing everyone;
-      // changing it means updating the call-sites, which is out of this lane.
+      // Unknown id → mint an audience for it so a write never drops a contact.
       const made = await this.prisma.audience.create({
-        data: { name: opts.name ?? `Audience ${ref.slice(0, 8)}`, externalId: ref },
+        data: { name: opts.name ?? `Audience ${ref.slice(0, 8)}` },
         select: { id: true },
       });
       return made.id;
@@ -170,12 +162,12 @@ export class ContactsService {
     }
   }
 
-  // ───────────────────────── parity API ─────────────────────────
+  // ───────────────────────── public API ─────────────────────────
 
   /**
-   * Add/remove tags on a contact within an audience (mirrors
-   * MailchimpService.syncTags). `add` upserts the contact; `remove` is a no-op
-   * when the contact or audience is absent. We never auto-unsubscribe.
+   * Add/remove tags on a contact within an audience. `add` upserts the contact;
+   * `remove` is a no-op when the contact or audience is absent. We never
+   * auto-unsubscribe.
    */
   async syncTags(
     type: 'add' | 'remove',
@@ -218,8 +210,8 @@ export class ContactsService {
   }
 
   /**
-   * Re-key a contact's email across every audience it belongs to (mirrors
-   * MailchimpService.changeEmail). Local data lets us be exhaustive. When the new
+   * Re-key a contact's email across every audience it belongs to. Local data
+   * lets us be exhaustive. When the new
    * email already exists in the same audience we can't just rename (it would hit
    * the [audienceId,email] unique), and we must NOT leave the old-email row
    * lying around (the old behaviour `continue`d, leaving a stale duplicate that
@@ -297,8 +289,8 @@ export class ContactsService {
   }
 
   /**
-   * Subscribe/update a contact on a specific audience (mirrors
-   * MailchimpService.subscribe). doubleOptIn → PENDING + a confirmation email
+   * Subscribe/update a contact on a specific audience. doubleOptIn → PENDING +
+   * a confirmation email
    * (see sendConfirmationEmail); the contact only becomes SUBSCRIBED once the
    * confirm link is clicked (see confirm()). updateExisting=false leaves an
    * existing contact untouched.

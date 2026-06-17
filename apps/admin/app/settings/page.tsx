@@ -5,7 +5,6 @@ import {
   ApiError,
   api,
   type EmailSettingsMasked,
-  type MailchimpSettingsMasked,
   type PayPalSettingsMasked,
   type StripeSettingsMasked,
 } from "@/lib/api";
@@ -37,7 +36,6 @@ export default function SettingsPage() {
       <StripeSection />
       <PayPalSection />
       <EmailSenderSection />
-      <MailchimpSection />
     </div>
   );
 }
@@ -440,7 +438,7 @@ function PayPalSection() {
   );
 }
 
-// Outbound email sender (in-house Mailchimp replacement). A pluggable provider
+// Outbound email sender (in-house email platform). A pluggable provider
 // (SMTP via nodemailer, or Resend via REST) carries transactional + campaign
 // mail. The From address is shared by both providers; the per-provider secret
 // (SMTP password / Resend API key) is write-only — blank keeps the stored value
@@ -708,159 +706,6 @@ function EmailSenderSection() {
             disabled={removing || saving}
           >
             {removing ? "Removing…" : "Remove settings"}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-function MailchimpSection() {
-  const [current, setCurrent] = useState<MailchimpSettingsMasked | null>(null);
-  const [removing, setRemoving] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [serverPrefix, setServerPrefix] = useState("");
-  const [audienceId, setAudienceId] = useState("");
-  const [syncEnabled, setSyncEnabled] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  async function load() {
-    setError(null);
-    try {
-      const s = await api.getMailchimpSettings();
-      setCurrent(s);
-      setServerPrefix(s.serverPrefix ?? "");
-      setAudienceId(s.audienceId ?? "");
-      setSyncEnabled(s.syncEnabled);
-    } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : "Failed to load Mailchimp settings"
-      );
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function save(e: FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    setStatus(null);
-    try {
-      const updated = await api.putMailchimpSettings({
-        apiKey: apiKey.trim() || undefined,
-        serverPrefix: serverPrefix.trim() || undefined,
-        audienceId: audienceId.trim() || undefined,
-        syncEnabled,
-      });
-      setCurrent(updated);
-      setApiKey("");
-      setStatus("Mailchimp settings saved.");
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Save failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function remove() {
-    if (
-      !(await dialog.confirm({
-        message:
-          "Remove the Mailchimp API key, server prefix, and audience? This cannot be undone.",
-        danger: true,
-      }))
-    )
-      return;
-    setRemoving(true);
-    setError(null);
-    setStatus(null);
-    try {
-      const cleared = await api.clearMailchimpSettings();
-      setCurrent(cleared);
-      setApiKey("");
-      setServerPrefix(cleared.serverPrefix ?? "");
-      setAudienceId(cleared.audienceId ?? "");
-      setSyncEnabled(cleared.syncEnabled);
-      setStatus("Mailchimp keys removed.");
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Remove failed");
-    } finally {
-      setRemoving(false);
-    }
-  }
-
-  return (
-    <div className="card">
-      <h2>Mailchimp</h2>
-      <form onSubmit={save}>
-        <div className="field">
-          <label>
-            API key{" "}
-            <span className="muted">
-              (current: {masked(current?.apiKeyLast4 ?? null)})
-            </span>
-          </label>
-          <input
-            type="password"
-            value={apiKey}
-            placeholder="leave blank to keep"
-            onChange={(e) => setApiKey(e.target.value)}
-            autoComplete="off"
-          />
-        </div>
-        <div className="form-row">
-          <div className="field">
-            <label>Server prefix</label>
-            <input
-              value={serverPrefix}
-              placeholder="e.g. us21"
-              onChange={(e) => setServerPrefix(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label>Audience ID</label>
-            <input
-              value={audienceId}
-              placeholder="single audience"
-              onChange={(e) => setAudienceId(e.target.value)}
-            />
-          </div>
-        </div>
-        <div className="field">
-          <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={syncEnabled}
-              onChange={(e) => setSyncEnabled(e.target.checked)}
-            />
-            <span>
-              Sync changes back to Mailchimp (dual-run). Off by default — the
-              in-house contacts list is the system of record. Turn this on only
-              during a migration window; importing from Mailchimp still works
-              either way.
-            </span>
-          </label>
-        </div>
-        {error && <p className="error">{error}</p>}
-        {status && <p className="muted">{status}</p>}
-        <div className="row-actions">
-          <button className="btn" type="submit" disabled={saving || removing}>
-            {saving ? "Saving…" : "Save Mailchimp settings"}
-          </button>
-          <button
-            type="button"
-            className="btn btn--danger"
-            onClick={remove}
-            disabled={removing || saving}
-          >
-            {removing ? "Removing…" : "Remove keys"}
           </button>
         </div>
       </form>

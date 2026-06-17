@@ -31,7 +31,7 @@ route still works if you'd rather containerize — see [Alternative: Docker](#al
 
 ### Two couplings you must respect
 - **`SETTINGS_ENC_KEY` ↔ database.** `./.env` holds `SETTINGS_ENC_KEY`, the key
-  that decrypts the Stripe/Mailchimp secrets stored in the DB `Setting` table.
+  that decrypts the Stripe secrets stored in the DB `Setting` table.
   Move the DB without the *same* key and those settings become unreadable.
 - **Uploaded files ↔ database.** DB rows reference uploaded files by name
   (blog/category/course/lesson images, lesson-note PDFs). Move the DB but not the
@@ -58,7 +58,7 @@ What each workspace pulls in (all installed by `npm ci` — listed for orientati
 
 | Workspace | Stack / key deps | Runtime needs |
 | --- | --- | --- |
-| `apps/api` (`@lms/api`) | NestJS 10, Stripe 16, Mailchimp, BullMQ + ioredis, passport-jwt, sanitize-html, Sentry | **Postgres + Redis** |
+| `apps/api` (`@lms/api`) | NestJS 10, Stripe 16, BullMQ + ioredis, passport-jwt, sanitize-html, Sentry | **Postgres + Redis** |
 | `apps/web` (`@lms/web`) | Next.js 14.2.5, React 18.2, Puck editor, Mux player | API running |
 | `apps/admin` (`@lms/admin`) | Next.js 14.2.5, React 18.2, Puck, TipTap | API running |
 | `apps/mobile` (`@lms/mobile`) | Expo SDK 51, RN 0.74.5, React Navigation, expo-av/secure-store/file-system, dev-client | see Mobile note |
@@ -232,7 +232,7 @@ npm run db:migrate     # creates schema from migrations
 npm -w packages/db run seed
 ```
 You still need `./.env` (for `SETTINGS_ENC_KEY`, the DB URL, and the
-Stripe/Mailchimp keys the seed reads). Previously uploaded media will be absent.
+Stripe keys the seed reads). Previously uploaded media will be absent.
 
 ---
 

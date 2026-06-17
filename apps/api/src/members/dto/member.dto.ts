@@ -15,7 +15,7 @@ export class AddMemberLevelDto {
 // Admin-editable profile fields. All optional; an empty string clears the
 // field (handled in the service), an absent field leaves it unchanged.
 export class UpdateMemberDto {
-  // Changing email re-points login + Stripe receipts + the Mailchimp contact
+  // Changing email re-points login + Stripe receipts + the in-house contact
   // (handled in MembersService.update). Must be a valid address; never cleared.
   @IsOptional()
   @IsEmail()

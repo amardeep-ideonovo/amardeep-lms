@@ -4,22 +4,22 @@ Replaces a WordPress + **WooCommerce Subscriptions** site. Reuses the **same Str
 account** (subscriptions keep billing — no migration of live subs, only reconciliation).
 
 ## Locked decisions
-- **Mailchimp:** ONE audience, each level = a **tag** (not a list/audience per level).
-  Mailchimp bills per-contact-per-audience and does not dedup across audiences;
-  tags are free, dedup naturally, and a user can hold many at once.
+- **Contacts/email:** ONE in-house contact list, each level = a **tag** (not a
+  separate list per level). Tags dedup naturally and a user can hold many at once.
 - **Stripe multi-level:** one subscription with multiple line items (one invoice/charge).
 - **Stripe self-service:** use the hosted **Customer Portal** for change-plan / update-card /
   cancel — we don't build that UI.
 - **Mobile:** content + login only. All purchasing/billing on web (Apple/Google IAP rules).
 - **Video:** managed (Mux) with signed playback URLs.
 - **Source of truth:** app DB for membership state; Stripe for billing/entitlement;
-  Mailchimp for email deliverability. All driven by webhooks, never client redirects.
+  the in-house contacts/email platform for email deliverability. All driven by
+  webhooks, never client redirects.
 
 ## Stack
 | Layer | Choice |
 |---|---|
 | API (the "backend") | NestJS + Postgres + Prisma |
-| Async jobs | Redis + BullMQ (Mailchimp sync, webhooks, migration — idempotent + retryable) |
+| Async jobs | Redis + BullMQ (contact/tag sync, webhooks, migration — idempotent + retryable) |
 | Admin panel (web only) | Next.js |
 | Member web | Next.js |
 | Mobile | Expo / React Native (shares the TS API client) |
@@ -44,18 +44,18 @@ See `packages/db/prisma/schema.prisma`. Keystones:
   course's assigned levels. Enforced server-side; video additionally protected by signed URLs.
 - **Category** added (the doc's dashboard referenced "categories" but never defined them).
 - **SubscriptionMirror** kept current by Stripe webhooks.
-- **Setting** stores Stripe/Mailchimp secrets encrypted at rest, write-only from admin UI.
+- **Setting** stores Stripe secrets encrypted at rest, write-only from admin UI.
 
 ## Backend modules (apps/api)
 1. Auth/RBAC — admin + member login; admin roles SUPER_ADMIN/ADMIN/EDITOR.
-2. Levels — CRUD; on create pick Mailchimp tag + create/link Stripe Product+Price.
+2. Levels — CRUD; on create pick contact tag + create/link Stripe Product+Price.
 3. Members — list (Username, Email, Registered Date, all levels); manual add-to-level.
 4. LMS — Categories, Courses, Lessons; assign course→levels; Mux upload.
 5. Billing — encrypted key config, Customer Portal session, webhook handler
    (`customer.subscription.created/updated/deleted`, `invoice.paid`, `invoice.payment_failed`)
-   → updates UserLevel → enqueues Mailchimp tag sync.
-6. Mailchimp sync — BullMQ worker; idempotent `PUT /lists/{id}/members/{subscriber_hash}`
-   with `status_if_new`; tag add/remove via member-tags endpoint.
+   → updates UserLevel → enqueues contact tag sync.
+6. Contacts/email — in-house contact list + email engine; BullMQ worker keeps
+   each contact's level tags in sync idempotently (add/remove).
 7. Migration — one-off import + reconciliation (below).
 
 ## Frontend
@@ -77,11 +77,11 @@ See `packages/db/prisma/schema.prisma`. Keystones:
 - Card updates via Stripe Elements/SetupIntents (no PAN on our servers).
 - Signed/expiring Mux playback URLs.
 - Admin RBAC + audit log.
-- GDPR/consent check before pushing migrated users into Mailchimp.
+- GDPR/consent check before pushing migrated users into the contact list.
 
 ## QA / test strategy
 - Unit + integration per module; Stripe webhooks tested via Stripe CLI on a test account.
-- Idempotency tests for webhook + Mailchimp handlers (out-of-order/duplicate events).
+- Idempotency tests for webhook + contact-sync handlers (out-of-order/duplicate events).
 - Migration dry-run against a WP staging dump with count reconciliation before cutover.
 - E2E: Playwright (web), Detox/Maestro (mobile) for login → locked/unlocked dashboard →
   lesson playback → portal cancel → access revoked.
@@ -90,6 +90,6 @@ See `packages/db/prisma/schema.prisma`. Keystones:
 1. Foundation — API skeleton, DB schema, auth/RBAC.
 2. LMS core — categories/courses/lessons, Mux, access rules, dashboard + lesson pages.
 3. Billing — Stripe products/prices, Customer Portal, webhooks → UserLevel.
-4. Mailchimp — tag sync worker.
+4. Contacts/email — in-house contact list + tag sync worker.
 5. Migration — import + reconcile + cutover rehearsal.
 6. Mobile — Expo app on the stable API.

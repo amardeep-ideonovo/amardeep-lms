@@ -238,7 +238,7 @@ export default function FormsPage() {
 
   // Fetch the in-house audience list (and merge fields for a chosen audience).
   // On error (e.g. forbidden) we keep the picker usable with just the default
-  // audience option, no Mailchimp-flavoured error text.
+  // audience option, with a plain error text.
   const loadAudiences = useCallback(async () => {
     setAudiencesError(null);
     try {

@@ -8,13 +8,6 @@ export const SETTING_KEYS = {
   stripeSecretKey: 'stripe.secretKey',
   stripeWebhookSecret: 'stripe.webhookSecret',
   stripePublishableKey: 'stripe.publishableKey',
-  mailchimpApiKey: 'mailchimp.apiKey',
-  mailchimpServerPrefix: 'mailchimp.serverPrefix',
-  mailchimpAudienceId: 'mailchimp.audienceId',
-  // Cutover flag. When false (the default) NOTHING is written back to Mailchimp
-  // — the in-house contacts list is the system of record. Flip it on only to
-  // dual-run during a migration window. READ paths (import/export) ignore this.
-  mailchimpSyncEnabled: 'mailchimp.syncEnabled',
   paypalClientId: 'paypal.clientId',
   paypalClientSecret: 'paypal.clientSecret',
   paypalWebhookId: 'paypal.webhookId',
@@ -22,7 +15,7 @@ export const SETTING_KEYS = {
   // Which processor NEW checkouts use ("stripe" | "paypal"). Existing
   // subscriptions keep billing on the provider that created them.
   paymentProvider: 'payments.provider',
-  // Outbound email / SMTP sender (in-house Mailchimp replacement). `emailPass`
+  // Outbound email / SMTP sender (the in-house email platform). `emailPass`
   // is the only secret; the rest are config (host/port/from), stored the same
   // way for a single source of truth + per-key env fallback.
   emailProvider: 'email.provider',
@@ -99,16 +92,6 @@ export class SettingsService {
     ]);
   }
 
-  /** Clear all Mailchimp credentials (key + server prefix + audience + sync flag). */
-  async clearMailchimp(): Promise<void> {
-    await Promise.all([
-      this.clearSecret(SETTING_KEYS.mailchimpApiKey),
-      this.clearSecret(SETTING_KEYS.mailchimpServerPrefix),
-      this.clearSecret(SETTING_KEYS.mailchimpAudienceId),
-      this.clearSecret(SETTING_KEYS.mailchimpSyncEnabled),
-    ]);
-  }
-
   /** Clear all outbound-email / SMTP settings (provider, host/port/from, pass). */
   async clearEmail(): Promise<void> {
     await Promise.all([
@@ -176,33 +159,6 @@ export class SettingsService {
       SETTING_KEYS.stripePublishableKey,
       'STRIPE_PUBLISHABLE_KEY',
     );
-  }
-  getMailchimpApiKey(): Promise<string | null> {
-    return this.getSecret(SETTING_KEYS.mailchimpApiKey, 'MAILCHIMP_API_KEY');
-  }
-  getMailchimpServerPrefix(): Promise<string | null> {
-    return this.getSecret(
-      SETTING_KEYS.mailchimpServerPrefix,
-      'MAILCHIMP_SERVER_PREFIX',
-    );
-  }
-  getMailchimpAudienceId(): Promise<string | null> {
-    return this.getSecret(
-      SETTING_KEYS.mailchimpAudienceId,
-      'MAILCHIMP_AUDIENCE_ID',
-    );
-  }
-  /**
-   * Mailchimp write-back cutover flag. Default + unknown values → false, so the
-   * migrated install writes NOTHING back to Mailchimp unless an admin explicitly
-   * re-enables dual-run. Stored as 'true'/'false' (or env MAILCHIMP_SYNC_ENABLED).
-   */
-  async getMailchimpSyncEnabled(): Promise<boolean> {
-    const v = await this.getSecret(
-      SETTING_KEYS.mailchimpSyncEnabled,
-      'MAILCHIMP_SYNC_ENABLED',
-    );
-    return v === 'true' || v === '1';
   }
   // Client id is public (ships to the browser for the PayPal JS SDK).
   getPayPalClientId(): Promise<string | null> {

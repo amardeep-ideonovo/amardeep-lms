@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
-// AES-256-GCM at-rest encryption for integration secrets (Stripe / Mailchimp).
+// AES-256-GCM at-rest encryption for integration secrets (e.g. Stripe / SMTP).
 // Key comes from SETTINGS_ENC_KEY (32-byte base64). Ciphertext is stored as a
 // single colon-delimited string: iv:authTag:ciphertext (all base64).
 

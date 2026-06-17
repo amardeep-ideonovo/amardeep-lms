@@ -13,7 +13,6 @@ import { RequirePermission } from '../auth/require-permission.decorator';
 import { SettingsService, SETTING_KEYS } from './settings.service';
 import {
   UpdateEmailSettingsDto,
-  UpdateMailchimpSettingsDto,
   UpdatePaymentProviderDto,
   UpdatePayPalSettingsDto,
   UpdateStripeSettingsDto,
@@ -76,54 +75,6 @@ export class SettingsController {
   async deleteStripe() {
     await this.settings.clearStripe();
     return this.getStripe();
-  }
-
-  @Get('mailchimp')
-  @RequirePermission('settings', 'read')
-  async getMailchimp() {
-    const [apiKey, serverPrefix, audienceId, syncEnabled] = await Promise.all([
-      this.settings.getSecret(SETTING_KEYS.mailchimpApiKey),
-      this.settings.getSecret(SETTING_KEYS.mailchimpServerPrefix),
-      this.settings.getSecret(SETTING_KEYS.mailchimpAudienceId),
-      this.settings.getMailchimpSyncEnabled(),
-    ]);
-    return {
-      apiKeyLast4: last4(apiKey),
-      // serverPrefix & audienceId are non-secret identifiers — safe to return.
-      serverPrefix: serverPrefix ?? null,
-      audienceId: audienceId ?? null,
-      // Whether write-back to Mailchimp is on (cutover dual-run). Default false.
-      syncEnabled,
-    };
-  }
-
-  @Put('mailchimp')
-  @RequirePermission('settings', 'edit')
-  async putMailchimp(@Body() dto: UpdateMailchimpSettingsDto) {
-    await this.settings.setSecret(SETTING_KEYS.mailchimpApiKey, dto.apiKey);
-    await this.settings.setSecret(
-      SETTING_KEYS.mailchimpServerPrefix,
-      dto.serverPrefix,
-    );
-    await this.settings.setSecret(
-      SETTING_KEYS.mailchimpAudienceId,
-      dto.audienceId,
-    );
-    // Persist the cutover flag as a stable string so 'false' isn't dropped as ''.
-    if (dto.syncEnabled !== undefined) {
-      await this.settings.setSecret(
-        SETTING_KEYS.mailchimpSyncEnabled,
-        dto.syncEnabled ? 'true' : 'false',
-      );
-    }
-    return this.getMailchimp();
-  }
-
-  @Delete('mailchimp')
-  @RequirePermission('settings', 'delete')
-  async deleteMailchimp() {
-    await this.settings.clearMailchimp();
-    return this.getMailchimp();
   }
 
   // ----- Outbound email / SMTP sender (same write-only pattern; password is

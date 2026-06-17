@@ -384,8 +384,8 @@ export async function fetchFooter(): Promise<FooterConfig | null> {
   }
 }
 
-// Built-in footer email opt-in -> Mailchimp (server-side). Never throws; a
-// failure (bad email / unconfigured) comes back as { ok:false, message }.
+// Built-in footer email opt-in -> in-house audience (server-side). Never throws;
+// a failure (bad email / unconfigured) comes back as { ok:false, message }.
 export async function footerSubscribe(
   email: string,
 ): Promise<FooterSubscribeResult> {
@@ -464,7 +464,7 @@ export async function fetchClassPage(
   }
 }
 
-// ---------- Forms (PUBLIC, Mailchimp-linked) ----------
+// ---------- Forms (PUBLIC, audience-linked) ----------
 // Used client-side by <FormEmbed>. Only ACTIVE forms are returned.
 export async function fetchPublicForm(
   id: string

@@ -21,7 +21,6 @@ import { AccessService } from '../lms/access.service';
 import { CertificatesService } from '../certificates/certificates.service';
 import { StripeService } from '../billing/stripe.service';
 import { PayPalService } from '../billing/paypal.service';
-import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
 import { ContactsService } from '../contacts/contacts.service';
 import {
   CreateLevelCategoryDto,
@@ -64,7 +63,6 @@ export class LevelsService {
     private readonly prisma: PrismaService,
     private readonly stripe: StripeService,
     private readonly paypal: PayPalService,
-    private readonly mailchimp: MailchimpProducer,
     private readonly contacts: ContactsService,
     private readonly access: AccessService,
     private readonly certificates: CertificatesService,
@@ -191,14 +189,24 @@ export class LevelsService {
       },
     });
     if (!level) throw new NotFoundException('Class not found');
+    // Curriculum PREVIEW = the featured course's lessons (a teaser for guests).
     const lessons = (level.featuredCourse?.lessons ?? []).map((l) => ({
       title: l.title,
       durationSeconds: l.durationSeconds,
       thumbnailUrl: l.thumbnailUrl,
       order: l.order,
     }));
-    const totalDurationSeconds = lessons.reduce(
-      (n, l) => n + (l.durationSeconds ?? 0),
+    // Headline count + runtime describe the WHOLE class (every lesson across all
+    // its courses), so the public meta matches what an owner sees on the same
+    // page ("N / N lessons"). Without this the hero showed only the featured
+    // course's lessons (e.g. "3 lessons") while the owner card said "6 / 6".
+    const classCourses = await this.prisma.course.findMany({
+      where: { courseLevels: { some: { levelId: level.id } } },
+      include: { lessons: { select: { durationSeconds: true } } },
+    });
+    const lessonCount = classCourses.reduce((n, c) => n + c.lessons.length, 0);
+    const totalDurationSeconds = classCourses.reduce(
+      (n, c) => n + c.lessons.reduce((m, l) => m + (l.durationSeconds ?? 0), 0),
       0,
     );
     return {
@@ -215,7 +223,7 @@ export class LevelsService {
       })),
       skills: this.normalizeSkills(level.skills),
       lessons,
-      lessonCount: lessons.length,
+      lessonCount,
       totalDurationSeconds,
       prices: level.prices.map((p) => ({
         id: p.id,
@@ -254,6 +262,38 @@ export class LevelsService {
       include: { categories: { orderBy: { order: 'asc' } } },
       orderBy: { name: 'asc' },
     });
+
+    // Per-class lesson progress, computed only for the classes the member owns
+    // (catalog tiles carry no progress). Mirrors myClassCourses' totals: a class
+    // total is the sum of lessons across ALL its courses, and a course shared by
+    // several owned classes counts toward each. Lets the dashboard pick the next
+    // *incomplete* class for the hero and label its CTA correctly.
+    const progressByLevel = new Map<string, { completed: number; total: number }>();
+    if (owned.size > 0) {
+      const [courses, completedByCourse] = await Promise.all([
+        this.prisma.course.findMany({
+          where: { courseLevels: { some: { levelId: { in: [...owned] } } } },
+          select: {
+            id: true,
+            courseLevels: { select: { levelId: true } },
+            _count: { select: { lessons: true } },
+          },
+        }),
+        this.access.completedCountByCourse(userId),
+      ]);
+      for (const id of owned) progressByLevel.set(id, { completed: 0, total: 0 });
+      for (const c of courses) {
+        const total = c._count.lessons;
+        const done = completedByCourse.get(c.id) ?? 0;
+        for (const cl of c.courseLevels) {
+          const agg = progressByLevel.get(cl.levelId);
+          if (!agg) continue; // course also lives in a class the member doesn't own
+          agg.total += total;
+          agg.completed += done;
+        }
+      }
+    }
+
     return levels.map((l) => ({
       id: l.id,
       name: l.name,
@@ -265,6 +305,7 @@ export class LevelsService {
         name: c.name,
         order: c.order,
       })),
+      progress: owned.has(l.id) ? progressByLevel.get(l.id) ?? null : null,
     }));
   }
 
@@ -532,7 +573,7 @@ export class LevelsService {
       );
     }
 
-    // If the tag set changed, propagate it to Mailchimp for everyone who
+    // If the tag set changed, propagate it to the in-house list for everyone who
     // currently holds this level: activate newly-added tags, deactivate
     // removed ones. (Editing the level reconciles existing members, not just
     // future grants.)
@@ -690,12 +731,10 @@ export class LevelsService {
     }
   }
 
-  // Enqueue tag add/remove jobs for every member who currently (ACTIVE) holds
-  // the level, so a tag edit propagates. `audienceRef` is the class's in-house
+  // Write tag add/remove for every member who currently (ACTIVE) holds the
+  // level, so a tag edit propagates. `audienceRef` is the class's in-house
   // Audience id (null = default "Members" audience): it keys the in-house
-  // syncTags only. Mailchimp expects a LIST id, never an internal Audience id,
-  // so its enqueueTags gets `undefined` (global Settings audience fallback);
-  // those calls are gated/no-op by default anyway. Deduped per email.
+  // syncTags. Deduped per email.
   private async reconcileLevelTags(
     levelId: string,
     audienceRef: string | undefined,
@@ -711,8 +750,7 @@ export class LevelsService {
       emails.flatMap((email) => {
         const jobs: Promise<void>[] = [];
         if (added.length) {
-          jobs.push(this.mailchimp.enqueueTags('add', email, added, undefined));
-          // In-house list dual-write (best-effort; never reject the batch).
+          // In-house list write (best-effort; never reject the batch).
           jobs.push(
             this.contacts
               .syncTags('add', email, added, audienceRef)
@@ -726,10 +764,7 @@ export class LevelsService {
           );
         }
         if (removed.length) {
-          jobs.push(
-            this.mailchimp.enqueueTags('remove', email, removed, undefined),
-          );
-          // In-house list dual-write (best-effort; never reject the batch).
+          // In-house list write (best-effort; never reject the batch).
           jobs.push(
             this.contacts
               .syncTags('remove', email, removed, audienceRef)

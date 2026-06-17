@@ -23,7 +23,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StripeService } from './stripe.service';
 import { PayPalService, type PayPalSubscription } from './paypal.service';
 import { SettingsService } from '../settings/settings.service';
-import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
 import { ContactsService } from '../contacts/contacts.service';
 import {
   NotificationsService,
@@ -61,7 +60,7 @@ type PriceWithLevel = Prisma.PriceGetPayload<{ include: { level: true } }>;
 
 // ---------- Provider-neutral reconcile contracts ----------
 // One subscription item normalized to our domain: the level it grants plus the
-// Mailchimp wiring needed on status transitions.
+// audience/tag wiring needed on status transitions.
 interface NormalizedSubItem {
   levelId: string;
   levelName: string;
@@ -115,7 +114,6 @@ export class BillingService implements OnModuleInit {
     private readonly stripe: StripeService,
     private readonly paypal: PayPalService,
     private readonly settings: SettingsService,
-    private readonly mailchimp: MailchimpProducer,
     private readonly contacts: ContactsService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
@@ -939,7 +937,7 @@ export class BillingService implements OnModuleInit {
    * Reconcile a single Stripe subscription into the local mirror + UserLevels.
    * Thin mapper: resolves the local user + items from the Stripe shape, then
    * the provider-neutral applySubscriptionState does the actual work (mirror,
-   * grants, Mailchimp transitions, notifications). Values are mapped exactly
+   * grants, audience/tag transitions, notifications). Values are mapped exactly
    * as the pre-extraction implementation did.
    */
   private async reconcileSubscription(
@@ -1016,7 +1014,7 @@ export class BillingService implements OnModuleInit {
    *   mapped status; never downgrade lifetime grants.
    * - Any same-source UserLevel tied to THIS subscription's items that is no
    *   longer present is marked CANCELED (other subscriptions are untouched).
-   * - Enqueue Mailchimp tag add/remove per level transition (pause keeps tags).
+   * - Write contact tag add/remove per level transition (pause keeps tags).
    * - Emit admin notifications once per genuine lifecycle transition.
    * The PayPal grace path (graceExpiresAt) keeps the grant ACTIVE with an
    * expiry while the mirror records the terminal status for the sweep.
@@ -1131,17 +1129,6 @@ export class BillingService implements OnModuleInit {
             `[billing] contacts add-tags failed for ${user.email}: ${
               err instanceof Error ? err.message : err
             }`,
-          );
-        }
-        // Mirror tags to Mailchimp (gated/no-op by default). Pass undefined for
-        // the audience — Mailchimp wants a LIST id, not our internal Audience
-        // id. Only enqueue when there are tags to apply.
-        if (info.audienceTags.length) {
-          await this.mailchimp.enqueueTags(
-            'add',
-            user.email,
-            info.audienceTags,
-            undefined,
           );
         }
       } else if (!nowActive && wasActive && statusForRow !== 'PAUSED') {
@@ -1264,9 +1251,7 @@ export class BillingService implements OnModuleInit {
   // Only remove tags if the user has no OTHER active grant for the level (e.g. a
   // manual grant), keeping audience state consistent. `audienceRef` is the
   // class's INTERNAL Audience id (null/undefined → default "Members"): it keys
-  // the in-house syncTags only. Mailchimp expects a LIST id, never an internal
-  // Audience id, so its enqueueTags gets undefined (global Settings fallback);
-  // gated/no-op by default anyway.
+  // the in-house syncTags.
   private async maybeRemoveTags(
     userId: string,
     levelId: string,
@@ -1278,8 +1263,7 @@ export class BillingService implements OnModuleInit {
       where: { userId, levelId, status: 'ACTIVE' },
     });
     if (stillActive === 0) {
-      await this.mailchimp.enqueueTags('remove', email, tags, undefined);
-      // In-house list dual-write (best-effort).
+      // In-house list write (best-effort).
       try {
         await this.contacts.syncTags('remove', email, tags, audienceRef);
       } catch (err) {
@@ -2105,7 +2089,7 @@ export class BillingService implements OnModuleInit {
   /**
    * Grace-expiry sweep. PayPal period-end cancels leave the grant ACTIVE with
    * expiresAt = the paid period's end; once that passes, flip it to CANCELED
-   * and run the Mailchimp removal — but ONLY when the mirror is already
+   * and run the contact tag removal — but ONLY when the mirror is already
    * CANCELED. A live subscription whose renewal webhook is merely late has an
    * ACTIVE mirror and is left alone, so this can never fight Stripe webhooks
    * (it is scoped to source=PAYPAL anyway).

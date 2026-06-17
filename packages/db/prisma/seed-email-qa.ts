@@ -1,4 +1,4 @@
-// QA seed for the in-house Mailchimp-replacement email platform.
+// QA seed for the in-house contacts + email platform.
 //
 // PURPOSE: populate a dedicated, isolated "QA Email Flow" audience with test
 // data exercising every FIXED flow — double-opt-in confirm, unsubscribe,

@@ -16,26 +16,6 @@ export class UpdateStripeSettingsDto {
   publishableKey?: string;
 }
 
-export class UpdateMailchimpSettingsDto {
-  @IsOptional()
-  @IsString()
-  apiKey?: string;
-
-  @IsOptional()
-  @IsString()
-  serverPrefix?: string;
-
-  @IsOptional()
-  @IsString()
-  audienceId?: string;
-
-  // Cutover dual-run flag. Off by default — when omitted the stored value is
-  // kept; sending a boolean persists it ('true'/'false').
-  @IsOptional()
-  @IsBoolean()
-  syncEnabled?: boolean;
-}
-
 export class UpdatePayPalSettingsDto {
   // Client id is public (it ships to the browser for the PayPal JS SDK) but
   // managed here alongside the secret.

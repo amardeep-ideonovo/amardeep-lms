@@ -106,9 +106,6 @@ export default function ContactsPage() {
   const [fields, setFields] = useState<AudienceFieldDTO[]>([]);
   const [segments, setSegments] = useState<SegmentDTO[]>([]);
 
-  // ----- one-time Mailchimp import -----
-  const [importing, setImporting] = useState(false);
-
   const canCreate = can("contacts", "create");
   const canEdit = can("contacts", "edit");
   const canDelete = can("contacts", "delete");
@@ -239,55 +236,6 @@ export default function ContactsPage() {
       setError(
         err instanceof ApiError ? err.message : "Failed to create audience",
       );
-    }
-  }
-
-  // One-time migration: pull the existing Mailchimp audience(s) into the
-  // in-house list. Idempotent server-side (re-running updates, never
-  // duplicates), so a confirm is enough. A 400 means Mailchimp isn't
-  // configured — surface that as a friendly notice rather than a raw error.
-  async function importFromMailchimp() {
-    const ok = await dialog.confirm({
-      message:
-        "Import all contacts from your connected Mailchimp account into these audiences? Existing contacts are updated, not duplicated. You can run this again safely.",
-      confirmLabel: "Import",
-    });
-    if (!ok) return;
-    setImporting(true);
-    setError(null);
-    try {
-      const res = await api.importContacts();
-      await loadAudiences();
-      const total = res.contactsCreated + res.contactsUpdated;
-      const parts = [
-        `Imported ${total} contact${total === 1 ? "" : "s"} across ${
-          res.audiences
-        } audience${res.audiences === 1 ? "" : "s"}`,
-        `(${res.contactsCreated} new, ${res.contactsUpdated} updated, ${res.fields} field${
-          res.fields === 1 ? "" : "s"
-        }).`,
-      ];
-      if (res.errors.length) {
-        parts.push(
-          `\n\n${res.errors.length} audience(s) had problems:\n• ${res.errors.join(
-            "\n• ",
-          )}`,
-        );
-      }
-      await dialog.notify(parts.join(" "));
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 400) {
-        // Mailchimp creds absent — point the admin at Settings.
-        await dialog.notify(
-          "Mailchimp isn’t connected. Add the API key and server prefix under Settings → Mailchimp, then try the import again.",
-        );
-      } else {
-        setError(
-          err instanceof ApiError ? err.message : "Failed to import from Mailchimp",
-        );
-      }
-    } finally {
-      setImporting(false);
     }
   }
 
@@ -432,22 +380,13 @@ export default function ContactsPage() {
         <div>
           <h1>Contacts</h1>
           <p className="subtitle">
-            Your in-house audiences and contacts — the system of record that
-            replaces Mailchimp. Pick an audience to manage its contacts, custom
-            fields and saved segments.
+            Your in-house audiences and contacts — the system of record. Pick an
+            audience to manage its contacts, custom fields and saved segments.
           </p>
         </div>
         {canCreate && (
           <div className="row-actions">
-            <button
-              className="btn btn--ghost"
-              onClick={importFromMailchimp}
-              disabled={importing}
-              title="One-time import of your Mailchimp audience(s) into the in-house list"
-            >
-              {importing ? "Importing…" : "Import from Mailchimp"}
-            </button>
-            <button className="btn" onClick={createAudience} disabled={importing}>
+            <button className="btn" onClick={createAudience}>
               + Add audience
             </button>
           </div>
@@ -1200,8 +1139,8 @@ function FieldsPanel({
         <h2 style={{ fontSize: 16 }}>Fields</h2>
       </div>
       <p className="subtitle" style={{ fontSize: 12, marginBottom: 10 }}>
-        Custom merge fields (like Mailchimp merge tags). <code>EMAIL</code> is
-        implicit. Tags are uppercased.
+        Custom merge fields (merge tags). <code>EMAIL</code> is implicit. Tags
+        are uppercased.
       </p>
       {err && <p className="error">{err}</p>}
       {fields.length === 0 ? (

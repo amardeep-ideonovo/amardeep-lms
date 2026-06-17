@@ -52,9 +52,8 @@ export class FormsController {
 
   // The form editor's audience picker + field mapper read OUR in-house list via
   // the canonical contacts endpoints (GET /admin/audiences and
-  // /admin/audiences/:id/fields on ContactsController) — the Mailchimp passthrough
-  // routes that used to live here are gone with the cutover, so this controller
-  // no longer exposes any audience lookups of its own.
+  // /admin/audiences/:id/fields on ContactsController), so this controller no
+  // longer exposes any audience lookups of its own.
 
   // ----- Admin: form CRUD -----
 

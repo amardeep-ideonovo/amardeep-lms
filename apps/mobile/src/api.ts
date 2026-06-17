@@ -256,7 +256,7 @@ export const api = {
       auth: false,
     }),
 
-  // forms (public, Mailchimp-linked — embedded via the Puck "Form" block).
+  // forms (public, audience-linked — embedded via the Puck "Form" block).
   // getPublic 404s for inactive/missing forms; the embed treats that as "render
   // nothing".
   publicForm: (id: string) =>

@@ -4,7 +4,7 @@ import { FormsController } from './forms.controller';
 
 // PrismaModule and ContactsModule are global, so FormsService can inject
 // PrismaService and ContactsService directly (form opt-ins write to the
-// in-house Audience/Contact list — no Mailchimp).
+// in-house Audience/Contact list).
 @Module({
   providers: [FormsService],
   controllers: [FormsController],

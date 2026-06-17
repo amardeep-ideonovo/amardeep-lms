@@ -10,7 +10,6 @@ import type { MemberRow } from '@lms/types';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
-import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
 import { ContactsService } from '../contacts/contacts.service';
 import { StripeService } from '../billing/stripe.service';
 import { UpdateMemberDto } from './dto/member.dto';
@@ -26,7 +25,6 @@ export class MembersService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mailchimp: MailchimpProducer,
     private readonly contacts: ContactsService,
     private readonly stripe: StripeService,
   ) {}
@@ -93,10 +91,10 @@ export class MembersService {
    * Update admin-editable profile fields (email, first/last name, phone).
    *
    * Email is special: it is the member's login identity and is mirrored to the
-   * Stripe Customer and the Mailchimp contact. When it changes we (1) reject a
+   * Stripe Customer and the in-house contact. When it changes we (1) reject a
    * duplicate, (2) sync Stripe FIRST so a failure aborts before we touch the DB
    * (a 502), (3) update the DB (P2002 backstop -> 409, reverting Stripe), then
-   * (4) enqueue an async, best-effort Mailchimp re-key. Names/phone keep their
+   * (4) run a best-effort in-house contact re-key. Names/phone keep their
    * "empty string clears, absent leaves unchanged" semantics; email is never
    * cleared (required + unique).
    */
@@ -179,30 +177,10 @@ export class MembersService {
       throw err;
     }
 
-    // Mailchimp re-key across the member's audiences — async + best-effort.
-    // Never fail the request on a queue/Mailchimp blip (eventual consistency is
-    // fine for marketing data).
+    // In-house re-key across the member's audiences — best-effort. Never fail
+    // the request on a contacts blip (eventual consistency is fine for marketing
+    // data). changeEmail() is exhaustive across all in-house audiences.
     if (emailChanging) {
-      try {
-        // Classes now link to an INTERNAL Audience, never a Mailchimp list, so we
-        // can no longer collect per-level Mailchimp audiences (their ids would be
-        // internal Audience ids Mailchimp would reject). Re-key Mailchimp once,
-        // globally — an empty audience list lets the producer fall back to the
-        // Settings audience. The in-house re-key below (changeEmail) is exhaustive
-        // across all in-house audiences. (Mailchimp is gated/no-op by default.)
-        await this.mailchimp.enqueueEmailChange(
-          existing.email,
-          newEmail as string,
-          [],
-        );
-      } catch (err) {
-        this.logger.warn(
-          `[members] mailchimp email-change enqueue failed for ${existing.email}: ${
-            err instanceof Error ? err.message : err
-          }`,
-        );
-      }
-      // In-house list dual-write (best-effort; eventual consistency is fine).
       try {
         await this.contacts.changeEmail(existing.email, newEmail as string);
       } catch (err) {
@@ -253,7 +231,7 @@ export class MembersService {
     // ALWAYS capture the granted member into the class's in-house audience
     // (null audienceId → default "Members" audience). syncTags upserts the
     // contact first, so it lands the member even when audienceTags is empty —
-    // this is what fixes a no-Mailchimp class adding nobody to any audience.
+    // this is what ensures a tagless class still adds members to an audience.
     // Best-effort: a contacts blip must not fail the grant.
     try {
       await this.contacts.syncTags(
@@ -268,18 +246,6 @@ export class MembersService {
         `[members] contacts add-tags failed for ${user.email}: ${
           err instanceof Error ? err.message : err
         }`,
-      );
-    }
-    // Mirror the tags to Mailchimp (gated/no-op by default). Pass undefined for
-    // the audience — Mailchimp expects a LIST id, not our internal Audience id,
-    // so it falls back to the global Settings audience. Only worth enqueuing
-    // when there are tags to apply.
-    if (level.audienceTags.length) {
-      await this.mailchimp.enqueueTags(
-        'add',
-        user.email,
-        level.audienceTags,
-        undefined,
       );
     }
     return { ok: true };
@@ -311,16 +277,9 @@ export class MembersService {
     });
     // Deactivate the tags on the level's in-house audience (membership is left
     // intact — we never auto-unsubscribe). A level with no tags has nothing to
-    // remove. Mailchimp gets undefined for the audience (internal Audience id
-    // would be rejected; falls back to the global Settings audience).
+    // remove.
     if (level.audienceTags.length && stillActive === 0) {
-      await this.mailchimp.enqueueTags(
-        'remove',
-        user.email,
-        level.audienceTags,
-        undefined,
-      );
-      // In-house list dual-write (best-effort), keyed by the class's in-house
+      // In-house list write (best-effort), keyed by the class's in-house
       // audience (null → default "Members" audience).
       try {
         await this.contacts.syncTags(

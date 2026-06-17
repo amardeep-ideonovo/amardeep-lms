@@ -47,9 +47,8 @@ export class FormsService {
 
   // NOTE: the form editor's audience picker + field mapper read OUR in-house
   // list directly via the canonical contacts endpoints (GET /admin/audiences and
-  // /admin/audiences/:id/fields). The Mailchimp passthrough that used to live
-  // here (listAudiences / getMergeFields) is gone with the cutover — nothing in
-  // this service talks to Mailchimp anymore.
+  // /admin/audiences/:id/fields). This service writes form opt-ins straight into
+  // the in-house contacts list.
 
   // A self-contained vanilla-JS widget that renders + submits this form. Served
   // at GET /forms/:id/embed.js so it can be dropped on ANY page/popup with a

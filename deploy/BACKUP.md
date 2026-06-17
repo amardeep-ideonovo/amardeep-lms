@@ -16,7 +16,7 @@
 | Settings encryption key | Plain env var `SETTINGS_ENC_KEY` in `deploy/.env` | One-time, kept offline | Forever |
 
 > The Settings encryption key is **not** a regular backup target. If you
-> lose it, all admin-set Stripe/Mailchimp keys in the Settings table become
+> lose it, all admin-set Stripe keys in the Settings table become
 > unreadable (you can re-enter them). Store it in your password manager.
 
 ---
@@ -202,7 +202,7 @@ Things that silently break backups:
   update §5 step 4.
 - **Encryption key drift** — the `SETTINGS_ENC_KEY` in `deploy/.env` is
   NOT in the DB backup. If you restore on a new server with a fresh key,
-  encrypted settings (Stripe keys, Mailchimp keys) won't decode. Either
+  encrypted settings (Stripe keys) won't decode. Either
   copy the key from the old server or re-enter the secrets via admin UI
   after restore.
 

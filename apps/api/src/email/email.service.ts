@@ -319,7 +319,7 @@ export class EmailService {
   }
 
   // A recipient is suppressed when ANY contact on that email is UNSUBSCRIBED or
-  // CLEANED, or the linked User has emailOptOut set (the Mailchimp-unsub flag).
+  // CLEANED, or the linked User has emailOptOut set (the member-unsubscribe flag).
   private async isSuppressed(email: string): Promise<boolean> {
     const [badContact, optedOut] = await Promise.all([
       this.prisma.contact.findFirst({

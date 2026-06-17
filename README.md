@@ -38,7 +38,7 @@ Auto-deploys from `main`; no custom middleware needed.
 - **API + Postgres + Redis → Render** via [`render.yaml`](render.yaml) (Blueprint).
   Render provisions the DB + Redis, builds [`apps/api/Dockerfile`](apps/api/Dockerfile),
   runs `prisma migrate deploy`, and redeploys on push to `main`. Health check: `/health`.
-  Secrets (`SETTINGS_ENC_KEY`, Stripe/Mailchimp keys, `WEB_APP_URL`, `CORS_ORIGIN`)
+  Secrets (`SETTINGS_ENC_KEY`, Stripe keys, `WEB_APP_URL`, `CORS_ORIGIN`)
   are set in the Render dashboard, never committed.
 - The shared Plesk host (static/PHP only) is **not** used for the app — DNS can
   point your domain/subdomains at Vercel + Render.
