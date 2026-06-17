@@ -35,7 +35,6 @@ import type {
   ContactListDTO,
   SegmentDTO,
   ContactStatus,
-  ImportSummary,
   CreateAudienceInput,
   UpdateAudienceInput,
   UpsertAudienceFieldInput,
@@ -91,6 +90,35 @@ import type {
   UpdatePageInput,
   UpdatePopupInput,
   UpdatePostInput,
+  ChatChannelDTO,
+  ChatChannelDetailDTO,
+  ChatDmDTO,
+  ChatMessageDTO,
+  CreateChatChannelInput,
+  OpenDmInput,
+  UpdateChatChannelInput,
+  SendMessageInput,
+  ChatReactionToggleInput,
+  UnreadSummaryDTO,
+  ChatListDTO,
+  ChatListItemDTO,
+  CreateChatListInput,
+  CreateChatListItemInput,
+  UpdateChatListItemInput,
+  ChatListFieldDTO,
+  ChatListItemCommentDTO,
+  CreateListFieldInput,
+  UpdateListFieldInput,
+  ReorderListFieldsInput,
+  UpdateListItemValuesInput,
+  CreateListItemCommentInput,
+  ChatWorkflowDTO,
+  CreateWorkflowInput,
+  UpdateWorkflowInput,
+  UpdateListItemCommentInput,
+  ChatCanvasDTO,
+  CreateCanvasInput,
+  UpdateCanvasInput,
 } from "@lms/types";
 import { withBase } from "./base-path";
 
@@ -268,19 +296,6 @@ export interface StripeSettingsMasked {
   secretKeyLast4: string | null;
   webhookSecretLast4: string | null;
   publishableKey: string | null;
-}
-export interface MailchimpSettings {
-  apiKey?: string;
-  serverPrefix?: string;
-  audienceId?: string;
-  // Cutover dual-run flag. Off = no write-back to Mailchimp (in-house is canon).
-  syncEnabled?: boolean;
-}
-export interface MailchimpSettingsMasked {
-  apiKeyLast4: string | null;
-  serverPrefix: string | null;
-  audienceId: string | null;
-  syncEnabled: boolean;
 }
 // Email sender settings live in @lms/types (write-only secrets: SMTP pass +
 // Resend API key). Re-exported so admin components import the contract from one
@@ -552,16 +567,6 @@ export const api = {
     request<StripeSettingsMasked>("PUT", "/admin/settings/stripe", input),
   clearStripeSettings: () =>
     request<StripeSettingsMasked>("DELETE", "/admin/settings/stripe"),
-  getMailchimpSettings: () =>
-    request<MailchimpSettingsMasked>("GET", "/admin/settings/mailchimp"),
-  putMailchimpSettings: (input: MailchimpSettings) =>
-    request<MailchimpSettingsMasked>(
-      "PUT",
-      "/admin/settings/mailchimp",
-      input
-    ),
-  clearMailchimpSettings: () =>
-    request<MailchimpSettingsMasked>("DELETE", "/admin/settings/mailchimp"),
   getEmailSettings: () =>
     request<EmailSettingsMasked>("GET", "/admin/settings/email"),
   putEmailSettings: (input: EmailSettingsInput) =>
@@ -633,10 +638,7 @@ export const api = {
       `/admin/audiences/${audienceId}/fields`
     ),
 
-  // contacts / audiences (in-house list — replaces Mailchimp)
-  // one-time Mailchimp → in-house import (idempotent; 400 if Mailchimp unconfigured)
-  importContacts: () =>
-    request<ImportSummary>("POST", "/admin/contacts/import"),
+  // contacts / audiences (in-house list)
   listAudiences: () => request<AudienceDTO[]>("GET", "/admin/audiences"),
   createAudience: (input: CreateAudienceInput) =>
     request<AudienceDTO>("POST", "/admin/audiences", input),
@@ -811,4 +813,228 @@ export const api = {
       `/certificates/${row.id}/download`,
       `Certificate ${row.serial} - ${row.className}.pdf`
     ),
+
+  // projects: internal team chat + task lists (admin-only, RBAC `projects`)
+  // ---- channels ----
+  listChannels: () =>
+    request<ChatChannelDTO[]>("GET", "/admin/projects/channels"),
+  createChannel: (input: CreateChatChannelInput) =>
+    request<ChatChannelDetailDTO>("POST", "/admin/projects/channels", input),
+  getChannel: (id: string) =>
+    request<ChatChannelDetailDTO>("GET", `/admin/projects/channels/${id}`),
+  updateChannel: (id: string, input: UpdateChatChannelInput) =>
+    request<ChatChannelDetailDTO>(
+      "PATCH",
+      `/admin/projects/channels/${id}`,
+      input
+    ),
+  joinChannel: (id: string) =>
+    request<ChatChannelDetailDTO>(
+      "POST",
+      `/admin/projects/channels/${id}/join`
+    ),
+  leaveChannel: (id: string) =>
+    request<{ ok: true }>("POST", `/admin/projects/channels/${id}/leave`),
+
+  // ---- direct messages (DMs) ----
+  // Open-or-get a DM with one or more OTHER admins (the actor is added
+  // server-side). Deduped by a sorted-member key, so opening the same set twice
+  // returns the existing channel. The returned channel loads in the same pane.
+  openDm: (adminIds: string[]) =>
+    request<ChatChannelDTO>("POST", "/admin/projects/dms", {
+      adminIds,
+    } satisfies OpenDmInput),
+  listDms: () => request<ChatDmDTO[]>("GET", "/admin/projects/dms"),
+
+  // ---- messages ----
+  // Catch-up fetch: pass `afterSeq` to only pull messages newer than what we've
+  // already rendered (drives the 4s append-poll). `limit` defaults to 50 server-side.
+  listMessages: (channelId: string, afterSeq?: number, limit?: number) => {
+    const qs = new URLSearchParams();
+    if (afterSeq !== undefined) qs.set("afterSeq", String(afterSeq));
+    if (limit !== undefined) qs.set("limit", String(limit));
+    const tail = qs.toString();
+    return request<ChatMessageDTO[]>(
+      "GET",
+      `/admin/projects/channels/${channelId}/messages${tail ? `?${tail}` : ""}`
+    );
+  },
+  sendMessage: (
+    channelId: string,
+    input: SendMessageInput
+  ): Promise<ChatMessageDTO> =>
+    request<ChatMessageDTO>(
+      "POST",
+      `/admin/projects/channels/${channelId}/messages`,
+      input
+    ),
+  editMessage: (messageId: string, body: string) =>
+    request<ChatMessageDTO>("PATCH", `/admin/projects/messages/${messageId}`, {
+      body,
+    }),
+  deleteMessage: (messageId: string) =>
+    request<ChatMessageDTO>(
+      "DELETE",
+      `/admin/projects/messages/${messageId}`
+    ),
+  listReplies: (messageId: string) =>
+    request<ChatMessageDTO[]>(
+      "GET",
+      `/admin/projects/messages/${messageId}/replies`
+    ),
+  toggleReaction: (messageId: string, emoji: string) =>
+    request<ChatMessageDTO>(
+      "POST",
+      `/admin/projects/messages/${messageId}/reactions`,
+      { emoji } satisfies ChatReactionToggleInput
+    ),
+  // `seq` omitted => server marks the channel read up to its current max seq.
+  markRead: (channelId: string, seq?: number) =>
+    request<{ ok: true }>(
+      "POST",
+      `/admin/projects/channels/${channelId}/read`,
+      seq !== undefined ? { seq } : {}
+    ),
+  getUnread: () =>
+    request<UnreadSummaryDTO>("GET", "/admin/projects/unread"),
+
+  // ---- lists (task boards) ----
+  listLists: (channelId?: string) =>
+    request<ChatListDTO[]>(
+      "GET",
+      `/admin/projects/lists${
+        channelId ? `?channelId=${encodeURIComponent(channelId)}` : ""
+      }`
+    ),
+  createList: (input: CreateChatListInput) =>
+    request<ChatListDTO>("POST", "/admin/projects/lists", input),
+  createListItem: (listId: string, input: CreateChatListItemInput) =>
+    request<ChatListItemDTO>(
+      "POST",
+      `/admin/projects/lists/${listId}/items`,
+      input
+    ),
+  updateListItem: (itemId: string, input: UpdateChatListItemInput) =>
+    request<ChatListItemDTO>(
+      "PATCH",
+      `/admin/projects/list-items/${itemId}`,
+      input
+    ),
+  deleteListItem: (itemId: string) =>
+    request<{ ok: true }>(
+      "DELETE",
+      `/admin/projects/list-items/${itemId}`
+    ),
+  // Turn a chat message into a task in `listId`; title = the (truncated) body.
+  messageToTask: (messageId: string, listId: string) =>
+    request<ChatListItemDTO>(
+      "POST",
+      `/admin/projects/messages/${messageId}/to-task`,
+      { listId }
+    ),
+
+  // ---- lists: custom fields (Slack-Lists columns) ----
+  createField: (listId: string, input: CreateListFieldInput) =>
+    request<ChatListFieldDTO>(
+      "POST",
+      `/admin/projects/lists/${listId}/fields`,
+      input
+    ),
+  updateField: (fieldId: string, input: UpdateListFieldInput) =>
+    request<ChatListFieldDTO>(
+      "PATCH",
+      `/admin/projects/list-fields/${fieldId}`,
+      input
+    ),
+  deleteField: (fieldId: string) =>
+    request<{ ok: true }>(
+      "DELETE",
+      `/admin/projects/list-fields/${fieldId}`
+    ),
+  reorderFields: (listId: string, orderedFieldIds: string[]) =>
+    request<ChatListFieldDTO[]>(
+      "POST",
+      `/admin/projects/lists/${listId}/fields/reorder`,
+      { orderedFieldIds } satisfies ReorderListFieldsInput
+    ),
+
+  // ---- lists: item custom-field values (validated against each field's type) ----
+  updateItemValues: (itemId: string, values: Record<string, unknown>) =>
+    request<ChatListItemDTO>(
+      "PATCH",
+      `/admin/projects/list-items/${itemId}/values`,
+      { values } satisfies UpdateListItemValuesInput
+    ),
+
+  // ---- lists: per-item comment thread (the 💬) ----
+  listItemComments: (itemId: string) =>
+    request<ChatListItemCommentDTO[]>(
+      "GET",
+      `/admin/projects/list-items/${itemId}/comments`
+    ),
+  createItemComment: (itemId: string, body: string) =>
+    request<ChatListItemCommentDTO>(
+      "POST",
+      `/admin/projects/list-items/${itemId}/comments`,
+      { body } satisfies CreateListItemCommentInput
+    ),
+  editItemComment: (commentId: string, body: string) =>
+    request<ChatListItemCommentDTO>(
+      "PATCH",
+      `/admin/projects/list-item-comments/${commentId}`,
+      { body } satisfies UpdateListItemCommentInput
+    ),
+  deleteItemComment: (commentId: string) =>
+    request<{ ok: true }>(
+      "DELETE",
+      `/admin/projects/list-item-comments/${commentId}`
+    ),
+
+  // ---- workflows (auto-post a list event into a channel — the Image-1 flow) ----
+  listWorkflows: (listId?: string) =>
+    request<ChatWorkflowDTO[]>(
+      "GET",
+      `/admin/projects/workflows${
+        listId ? `?listId=${encodeURIComponent(listId)}` : ""
+      }`
+    ),
+  createWorkflow: (input: CreateWorkflowInput) =>
+    request<ChatWorkflowDTO>("POST", "/admin/projects/workflows", input),
+  updateWorkflow: (id: string, input: UpdateWorkflowInput) =>
+    request<ChatWorkflowDTO>(
+      "PATCH",
+      `/admin/projects/workflows/${id}`,
+      input
+    ),
+  deleteWorkflow: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/projects/workflows/${id}`),
+
+  // ---- canvas docs (rich-text channel tabs — the "Web SOP" tab) ----
+  // The channel detail (getChannel) already carries lists+canvases for the tab
+  // bar; these load/edit a canvas's full content when its tab is selected.
+  listCanvases: (channelId: string) =>
+    request<ChatCanvasDTO[]>(
+      "GET",
+      `/admin/projects/channels/${channelId}/canvases`
+    ),
+  createCanvas: (channelId: string, input: CreateCanvasInput) =>
+    request<ChatCanvasDTO>(
+      "POST",
+      `/admin/projects/channels/${channelId}/canvases`,
+      input
+    ),
+  updateCanvas: (canvasId: string, input: UpdateCanvasInput) =>
+    request<ChatCanvasDTO>(
+      "PATCH",
+      `/admin/projects/canvases/${canvasId}`,
+      input
+    ),
+  deleteCanvas: (canvasId: string) =>
+    request<{ ok: true }>("DELETE", `/admin/projects/canvases/${canvasId}`),
+
+  // NOTE: the admin roster used for @mention resolution + author/assignee display
+  // names comes from the existing `listAdmins()` method (GET /admin/admins). That
+  // endpoint is SuperAdminGuard-protected, so it 403s for non-super admins — the
+  // Projects pages treat a rejection as "names unavailable" and degrade gracefully
+  // (render @text, pass mentionedAdminIds: []).
 };

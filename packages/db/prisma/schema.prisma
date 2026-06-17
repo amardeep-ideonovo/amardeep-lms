@@ -4,7 +4,7 @@
 //    grant and a paid subscription for the same level coexist without conflict.
 //  - A course unlocks if the user holds ANY active UserLevel among the course's
 //    assigned levels (CourseLevel join).
-//  - mailchimpTag (not a separate audience) per level — one audience, tag per level.
+//  - audienceTags (not a separate audience) per level — one audience, tag per level.
 
 generator client {
   provider = "prisma-client-js"
@@ -30,7 +30,7 @@ model User {
   stripeCustomerId String?  @unique // cus_… on the SAME Stripe account
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  emailOptOut      Boolean  @default(false) // set by Mailchimp unsubscribe webhook
+  emailOptOut      Boolean  @default(false) // set by the email unsubscribe webhook
 
   levels       UserLevel[]
   progress     LessonProgress[]
@@ -287,10 +287,10 @@ model SubscriptionMirror {
   @@index([userId])
 }
 
-// Encrypted integration secrets (Stripe/Mailchimp). Values stored encrypted at
-// rest; never returned to any client — admin UI is write-only for secrets.
+// Encrypted integration secrets (Stripe, email/SMTP, …). Values stored encrypted
+// at rest; never returned to any client — admin UI is write-only for secrets.
 model Setting {
-  key       String   @id // e.g. "stripe.secretKey", "stripe.webhookSecret", "mailchimp.apiKey"
+  key       String   @id // e.g. "stripe.secretKey", "stripe.webhookSecret", "email.resendApiKey"
   value     String // ciphertext
   updatedAt DateTime @updatedAt
 }
@@ -735,11 +735,9 @@ model Certificate {
 }
 
 // ---------- Contacts / Audiences (in-house list management) ----------
-// Replaces Mailchimp as the system-of-record for audiences, contacts, tags and
-// custom fields. Modelled 1:1 on Mailchimp (email unique WITHIN an audience;
-// tags + attributes are per-audience) so the importer is a straight copy and
-// Level/Form/Footer audience ids remap to Audience.id. Additive — the Mailchimp
-// path keeps running in parallel until the cutover phase.
+// The system-of-record for audiences, contacts, tags and custom fields (email
+// unique WITHIN an audience; tags + attributes are per-audience). Level / Form /
+// Footer opt-ins all point at an Audience.id.
 
 enum ContactStatus {
   SUBSCRIBED
@@ -765,13 +763,12 @@ enum ConsentKind {
   CLEANED
 }
 
-// An audience / list (= a Mailchimp audience).
+// An audience / list a contact belongs to.
 model Audience {
   id         String   @id @default(cuid())
   name       String
   slug       String?  @unique
   isDefault  Boolean  @default(false) // the single global default audience
-  externalId String?  @unique // Mailchimp list id this audience maps to (dual-write/import)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -782,8 +779,8 @@ model Audience {
   forms    Form[]
 }
 
-// A custom field on an audience (= a Mailchimp merge field). EMAIL is implicit
-// and always mappable; these are the extra mapped fields (FNAME, LNAME, …).
+// A custom (merge) field on an audience. EMAIL is implicit and always mappable;
+// these are the extra mapped fields (FNAME, LNAME, …).
 model AudienceField {
   id         String   @id @default(cuid())
   audienceId String
@@ -796,9 +793,9 @@ model AudienceField {
   @@unique([audienceId, tag])
 }
 
-// A contact within an audience. Email is unique WITHIN an audience (mirrors
-// Mailchimp). Tags + attributes are per-audience. Links to a member when known
-// (no FK on userId, so history survives member deletion).
+// A contact within an audience. Email is unique WITHIN an audience. Tags +
+// attributes are per-audience. Links to a member when known (no FK on userId,
+// so history survives member deletion).
 model Contact {
   id             String        @id @default(cuid())
   audienceId     String
@@ -1010,4 +1007,250 @@ model ScheduledEmail {
   error        String?
 
   @@index([status, sendAt])
+}
+
+// ---------- Projects: internal team chat + task lists (admin-only) ----------
+// A lightweight in-house Slack for back-office staff: public/private channels,
+// messages with threads + reactions + @mentions, per-member last-read markers
+// that drive unread counts, and Slack-Lists-style task boards. Participants are
+// Admins; admin ids are plain columns (NO FK) so chat history survives an admin
+// being removed — same convention as Contact.userId. Cascades apply only WITHIN
+// the chat tables (delete a channel → its messages/members/lists go too).
+
+enum ChatListItemStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum ChatChannelKind {
+  CHANNEL
+  DM // 1:1 direct message
+  GROUP_DM // small-group direct message
+}
+
+model ChatChannel {
+  id               String          @id @default(cuid())
+  name             String
+  slug             String?         @unique
+  topic            String?
+  isPrivate        Boolean         @default(false)
+  kind             ChatChannelKind @default(CHANNEL)
+  dmKey            String?         @unique // deterministic sorted-member hash; dedupes a DM between the same people
+  createdByAdminId String
+  archivedAt       DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  members  ChatMember[]
+  messages ChatMessage[]
+  lists    ChatList[]
+  canvases ChatCanvas[]
+}
+
+// A rich-text doc pinned to a channel as a tab (e.g. the "Web SOP" tab). Content
+// is editor HTML. Multiple canvases per channel, ordered by position.
+model ChatCanvas {
+  id               String      @id @default(cuid())
+  channelId        String
+  channel          ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  title            String
+  content          String      @default("") // rich-text HTML
+  position         Int         @default(0)
+  createdByAdminId String
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([channelId, position])
+}
+
+model ChatMember {
+  id          String      @id @default(cuid())
+  channelId   String
+  channel     ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  adminId     String // back-office staff member (no FK: see section header)
+  lastReadSeq Int         @default(0) // highest ChatMessage.seq this member has read
+  lastReadAt  DateTime?
+  joinedAt    DateTime    @default(now())
+
+  @@unique([channelId, adminId])
+  @@index([adminId])
+}
+
+model ChatMessage {
+  id              String       @id @default(cuid())
+  seq             Int          @unique @default(autoincrement()) // global monotonic order; reconnect catch-up via ?afterSeq=
+  channelId       String
+  channel         ChatChannel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  authorAdminId   String
+  body            String
+  parentMessageId String? // set => thread reply; the root is the parent
+  parent          ChatMessage? @relation("ChatThread", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  replies         ChatMessage[] @relation("ChatThread")
+  listItemId      String? // when set, the message renders an inline list-item ("task") card
+  workflowId      String? // set when a workflow auto-posted this message (UI shows the workflow as author + a WORKFLOW badge)
+  createdAt       DateTime     @default(now())
+  editedAt        DateTime?
+  deletedAt       DateTime?
+
+  reactions ChatReaction[]
+  mentions  ChatMention[]
+  listItems ChatListItem[]
+
+  @@index([channelId, seq])
+  @@index([parentMessageId])
+  @@index([listItemId])
+}
+
+model ChatReaction {
+  id        String      @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  adminId   String
+  emoji     String
+  createdAt DateTime    @default(now())
+
+  @@unique([messageId, adminId, emoji])
+  @@index([messageId])
+}
+
+model ChatMention {
+  id               String      @id @default(cuid())
+  messageId        String
+  message          ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  mentionedAdminId String
+  createdAt        DateTime    @default(now())
+
+  @@unique([messageId, mentionedAdminId])
+  @@index([mentionedAdminId])
+}
+
+model ChatList {
+  id               String       @id @default(cuid())
+  channelId        String? // a list may be scoped to a channel or stand alone
+  channel          ChatChannel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  name             String
+  description      String?
+  icon             String? // emoji / short label for the list "tab"
+  position         Int          @default(0) // order among a channel's list tabs
+  createdByAdminId String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  items     ChatListItem[]
+  fields    ChatListField[]
+  workflows ChatWorkflow[]
+
+  @@index([channelId])
+}
+
+// ----- Workflows: auto-post a list event into a channel (the Image-1 flow) -----
+// Event-Condition-Action: a trigger on a list fires an action (post a templated,
+// @mentioned channel message carrying an inline item card). Idempotent via a
+// per-(workflow,item,trigger) dedupe key recorded in ChatWorkflowRun.
+enum ChatWorkflowTrigger {
+  ITEM_CREATED
+  ITEM_ASSIGNED
+  ITEM_UPDATED
+}
+
+model ChatWorkflow {
+  id               String              @id @default(cuid())
+  name             String
+  listId           String
+  list             ChatList            @relation(fields: [listId], references: [id], onDelete: Cascade)
+  channelId        String? // post target; defaults to the list's channel when null
+  trigger          ChatWorkflowTrigger @default(ITEM_CREATED)
+  config           Json                @default("{}") // { assigneeFieldId?, template?, includeCard? }
+  enabled          Boolean             @default(true)
+  createdByAdminId String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  runs ChatWorkflowRun[]
+
+  @@index([listId])
+}
+
+model ChatWorkflowRun {
+  id         String       @id @default(cuid())
+  workflowId String
+  workflow   ChatWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  itemId     String // the ChatListItem that triggered it (plain: survives item deletion)
+  dedupeKey  String       @unique // wf:<workflowId>:item:<itemId>:<trigger> — idempotency
+  messageId  String? // the posted ChatMessage, when successful
+  status     String       @default("OK")
+  createdAt  DateTime     @default(now())
+
+  @@index([workflowId])
+}
+
+// A user-defined column on a list (Slack-Lists / Airtable style). Each item's
+// value for this field lives in ChatListItem.values, keyed by this field's id —
+// the flexible "field definitions as rows + values as JSONB" pattern.
+enum ChatFieldType {
+  TEXT
+  LONG_TEXT
+  SELECT
+  MULTI_SELECT
+  PERSON // an Admin id
+  MULTI_PERSON // multiple assignees — array of Admin ids
+  DATE
+  URL
+  NUMBER
+  CHECKBOX
+  SECRET // masked credential, e.g. the "Username and Password" column
+}
+
+model ChatListField {
+  id        String        @id @default(cuid())
+  listId    String
+  list      ChatList      @relation(fields: [listId], references: [id], onDelete: Cascade)
+  key       String // stable slug, unique within the list
+  name      String // display label (e.g. "Category", "Current Step")
+  type      ChatFieldType @default(TEXT)
+  options   Json          @default("[]") // SELECT/MULTI_SELECT choices: [{ id, label, color }]
+  config    Json          @default("{}") // per-type extras (required, number format, …)
+  position  Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([listId, key])
+  @@index([listId, position])
+}
+
+// A conversation comment on a single list item — the per-item thread (the 💬
+// count Slack shows on a queue row).
+model ChatListItemComment {
+  id            String       @id @default(cuid())
+  itemId        String
+  item          ChatListItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  authorAdminId String
+  body          String
+  createdAt     DateTime     @default(now())
+  editedAt      DateTime?
+  deletedAt     DateTime?
+
+  @@index([itemId])
+}
+
+model ChatListItem {
+  id                   String             @id @default(cuid())
+  listId               String
+  list                 ChatList           @relation(fields: [listId], references: [id], onDelete: Cascade)
+  title                String
+  status               ChatListItemStatus @default(TODO)
+  assigneeAdminId      String?
+  dueDate              DateTime?
+  position             Int                @default(0)
+  values               Json               @default("{}") // custom-field values keyed by ChatListField.id
+  createdFromMessageId String? // "turn a message into a task" provenance
+  createdFromMessage   ChatMessage?       @relation(fields: [createdFromMessageId], references: [id], onDelete: SetNull)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  comments ChatListItemComment[]
+
+  @@index([listId, position])
+  @@index([assigneeAdminId])
 }

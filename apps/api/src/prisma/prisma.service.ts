@@ -135,6 +135,44 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.scheduledEmail;
   }
 
+  // Projects: internal team chat + task lists.
+  get chatChannel() {
+    return this.client.chatChannel;
+  }
+  get chatMember() {
+    return this.client.chatMember;
+  }
+  get chatMessage() {
+    return this.client.chatMessage;
+  }
+  get chatReaction() {
+    return this.client.chatReaction;
+  }
+  get chatMention() {
+    return this.client.chatMention;
+  }
+  get chatList() {
+    return this.client.chatList;
+  }
+  get chatListField() {
+    return this.client.chatListField;
+  }
+  get chatListItem() {
+    return this.client.chatListItem;
+  }
+  get chatListItemComment() {
+    return this.client.chatListItemComment;
+  }
+  get chatCanvas() {
+    return this.client.chatCanvas;
+  }
+  get chatWorkflow() {
+    return this.client.chatWorkflow;
+  }
+  get chatWorkflowRun() {
+    return this.client.chatWorkflowRun;
+  }
+
   get $transaction() {
     return this.client.$transaction.bind(this.client);
   }

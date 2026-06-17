@@ -166,6 +166,17 @@ const I = {
       <path d="m17 11 2 2 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  channels: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  lists: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M9 6h12M9 12h12M9 18h12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 };
 
 // `section` gates each item by `read` permission. Notifications has none —
@@ -191,11 +202,23 @@ const GROUPS: NavGroup[] = [
       { href: "/navigation", label: "Navigation", section: "menus", icon: I.menus },
       { href: "/popups", label: "Popups", section: "popups", icon: I.popups },
       { href: "/forms", label: "Forms", section: "forms", icon: I.forms },
+    ],
+  },
+  {
+    label: "Marketing",
+    items: [
       { href: "/contacts", label: "Contacts", section: "contacts", icon: I.contacts },
       { href: "/email/templates", label: "Email templates", section: "email", icon: I.email },
       { href: "/email/campaigns", label: "Campaigns", section: "email", icon: I.campaigns },
       { href: "/email/automations", label: "Automations", section: "email", icon: I.automations },
       { href: "/email/logs", label: "Email logs", section: "email", icon: I.emailLogs },
+    ],
+  },
+  {
+    label: "Projects",
+    items: [
+      { href: "/projects", label: "Channels", section: "projects", icon: I.channels },
+      { href: "/projects/lists", label: "Lists", section: "projects", icon: I.lists },
     ],
   },
   {
@@ -238,9 +261,13 @@ export default function Sidebar() {
   };
 
   const renderItem = (item: NavItem) => {
-    // "/" must match exactly; everything else matches by prefix.
-    const active =
-      item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+    // "/" must match exactly; everything else matches by prefix. "/projects" is
+    // also exact, because "/projects/lists" nests under it and would otherwise
+    // light up both the Channels and Lists items.
+    const exactOnly = item.href === "/" || item.href === "/projects";
+    const active = exactOnly
+      ? pathname === item.href
+      : pathname.startsWith(item.href);
     return (
       <Link
         key={item.href}

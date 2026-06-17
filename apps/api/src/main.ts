@@ -17,6 +17,7 @@ import {
   CERT_FONTS_ROUTE,
   ensureCertificateDirs,
 } from './certificates/certificates.config';
+import { RedisIoAdapter } from './projects/redis-io.adapter';
 
 async function bootstrap() {
   // bodyParser disabled here so we can register a raw-body parser for the
@@ -138,6 +139,32 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
+
+  // Realtime (Projects gateway). Use the Redis-backed Socket.IO adapter so
+  // channel-room broadcasts fan out across API instances. If REDIS_URL is unset
+  // or the connection can't be established, fall back to the default in-memory
+  // adapter (single-instance only) so a boot never fails on the realtime layer.
+  if (process.env.REDIS_URL) {
+    try {
+      const wsAdapter = new RedisIoAdapter(app);
+      await wsAdapter.connectToRedis();
+      app.useWebSocketAdapter(wsAdapter);
+      // eslint-disable-next-line no-console
+      console.log('[api] realtime: Redis Socket.IO adapter enabled');
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[api] realtime: Redis adapter unavailable, using in-memory adapter — ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  } else {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[api] realtime: REDIS_URL unset — using in-memory Socket.IO adapter (single instance only)',
+    );
+  }
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);

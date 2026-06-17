@@ -67,6 +67,7 @@ export const ADMIN_SECTIONS = [
   // Read-only: the Reports tab only generates/downloads exports (no create/edit/delete).
   { key: "reports", label: "Reports", readOnly: true },
   { key: "certificates", label: "Certificates" },
+  { key: "projects", label: "Projects" },
 ] as const;
 export type AdminSection = (typeof ADMIN_SECTIONS)[number]["key"];
 
@@ -259,7 +260,7 @@ export interface MySubscriptionDTO {
 // Public config the checkout page needs to render the active provider's payment
 // UI. `provider` is the admin-selected processor for NEW checkouts. When the
 // active provider's key is null, it isn't configured on this environment and
-// Outbound email sender credentials (in-house Mailchimp replacement).
+// Outbound email sender credentials (the in-house email platform).
 // `pass` and `resendApiKey` are write-only (sent on PUT, never returned); blank
 // fields on PUT keep the stored value. `provider` is the pluggable sender id:
 // "smtp" (nodemailer) or "resend" (REST API). `secure` toggles implicit TLS
@@ -472,7 +473,7 @@ export interface MemberRow {
   } | null;
 }
 // Admin-editable member profile fields (Members tab). Changing `email` also
-// re-points the member's login, Stripe receipts, and Mailchimp contact.
+// re-points the member's login, Stripe receipts, and in-house contact.
 export interface UpdateMemberInput {
   email?: string;
   firstName?: string;
@@ -540,6 +541,10 @@ export interface ClassTileDTO {
   imageUrl: string | null;
   owned: boolean;
   categories: LevelCategoryDTO[];
+  // Lesson progress for OWNED classes (null for catalog tiles the member doesn't
+  // own). Lets the dashboard feature the next *incomplete* class and label the
+  // hero CTA accordingly ("Resume" vs "Review") without a per-class fetch.
+  progress?: { completed: number; total: number } | null;
 }
 
 // GET /levels/:slugOrId/my-courses (member, auth). A class's courses — returned
@@ -802,10 +807,9 @@ export interface CreatePageInput {
 }
 export type UpdatePageInput = Partial<CreatePageInput>;
 
-// ---------- Mailchimp-linked Forms ----------
+// ---------- Forms ----------
 // Admin-authored forms (configurable field builder) whose submissions subscribe
-// people to a chosen Mailchimp audience. The Mailchimp API key/server prefix are
-// the one-time encrypted Settings; each form picks its own audience.
+// people to a chosen in-house contacts audience. Each form picks its own audience.
 export type FormStatus = "ACTIVE" | "INACTIVE";
 
 export type FormFieldType =
@@ -817,8 +821,8 @@ export type FormFieldType =
   | "checkbox"
   | "select";
 
-// One configurable field. `mergeTag` maps the value to a Mailchimp merge field;
-// the field whose mergeTag is "EMAIL" is treated as the subscriber email.
+// One configurable field. `mergeTag` maps the value to a contact field; the
+// field whose mergeTag is "EMAIL" is treated as the subscriber email.
 export interface FormFieldDef {
   id: string; // stable client id (for the builder + React keys)
   type: FormFieldType;
@@ -827,25 +831,12 @@ export interface FormFieldDef {
   required: boolean;
   placeholder?: string;
   options?: string[]; // for "select"
-  mergeTag?: string; // Mailchimp merge tag (EMAIL, FNAME, …) or empty for local-only
+  mergeTag?: string; // contact field tag (EMAIL, FNAME, …) or empty for local-only
 }
 
-// Live Mailchimp data (admin only).
-export interface MailchimpAudienceDTO {
-  id: string;
-  name: string;
-  memberCount?: number;
-}
-export interface MailchimpMergeFieldDTO {
-  tag: string; // EMAIL, FNAME, PHONE, …
-  name: string; // display label
-  type: string; // text, number, address, …
-  required: boolean;
-}
-
-// ---------- Contacts / Audiences (in-house list — replaces Mailchimp) ----------
-// Mirrors Mailchimp's model: a contact belongs to one audience; email is unique
-// within an audience; tags + attributes (merge fields) are per-audience.
+// ---------- Contacts / Audiences (in-house list) ----------
+// A contact belongs to one audience; email is unique within an audience; tags +
+// attributes (merge fields) are per-audience.
 export type ContactStatus =
   | "SUBSCRIBED"
   | "PENDING" // double opt-in, awaiting confirmation
@@ -947,16 +938,6 @@ export interface CreateSegmentInput {
   filter: ContactFilter;
 }
 
-// Result of the one-time Mailchimp → internal-contacts import. Counts are
-// totals across all imported audiences; `errors` holds a per-audience message
-// for any list that failed (the rest still import — the run is best-effort).
-export interface ImportSummary {
-  audiences: number; // audiences upserted
-  fields: number; // audience fields upserted (excl. implicit EMAIL)
-  contactsCreated: number;
-  contactsUpdated: number;
-  errors: string[]; // "<audience name>: <reason>" per failed list
-}
 export interface UpdateSegmentInput {
   name?: string;
   filter?: ContactFilter;
@@ -1762,6 +1743,327 @@ export interface UpdateAppConfigInput {
   appConfig: AppConfig;
 }
 
+// ---------- Projects: internal team chat + task lists (admin-only) ----------
+// A lightweight in-house Slack for back-office staff. Participants are Admins;
+// admin ids are plain string columns (no FK) so history survives an admin being
+// removed. All endpoints sit under /admin/projects behind RBAC `projects`.
+// Phase 2 is REST-only; a realtime gateway (Phase 3) will broadcast the same
+// ChatMessageDTO that POST .../messages returns.
+
+// Channel kind: a regular CHANNEL, or a 1:1 DM / small-group GROUP_DM. DMs are
+// just ChatChannels (no meaningful name, always private) whose members are the
+// participants — every message/thread/reaction/unread mechanic works unchanged.
+export type ChatChannelKind = "CHANNEL" | "DM" | "GROUP_DM";
+
+export interface ChatChannelDTO {
+  id: string;
+  name: string;
+  slug?: string | null;
+  topic?: string | null;
+  isPrivate: boolean;
+  kind: ChatChannelKind; // CHANNEL for regular channels; DM/GROUP_DM for direct messages
+  // For DM/GROUP_DM rows: the participating admin ids (so the UI can render the
+  // other person's name/avatar). Omitted/empty for regular channels.
+  memberAdminIds?: string[];
+  archivedAt?: string | null; // ISO; null = active
+  unreadCount: number; // messages from others since this admin's lastReadSeq
+  mentionCount: number; // unread @mentions of this admin in the channel
+  memberCount: number;
+}
+export interface ChatChannelMemberDTO {
+  adminId: string;
+  role?: string | null; // reserved for future per-channel roles (always null today)
+  joinedAt: string; // ISO
+}
+export interface ChatChannelDetailDTO extends ChatChannelDTO {
+  members: ChatChannelMemberDTO[];
+  // The channel's tab bar inputs: its Lists (queue tabs) and Canvas docs, each
+  // ordered by position. Just id + display label — the UI loads a tab's full
+  // contents on select (lists via listLists; canvases via the canvases GET).
+  lists: { id: string; name: string }[];
+  canvases: { id: string; title: string }[];
+}
+export interface ChatReactionGroupDTO {
+  emoji: string;
+  adminIds: string[]; // admins who reacted with this emoji
+}
+// A compact, denormalized snapshot of a list item, attached to a message that
+// carries a `listItemId` so the chat pane can render an inline "task card"
+// (the Image-1 item card) without a second round-trip. Field values are already
+// resolved for display: SELECT -> { value, label, color }, PERSON -> admin id.
+export interface ChatMessageListItemFieldDTO {
+  name: string; // the field's display name (e.g. "Category", "Assignee")
+  type: ChatFieldType;
+  value: unknown; // the raw stored value (option id, admin id, ISO date, …)
+  label?: string | null; // SELECT: the chosen option's label
+  color?: string | null; // SELECT: the chosen option's color
+}
+export interface ChatMessageListItemCardDTO {
+  itemId: string;
+  listId: string;
+  title: string;
+  fields: ChatMessageListItemFieldDTO[]; // non-empty cells, in column order
+}
+export interface ChatMessageDTO {
+  id: string;
+  seq: number; // global monotonic order; reconnect catch-up via ?afterSeq=
+  channelId: string;
+  authorAdminId: string;
+  body: string; // blanked when deletedAt is set (soft-delete)
+  parentMessageId?: string | null; // set => thread reply
+  createdAt: string; // ISO
+  editedAt?: string | null; // ISO
+  deletedAt?: string | null; // ISO
+  reactions: ChatReactionGroupDTO[];
+  replyCount: number; // direct thread replies to this message
+  // Workflow provenance: set when a ChatWorkflow auto-posted this message. The UI
+  // renders the workflow name + a WORKFLOW badge instead of the admin author.
+  workflowId?: string | null;
+  workflowName?: string | null;
+  // Inline item card: set when the message references a list item (auto-posted by
+  // a workflow, or a "turn message into task" provenance). Drives the card render.
+  listItemCard?: ChatMessageListItemCardDTO | null;
+}
+export interface CreateChatChannelInput {
+  name: string;
+  topic?: string;
+  isPrivate?: boolean;
+}
+export interface UpdateChatChannelInput {
+  name?: string;
+  topic?: string | null;
+  archived?: boolean; // true sets archivedAt, false clears it
+}
+
+// ---------- Direct messages (DMs) ----------
+// Open-or-get a DM with one or more other admins. The acting admin is always
+// added server-side, so `adminIds` is just the OTHER participant(s); the final
+// member set must contain >=2 distinct admins. A DM is deduped by a `dmKey`
+// (the sorted member ids joined by ":"), so opening the same set twice returns
+// the existing channel.
+export interface OpenDmInput {
+  adminIds: string[];
+}
+// A DM row in the "Direct messages" rail. It's a ChatChannel under the hood;
+// `otherAdminIds` are the participants OTHER than the viewer (drives the row
+// label/avatar). Sorted most-recently-active first by the API.
+export interface ChatDmDTO {
+  id: string;
+  kind: ChatChannelKind; // DM (1:1) or GROUP_DM
+  otherAdminIds: string[]; // participants other than the acting admin
+  unreadCount: number; // messages from others since this admin's lastReadSeq
+  mentionCount: number; // unread @mentions of this admin in the DM
+  lastMessageAt: string | null; // ISO of the most recent message (null when empty); sort key
+}
+export interface SendMessageInput {
+  body: string;
+  parentMessageId?: string; // set => post as a thread reply
+  mentionedAdminIds?: string[]; // creates ChatMention rows + drives mention unread
+}
+export interface EditMessageInput {
+  body: string;
+}
+export interface ChatReactionToggleInput {
+  emoji: string; // add if the admin hasn't reacted with it, else remove
+}
+export interface MarkReadInput {
+  seq?: number; // defaults to the channel's current max message seq
+}
+export interface UnreadChannelDTO {
+  channelId: string;
+  unreadCount: number;
+  mentionCount: number;
+}
+export interface UnreadSummaryDTO {
+  channels: UnreadChannelDTO[];
+  totalUnread: number;
+  unreadChannels: number; // channels with >0 unread
+  totalMentions: number;
+}
+export type ChatListItemStatus = "TODO" | "IN_PROGRESS" | "DONE";
+
+// Rich custom-field Lists (Slack-Lists / Airtable style). Each list owns a set
+// of user-defined columns (ChatListFieldDTO); each item carries a `values` map
+// keyed by field id, plus a per-item comment thread. This sits ALONGSIDE the
+// legacy fixed columns (status/assigneeAdminId/dueDate), which remain for now.
+export type ChatFieldType =
+  | "TEXT"
+  | "LONG_TEXT"
+  | "SELECT"
+  | "MULTI_SELECT"
+  | "PERSON" // an Admin id
+  | "MULTI_PERSON" // multiple assignees — array of Admin ids
+  | "DATE" // ISO date string
+  | "URL"
+  | "NUMBER"
+  | "CHECKBOX"
+  | "SECRET"; // masked credential
+export interface ChatListFieldOption {
+  id: string;
+  label: string;
+  color?: string | null;
+}
+// On INPUT, an option may omit its id — the server generates a stable one.
+export interface ChatListFieldOptionInput {
+  id?: string;
+  label: string;
+  color?: string | null;
+}
+export interface ChatListFieldDTO {
+  id: string;
+  listId: string;
+  key: string; // stable slug, unique within the list
+  name: string;
+  type: ChatFieldType;
+  options: ChatListFieldOption[]; // SELECT/MULTI_SELECT choices ([] otherwise)
+  config: Record<string, unknown>; // per-type extras (required, number format, …)
+  position: number;
+}
+export interface ChatListItemCommentDTO {
+  id: string;
+  itemId: string;
+  authorAdminId: string;
+  body: string;
+  createdAt: string; // ISO
+  editedAt?: string | null; // ISO
+}
+export interface ChatListItemDTO {
+  id: string;
+  listId: string;
+  title: string;
+  status: ChatListItemStatus;
+  assigneeAdminId?: string | null;
+  dueDate?: string | null; // ISO
+  position: number;
+  values: Record<string, unknown>; // custom-field values keyed by ChatListField.id
+  commentCount: number; // non-deleted comments on this item
+  createdFromMessageId?: string | null; // "turn a message into a task" provenance
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
+export interface ChatListDTO {
+  id: string;
+  channelId?: string | null; // null = stand-alone list
+  name: string;
+  createdByAdminId: string;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+  fields: ChatListFieldDTO[]; // custom columns, ordered by position
+  items: ChatListItemDTO[];
+}
+export interface CreateChatListInput {
+  name: string;
+  channelId?: string;
+}
+export interface CreateChatListItemInput {
+  title: string;
+  status?: ChatListItemStatus;
+  assigneeAdminId?: string;
+  dueDate?: string; // ISO
+  values?: Record<string, unknown>; // custom-field values (validated against fields)
+}
+export interface UpdateChatListItemInput {
+  title?: string;
+  status?: ChatListItemStatus;
+  assigneeAdminId?: string | null;
+  dueDate?: string | null; // ISO
+  position?: number;
+}
+export interface CreateListFieldInput {
+  name: string;
+  type?: ChatFieldType; // defaults to TEXT
+  options?: ChatListFieldOptionInput[]; // option ids auto-generated when omitted
+  config?: Record<string, unknown>;
+  position?: number;
+}
+export interface UpdateListFieldInput {
+  name?: string;
+  type?: ChatFieldType;
+  options?: ChatListFieldOptionInput[]; // option ids auto-generated when omitted
+  config?: Record<string, unknown>;
+  position?: number;
+}
+export interface ReorderListFieldsInput {
+  orderedFieldIds: string[];
+}
+export interface UpdateListItemValuesInput {
+  values: Record<string, unknown>; // merged into the item; keyed by field id
+}
+export interface CreateListItemCommentInput {
+  body: string;
+}
+export interface UpdateListItemCommentInput {
+  body: string;
+}
+export interface MessageToTaskInput {
+  listId: string; // target list; title is the (truncated) message body
+}
+
+// ----- Workflows: auto-post a list event into a channel (the Image-1 flow) -----
+// A trigger on a list fires an action: post a templated, @mentioned channel
+// message carrying an inline item card. Idempotent per (workflow, item, trigger).
+export type ChatWorkflowTrigger =
+  | "ITEM_CREATED"
+  | "ITEM_ASSIGNED"
+  | "ITEM_UPDATED";
+export interface ChatWorkflowConfig {
+  // The PERSON field whose value is the assignee to @mention. Defaults to the
+  // field literally named "Assignee" when omitted.
+  assigneeFieldId?: string;
+  // Override the default message template. Supports {actor} {assignee} {title}
+  // {field:Name} placeholders; absent fields drop their line.
+  template?: string;
+  includeCard?: boolean; // default true: attach the inline item card
+}
+export interface ChatWorkflowDTO {
+  id: string;
+  name: string;
+  listId: string;
+  channelId?: string | null; // post target; null => the list's own channel
+  trigger: ChatWorkflowTrigger;
+  config: ChatWorkflowConfig;
+  enabled: boolean;
+  createdByAdminId: string;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
+export interface CreateWorkflowInput {
+  name: string;
+  listId: string;
+  channelId?: string | null;
+  trigger: ChatWorkflowTrigger;
+  config?: ChatWorkflowConfig;
+}
+export interface UpdateWorkflowInput {
+  name?: string;
+  channelId?: string | null;
+  trigger?: ChatWorkflowTrigger;
+  config?: ChatWorkflowConfig;
+  enabled?: boolean;
+}
+
+// ----- Canvas docs: rich-text tabs pinned to a channel (the "Web SOP" tab) -----
+// A channel hosts multiple canvases as header tabs alongside Messages + its
+// Lists. `content` is sanitized editor HTML. Ordered by position.
+export interface ChatCanvasDTO {
+  id: string;
+  channelId: string;
+  title: string;
+  content: string; // rich-text HTML (sanitized server-side on write)
+  position: number;
+  updatedAt: string; // ISO
+}
+export interface CreateCanvasInput {
+  title: string;
+  content?: string; // HTML (sanitized server-side)
+  position?: number;
+}
+export interface UpdateCanvasInput {
+  title?: string;
+  content?: string; // HTML (sanitized server-side)
+  position?: number;
+}
+
 export const ROUTES = {
   // auth
   memberLogin: "POST /auth/login", // body {email,password} -> LoginResponse<AuthUser>
@@ -1931,7 +2233,7 @@ export const ROUTES = {
   submitForm: "POST /forms/:id/submit", // body FormSubmitInput -> FormSubmitResult
   formEmbedScript: "GET /forms/:id/embed.js", // -> JS for <script> paste-anywhere embeds
 
-  // contacts / audiences (in-house list — replaces Mailchimp) — ADMIN (RBAC `contacts`)
+  // contacts / audiences (in-house list) — ADMIN (RBAC `contacts`)
   adminListAudiences: "GET /admin/audiences", // -> AudienceDTO[] (with contact + subscribed counts)
   adminCreateAudience: "POST /admin/audiences", // body CreateAudienceInput -> AudienceDTO
   adminGetAudience: "GET /admin/audiences/:id", // -> AudienceDTO
@@ -1944,7 +2246,6 @@ export const ROUTES = {
   adminCreateContact: "POST /admin/audiences/:id/contacts", // body CreateContactInput -> ContactDTO
   adminUpdateContact: "PATCH /admin/contacts/:id", // body UpdateContactInput -> ContactDTO
   adminDeleteContact: "DELETE /admin/contacts/:id", // -> { ok: true }
-  adminImportContacts: "POST /admin/contacts/import", // -> ImportSummary (one-time Mailchimp → in-house import; idempotent; 400 if Mailchimp unconfigured)
   adminListSegments: "GET /admin/audiences/:id/segments", // -> SegmentDTO[] (each with resolved contactCount)
   adminCreateSegment: "POST /admin/audiences/:id/segments", // body CreateSegmentInput -> SegmentDTO
   adminUpdateSegment: "PATCH /admin/segments/:id", // body UpdateSegmentInput -> SegmentDTO
@@ -2036,9 +2337,6 @@ export const ROUTES = {
   getStripeSettings: "GET /admin/settings/stripe",
   putStripeSettings: "PUT /admin/settings/stripe", // body {secretKey?, webhookSecret?, publishableKey?}
   deleteStripeSettings: "DELETE /admin/settings/stripe", // clears all Stripe creds
-  getMailchimpSettings: "GET /admin/settings/mailchimp",
-  putMailchimpSettings: "PUT /admin/settings/mailchimp",
-  deleteMailchimpSettings: "DELETE /admin/settings/mailchimp", // clears all Mailchimp creds
   getEmailSettings: "GET /admin/settings/email", // -> EmailSettingsMasked (pass + Resend key never returned, only passSet/resendApiKeySet)
   putEmailSettings: "PUT /admin/settings/email", // body EmailSettingsInput (blank pass/resendApiKey keeps stored; provider "smtp"|"resend")
   deleteEmailSettings: "DELETE /admin/settings/email", // clears all email/SMTP creds
@@ -2047,6 +2345,57 @@ export const ROUTES = {
   deletePayPalSettings: "DELETE /admin/settings/paypal", // clears all PayPal creds
   getPaymentProvider: "GET /admin/settings/payment-provider", // -> {provider}
   putPaymentProvider: "PUT /admin/settings/payment-provider", // body {provider}; 400 if target provider unconfigured
+
+  // projects: internal team chat + task lists — ADMIN (RBAC `projects`)
+  // channels
+  adminListProjectChannels: "GET /admin/projects/channels", // -> ChatChannelDTO[] (visible: public + private joined; each w/ unread + mention counts)
+  adminCreateProjectChannel: "POST /admin/projects/channels", // body CreateChatChannelInput -> ChatChannelDetailDTO (creator auto-joins)
+  adminGetProjectChannel: "GET /admin/projects/channels/:id", // -> ChatChannelDetailDTO (+ members + lists/canvases tab inputs)
+  adminUpdateProjectChannel: "PATCH /admin/projects/channels/:id", // body UpdateChatChannelInput -> ChatChannelDetailDTO
+  adminJoinProjectChannel: "POST /admin/projects/channels/:id/join", // -> ChatChannelDetailDTO (creates own ChatMember)
+  adminLeaveProjectChannel: "POST /admin/projects/channels/:id/leave", // -> { ok: true } (deletes own ChatMember)
+  // direct messages (DMs) — DM/GROUP_DM channels excluded from the channel list above
+  adminOpenProjectDm: "POST /admin/projects/dms", // body OpenDmInput -> ChatChannelDTO (open-or-get; deduped by sorted-member dmKey)
+  adminListProjectDms: "GET /admin/projects/dms", // -> ChatDmDTO[] (DMs the actor is in; unread + mention + lastMessageAt; most-recent first)
+  // messages
+  adminListProjectMessages: "GET /admin/projects/channels/:id/messages", // ?afterSeq&limit (default 50) -> ChatMessageDTO[] (seq ASC, excludes soft-deleted; reconnect catch-up)
+  adminSendProjectMessage: "POST /admin/projects/channels/:id/messages", // body SendMessageInput -> ChatMessageDTO (sets sender's lastReadSeq)
+  adminEditProjectMessage: "PATCH /admin/projects/messages/:id", // body EditMessageInput -> ChatMessageDTO (own message; sets editedAt)
+  adminDeleteProjectMessage: "DELETE /admin/projects/messages/:id", // own message; soft-delete (sets deletedAt, blanks body) -> ChatMessageDTO
+  adminListProjectMessageReplies: "GET /admin/projects/messages/:id/replies", // -> ChatMessageDTO[] (thread replies, seq ASC)
+  adminToggleProjectReaction: "POST /admin/projects/messages/:id/reactions", // body ChatReactionToggleInput -> ChatMessageDTO (toggle by unique [message,admin,emoji])
+  adminMarkProjectChannelRead: "POST /admin/projects/channels/:id/read", // body MarkReadInput? -> { ok: true } (lastReadSeq = {seq} or channel max)
+  // unread (single batch endpoint)
+  adminProjectUnread: "GET /admin/projects/unread", // -> UnreadSummaryDTO (per-channel unread + mention counts + totals)
+  // lists (task boards)
+  adminListProjectLists: "GET /admin/projects/lists", // ?channelId -> ChatListDTO[] (with items)
+  adminCreateProjectList: "POST /admin/projects/lists", // body CreateChatListInput -> ChatListDTO
+  adminAddProjectListItem: "POST /admin/projects/lists/:id/items", // body CreateChatListItemInput -> ChatListItemDTO
+  adminUpdateProjectListItem: "PATCH /admin/projects/list-items/:id", // body UpdateChatListItemInput -> ChatListItemDTO
+  adminDeleteProjectListItem: "DELETE /admin/projects/list-items/:id", // -> { ok: true }
+  adminProjectMessageToTask: "POST /admin/projects/messages/:id/to-task", // body MessageToTaskInput -> ChatListItemDTO (title = message body, createdFromMessageId set)
+  // list custom fields (Slack-Lists columns); list detail returns ChatListDTO.fields
+  adminCreateProjectListField: "POST /admin/projects/lists/:id/fields", // body CreateListFieldInput -> ChatListFieldDTO (auto-slug key, unique per list)
+  adminUpdateProjectListField: "PATCH /admin/projects/list-fields/:fieldId", // body UpdateListFieldInput -> ChatListFieldDTO
+  adminDeleteProjectListField: "DELETE /admin/projects/list-fields/:fieldId", // -> { ok: true }
+  adminReorderProjectListFields: "POST /admin/projects/lists/:id/fields/reorder", // body ReorderListFieldsInput -> ChatListFieldDTO[]
+  // list item custom-field values (validated against each field's type)
+  adminUpdateProjectListItemValues: "PATCH /admin/projects/list-items/:id/values", // body UpdateListItemValuesInput -> ChatListItemDTO (merge)
+  // per-item comments (the 💬 thread)
+  adminListProjectListItemComments: "GET /admin/projects/list-items/:id/comments", // -> ChatListItemCommentDTO[] (oldest→newest, excludes soft-deleted)
+  adminCreateProjectListItemComment: "POST /admin/projects/list-items/:id/comments", // body CreateListItemCommentInput -> ChatListItemCommentDTO
+  adminUpdateProjectListItemComment: "PATCH /admin/projects/list-item-comments/:cid", // body UpdateListItemCommentInput -> ChatListItemCommentDTO (own; sets editedAt)
+  adminDeleteProjectListItemComment: "DELETE /admin/projects/list-item-comments/:cid", // own; soft-delete -> { ok: true }
+  // workflows (auto-post a list event into a channel — the Image-1 flow)
+  adminListProjectWorkflows: "GET /admin/projects/workflows", // ?listId -> ChatWorkflowDTO[]
+  adminCreateProjectWorkflow: "POST /admin/projects/workflows", // body CreateWorkflowInput -> ChatWorkflowDTO
+  adminUpdateProjectWorkflow: "PATCH /admin/projects/workflows/:id", // body UpdateWorkflowInput -> ChatWorkflowDTO
+  adminDeleteProjectWorkflow: "DELETE /admin/projects/workflows/:id", // -> { ok: true }
+  // canvas docs (rich-text channel tabs — the "Web SOP" tab)
+  adminListProjectCanvases: "GET /admin/projects/channels/:id/canvases", // -> ChatCanvasDTO[] (ordered by position)
+  adminCreateProjectCanvas: "POST /admin/projects/channels/:id/canvases", // body CreateCanvasInput -> ChatCanvasDTO
+  adminUpdateProjectCanvas: "PATCH /admin/projects/canvases/:cid", // body UpdateCanvasInput -> ChatCanvasDTO
+  adminDeleteProjectCanvas: "DELETE /admin/projects/canvases/:cid", // -> { ok: true }
 
   // infra
   health: "GET /health", // public probe -> { status, env, uptime, checks: { db, redis } }

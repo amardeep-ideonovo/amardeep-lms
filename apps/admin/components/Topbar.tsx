@@ -77,6 +77,18 @@ const COMMANDS: Cmd[] = [
     section: "certificates",
   },
   {
+    id: "go-projects",
+    title: "Projects: Channels",
+    href: "/projects",
+    section: "projects",
+  },
+  {
+    id: "go-projects-lists",
+    title: "Projects: Lists",
+    href: "/projects/lists",
+    section: "projects",
+  },
+  {
     id: "go-subscriptions",
     title: "Subscriptions",
     href: "/subscriptions",

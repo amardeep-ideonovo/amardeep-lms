@@ -4,7 +4,6 @@ import { SentryModule } from '@sentry/nestjs/setup';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueueModule } from './queue/queue.module';
 import { SettingsModule } from './settings/settings.module';
-import { MailchimpModule } from './mailchimp/mailchimp.module';
 import { ContactsModule } from './contacts/contacts.module';
 import { EmailModule } from './email/email.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -27,6 +26,7 @@ import { SearchModule } from './search/search.module';
 import { MenusModule } from './menus/menus.module';
 import { SiteModule } from './site/site.module';
 import { ReportsModule } from './reports/reports.module';
+import { ProjectsModule } from './projects/projects.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -40,7 +40,6 @@ import { HealthModule } from './health/health.module';
     PrismaModule,
     QueueModule,
     SettingsModule,
-    MailchimpModule,
     ContactsModule,
     EmailModule,
     NotificationsModule,
@@ -65,6 +64,7 @@ import { HealthModule } from './health/health.module';
     MenusModule,
     SiteModule,
     ReportsModule,
+    ProjectsModule,
   ],
 })
 export class AppModule {}
