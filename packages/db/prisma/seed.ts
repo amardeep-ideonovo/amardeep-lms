@@ -80,13 +80,20 @@ async function completeLesson(userId: string, lessonId: string) {
 }
 
 async function main() {
-  // ----- Admin -----
-  const adminPassword = "admin123";
+  // Provisioning knobs. A freshly provisioned client instance passes its own
+  // first-admin credentials and turns demo content OFF (SEED_DEMO_CONTENT=false),
+  // so it boots empty-but-working. Local dev sets nothing → the old demo seed
+  // runs verbatim (admin@example.com / admin123 + full catalog).
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@example.com";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "admin123";
+  const seedDemo = process.env.SEED_DEMO_CONTENT !== "false";
+
+  // ----- Admin (first owner) -----
   const admin = await prisma.admin.upsert({
-    where: { email: "admin@example.com" },
+    where: { email: adminEmail },
     update: {},
     create: {
-      email: "admin@example.com",
+      email: adminEmail,
       passwordHash: await bcrypt.hash(adminPassword, 10),
       role: "SUPER_ADMIN",
     },
@@ -103,6 +110,14 @@ async function main() {
       mailchimpTags: ["free"],
     },
   });
+
+  // Real client instances stop here: one admin + a Free level, nothing else.
+  // (The AppConfig branding singleton is created on first read by the API.)
+  if (!seedDemo) {
+    void freeLevel;
+    console.log(`Seed complete (baseline). Admin: ${adminEmail}`);
+    return;
+  }
 
   const proLevel = await prisma.level.upsert({
     where: { id: "seed-level-pro" },
@@ -552,7 +567,7 @@ async function main() {
   void freeLevel;
 
   console.log("Seed complete.");
-  console.log(`  Admin:  admin@example.com / ${adminPassword}`);
+  console.log(`  Admin:  ${adminEmail} / ${adminPassword}`);
   console.log(`  Member: member@example.com / ${memberPassword} (has Pro)`);
   console.log(`  Blog:   3 published posts + 1 draft, 2 categories`);
   console.log(`  Pages:  1 published (/about) + 1 draft (coming-soon)`);

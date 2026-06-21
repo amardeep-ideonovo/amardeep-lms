@@ -15,12 +15,12 @@ import type { PageStatus, PuckDocument } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import RichTextEditor from "@/components/RichTextEditor";
 import FormPickerField from "@/components/FormPickerField";
+import { webUrl } from "@/lib/runtime-env";
 
 type PageData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-const WEB_URL =
-  process.env.NEXT_PUBLIC_WEB_URL?.replace(/\/$/, "") || "http://localhost:3002";
+const WEB_URL = webUrl();
 
 // Editor-side preview for the Puck "Form" block (the real form renders on the site).
 function FormPreview({ formId }: { formId: string }) {

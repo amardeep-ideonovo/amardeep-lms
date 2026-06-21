@@ -18,6 +18,7 @@ import type {
   CreateFormInput,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { apiUrl, webUrl } from "@/lib/runtime-env";
 
 // Escape one CSV cell (quote if it contains a comma/quote/newline).
 function csvCell(v: unknown): string {
@@ -85,10 +86,8 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 const slugifyKey = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "field";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:3000";
-const WEB_URL =
-  process.env.NEXT_PUBLIC_WEB_URL?.replace(/\/$/, "") || "http://localhost:3002";
+const API_URL = apiUrl();
+const WEB_URL = webUrl();
 
 // Read-only render of one field for the live preview canvas.
 function previewField(fld: FormFieldDef) {

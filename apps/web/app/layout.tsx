@@ -15,6 +15,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        {/* Per-instance runtime config — loads before the app bundle so
+            window.__ENV__ (API/web origins) is set when lib/api.ts runs. */}
+        <script src="/env.js" />
         <Nav />
         <main className="container">{children}</main>
       </body>

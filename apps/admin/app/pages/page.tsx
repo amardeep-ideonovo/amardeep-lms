@@ -4,11 +4,10 @@ import { useEffect, useState } from "react";
 import type { PageListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { withBase } from "@/lib/base-path";
+import { webUrl } from "@/lib/runtime-env";
 
-// Where to open the public "View" link. Set NEXT_PUBLIC_WEB_URL in prod;
-// defaults to the dev member site.
-const WEB_URL =
-  process.env.NEXT_PUBLIC_WEB_URL?.replace(/\/$/, "") || "http://localhost:3002";
+// Where to open the public "View" link — resolved at runtime per instance.
+const WEB_URL = webUrl();
 
 export default function PagesPage() {
   const [pages, setPages] = useState<PageListItem[]>([]);
