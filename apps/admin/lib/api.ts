@@ -121,13 +121,16 @@ import type {
   UpdateCanvasInput,
 } from "@lms/types";
 import { withBase } from "./base-path";
+import { apiUrl } from "./runtime-env";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:3000";
+// API base is resolved per call at runtime via apiUrl() — see ./runtime-env.
+// (One prebuilt admin image, many instances: the origin comes from the
+// container's env at request time, not baked into the bundle.)
 
 // Public API origin for asset URLs the browser loads directly (media previews,
-// certificate fonts in the template editor's @font-face rules).
-export const API_BASE_URL = BASE_URL;
+// certificate fonts in the template editor's @font-face rules). Resolved once
+// at module load — /env.js has set window.__ENV__ before the bundle runs.
+export const API_BASE_URL = apiUrl();
 
 const TOKEN_KEY = "lms.admin.token";
 
@@ -167,7 +170,7 @@ async function request<T>(
   if (token) headers["Authorization"] = `Bearer ${token}`;
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${apiUrl()}${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -205,7 +208,7 @@ async function request<T>(
 // the multipart boundary itself, so we must NOT set Content-Type.
 async function multipartFetch(path: string, fd: FormData): Promise<Response> {
   const token = getToken();
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${apiUrl()}${path}`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: fd,
@@ -251,7 +254,7 @@ async function uploadMediaFile(path: string, file: File): Promise<MediaDTO> {
 // via a temporary <a download>. Used for lesson notes.
 async function downloadBlob(path: string, filename: string): Promise<void> {
   const token = getToken();
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${apiUrl()}${path}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new ApiError(res.status, `Download failed (${res.status})`);

@@ -46,8 +46,27 @@ import type {
   UpdateProfileInput,
 } from "@lms/types";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:3000";
+// API origin resolved at RUNTIME (not baked at build) so one prebuilt image can
+// serve any provisioned instance:
+//   • browser → window.__ENV__.apiUrl (from /env.js, set before hydration)
+//   • SSR     → API_URL_INTERNAL (in-network) then RUNTIME_API_URL (public)
+//   • else    → build-time NEXT_PUBLIC_API_URL, then localhost
+function apiBase(): string {
+  if (typeof window !== "undefined") {
+    const env = (window as unknown as { __ENV__?: { apiUrl?: string } }).__ENV__;
+    return (
+      env?.apiUrl ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://localhost:3000"
+    ).replace(/\/$/, "");
+  }
+  return (
+    process.env.API_URL_INTERNAL ||
+    process.env.RUNTIME_API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:3000"
+  ).replace(/\/$/, "");
+}
 
 const TOKEN_KEY = "lms_member_token";
 const ME_CACHE_KEY = "lms_member_me";
@@ -116,7 +135,7 @@ async function request<T>(path: string, opts: Options = {}): Promise<T> {
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${apiBase()}${path}`, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -164,7 +183,7 @@ export const api = {
     const token = getToken();
     const fd = new FormData();
     fd.append("file", file, "avatar.jpg");
-    const res = await fetch(`${API_BASE}/auth/me/avatar`, {
+    const res = await fetch(`${apiBase()}/auth/me/avatar`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: fd,
@@ -226,7 +245,7 @@ export const api = {
   // Same authed blob-download pattern as lesson notes.
   downloadCertificate: async (cert: { downloadUrl: string; serial: string; className: string }) => {
     const token = getToken();
-    const res = await fetch(`${API_BASE}${cert.downloadUrl}`, {
+    const res = await fetch(`${apiBase()}${cert.downloadUrl}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       cache: "no-store",
     });
@@ -247,7 +266,7 @@ export const api = {
   // fetch it with the member's token and save the blob via a temp <a download>.
   downloadNote: async (note: { downloadUrl: string; originalName: string }) => {
     const token = getToken();
-    const res = await fetch(`${API_BASE}${note.downloadUrl}`, {
+    const res = await fetch(`${apiBase()}${note.downloadUrl}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       cache: "no-store",
     });
@@ -514,7 +533,7 @@ export async function fetchActivePopups(
 // lets a dismiss-on-navigation ping still flush.
 export function recordPopupEvent(id: string, type: PopupEventType): void {
   try {
-    void fetch(`${API_BASE}/popups/${encodeURIComponent(id)}/event`, {
+    void fetch(`${apiBase()}/popups/${encodeURIComponent(id)}/event`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type }),
@@ -525,4 +544,4 @@ export function recordPopupEvent(id: string, type: PopupEventType): void {
   }
 }
 
-export { API_BASE };
+export { apiBase };
