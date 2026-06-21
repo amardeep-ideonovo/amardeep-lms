@@ -79,6 +79,9 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body>
+        {/* Per-instance runtime config — loads before the app bundle so
+            window.__ENV__ (API/web origins) is set when lib/api.ts runs. */}
+        <script src="/env.js" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <Nav
           initialHeader={header}

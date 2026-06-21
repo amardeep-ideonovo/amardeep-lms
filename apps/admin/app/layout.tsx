@@ -6,6 +6,7 @@ import Topbar from "@/components/Topbar";
 import AuthGuard from "@/components/AuthGuard";
 import { AdminAuthProvider } from "@/components/AdminAuthProvider";
 import { DialogProvider } from "@/components/DialogProvider";
+import { withBase } from "@/lib/base-path";
 
 // UI/body sans + display serif — exposed as CSS vars consumed by globals.css.
 const montserrat = Montserrat({
@@ -46,6 +47,11 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
+        {/* Per-instance runtime config — loads before the app bundle so
+            window.__ENV__ (API/web origins) is set when lib/api.ts runs.
+            withBase() honors NEXT_PUBLIC_ADMIN_BASE_PATH when the admin is
+            served under a path prefix (e.g. /admin). */}
+        <script src={withBase("/env.js")} />
         <AdminAuthProvider>
           <DialogProvider>
             <div className="app-shell">
