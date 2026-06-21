@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import type { CertificateVerifyDTO } from "@lms/types";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:3000";
+import { apiBase } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Verify certificate",
@@ -22,7 +20,7 @@ export default async function VerifyCertificatePage({
   let result: CertificateVerifyDTO = { valid: false };
   try {
     const res = await fetch(
-      `${API_BASE}/certificates/verify/${encodeURIComponent(serial)}`,
+      `${apiBase()}/certificates/verify/${encodeURIComponent(serial)}`,
       { cache: "no-store" },
     );
     if (res.ok) result = (await res.json()) as CertificateVerifyDTO;
