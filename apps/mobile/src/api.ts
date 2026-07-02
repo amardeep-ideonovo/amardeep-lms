@@ -17,6 +17,9 @@ import type {
   LessonDTO,
   LessonNoteDTO,
   LevelDTO,
+  LiveCurrentDTO,
+  LiveJoinCredentialsDTO,
+  LiveSessionBarDTO,
   LoginResponse,
   MyClassCoursesDTO,
   PagePublicDTO,
@@ -160,6 +163,17 @@ export const api = {
     request<ClassPublicDTO>(`/levels/page/${encodeURIComponent(slugOrId)}`, {
       auth: false,
     }),
+
+  // live sessions (member-facing; server-gated by entitlement + join window).
+  // The join URL/passcode come from liveCredentials only inside the window; the
+  // app opens the meeting in the native Zoom / Google Meet app via Linking.
+  liveCurrent: () => request<LiveCurrentDTO>("/live/current"),
+  liveSession: (id: string) =>
+    request<LiveSessionBarDTO>(`/live/${encodeURIComponent(id)}`),
+  liveCredentials: (id: string) =>
+    request<LiveJoinCredentialsDTO>(
+      `/live/${encodeURIComponent(id)}/credentials`,
+    ),
 
   // account self-service (profile + password; purchases stay on the web)
   me: () => request<AuthUser>("/auth/me"),

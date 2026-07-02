@@ -41,6 +41,7 @@ import { ClassScreen } from "./src/screens/ClassScreen";
 import { CourseListScreen } from "./src/screens/CourseListScreen";
 import { CourseScreen } from "./src/screens/CourseScreen";
 import { LessonScreen } from "./src/screens/LessonScreen";
+import { LiveSessionScreen } from "./src/screens/LiveSessionScreen";
 import { AccountScreen } from "./src/screens/AccountScreen";
 import { PaymentsScreen } from "./src/screens/PaymentsScreen";
 import { PlansScreen } from "./src/screens/PlansScreen";
@@ -71,6 +72,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       Class: "classes/:slugOrId",
       Course: "courses/:courseId",
       Lesson: "lessons/:lessonId",
+      LiveSession: "live/:sessionId",
       BlogPost: "blog/:slug",
       Payments: "account/payments",
       Plans: "pricing/all",
@@ -203,6 +205,11 @@ function AppNavigator() {
         name="Lesson"
         component={LessonScreen}
         options={({ route }) => ({ title: route.params.title ?? "Lesson" })}
+      />
+      <AppStack.Screen
+        name="LiveSession"
+        component={LiveSessionScreen}
+        options={({ route }) => ({ title: route.params.title ?? "Live Session" })}
       />
       <AppStack.Screen
         name="Payments"
