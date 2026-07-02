@@ -1182,6 +1182,20 @@ export interface LiveJoinCredentialsDTO {
   serverNow: string; // ISO UTC
 }
 
+// Zoom Meeting SDK in-page embed config. Released by GET /live/:id/zoom to an
+// entitled member inside the window (Zoom sessions only). The signature is
+// minted server-side from the SDK secret; the member joins in-page with it. The
+// member may override `password` client-side (the SDK takes it at join time).
+export interface LiveZoomEmbedDTO {
+  sdkKey: string; // public SDK key (safe in the browser)
+  signature: string; // HS256 JWT signed with the SDK secret (server-only)
+  meetingNumber: string;
+  userName: string; // display name for the roster
+  password: string | null; // admin passcode if set (member can override/enter)
+  endsAt: string; // ISO UTC
+  serverNow: string; // ISO UTC
+}
+
 // Admin create/update payload. The SERVER converts startsAtLocal + timezone to a
 // UTC instant (never the browser). joinUrl/password travel plaintext over TLS and
 // are encrypted at rest; omit joinUrl on update to keep the stored one, and send

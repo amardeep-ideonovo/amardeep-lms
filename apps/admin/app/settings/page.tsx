@@ -7,6 +7,7 @@ import {
   type EmailSettingsMasked,
   type PayPalSettingsMasked,
   type StripeSettingsMasked,
+  type ZoomSettingsMasked,
 } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
@@ -36,6 +37,7 @@ export default function SettingsPage() {
       <StripeSection />
       <PayPalSection />
       <EmailSenderSection />
+      <ZoomSection />
     </div>
   );
 }
@@ -280,6 +282,130 @@ function StripeSection() {
             disabled={removing || saving}
           >
             {removing ? "Removing…" : "Remove keys"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ZoomSection() {
+  const [current, setCurrent] = useState<ZoomSettingsMasked | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [sdkKey, setSdkKey] = useState("");
+  const [sdkSecret, setSdkSecret] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function load() {
+    setError(null);
+    try {
+      const s = await api.getZoomSettings();
+      setCurrent(s);
+      setSdkKey(s.sdkKey ?? "");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Failed to load Zoom settings"
+      );
+    }
+  }
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const updated = await api.putZoomSettings({
+        sdkKey: sdkKey.trim() || undefined,
+        sdkSecret: sdkSecret.trim() || undefined,
+      });
+      setCurrent(updated);
+      setSdkSecret("");
+      setStatus("Zoom settings saved.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove() {
+    if (
+      !(await dialog.confirm({
+        message: "Remove the Zoom SDK credentials?",
+        danger: true,
+      }))
+    )
+      return;
+    setRemoving(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const cleared = await api.clearZoomSettings();
+      setCurrent(cleared);
+      setSdkKey("");
+      setSdkSecret("");
+      setStatus("Zoom credentials removed.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Remove failed");
+    } finally {
+      setRemoving(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <h2>Zoom (in-page live sessions)</h2>
+      <p className="subtitle">
+        From a Zoom “Meeting SDK” app at marketplace.zoom.us. Lets Zoom live
+        sessions play inside the member’s page instead of opening a new tab.
+        Google Meet always opens in a new tab (Google doesn’t allow embedding).
+      </p>
+      <form onSubmit={save}>
+        <div className="field">
+          <label>
+            SDK key <span className="muted">(public)</span>
+          </label>
+          <input
+            value={sdkKey}
+            placeholder="Zoom Meeting SDK key"
+            onChange={(e) => setSdkKey(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+        <div className="field">
+          <label>
+            SDK secret{" "}
+            <span className="muted">
+              (current: {masked(current?.sdkSecretLast4 ?? null)})
+            </span>
+          </label>
+          <input
+            type="password"
+            value={sdkSecret}
+            placeholder="Zoom Meeting SDK secret  (leave blank to keep)"
+            onChange={(e) => setSdkSecret(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+        {error && <p className="error">{error}</p>}
+        {status && <p className="muted">{status}</p>}
+        <div className="row-actions">
+          <button className="btn" type="submit" disabled={saving || removing}>
+            {saving ? "Saving…" : "Save Zoom settings"}
+          </button>
+          <button
+            type="button"
+            className="btn btn--danger"
+            onClick={remove}
+            disabled={removing || saving}
+          >
+            {removing ? "Removing…" : "Remove credentials"}
           </button>
         </div>
       </form>

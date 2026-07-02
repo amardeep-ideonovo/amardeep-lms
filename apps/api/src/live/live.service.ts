@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type {
@@ -13,12 +14,19 @@ import type {
   LiveJoinCredentialsDTO,
   LiveProvider,
   LiveSessionBarDTO,
+  LiveZoomEmbedDTO,
 } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccessService } from '../lms/access.service';
+import { SettingsService } from '../settings/settings.service';
 import { decryptSecret, encryptSecret } from '../common/crypto.util';
 import { utcFromLocalInput } from '../common/wallclock.util';
-import { providerHostAllowed, providerLabel } from './live.util';
+import {
+  parseZoomMeetingNumber,
+  providerHostAllowed,
+  providerLabel,
+  zoomSdkSignature,
+} from './live.util';
 import { CreateLiveSessionDto, UpdateLiveSessionDto } from './dto/live-session.input';
 
 // Always load targets (with class names) so we can resolve the audience label.
@@ -35,6 +43,7 @@ export class LiveService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
+    private readonly settings: SettingsService,
   ) {}
 
   // --------------------------------------------------------------------------
@@ -379,6 +388,85 @@ export class LiveService {
       password: s.passwordEnc
         ? this.crypto(() => decryptSecret(s.passwordEnc as string))
         : null,
+      endsAt: s.endsAt.toISOString(),
+      serverNow: now.toISOString(),
+    };
+  }
+
+  // Zoom Meeting SDK embed config — the in-page join path (Zoom only). Same gate
+  // as credentials (entitled + window + SCHEDULED) plus a provider check; mints
+  // an SDK signature from the server-only SDK secret and audits the release. The
+  // signature + public SDK key go to the browser; the secret never does.
+  async zoomEmbedForUser(
+    userId: string,
+    id: string,
+  ): Promise<LiveZoomEmbedDTO> {
+    const s = await this.prisma.liveSession.findUnique({
+      where: { id },
+      include: withTargets,
+    });
+    if (!s || s.status !== 'SCHEDULED') {
+      throw new NotFoundException('Live session not found');
+    }
+    if (s.provider !== 'ZOOM') {
+      throw new BadRequestException('This session is not a Zoom meeting.');
+    }
+    if (!this.entitled(await this.access.activeLevelIds(userId), s)) {
+      throw new ForbiddenException('You do not have access to this live session');
+    }
+    const now = new Date();
+    const joinsAt = s.startsAt.getTime() - s.joinLeadMin * 60_000;
+    if (now.getTime() < joinsAt || now >= s.endsAt) {
+      throw new ForbiddenException({
+        code: 'OUTSIDE_WINDOW',
+        message: 'This session is not open to join right now.',
+      });
+    }
+    const [sdkKey, sdkSecret] = await Promise.all([
+      this.settings.getZoomSdkKey(),
+      this.settings.getZoomSdkSecret(),
+    ]);
+    if (!sdkKey || !sdkSecret) {
+      throw new ServiceUnavailableException(
+        'Zoom embedding is not configured — add the Zoom SDK key & secret in Settings.',
+      );
+    }
+    const joinUrl = this.crypto(() => decryptSecret(s.joinUrlEnc));
+    const meetingNumber = parseZoomMeetingNumber(joinUrl);
+    if (!meetingNumber) {
+      throw new UnprocessableEntityException(
+        'This Zoom link has no numeric meeting id (a personal/vanity link can’t be embedded).',
+      );
+    }
+    const password = s.passwordEnc
+      ? this.crypto(() => decryptSecret(s.passwordEnc as string))
+      : null;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { firstName: true, lastName: true, username: true, email: true },
+    });
+    const userName =
+      [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
+      user?.username ||
+      user?.email?.split('@')[0] ||
+      'Member';
+    const remainingSec = Math.ceil((s.endsAt.getTime() - now.getTime()) / 1000);
+    const signature = zoomSdkSignature(
+      sdkKey,
+      sdkSecret,
+      meetingNumber,
+      0,
+      remainingSec + 1800,
+    );
+    await this.prisma.liveJoinAudit.create({
+      data: { liveSessionId: s.id, userId },
+    });
+    return {
+      sdkKey,
+      signature,
+      meetingNumber,
+      userName,
+      password,
       endsAt: s.endsAt.toISOString(),
       serverNow: now.toISOString(),
     };

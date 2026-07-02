@@ -27,6 +27,7 @@ import type {
   LevelDTO,
   LiveSessionBarDTO,
   LiveJoinCredentialsDTO,
+  LiveZoomEmbedDTO,
   LoginResponse,
   MyClassCoursesDTO,
   MySubscriptionDTO,
@@ -205,6 +206,8 @@ export const api = {
     request<LiveJoinCredentialsDTO>(
       `/live/${encodeURIComponent(id)}/credentials`,
     ),
+  liveZoomEmbed: (id: string) =>
+    request<LiveZoomEmbedDTO>(`/live/${encodeURIComponent(id)}/zoom`),
   myClassCourses: (slugOrId: string) =>
     request<MyClassCoursesDTO>(
       `/levels/${encodeURIComponent(slugOrId)}/my-courses`,

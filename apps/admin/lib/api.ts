@@ -301,6 +301,14 @@ export interface StripeSettingsMasked {
   webhookSecretLast4: string | null;
   publishableKey: string | null;
 }
+export interface ZoomSettings {
+  sdkKey?: string;
+  sdkSecret?: string;
+}
+export interface ZoomSettingsMasked {
+  sdkKey: string | null; // public (ships to the browser to join) — shown in full
+  sdkSecretLast4: string | null;
+}
 // Email sender settings live in @lms/types (write-only secrets: SMTP pass +
 // Resend API key). Re-exported so admin components import the contract from one
 // place. `provider` selects the pluggable sender ("smtp" | "resend").
@@ -571,6 +579,12 @@ export const api = {
     request<StripeSettingsMasked>("PUT", "/admin/settings/stripe", input),
   clearStripeSettings: () =>
     request<StripeSettingsMasked>("DELETE", "/admin/settings/stripe"),
+  getZoomSettings: () =>
+    request<ZoomSettingsMasked>("GET", "/admin/settings/zoom"),
+  putZoomSettings: (input: ZoomSettings) =>
+    request<ZoomSettingsMasked>("PUT", "/admin/settings/zoom", input),
+  clearZoomSettings: () =>
+    request<ZoomSettingsMasked>("DELETE", "/admin/settings/zoom"),
   getEmailSettings: () =>
     request<EmailSettingsMasked>("GET", "/admin/settings/email"),
   putEmailSettings: (input: EmailSettingsInput) =>

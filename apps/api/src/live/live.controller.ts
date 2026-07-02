@@ -34,4 +34,13 @@ export class LiveController {
   credentials(@CurrentUser() p: AuthenticatedPrincipal, @Param('id') id: string) {
     return this.live.credentialsForUser(p.sub, id);
   }
+
+  // In-page Zoom embed config (signature + public SDK key). Zoom sessions only;
+  // same entitlement/window gate + throttle as credentials.
+  @UseGuards(LiveThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Get(':id/zoom')
+  zoom(@CurrentUser() p: AuthenticatedPrincipal, @Param('id') id: string) {
+    return this.live.zoomEmbedForUser(p.sub, id);
+  }
 }

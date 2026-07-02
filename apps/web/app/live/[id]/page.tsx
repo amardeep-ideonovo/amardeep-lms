@@ -3,9 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import type { LiveJoinCredentialsDTO, LiveSessionBarDTO } from "@lms/types";
+import type {
+  LiveJoinCredentialsDTO,
+  LiveSessionBarDTO,
+  LiveZoomEmbedDTO,
+} from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
+import ZoomEmbed from "@/components/ZoomEmbed";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 function countdown(ms: number): string {
@@ -35,6 +40,8 @@ function LiveInner() {
 
   const [session, setSession] = useState<LiveSessionBarDTO | null>(null);
   const [creds, setCreds] = useState<LiveJoinCredentialsDTO | null>(null);
+  const [zoomEmbed, setZoomEmbed] = useState<LiveZoomEmbedDTO | null>(null);
+  const [zoomUnavailable, setZoomUnavailable] = useState(false);
   const [screen, setScreen] = useState<Screen>("loading");
   const [errorMsg, setErrorMsg] = useState("");
   const [copied, setCopied] = useState(false);
@@ -78,22 +85,43 @@ function LiveInner() {
   const ended = !!session && now >= endsMs;
   const canJoin = !!session && now >= joinsMs && now < endsMs;
 
-  // Fetch credentials only once we're inside the join window (never before).
+  // Zoom embeds in-page; Google Meet can't be embedded, so it opens in a new tab.
+  const wantZoom = !!session && session.provider === "ZOOM" && !zoomUnavailable;
+
+  // Inside the join window, load only what this provider needs (never before it).
+  // Zoom → the in-page SDK embed config; Meet (or a Zoom that can't embed) → the
+  // join URL for the new tab.
   useEffect(() => {
-    if (screen !== "ok" || !canJoin || creds) return;
+    if (screen !== "ok" || !canJoin || !session) return;
     let alive = true;
-    api
-      .liveCredentials(id)
-      .then((c) => {
-        if (alive) setCreds(c);
-      })
-      .catch(() => {
-        /* outside-window race / transient — the shell UI still shows the state */
-      });
+    if (wantZoom) {
+      if (!zoomEmbed) {
+        api
+          .liveZoomEmbed(id)
+          .then((e) => alive && setZoomEmbed(e))
+          .catch((err) => {
+            // Not configured (503) or not embeddable (422) → new-tab fallback.
+            if (
+              alive &&
+              err instanceof ApiError &&
+              (err.status === 503 || err.status === 422)
+            ) {
+              setZoomUnavailable(true);
+            }
+          });
+      }
+    } else if (!creds) {
+      api
+        .liveCredentials(id)
+        .then((c) => alive && setCreds(c))
+        .catch(() => {
+          /* outside-window race / transient — the shell still shows the state */
+        });
+    }
     return () => {
       alive = false;
     };
-  }, [screen, canJoin, creds, id]);
+  }, [screen, canJoin, session, wantZoom, zoomEmbed, creds, id]);
 
   if (screen === "loading") {
     return (
@@ -156,6 +184,14 @@ function LiveInner() {
             Join {providerName(session.provider)}
           </button>
         </div>
+      ) : wantZoom ? (
+        zoomEmbed ? (
+          <ZoomEmbed embed={zoomEmbed} />
+        ) : (
+          <div className="live-panel">
+            <div className="spinner" aria-label="Preparing the meeting" />
+          </div>
+        )
       ) : !creds ? (
         <div className="live-panel">
           <div className="spinner" aria-label="Preparing your join link" />
@@ -166,7 +202,10 @@ function LiveInner() {
             {now >= startsMs ? "● Live now" : "Ready to join"}
           </p>
           <p className="live-hint">
-            You’re joining <strong>{hostOf(creds.joinUrl)}</strong> in a new tab.
+            {session.provider === "ZOOM"
+              ? "In-page joining isn’t set up yet — opening Zoom in a new tab. "
+              : "Google Meet opens in a new tab (Google doesn’t allow embedding). "}
+            You’re joining <strong>{hostOf(creds.joinUrl)}</strong>.
           </p>
           <button
             className="live-btn"
