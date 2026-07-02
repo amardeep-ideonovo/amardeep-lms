@@ -173,6 +173,18 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.chatWorkflowRun;
   }
 
+  // Live sessions: scheduled Zoom / Google Meet calls + their class targets and
+  // credential-release audit trail.
+  get liveSession() {
+    return this.client.liveSession;
+  }
+  get liveSessionTarget() {
+    return this.client.liveSessionTarget;
+  }
+  get liveJoinAudit() {
+    return this.client.liveJoinAudit;
+  }
+
   get $transaction() {
     return this.client.$transaction.bind(this.client);
   }

@@ -68,6 +68,7 @@ export const ADMIN_SECTIONS = [
   { key: "reports", label: "Reports", readOnly: true },
   { key: "certificates", label: "Certificates" },
   { key: "projects", label: "Projects" },
+  { key: "liveSessions", label: "Live Sessions" },
 ] as const;
 export type AdminSection = (typeof ADMIN_SECTIONS)[number]["key"];
 
@@ -1111,6 +1112,95 @@ export interface FormPublicDTO {
   redirectUrl: string | null;
 }
 // Admin record: full config + counts.
+// ---------- Live sessions ----------
+// Admin-scheduled Zoom / Google Meet calls surfaced to entitled members as a
+// countdown bar. Credentials are WRITE-ONLY on the admin side (presence booleans
+// only); the plaintext join URL is fetched separately via the reveal endpoint.
+export type LiveProvider = "ZOOM" | "GOOGLE_MEET";
+export type LiveAudience = "ALL_ACTIVE" | "LEVELS";
+export type LiveSessionStatus = "DRAFT" | "SCHEDULED" | "CANCELED";
+
+// Admin list/detail row. No plaintext credentials — only whether each is set.
+export interface AdminLiveSessionDTO {
+  id: string;
+  title: string;
+  description: string | null;
+  provider: LiveProvider;
+  audience: LiveAudience;
+  status: LiveSessionStatus;
+  levelIds: string[]; // targeted classes when audience === "LEVELS"
+  audienceLabel: string; // resolved class names, or "All members"
+  targetsEmpty: boolean; // LEVELS with 0 targets → shown to nobody (a warning state)
+  hasJoinUrl: boolean;
+  hasPassword: boolean;
+  startsAt: string; // ISO UTC
+  endsAt: string; // ISO UTC (stored = startsAt + durationMin)
+  durationMin: number;
+  joinLeadMin: number; // credentials/join unlock this many minutes before startsAt
+  timezone: string | null; // IANA zone the admin authored in (display only)
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Plaintext join URL (+ passcode) for the admin to verify/test-join a link.
+// Returned ONLY by GET /admin/live-sessions/:id/reveal (edit permission).
+export interface AdminLiveRevealDTO {
+  joinUrl: string;
+  password: string | null;
+}
+
+// Member-facing bar / join shell. Deliberately carries NO join URL or passcode —
+// those are released only by the credentials endpoint, inside the join window.
+export interface LiveSessionBarDTO {
+  id: string;
+  title: string;
+  description: string | null;
+  provider: LiveProvider;
+  audienceLabel: string; // "Directing" | "Directing, Screenwriting" | "All members"
+  startsAt: string; // ISO UTC
+  endsAt: string; // ISO UTC
+  joinsAt: string; // ISO UTC (startsAt - joinLeadMin)
+  timezone: string | null; // display label only
+  serverNow: string; // ISO UTC — client derives a clock offset from this
+  isLive: boolean; // server: now in [startsAt, endsAt)
+  canJoinNow: boolean; // server: now in [joinsAt, endsAt)
+  status: LiveSessionStatus; // members only ever see SCHEDULED here
+}
+
+// GET /live/current returns an array (capped).
+export type LiveCurrentDTO = LiveSessionBarDTO[];
+
+// Released ONLY by GET /live/:id/credentials, and only to an entitled member
+// inside the join window.
+export interface LiveJoinCredentialsDTO {
+  id: string;
+  title: string;
+  provider: LiveProvider;
+  joinUrl: string; // decrypted
+  password: string | null; // decrypted (null for Google Meet)
+  endsAt: string; // ISO UTC
+  serverNow: string; // ISO UTC
+}
+
+// Admin create/update payload. The SERVER converts startsAtLocal + timezone to a
+// UTC instant (never the browser). joinUrl/password travel plaintext over TLS and
+// are encrypted at rest; omit joinUrl on update to keep the stored one, and send
+// password: "" to clear a stored passcode (ignored entirely for GOOGLE_MEET).
+export interface LiveSessionInput {
+  title: string;
+  description?: string | null;
+  provider: LiveProvider;
+  audience: LiveAudience;
+  levelIds?: string[]; // required & non-empty when audience === "LEVELS"
+  joinUrl?: string; // required on create; omit on update to keep existing
+  password?: string; // "" clears; omit keeps; ignored for GOOGLE_MEET
+  startsAtLocal: string; // "YYYY-MM-DDTHH:mm" naive wall-time
+  timezone?: string | null; // IANA zone the wall-time is authored in
+  durationMin: number;
+  joinLeadMin?: number;
+}
+export type UpdateLiveSessionInput = Partial<LiveSessionInput>;
+
 export interface FormAdminRow {
   id: string;
   name: string;

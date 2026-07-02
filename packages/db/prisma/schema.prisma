@@ -66,6 +66,7 @@ model Admin {
   pages             Page[]
   media             MediaAsset[]
   notificationReads AdminNotificationRead[]
+  liveSessions      LiveSession[]          @relation("AdminLiveSessions")
 }
 
 // ---------- Membership levels ----------
@@ -104,6 +105,7 @@ model Level {
   certificateTemplate CertificateTemplate? @relation(fields: [certificateTemplateId], references: [id], onDelete: SetNull)
   certificates        Certificate[]
   audience            Audience?            @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+  liveSessionTargets  LiveSessionTarget[]  @relation("LevelLiveSessions")
 
   @@index([audienceId])
 }
@@ -1253,4 +1255,88 @@ model ChatListItem {
 
   @@index([listId, position])
   @@index([assigneeAdminId])
+}
+
+// ---------- Live sessions ----------
+// Admin-scheduled Zoom / Google Meet calls surfaced to entitled members as a
+// countdown "live" bar on the dashboard, opening a gated join page. A session
+// targets specific Class(es) (Level, via LiveSessionTarget) or every active
+// member (audience = ALL_ACTIVE). The join URL + passcode are stored AES-256-GCM
+// encrypted (crypto.util encryptSecret) exactly like Stripe secrets and are
+// NEVER placed on a bar/shell payload — they are released only by the
+// credentials endpoint, to an entitled member inside the join window, which
+// writes a LiveJoinAudit row. `endsAt` is STORED (= startsAt + durationMin) so
+// the "current" query is a pure indexed range with no per-row duration math.
+
+enum LiveProvider {
+  ZOOM
+  GOOGLE_MEET
+}
+
+enum LiveAudience {
+  ALL_ACTIVE // any member holding >=1 ACTIVE UserLevel
+  LEVELS // only members entitled to one of the targeted Levels (Classes)
+}
+
+enum LiveSessionStatus {
+  DRAFT // not yet visible to members
+  SCHEDULED // published; visible + joinable within its window
+  CANCELED // soft-canceled; entitled members get a 410 notice
+}
+
+model LiveSession {
+  id          String            @id @default(cuid())
+  title       String
+  description String?
+  provider    LiveProvider
+  audience    LiveAudience      @default(LEVELS)
+  status      LiveSessionStatus @default(DRAFT)
+
+  // AES-256-GCM ciphertext (crypto.util encryptSecret). Never plaintext, never
+  // on a bar/shell payload.
+  joinUrlEnc  String
+  passwordEnc String?
+
+  startsAt    DateTime // UTC instant
+  endsAt      DateTime // STORED = startsAt + durationMin (set at every write)
+  durationMin Int      @default(60)
+  joinLeadMin Int      @default(10) // credentials/join unlock this many minutes before startsAt
+  timezone    String? // IANA zone the admin authored in; DISPLAY ONLY, never in gating math
+
+  reminderSentAt DateTime? // pre-wire for the deferred reminder cron; unused in phase 1
+
+  createdById String?
+  createdBy   Admin?   @relation("AdminLiveSessions", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  targets    LiveSessionTarget[]
+  joinAudits LiveJoinAudit[]
+
+  @@index([status, endsAt]) // "current"/upcoming: WHERE status=SCHEDULED AND endsAt > now
+}
+
+// Many-to-many: a live session (audience = LEVELS) targets these Classes (Levels).
+model LiveSessionTarget {
+  liveSessionId String
+  levelId       String
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+  level         Level       @relation("LevelLiveSessions", fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@id([liveSessionId, levelId])
+  @@index([levelId])
+}
+
+// One row per credential release — the only tripwire for a forwarded/shared
+// bearer-authenticated join URL. userId is a plain scalar (no FK) so an audit
+// trail survives a member deletion for accountability.
+model LiveJoinAudit {
+  id            String      @id @default(cuid())
+  liveSessionId String
+  userId        String
+  at            DateTime    @default(now())
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+
+  @@index([liveSessionId, at])
+  @@index([userId, at])
 }

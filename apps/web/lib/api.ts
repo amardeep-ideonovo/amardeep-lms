@@ -25,6 +25,8 @@ import type {
   FormSubmitResult,
   LessonDTO,
   LevelDTO,
+  LiveSessionBarDTO,
+  LiveJoinCredentialsDTO,
   LoginResponse,
   MyClassCoursesDTO,
   MySubscriptionDTO,
@@ -194,6 +196,15 @@ export const api = {
   // classes (member): published class tiles for the dashboard, and a class's
   // courses (only returned when the member owns the class).
   myClasses: () => request<ClassTileDTO[]>("/levels/my-classes"),
+
+  // live sessions
+  liveCurrent: () => request<LiveSessionBarDTO[]>("/live/current"),
+  liveSession: (id: string) =>
+    request<LiveSessionBarDTO>(`/live/${encodeURIComponent(id)}`),
+  liveCredentials: (id: string) =>
+    request<LiveJoinCredentialsDTO>(
+      `/live/${encodeURIComponent(id)}/credentials`,
+    ),
   myClassCourses: (slugOrId: string) =>
     request<MyClassCoursesDTO>(
       `/levels/${encodeURIComponent(slugOrId)}/my-courses`,

@@ -7,6 +7,7 @@ import type { AuthUser, ClassTileDTO } from "@lms/types";
 import { ApiError, api, clearToken, getCachedMe, setCachedMe } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
+import LiveSessionBar from "@/components/LiveSessionBar";
 
 // A class tile (cinematic dark). Clicking opens the public class page
 // (/classes/<slug ?? id>), where an owner then sees its courses. "Enrolled"
@@ -183,6 +184,7 @@ function DashboardInner() {
     <div className="member-dash">
       <div className="md-wrap">
         <div className="md-head">
+          <div className="md-head-text">
           <h1>
             {enrolled.length > 0 ? (
               name ? (
@@ -203,6 +205,8 @@ function DashboardInner() {
                 ? `You're enrolled in ${enrolled.length} ${enrolled.length === 1 ? "class" : "classes"}.`
                 : "Explore the classes below to get started."}
           </p>
+          </div>
+          <LiveSessionBar />
         </div>
 
         {/* Continue learning — most recent enrolled class */}

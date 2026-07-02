@@ -153,6 +153,12 @@ const I = {
       <path d="M9 14.5 8 22l4-2.5L16 22l-1-7.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  liveSessions: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <rect x="2" y="6" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <path d="m16 10 6-3v10l-6-3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  ),
   settings: (
     <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
@@ -189,6 +195,7 @@ const GROUPS: NavGroup[] = [
       { href: "/classes", label: "Classes", section: "classes", icon: I.classes },
       { href: "/courses", label: "Courses", section: "courses", icon: I.courses },
       { href: "/certificates", label: "Certificates", section: "certificates", icon: I.certificates },
+      { href: "/live-sessions", label: "Live Sessions", section: "liveSessions", icon: I.liveSessions },
     ],
   },
   {
