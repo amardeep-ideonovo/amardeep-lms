@@ -15,8 +15,10 @@
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
-const BAKED_API_URL = process.env.EXPO_PUBLIC_API_URL ?? null;
-const BAKED_WEB_ACCOUNT_URL = process.env.EXPO_PUBLIC_WEB_ACCOUNT_URL ?? null;
+// `|| null` (not `?? null`): an empty EXPO_PUBLIC_API_URL must mean "shared
+// build", not a locked build hard-wired to an empty API base.
+const BAKED_API_URL = process.env.EXPO_PUBLIC_API_URL || null;
+const BAKED_WEB_ACCOUNT_URL = process.env.EXPO_PUBLIC_WEB_ACCOUNT_URL || null;
 
 // Locked = this binary serves exactly one instance (white-label / dev).
 export const IS_LOCKED_BUILD = BAKED_API_URL != null;
@@ -56,15 +58,19 @@ export function isBound(): boolean {
 
 // ---------- per-instance storage namespacing ----------
 // One shared binary can serve different instances over its lifetime; tokens and
-// cached branding must never leak across instances. Keys are suffixed with a
-// sanitized form of the instance API host (SecureStore allows [A-Za-z0-9._-]).
+// cached branding must never leak across instances. The scope keeps the scheme
+// so http:// and https:// origins never collapse into one namespace.
 export function storageScope(): string {
-  const base = API_BASE_URL.replace(/^https?:\/\//, "");
-  return base.replace(/[^A-Za-z0-9._-]/g, "-") || "unbound";
+  return API_BASE_URL.replace(/[^A-Za-z0-9._-]/g, "-") || "unbound";
 }
 
 export function scopedKey(base: string): string {
-  return `${base}.${storageScope()}`;
+  // A LOCKED build serves exactly one instance for the life of the binary, so
+  // it keeps the ORIGINAL un-namespaced keys — namespacing them would log out
+  // (and orphan the keychain entries of) every existing install on the update
+  // that ships this change. Only SHARED builds, which switch instances, need
+  // the per-instance suffix.
+  return IS_LOCKED_BUILD ? base : `${base}.${storageScope()}`;
 }
 
 // ---------- binding persistence (shared builds) ----------

@@ -50,10 +50,9 @@ const config = (): ExpoConfig => ({
     },
   },
   android: {
-    package:
-      process.env.INSTANCE_ANDROID_PACKAGE ??
-      process.env.INSTANCE_IOS_BUNDLE_ID ??
-      "com.lms.mobile",
+    // Its own env — do NOT fall back to the iOS bundle id: iOS identifiers
+    // allow characters (e.g. hyphens) that are illegal in an Android package.
+    package: process.env.INSTANCE_ANDROID_PACKAGE ?? "com.lms.mobile",
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#100c1b",

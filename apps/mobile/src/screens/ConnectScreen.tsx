@@ -40,9 +40,21 @@ export function ConnectScreen({
   const [error, setError] = useState<string | null>(null);
 
   // Validate a binding by fetching the instance's public branding config —
-  // proves the URL is a live LMS API before we commit to it.
+  // proves the URL is a live LMS API before we commit to it. Timed out so a
+  // black-holing host doesn't hang the button forever.
   const validateAndBind = async (b: InstanceBinding) => {
-    const res = await fetch(`${b.apiUrl.replace(/\/$/, "")}/app/config`);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    let res: Response;
+    try {
+      res = await fetch(`${b.apiUrl.replace(/\/$/, "")}/app/config`, {
+        signal: ctrl.signal,
+      });
+    } catch {
+      throw new Error("Couldn't reach that academy. Check the details and try again.");
+    } finally {
+      clearTimeout(t);
+    }
     if (!res.ok) throw new Error("That server doesn't look like an academy.");
     const cfg = (await res.json()) as { title?: string };
     const bound: InstanceBinding = { ...b, name: cfg.title ?? b.name };
@@ -55,12 +67,18 @@ export function ConnectScreen({
     if (!trimmed) return;
     setBusy(true);
     setError(null);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
     try {
       const res = await fetch(
         `${DIRECTORY_URL}/api/app/resolve?code=${encodeURIComponent(trimmed)}`,
+        { signal: ctrl.signal },
       );
       if (res.status === 404) {
         throw new Error("No academy found for that code. Check it and try again.");
+      }
+      if (res.status === 429) {
+        throw new Error("Too many attempts. Please wait a minute and try again.");
       }
       if (!res.ok) throw new Error("Could not reach the directory. Try again.");
       const data = (await res.json()) as {
@@ -72,6 +90,7 @@ export function ConnectScreen({
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not connect.");
     } finally {
+      clearTimeout(t);
       setBusy(false);
     }
   };
@@ -101,8 +120,9 @@ export function ConnectScreen({
       <View style={styles.body}>
         <Text style={styles.title}>Connect your academy</Text>
         <Text style={styles.subtitle}>
-          Enter the connect code from your academy&apos;s welcome email or
-          member website.
+          {advanced
+            ? "Enter your academy's server address."
+            : "Enter the connect code from your academy's welcome email or member website."}
         </Text>
 
         {!advanced ? (

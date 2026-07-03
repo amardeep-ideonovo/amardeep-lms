@@ -24,7 +24,7 @@ import {
 
 import { AuthProvider, useAuth } from "./src/auth";
 import { BrandHeaderTitle } from "./src/components/BrandHeaderTitle";
-import { WEB_BASE_URL } from "./src/config";
+import { IS_LOCKED_BUILD, WEB_BASE_URL, unbindInstance } from "./src/config";
 import { ConfigProvider, useAppConfig } from "./src/config-provider";
 import { InstanceGate } from "./src/instance-gate";
 import { navigationRef } from "./src/nav-ref";
@@ -279,6 +279,24 @@ function VersionGate({ kind }: { kind: "appOutdated" | "apiOutdated" }) {
       </Text>
       {kind === "apiOutdated" && (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
+      )}
+      {/* Escape hatch: a shared binary must never be stranded on one instance
+          by a bad/misconfigured version response — let the user disconnect and
+          pick another academy (the instance gate remounts to the Connect
+          screen). Locked white-label builds serve one instance, so no hatch. */}
+      {!IS_LOCKED_BUILD && (
+        <Text
+          onPress={() => void unbindInstance()}
+          style={{
+            color: colors.primary,
+            fontSize: 15,
+            fontFamily: fonts.bold,
+            textAlign: "center",
+            marginTop: 28,
+          }}
+        >
+          Switch academy
+        </Text>
       )}
     </View>
   );

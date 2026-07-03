@@ -18,10 +18,13 @@ export class PublicAppConfigController {
   @Get('config')
   async config(): Promise<AppConfig> {
     const config = await this.appConfig.read();
+    // `|| null` (not `?? null`): the Dockerfile sets APP_VERSION="" on an
+    // unstamped build, and an empty string must read as "absent" so the app's
+    // "no apiVersion = never gate" invariant holds.
     return {
       ...config,
-      apiVersion: process.env.APP_VERSION ?? null,
-      minAppVersion: process.env.MIN_APP_VERSION ?? null,
+      apiVersion: process.env.APP_VERSION || null,
+      minAppVersion: process.env.MIN_APP_VERSION || null,
     };
   }
 }

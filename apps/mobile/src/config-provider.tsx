@@ -29,10 +29,16 @@ const configKey = () => scopedKey("lms.appconfig");
 // the oldest instance API this app build is known to work against. Instances
 // that predate the handshake report no apiVersion and are never gated.
 const REQUIRED_API_VERSION = "0.0.0";
-const APP_VERSION = Constants.expoConfig?.version ?? "0.0.0";
+// null when the runtime can't report this app's version — in that case we must
+// NOT gate (fail open), or a version we can't even read would brick the app.
+const APP_VERSION_RAW = Constants.expoConfig?.version ?? null;
+const APP_VERSION = APP_VERSION_RAW ?? "0.0.0";
 
-// Segment-wise numeric compare that handles both semver ("0.1.0") and image
-// stamps ("2026.07.03-abc1234"); missing segments count as 0.
+const hasDigits = (v: string) => /\d/.test(v);
+
+// Segment-wise numeric compare. Both operands here are semver-ish app versions
+// ("0.1.0"); missing segments count as 0. Callers must pre-check hasDigits so a
+// non-version string never silently compares as 0.0.0.
 function versionAtLeast(actual: string, required: string): boolean {
   const parse = (v: string) =>
     (v.match(/\d+/g) ?? []).slice(0, 3).map((n) => parseInt(n, 10));
@@ -51,16 +57,32 @@ export type VersionCompat = {
   appOutdated: boolean; // API demands a newer app build (store/OTA update)
 };
 
+// Both gates FAIL OPEN: they only trip on a well-formed version we can actually
+// compare. A misconfigured/garbled minAppVersion, an unknown app version, or an
+// empty apiVersion must never brick the app (recovery would need a reinstall).
 function compatOf(config: AppConfig): VersionCompat {
-  const apiVersion = config.apiVersion ?? null;
-  const minAppVersion = config.minAppVersion ?? null;
+  const apiVersion = config.apiVersion || null;
+  const minAppVersion = config.minAppVersion || null;
   return {
     apiOutdated:
       REQUIRED_API_VERSION !== "0.0.0" &&
       apiVersion != null &&
+      hasDigits(apiVersion) &&
       !versionAtLeast(apiVersion, REQUIRED_API_VERSION),
-    appOutdated: minAppVersion != null && !versionAtLeast(APP_VERSION, minAppVersion),
+    appOutdated:
+      APP_VERSION_RAW != null &&
+      minAppVersion != null &&
+      hasDigits(minAppVersion) &&
+      !versionAtLeast(APP_VERSION, minAppVersion),
   };
+}
+
+// The handshake fields are evaluated live, never persisted — a bad
+// minAppVersion cached from one bad response must not keep gating offline cold
+// starts. Strip them before caching branding.
+function stripVersionFields(config: AppConfig): AppConfig {
+  const { apiVersion: _a, minAppVersion: _m, ...rest } = config;
+  return rest;
 }
 
 type ConfigState = {
@@ -132,7 +154,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       const fresh = await api.appConfig();
       if (JSON.stringify(fresh) !== JSON.stringify(configRef.current)) {
         setConfig(fresh);
-        void writeCache(fresh);
+        void writeCache(stripVersionFields(fresh));
       }
     } catch {
       // offline / API down — keep the current config
@@ -154,7 +176,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         const fresh = await api.appConfig();
         if (alive) {
           setConfig(fresh);
-          void writeCache(fresh);
+          void writeCache(stripVersionFields(fresh));
         }
       } catch {
         // offline / API down — keep the cached or default config
