@@ -10,8 +10,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)" # repo root (two levels up)
 cd "$ROOT"
 
-echo "Building LMS instance images from $ROOT ..."
-docker build -f apps/api/Dockerfile   -t "${API_IMAGE:-lms-api:local}"     .
+# Version stamp baked into the API image for the app<->API handshake
+# (date + git sha, e.g. 2026.07.03-abc1234). Override with APP_VERSION.
+STAMP="${APP_VERSION:-$(date +%Y.%m.%d)-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+
+echo "Building LMS instance images from $ROOT (APP_VERSION=$STAMP) ..."
+docker build -f apps/api/Dockerfile   -t "${API_IMAGE:-lms-api:local}"     --build-arg APP_VERSION="$STAMP" .
 docker build -f apps/web/Dockerfile   -t "${WEB_IMAGE:-lms-web:local}"     .
 docker build -f apps/admin/Dockerfile -t "${ADMIN_IMAGE:-lms-admin:local}" .
 

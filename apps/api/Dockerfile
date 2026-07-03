@@ -32,6 +32,11 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 ENV PORT=3000
 
+# Version stamp for the app<->API handshake (GET /app/config + /health).
+# Set by deploy/instance/build-images.sh; empty means "unstamped dev build".
+ARG APP_VERSION=""
+ENV APP_VERSION=${APP_VERSION}
+
 COPY --from=build /app ./
 
 EXPOSE 3000

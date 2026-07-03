@@ -16,7 +16,7 @@ import * as SecureStore from "expo-secure-store";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 
 import { api, ApiError, getToken, noteDownloadUrl } from "../api";
-import { API_BASE_URL, WEB_ACCOUNT_URL } from "../config";
+import { API_BASE_URL, WEB_ACCOUNT_URL, scopedKey } from "../config";
 import { Loading, ErrorState, Centered } from "../components/Screen";
 import { Press } from "../components/Press";
 import { LockedPanel } from "../components/LockedPanel";
@@ -119,7 +119,7 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
       return;
     }
 
-    const SAF_DIR_KEY = "lms.saf.dir";
+    const SAF_DIR_KEY = scopedKey("lms.saf.dir");
     setSavingNoteId(note.id);
     try {
       const token = await getToken();

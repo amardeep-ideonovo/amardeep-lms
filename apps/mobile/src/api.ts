@@ -35,9 +35,11 @@ import type {
 } from "@lms/types";
 
 import { File, UploadType } from "expo-file-system";
-import { API_BASE_URL } from "./config";
+import { API_BASE_URL, scopedKey } from "./config";
 
-const TOKEN_KEY = "lms.auth.token";
+// Namespaced per instance (see config.ts): a shared binary switching between
+// instances must never reuse another instance's session token.
+const tokenKey = () => scopedKey("lms.auth.token");
 
 // ---------- token storage ----------
 // SecureStore is native-only; on web (incl. the Expo-web preview) fall back to
@@ -47,24 +49,24 @@ const isWeb = Platform.OS === "web";
 export async function getToken(): Promise<string | null> {
   if (isWeb) {
     return typeof localStorage !== "undefined"
-      ? localStorage.getItem(TOKEN_KEY)
+      ? localStorage.getItem(tokenKey())
       : null;
   }
-  return SecureStore.getItemAsync(TOKEN_KEY);
+  return SecureStore.getItemAsync(tokenKey());
 }
 export async function setToken(token: string): Promise<void> {
   if (isWeb) {
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(tokenKey(), token);
     return;
   }
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
+  await SecureStore.setItemAsync(tokenKey(), token);
 }
 export async function clearToken(): Promise<void> {
   if (isWeb) {
-    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(tokenKey());
     return;
   }
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await SecureStore.deleteItemAsync(tokenKey());
 }
 
 // ---------- error type so screens can branch on status (e.g. 403 locked) ----------

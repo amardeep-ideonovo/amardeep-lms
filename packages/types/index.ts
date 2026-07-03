@@ -1842,6 +1842,10 @@ export interface AppConfig {
   colorScheme: AppColorScheme; // which palette the app uses (system follows device)
   light: AppThemePalette;
   dark: AppThemePalette;
+  // ---- version handshake (injected by the API at response time, never stored;
+  // absent on instances older than the handshake) ----
+  apiVersion?: string | null; // the running API's version stamp (e.g. "2026.07.03-abc1234")
+  minAppVersion?: string | null; // oldest app version this API supports
 }
 export interface UpdateAppConfigInput {
   appConfig: AppConfig;

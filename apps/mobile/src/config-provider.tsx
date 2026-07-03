@@ -9,16 +9,64 @@ import React, {
 } from "react";
 import { AppState, Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
+import Constants from "expo-constants";
 import type { AppConfig } from "@lms/types";
 
 import { api } from "./api";
+import { scopedKey } from "./config";
 import { DEFAULT_APP_CONFIG } from "./theme";
 
-const CONFIG_KEY = "lms.appconfig";
+// Namespaced per instance (see config.ts) so a shared binary never paints one
+// instance with another instance's cached branding.
+const configKey = () => scopedKey("lms.appconfig");
+
+// ---- app <-> API version handshake ----
+// The API injects apiVersion/minAppVersion into GET /app/config. The app
+// compares them here so version skew gates gracefully (a friendly screen)
+// instead of breaking silently on missing endpoints.
+//
+// Bump REQUIRED_API_VERSION only in lockstep with a fleet image upgrade: it is
+// the oldest instance API this app build is known to work against. Instances
+// that predate the handshake report no apiVersion and are never gated.
+const REQUIRED_API_VERSION = "0.0.0";
+const APP_VERSION = Constants.expoConfig?.version ?? "0.0.0";
+
+// Segment-wise numeric compare that handles both semver ("0.1.0") and image
+// stamps ("2026.07.03-abc1234"); missing segments count as 0.
+function versionAtLeast(actual: string, required: string): boolean {
+  const parse = (v: string) =>
+    (v.match(/\d+/g) ?? []).slice(0, 3).map((n) => parseInt(n, 10));
+  const a = parse(actual);
+  const r = parse(required);
+  for (let i = 0; i < Math.max(a.length, r.length); i++) {
+    const x = a[i] ?? 0;
+    const y = r[i] ?? 0;
+    if (x !== y) return x > y;
+  }
+  return true;
+}
+
+export type VersionCompat = {
+  apiOutdated: boolean; // instance API is older than this app build supports
+  appOutdated: boolean; // API demands a newer app build (store/OTA update)
+};
+
+function compatOf(config: AppConfig): VersionCompat {
+  const apiVersion = config.apiVersion ?? null;
+  const minAppVersion = config.minAppVersion ?? null;
+  return {
+    apiOutdated:
+      REQUIRED_API_VERSION !== "0.0.0" &&
+      apiVersion != null &&
+      !versionAtLeast(apiVersion, REQUIRED_API_VERSION),
+    appOutdated: minAppVersion != null && !versionAtLeast(APP_VERSION, minAppVersion),
+  };
+}
 
 type ConfigState = {
   config: AppConfig;
   loading: boolean; // true until the first cache/network resolution
+  compat: VersionCompat;
 };
 
 const ConfigContext = createContext<ConfigState | undefined>(undefined);
@@ -32,9 +80,9 @@ async function readCache(): Promise<AppConfig | null> {
   try {
     const raw = isWeb
       ? typeof localStorage !== "undefined"
-        ? localStorage.getItem(CONFIG_KEY)
+        ? localStorage.getItem(configKey())
         : null
-      : await SecureStore.getItemAsync(CONFIG_KEY);
+      : await SecureStore.getItemAsync(configKey());
     return raw ? (JSON.parse(raw) as AppConfig) : null;
   } catch {
     return null;
@@ -45,9 +93,9 @@ async function writeCache(config: AppConfig): Promise<void> {
   try {
     const raw = JSON.stringify(config);
     if (isWeb) {
-      if (typeof localStorage !== "undefined") localStorage.setItem(CONFIG_KEY, raw);
+      if (typeof localStorage !== "undefined") localStorage.setItem(configKey(), raw);
     } else {
-      await SecureStore.setItemAsync(CONFIG_KEY, raw);
+      await SecureStore.setItemAsync(configKey(), raw);
     }
   } catch {
     // best-effort cache; never block on it
@@ -149,7 +197,10 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     };
   }, [refresh]);
 
-  const value = useMemo<ConfigState>(() => ({ config, loading }), [config, loading]);
+  const value = useMemo<ConfigState>(
+    () => ({ config, loading, compat: compatOf(config) }),
+    [config, loading],
+  );
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;
 }
 
