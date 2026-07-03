@@ -4,6 +4,7 @@ import {
   API_BASE_URL,
   IS_LOCKED_BUILD,
   loadInstanceBinding,
+  setUnbindListener,
 } from "./config";
 import { ConnectScreen } from "./screens/ConnectScreen";
 
@@ -23,6 +24,9 @@ export function InstanceGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (IS_LOCKED_BUILD) return;
     void loadInstanceBinding().then((b) => setState(b ? "bound" : "unbound"));
+    // "Switch academy" (LoginScreen) unbinds; land back on the Connect screen.
+    setUnbindListener(() => setState("unbound"));
+    return () => setUnbindListener(null);
   }, []);
 
   if (state === "loading") return null; // native splash stays up

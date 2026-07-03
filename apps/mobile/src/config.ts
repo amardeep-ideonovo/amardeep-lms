@@ -107,13 +107,21 @@ export async function bindInstance(b: InstanceBinding): Promise<void> {
   await SecureStore.setItemAsync(BINDING_KEY, raw);
 }
 
+// The InstanceGate registers here so "Switch academy" (LoginScreen) can drop
+// the binding and land back on the Connect screen without an app restart.
+let unbindListener: (() => void) | null = null;
+export function setUnbindListener(fn: (() => void) | null): void {
+  unbindListener = fn;
+}
+
 export async function unbindInstance(): Promise<void> {
   API_BASE_URL = "";
   WEB_ACCOUNT_URL = "";
   WEB_BASE_URL = "";
   if (isWeb) {
     if (typeof localStorage !== "undefined") localStorage.removeItem(BINDING_KEY);
-    return;
+  } else {
+    await SecureStore.deleteItemAsync(BINDING_KEY);
   }
-  await SecureStore.deleteItemAsync(BINDING_KEY);
+  unbindListener?.();
 }
