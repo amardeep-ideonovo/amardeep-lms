@@ -1,4 +1,5 @@
 import { setWorldConstructor, World, setDefaultTimeout } from "@cucumber/cucumber";
+import type { SmtpCatcher } from "./smtp-catcher";
 
 setDefaultTimeout(30_000);
 
@@ -30,6 +31,12 @@ export class LmsWorld extends World {
   certificateTemplateId: string | null = null; // template created by the scenario
   certificateId: string | null = null; // claimed certificate row
   certificateSerial: string | null = null; // serial of the FIRST claim (idempotency checks)
+  // password-reset.feature state (@email-capture hooks own catcher + settings)
+  smtpCatcher: SmtpCatcher | null = null; // in-process SMTP sink for the scenario
+  savedEmailSettings: any = null; // GET /admin/settings/email snapshot for restore
+  resetMemberEmail: string | null = null; // fresh member created by the scenario
+  resetMemberPassword: string | null = null; // that member's original password
+  resetToken: string | null = null; // token extracted from the captured email
 
   async request(
     method: string,

@@ -1,5 +1,75 @@
-import { After } from "@cucumber/cucumber";
+import { After, Before } from "@cucumber/cucumber";
 import { LmsWorld } from "./world";
+import { SmtpCatcher } from "./smtp-catcher";
+
+// @email-capture scenarios need real outbound mail they can read (e.g. the
+// password-reset link). Start an in-process SMTP sink on an ephemeral
+// loopback port and point the platform's LIVE email settings at it via the
+// admin API — the SMTP sender re-reads settings per send, so no restart is
+// needed. The prior settings are snapshotted first and restored in After
+// (same live-settings discipline as @paypal-settings). The stored SMTP
+// password is never touched: PUT no-ops on omitted secrets and the sink
+// accepts any credentials, so there's nothing irrecoverable here.
+Before({ tags: "@email-capture" }, async function (this: LmsWorld) {
+  this.smtpCatcher = new SmtpCatcher();
+  const port = await this.smtpCatcher.start();
+  const token = await this.adminToken();
+  const current = await this.request("GET", "/admin/settings/email", { token });
+  this.savedEmailSettings = current.status === 200 ? current.body : null;
+  const r = await this.request("PUT", "/admin/settings/email", {
+    token,
+    body: {
+      provider: "smtp",
+      host: "127.0.0.1",
+      port: String(port),
+      user: "bdd-catcher",
+      secure: false,
+    },
+  });
+  if (r.status !== 200) {
+    throw new Error(`could not point email settings at the catcher (${r.status})`);
+  }
+});
+
+After({ tags: "@email-capture" }, async function (this: LmsWorld) {
+  await this.smtpCatcher?.stop().catch(() => undefined);
+  this.smtpCatcher = null;
+  try {
+    const token = await this.adminToken();
+    const s = this.savedEmailSettings;
+    const wasEmpty =
+      s &&
+      !s.host &&
+      !s.user &&
+      !s.passSet &&
+      !s.resendApiKeySet &&
+      !s.fromEmail &&
+      !s.fromName;
+    if (!s || wasEmpty) {
+      // Nothing was configured before (CI, fresh dev DB) — clear everything
+      // the hook wrote. Safe: passSet was false, so DELETE loses no secret.
+      await this.request("DELETE", "/admin/settings/email", { token });
+    } else {
+      // Restore the readable fields we overwrote (provider/host/port/user/
+      // secure). PUT can't null a field, so an oddball partial config (e.g.
+      // host set but user unset) keeps the catcher's value there — accepted,
+      // cleanup is best-effort like every other hook in this file.
+      await this.request("PUT", "/admin/settings/email", {
+        token,
+        body: {
+          provider: s.provider ?? undefined,
+          host: s.host ?? undefined,
+          port: s.port != null ? String(s.port) : undefined,
+          user: s.user ?? undefined,
+          secure: !!s.secure,
+        },
+      });
+    }
+  } catch {
+    /* cleanup is best-effort */
+  }
+  this.savedEmailSettings = null;
+});
 
 // Payment-provider scenarios mutate LIVE settings (the public /billing/config
 // drives the member checkout UI), so restore stripe + wipe the BDD PayPal

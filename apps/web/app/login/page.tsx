@@ -61,6 +61,11 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
+        <p className="sub" style={{ textAlign: "right", marginTop: -6, marginBottom: 14 }}>
+          <Link href="/forgot-password" className="link">
+            Forgot password?
+          </Link>
+        </p>
         <button
           type="submit"
           className="btn btn-primary btn-block press"

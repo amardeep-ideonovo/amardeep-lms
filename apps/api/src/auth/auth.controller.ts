@@ -17,6 +17,8 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateAdminPrefsDto } from './dto/update-admin-prefs.dto';
@@ -36,6 +38,11 @@ const LOGIN_TTL_MS = 60_000;
 // be used to enumerate which emails are registered (409 vs 200).
 const SIGNUP_LIMIT = Number(process.env.THROTTLE_SIGNUP_LIMIT) || 3;
 const SIGNUP_TTL_MS = 60_000;
+// Forgot-password matches signup's 3/min/IP: every hit on a real account
+// sends a mail, so the cap keeps the endpoint useless as a mail cannon and
+// slows probing (the response itself never reveals whether an account exists).
+const FORGOT_LIMIT = Number(process.env.THROTTLE_FORGOT_LIMIT) || 3;
+const FORGOT_TTL_MS = 60_000;
 
 // Absolute base for the embeddable avatar URL. Mirrors media.controller.
 function baseUrlOf(req: Request): string {
@@ -77,6 +84,30 @@ export class AuthController {
   @Throttle({ default: { limit: SIGNUP_LIMIT, ttl: SIGNUP_TTL_MS } })
   memberSignup(@Body() dto: SignupDto) {
     return this.auth.signupMember(dto);
+  }
+
+  // Member self-serve password reset, step 1. ALWAYS 200 with { ok: true } —
+  // success and unknown-email are deliberately indistinguishable so the
+  // endpoint can't enumerate accounts. Tightly throttled: each hit on a real
+  // account sends an email.
+  @Post('forgot-password')
+  @HttpCode(200)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: FORGOT_LIMIT, ttl: FORGOT_TTL_MS } })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.forgotPassword(dto.email);
+  }
+
+  // Member self-serve password reset, step 2. The emailed signed token is the
+  // credential; 400 on any invalid/expired/already-used token. Rate-limited
+  // like login (the token is unguessable, but there's no reason to allow
+  // hammering an unauthenticated password-writing route).
+  @Post('reset-password')
+  @HttpCode(200)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto.token, dto.newPassword);
   }
 
   @UseGuards(JwtAuthGuard)
