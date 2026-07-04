@@ -14,7 +14,7 @@ name: Publish images
 
 on:
   push:
-    branches: [main, upgrade/expo-sdk-56]
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -49,7 +49,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.app }}
           tags: |
-            type=raw,value=latest,enable=${{ github.ref_name == 'upgrade/expo-sdk-56' }}
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
             type=sha
             type=ref,event=tag
 
