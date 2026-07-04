@@ -23,20 +23,23 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get level() {
     return this.client.level;
   }
+  get levelCategory() {
+    return this.client.levelCategory;
+  }
   get price() {
     return this.client.price;
   }
   get userLevel() {
     return this.client.userLevel;
   }
-  get category() {
-    return this.client.category;
-  }
   get course() {
     return this.client.course;
   }
   get courseLevel() {
     return this.client.courseLevel;
+  }
+  get userCourse() {
+    return this.client.userCourse;
   }
   get lesson() {
     return this.client.lesson;
@@ -46,6 +49,12 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   }
   get lessonNote() {
     return this.client.lessonNote;
+  }
+  get certificateTemplate() {
+    return this.client.certificateTemplate;
+  }
+  get certificate() {
+    return this.client.certificate;
   }
   get subscriptionMirror() {
     return this.client.subscriptionMirror;
@@ -70,6 +79,113 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   }
   get popup() {
     return this.client.popup;
+  }
+  get mediaAsset() {
+    return this.client.mediaAsset;
+  }
+  get adminNotification() {
+    return this.client.adminNotification;
+  }
+  get adminNotificationRead() {
+    return this.client.adminNotificationRead;
+  }
+  get menu() {
+    return this.client.menu;
+  }
+  get menuItem() {
+    return this.client.menuItem;
+  }
+  get header() {
+    return this.client.header;
+  }
+  get footer() {
+    return this.client.footer;
+  }
+  get appConfig() {
+    return this.client.appConfig;
+  }
+  get audience() {
+    return this.client.audience;
+  }
+  get audienceField() {
+    return this.client.audienceField;
+  }
+  get contact() {
+    return this.client.contact;
+  }
+  get segment() {
+    return this.client.segment;
+  }
+  get consentEvent() {
+    return this.client.consentEvent;
+  }
+  get emailLog() {
+    return this.client.emailLog;
+  }
+  get emailTemplate() {
+    return this.client.emailTemplate;
+  }
+  get campaign() {
+    return this.client.campaign;
+  }
+  get automation() {
+    return this.client.automation;
+  }
+  get emailEvent() {
+    return this.client.emailEvent;
+  }
+  get scheduledEmail() {
+    return this.client.scheduledEmail;
+  }
+
+  // Projects: internal team chat + task lists.
+  get chatChannel() {
+    return this.client.chatChannel;
+  }
+  get chatMember() {
+    return this.client.chatMember;
+  }
+  get chatMessage() {
+    return this.client.chatMessage;
+  }
+  get chatReaction() {
+    return this.client.chatReaction;
+  }
+  get chatMention() {
+    return this.client.chatMention;
+  }
+  get chatList() {
+    return this.client.chatList;
+  }
+  get chatListField() {
+    return this.client.chatListField;
+  }
+  get chatListItem() {
+    return this.client.chatListItem;
+  }
+  get chatListItemComment() {
+    return this.client.chatListItemComment;
+  }
+  get chatCanvas() {
+    return this.client.chatCanvas;
+  }
+  get chatWorkflow() {
+    return this.client.chatWorkflow;
+  }
+  get chatWorkflowRun() {
+    return this.client.chatWorkflowRun;
+  }
+
+  // Live sessions: scheduled Zoom / Google Meet calls + their class targets and
+  // credential-release audit trail.
+  get liveSession() {
+    return this.client.liveSession;
+  }
+  get liveSessionTarget() {
+    return this.client.liveSessionTarget;
+  }
+  get liveJoinAudit() {
+    return this.client.liveJoinAudit;
   }
 
   get $transaction() {

@@ -37,7 +37,10 @@ jobs:
       - name: tsc --noEmit
         run: |
           case "${{ matrix.workspace }}" in
-            mobile) PROJECT=apps/mobile/tsconfig.json ;;
+            # mobile must run ITS OWN compiler (TS 6 + nested React 19 types);
+            # the root-hoisted tsc belongs to the Next apps and would mask
+            # RN 0.85 type errors.
+            mobile) cd apps/mobile && exec npx tsc --noEmit -p tsconfig.json ;;
             puck)   PROJECT=packages/puck/tsconfig.json ;;
             bdd)    PROJECT=packages/bdd/tsconfig.json ;;
             db)     PROJECT=packages/db/tsconfig.json ;;

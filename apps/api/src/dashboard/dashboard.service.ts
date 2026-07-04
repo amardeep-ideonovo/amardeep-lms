@@ -12,14 +12,14 @@ export class DashboardService {
   ) {}
 
   /**
-   * Member dashboard: every category with its courses, each course carrying a
-   * `locked` flag computed from the member's active levels. Courses with no
-   * category are grouped under a synthetic "Uncategorized" bucket.
+   * Member dashboard: all courses, each carrying a `locked` flag computed from
+   * the member's active levels. Courses are no longer grouped by category — they
+   * are returned in a single section (empty category id) so the web/mobile
+   * clients render a flat course list.
    */
   async build(userId: string): Promise<DashboardResponse> {
-    const [categories, courses, activeLevels, completedByCourse] =
+    const [courses, activeLevels, purchased, completedByCourse] =
       await Promise.all([
-        this.prisma.category.findMany({ orderBy: { order: 'asc' } }),
         this.prisma.course.findMany({
           orderBy: { order: 'asc' },
           include: {
@@ -28,44 +28,41 @@ export class DashboardService {
           },
         }),
         this.access.activeLevelIds(userId),
+        this.access.purchasedCourseIds(userId),
         this.access.completedCountByCourse(userId),
       ]);
 
-    const toCard = (c: (typeof courses)[number]) => {
+    const courseCards = courses.map((c) => {
       const assigned = c.courseLevels.map((cl) => cl.levelId);
+      const owns = purchased.has(c.id);
+      const locked = isCourseLocked(assigned, activeLevels, owns);
+      const hasOneOffPrice = c.priceActive && (c.priceAmount ?? 0) > 0;
       return {
         id: c.id,
         title: c.title,
         description: c.description,
         thumbnailUrl: c.thumbnailUrl,
         coverImageUrl: c.coverImageUrl,
-        categoryId: c.categoryId,
         levelIds: assigned,
-        locked: isCourseLocked(assigned, activeLevels),
+        locked,
         lessonCount: c._count.lessons,
         completedCount: completedByCourse.get(c.id) ?? 0,
+        purchasable: locked && hasOneOffPrice,
+        priceAmount: c.priceAmount,
+        priceCurrency: c.priceCurrency,
+        priceActive: c.priceActive,
       };
+    });
+
+    return {
+      categories: courseCards.length
+        ? [
+            {
+              category: { id: '', name: '', thumbnailUrl: null, order: 0 },
+              courses: courseCards,
+            },
+          ]
+        : [],
     };
-
-    const sections = categories.map((cat) => ({
-      category: {
-        id: cat.id,
-        name: cat.name,
-        thumbnailUrl: cat.thumbnailUrl,
-        order: cat.order,
-      },
-      courses: courses.filter((c) => c.categoryId === cat.id).map(toCard),
-    }));
-
-    // Group orphan courses (no category) so they're still visible.
-    const orphans = courses.filter((c) => !c.categoryId);
-    if (orphans.length) {
-      sections.push({
-        category: { id: '', name: 'Uncategorized', thumbnailUrl: null, order: 9999 },
-        courses: orphans.map(toCard),
-      });
-    }
-
-    return { categories: sections };
   }
 }

@@ -1,10 +1,12 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
   MinLength,
   ValidateNested,
@@ -22,6 +24,24 @@ export class PriceInputDto {
   @IsOptional()
   @IsString()
   currency?: string;
+
+  // Installment plan: bill this many times, then grant lifetime access. Omit for
+  // an ongoing subscription.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  installments?: number;
+}
+
+// One "Skills You'll Learn" card on the class landing page.
+export class SkillInputDto {
+  @IsString()
+  @MinLength(1)
+  title!: string;
+
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 }
 
 export class CreateLevelDto {
@@ -29,27 +49,68 @@ export class CreateLevelDto {
   @MinLength(1)
   name!: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  slug?: string;
+
+  // Show this class as a tile on the member dashboard.
+  @IsOptional()
+  @IsBoolean()
+  published?: boolean;
+
   @IsIn(['PAID', 'FREE', 'MANUAL'])
   type!: LevelType;
 
+  // Tag names applied within the in-house audience on grant.
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  mailchimpTags?: string[];
+  audienceTags?: string[];
 
+  // In-house Audience id to capture granted members into (omit = default audience).
   @IsOptional()
   @IsString()
-  mailchimpAudienceId?: string;
-
-  @IsOptional()
-  @IsString()
-  mailchimpAudienceName?: string;
+  audienceId?: string;
 
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PriceInputDto)
   prices?: PriceInputDto[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
+
+  // ----- MasterClass-style landing-page fields -----
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsOptional()
+  @IsString()
+  trailerUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  featuredCourseId?: string;
+
+  // Certificate template override; '' (or omitted) = use the default template.
+  @IsOptional()
+  @IsString()
+  certificateTemplateId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SkillInputDto)
+  skills?: SkillInputDto[];
 }
 
 export class UpdateLevelDto {
@@ -59,19 +120,79 @@ export class UpdateLevelDto {
   name?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  slug?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  published?: boolean;
+
+  @IsOptional()
   @IsIn(['PAID', 'FREE', 'MANUAL'])
   type?: LevelType;
+
+  // Tag names applied within the in-house audience on grant.
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  audienceTags?: string[];
+
+  // In-house Audience id to capture granted members into (omit = default audience).
+  @IsOptional()
+  @IsString()
+  audienceId?: string;
+
+  // Desired set of offered prices (admin edit form always submits the full
+  // list). The service reconciles it against Stripe: Stripe Prices are
+  // immutable, so a changed amount becomes a NEW Price plus an archived old one.
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PriceInputDto)
+  prices?: PriceInputDto[];
 
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  mailchimpTags?: string[];
+  categoryIds?: string[];
+
+  // ----- MasterClass-style landing-page fields -----
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
 
   @IsOptional()
   @IsString()
-  mailchimpAudienceId?: string;
+  description?: string;
 
   @IsOptional()
   @IsString()
-  mailchimpAudienceName?: string;
+  trailerUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  featuredCourseId?: string;
+
+  // Certificate template override; '' clears it (back to the default template).
+  @IsOptional()
+  @IsString()
+  certificateTemplateId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SkillInputDto)
+  skills?: SkillInputDto[];
+}
+
+// Admin-only "class" (level) category. Mirrors the blog's category create DTO.
+export class CreateLevelCategoryDto {
+  @IsString()
+  @MinLength(1)
+  name!: string;
+
+  @IsOptional()
+  @IsInt()
+  order?: number;
 }

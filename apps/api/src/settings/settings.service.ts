@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { decryptSecret, encryptSecret } from '../common/crypto.util';
@@ -8,13 +8,43 @@ export const SETTING_KEYS = {
   stripeSecretKey: 'stripe.secretKey',
   stripeWebhookSecret: 'stripe.webhookSecret',
   stripePublishableKey: 'stripe.publishableKey',
-  mailchimpApiKey: 'mailchimp.apiKey',
-  mailchimpServerPrefix: 'mailchimp.serverPrefix',
-  mailchimpAudienceId: 'mailchimp.audienceId',
+  paypalClientId: 'paypal.clientId',
+  paypalClientSecret: 'paypal.clientSecret',
+  paypalWebhookId: 'paypal.webhookId',
+  paypalMode: 'paypal.mode',
+  // Which processor NEW checkouts use ("stripe" | "paypal"). Existing
+  // subscriptions keep billing on the provider that created them.
+  paymentProvider: 'payments.provider',
+  // Outbound email / SMTP sender (the in-house email platform). `emailPass`
+  // is the only secret; the rest are config (host/port/from), stored the same
+  // way for a single source of truth + per-key env fallback.
+  emailProvider: 'email.provider',
+  emailHost: 'email.host',
+  emailPort: 'email.port',
+  emailUser: 'email.user',
+  emailPass: 'email.pass',
+  // Resend REST API key (the only Resend secret — provider="resend" sends via the
+  // Resend HTTP API instead of SMTP). Write-only, encrypted, exactly like emailPass.
+  emailResendApiKey: 'email.resendApiKey',
+  emailFromEmail: 'email.fromEmail',
+  emailFromName: 'email.fromName',
+  emailSecure: 'email.secure',
+  // Shared secret for the public provider feedback webhook (bounce/complaint
+  // ingestion). The webhook is unauthenticated at the route level (providers
+  // can't carry our JWT), so a request must present this secret (header or
+  // ?key=) before it's allowed to suppress addresses. Write-only like emailPass.
+  emailWebhookSecret: 'email.webhookSecret',
+  // Zoom Meeting SDK (in-page live-session embed). The SDK key is public (it
+  // ships to the browser to join); the SDK secret signs the join signature
+  // server-side and is write-only, exactly like the Stripe secret key.
+  zoomSdkKey: 'zoom.sdkKey',
+  zoomSdkSecret: 'zoom.sdkSecret',
 } as const;
 
 @Injectable()
 export class SettingsService {
+  private readonly logger = new Logger(SettingsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
@@ -26,8 +56,14 @@ export class SettingsService {
     if (row?.value) {
       try {
         return decryptSecret(row.value);
-      } catch {
-        // Corrupt/old ciphertext — treat as unset and fall back.
+      } catch (err) {
+        // Corrupt/old ciphertext (e.g. SETTINGS_ENC_KEY was rotated) — treat as
+        // unset and fall back, but surface it: silently masking the failure can
+        // make a "missing" secret look intentional when it's really unreadable.
+        this.logger.warn(
+          `failed to decrypt setting '${key}' — treating as unset and falling ` +
+            `back to env/null: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
     if (envFallback) {
@@ -61,12 +97,61 @@ export class SettingsService {
     ]);
   }
 
-  /** Clear all Mailchimp credentials (key + server prefix + audience). */
-  async clearMailchimp(): Promise<void> {
+  /** Clear all outbound-email / SMTP settings (provider, host/port/from, pass). */
+  async clearEmail(): Promise<void> {
     await Promise.all([
-      this.clearSecret(SETTING_KEYS.mailchimpApiKey),
-      this.clearSecret(SETTING_KEYS.mailchimpServerPrefix),
-      this.clearSecret(SETTING_KEYS.mailchimpAudienceId),
+      this.clearSecret(SETTING_KEYS.emailProvider),
+      this.clearSecret(SETTING_KEYS.emailHost),
+      this.clearSecret(SETTING_KEYS.emailPort),
+      this.clearSecret(SETTING_KEYS.emailUser),
+      this.clearSecret(SETTING_KEYS.emailPass),
+      this.clearSecret(SETTING_KEYS.emailResendApiKey),
+      this.clearSecret(SETTING_KEYS.emailFromEmail),
+      this.clearSecret(SETTING_KEYS.emailFromName),
+      this.clearSecret(SETTING_KEYS.emailSecure),
+    ]);
+  }
+
+  /** Clear just the webhook shared secret (kept separate from clearEmail so an
+   * admin can rotate it without wiping SMTP config). Idempotent. */
+  async clearEmailWebhookSecret(): Promise<void> {
+    await this.clearSecret(SETTING_KEYS.emailWebhookSecret);
+  }
+
+  /** Clear the Zoom Meeting SDK credentials (key + secret). */
+  async clearZoom(): Promise<void> {
+    await Promise.all([
+      this.clearSecret(SETTING_KEYS.zoomSdkKey),
+      this.clearSecret(SETTING_KEYS.zoomSdkSecret),
+    ]);
+  }
+
+  /** Clear all PayPal credentials (client id + secret + webhook id + mode). */
+  async clearPayPal(): Promise<void> {
+    await Promise.all([
+      this.clearSecret(SETTING_KEYS.paypalClientId),
+      this.clearSecret(SETTING_KEYS.paypalClientSecret),
+      this.clearSecret(SETTING_KEYS.paypalWebhookId),
+      this.clearSecret(SETTING_KEYS.paypalMode),
+    ]);
+  }
+
+  /**
+   * Forget every provisioned PayPal catalog/plan id. Plan and product ids are
+   * environment-scoped at PayPal (sandbox ids are invalid in live and across
+   * apps), so any change of client id or mode must reset them — they re-create
+   * lazily at the next PayPal checkout.
+   */
+  async clearPayPalProvisionedIds(): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.price.updateMany({
+        where: { paypalPlanId: { not: null } },
+        data: { paypalPlanId: null },
+      }),
+      this.prisma.level.updateMany({
+        where: { paypalProductId: { not: null } },
+        data: { paypalProductId: null },
+      }),
     ]);
   }
 
@@ -81,19 +166,101 @@ export class SettingsService {
       'STRIPE_WEBHOOK_SECRET',
     );
   }
-  getMailchimpApiKey(): Promise<string | null> {
-    return this.getSecret(SETTING_KEYS.mailchimpApiKey, 'MAILCHIMP_API_KEY');
-  }
-  getMailchimpServerPrefix(): Promise<string | null> {
+  // Publishable key is public (safe to expose to the browser for Stripe Elements).
+  getStripePublishableKey(): Promise<string | null> {
     return this.getSecret(
-      SETTING_KEYS.mailchimpServerPrefix,
-      'MAILCHIMP_SERVER_PREFIX',
+      SETTING_KEYS.stripePublishableKey,
+      'STRIPE_PUBLISHABLE_KEY',
     );
   }
-  getMailchimpAudienceId(): Promise<string | null> {
+  // Client id is public (ships to the browser for the PayPal JS SDK).
+  getPayPalClientId(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.paypalClientId, 'PAYPAL_CLIENT_ID');
+  }
+  getPayPalClientSecret(): Promise<string | null> {
     return this.getSecret(
-      SETTING_KEYS.mailchimpAudienceId,
-      'MAILCHIMP_AUDIENCE_ID',
+      SETTING_KEYS.paypalClientSecret,
+      'PAYPAL_CLIENT_SECRET',
+    );
+  }
+  getPayPalWebhookId(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.paypalWebhookId, 'PAYPAL_WEBHOOK_ID');
+  }
+  async getPayPalMode(): Promise<'sandbox' | 'live'> {
+    const v = await this.getSecret(SETTING_KEYS.paypalMode, 'PAYPAL_MODE');
+    return v === 'live' ? 'live' : 'sandbox'; // default + unknown → sandbox
+  }
+  /** The processor NEW checkouts use. Default + unknown values → stripe. */
+  async getPaymentProvider(): Promise<'stripe' | 'paypal'> {
+    const v = await this.getSecret(SETTING_KEYS.paymentProvider);
+    return v === 'paypal' ? 'paypal' : 'stripe';
+  }
+
+  // --- Zoom Meeting SDK accessors (consumed by the live-session embed) ---
+
+  /** Zoom SDK key — public (ships to the browser). Env fallback: ZOOM_SDK_KEY. */
+  getZoomSdkKey(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.zoomSdkKey, 'ZOOM_SDK_KEY');
+  }
+  /** Zoom SDK secret — server-only (signs the join signature). */
+  getZoomSdkSecret(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.zoomSdkSecret, 'ZOOM_SDK_SECRET');
+  }
+
+  // --- Outbound email / SMTP accessors (consumed by the email sender) ---
+
+  /** The active mail sender id. Default + unknown values → smtp. */
+  async getEmailProvider(): Promise<'smtp' | 'resend'> {
+    const v = await this.getSecret(SETTING_KEYS.emailProvider, 'EMAIL_PROVIDER');
+    return v === 'resend' ? 'resend' : 'smtp';
+  }
+  /**
+   * Resend REST API key (re_…). Write-only secret consumed by the Resend mail
+   * sender when provider="resend"; null when unset. Env fallback so a deployment
+   * can configure it without touching the DB.
+   */
+  getEmailResendApiKey(): Promise<string | null> {
+    return this.getSecret(
+      SETTING_KEYS.emailResendApiKey,
+      'RESEND_API_KEY',
+    );
+  }
+  getEmailHost(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.emailHost, 'SMTP_HOST');
+  }
+  /** SMTP port as a number (default 587 — STARTTLS submission). */
+  async getEmailPort(): Promise<number> {
+    const v = await this.getSecret(SETTING_KEYS.emailPort, 'SMTP_PORT');
+    const n = v ? Number(v) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : 587;
+  }
+  getEmailUser(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.emailUser, 'SMTP_USER');
+  }
+  getEmailPass(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.emailPass, 'SMTP_PASS');
+  }
+  getEmailFromEmail(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.emailFromEmail, 'EMAIL_FROM');
+  }
+  getEmailFromName(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.emailFromName, 'EMAIL_FROM_NAME');
+  }
+  /** Implicit-TLS flag (true ≈ port 465). Default false (STARTTLS on 587). */
+  async getEmailSecure(): Promise<boolean> {
+    const v = await this.getSecret(SETTING_KEYS.emailSecure, 'SMTP_SECURE');
+    return v === 'true' || v === '1';
+  }
+  /**
+   * Shared secret guarding the public provider feedback webhook. Returns null
+   * when unset (the webhook controller decides fail-open vs fail-closed from
+   * there — closed in production, open with a warning locally). Env fallback so
+   * a deployment can configure it without touching the DB.
+   */
+  getEmailWebhookSecret(): Promise<string | null> {
+    return this.getSecret(
+      SETTING_KEYS.emailWebhookSecret,
+      'EMAIL_WEBHOOK_SECRET',
     );
   }
 }

@@ -11,10 +11,13 @@ import {
   MinLength,
 } from 'class-validator';
 import type {
+  PopupAnimation,
   PopupEventType,
+  PopupFrequency,
   PopupPageMode,
   PopupPosition,
   PopupStatus,
+  PopupTrigger,
   PuckDocument,
 } from '@lms/types';
 
@@ -37,6 +40,14 @@ const POSITIONS: PopupPosition[] = [
   'BOTTOM_RIGHT',
 ];
 const PAGE_MODES: PopupPageMode[] = ['NONE', 'ALL', 'INCLUDE', 'EXCLUDE'];
+const TRIGGERS: PopupTrigger[] = ['IMMEDIATE', 'DELAY', 'SCROLL', 'EXIT_INTENT'];
+const FREQUENCIES: PopupFrequency[] = [
+  'EVERY_VISIT',
+  'ONCE_PER_SESSION',
+  'ONCE_PER_DAYS',
+  'ONCE',
+];
+const ANIMATIONS: PopupAnimation[] = ['NONE', 'FADE', 'SLIDE_UP', 'ZOOM'];
 
 export class CreatePopupDto {
   @IsString()
@@ -94,6 +105,18 @@ export class CreatePopupDto {
   showOnDashboard?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  showOnClasses?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showOnCourses?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showOnLessons?: boolean;
+
+  @IsOptional()
   @IsIn(PAGE_MODES)
   pageMode?: PopupPageMode;
 
@@ -102,6 +125,37 @@ export class CreatePopupDto {
   @IsArray()
   @IsString({ each: true })
   pageIds?: string[];
+
+  // ----- behaviour -----
+  @IsOptional()
+  @IsIn(TRIGGERS)
+  trigger?: PopupTrigger;
+
+  // DELAY: seconds (0-600); SCROLL: percent (0-100). Validated loosely as the
+  // shared upper bound; the renderer clamps per-trigger.
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(600)
+  triggerValue?: number;
+
+  @IsOptional()
+  @IsIn(FREQUENCIES)
+  frequency?: PopupFrequency;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  frequencyDays?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  closeOnOverlay?: boolean;
+
+  @IsOptional()
+  @IsIn(ANIMATIONS)
+  animation?: PopupAnimation;
 }
 
 // Update mirrors create with everything optional (name included), matching the
@@ -157,6 +211,18 @@ export class UpdatePopupDto {
   showOnDashboard?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  showOnClasses?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showOnCourses?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  showOnLessons?: boolean;
+
+  @IsOptional()
   @IsIn(PAGE_MODES)
   pageMode?: PopupPageMode;
 
@@ -164,4 +230,35 @@ export class UpdatePopupDto {
   @IsArray()
   @IsString({ each: true })
   pageIds?: string[];
+
+  // ----- behaviour -----
+  @IsOptional()
+  @IsIn(TRIGGERS)
+  trigger?: PopupTrigger;
+
+  // DELAY: seconds (0-600); SCROLL: percent (0-100). Validated loosely as the
+  // shared upper bound; the renderer clamps per-trigger.
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(600)
+  triggerValue?: number;
+
+  @IsOptional()
+  @IsIn(FREQUENCIES)
+  frequency?: PopupFrequency;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  frequencyDays?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  closeOnOverlay?: boolean;
+
+  @IsOptional()
+  @IsIn(ANIMATIONS)
+  animation?: PopupAnimation;
 }

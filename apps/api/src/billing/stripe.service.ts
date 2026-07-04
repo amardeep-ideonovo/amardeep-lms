@@ -28,11 +28,29 @@ export class StripeService {
     return this.settings.getStripeWebhookSecret();
   }
 
+  /** True when a secret key is configured (Setting table or env). */
+  async isConfigured(): Promise<boolean> {
+    return !!(await this.settings.getStripeSecretKey());
+  }
+
   // --- Product / Price provisioning for PAID levels ---
 
   async createProduct(name: string): Promise<Stripe.Product> {
     const stripe = await this.getClient();
     return stripe.products.create({ name });
+  }
+
+  // Keep the Stripe Product name in step with a level rename.
+  async updateProduct(productId: string, name: string): Promise<Stripe.Product> {
+    const stripe = await this.getClient();
+    return stripe.products.update(productId, { name });
+  }
+
+  // Stripe Prices are immutable; "removing" one means archiving it (active:false)
+  // so existing subscriptions keep working but it can't back a new checkout.
+  async archivePrice(stripePriceId: string): Promise<Stripe.Price> {
+    const stripe = await this.getClient();
+    return stripe.prices.update(stripePriceId, { active: false });
   }
 
   async createPrice(input: {
@@ -66,9 +84,19 @@ export class StripeService {
     return customer.id;
   }
 
+  // Keep the Stripe Customer's email in step with a local email change so
+  // receipts/dunning reach the new address. Payments are keyed on the customer
+  // id (not email), so this is purely about deliverability + dashboard accuracy.
+  async updateCustomerEmail(customerId: string, email: string): Promise<void> {
+    const stripe = await this.getClient();
+    await stripe.customers.update(customerId, { email });
+  }
+
   async createCheckoutSession(input: {
     customerId: string;
     priceId: string;
+    userId: string;
+    levelId: string;
     successUrl: string;
     cancelUrl: string;
   }): Promise<Stripe.Checkout.Session> {
@@ -77,9 +105,86 @@ export class StripeService {
       mode: 'subscription',
       customer: input.customerId,
       line_items: [{ price: input.priceId, quantity: 1 }],
+      // Stamp the user + level onto the session AND the resulting subscription
+      // so events are traceable in the Stripe dashboard and reconciliation has
+      // a fallback correlation key beyond the customer id.
+      client_reference_id: input.userId,
+      subscription_data: {
+        metadata: { userId: input.userId, levelId: input.levelId },
+      },
       success_url: input.successUrl,
       cancel_url: input.cancelUrl,
     });
+  }
+
+  // One-off (one-time) purchase checkout — mode=payment. The price is inlined
+  // via price_data so a course needs no provisioned Stripe Price object (courses
+  // aren't Products in our model). userId + courseId are stamped on the session
+  // AND the resulting PaymentIntent so both the webhook and the inline confirm
+  // can resolve the grant. `?session_id={CHECKOUT_SESSION_ID}` is appended to the
+  // success URL so the browser can confirm the purchase without waiting on a
+  // webhook (dev needs no `stripe listen`).
+  async createPaymentCheckoutSession(input: {
+    customerId: string;
+    amount: number; // minor units
+    currency: string;
+    productName: string;
+    userId: string;
+    courseId: string;
+    successUrl: string;
+    cancelUrl: string;
+  }): Promise<Stripe.Checkout.Session> {
+    const stripe = await this.getClient();
+    return stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer: input.customerId,
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: input.currency,
+            unit_amount: input.amount,
+            product_data: { name: input.productName },
+          },
+        },
+      ],
+      client_reference_id: input.userId,
+      metadata: { userId: input.userId, courseId: input.courseId, kind: 'course' },
+      payment_intent_data: {
+        metadata: {
+          userId: input.userId,
+          courseId: input.courseId,
+          kind: 'course',
+        },
+      },
+      success_url: input.successUrl,
+      cancel_url: input.cancelUrl,
+    });
+  }
+
+  // Retrieve a Checkout Session (payment_intent expanded) — used by the inline
+  // confirm to verify payment status + ownership and read the charge id.
+  async retrieveCheckoutSession(
+    sessionId: string,
+  ): Promise<Stripe.Checkout.Session> {
+    const stripe = await this.getClient();
+    return stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['payment_intent'],
+    });
+  }
+
+  // Recent Checkout Sessions for a customer — used to REUSE an already-open
+  // one-off session instead of creating a duplicate (double-charge backstop).
+  async listCheckoutSessionsForCustomer(
+    customerId: string,
+    limit = 10,
+  ): Promise<Stripe.Checkout.Session[]> {
+    const stripe = await this.getClient();
+    const res = await stripe.checkout.sessions.list({
+      customer: customerId,
+      limit,
+    });
+    return res.data;
   }
 
   async createPortalSession(input: {
@@ -93,9 +198,273 @@ export class StripeService {
     });
   }
 
+  // --- Embedded Elements: subscription with a client-confirmable PaymentIntent ---
+
+  // Publishable key is public — the checkout page needs it to mount Elements.
+  getPublishableKey(): Promise<string | null> {
+    return this.settings.getStripePublishableKey();
+  }
+
+  // Publishable key, but only when the SECRET key is also configured — i.e. the
+  // browser can actually complete a PaymentIntent. Null otherwise, so the web
+  // app falls back to its mock payment path (publishable key alone is useless).
+  async getElementsPublishableKey(): Promise<string | null> {
+    const [pub, secret] = await Promise.all([
+      this.settings.getStripePublishableKey(),
+      this.settings.getStripeSecretKey(),
+    ]);
+    return pub && secret ? pub : null;
+  }
+
+  // Resolve an active promotion code (e.g. "SAVE20") -> its PromotionCode, which
+  // carries the underlying Coupon. Returns null when unknown/inactive/expired.
+  async findPromotionCode(code: string): Promise<Stripe.PromotionCode | null> {
+    const stripe = await this.getClient();
+    const res = await stripe.promotionCodes.list({
+      code,
+      active: true,
+      limit: 1,
+    });
+    return res.data[0] ?? null;
+  }
+
+  // --- Coupons + promotion codes (admin "generate a code") ---
+
+  // Create a Coupon (the discount). percentOff XOR amountOff(+currency).
+  // duration: 'once' (first invoice) | 'repeating' (+durationInMonths) | 'forever'.
+  // appliesToProducts restricts it to specific Stripe Products (per-level coupons).
+  async createCoupon(input: {
+    percentOff?: number;
+    amountOff?: number; // minor units
+    currency?: string;
+    duration: 'once' | 'repeating' | 'forever';
+    durationInMonths?: number;
+    maxRedemptions?: number;
+    redeemBy?: number; // unix seconds
+    name?: string;
+    appliesToProducts?: string[];
+  }): Promise<Stripe.Coupon> {
+    const stripe = await this.getClient();
+    const params: Stripe.CouponCreateParams = { duration: input.duration };
+    if (input.percentOff != null) params.percent_off = input.percentOff;
+    if (input.amountOff != null) {
+      params.amount_off = input.amountOff;
+      params.currency = (input.currency ?? 'usd').toLowerCase();
+    }
+    if (input.duration === 'repeating' && input.durationInMonths != null) {
+      params.duration_in_months = input.durationInMonths;
+    }
+    if (input.maxRedemptions != null) {
+      params.max_redemptions = input.maxRedemptions;
+    }
+    if (input.redeemBy != null) params.redeem_by = input.redeemBy;
+    if (input.name) params.name = input.name;
+    if (input.appliesToProducts?.length) {
+      params.applies_to = { products: input.appliesToProducts };
+    }
+    return stripe.coupons.create(params);
+  }
+
+  // Customer-facing promotion code mapped to a coupon. Stripe auto-generates the
+  // string when `code` is omitted.
+  async createPromotionCode(input: {
+    couponId: string;
+    code?: string;
+    maxRedemptions?: number;
+    expiresAt?: number; // unix seconds
+    metadata?: Record<string, string>;
+  }): Promise<Stripe.PromotionCode> {
+    const stripe = await this.getClient();
+    const params: Stripe.PromotionCodeCreateParams = { coupon: input.couponId };
+    if (input.code) params.code = input.code;
+    if (input.maxRedemptions != null) {
+      params.max_redemptions = input.maxRedemptions;
+    }
+    if (input.expiresAt != null) params.expires_at = input.expiresAt;
+    if (input.metadata) params.metadata = input.metadata;
+    return stripe.promotionCodes.create(params);
+  }
+
+  // All promotion codes (each carries its expanded coupon, times_redeemed,
+  // active, expires_at, applies_to) — powers the admin list.
+  async listPromotionCodes(limit = 100): Promise<Stripe.PromotionCode[]> {
+    const stripe = await this.getClient();
+    const res = await stripe.promotionCodes.list({ limit });
+    return res.data;
+  }
+
+  // Toggle a promotion code on/off (deactivate keeps history; reactivate if
+  // it hasn't expired).
+  async setPromotionCodeActive(
+    id: string,
+    active: boolean,
+  ): Promise<Stripe.PromotionCode> {
+    const stripe = await this.getClient();
+    return stripe.promotionCodes.update(id, { active });
+  }
+
+  async retrievePromotionCode(id: string): Promise<Stripe.PromotionCode> {
+    const stripe = await this.getClient();
+    return stripe.promotionCodes.retrieve(id);
+  }
+
+  // Promotion codes can't be deleted in Stripe — update is the only mutation
+  // (used to flag a soft-delete in metadata + deactivate).
+  async updatePromotionCode(
+    id: string,
+    params: Stripe.PromotionCodeUpdateParams,
+  ): Promise<Stripe.PromotionCode> {
+    const stripe = await this.getClient();
+    return stripe.promotionCodes.update(id, params);
+  }
+
+  // Delete a coupon — used to roll back an orphaned coupon when its promotion
+  // code creation fails (e.g. duplicate code).
+  async deleteCoupon(id: string): Promise<void> {
+    const stripe = await this.getClient();
+    await stripe.coupons.del(id);
+  }
+
+  // Create a subscription in `default_incomplete` mode so the first invoice's
+  // PaymentIntent is confirmed CLIENT-SIDE via Stripe Elements. We expand the
+  // PaymentIntent to return its client_secret. The existing subscription webhook
+  // then reconciles the level grant once payment succeeds.
+  async createSubscriptionIntent(input: {
+    customerId: string;
+    priceId: string;
+    userId: string;
+    levelId: string;
+    couponId?: string;
+  }): Promise<{
+    subscriptionId: string;
+    clientSecret: string | null;
+    status: Stripe.Subscription.Status;
+  }> {
+    const stripe = await this.getClient();
+    const sub = await stripe.subscriptions.create({
+      customer: input.customerId,
+      items: [{ price: input.priceId }],
+      payment_behavior: 'default_incomplete',
+      payment_settings: { save_default_payment_method: 'on_subscription' },
+      expand: ['latest_invoice.payment_intent'],
+      metadata: { userId: input.userId, levelId: input.levelId },
+      ...(input.couponId ? { coupon: input.couponId } : {}),
+    });
+    const invoice = sub.latest_invoice;
+    const pi =
+      invoice && typeof invoice !== 'string' ? invoice.payment_intent : null;
+    return {
+      subscriptionId: sub.id,
+      clientSecret: pi && typeof pi !== 'string' ? pi.client_secret : null,
+      status: sub.status,
+    };
+  }
+
+  // Client secret for an EXISTING subscription's first-invoice PaymentIntent.
+  // Used to reuse a not-yet-paid (incomplete) subscription instead of creating a
+  // duplicate when a checkout is submitted twice.
+  async getSubscriptionClientSecret(subId: string): Promise<string | null> {
+    const stripe = await this.getClient();
+    const sub = await stripe.subscriptions.retrieve(subId, {
+      expand: ['latest_invoice.payment_intent'],
+    });
+    const invoice = sub.latest_invoice;
+    const pi =
+      invoice && typeof invoice !== 'string' ? invoice.payment_intent : null;
+    return pi && typeof pi !== 'string' ? pi.client_secret : null;
+  }
+
+  // --- Subscription detail, payment history, admin actions ---
+
+  async listSubscriptionsForCustomer(
+    customerId: string,
+  ): Promise<Stripe.Subscription[]> {
+    const stripe = await this.getClient();
+    const res = await stripe.subscriptions.list({
+      customer: customerId,
+      status: 'all',
+      limit: 20,
+    });
+    return res.data;
+  }
+
+  async listInvoices(customerId: string, limit = 24): Promise<Stripe.Invoice[]> {
+    const stripe = await this.getClient();
+    const res = await stripe.invoices.list({ customer: customerId, limit });
+    return res.data;
+  }
+
+  // All subscriptions across every customer (active + historical), customer
+  // expanded for a name/email fallback. Auto-paginated with a hard cap so the
+  // admin Subscriptions tab can't trigger an unbounded scan.
+  async listAllSubscriptions(max = 1000): Promise<Stripe.Subscription[]> {
+    const stripe = await this.getClient();
+    return stripe.subscriptions
+      .list({ status: 'all', limit: 100, expand: ['data.customer'] })
+      .autoPagingToArray({ limit: max });
+  }
+
+  // All invoices across the account, for per-subscription order counts + last
+  // order date. Auto-paginated with a hard cap.
+  async listAllInvoices(max = 2000): Promise<Stripe.Invoice[]> {
+    const stripe = await this.getClient();
+    return stripe.invoices.list({ limit: 100 }).autoPagingToArray({ limit: max });
+  }
+
+  // Pause billing without canceling — access is retained (sub stays active);
+  // invoices during the pause are voided. Cleared by resumeSubscription.
+  async pauseSubscription(subId: string): Promise<Stripe.Subscription> {
+    const stripe = await this.getClient();
+    return stripe.subscriptions.update(subId, {
+      pause_collection: { behavior: 'void' },
+    });
+  }
+
+  // Resume a PAUSED subscription: clear the pause only. We deliberately do NOT
+  // clear cancel_at_period_end — cancellation is final, so Resume must never
+  // revive a cancelled subscription.
+  async resumeSubscription(subId: string): Promise<Stripe.Subscription> {
+    const stripe = await this.getClient();
+    return stripe.subscriptions.update(subId, {
+      pause_collection: '',
+    });
+  }
+
+  // Cancel at period end (reversible via resume); member keeps access until then.
+  async setCancelAtPeriodEnd(
+    subId: string,
+    cancel: boolean,
+  ): Promise<Stripe.Subscription> {
+    const stripe = await this.getClient();
+    return stripe.subscriptions.update(subId, { cancel_at_period_end: cancel });
+  }
+
   async retrieveSubscription(subId: string): Promise<Stripe.Subscription> {
     const stripe = await this.getClient();
     return stripe.subscriptions.retrieve(subId);
+  }
+
+  // Cancel immediately. Used when an installment plan is paid in full: the member
+  // keeps lifetime access via their UserLevel grant, so there's no reason to keep
+  // the subscription around or let it bill again.
+  async cancelSubscription(subId: string): Promise<Stripe.Subscription> {
+    const stripe = await this.getClient();
+    return stripe.subscriptions.cancel(subId);
+  }
+
+  // Invoices for a single subscription (optionally filtered by status) — used to
+  // count how many installments have actually been paid.
+  async listSubscriptionInvoices(
+    subId: string,
+    status?: 'draft' | 'open' | 'paid' | 'uncollectible' | 'void',
+  ): Promise<Stripe.Invoice[]> {
+    const stripe = await this.getClient();
+    const res = await stripe.invoices.list({
+      subscription: subId,
+      ...(status ? { status } : {}),
+      limit: 100,
+    });
+    return res.data;
   }
 
   // Verify & construct a webhook event from the raw request body + signature.

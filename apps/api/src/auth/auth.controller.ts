@@ -3,14 +3,26 @@ import {
   Controller,
   Get,
   HttpCode,
+  Patch,
   Post,
+  Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import type { Request } from 'express';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateAdminPrefsDto } from './dto/update-admin-prefs.dto';
+import { UpdateAdminProfileDto } from './dto/update-admin-profile.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { AdminGuard } from './guards/admin.guard';
 import { CurrentUser } from './current-user.decorator';
 import type { AuthenticatedPrincipal } from './jwt-payload.interface';
 
@@ -24,6 +36,14 @@ const LOGIN_TTL_MS = 60_000;
 // be used to enumerate which emails are registered (409 vs 200).
 const SIGNUP_LIMIT = Number(process.env.THROTTLE_SIGNUP_LIMIT) || 3;
 const SIGNUP_TTL_MS = 60_000;
+
+// Absolute base for the embeddable avatar URL. Mirrors media.controller.
+function baseUrlOf(req: Request): string {
+  return (
+    process.env.PUBLIC_API_URL?.replace(/\/$/, '') ||
+    `${req.protocol}://${req.get('host')}`
+  );
+}
 
 @Controller('auth')
 export class AuthController {
@@ -63,5 +83,98 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() principal: AuthenticatedPrincipal) {
     return this.auth.me(principal);
+  }
+
+  // Member self-service: update own name + username (NOT email). Also clears
+  // the profile photo when { removeAvatar: true } is sent.
+  @UseGuards(JwtAuthGuard)
+  @Patch('me')
+  updateMe(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.auth.updateProfile(principal.sub, dto);
+  }
+
+  // Member self-service: upload own profile photo (image only, max 8 MB).
+  @UseGuards(JwtAuthGuard)
+  @Post('me/avatar')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 8 * 1024 * 1024 },
+    }),
+  )
+  uploadMyAvatar(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() principal: AuthenticatedPrincipal,
+  ) {
+    return this.auth.setUserAvatar(principal.sub, file, baseUrlOf(req));
+  }
+
+  // Change own password. Requires the current password; rate-limited (5/min/IP)
+  // to slow brute-forcing it. 200 (not 201) — no resource is created.
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
+  @Post('change-password')
+  @HttpCode(200)
+  changePassword(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.auth.changePassword(principal.sub, dto);
+  }
+
+  // Admin self-service password change (separate table from members).
+  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
+  @Post('admin/change-password')
+  @HttpCode(200)
+  changeAdminPassword(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.auth.changeAdminPassword(principal.sub, dto);
+  }
+
+  // Admin self-service: save personal UI preferences (e.g. a custom sidebar
+  // order). Every admin manages their OWN prefs — AdminGuard only requires a
+  // valid admin token (no per-section permission needed). Returns the refreshed
+  // AuthAdmin so the client can update its cached `me` in place.
+  @UseGuards(AdminGuard)
+  @Patch('admin/prefs')
+  updateAdminPrefs(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: UpdateAdminPrefsDto,
+  ) {
+    return this.auth.updateAdminPrefs(principal.sub, dto);
+  }
+
+  // Admin self-service: update display name / remove avatar.
+  @UseGuards(AdminGuard)
+  @Patch('admin/profile')
+  updateAdminProfile(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: UpdateAdminProfileDto,
+  ) {
+    return this.auth.updateAdminProfile(principal.sub, dto);
+  }
+
+  // Admin self-service: upload a profile photo (image only, max 8 MB).
+  @UseGuards(AdminGuard)
+  @Post('admin/avatar')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: 8 * 1024 * 1024 },
+    }),
+  )
+  uploadAvatar(
+    @Req() req: Request,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() principal: AuthenticatedPrincipal,
+  ) {
+    return this.auth.setAdminAvatar(principal.sub, file, baseUrlOf(req));
   }
 }

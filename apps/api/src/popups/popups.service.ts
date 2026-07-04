@@ -1,13 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   PopupAdminRow,
+  PopupAnimation,
+  PopupBehaviorDTO,
   PopupEventType,
+  PopupFrequency,
   PopupListItem,
   PopupPageMode,
   PopupPosition,
   PopupPublicDTO,
   PopupStatus,
   PopupStyleDTO,
+  PopupTrigger,
   PuckComponentData,
   PuckDocument,
 } from '@lms/types';
@@ -16,7 +20,7 @@ import sanitizeHtml from 'sanitize-html';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePopupDto, UpdatePopupDto } from './dto/popup.dto';
 
-// Popups render on PUBLIC surfaces (the dashboard + CMS pages), so — exactly
+// Popups render on PUBLIC surfaces (member areas + CMS pages), so — exactly
 // like Pages — any rich-text HTML embedded in the Puck document is sanitized on
 // write. Structural blocks render through trusted React components in @lms/puck,
 // so their text props need no sanitization (React escapes them at render time).
@@ -59,8 +63,17 @@ type PopupRow = {
   borderRadius: number;
   padding: number;
   showOnDashboard: boolean;
+  showOnClasses: boolean;
+  showOnCourses: boolean;
+  showOnLessons: boolean;
   pageMode: PopupPageMode;
   pageIds: string[];
+  trigger: PopupTrigger;
+  triggerValue: number;
+  frequency: PopupFrequency;
+  frequencyDays: number;
+  closeOnOverlay: boolean;
+  animation: PopupAnimation;
   views: number;
   clicks: number;
   dismissals: number;
@@ -74,10 +87,24 @@ export class PopupsService {
 
   // ---------- public targeting ----------
 
+  // Member-area surface -> the popup flag that turns it on.
+  private static readonly SURFACE_FLAG: Record<
+    string,
+    keyof Pick<
+      PopupRow,
+      'showOnDashboard' | 'showOnClasses' | 'showOnCourses' | 'showOnLessons'
+    >
+  > = {
+    dashboard: 'showOnDashboard',
+    classes: 'showOnClasses',
+    courses: 'showOnCourses',
+    lessons: 'showOnLessons',
+  };
+
   // Return the ACTIVE popups that should show in a given context. The server
   // does ALL the visibility filtering so the client just renders what it gets.
-  //   context=dashboard           -> popups with showOnDashboard = true
-  //   context=page & pageId=<id>  -> popups whose pageMode matches the page
+  //   context=dashboard|classes|courses|lessons -> the matching showOn* flag
+  //   context=page & pageId=<id>                -> popups whose pageMode matches
   async listActive(
     context?: string,
     pageId?: string,
@@ -88,7 +115,8 @@ export class PopupsService {
     })) as PopupRow[];
 
     const matched = active.filter((p) => {
-      if (context === 'dashboard') return p.showOnDashboard;
+      const flag = context ? PopupsService.SURFACE_FLAG[context] : undefined;
+      if (flag) return p[flag];
       if (context === 'page') {
         switch (p.pageMode) {
           case 'ALL':
@@ -138,8 +166,17 @@ export class PopupsService {
         borderRadius: dto.borderRadius ?? undefined,
         padding: dto.padding ?? undefined,
         showOnDashboard: dto.showOnDashboard ?? undefined,
+        showOnClasses: dto.showOnClasses ?? undefined,
+        showOnCourses: dto.showOnCourses ?? undefined,
+        showOnLessons: dto.showOnLessons ?? undefined,
         pageMode: dto.pageMode ?? undefined,
         pageIds: dto.pageIds ?? undefined,
+        trigger: dto.trigger ?? undefined,
+        triggerValue: dto.triggerValue ?? undefined,
+        frequency: dto.frequency ?? undefined,
+        frequencyDays: dto.frequencyDays ?? undefined,
+        closeOnOverlay: dto.closeOnOverlay ?? undefined,
+        animation: dto.animation ?? undefined,
       },
     })) as PopupRow;
     return this.toAdminRow(popup);
@@ -164,8 +201,17 @@ export class PopupsService {
         padding: dto.padding ?? undefined,
         // booleans: `false ?? undefined` is false (kept); only `undefined` skips.
         showOnDashboard: dto.showOnDashboard ?? undefined,
+        showOnClasses: dto.showOnClasses ?? undefined,
+        showOnCourses: dto.showOnCourses ?? undefined,
+        showOnLessons: dto.showOnLessons ?? undefined,
         pageMode: dto.pageMode ?? undefined,
         pageIds: dto.pageIds ?? undefined,
+        trigger: dto.trigger ?? undefined,
+        triggerValue: dto.triggerValue ?? undefined,
+        frequency: dto.frequency ?? undefined,
+        frequencyDays: dto.frequencyDays ?? undefined,
+        closeOnOverlay: dto.closeOnOverlay ?? undefined,
+        animation: dto.animation ?? undefined,
       },
     })) as PopupRow;
     return this.toAdminRow(popup);
@@ -265,12 +311,24 @@ export class PopupsService {
     };
   }
 
+  private toBehavior(p: PopupRow): PopupBehaviorDTO {
+    return {
+      trigger: p.trigger,
+      triggerValue: p.triggerValue,
+      frequency: p.frequency,
+      frequencyDays: p.frequencyDays,
+      closeOnOverlay: p.closeOnOverlay,
+      animation: p.animation,
+    };
+  }
+
   private toPublic(p: PopupRow): PopupPublicDTO {
     return {
       id: p.id,
       name: p.name,
       data: this.asDoc(p.data),
       style: this.toStyle(p),
+      behavior: this.toBehavior(p),
     };
   }
 
@@ -281,6 +339,9 @@ export class PopupsService {
       status: p.status,
       position: p.position,
       showOnDashboard: p.showOnDashboard,
+      showOnClasses: p.showOnClasses,
+      showOnCourses: p.showOnCourses,
+      showOnLessons: p.showOnLessons,
       pageMode: p.pageMode,
       pageCount: p.pageIds.length,
       views: p.views,
@@ -304,8 +365,17 @@ export class PopupsService {
       borderRadius: p.borderRadius,
       padding: p.padding,
       showOnDashboard: p.showOnDashboard,
+      showOnClasses: p.showOnClasses,
+      showOnCourses: p.showOnCourses,
+      showOnLessons: p.showOnLessons,
       pageMode: p.pageMode,
       pageIds: p.pageIds,
+      trigger: p.trigger,
+      triggerValue: p.triggerValue,
+      frequency: p.frequency,
+      frequencyDays: p.frequencyDays,
+      closeOnOverlay: p.closeOnOverlay,
+      animation: p.animation,
       views: p.views,
       clicks: p.clicks,
       dismissals: p.dismissals,

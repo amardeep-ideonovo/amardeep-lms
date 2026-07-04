@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import MuxPlayer from "@mux/mux-player-react";
-import type { LessonDTO, LessonNoteDTO } from "@lms/types";
+import type {
+  ClassCertificateStatusDTO,
+  LessonDTO,
+  LessonNoteDTO,
+} from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
-
-// Mux requires a real playbackId; the API supplies a signed token via
-// muxPlaybackToken. We use a placeholder playbackId here per spec.
-const PLACEHOLDER_PLAYBACK_ID = "00000000000000000000000000000000";
+import PopupHost from "@/components/PopupHost";
+import CertificateClaimButton from "@/components/CertificateClaimButton";
 
 // Parse a Vimeo URL into its player embed URL (or null if not a Vimeo link).
 // Production videos are hosted on Vimeo; lesson.videoUrl holds the Vimeo link.
@@ -40,6 +41,9 @@ function LessonInner() {
   const [completed, setCompleted] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [noteError, setNoteError] = useState<string | null>(null);
+  // Per-class certificate state — present only when this is the final lesson
+  // of a class with certificates configured.
+  const [certificates, setCertificates] = useState<ClassCertificateStatusDTO[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -49,6 +53,7 @@ function LessonInner() {
         if (!active) return;
         setLesson(l);
         setCompleted(!!l.completed);
+        setCertificates(l.certificates ?? []);
       })
       .catch((err) => {
         if (!active) return;
@@ -72,8 +77,10 @@ function LessonInner() {
     setCompleting(true);
     setError(null);
     try {
-      await api.completeLesson(lessonId);
+      const res = await api.completeLesson(lessonId);
       setCompleted(true);
+      // Completing the final lesson unlocks the claim instantly (no refetch).
+      if (res?.certificates) setCertificates(res.certificates);
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
         setLocked(true);
@@ -99,8 +106,10 @@ function LessonInner() {
     }
   }
 
+  // One dark canvas wraps every state (locked / error / loading / lesson).
+  let body: ReactNode;
   if (locked) {
-    return (
+    body = (
       <div className="locked-panel">
         <div className="lock-icon">🔒</div>
         <h2>This lesson is locked</h2>
@@ -110,110 +119,128 @@ function LessonInner() {
         </Link>
       </div>
     );
-  }
-
-  if (error) return <div className="alert alert-error">{error}</div>;
-  if (!lesson)
-    return (
+  } else if (error) {
+    body = <div className="alert alert-error">{error}</div>;
+  } else if (!lesson) {
+    body = (
       <div className="centered-state">
         <div className="spinner" aria-label="Loading" />
       </div>
     );
+  } else {
+    const vimeo = vimeoEmbed(lesson.videoUrl);
+    const notes = lesson.notes ?? [];
+    const fmtSize = (n: number) =>
+      n < 1024
+        ? `${n} B`
+        : n < 1024 * 1024
+        ? `${(n / 1024).toFixed(0)} KB`
+        : `${(n / 1024 / 1024).toFixed(1)} MB`;
 
-  const vimeo = vimeoEmbed(lesson.videoUrl);
-  const notes = lesson.notes ?? [];
-  const fmtSize = (n: number) =>
-    n < 1024
-      ? `${n} B`
-      : n < 1024 * 1024
-      ? `${(n / 1024).toFixed(0)} KB`
-      : `${(n / 1024 / 1024).toFixed(1)} MB`;
+    body = (
+      <>
+        <div className="breadcrumb">
+          <Link href="/dashboard">Dashboard</Link> /{" "}
+          <Link href={`/courses/${lesson.courseId}`}>Course</Link> / Lesson
+        </div>
+        <h1 className="page-title">{lesson.title}</h1>
+
+        {vimeo ? (
+          <div className="player-wrap">
+            <iframe
+              src={vimeo}
+              title={lesson.title}
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+              style={{ height: "100%", width: "100%", border: 0 }}
+            />
+          </div>
+        ) : lesson.videoUrl ? (
+          <div className="player-wrap">
+            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+            <video
+              controls
+              playsInline
+              src={lesson.videoUrl}
+              style={{ height: "100%", width: "100%", background: "#000" }}
+            />
+          </div>
+        ) : lesson.thumbnailUrl ? (
+          // No video — show the lesson thumbnail as a hero image instead.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={lesson.thumbnailUrl} alt="" className="lesson-hero" />
+        ) : null}
+
+        {notes.length > 0 && (
+          <div className="downloads">
+            <h2 className="downloads-title">Downloads</h2>
+            {noteError && <p className="alert alert-error">{noteError}</p>}
+            <ul className="downloads-list">
+              {notes.map((n) => (
+                <li key={n.id} className="download-item">
+                  <span className="download-name">{n.originalName}</span>
+                  <span className="download-size">{fmtSize(n.size)}</span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => download(n)}
+                    disabled={downloadingId === n.id}
+                  >
+                    {downloadingId === n.id ? "Downloading…" : "Download"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {completed ? (
+          <span className="lesson-done">✓ Completed</span>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={markComplete}
+            disabled={completing}
+          >
+            {completing ? "Saving…" : "Mark complete"}
+          </button>
+        )}
+
+        {certificates.length > 0 && (
+          <div style={{ marginTop: 18, display: "grid", gap: 14 }}>
+            {certificates.map((c) => (
+              <div key={c.levelId} style={{ display: "grid", gap: 6 }}>
+                {(c.eligible || c.claimed) && certificates.length > 1 && (
+                  <span style={{ fontSize: 13, opacity: 0.8 }}>{c.levelName}</span>
+                )}
+                {c.eligible || c.claimed ? (
+                  <CertificateClaimButton status={c} />
+                ) : (
+                  <span style={{ fontSize: 13, opacity: 0.7 }}>
+                    Finish every lesson in “{c.levelName}” to earn your
+                    certificate.
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {lesson.content && (
+          <div className="lesson-content lesson-content--below">
+            {lesson.content}
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
-    <>
-      <div className="breadcrumb">
-        <Link href="/dashboard">Dashboard</Link> /{" "}
-        <Link href={`/courses/${lesson.courseId}`}>Course</Link> / Lesson
-      </div>
-      <h1 className="page-title">{lesson.title}</h1>
-
-      {vimeo ? (
-        <div className="player-wrap">
-          <iframe
-            src={vimeo}
-            title={lesson.title}
-            allow="autoplay; fullscreen; picture-in-picture"
-            allowFullScreen
-            style={{ height: "100%", width: "100%", border: 0 }}
-          />
-        </div>
-      ) : lesson.videoUrl ? (
-        <div className="player-wrap">
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-          <video
-            controls
-            playsInline
-            src={lesson.videoUrl}
-            style={{ height: "100%", width: "100%", background: "#000" }}
-          />
-        </div>
-      ) : lesson.muxPlaybackToken ? (
-        <div className="player-wrap">
-          <MuxPlayer
-            playbackId={PLACEHOLDER_PLAYBACK_ID}
-            tokens={{ playback: lesson.muxPlaybackToken }}
-            streamType="on-demand"
-            style={{ height: "100%", width: "100%" }}
-          />
-        </div>
-      ) : lesson.thumbnailUrl ? (
-        // No video — show the lesson thumbnail as a hero image instead.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={lesson.thumbnailUrl} alt="" className="lesson-hero" />
-      ) : null}
-
-      {notes.length > 0 && (
-        <div className="downloads">
-          <h2 className="downloads-title">Downloads</h2>
-          {noteError && <p className="alert alert-error">{noteError}</p>}
-          <ul className="downloads-list">
-            {notes.map((n) => (
-              <li key={n.id} className="download-item">
-                <span className="download-name">{n.originalName}</span>
-                <span className="download-size">{fmtSize(n.size)}</span>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => download(n)}
-                  disabled={downloadingId === n.id}
-                >
-                  {downloadingId === n.id ? "Downloading…" : "Download"}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {completed ? (
-        <span className="lesson-done">✓ Completed</span>
-      ) : (
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={markComplete}
-          disabled={completing}
-        >
-          {completing ? "Saving…" : "Mark complete"}
-        </button>
-      )}
-
-      {lesson.content && (
-        <div className="lesson-content lesson-content--below">
-          {lesson.content}
-        </div>
-      )}
-    </>
+    <div className="course-cinema">
+      <PopupHost context={{ type: "lessons" }} />
+      <div className="cd-wrap">{body}</div>
+    </div>
   );
 }
 

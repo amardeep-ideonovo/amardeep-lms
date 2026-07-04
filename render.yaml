@@ -9,7 +9,7 @@ databases:
     plan: free
 
 services:
-  # Redis for BullMQ (Mailchimp sync queue). noeviction is required by BullMQ.
+  # Redis for BullMQ (background job queue). noeviction is required by BullMQ.
   - type: redis
     name: lms-redis
     plan: free
@@ -37,9 +37,17 @@ services:
           property: connectionString
       - key: PORT
         value: "3000"
+      # Surfaced in /health + Sentry; also gates the prod-only safety checks
+      # (required JWT_SECRET, strict CORS) in apps/api.
+      - key: ENV_NAME
+        value: "production"
+      # Behind Render's proxy — trust the first X-Forwarded-For hop so req.ip
+      # is the real client (per-IP rate limiting). See apps/api/src/main.ts.
+      - key: TRUST_PROXY
+        value: "1"
       - key: JWT_SECRET
         generateValue: true # Render generates a random secret
-      # 32-byte base64 key for at-rest encryption of Stripe/Mailchimp secrets.
+      # 32-byte base64 key for at-rest encryption of Stripe secrets.
       # Render's generateValue isn't base64-32, so set this manually (see steps).
       - key: SETTINGS_ENC_KEY
         sync: false
@@ -53,10 +61,4 @@ services:
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
-        sync: false
-      - key: MAILCHIMP_API_KEY
-        sync: false
-      - key: MAILCHIMP_SERVER_PREFIX
-        sync: false
-      - key: MAILCHIMP_AUDIENCE_ID
         sync: false

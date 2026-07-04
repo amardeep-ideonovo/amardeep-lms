@@ -1,0 +1,317 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { MediaDTO } from "@lms/types";
+import { ApiError, api } from "@/lib/api";
+
+type MediaKindPick = "image" | "video";
+
+// Reusable media picker: choose from the Media Library OR upload a new file
+// (cataloged in the library), with a preview and a paste-a-URL escape hatch.
+// `value`/`onChange` make it a drop-in for any media-URL field — used by the
+// blog/course/lesson/class forms and injected into the Puck builder. `kind`
+// switches between image and video (the class trailer uses "video"; a pasted
+// Vimeo/MP4 link works for either).
+export default function MediaPicker({
+  value,
+  onChange,
+  accept,
+  kind = "image",
+  disabled,
+}: {
+  value: string;
+  onChange: (url: string) => void;
+  accept?: string;
+  kind?: MediaKindPick;
+  // Read-only mode (e.g. an admin without edit permission): no gallery modal,
+  // no upload, no remove, no URL edits — the preview still shows.
+  disabled?: boolean;
+}) {
+  const resolvedAccept = accept ?? (kind === "video" ? "video/*" : "image/*");
+  const [libOpen, setLibOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function onFile(files: FileList | null) {
+    const f = files?.[0];
+    if (!f) return;
+    setUploading(true);
+    setErr(null);
+    try {
+      const m = await api.uploadMedia(f);
+      onChange(m.url);
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  return (
+    <div>
+      {value ? (
+        <div style={{ marginBottom: 8 }}>
+          {kind === "video" ? (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video
+              src={value}
+              controls
+              style={{
+                maxWidth: 240,
+                maxHeight: 140,
+                borderRadius: 6,
+                border: "1px solid var(--border)",
+                display: "block",
+              }}
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={value}
+              alt=""
+              style={{
+                maxWidth: 240,
+                maxHeight: 140,
+                objectFit: "cover",
+                borderRadius: 6,
+                border: "1px solid var(--border)",
+                display: "block",
+              }}
+            />
+          )}
+        </div>
+      ) : null}
+      <div className="row-actions">
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          disabled={disabled}
+          onClick={() => setLibOpen(true)}
+        >
+          {value ? "Replace from gallery" : "Gallery"}
+        </button>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          disabled={disabled || uploading}
+          onClick={() => fileRef.current?.click()}
+        >
+          {uploading ? "Uploading…" : "Upload"}
+        </button>
+        {value ? (
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            disabled={disabled}
+            onClick={() => onChange("")}
+          >
+            Remove
+          </button>
+        ) : null}
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept={resolvedAccept}
+        hidden
+        onChange={(e) => onFile(e.target.files)}
+      />
+      <input
+        type="text"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={
+          kind === "video" ? "…or paste a Vimeo/MP4 URL" : "…or paste a URL"
+        }
+        style={{ marginTop: 6 }}
+      />
+      {err && <p className="error">{err}</p>}
+      {libOpen && (
+        <MediaLibraryModal
+          kind={kind}
+          onClose={() => setLibOpen(false)}
+          onPick={(m) => {
+            onChange(m.url);
+            setLibOpen(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function MediaLibraryModal({
+  kind = "image",
+  onClose,
+  onPick,
+}: {
+  kind?: MediaKindPick;
+  onClose: () => void;
+  onPick: (m: MediaDTO) => void;
+}) {
+  const [items, setItems] = useState<MediaDTO[]>([]);
+  const [q, setQ] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const noun = kind === "video" ? "videos" : "images";
+
+  const load = useCallback(
+    async (query: string) => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const res = await api.listMedia({
+          q: query,
+          kind,
+          page: 1,
+          pageSize: 60,
+        });
+        setItems(res.items);
+      } catch (e) {
+        setErr(e instanceof ApiError ? e.message : "Failed to load media");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [kind],
+  );
+
+  useEffect(() => {
+    const t = setTimeout(() => load(q), 250);
+    return () => clearTimeout(t);
+  }, [q, load]);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onClose]);
+
+  async function onFile(files: FileList | null) {
+    const f = files?.[0];
+    if (!f) return;
+    setUploading(true);
+    setErr(null);
+    try {
+      onPick(await api.uploadMedia(f));
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.message : "Upload failed");
+      setUploading(false);
+    }
+  }
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="modal"
+        style={{ maxWidth: 760 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2>Gallery</h2>
+          <button
+            type="button"
+            className="modal-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <div className="modal-body">
+          <div className="row-actions" style={{ marginBottom: 12 }}>
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={`Search ${noun}…`}
+              style={{ minWidth: 220 }}
+            />
+            <button
+              type="button"
+              className="btn btn--sm"
+              disabled={uploading}
+              onClick={() => fileRef.current?.click()}
+            >
+              {uploading ? "Uploading…" : "Upload new"}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept={kind === "video" ? "video/*" : "image/*"}
+              hidden
+              onChange={(e) => onFile(e.target.files)}
+            />
+          </div>
+          {err && <p className="error">{err}</p>}
+          {loading ? (
+            <p className="muted">Loading…</p>
+          ) : items.length === 0 ? (
+            <p className="muted">No {noun} yet — use “Upload new”.</p>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
+                gap: 10,
+                maxHeight: 420,
+                overflow: "auto",
+              }}
+            >
+              {items.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  title={m.originalName}
+                  onClick={() => onPick(m)}
+                  style={{
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                    padding: 0,
+                    cursor: "pointer",
+                    overflow: "hidden",
+                    background: "var(--bg)",
+                    height: 90,
+                  }}
+                >
+                  {kind === "video" ? (
+                    // eslint-disable-next-line jsx-a11y/media-has-caption
+                    <video
+                      src={m.url}
+                      muted
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={m.url}
+                      alt={m.altText ?? m.originalName}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

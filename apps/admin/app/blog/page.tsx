@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import type {
   CreatePostInput,
   PostAdminRow,
@@ -8,7 +8,10 @@ import type {
   PostStatus,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
+import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
+import MediaPicker from "@/components/MediaPicker";
 
 const EMPTY = {
   title: "",
@@ -21,6 +24,7 @@ const EMPTY = {
 };
 
 export default function BlogPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [posts, setPosts] = useState<PostAdminRow[]>([]);
   const [categories, setCategories] = useState<PostCategoryDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +36,6 @@ export default function BlogPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [formError, setFormError] = useState<string | null>(null); // modal errors
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
 
   const [newCategory, setNewCategory] = useState("");
 
@@ -56,9 +59,10 @@ export default function BlogPage() {
   }
 
   useEffect(() => {
+    if (authLoading || !can("blog", "read")) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authLoading]);
 
   // Close the modal on Escape.
   useEffect(() => {
@@ -165,8 +169,10 @@ export default function BlogPage() {
 
   async function remove(post: PostAdminRow) {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(`Delete "${post.title}"? This cannot be undone.`)
+      !(await dialog.confirm({
+        message: `Delete "${post.title}"? This cannot be undone.`,
+        danger: true,
+      }))
     )
       return;
     setError(null);
@@ -176,24 +182,6 @@ export default function BlogPage() {
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete post");
-    }
-  }
-
-  async function onPickImage(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setFormError(null);
-    try {
-      const { url } = await api.uploadImage(file);
-      setForm((f) => ({ ...f, coverImageUrl: url }));
-    } catch (err) {
-      setFormError(
-        err instanceof ApiError ? err.message : "Image upload failed"
-      );
-    } finally {
-      setUploading(false);
-      e.target.value = ""; // allow re-selecting the same file
     }
   }
 
@@ -214,10 +202,10 @@ export default function BlogPage() {
 
   async function removeCategory(c: PostCategoryDTO) {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        `Remove category "${c.name}"? Posts in it will become uncategorized.`
-      )
+      !(await dialog.confirm({
+        message: `Remove category "${c.name}"? Posts in it will become uncategorized.`,
+        danger: true,
+      }))
     )
       return;
     setError(null);
@@ -244,6 +232,17 @@ export default function BlogPage() {
           day: "numeric",
         })
       : "—";
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("blog", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Blog</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>
@@ -306,7 +305,7 @@ export default function BlogPage() {
         ) : posts.length === 0 ? (
           <p className="muted">No posts yet. Click “Add new post” to start.</p>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Title</th>
@@ -370,7 +369,7 @@ export default function BlogPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 
@@ -432,31 +431,12 @@ export default function BlogPage() {
 
                 <div className="field">
                   <label>Featured image</label>
-                  <div className="row-actions" style={{ alignItems: "center" }}>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={onPickImage}
-                      disabled={uploading}
-                    />
-                    {uploading && <span className="muted">Uploading…</span>}
-                  </div>
-                  <input
+                  <MediaPicker
                     value={form.coverImageUrl}
-                    onChange={(e) =>
-                      setForm({ ...form, coverImageUrl: e.target.value })
+                    onChange={(url) =>
+                      setForm((f) => ({ ...f, coverImageUrl: url }))
                     }
-                    placeholder="…or paste an image URL"
-                    style={{ marginTop: 8 }}
                   />
-                  {form.coverImageUrl.trim() && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={form.coverImageUrl}
-                      alt="Featured preview"
-                      className="cover-preview"
-                    />
-                  )}
                 </div>
 
                 <div className="field">

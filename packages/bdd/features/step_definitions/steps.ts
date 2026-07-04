@@ -33,6 +33,15 @@ When(
       token: this.memberToken,
       body: JSON.parse(docString),
     });
+    // Track a claimed certificate for cleanup + idempotency assertions. The
+    // serial is captured on the FIRST claim only, so a re-claim in the same
+    // scenario can be compared against it.
+    if (path === "/certificates/claim" && this.last.body?.id) {
+      this.certificateId = this.last.body.id;
+      if (!this.certificateSerial) {
+        this.certificateSerial = this.last.body.serial ?? null;
+      }
+    }
   },
 );
 
@@ -119,11 +128,142 @@ When(
   },
 );
 
+// Signup needs a never-seen email: the suite runs against a long-lived dev DB
+// (only CI gets a fresh one), so a fixed address 409s on every rerun.
+When(
+  "I sign up with a fresh unique email",
+  async function (this: LmsWorld) {
+    await this.request("POST", "/auth/signup", {
+      token: null,
+      body: {
+        email: `bdd-signup-${Date.now()}-${process.pid}@example.com`,
+        password: "strongpass123",
+        firstName: "BDD",
+        lastName: "Signup",
+      },
+    });
+  },
+);
+
 When(
   "I POST {string} with an admin token and body:",
   async function (this: LmsWorld, path: string, docString: string) {
     const token = await this.adminToken();
-    await this.request("POST", path, { token, body: JSON.parse(docString) });
+    // __ARTWORK_URL__ lets certificate-template payloads reference the media
+    // file uploaded earlier in the scenario (its URL is minted at runtime).
+    const payload = docString.replace(
+      /__ARTWORK_URL__/g,
+      this.certificateMediaUrl ?? "",
+    );
+    await this.request("POST", path, { token, body: JSON.parse(payload) });
+    // Track created content so the After hook can delete it — scenario rows
+    // otherwise pile up in the shared dev DB (and PUBLISHED ones go live).
+    const id = this.last.body?.id ?? null;
+    if (path === "/admin/blog/posts") this.createdPostId = id;
+    if (path === "/admin/pages") this.createdPageId = id;
+    if (path === "/admin/certificate-templates") this.certificateTemplateId = id;
+  },
+);
+
+// ---------- certificates ----------
+
+Given(
+  "the admin has uploaded a test artwork image",
+  async function (this: LmsWorld) {
+    await this.uploadMedia();
+  },
+);
+
+// Deterministic "not completed" setup: earlier scenarios (and previous suite
+// runs against the shared dev DB) may have completed the fixture lesson.
+Given(
+  "the member has not completed the {string} lesson",
+  async function (this: LmsWorld, lessonId: string) {
+    await this.ensureMemberLoggedIn();
+    await this.request("DELETE", `/lessons/${lessonId}/complete`, {
+      token: this.memberToken,
+    });
+  },
+);
+
+When("I download the claimed certificate", async function (this: LmsWorld) {
+  await this.request("GET", `/certificates/${this.certificateId}/download`, {
+    token: this.memberToken,
+  });
+});
+
+When(
+  "I download the claimed certificate without a token",
+  async function (this: LmsWorld) {
+    await this.request("GET", `/certificates/${this.certificateId}/download`, {
+      token: null,
+    });
+  },
+);
+
+When(
+  "I verify the claimed certificate serial",
+  async function (this: LmsWorld) {
+    await this.request(
+      "GET",
+      `/certificates/verify/${this.certificateSerial}`,
+      { token: null },
+    );
+  },
+);
+
+Then(
+  "the response body should start with {string}",
+  function (this: LmsWorld, prefix: string) {
+    const body = this.last.body;
+    assert.ok(
+      typeof body === "string" && body.startsWith(prefix),
+      `expected raw body starting with "${prefix}", got: ${String(body).slice(0, 40)}`,
+    );
+  },
+);
+
+Then(
+  "the response field {string} should match {string}",
+  function (this: LmsWorld, field: string, pattern: string) {
+    const value = this.last.body?.[field];
+    assert.ok(
+      new RegExp(pattern).test(String(value)),
+      `expected field "${field}" (${String(value)}) to match /${pattern}/`,
+    );
+  },
+);
+
+Then(
+  "the response serial should equal the previously claimed serial",
+  function (this: LmsWorld) {
+    assert.ok(this.certificateSerial, "no serial was captured by a claim");
+    assert.equal(this.last.body?.serial, this.certificateSerial);
+  },
+);
+
+Then(
+  "the response should offer a certificate for {string}",
+  function (this: LmsWorld, levelId: string) {
+    const certs = this.last.body?.certificates;
+    assert.ok(Array.isArray(certs), `expected certificates[] in the response`);
+    const entry = certs.find((c: any) => c?.levelId === levelId);
+    assert.ok(entry, `no certificate entry for level "${levelId}"`);
+    assert.equal(entry.eligible, true, "expected eligible: true");
+  },
+);
+
+Then(
+  "exactly one certificate template should be the default",
+  async function (this: LmsWorld) {
+    const token = await this.adminToken();
+    await this.request("GET", "/admin/certificate-templates", { token });
+    const defaults = (this.last.body as any[]).filter((t) => t.isDefault);
+    assert.equal(
+      defaults.length,
+      1,
+      `expected exactly one default, got ${defaults.length}`,
+    );
   },
 );
 
@@ -189,7 +329,7 @@ Then(
   },
 );
 
-// ---------- forms (Mailchimp-linked) ----------
+// ---------- forms (Audience-linked) ----------
 
 When(
   "I create a form via admin with body:",
@@ -218,12 +358,12 @@ When(
 );
 
 Then(
-  'the response "mailchimpStatus" should be {string}',
+  'the response "subscribeStatus" should be {string}',
   function (this: LmsWorld, expected: string) {
     assert.equal(
-      this.last.body?.mailchimpStatus,
+      this.last.body?.subscribeStatus,
       expected,
-      `expected mailchimpStatus "${expected}" but got ${JSON.stringify(this.last.body)}`,
+      `expected subscribeStatus "${expected}" but got ${JSON.stringify(this.last.body)}`,
     );
   },
 );
@@ -257,6 +397,18 @@ When(
     await this.request(
       "GET",
       `/popups/active?context=page&pageId=${encodeURIComponent(pageId)}`,
+      { token: null },
+    );
+  },
+);
+
+// Member-area surfaces beyond the dashboard (classes / courses / lessons).
+When(
+  "I GET active popups for context {string} without a token",
+  async function (this: LmsWorld, context: string) {
+    await this.request(
+      "GET",
+      `/popups/active?context=${encodeURIComponent(context)}`,
       { token: null },
     );
   },
@@ -329,6 +481,20 @@ Then(
   },
 );
 
+// Enum assertion for values an admin can change on the long-lived dev DB —
+// asserts the CONTRACT (one of the allowed values), not the saved data.
+Then(
+  "the response field {string} should be one of {string}",
+  function (this: LmsWorld, field: string, allowed: string) {
+    const value = String(this.last.body?.[field] ?? "");
+    const options = allowed.split("|");
+    assert.ok(
+      options.includes(value),
+      `expected "${field}" to be one of ${allowed} but got "${value}"`,
+    );
+  },
+);
+
 // ---------- members (admin profile edit) ----------
 
 When(
@@ -363,6 +529,74 @@ When(
     await this.request("GET", `/admin/forms/${this.formId}/submissions`, {
       token,
     });
+  },
+);
+
+// ---------- app customization (mobile branding config) ----------
+
+When(
+  "I PUT {string} without a token and body:",
+  async function (this: LmsWorld, path: string, docString: string) {
+    await this.request("PUT", path, { token: null, body: JSON.parse(docString) });
+  },
+);
+
+When(
+  "I GET {string} with an admin token",
+  async function (this: LmsWorld, path: string) {
+    const token = await this.adminToken();
+    await this.request("GET", path, { token });
+  },
+);
+
+When(
+  "I DELETE {string} with an admin token",
+  async function (this: LmsWorld, path: string) {
+    const token = await this.adminToken();
+    await this.request("DELETE", path, { token });
+  },
+);
+
+When(
+  "I PUT {string} with an admin token and body:",
+  async function (this: LmsWorld, path: string, docString: string) {
+    const token = await this.adminToken();
+    await this.request("PUT", path, { token, body: JSON.parse(docString) });
+  },
+);
+
+// App-config round-trip hygiene: the suite runs against a long-lived dev DB,
+// so the scenario captures the live config first and restores it afterwards —
+// otherwise the test branding ("BDD App") becomes the real app branding.
+When("I capture the current app config", async function (this: LmsWorld) {
+  await this.request("GET", "/app/config", { token: null });
+  this.savedAppConfig = this.last.body;
+});
+
+When(
+  "I restore the captured app config with an admin token",
+  async function (this: LmsWorld) {
+    const token = await this.adminToken();
+    await this.request("PUT", "/admin/app/config", {
+      token,
+      body: { appConfig: this.savedAppConfig },
+    });
+  },
+);
+
+// Dotted-path variant of "the response field … should be …", so a nested value
+// (e.g. "light.primary") can be asserted on the returned config.
+Then(
+  "the response field {string} should equal {string}",
+  function (this: LmsWorld, path: string, expected: string) {
+    const actual = path
+      .split(".")
+      .reduce((o: any, k) => (o == null ? o : o[k]), this.last.body);
+    assert.equal(
+      String(actual ?? ""),
+      expected,
+      `expected "${path}" to equal "${expected}" but got ${JSON.stringify(this.last.body)}`,
+    );
   },
 );
 

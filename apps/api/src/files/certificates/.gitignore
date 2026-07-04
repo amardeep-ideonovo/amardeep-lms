@@ -1,0 +1,5 @@
+# Rendered certificate PDFs are PRIVATE runtime data (never served statically;
+# streamed only through the owner-checked download route). Keep the folder,
+# ignore the contents. (This .gitignore is itself tracked, preserving the folder.)
+*
+!.gitignore

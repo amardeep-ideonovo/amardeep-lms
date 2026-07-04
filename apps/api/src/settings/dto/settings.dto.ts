@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
 
 export class UpdateStripeSettingsDto {
   @IsOptional()
@@ -16,16 +16,85 @@ export class UpdateStripeSettingsDto {
   publishableKey?: string;
 }
 
-export class UpdateMailchimpSettingsDto {
+export class UpdatePayPalSettingsDto {
+  // Client id is public (it ships to the browser for the PayPal JS SDK) but
+  // managed here alongside the secret.
   @IsOptional()
   @IsString()
-  apiKey?: string;
+  clientId?: string;
 
   @IsOptional()
   @IsString()
-  serverPrefix?: string;
+  clientSecret?: string;
+
+  // Webhook id from the PayPal app's webhook registration — needed to call
+  // verify-webhook-signature. An identifier, not a secret.
+  @IsOptional()
+  @IsString()
+  webhookId?: string;
+
+  @IsOptional()
+  @IsIn(['sandbox', 'live'])
+  mode?: 'sandbox' | 'live';
+}
+
+export class UpdatePaymentProviderDto {
+  @IsIn(['stripe', 'paypal'])
+  provider!: 'stripe' | 'paypal';
+}
+
+export class UpdateZoomSettingsDto {
+  // SDK key is public (ships to the browser to join) but managed here alongside
+  // the secret; whitelisted so saving it isn't rejected by the global pipe.
+  @IsOptional()
+  @IsString()
+  sdkKey?: string;
+
+  // The SDK secret — write-only (signs the join signature server-side).
+  @IsOptional()
+  @IsString()
+  sdkSecret?: string;
+}
+
+export class UpdateEmailSettingsDto {
+  // The pluggable sender id: "smtp" (nodemailer) or "resend" (REST API).
+  @IsOptional()
+  @IsString()
+  provider?: string;
 
   @IsOptional()
   @IsString()
-  audienceId?: string;
+  host?: string;
+
+  // String on the wire (matches the form input); parsed to a number on read.
+  @IsOptional()
+  @IsString()
+  port?: string;
+
+  @IsOptional()
+  @IsString()
+  user?: string;
+
+  // The SMTP password — the only secret in this group (write-only).
+  @IsOptional()
+  @IsString()
+  pass?: string;
+
+  // The Resend REST API key (re_…) — write-only secret used when provider="resend".
+  // Blank/omitted keeps the stored value, exactly like `pass`.
+  @IsOptional()
+  @IsString()
+  resendApiKey?: string;
+
+  @IsOptional()
+  @IsString()
+  fromEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  fromName?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  secure?: boolean;
 }

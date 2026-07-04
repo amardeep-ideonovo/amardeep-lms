@@ -11,20 +11,18 @@ import type {
   FormStatus,
   FormSubmissionDTO,
   FormSubmitResult,
-  MailchimpAudienceDTO,
-  MailchimpMergeFieldDTO,
 } from '@lms/types';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { MailchimpService } from '../mailchimp/mailchimp.service';
+import { ContactsService } from '../contacts/contacts.service';
 import { CreateFormDto, UpdateFormDto } from './dto/form.dto';
 
 type FormRow = {
   id: string;
   name: string;
   fields: Prisma.JsonValue;
-  mailchimpAudienceId: string | null;
-  mailchimpAudienceName: string | null;
+  audienceId: string | null;
+  audience?: { name: string } | null;
   doubleOptIn: boolean;
   updateExisting: boolean;
   tags: string[];
@@ -44,17 +42,13 @@ export class FormsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mailchimp: MailchimpService,
+    private readonly contacts: ContactsService,
   ) {}
 
-  // ---------- Mailchimp passthrough (admin editor) ----------
-
-  listAudiences(): Promise<MailchimpAudienceDTO[]> {
-    return this.mailchimp.listAudiences();
-  }
-  getMergeFields(audienceId: string): Promise<MailchimpMergeFieldDTO[]> {
-    return this.mailchimp.getMergeFields(audienceId);
-  }
+  // NOTE: the form editor's audience picker + field mapper read OUR in-house
+  // list directly via the canonical contacts endpoints (GET /admin/audiences and
+  // /admin/audiences/:id/fields). This service writes form opt-ins straight into
+  // the in-house contacts list.
 
   // A self-contained vanilla-JS widget that renders + submits this form. Served
   // at GET /forms/:id/embed.js so it can be dropped on ANY page/popup with a
@@ -107,7 +101,10 @@ mount.appendChild(f);
   async adminList(): Promise<FormAdminRow[]> {
     const forms = await this.prisma.form.findMany({
       orderBy: { updatedAt: 'desc' },
-      include: { _count: { select: { submissions: true } } },
+      include: {
+        audience: { select: { name: true } },
+        _count: { select: { submissions: true } },
+      },
     });
     return forms.map((f: FormRow) => this.toAdminRow(f));
   }
@@ -115,7 +112,10 @@ mount.appendChild(f);
   async adminGet(id: string): Promise<FormAdminRow> {
     const form = await this.prisma.form.findUnique({
       where: { id },
-      include: { _count: { select: { submissions: true } } },
+      include: {
+        audience: { select: { name: true } },
+        _count: { select: { submissions: true } },
+      },
     });
     if (!form) throw new NotFoundException('Form not found');
     return this.toAdminRow(form);
@@ -126,8 +126,7 @@ mount.appendChild(f);
       data: {
         name: dto.name.trim(),
         fields: (dto.fields ?? []) as unknown as Prisma.InputJsonValue,
-        mailchimpAudienceId: dto.mailchimpAudienceId ?? null,
-        mailchimpAudienceName: dto.mailchimpAudienceName ?? null,
+        audienceId: dto.audienceId ?? null, // null = default "Members" audience
         doubleOptIn: dto.doubleOptIn ?? false, // default: No
         updateExisting: dto.updateExisting ?? true, // default: Yes
         tags: dto.tags ?? [],
@@ -135,7 +134,10 @@ mount.appendChild(f);
         redirectUrl: dto.redirectUrl?.trim() || null,
         status: dto.status ?? 'ACTIVE',
       },
-      include: { _count: { select: { submissions: true } } },
+      include: {
+        audience: { select: { name: true } },
+        _count: { select: { submissions: true } },
+      },
     });
     return this.toAdminRow(form);
   }
@@ -151,14 +153,8 @@ mount.appendChild(f);
           dto.fields !== undefined
             ? (dto.fields as unknown as Prisma.InputJsonValue)
             : undefined,
-        mailchimpAudienceId:
-          dto.mailchimpAudienceId !== undefined
-            ? dto.mailchimpAudienceId || null
-            : undefined,
-        mailchimpAudienceName:
-          dto.mailchimpAudienceName !== undefined
-            ? dto.mailchimpAudienceName || null
-            : undefined,
+        audienceId:
+          dto.audienceId !== undefined ? dto.audienceId || null : undefined,
         doubleOptIn: dto.doubleOptIn ?? undefined,
         updateExisting: dto.updateExisting ?? undefined,
         tags: dto.tags ?? undefined,
@@ -172,7 +168,10 @@ mount.appendChild(f);
             : undefined,
         status: dto.status ?? undefined,
       },
-      include: { _count: { select: { submissions: true } } },
+      include: {
+        audience: { select: { name: true } },
+        _count: { select: { submissions: true } },
+      },
     });
     return this.toAdminRow(form);
   }
@@ -199,7 +198,7 @@ mount.appendChild(f);
       data: (s.data && typeof s.data === 'object' && !Array.isArray(s.data)
         ? s.data
         : {}) as Record<string, string | number | boolean>,
-      mailchimpStatus: s.mailchimpStatus,
+      subscribeStatus: s.subscribeStatus,
       createdAt: s.createdAt.toISOString(),
     }));
   }
@@ -256,7 +255,7 @@ mount.appendChild(f);
       throw new BadRequestException('Please enter a valid email address');
     }
 
-    // Store the submission first so a Mailchimp hiccup never loses the lead.
+    // Store the submission first so a contacts hiccup never loses the lead.
     const submission = await this.prisma.formSubmission.create({
       data: {
         formId: form.id,
@@ -265,7 +264,8 @@ mount.appendChild(f);
       },
     });
 
-    // Map mapped fields -> Mailchimp merge fields (EMAIL is the address itself).
+    // Map mapped fields -> in-house contact attributes (EMAIL is the address
+    // itself, so it's excluded here).
     const mergeFields: Record<string, unknown> = {};
     for (const f of fields) {
       if (f.mergeTag && f.mergeTag !== 'EMAIL') {
@@ -277,25 +277,31 @@ mount.appendChild(f);
       }
     }
 
-    let mailchimpStatus: string;
-    if (!form.mailchimpAudienceId || !email) {
-      mailchimpStatus = 'skipped';
+    // In-house list write. Fires whenever there's an email — NOT gated on a
+    // configured audience: a null form.audienceId resolves to the default
+    // "Members" audience, so a form with no audience still captures everyone.
+    // Best-effort so a contacts hiccup never 500s the public submit.
+    let subscribeStatus: string;
+    if (!email) {
+      subscribeStatus = 'skipped';
     } else {
       try {
-        mailchimpStatus = await this.mailchimp.subscribe(
-          form.mailchimpAudienceId,
+        subscribeStatus = await this.contacts.subscribe(
+          // null (no configured audience) → default "Members" audience.
+          form.audienceId ?? null,
           email,
           mergeFields,
           {
             doubleOptIn: form.doubleOptIn,
             updateExisting: form.updateExisting,
             tags: form.tags,
+            source: 'FORM',
           },
         );
       } catch (e) {
-        mailchimpStatus = 'failed';
+        subscribeStatus = 'failed';
         this.logger.warn(
-          `Mailchimp subscribe failed for form ${form.id}: ${
+          `Contacts subscribe failed for form ${form.id}: ${
             e instanceof Error ? e.message : String(e)
           }`,
         );
@@ -304,12 +310,12 @@ mount.appendChild(f);
 
     await this.prisma.formSubmission.update({
       where: { id: submission.id },
-      data: { mailchimpStatus },
+      data: { subscribeStatus },
     });
 
     return {
       ok: true,
-      mailchimpStatus,
+      subscribeStatus,
       redirectUrl: form.redirectUrl,
       message: form.successMessage,
     };
@@ -326,8 +332,8 @@ mount.appendChild(f);
       id: f.id,
       name: f.name,
       fields: this.asFields(f.fields),
-      mailchimpAudienceId: f.mailchimpAudienceId,
-      mailchimpAudienceName: f.mailchimpAudienceName,
+      audienceId: f.audienceId,
+      audienceName: f.audience?.name ?? null, // null = default "Members"
       doubleOptIn: f.doubleOptIn,
       updateExisting: f.updateExisting,
       tags: f.tags,

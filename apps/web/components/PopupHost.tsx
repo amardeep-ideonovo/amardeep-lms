@@ -1,29 +1,91 @@
 "use client";
 
 // Client overlay that shows the ACTIVE popups matching the current context
-// (the member dashboard, or a CMS page). The API does ALL visibility filtering,
-// so this just fetches and renders. Display behaviour: EVERY page load — the
-// popup appears on mount; the close button hides it for this view only (no
-// persistence), so it reappears on the next visit.
+// (a member-area surface — dashboard/classes/courses/lessons — or a CMS
+// page). The API does the WHERE filtering; this host enforces the WHEN:
+//
+//   trigger   — IMMEDIATE | DELAY (s) | SCROLL (% of page) | EXIT_INTENT
+//   frequency — EVERY_VISIT | ONCE_PER_SESSION | ONCE_PER_DAYS | ONCE,
+//               capped client-side via local/session storage (a popup is a
+//               marketing surface, not a security boundary)
+//   closeOnOverlay / animation — presentation niceties
 //
 //   <PopupHost context={{ type: "dashboard" }} />
 //   <PopupHost context={{ type: "page", pageId }} />
 //
 // The popup body is a Puck document rendered with the SAME shared blocks as
 // pages (so a popup can contain a heading, rich text, a button, even a Form).
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Render } from "@puckeditor/core";
 import type { Data } from "@puckeditor/core";
 import { createPuckConfig } from "@lms/puck";
 import type { PageProps, RootProps } from "@lms/puck";
 import "@lms/puck/styles.css";
-import type { PopupContext, PopupPosition, PopupPublicDTO } from "@lms/types";
+import type {
+  PopupContext,
+  PopupPosition,
+  PopupPublicDTO,
+} from "@lms/types";
 import FormEmbed from "@/components/FormEmbed";
+import PageMenu from "@/components/PageMenu";
 import { fetchActivePopups, recordPopupEvent } from "@/lib/api";
 
-const config = createPuckConfig({ formComponent: FormEmbed });
+const config = createPuckConfig({
+  formComponent: FormEmbed,
+  menuComponent: PageMenu,
+});
 
 const EDGE = 20; // px gap from the viewport edges for non-centered popups
+
+// Parse a #rgb / #rrggbb popup background and decide whether it's dark, so the
+// close button contrasts against it (a dark popup needs a light "×", not the
+// default dark one that would all but vanish). Non-hex values default to light
+// — our seeded popups use hex.
+function isDarkBg(color: string | undefined): boolean {
+  if (!color) return false;
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
+  if (!m) return false;
+  let hex = m[1];
+  if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b < 128; // sRGB-weighted luminance
+}
+
+// ---------- frequency capping (storage is best-effort; private-mode safe) ----------
+const seenKey = (id: string) => `lms-popup-seen:${id}`;
+
+function isSuppressed(p: PopupPublicDTO): boolean {
+  const b = p.behavior;
+  if (!b || b.frequency === "EVERY_VISIT") return false;
+  try {
+    if (b.frequency === "ONCE_PER_SESSION") {
+      return sessionStorage.getItem(seenKey(p.id)) != null;
+    }
+    const at = Number(localStorage.getItem(seenKey(p.id)) || 0);
+    if (!at) return false;
+    if (b.frequency === "ONCE") return true;
+    const days = Math.max(1, b.frequencyDays || 7);
+    return Date.now() - at < days * 86400000;
+  } catch {
+    return false;
+  }
+}
+
+function markSeen(p: PopupPublicDTO): void {
+  const b = p.behavior;
+  if (!b || b.frequency === "EVERY_VISIT") return;
+  try {
+    if (b.frequency === "ONCE_PER_SESSION") {
+      sessionStorage.setItem(seenKey(p.id), "1");
+    } else {
+      localStorage.setItem(seenKey(p.id), String(Date.now()));
+    }
+  } catch {
+    /* storage unavailable — popup just behaves like EVERY_VISIT */
+  }
+}
 
 // Placement of the popup box for a given on-screen position.
 function boxPosition(pos: PopupPosition): React.CSSProperties {
@@ -46,6 +108,28 @@ function boxPosition(pos: PopupPosition): React.CSSProperties {
   }
 }
 
+// Entrance keyframes per configured animation (Web Animations API — no
+// stylesheet involvement, and `transform` composes with the position offsets
+// because we animate a child wrapper, not the positioned box itself).
+function entranceKeyframes(anim: string): Keyframe[] | null {
+  switch (anim) {
+    case "FADE":
+      return [{ opacity: 0 }, { opacity: 1 }];
+    case "SLIDE_UP":
+      return [
+        { opacity: 0, transform: "translateY(28px)" },
+        { opacity: 1, transform: "translateY(0)" },
+      ];
+    case "ZOOM":
+      return [
+        { opacity: 0, transform: "scale(0.9)" },
+        { opacity: 1, transform: "scale(1)" },
+      ];
+    default:
+      return null;
+  }
+}
+
 function PopupCard({
   popup,
   onClose,
@@ -54,14 +138,27 @@ function PopupCard({
   onClose: () => void;
 }) {
   const s = popup.style;
+  const b = popup.behavior;
   const centered = s.position === "CENTER";
+  const darkBg = isDarkBg(s.background);
+  const innerRef = useRef<HTMLDivElement | null>(null);
 
-  // Count one impression when this popup first appears.
+  // Count one impression + start the frequency clock when this popup appears.
   useEffect(() => {
     recordPopupEvent(popup.id, "view");
+    markSeen(popup);
+    const frames = entranceKeyframes(b?.animation ?? "FADE");
+    if (frames && innerRef.current?.animate) {
+      try {
+        innerRef.current.animate(frames, { duration: 360, easing: "ease-out" });
+      } catch {
+        /* old browser — popup simply appears */
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [popup.id]);
 
-  // Dismiss = close button or backdrop tap.
+  // Dismiss = close button or (when allowed) backdrop tap.
   const handleClose = () => {
     recordPopupEvent(popup.id, "dismiss");
     onClose();
@@ -76,11 +173,12 @@ function PopupCard({
 
   return (
     <>
-      {/* Centered popups get a dimming backdrop (click to dismiss). Corner /
-          edge popups behave like toasts — no backdrop, page stays usable. */}
+      {/* Centered popups get a dimming backdrop. Click-to-dismiss is the
+          admin's call (closeOnOverlay). Corner / edge popups behave like
+          toasts — no backdrop, page stays usable. */}
       {centered && (
         <div
-          onClick={handleClose}
+          onClick={b?.closeOnOverlay === false ? undefined : handleClose}
           style={{
             position: "fixed",
             inset: 0,
@@ -96,49 +194,117 @@ function PopupCard({
           position: "fixed",
           ...boxPosition(s.position),
           width: s.width || "480px",
-          height: s.height && s.height !== "auto" ? s.height : undefined,
           maxWidth: "calc(100vw - 40px)",
           maxHeight: "calc(100vh - 40px)",
-          overflow: "auto",
-          background: s.background || "#ffffff",
-          border: `1px solid ${s.borderColor || "#e2e8f0"}`,
-          borderRadius: s.borderRadius,
-          padding: s.padding,
-          boxShadow: "0 12px 40px rgba(15,23,42,0.25)",
           pointerEvents: "auto",
         }}
       >
-        <button
-          type="button"
-          onClick={handleClose}
-          aria-label="Close"
+        <div
+          ref={innerRef}
           style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            width: 28,
-            height: 28,
-            borderRadius: 999,
-            border: "none",
-            background: "rgba(15,23,42,0.08)",
-            color: "#0f172a",
-            fontSize: 16,
-            lineHeight: 1,
-            cursor: "pointer",
-            zIndex: 1,
+            width: "100%",
+            height: s.height && s.height !== "auto" ? s.height : undefined,
+            maxHeight: "calc(100vh - 40px)",
+            overflow: "auto",
+            background: s.background || "#ffffff",
+            border: `1px solid ${s.borderColor || "#e2e8f0"}`,
+            borderRadius: s.borderRadius,
+            padding: s.padding,
+            boxShadow: "0 12px 40px rgba(15,23,42,0.25)",
+            position: "relative",
           }}
         >
-          ×
-        </button>
-        <div onClickCapture={handleContentClick}>
-          <Render
-            config={config}
-            data={popup.data as unknown as Data<PageProps, RootProps>}
-          />
+          <button
+            type="button"
+            onClick={handleClose}
+            aria-label="Close"
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              border: "none",
+              background: darkBg ? "rgba(255,255,255,0.14)" : "rgba(15,23,42,0.08)",
+              color: darkBg ? "#f8fafc" : "#0f172a",
+              fontSize: 16,
+              lineHeight: 1,
+              cursor: "pointer",
+              zIndex: 1,
+            }}
+          >
+            ×
+          </button>
+          <div onClickCapture={handleContentClick}>
+            <Render
+              config={config}
+              data={popup.data as unknown as Data<PageProps, RootProps>}
+            />
+          </div>
         </div>
       </div>
     </>
   );
+}
+
+// Arms a popup's trigger and renders the card once it fires.
+function TriggerGate({
+  popup,
+  onClose,
+}: {
+  popup: PopupPublicDTO;
+  onClose: () => void;
+}) {
+  const b = popup.behavior;
+  const trigger = b?.trigger ?? "IMMEDIATE";
+  const [fired, setFired] = useState(trigger === "IMMEDIATE");
+
+  useEffect(() => {
+    if (fired) return;
+
+    if (trigger === "DELAY") {
+      const t = setTimeout(
+        () => setFired(true),
+        Math.max(0, b?.triggerValue ?? 0) * 1000,
+      );
+      return () => clearTimeout(t);
+    }
+
+    if (trigger === "SCROLL") {
+      const pct = Math.min(100, Math.max(1, b?.triggerValue || 25));
+      const onScroll = () => {
+        const doc = document.documentElement;
+        const scrollable = doc.scrollHeight - window.innerHeight;
+        if (scrollable <= 0) return;
+        if ((window.scrollY / scrollable) * 100 >= pct) setFired(true);
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll(); // already past the threshold (e.g. anchor navigation)
+      return () => window.removeEventListener("scroll", onScroll);
+    }
+
+    if (trigger === "EXIT_INTENT") {
+      // Desktop: cursor leaves through the viewport top (heading for the tab
+      // bar). Touch devices have no exit intent — approximate with a delay.
+      const fine = window.matchMedia?.("(pointer: fine)").matches ?? true;
+      if (fine) {
+        const onLeave = (e: MouseEvent) => {
+          if (e.clientY <= 0) setFired(true);
+        };
+        document.addEventListener("mouseleave", onLeave);
+        return () => document.removeEventListener("mouseleave", onLeave);
+      }
+      const t = setTimeout(() => setFired(true), 15000);
+      return () => clearTimeout(t);
+    }
+
+    setFired(true); // unknown trigger value from a newer admin — fail open
+    return undefined;
+  }, [fired, trigger, b?.triggerValue]);
+
+  if (!fired) return null;
+  return <PopupCard popup={popup} onClose={onClose} />;
 }
 
 export default function PopupHost({ context }: { context: PopupContext }) {
@@ -147,12 +313,13 @@ export default function PopupHost({ context }: { context: PopupContext }) {
 
   // Stable dependency: re-fetch when the targeted surface changes.
   const ctxKey =
-    context.type === "page" ? `page:${context.pageId}` : "dashboard";
+    context.type === "page" ? `page:${context.pageId}` : context.type;
 
   useEffect(() => {
     let alive = true;
     fetchActivePopups(context)
-      .then((list) => alive && setPopups(list))
+      // Frequency-capped popups are dropped up front so their triggers never arm.
+      .then((list) => alive && setPopups(list.filter((p) => !isSuppressed(p))))
       .catch(() => {});
     return () => {
       alive = false;
@@ -166,7 +333,7 @@ export default function PopupHost({ context }: { context: PopupContext }) {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 4000, pointerEvents: "none" }}>
       {visible.map((p) => (
-        <PopupCard
+        <TriggerGate
           key={p.id}
           popup={p}
           onClose={() => setClosed((prev) => new Set(prev).add(p.id))}

@@ -4,6 +4,7 @@
 // heavy editor CSS only loads on this full-screen page.
 import "@puckeditor/core/puck.css";
 import "@lms/puck/styles.css";
+import "@/app/puck-theme.css";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -13,8 +14,13 @@ import { createPuckConfig } from "@lms/puck";
 import type { PageProps, RootProps } from "@lms/puck";
 import type { PageStatus, PuckDocument } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
+import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
 import FormPickerField from "@/components/FormPickerField";
+import MediaPicker from "@/components/MediaPicker";
+import MenuPickerField from "@/components/MenuPickerField";
+import PuckColorField from "@/components/PuckColorField";
 
 type PageData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -27,10 +33,10 @@ function FormPreview({ formId }: { formId: string }) {
   return (
     <div
       style={{
-        border: "1px dashed #cbd5e1",
+        border: "1px dashed var(--border-strong)",
         borderRadius: 8,
         padding: 16,
-        color: "#64748b",
+        color: "var(--muted)",
         textAlign: "center",
       }}
     >
@@ -40,6 +46,7 @@ function FormPreview({ formId }: { formId: string }) {
 }
 
 export default function PageEditor() {
+  const { can, loading: authLoading } = useAdminAuth();
   const params = useParams();
   const id = String((params?.id as string) ?? "");
   const router = useRouter();
@@ -79,11 +86,58 @@ export default function PageEditor() {
         onChange: (v: string) => void;
       }) => <FormPickerField value={value} onChange={onChange} />,
     } as Field;
-    return createPuckConfig({ richTextField, formComponent: FormPreview, formField });
+    const imageField = {
+      type: "custom" as const,
+      render: ({
+        value,
+        onChange,
+      }: {
+        value?: string;
+        onChange: (v: string) => void;
+      }) => <MediaPicker value={value || ""} onChange={onChange} />,
+    } as Field;
+    const menuField = {
+      type: "custom" as const,
+      label: "Menu",
+      render: ({
+        value,
+        onChange,
+      }: {
+        value?: string;
+        onChange: (v: string) => void;
+      }) => <MenuPickerField value={value} onChange={onChange} />,
+    } as Field;
+    // Clearable swatch for the Design group's color props (label comes from the
+    // field definition so one component serves every color control).
+    const colorField = {
+      type: "custom" as const,
+      render: ({
+        field,
+        value,
+        onChange,
+      }: {
+        field?: { label?: string };
+        value?: string;
+        onChange: (v: string) => void;
+      }) => (
+        <PuckColorField label={field?.label} value={value} onChange={onChange} />
+      ),
+    } as Field;
+    return createPuckConfig({
+      richTextField,
+      formComponent: FormPreview,
+      formField,
+      imageField,
+      menuField,
+      colorField,
+      // Canvas previews the dark member site, not the admin chrome theme.
+      editorCanvas: true,
+    });
   }, []);
 
   useEffect(() => {
     if (!id) return;
+    if (authLoading || !can("pages", "read")) return;
     let alive = true;
     (async () => {
       try {
@@ -108,7 +162,8 @@ export default function PageEditor() {
       alive = false;
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, authLoading]);
 
   function persist(extra?: { status?: PageStatus }) {
     return api.updatePage(id, {
@@ -141,7 +196,9 @@ export default function PageEditor() {
       setSaveState("saved");
     } catch (err) {
       setSaveState("error");
-      alert(err instanceof ApiError ? err.message : "Failed to update status");
+      await dialog.notify(
+        err instanceof ApiError ? err.message : "Failed to update status",
+      );
     }
   }
 
@@ -154,9 +211,27 @@ export default function PageEditor() {
       setTitle(updated.title);
       setSlug(updated.slug);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Failed to save title/slug");
+      await dialog.notify(
+        err instanceof ApiError ? err.message : "Failed to save title/slug",
+      );
     }
   }
+
+  if (authLoading)
+    return (
+      <div style={{ padding: 40 }} className="muted">
+        Loading editor…
+      </div>
+    );
+  if (!can("pages", "read"))
+    return (
+      <div style={{ padding: 40 }}>
+        <div className="page-header">
+          <h1>Page editor</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   if (!loaded) {
     return (
@@ -193,7 +268,7 @@ export default function PageEditor() {
         inset: 0,
         display: "flex",
         flexDirection: "column",
-        background: "#fff",
+        background: "var(--bg)",
         zIndex: 1000,
       }}
     >
@@ -205,7 +280,7 @@ export default function PageEditor() {
           alignItems: "center",
           gap: 10,
           padding: "8px 14px",
-          borderBottom: "1px solid #e2e5ea",
+          borderBottom: "1px solid var(--border)",
           flex: "none",
         }}
       >

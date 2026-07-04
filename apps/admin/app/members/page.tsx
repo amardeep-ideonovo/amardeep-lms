@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import type { LevelDTO, MemberRow } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
-
-const EMPTY_EDIT = { firstName: "", lastName: "", phone: "" };
+import { useAdminAuth } from "@/components/AdminAuthProvider";
 
 export default function MembersPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -16,12 +17,8 @@ export default function MembersPage() {
   const [busy, setBusy] = useState<string | null>(null);
   // filter the list by held level ("" = all, levelId, or "__none__" = no level)
   const [filterLevel, setFilterLevel] = useState("");
-
-  // edit-profile modal
-  const [editing, setEditing] = useState<MemberRow | null>(null);
-  const [editForm, setEditForm] = useState({ ...EMPTY_EDIT });
-  const [savingEdit, setSavingEdit] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
+  // free-text search by email (case-insensitive substring)
+  const [search, setSearch] = useState("");
 
   async function load() {
     setLoading(true);
@@ -38,55 +35,10 @@ export default function MembersPage() {
   }
 
   useEffect(() => {
+    if (authLoading || !can("members", "read")) return;
     load();
-  }, []);
-
-  // Close the edit modal on Escape.
-  useEffect(() => {
-    if (!editing) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeEdit();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing]);
-
-  function openEdit(m: MemberRow) {
-    setEditing(m);
-    setEditForm({
-      firstName: m.firstName ?? "",
-      lastName: m.lastName ?? "",
-      phone: m.phone ?? "",
-    });
-    setEditError(null);
-  }
-  function closeEdit() {
-    setEditing(null);
-    setEditForm({ ...EMPTY_EDIT });
-    setEditError(null);
-  }
-
-  async function saveEdit() {
-    if (!editing) return;
-    setSavingEdit(true);
-    setEditError(null);
-    try {
-      await api.updateMember(editing.id, {
-        firstName: editForm.firstName.trim(),
-        lastName: editForm.lastName.trim(),
-        phone: editForm.phone.trim(),
-      });
-      closeEdit();
-      await load();
-    } catch (err) {
-      setEditError(
-        err instanceof ApiError ? err.message : "Failed to save member"
-      );
-    } finally {
-      setSavingEdit(false);
-    }
-  }
+  }, [authLoading]);
 
   async function addLevel(memberId: string) {
     const levelId = pending[memberId];
@@ -98,7 +50,7 @@ export default function MembersPage() {
       setPending((p) => ({ ...p, [memberId]: "" }));
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to add level");
+      setError(err instanceof ApiError ? err.message : "Failed to add class");
     } finally {
       setBusy(null);
     }
@@ -111,24 +63,37 @@ export default function MembersPage() {
       await api.removeMemberLevel(memberId, levelId);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to remove level");
+      setError(err instanceof ApiError ? err.message : "Failed to remove class");
     } finally {
       setBusy(null);
     }
   }
 
+  const q = search.trim().toLowerCase();
   const filtered = members.filter((m) => {
+    if (q && !m.email.toLowerCase().includes(q)) return false;
     if (filterLevel === "") return true;
     if (filterLevel === "__none__") return m.levels.length === 0;
     return m.levels.some((l) => l.id === filterLevel);
   });
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("members", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Members</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>
       <div className="page-header">
         <h1>Members</h1>
         <p className="subtitle">
-          Edit a member’s details, or manually grant/revoke a level. Manual
+          Edit a member’s details, or manually grant/revoke a class. Manual
           grants coexist with paid subscriptions.
         </p>
       </div>
@@ -151,21 +116,32 @@ export default function MembersPage() {
                 flexWrap: "wrap",
               }}
             >
+              <label htmlFor="member-search" style={{ fontWeight: 600 }}>
+                Search email
+              </label>
+              <input
+                id="member-search"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Type an email…"
+                style={{ minWidth: 220 }}
+              />
               <label htmlFor="level-filter" style={{ fontWeight: 600 }}>
-                Filter by level
+                Filter by class
               </label>
               <select
                 id="level-filter"
                 value={filterLevel}
                 onChange={(e) => setFilterLevel(e.target.value)}
               >
-                <option value="">All levels</option>
+                <option value="">All classes</option>
                 {levels.map((l) => (
                   <option key={l.id} value={l.id}>
                     {l.name}
                   </option>
                 ))}
-                <option value="__none__">No level</option>
+                <option value="__none__">No class</option>
               </select>
               <span className="muted" style={{ fontSize: 13 }}>
                 Showing {filtered.length} of {members.length}
@@ -174,17 +150,14 @@ export default function MembersPage() {
             {filtered.length === 0 ? (
               <p className="muted">No members match this filter.</p>
             ) : (
-              <table className="table">
+              <div className="table-wrap"><table className="table">
                 <thead>
               <tr>
-                <th>Username</th>
-                <th>First name</th>
-                <th>Last name</th>
-                <th>Email</th>
-                <th>Phone</th>
+                <th>Member</th>
                 <th>Registered</th>
-                <th>Levels</th>
-                <th>Add level</th>
+                <th>Classes</th>
+                <th>Subscription</th>
+                <th>Add class</th>
                 <th></th>
               </tr>
             </thead>
@@ -192,13 +165,25 @@ export default function MembersPage() {
               {filtered.map((m) => {
                 const heldIds = new Set(m.levels.map((l) => l.id));
                 const available = levels.filter((l) => !heldIds.has(l.id));
+                const name = [m.firstName, m.lastName]
+                  .filter(Boolean)
+                  .join(" ");
                 return (
                   <tr key={m.id}>
-                    <td>{m.username}</td>
-                    <td>{m.firstName || <span className="muted">—</span>}</td>
-                    <td>{m.lastName || <span className="muted">—</span>}</td>
-                    <td>{m.email}</td>
-                    <td>{m.phone || <span className="muted">—</span>}</td>
+                    <td>
+                      <Link
+                        href={`/members/${m.id}`}
+                        className="linklike"
+                        title="View subscription & payments"
+                      >
+                        {name || m.email}
+                      </Link>
+                      {name ? (
+                        <div className="muted" style={{ fontSize: 12 }}>
+                          {m.email}
+                        </div>
+                      ) : null}
+                    </td>
                     <td>
                       {new Date(m.registeredAt).toLocaleDateString(undefined, {
                         year: "numeric",
@@ -212,22 +197,49 @@ export default function MembersPage() {
                       ) : (
                         <div className="chips">
                           {m.levels.map((l) => (
-                            <span key={l.id} className="chip">
+                            <span key={`${l.id}-${l.source}`} className="chip">
                               {l.name}
                               <span className="muted" style={{ fontSize: 11 }}>
-                                {l.status}
+                                {l.lifetime ? "LIFETIME" : l.status}
                               </span>
-                              <button
-                                className="chip-x"
-                                title="Remove level"
-                                disabled={busy === m.id}
-                                onClick={() => removeLevel(m.id, l.id)}
-                              >
-                                ×
-                              </button>
+                              {l.source === "MANUAL" ? (
+                                <button
+                                  className="chip-x"
+                                  title="Remove manual grant"
+                                  disabled={busy === m.id}
+                                  onClick={() => removeLevel(m.id, l.id)}
+                                >
+                                  ×
+                                </button>
+                              ) : (
+                                <span
+                                  className="muted"
+                                  style={{ fontSize: 11 }}
+                                  title="From a paid subscription — manage it in Subscriptions / Stripe, not here"
+                                >
+                                  · paid
+                                </span>
+                              )}
                             </span>
                           ))}
                         </div>
+                      )}
+                    </td>
+                    <td>
+                      {m.subscription ? (
+                        <span
+                          className={`chip${m.subscription.active ? "" : " chip--muted"}`}
+                          title={`Subscription ${m.subscription.status}`}
+                        >
+                          {m.subscription.planName}
+                          <span className="muted" style={{ fontSize: 11 }}>
+                            {m.subscription.active
+                              ? m.subscription.status
+                              : "INACTIVE"}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="muted">None</span>
                       )}
                     </td>
                     <td>
@@ -258,101 +270,25 @@ export default function MembersPage() {
                       </div>
                     </td>
                     <td>
-                      <button
+                      <Link
+                        href={`/members/${m.id}/edit`}
                         className="btn btn--ghost btn--sm"
-                        onClick={() => openEdit(m)}
                       >
                         Edit
-                      </button>
+                      </Link>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
-              </table>
+              </table></div>
             )}
           </>
         )}
       </div>
 
-      {editing && (
-        <div
-          className="modal-overlay"
-          onClick={closeEdit}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Edit member — {editing.username}</h2>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={closeEdit}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-body">
-              {editError && <p className="error">{editError}</p>}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  saveEdit();
-                }}
-              >
-                <div className="form-row">
-                  <div className="field">
-                    <label>First name</label>
-                    <input
-                      value={editForm.firstName}
-                      onChange={(e) =>
-                        setEditForm((f) => ({ ...f, firstName: e.target.value }))
-                      }
-                      autoFocus
-                    />
-                  </div>
-                  <div className="field">
-                    <label>Last name</label>
-                    <input
-                      value={editForm.lastName}
-                      onChange={(e) =>
-                        setEditForm((f) => ({ ...f, lastName: e.target.value }))
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="field">
-                  <label>Phone</label>
-                  <input
-                    value={editForm.phone}
-                    onChange={(e) =>
-                      setEditForm((f) => ({ ...f, phone: e.target.value }))
-                    }
-                    placeholder="+1 555 0100"
-                  />
-                </div>
-                <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-                  {editing.email} · leave a field blank to clear it.
-                </p>
-                <div className="row-actions">
-                  <button className="btn" type="submit" disabled={savingEdit}>
-                    {savingEdit ? "Saving…" : "Save changes"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    onClick={closeEdit}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
+// (Per-member billing detail now lives on its own page: app/members/[id]/page.tsx)

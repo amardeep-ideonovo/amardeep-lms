@@ -4,11 +4,13 @@ import { ScrollView, StyleSheet } from "react-native";
 import { PageEmbed } from "../components/PageRenderer";
 import { PopupHost } from "../components/PopupHost";
 import type { ScreenProps } from "../navigation";
-import { colors } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles } from "../theme-provider";
 
 // Standalone screen for a CMS page: navigation.navigate("Page", { slug, title }).
 // The same <PageEmbed slug=… /> can be embedded inside ANY other screen too.
 export function PageScreen({ route }: ScreenProps<"Page">) {
+  const styles = useStyles(makeStyles);
   const { slug } = route.params;
   // Captured from PageEmbed once the page loads, so popups can target this page.
   const [pageId, setPageId] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export function PageScreen({ route }: ScreenProps<"Page">) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg },
   content: { paddingBottom: 24 },
 });

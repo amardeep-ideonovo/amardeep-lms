@@ -6,6 +6,7 @@
 // live in a slide-over drawer (the "⚙ Settings" button), NOT in the Puck doc.
 import "@puckeditor/core/puck.css";
 import "@lms/puck/styles.css";
+import "@/app/puck-theme.css";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -15,19 +16,28 @@ import { createPuckConfig } from "@lms/puck";
 import type { PageProps, RootProps } from "@lms/puck";
 import type {
   PageListItem,
+  PopupAnimation,
+  PopupFrequency,
   PopupPageMode,
   PopupPosition,
   PopupStatus,
+  PopupTrigger,
   PuckDocument,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
+import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
 import FormPickerField from "@/components/FormPickerField";
+import MediaPicker from "@/components/MediaPicker";
+import MenuPickerField from "@/components/MenuPickerField";
+import PuckColorField from "@/components/PuckColorField";
 
 type PopupData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-// The popup presentation + visibility settings (everything except the Puck doc).
+// The popup presentation + visibility + behaviour settings (everything except
+// the Puck doc).
 type Settings = {
   width: string;
   height: string;
@@ -37,8 +47,17 @@ type Settings = {
   borderRadius: number;
   padding: number;
   showOnDashboard: boolean;
+  showOnClasses: boolean;
+  showOnCourses: boolean;
+  showOnLessons: boolean;
   pageMode: PopupPageMode;
   pageIds: string[];
+  trigger: PopupTrigger;
+  triggerValue: number;
+  frequency: PopupFrequency;
+  frequencyDays: number;
+  closeOnOverlay: boolean;
+  animation: PopupAnimation;
 };
 
 const POSITION_OPTIONS: { value: PopupPosition; label: string }[] = [
@@ -58,6 +77,39 @@ const PAGE_MODE_OPTIONS: { value: PopupPageMode; label: string }[] = [
   { value: "EXCLUDE", label: "Show on all pages except selected" },
 ];
 
+// Member-area surfaces (one on/off checkbox each; CMS pages have their own
+// include/exclude targeting below).
+const SURFACE_OPTIONS: {
+  key: "showOnDashboard" | "showOnClasses" | "showOnCourses" | "showOnLessons";
+  label: string;
+}[] = [
+  { key: "showOnDashboard", label: "Dashboard" },
+  { key: "showOnClasses", label: "Class pages" },
+  { key: "showOnCourses", label: "Course pages" },
+  { key: "showOnLessons", label: "Lesson pages" },
+];
+
+const TRIGGER_OPTIONS: { value: PopupTrigger; label: string }[] = [
+  { value: "IMMEDIATE", label: "Immediately on load" },
+  { value: "DELAY", label: "After a delay" },
+  { value: "SCROLL", label: "After scrolling down the page" },
+  { value: "EXIT_INTENT", label: "On exit intent (desktop web)" },
+];
+
+const FREQUENCY_OPTIONS: { value: PopupFrequency; label: string }[] = [
+  { value: "EVERY_VISIT", label: "Every visit" },
+  { value: "ONCE_PER_SESSION", label: "Once per session" },
+  { value: "ONCE_PER_DAYS", label: "Once every X days" },
+  { value: "ONCE", label: "Once ever" },
+];
+
+const ANIMATION_OPTIONS: { value: PopupAnimation; label: string }[] = [
+  { value: "FADE", label: "Fade in" },
+  { value: "SLIDE_UP", label: "Slide up" },
+  { value: "ZOOM", label: "Zoom in" },
+  { value: "NONE", label: "None" },
+];
+
 // A safe #rrggbb for the native color picker; non-hex CSS colors keep the text
 // field as source of truth and just fall back to the swatch default.
 function asHex(v: string, fallback: string): string {
@@ -69,10 +121,10 @@ function FormPreview({ formId }: { formId: string }) {
   return (
     <div
       style={{
-        border: "1px dashed #cbd5e1",
+        border: "1px dashed var(--border-strong)",
         borderRadius: 8,
         padding: 16,
-        color: "#64748b",
+        color: "var(--muted)",
         textAlign: "center",
       }}
     >
@@ -82,6 +134,7 @@ function FormPreview({ formId }: { formId: string }) {
 }
 
 export default function PopupEditor() {
+  const { can, loading: authLoading } = useAdminAuth();
   const params = useParams();
   const id = String((params?.id as string) ?? "");
   const router = useRouter();
@@ -128,11 +181,58 @@ export default function PopupEditor() {
         onChange: (v: string) => void;
       }) => <FormPickerField value={value} onChange={onChange} />,
     } as Field;
-    return createPuckConfig({ richTextField, formComponent: FormPreview, formField });
+    const imageField = {
+      type: "custom" as const,
+      render: ({
+        value,
+        onChange,
+      }: {
+        value?: string;
+        onChange: (v: string) => void;
+      }) => <MediaPicker value={value || ""} onChange={onChange} />,
+    } as Field;
+    const menuField = {
+      type: "custom" as const,
+      label: "Menu",
+      render: ({
+        value,
+        onChange,
+      }: {
+        value?: string;
+        onChange: (v: string) => void;
+      }) => <MenuPickerField value={value} onChange={onChange} />,
+    } as Field;
+    const colorField = {
+      type: "custom" as const,
+      render: ({
+        field,
+        value,
+        onChange,
+      }: {
+        field?: { label?: string };
+        value?: string;
+        onChange: (v: string) => void;
+      }) => (
+        <PuckColorField label={field?.label} value={value} onChange={onChange} />
+      ),
+    } as Field;
+    return createPuckConfig({
+      richTextField,
+      formComponent: FormPreview,
+      formField,
+      imageField,
+      menuField,
+      colorField,
+      // Popups have no SEO surface — drop the root SEO fields from the rail.
+      surface: "popup",
+      // Canvas previews the popup's white box, not the admin chrome theme.
+      editorCanvas: true,
+    });
   }, []);
 
   useEffect(() => {
     if (!id) return;
+    if (authLoading || !can("popups", "read")) return;
     let alive = true;
     (async () => {
       try {
@@ -152,8 +252,17 @@ export default function PopupEditor() {
           borderRadius: popup.borderRadius,
           padding: popup.padding,
           showOnDashboard: popup.showOnDashboard,
+          showOnClasses: popup.showOnClasses,
+          showOnCourses: popup.showOnCourses,
+          showOnLessons: popup.showOnLessons,
           pageMode: popup.pageMode,
           pageIds: popup.pageIds,
+          trigger: popup.trigger,
+          triggerValue: popup.triggerValue,
+          frequency: popup.frequency,
+          frequencyDays: popup.frequencyDays,
+          closeOnOverlay: popup.closeOnOverlay,
+          animation: popup.animation,
         });
         setPages(pageList);
         setStats({
@@ -178,7 +287,8 @@ export default function PopupEditor() {
       if (docTimer.current) clearTimeout(docTimer.current);
       if (settingsTimer.current) clearTimeout(settingsTimer.current);
     };
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, authLoading]);
 
   // Debounced autosave of the Puck document on every edit.
   function scheduleSave(data: PopupData) {
@@ -243,7 +353,9 @@ export default function PopupEditor() {
       setSaveState("saved");
     } catch (err) {
       setSaveState("error");
-      alert(err instanceof ApiError ? err.message : "Failed to update status");
+      await dialog.notify(
+        err instanceof ApiError ? err.message : "Failed to update status",
+      );
     }
   }
 
@@ -254,9 +366,27 @@ export default function PopupEditor() {
       });
       setName(updated.name);
     } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Failed to save name");
+      await dialog.notify(
+        err instanceof ApiError ? err.message : "Failed to save name",
+      );
     }
   }
+
+  if (authLoading)
+    return (
+      <div style={{ padding: 40 }} className="muted">
+        Loading editor…
+      </div>
+    );
+  if (!can("popups", "read"))
+    return (
+      <div style={{ padding: 40 }}>
+        <div className="page-header">
+          <h1>Popup editor</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   if (!loaded) {
     return (
@@ -296,7 +426,7 @@ export default function PopupEditor() {
         inset: 0,
         display: "flex",
         flexDirection: "column",
-        background: "#fff",
+        background: "var(--bg)",
         zIndex: 1000,
       }}
     >
@@ -309,7 +439,7 @@ export default function PopupEditor() {
           alignItems: "center",
           gap: 10,
           padding: "8px 14px",
-          borderBottom: "1px solid #e2e5ea",
+          borderBottom: "1px solid var(--border)",
           flex: "none",
         }}
       >
@@ -390,8 +520,8 @@ export default function PopupEditor() {
               bottom: 0,
               width: 360,
               maxWidth: "90vw",
-              background: "#fff",
-              borderLeft: "1px solid #e2e5ea",
+              background: "var(--surface)",
+              borderLeft: "1px solid var(--border)",
               boxShadow: "-8px 0 24px rgba(15,23,42,0.12)",
               zIndex: 1101,
               display: "flex",
@@ -404,7 +534,7 @@ export default function PopupEditor() {
                 alignItems: "center",
                 justifyContent: "space-between",
                 padding: "12px 16px",
-                borderBottom: "1px solid #e2e5ea",
+                borderBottom: "1px solid var(--border)",
               }}
             >
               <strong>Popup settings</strong>
@@ -422,9 +552,9 @@ export default function PopupEditor() {
                 <div
                   style={{
                     fontSize: 12,
-                    color: "#475569",
-                    background: "#f8fafc",
-                    border: "1px solid #eef2f7",
+                    color: "var(--text-soft)",
+                    background: "var(--surface-2)",
+                    border: "1px solid var(--border)",
                     borderRadius: 8,
                     padding: "8px 10px",
                     marginBottom: 16,
@@ -594,8 +724,126 @@ export default function PopupEditor() {
                 </label>
               </div>
 
-              {/* Visibility */}
-              <div style={drawerSection}>Visibility</div>
+              {/* Behaviour */}
+              <div style={drawerSection}>Behaviour</div>
+
+              <label style={fieldWrap}>
+                <span style={drawerLabel}>Show the popup</span>
+                <select
+                  value={settings.trigger}
+                  onChange={(e) =>
+                    updateSettings({ trigger: e.target.value as PopupTrigger })
+                  }
+                  style={inputStyle}
+                >
+                  {TRIGGER_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {settings.trigger === "DELAY" && (
+                <label style={fieldWrap}>
+                  <span style={drawerLabel}>Delay (seconds)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={600}
+                    value={settings.triggerValue}
+                    onChange={(e) =>
+                      updateSettings({
+                        triggerValue: Math.max(
+                          0,
+                          Math.min(600, Number(e.target.value) || 0)
+                        ),
+                      })
+                    }
+                    style={inputStyle}
+                  />
+                </label>
+              )}
+
+              {settings.trigger === "SCROLL" && (
+                <label style={fieldWrap}>
+                  <span style={drawerLabel}>Scroll depth (% of the page)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={settings.triggerValue}
+                    onChange={(e) =>
+                      updateSettings({
+                        triggerValue: Math.max(
+                          1,
+                          Math.min(100, Number(e.target.value) || 0)
+                        ),
+                      })
+                    }
+                    style={inputStyle}
+                  />
+                </label>
+              )}
+
+              <label style={fieldWrap}>
+                <span style={drawerLabel}>How often</span>
+                <select
+                  value={settings.frequency}
+                  onChange={(e) =>
+                    updateSettings({
+                      frequency: e.target.value as PopupFrequency,
+                    })
+                  }
+                  style={inputStyle}
+                >
+                  {FREQUENCY_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {settings.frequency === "ONCE_PER_DAYS" && (
+                <label style={fieldWrap}>
+                  <span style={drawerLabel}>Days between showings</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={settings.frequencyDays}
+                    onChange={(e) =>
+                      updateSettings({
+                        frequencyDays: Math.max(
+                          1,
+                          Math.min(365, Number(e.target.value) || 1)
+                        ),
+                      })
+                    }
+                    style={inputStyle}
+                  />
+                </label>
+              )}
+
+              <label style={fieldWrap}>
+                <span style={drawerLabel}>Entrance animation</span>
+                <select
+                  value={settings.animation}
+                  onChange={(e) =>
+                    updateSettings({
+                      animation: e.target.value as PopupAnimation,
+                    })
+                  }
+                  style={inputStyle}
+                >
+                  {ANIMATION_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <label
                 style={{
@@ -608,13 +856,42 @@ export default function PopupEditor() {
               >
                 <input
                   type="checkbox"
-                  checked={settings.showOnDashboard}
+                  checked={settings.closeOnOverlay}
                   onChange={(e) =>
-                    updateSettings({ showOnDashboard: e.target.checked })
+                    updateSettings({ closeOnOverlay: e.target.checked })
                   }
                 />
-                <span>Show on the member dashboard</span>
+                <span>Clicking the dim backdrop closes the popup</span>
               </label>
+
+              {/* Visibility */}
+              <div style={drawerSection}>Visibility</div>
+
+              <div style={drawerLabel}>In member areas</div>
+              <div style={{ display: "grid", gap: 6, marginBottom: 14 }}>
+                {SURFACE_OPTIONS.map((o) => (
+                  <label
+                    key={o.key}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={settings[o.key]}
+                      onChange={(e) =>
+                        updateSettings({
+                          [o.key]: e.target.checked,
+                        } as Partial<Settings>)
+                      }
+                    />
+                    <span>{o.label}</span>
+                  </label>
+                ))}
+              </div>
 
               <div style={drawerLabel}>On CMS pages</div>
               <div style={{ display: "grid", gap: 6, marginBottom: 12 }}>
@@ -701,26 +978,28 @@ const drawerSection: React.CSSProperties = {
   fontWeight: 700,
   textTransform: "uppercase",
   letterSpacing: 0.4,
-  color: "#64748b",
+  color: "var(--muted)",
   margin: "18px 0 10px",
-  borderTop: "1px solid #eef2f7",
+  borderTop: "1px solid var(--border)",
   paddingTop: 14,
 };
 const drawerLabel: React.CSSProperties = {
   display: "block",
   fontSize: 12,
   fontWeight: 600,
-  color: "#475569",
+  color: "var(--text-soft)",
   marginBottom: 4,
 };
 const fieldWrap: React.CSSProperties = { display: "block", marginBottom: 12 };
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "7px 9px",
-  border: "1px solid #cbd5e1",
+  border: "1px solid var(--border-strong)",
   borderRadius: 6,
   fontSize: 14,
   boxSizing: "border-box",
+  background: "var(--surface-2)",
+  color: "var(--text)",
 };
 const twoCol: React.CSSProperties = {
   display: "grid",
@@ -736,7 +1015,7 @@ const swatch: React.CSSProperties = {
   width: 38,
   height: 34,
   padding: 0,
-  border: "1px solid #cbd5e1",
+  border: "1px solid var(--border-strong)",
   borderRadius: 6,
   background: "none",
   cursor: "pointer",

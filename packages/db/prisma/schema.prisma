@@ -4,7 +4,7 @@
 //    grant and a paid subscription for the same level coexist without conflict.
 //  - A course unlocks if the user holds ANY active UserLevel among the course's
 //    assigned levels (CourseLevel join).
-//  - mailchimpTag (not a separate audience) per level — one audience, tag per level.
+//  - audienceTags (not a separate audience) per level — one audience, tag per level.
 
 generator client {
   provider = "prisma-client-js"
@@ -18,21 +18,24 @@ datasource db {
 // ---------- Identity ----------
 
 model User {
-  id               String          @id @default(cuid())
-  email            String          @unique
-  username         String          @unique
+  id               String   @id @default(cuid())
+  email            String   @unique
+  username         String   @unique
   passwordHash     String
-  firstName        String?         // optional profile fields (admin-managed)
+  firstName        String? // optional profile fields (admin-managed)
   lastName         String?
+  avatarUrl        String? // member self-service profile photo; served from /media
   phone            String?
-  wpId             Int?            @unique // original WordPress user ID, for migration reconciliation
-  stripeCustomerId String?         @unique // cus_… on the SAME Stripe account
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  emailOptOut      Boolean         @default(false) // set by Mailchimp unsubscribe webhook
+  wpId             Int?     @unique // original WordPress user ID, for migration reconciliation
+  stripeCustomerId String?  @unique // cus_… on the SAME Stripe account
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  emailOptOut      Boolean  @default(false) // set by the email unsubscribe webhook
 
-  levels    UserLevel[]
-  progress  LessonProgress[]
+  levels       UserLevel[]
+  progress     LessonProgress[]
+  certificates Certificate[]
+  courses      UserCourse[]
 }
 
 enum AdminRole {
@@ -45,11 +48,26 @@ model Admin {
   id           String    @id @default(cuid())
   email        String    @unique
   passwordHash String
+  // Profile (admin self-service): display name + photo. avatarUrl is served
+  // from /media (stored via the shared media storage). Email stays the login id.
+  name         String?
+  avatarUrl    String?
   role         AdminRole @default(ADMIN)
+  // Per-section CRUD permissions for non-super admins, shape:
+  // { [section]: { create?, read?, edit?, delete? } }. SUPER_ADMIN ignores this
+  // (implicit full access). Enforced by PermissionsGuard; edited by super admins.
+  permissions  Json      @default("{}")
+  // Per-admin UI preferences (personal, not access-controlling), shape:
+  // { menuOrder?: string[] } — the admin's custom sidebar ordering by nav key.
+  // Self-service via PATCH /auth/admin/prefs; every admin manages their own.
+  prefs        Json      @default("{}")
   createdAt    DateTime  @default(now())
 
-  posts Post[]
-  pages Page[]
+  posts             Post[]
+  pages             Page[]
+  media             MediaAsset[]
+  notificationReads AdminNotificationRead[]
+  liveSessions      LiveSession[]          @relation("AdminLiveSessions")
 }
 
 // ---------- Membership levels ----------
@@ -61,34 +79,70 @@ enum LevelType {
 }
 
 model Level {
-  id                    String      @id @default(cuid())
+  id                    String    @id @default(cuid())
   name                  String
-  type                  LevelType   @default(PAID)
-  mailchimpTags         String[]    @default([]) // tag names applied within the audience
-  mailchimpAudienceId   String?     // Mailchimp list this level subscribes members to (falls back to the global Settings audience)
-  mailchimpAudienceName String?     // cached name for admin display
-  stripeProductId       String?     // prod_… for PAID levels
-  createdAt             DateTime    @default(now())
+  slug                  String?   @unique // pretty checkout URL key: /checkout/<slug> (admin-editable)
+  published             Boolean   @default(false) // show this class as a tile on the member dashboard
+  type                  LevelType @default(PAID)
+  audienceTags          String[]  @default([]) // tag names applied within the in-house audience on grant
+  audienceId            String? // in-house Audience this class captures granted members into (null = default "Members" audience)
+  stripeProductId       String? // prod_… for PAID levels
+  paypalProductId       String? // PayPal catalog product id (lazy-provisioned when PayPal is active)
+  // ----- MasterClass-style landing-page fields (all optional) -----
+  imageUrl              String? // hero/cover image for the class page
+  description           String? // marketing description
+  trailerUrl            String? // trailer: Vimeo/MP4 URL or a Gallery video URL
+  skills                Json      @default("[]") // [{ title, imageUrl }] — "Skills You'll Learn"
+  featuredCourseId      String? // course whose lessons appear as the curriculum
+  // Completion-certificate template override; null = use the default template.
+  certificateTemplateId String?
+  createdAt             DateTime  @default(now())
 
-  prices      Price[]
-  userLevels  UserLevel[]
-  courseLevels CourseLevel[]
+  prices              Price[]
+  userLevels          UserLevel[]
+  courseLevels        CourseLevel[]
+  categories          LevelCategory[]
+  featuredCourse      Course?              @relation("ClassFeaturedCourse", fields: [featuredCourseId], references: [id], onDelete: SetNull)
+  certificateTemplate CertificateTemplate? @relation(fields: [certificateTemplateId], references: [id], onDelete: SetNull)
+  certificates        Certificate[]
+  audience            Audience?            @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+  liveSessionTargets  LiveSessionTarget[]  @relation("LevelLiveSessions")
+
+  @@index([audienceId])
 }
 
 model Price {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   levelId       String
-  level         Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  stripePriceId String   @unique // price_…
-  interval      String   // "month" | "year"
-  amount        Int      // minor units (cents)
-  currency      String   @default("usd")
-  active        Boolean  @default(true)
+  level         Level   @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  // Provider price ids — each provisioned lazily under the provider that needs
+  // it, so a site configured for only one provider still works. A row may hold
+  // either or both.
+  stripePriceId String? @unique // price_…
+  paypalPlanId  String? @unique // PayPal billing plan id (P-…)
+  interval      String // "month" | "year"
+  amount        Int // minor units (cents)
+  currency      String  @default("usd")
+  active        Boolean @default(true)
+  // Installment plan: bill this many times, then the member keeps the level for
+  // life (the webhook sets UserLevel.lifetime and cancels the sub; PayPal plans
+  // use total_cycles natively). null = an ongoing subscription that bills until
+  // canceled.
+  installments  Int?
 }
 
 enum UserLevelSource {
   STRIPE
   MANUAL
+  PAYPAL
+}
+
+// Which payment processor issued a subscription. The admin-selected ACTIVE
+// provider (Setting "payments.provider") governs NEW checkouts only — existing
+// subscriptions keep living on the provider that created them.
+enum PaymentProvider {
+  STRIPE
+  PAYPAL
 }
 
 enum UserLevelStatus {
@@ -96,48 +150,93 @@ enum UserLevelStatus {
   PAST_DUE
   CANCELED
   EXPIRED
+  PAUSED // billing paused — access suspended but resumable (unlike CANCELED)
 }
 
 model UserLevel {
-  id                  String          @id @default(cuid())
-  userId              String
-  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  levelId             String
-  level               Level           @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  source              UserLevelSource
-  status              UserLevelStatus @default(ACTIVE)
-  stripeSubItemId     String?         // si_… when source = STRIPE
-  expiresAt           DateTime?       // for manual grants or period-end access
-  grantedAt           DateTime        @default(now())
+  id              String          @id @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  levelId         String
+  level           Level           @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  source          UserLevelSource
+  status          UserLevelStatus @default(ACTIVE)
+  // Once true the grant is permanent (a paid-in-full installment plan converted
+  // to lifetime) and Stripe reconciliation will never revoke it.
+  lifetime        Boolean         @default(false)
+  stripeSubItemId String? // si_… when source = STRIPE; PayPal sub id (I-…) when source = PAYPAL
+  expiresAt       DateTime? // for manual grants or period-end access
+  grantedAt       DateTime        @default(now())
 
   @@unique([userId, levelId, source])
   @@index([userId])
   @@index([levelId])
 }
 
-// ---------- LMS content ----------
-
-model Category {
-  id           String   @id @default(cuid())
-  name         String
-  thumbnailUrl String?  // tile image shown on the member dashboard
-  order        Int      @default(0)
-  courses      Course[]
+// Admin-managed grouping for membership levels ("Classes"). Many-to-many: a
+// level can belong to several categories. Admin-only organization — not shown
+// to members. (Separate from the blog's PostCategory.)
+model LevelCategory {
+  id     String  @id @default(cuid())
+  name   String
+  order  Int     @default(0)
+  levels Level[]
 }
 
+// ---------- LMS content ----------
+
 model Course {
-  id            String        @id @default(cuid())
+  id            String   @id @default(cuid())
   title         String
   description   String?
-  thumbnailUrl  String?       // squared thumbnail shown on course cards
-  coverImageUrl String?       // wide cover/hero image shown on the course page
-  categoryId    String?
-  category      Category?     @relation(fields: [categoryId], references: [id])
-  order         Int           @default(0)
-  createdAt     DateTime      @default(now())
+  thumbnailUrl  String? // squared thumbnail shown on course cards
+  coverImageUrl String? // wide cover/hero image shown on the course page
+  order         Int      @default(0)
+  // One-off (one-time) purchase price. When priceAmount is set (> 0) AND
+  // priceActive, a member who lacks level access can buy LIFETIME access to this
+  // course directly (Stripe mode=payment) — independent of subscriptions. null
+  // amount = not individually purchasable (level-gated only). priceActive lets an
+  // admin pause sales without discarding the configured amount.
+  priceAmount   Int? // minor units (cents); one-time purchase price
+  priceCurrency String   @default("usd")
+  priceActive   Boolean  @default(true)
+  createdAt     DateTime @default(now())
 
-  lessons      Lesson[]
-  courseLevels CourseLevel[]
+  lessons          Lesson[]
+  courseLevels     CourseLevel[]
+  featuredInLevels Level[]       @relation("ClassFeaturedCourse")
+  userCourses      UserCourse[]
+}
+
+enum UserCourseStatus {
+  ACTIVE // paid; grants access
+  REFUNDED // refund/dispute reversed the grant — access revoked
+  EXPIRED // time-limited grant that has lapsed (unused while one-off = lifetime)
+}
+
+// A course-scoped entitlement from a ONE-OFF purchase (or a MANUAL admin grant).
+// Distinct from UserLevel (which is class/subscription-scoped): this unlocks a
+// single course regardless of the member's levels. One-off purchases are
+// lifetime (expiresAt null). The unique checkout-session id makes the webhook +
+// inline-confirm grant idempotent (a replay can't double-grant or double-count).
+model UserCourse {
+  id                      String           @id @default(cuid())
+  userId                  String
+  user                    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId                String
+  course                  Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  source                  UserLevelSource  @default(STRIPE) // STRIPE | MANUAL | PAYPAL
+  status                  UserCourseStatus @default(ACTIVE)
+  stripeCheckoutSessionId String?          @unique // cs_… — idempotency key for the grant
+  stripePaymentIntentId   String? // pi_… (audit / refund correlation)
+  amount                  Int? // minor units actually paid (audit)
+  currency                String?
+  expiresAt               DateTime? // null = lifetime access
+  grantedAt               DateTime         @default(now())
+
+  @@unique([userId, courseId, source])
+  @@index([userId, status])
+  @@index([courseId])
 }
 
 // Many-to-many: a course is accessible to any of these levels.
@@ -151,16 +250,16 @@ model CourseLevel {
 }
 
 model Lesson {
-  id           String          @id @default(cuid())
-  courseId     String
-  course       Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  title        String
-  content      String?         // markdown / rich text — doubles as the lesson description/body
-  thumbnailUrl String?         // lesson thumbnail
-  muxAssetId   String?         // managed video; playback via signed URL (prod)
-  videoUrl     String?         // direct video URL (e.g. sample MP4); plays without Mux signing
-  order        Int             @default(0)
-  createdAt    DateTime        @default(now())
+  id              String   @id @default(cuid())
+  courseId        String
+  course          Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title           String
+  content         String? // markdown / rich text — doubles as the lesson description/body
+  thumbnailUrl    String? // lesson thumbnail
+  videoUrl        String? // Vimeo link or direct video URL (e.g. MP4)
+  durationSeconds Int? // lesson length in seconds (admin enters mm:ss); drives the curriculum total
+  order           Int      @default(0)
+  createdAt       DateTime @default(now())
 
   progress LessonProgress[]
   notes    LessonNote[]
@@ -184,10 +283,10 @@ model LessonNote {
   id           String   @id @default(cuid())
   lessonId     String
   lesson       Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  filename     String   // stored filename on disk (timestamp-based, unique)
-  originalName String   // original upload name (shown to member; used as download filename)
+  filename     String // stored filename on disk (timestamp-based, unique)
+  originalName String // original upload name (shown to member; used as download filename)
   mimeType     String
-  size         Int      // bytes
+  size         Int // bytes
   order        Int      @default(0)
   createdAt    DateTime @default(now())
 
@@ -203,24 +302,73 @@ enum SubStatus {
   CANCELED
   UNPAID
   INCOMPLETE
+  PAUSED // pause_collection set — billing paused, access suspended
 }
 
-// Local mirror of Stripe subscriptions, kept current by webhooks.
+// Local mirror of provider subscriptions, kept current by webhooks.
+// Column naming note: stripeSubId holds the provider's subscription id —
+// `sub_…` for Stripe, `I-…` for PayPal; stripeCustomerId holds `cus_…` or the
+// PayPal payer id. Kept under the legacy names to avoid churning every DTO.
+// userId/priceId are populated for PAYPAL rows: PayPal has no merchant-wide
+// list API, so this mirror IS the index for PayPal subscriptions.
 model SubscriptionMirror {
-  id                 String    @id @default(cuid())
-  stripeSubId        String    @unique // sub_…
-  stripeCustomerId   String
-  status             SubStatus
-  currentPeriodEnd   DateTime?
-  cancelAtPeriodEnd  Boolean   @default(false)
-  updatedAt          DateTime  @updatedAt
+  id                String          @id @default(cuid())
+  provider          PaymentProvider @default(STRIPE)
+  stripeSubId       String          @unique // sub_… | I-…
+  stripeCustomerId  String // cus_… | PayPal payer id
+  userId            String? // set for PAYPAL rows (mirror-as-index)
+  priceId           String? // local Price.id, set for PAYPAL rows
+  status            SubStatus
+  currentPeriodEnd  DateTime?
+  // For PayPal this flag is OURS (PayPal only cancels immediately): period-end
+  // cancels set it BEFORE calling PayPal so the CANCELLED webhook keeps access
+  // until currentPeriodEnd via UserLevel.expiresAt.
+  cancelAtPeriodEnd Boolean         @default(false)
+  updatedAt         DateTime        @updatedAt
+
+  @@index([provider])
+  @@index([userId])
 }
 
-// Encrypted integration secrets (Stripe/Mailchimp). Values stored encrypted at
-// rest; never returned to any client — admin UI is write-only for secrets.
+// Encrypted integration secrets (Stripe, email/SMTP, …). Values stored encrypted
+// at rest; never returned to any client — admin UI is write-only for secrets.
 model Setting {
-  key       String   @id // e.g. "stripe.secretKey", "stripe.webhookSecret", "mailchimp.apiKey"
-  value     String   // ciphertext
+  key       String   @id // e.g. "stripe.secretKey", "stripe.webhookSecret", "email.resendApiKey"
+  value     String // ciphertext
+  updatedAt DateTime @updatedAt
+}
+
+// Site headers (header builder). Multiple rows, each with style/content (config)
+// and placement rules (conditions: audience + page targeting). The web shows the
+// highest-priority enabled header whose rules match the page + visitor. Public.
+model Header {
+  id         String   @id @default(cuid())
+  name       String
+  config     Json
+  conditions Json
+  priority   Int      @default(0)
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([enabled, priority])
+}
+
+// Site footer (footer builder). Single global config row keyed "singleton";
+// `config` holds the FooterConfig JSON (logo, menu, email opt-in, bottom bar).
+model Footer {
+  id        String   @id @default("singleton")
+  config    Json?
+  updatedAt DateTime @updatedAt
+}
+
+// Mobile app customization (single global). `config` holds the AppConfig JSON
+// (title / logo / colors / light-dark) the Expo app reads at launch and the
+// admin edits with a live preview. Public read; admin write (RBAC
+// `appCustomization`). Same singleton shape as Footer.
+model AppConfig {
+  id        String   @id @default("singleton")
+  config    Json?
   updatedAt DateTime @updatedAt
 }
 
@@ -280,7 +428,7 @@ model Page {
   title       String
   data        Json       @default("{}") // Puck document: { content, root, zones }
   status      PageStatus @default(DRAFT)
-  publishedAt DateTime?  // set when first published; drives public visibility
+  publishedAt DateTime? // set when first published; drives public visibility
   authorId    String?
   author      Admin?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
   createdAt   DateTime   @default(now())
@@ -289,11 +437,10 @@ model Page {
   @@index([status, publishedAt])
 }
 
-// ---------- Mailchimp-linked Forms ----------
+// ---------- Forms ----------
 // Admin-authored forms (configurable field builder) that subscribe submitters
-// to a chosen Mailchimp audience. The Mailchimp API key/server prefix are the
-// one-time encrypted Settings; each form picks its own audience. Submissions are
-// stored locally too, so a Mailchimp hiccup never loses a lead.
+// to a chosen in-house Audience (null = default "Members" audience). Submissions
+// are stored locally too, so an email-engine hiccup never loses a lead.
 
 enum FormStatus {
   ACTIVE
@@ -301,21 +448,23 @@ enum FormStatus {
 }
 
 model Form {
-  id                    String     @id @default(cuid())
-  name                  String
-  fields                Json       @default("[]") // FormFieldDef[] (builder output)
-  mailchimpAudienceId   String? // Mailchimp list id this form subscribes to
-  mailchimpAudienceName String? // cached name for admin list display
-  doubleOptIn           Boolean    @default(false) // default: No
-  updateExisting        Boolean    @default(true) // default: Yes
-  tags                  String[]   @default([]) // applied to every subscriber
-  successMessage        String? // shown after submit when no redirect
-  redirectUrl           String? // optional redirect after a successful submit
-  status                FormStatus @default(ACTIVE)
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
+  id             String     @id @default(cuid())
+  name           String
+  fields         Json       @default("[]") // FormFieldDef[] (builder output)
+  audienceId     String? // in-house Audience this form captures submitters into (null = default "Members" audience)
+  audience       Audience?  @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+  doubleOptIn    Boolean    @default(false) // default: No
+  updateExisting Boolean    @default(true) // default: Yes
+  tags           String[]   @default([]) // applied to every subscriber
+  successMessage String? // shown after submit when no redirect
+  redirectUrl    String? // optional redirect after a successful submit
+  status         FormStatus @default(ACTIVE)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   submissions FormSubmission[]
+
+  @@index([audienceId])
 }
 
 model FormSubmission {
@@ -324,7 +473,7 @@ model FormSubmission {
   form            Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
   email           String? // extracted email, for quick reference
   data            Json     @default("{}") // all submitted field values
-  mailchimpStatus String? // subscribed | pending | existing | failed | skipped
+  subscribeStatus String? // subscribed | pending | existing | skipped
   createdAt       DateTime @default(now())
 
   @@index([formId, createdAt])
@@ -362,6 +511,30 @@ enum PopupPageMode {
   EXCLUDE // shown on every CMS page except those listed in pageIds
 }
 
+// When the popup fires once its surface is open.
+enum PopupTrigger {
+  IMMEDIATE // on load (legacy behaviour)
+  DELAY // triggerValue seconds after load
+  SCROLL // after scrolling triggerValue % of the page (web)
+  EXIT_INTENT // cursor leaves the viewport top (web desktop)
+}
+
+// How often the popup may re-appear for the same visitor (client-enforced).
+enum PopupFrequency {
+  EVERY_VISIT // no capping (legacy behaviour)
+  ONCE_PER_SESSION // once per browser session / app run
+  ONCE_PER_DAYS // at most once every frequencyDays days
+  ONCE // once ever per device
+}
+
+// Entrance animation of the popup box.
+enum PopupAnimation {
+  NONE
+  FADE
+  SLIDE_UP
+  ZOOM
+}
+
 model Popup {
   id     String      @id @default(cuid())
   name   String
@@ -378,9 +551,21 @@ model Popup {
   padding      Int           @default(24) // px
 
   // ----- visibility / targeting -----
-  showOnDashboard Boolean       @default(false) // show on the member dashboard
+  // Member-area surfaces, one flag each (server-side filter via ?context=…).
+  showOnDashboard Boolean       @default(false) // member dashboard
+  showOnClasses   Boolean       @default(false) // class landing pages
+  showOnCourses   Boolean       @default(false) // course detail screens
+  showOnLessons   Boolean       @default(false) // lesson player screens
   pageMode        PopupPageMode @default(NONE)
   pageIds         String[]      @default([]) // referenced Page ids for INCLUDE/EXCLUDE
+
+  // ----- behaviour (defaults = the legacy "show instantly, every visit") -----
+  trigger        PopupTrigger   @default(IMMEDIATE)
+  triggerValue   Int            @default(0) // DELAY: seconds; SCROLL: percent
+  frequency      PopupFrequency @default(EVERY_VISIT)
+  frequencyDays  Int            @default(7) // used when frequency = ONCE_PER_DAYS
+  closeOnOverlay Boolean        @default(true) // backdrop tap dismisses
+  animation      PopupAnimation @default(FADE)
 
   // ----- analytics counters (incremented by the public event endpoint) -----
   views      Int @default(0) // times shown
@@ -389,4 +574,810 @@ model Popup {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ---------- Media Library (Gallery) ----------
+// Admin-managed catalog of uploaded files of ANY type (images, video, audio,
+// PDF, docs, SVG…). Each asset is served at a stable PUBLIC URL so it can be
+// embedded anywhere. `key` is the storage object key (local: filename under
+// MEDIA_ROOT; cloud later: the bucket key) — the public URL is derived from it.
+model MediaAsset {
+  id           String   @id @default(cuid())
+  key          String   @unique // storage key / stored filename
+  originalName String // filename as uploaded (shown in the UI)
+  mimeType     String
+  size         Int // bytes
+  width        Int? // images only
+  height       Int? // images only
+  title        String?
+  altText      String?
+  caption      String?
+  description  String?
+  uploadedById String?
+  uploadedBy   Admin?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+// ---------- Admin in-app notifications ----------
+// Server-emitted feed of billing/subscription events surfaced to admins via a
+// bell in the admin app. Each row is an immutable snapshot (title/body rendered
+// at emit time). Read state is PER-ADMIN via the AdminNotificationRead join, so
+// every admin has their own unread count. `dedupeKey` is unique: the same
+// logical event (incl. Stripe webhook replays) upserts to the same row, so the
+// feed never double-counts. Emitted from BillingService.reconcileSubscription /
+// handleWebhook (see apps/api/src/billing/billing.service.ts).
+
+enum AdminNotificationType {
+  SUBSCRIPTION_CREATED
+  SUBSCRIPTION_CANCELED // immediate cancel OR Stripe's final auto-cancel (status -> CANCELED)
+  SUBSCRIPTION_CANCEL_SCHEDULED // cancelAtPeriodEnd flipped true while still active
+  SUBSCRIPTION_PAUSED
+  SUBSCRIPTION_RESUMED
+  PAYMENT_FAILED
+  PAYMENT_SUCCEEDED // invoice.paid renewal (first invoice suppressed in favor of CREATED)
+  INSTALLMENT_PLAN_COMPLETED // paid-in-full installment plan converted to lifetime
+  CERTIFICATE_ISSUED // member claimed a class-completion certificate
+}
+
+enum AdminNotificationSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model AdminNotification {
+  id        String                    @id @default(cuid())
+  type      AdminNotificationType
+  severity  AdminNotificationSeverity @default(INFO)
+  title     String // short headline (rendered at emit time)
+  body      String // one-line detail (member email + plan + amount)
+  userId    String? // local User.id for deep-linking to /members/<userId>; no FK so history survives member deletion
+  dedupeKey String                    @unique // idempotency key — same logical event upserts to the same row
+  createdAt DateTime                  @default(now())
+
+  reads AdminNotificationRead[]
+
+  @@index([createdAt])
+  @@index([type])
+}
+
+// Per-admin read marker. A notification is unread for an admin when no row
+// exists for (notificationId, adminId) — the unread count is an anti-join.
+model AdminNotificationRead {
+  id             String            @id @default(cuid())
+  notificationId String
+  notification   AdminNotification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  adminId        String
+  admin          Admin             @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  readAt         DateTime          @default(now())
+
+  @@unique([notificationId, adminId])
+  @@index([adminId])
+}
+
+// ---------- Navigation menus (WordPress-style) ----------
+
+// Where a menu renders on the web site. A location holds at most one menu
+// (@unique). A menu with no location is "embed-only" (placed inside a CMS page
+// via the Puck Menu block, referenced by id).
+enum MenuLocation {
+  HEADER
+  FOOTER
+  MOBILE
+}
+
+// What a menu item points at. Loose target ids (like WordPress) are resolved to
+// hrefs at render time, so a slug change is always reflected and a deleted
+// target just drops out gracefully.
+enum MenuItemType {
+  PAGE // CMS page  -> pageId  -> /:slug
+  CLASS // Level     -> levelId -> /classes/:slug
+  CLASS_INDEX // all classes  -> /pricing/all
+  COURSE // Course    -> courseId -> /courses/:id
+  COURSE_INDEX // all courses  -> /dashboard
+  BLOG_INDEX // /blog
+  BLOG_POST // Post      -> postId  -> /blog/:slug
+  ROUTE // built-in internal path (url, e.g. /dashboard)
+  CUSTOM // any URL (url)
+}
+
+// Per-item visibility (WishList-style). LEVEL requires the visitor to hold a
+// specific class/level; filtered server-side so gated items never leak.
+enum MenuItemVisibility {
+  ALL
+  GUEST
+  AUTHED
+  LEVEL
+}
+
+model Menu {
+  id        String        @id @default(cuid())
+  name      String
+  location  MenuLocation? @unique
+  items     MenuItem[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+model MenuItem {
+  id       String     @id @default(cuid())
+  menuId   String
+  menu     Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  // Self-relation for nesting (dropdowns). Deleting a parent removes children.
+  parentId String?
+  parent   MenuItem?  @relation("MenuItemChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children MenuItem[] @relation("MenuItemChildren")
+  order    Int        @default(0)
+
+  label String
+  type  MenuItemType
+
+  // Target (one of, by type). Loose ids — no FK — resolved at render time.
+  url      String? // CUSTOM (any URL) or ROUTE (internal path)
+  pageId   String?
+  levelId  String?
+  courseId String?
+  postId   String?
+
+  openNewTab Boolean @default(false)
+
+  visibility        MenuItemVisibility @default(ALL)
+  visibilityLevelId String? // required level when visibility = LEVEL
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([menuId])
+  @@index([parentId])
+}
+
+// ---------- Class-completion certificates ----------
+
+// Admin-designed certificate template: uploaded artwork + a visual field
+// layout (CertificateFieldLayout[] from @lms/types) stored as Json. Exactly
+// one row is the default (enforced transactionally in the service); classes
+// may override via Level.certificateTemplateId.
+model CertificateTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  artworkUrl  String // local "/media/<key>" URL only — renders never fetch remote bytes
+  imageWidth  Int // artwork pixel size, derived server-side at save (image-size)
+  imageHeight Int
+  fields      Json     @default("[]") // CertificateFieldLayout[]
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  levels       Level[]
+  certificates Certificate[]
+}
+
+// An issued certificate. memberName/className are SNAPSHOTS taken at claim
+// time and the PDF is rendered once to fileKey — later template edits or
+// deletions never change an issued certificate (templateId just goes null).
+model Certificate {
+  id         String               @id @default(cuid())
+  serial     String               @unique // CERT-<year>-<6 chars>, printed on the PDF + publicly verifiable
+  userId     String
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  levelId    String
+  level      Level                @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  templateId String?
+  template   CertificateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  memberName String
+  className  String
+  issuedAt   DateTime             @default(now())
+  fileKey    String // "<serial>.pdf" under CERT_FILES_DIR
+
+  @@unique([userId, levelId]) // one certificate per member per class; claim is idempotent
+  @@index([levelId])
+  @@index([templateId])
+}
+
+// ---------- Contacts / Audiences (in-house list management) ----------
+// The system-of-record for audiences, contacts, tags and custom fields (email
+// unique WITHIN an audience; tags + attributes are per-audience). Level / Form /
+// Footer opt-ins all point at an Audience.id.
+
+enum ContactStatus {
+  SUBSCRIBED
+  PENDING // double opt-in, awaiting confirmation
+  UNSUBSCRIBED
+  CLEANED // hard-bounced / complained — never mail again
+}
+
+enum ContactSource {
+  SIGNUP
+  FORM
+  FOOTER
+  IMPORT
+  MANUAL
+  ADMIN
+}
+
+enum ConsentKind {
+  OPTIN
+  CONFIRM
+  UNSUBSCRIBE
+  COMPLAINT
+  CLEANED
+}
+
+// An audience / list a contact belongs to.
+model Audience {
+  id         String   @id @default(cuid())
+  name       String
+  slug       String?  @unique
+  isDefault  Boolean  @default(false) // the single global default audience
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  fields   AudienceField[]
+  contacts Contact[]
+  segments Segment[]
+  levels   Level[]
+  forms    Form[]
+}
+
+// A custom (merge) field on an audience. EMAIL is implicit and always mappable;
+// these are the extra mapped fields (FNAME, LNAME, …).
+model AudienceField {
+  id         String   @id @default(cuid())
+  audienceId String
+  audience   Audience @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  tag        String // FNAME, LNAME, PHONE … (uppercase, unique per audience)
+  label      String
+  type       String   @default("text")
+  required   Boolean  @default(false)
+
+  @@unique([audienceId, tag])
+}
+
+// A contact within an audience. Email is unique WITHIN an audience. Tags +
+// attributes are per-audience. Links to a member when known (no FK on userId,
+// so history survives member deletion).
+model Contact {
+  id             String        @id @default(cuid())
+  audienceId     String
+  audience       Audience      @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  email          String
+  status         ContactStatus @default(SUBSCRIBED)
+  firstName      String?
+  lastName       String?
+  attributes     Json          @default("{}") // mapped field values (merge fields)
+  tags           String[]      @default([]) // per-audience tag names
+  source         ContactSource @default(MANUAL)
+  userId         String? // local User.id when the contact is a member
+  confirmedAt    DateTime? // double opt-in confirmation
+  unsubscribedAt DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  consents ConsentEvent[]
+
+  @@unique([audienceId, email])
+  @@index([audienceId, status])
+  @@index([userId])
+  @@index([email])
+}
+
+// A saved filter over an audience — used as a campaign/automation target.
+model Segment {
+  id         String   @id @default(cuid())
+  audienceId String
+  audience   Audience @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  name       String
+  filter     Json     @default("{}") // { status?, anyTags?, allTags?, search? }
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([audienceId])
+}
+
+// Consent / suppression audit trail (compliance: opt-in, confirm, unsubscribe).
+model ConsentEvent {
+  id        String      @id @default(cuid())
+  contactId String
+  contact   Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  kind      ConsentKind
+  source    String? // form id, footer, import, admin, unsubscribe-link …
+  ip        String?
+  createdAt DateTime    @default(now())
+
+  @@index([contactId])
+}
+
+// ---------- Email engine (in-house templates/scheduling; pluggable sender) ----------
+// We own the pre-mail (templates, automations, scheduling, contacts) and put
+// bytes on the wire via a swappable provider (default: nodemailer SMTP). EmailLog
+// is the send ledger — idempotency (dedupeKey) + audit + provider correlation.
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+  BOUNCED
+  COMPLAINED
+}
+
+model EmailLog {
+  id          String      @id @default(cuid())
+  to          String
+  contactId   String? // internal Contact when known (no FK: survives deletion)
+  templateKey String? // template/automation that produced it
+  campaignId  String?
+  subject     String
+  status      EmailStatus @default(QUEUED)
+  providerId  String? // provider message id (webhook correlation)
+  error       String?
+  dedupeKey   String?     @unique // idempotency for triggered sends
+  sentAt      DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([to])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Reusable email template — MJML body + Handlebars merge vars. `key` is set for
+// system templates (welcome, …) so code can render by key; custom admin
+// templates have key null.
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  key       String?  @unique // stable id for system templates; null for custom
+  name      String
+  subject   String // Handlebars-enabled
+  mjml      String // MJML source (Handlebars-enabled)
+  variables String[] @default([]) // declared merge-var names (editor + preview)
+  category  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- Campaigns + Automations (scheduling & triggers) ----------
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  PAUSED
+}
+
+enum CampaignCadence {
+  ONCE
+  WEEKLY
+  MONTHLY
+  CRON
+}
+
+// A broadcast to an audience/segment — one-off or recurring (weekly/monthly/cron).
+model Campaign {
+  id         String          @id @default(cuid())
+  name       String
+  templateId String
+  audienceId String
+  segmentId  String? // optional narrower target
+  cadence    CampaignCadence @default(ONCE)
+  runAt      DateTime? // ONCE: when to send; recurring: first run
+  cron       String? // CRON cadence expression
+  timezone   String? // IANA tz for cron/weekly/monthly schedules; null => UTC
+  status     CampaignStatus  @default(DRAFT)
+  nextRunAt  DateTime? // scheduler dispatch time
+  lastRunAt  DateTime?
+  sentCount  Int             @default(0)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@index([status, nextRunAt])
+}
+
+enum AutomationTrigger {
+  SIGNUP
+  SUBSCRIPTION_ACTIVE
+  SUBSCRIPTION_CANCELED
+  LESSON_COMPLETED
+  CERTIFICATE_ISSUED
+}
+
+// A triggered email — fired by a domain event (welcome, etc.). delayMinutes is
+// reserved for future delayed sends; 0 = immediate.
+model Automation {
+  id           String            @id @default(cuid())
+  name         String
+  trigger      AutomationTrigger
+  templateId   String
+  active       Boolean           @default(true)
+  delayMinutes Int               @default(0)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([trigger, active])
+}
+
+enum EmailEventType {
+  DELIVERED
+  OPEN
+  CLICK
+  BOUNCE
+  COMPLAINT
+}
+
+// Provider feedback (bounce/complaint/open/click) ingested via webhook. Bounces
+// + complaints drive suppression (Contact → CLEANED).
+model EmailEvent {
+  id         String         @id @default(cuid())
+  emailLogId String? // correlated EmailLog when known
+  providerId String? // provider message id (correlation fallback)
+  type       EmailEventType
+  email      String?
+  meta       Json?
+  createdAt  DateTime       @default(now())
+
+  @@index([emailLogId])
+  @@index([providerId])
+}
+
+// ---------- Deferred automation sends (delayMinutes) ----------
+
+enum ScheduledEmailStatus {
+  PENDING
+  SENT
+  CANCELED
+  FAILED
+}
+
+// A future-dated send queued by a delayed automation (delayMinutes > 0). The
+// scheduler sweeps PENDING rows whose sendAt has passed and dispatches them via
+// the EmailService. automationId is a plain field (no relation) so Automation
+// stays untouched; dedupeKey makes a (re)trigger idempotent.
+model ScheduledEmail {
+  id           String               @id @default(cuid())
+  automationId String? // source Automation (plain field, no FK)
+  to           String
+  templateId   String? // template/automation that will produce it
+  templateKey  String?
+  vars         Json // merge-var bag passed to the renderer
+  sendAt       DateTime // when the scheduler should dispatch
+  status       ScheduledEmailStatus @default(PENDING)
+  dedupeKey    String?              @unique // idempotency for the deferred trigger
+  contactId    String? // internal Contact when known (no FK: survives deletion)
+  createdAt    DateTime             @default(now())
+  sentAt       DateTime?
+  error        String?
+
+  @@index([status, sendAt])
+}
+
+// ---------- Projects: internal team chat + task lists (admin-only) ----------
+// A lightweight in-house Slack for back-office staff: public/private channels,
+// messages with threads + reactions + @mentions, per-member last-read markers
+// that drive unread counts, and Slack-Lists-style task boards. Participants are
+// Admins; admin ids are plain columns (NO FK) so chat history survives an admin
+// being removed — same convention as Contact.userId. Cascades apply only WITHIN
+// the chat tables (delete a channel → its messages/members/lists go too).
+
+enum ChatListItemStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum ChatChannelKind {
+  CHANNEL
+  DM // 1:1 direct message
+  GROUP_DM // small-group direct message
+}
+
+model ChatChannel {
+  id               String          @id @default(cuid())
+  name             String
+  slug             String?         @unique
+  topic            String?
+  isPrivate        Boolean         @default(false)
+  kind             ChatChannelKind @default(CHANNEL)
+  dmKey            String?         @unique // deterministic sorted-member hash; dedupes a DM between the same people
+  createdByAdminId String
+  archivedAt       DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  members  ChatMember[]
+  messages ChatMessage[]
+  lists    ChatList[]
+  canvases ChatCanvas[]
+}
+
+// A rich-text doc pinned to a channel as a tab (e.g. the "Web SOP" tab). Content
+// is editor HTML. Multiple canvases per channel, ordered by position.
+model ChatCanvas {
+  id               String      @id @default(cuid())
+  channelId        String
+  channel          ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  title            String
+  content          String      @default("") // rich-text HTML
+  position         Int         @default(0)
+  createdByAdminId String
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([channelId, position])
+}
+
+model ChatMember {
+  id          String      @id @default(cuid())
+  channelId   String
+  channel     ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  adminId     String // back-office staff member (no FK: see section header)
+  lastReadSeq Int         @default(0) // highest ChatMessage.seq this member has read
+  lastReadAt  DateTime?
+  joinedAt    DateTime    @default(now())
+
+  @@unique([channelId, adminId])
+  @@index([adminId])
+}
+
+model ChatMessage {
+  id              String       @id @default(cuid())
+  seq             Int          @unique @default(autoincrement()) // global monotonic order; reconnect catch-up via ?afterSeq=
+  channelId       String
+  channel         ChatChannel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  authorAdminId   String
+  body            String
+  parentMessageId String? // set => thread reply; the root is the parent
+  parent          ChatMessage? @relation("ChatThread", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  replies         ChatMessage[] @relation("ChatThread")
+  listItemId      String? // when set, the message renders an inline list-item ("task") card
+  workflowId      String? // set when a workflow auto-posted this message (UI shows the workflow as author + a WORKFLOW badge)
+  createdAt       DateTime     @default(now())
+  editedAt        DateTime?
+  deletedAt       DateTime?
+
+  reactions ChatReaction[]
+  mentions  ChatMention[]
+  listItems ChatListItem[]
+
+  @@index([channelId, seq])
+  @@index([parentMessageId])
+  @@index([listItemId])
+}
+
+model ChatReaction {
+  id        String      @id @default(cuid())
+  messageId String
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  adminId   String
+  emoji     String
+  createdAt DateTime    @default(now())
+
+  @@unique([messageId, adminId, emoji])
+  @@index([messageId])
+}
+
+model ChatMention {
+  id               String      @id @default(cuid())
+  messageId        String
+  message          ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  mentionedAdminId String
+  createdAt        DateTime    @default(now())
+
+  @@unique([messageId, mentionedAdminId])
+  @@index([mentionedAdminId])
+}
+
+model ChatList {
+  id               String       @id @default(cuid())
+  channelId        String? // a list may be scoped to a channel or stand alone
+  channel          ChatChannel? @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  name             String
+  description      String?
+  icon             String? // emoji / short label for the list "tab"
+  position         Int          @default(0) // order among a channel's list tabs
+  createdByAdminId String
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  items     ChatListItem[]
+  fields    ChatListField[]
+  workflows ChatWorkflow[]
+
+  @@index([channelId])
+}
+
+// ----- Workflows: auto-post a list event into a channel (the Image-1 flow) -----
+// Event-Condition-Action: a trigger on a list fires an action (post a templated,
+// @mentioned channel message carrying an inline item card). Idempotent via a
+// per-(workflow,item,trigger) dedupe key recorded in ChatWorkflowRun.
+enum ChatWorkflowTrigger {
+  ITEM_CREATED
+  ITEM_ASSIGNED
+  ITEM_UPDATED
+}
+
+model ChatWorkflow {
+  id               String              @id @default(cuid())
+  name             String
+  listId           String
+  list             ChatList            @relation(fields: [listId], references: [id], onDelete: Cascade)
+  channelId        String? // post target; defaults to the list's channel when null
+  trigger          ChatWorkflowTrigger @default(ITEM_CREATED)
+  config           Json                @default("{}") // { assigneeFieldId?, template?, includeCard? }
+  enabled          Boolean             @default(true)
+  createdByAdminId String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  runs ChatWorkflowRun[]
+
+  @@index([listId])
+}
+
+model ChatWorkflowRun {
+  id         String       @id @default(cuid())
+  workflowId String
+  workflow   ChatWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  itemId     String // the ChatListItem that triggered it (plain: survives item deletion)
+  dedupeKey  String       @unique // wf:<workflowId>:item:<itemId>:<trigger> — idempotency
+  messageId  String? // the posted ChatMessage, when successful
+  status     String       @default("OK")
+  createdAt  DateTime     @default(now())
+
+  @@index([workflowId])
+}
+
+// A user-defined column on a list (Slack-Lists / Airtable style). Each item's
+// value for this field lives in ChatListItem.values, keyed by this field's id —
+// the flexible "field definitions as rows + values as JSONB" pattern.
+enum ChatFieldType {
+  TEXT
+  LONG_TEXT
+  SELECT
+  MULTI_SELECT
+  PERSON // an Admin id
+  MULTI_PERSON // multiple assignees — array of Admin ids
+  DATE
+  URL
+  NUMBER
+  CHECKBOX
+  SECRET // masked credential, e.g. the "Username and Password" column
+}
+
+model ChatListField {
+  id        String        @id @default(cuid())
+  listId    String
+  list      ChatList      @relation(fields: [listId], references: [id], onDelete: Cascade)
+  key       String // stable slug, unique within the list
+  name      String // display label (e.g. "Category", "Current Step")
+  type      ChatFieldType @default(TEXT)
+  options   Json          @default("[]") // SELECT/MULTI_SELECT choices: [{ id, label, color }]
+  config    Json          @default("{}") // per-type extras (required, number format, …)
+  position  Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([listId, key])
+  @@index([listId, position])
+}
+
+// A conversation comment on a single list item — the per-item thread (the 💬
+// count Slack shows on a queue row).
+model ChatListItemComment {
+  id            String       @id @default(cuid())
+  itemId        String
+  item          ChatListItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  authorAdminId String
+  body          String
+  createdAt     DateTime     @default(now())
+  editedAt      DateTime?
+  deletedAt     DateTime?
+
+  @@index([itemId])
+}
+
+model ChatListItem {
+  id                   String             @id @default(cuid())
+  listId               String
+  list                 ChatList           @relation(fields: [listId], references: [id], onDelete: Cascade)
+  title                String
+  status               ChatListItemStatus @default(TODO)
+  assigneeAdminId      String?
+  dueDate              DateTime?
+  position             Int                @default(0)
+  values               Json               @default("{}") // custom-field values keyed by ChatListField.id
+  createdFromMessageId String? // "turn a message into a task" provenance
+  createdFromMessage   ChatMessage?       @relation(fields: [createdFromMessageId], references: [id], onDelete: SetNull)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  comments ChatListItemComment[]
+
+  @@index([listId, position])
+  @@index([assigneeAdminId])
+}
+
+// ---------- Live sessions ----------
+// Admin-scheduled Zoom / Google Meet calls surfaced to entitled members as a
+// countdown "live" bar on the dashboard, opening a gated join page. A session
+// targets specific Class(es) (Level, via LiveSessionTarget) or every active
+// member (audience = ALL_ACTIVE). The join URL + passcode are stored AES-256-GCM
+// encrypted (crypto.util encryptSecret) exactly like Stripe secrets and are
+// NEVER placed on a bar/shell payload — they are released only by the
+// credentials endpoint, to an entitled member inside the join window, which
+// writes a LiveJoinAudit row. `endsAt` is STORED (= startsAt + durationMin) so
+// the "current" query is a pure indexed range with no per-row duration math.
+
+enum LiveProvider {
+  ZOOM
+  GOOGLE_MEET
+}
+
+enum LiveAudience {
+  ALL_ACTIVE // any member holding >=1 ACTIVE UserLevel
+  LEVELS // only members entitled to one of the targeted Levels (Classes)
+}
+
+enum LiveSessionStatus {
+  DRAFT // not yet visible to members
+  SCHEDULED // published; visible + joinable within its window
+  CANCELED // soft-canceled; entitled members get a 410 notice
+}
+
+model LiveSession {
+  id          String            @id @default(cuid())
+  title       String
+  description String?
+  provider    LiveProvider
+  audience    LiveAudience      @default(LEVELS)
+  status      LiveSessionStatus @default(DRAFT)
+
+  // AES-256-GCM ciphertext (crypto.util encryptSecret). Never plaintext, never
+  // on a bar/shell payload.
+  joinUrlEnc  String
+  passwordEnc String?
+
+  startsAt    DateTime // UTC instant
+  endsAt      DateTime // STORED = startsAt + durationMin (set at every write)
+  durationMin Int      @default(60)
+  joinLeadMin Int      @default(10) // credentials/join unlock this many minutes before startsAt
+  timezone    String? // IANA zone the admin authored in; DISPLAY ONLY, never in gating math
+
+  reminderSentAt DateTime? // pre-wire for the deferred reminder cron; unused in phase 1
+
+  createdById String?
+  createdBy   Admin?   @relation("AdminLiveSessions", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  targets    LiveSessionTarget[]
+  joinAudits LiveJoinAudit[]
+
+  @@index([status, endsAt]) // "current"/upcoming: WHERE status=SCHEDULED AND endsAt > now
+}
+
+// Many-to-many: a live session (audience = LEVELS) targets these Classes (Levels).
+model LiveSessionTarget {
+  liveSessionId String
+  levelId       String
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+  level         Level       @relation("LevelLiveSessions", fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@id([liveSessionId, levelId])
+  @@index([levelId])
+}
+
+// One row per credential release — the only tripwire for a forwarded/shared
+// bearer-authenticated join URL. userId is a plain scalar (no FK) so an audit
+// trail survives a member deletion for accountability.
+model LiveJoinAudit {
+  id            String      @id @default(cuid())
+  liveSessionId String
+  userId        String
+  at            DateTime    @default(now())
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+
+  @@index([liveSessionId, at])
+  @@index([userId, at])
 }

@@ -5,16 +5,28 @@ import {
   Get,
   Headers,
   HttpCode,
+  Param,
   Post,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermission } from '../auth/require-permission.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { BillingService } from './billing.service';
-import { CheckoutDto } from './dto/billing.dto';
+import {
+  CancelSubDto,
+  CheckoutDto,
+  CourseCheckoutDto,
+  CoursePurchaseConfirmDto,
+  CouponValidateDto,
+  PayPalActivateDto,
+  PayPalPrepareDto,
+  SubscribeDto,
+} from './dto/billing.dto';
 
 @Controller('billing')
 export class BillingController {
@@ -35,6 +47,144 @@ export class BillingController {
     return this.billing.createPortal(principal.sub);
   }
 
+  // One-off course purchase: start a mode=payment checkout for a single course.
+  @UseGuards(JwtAuthGuard)
+  @Post('course/checkout')
+  courseCheckout(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: CourseCheckoutDto,
+  ) {
+    return this.billing.createCoursePurchaseCheckout(principal.sub, dto.courseId);
+  }
+
+  // Confirm a course purchase inline after the Stripe redirect (grants without
+  // waiting on the webhook). Ownership of the session is enforced in the service.
+  @UseGuards(JwtAuthGuard)
+  @Post('course/confirm')
+  confirmCoursePurchase(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: CoursePurchaseConfirmDto,
+  ) {
+    return this.billing.confirmCoursePurchase(principal.sub, dto.sessionId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('subscriptions')
+  mySubscriptions(@CurrentUser() principal: AuthenticatedPrincipal) {
+    return this.billing.mySubscriptions(principal.sub);
+  }
+
+  // Public: the checkout page reads this to mount Stripe Elements (publishable
+  // key only — safe to expose; null when Stripe isn't configured).
+  @Get('config')
+  config() {
+    return this.billing.getConfig();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('subscribe')
+  subscribe(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: SubscribeDto,
+  ) {
+    return this.billing.subscribe(principal.sub, dto);
+  }
+
+  // Called by the checkout right after a successful payment to reconcile the
+  // new subscription inline (grant + mirror + admin notification) without
+  // waiting on the Stripe webhook.
+  @UseGuards(JwtAuthGuard)
+  @Post('sync')
+  sync(@CurrentUser() principal: AuthenticatedPrincipal) {
+    return this.billing.syncMySubscriptions(principal.sub);
+  }
+
+  // Member self-service cancellation of their OWN subscription — always at period
+  // end (keeps paid-through access, stops renewal). Ownership enforced in service.
+  @UseGuards(JwtAuthGuard)
+  @Post('subscriptions/:subId/cancel')
+  cancelMySubscription(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Param('subId') subId: string,
+  ) {
+    return this.billing.cancelMyMembership(principal.sub, subId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('coupon/validate')
+  validateCoupon(@Body() dto: CouponValidateDto) {
+    return this.billing.validateCoupon(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('subscription-details')
+  subscriptionDetails(@CurrentUser() principal: AuthenticatedPrincipal) {
+    return this.billing.getMySubscriptionDetails(principal.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('invoices')
+  invoices(@CurrentUser() principal: AuthenticatedPrincipal) {
+    return this.billing.getMyInvoices(principal.sub);
+  }
+
+  // Admin: per-member billing detail + one-click pause / resume / cancel.
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('members', 'read')
+  @Get('members/:id')
+  memberBilling(@Param('id') id: string) {
+    return this.billing.getMemberBilling(id);
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('members', 'edit')
+  @Post('members/:id/subscriptions/:subId/pause')
+  pauseSub(@Param('id') id: string, @Param('subId') subId: string) {
+    return this.billing.pauseSub(id, subId);
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('members', 'edit')
+  @Post('members/:id/subscriptions/:subId/resume')
+  resumeSub(@Param('id') id: string, @Param('subId') subId: string) {
+    return this.billing.resumeSub(id, subId);
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('members', 'edit')
+  @Post('members/:id/subscriptions/:subId/cancel')
+  cancelSub(
+    @Param('id') id: string,
+    @Param('subId') subId: string,
+    @Body() dto: CancelSubDto,
+  ) {
+    return this.billing.cancelSub(id, subId, dto.mode);
+  }
+
+  // ----- PayPal checkout (active when the admin selects the paypal provider) -----
+
+  // Step 1: lazily provision the billing plan for a price and return what the
+  // PayPal Buttons need (plan id + the member id to stamp as custom_id).
+  @UseGuards(JwtAuthGuard)
+  @Post('paypal/prepare')
+  paypalPrepare(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: PayPalPrepareDto,
+  ) {
+    return this.billing.paypalPrepare(principal.sub, dto.priceId);
+  }
+
+  // Step 2 (after Buttons onApprove): verify ownership + plan, grant inline.
+  // Also the manual reconcile fallback when webhooks can't reach this box.
+  @UseGuards(JwtAuthGuard)
+  @Post('paypal/activate')
+  paypalActivate(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: PayPalActivateDto,
+  ) {
+    return this.billing.paypalActivate(principal.sub, dto.subscriptionId);
+  }
+
   // Public (Stripe-signed). Raw body is provided by the express.raw() parser
   // registered for this exact path in main.ts.
   @Post('webhook')
@@ -49,6 +199,23 @@ export class BillingController {
       throw new BadRequestException('Expected raw body for webhook');
     }
     await this.billing.handleWebhook(rawBody, signature);
+    return { received: true };
+  }
+
+  // Public (PayPal-signed via verify-webhook-signature). Raw body parser is
+  // registered for this exact path in main.ts — verification needs the
+  // byte-exact original payload.
+  @Post('paypal/webhook')
+  @HttpCode(200)
+  async paypalWebhook(@Req() req: Request) {
+    const rawBody = req.body as Buffer;
+    if (!Buffer.isBuffer(rawBody)) {
+      throw new BadRequestException('Expected raw body for webhook');
+    }
+    await this.billing.handlePayPalWebhook(
+      rawBody,
+      req.headers as Record<string, string | string[] | undefined>,
+    );
     return { received: true };
   }
 }

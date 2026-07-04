@@ -1,17 +1,12 @@
 "use client";
 
-import {
-  useEffect,
-  useState,
-  type CSSProperties,
-  type FormEvent,
-} from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { FormFieldDef, FormPublicDTO } from "@lms/types";
 import { ApiError, fetchPublicForm, submitForm } from "@/lib/api";
 
-// Interactive, embeddable Mailchimp-linked form. Drop <FormEmbed formId="…" />
+// Interactive, embeddable audience-linked form. Drop <FormEmbed formId="…" />
 // into any page, popup, or screen. Fetches its definition client-side, validates,
-// submits to the public API (which stores the entry + subscribes to Mailchimp),
+// submits to the public API (which stores the entry + subscribes to an audience),
 // then shows the success message or redirects.
 export default function FormEmbed({ formId }: { formId: string }) {
   const [def, setDef] = useState<FormPublicDTO | null>(null);
@@ -84,16 +79,16 @@ export default function FormEmbed({ formId }: { formId: string }) {
     }
   }
 
-  if (loading) return <div style={styles.note}>Loading…</div>;
+  if (loading) return <div className="form-embed-note">Loading…</div>;
   if (missing || !def) return null; // embeds render nothing if the form is gone
-  if (done) return <div style={styles.success}>{done}</div>;
+  if (done) return <div className="form-embed-success">{done}</div>;
 
   return (
-    <form onSubmit={onSubmit} style={styles.form} noValidate>
+    <form onSubmit={onSubmit} className="form-embed" noValidate>
       {def.fields.map((f) => (
-        <div key={f.id} style={styles.field}>
+        <div key={f.id} className="form-embed-field">
           {f.type !== "checkbox" && (
-            <label style={styles.label}>
+            <label className="form-embed-label">
               {f.label}
               {f.required ? " *" : ""}
             </label>
@@ -101,8 +96,12 @@ export default function FormEmbed({ formId }: { formId: string }) {
           {renderInput(f, values[f.name], setVal)}
         </div>
       ))}
-      {submitError && <div style={styles.error}>{submitError}</div>}
-      <button type="submit" disabled={submitting} style={styles.button}>
+      {submitError && <div className="form-embed-error">{submitError}</div>}
+      <button
+        type="submit"
+        disabled={submitting}
+        className="form-embed-submit"
+      >
         {submitting ? "Submitting…" : "Submit"}
       </button>
     </form>
@@ -117,7 +116,7 @@ function renderInput(
   if (f.type === "textarea") {
     return (
       <textarea
-        style={{ ...styles.input, minHeight: 90 }}
+        className="form-embed-input form-embed-textarea"
         value={String(value ?? "")}
         placeholder={f.placeholder}
         required={f.required}
@@ -127,7 +126,7 @@ function renderInput(
   }
   if (f.type === "checkbox") {
     return (
-      <label style={styles.checkboxRow}>
+      <label className="form-embed-checkbox">
         <input
           type="checkbox"
           checked={value === true}
@@ -141,7 +140,7 @@ function renderInput(
   if (f.type === "select") {
     return (
       <select
-        style={styles.input}
+        className="form-embed-input form-embed-select"
         value={String(value ?? "")}
         required={f.required}
         onChange={(e) => setVal(f.name, e.target.value)}
@@ -165,7 +164,7 @@ function renderInput(
       : "text";
   return (
     <input
-      style={styles.input}
+      className="form-embed-input"
       type={inputType}
       value={String(value ?? "")}
       placeholder={f.placeholder}
@@ -175,34 +174,3 @@ function renderInput(
   );
 }
 
-const styles: Record<string, CSSProperties> = {
-  form: { display: "flex", flexDirection: "column", gap: 14, maxWidth: 480 },
-  field: { display: "flex", flexDirection: "column", gap: 6 },
-  label: { fontWeight: 600, fontSize: 14 },
-  input: {
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: "1px solid #d1d5db",
-    font: "inherit",
-    width: "100%",
-  },
-  checkboxRow: { display: "flex", alignItems: "center", gap: 8, fontSize: 14 },
-  button: {
-    padding: "12px 22px",
-    borderRadius: 999,
-    border: "none",
-    background: "#6d28d9",
-    color: "#fff",
-    fontWeight: 600,
-    cursor: "pointer",
-    alignSelf: "flex-start",
-  },
-  error: { color: "#dc2626", fontSize: 14 },
-  success: {
-    padding: 16,
-    borderRadius: 10,
-    background: "#dcfce7",
-    color: "#166534",
-  },
-  note: { color: "#6b7280" },
-};

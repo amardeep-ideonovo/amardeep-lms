@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import type { PageListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
+import { dialog } from "@/components/DialogProvider";
 import { withBase } from "@/lib/base-path";
 
 // Where to open the public "View" link. Set NEXT_PUBLIC_WEB_URL in prod;
@@ -11,6 +13,7 @@ const WEB_URL =
   process.env.NEXT_PUBLIC_WEB_URL?.replace(/\/$/, "") || "http://localhost:3002";
 
 export default function PagesPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [pages, setPages] = useState<PageListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,9 +32,10 @@ export default function PagesPage() {
   }
 
   useEffect(() => {
+    if (authLoading || !can("pages", "read")) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authLoading]);
 
   function openEditor(id: string) {
     window.open(withBase(`/pages/${id}/edit`), "_blank", "noopener");
@@ -58,12 +62,18 @@ export default function PagesPage() {
   }
 
   async function rename(p: PageListItem) {
-    const title = window.prompt("Page title", p.title);
+    const title = await dialog.prompt({
+      title: "Rename page",
+      message: "Page title",
+      defaultValue: p.title,
+    });
     if (title === null || !title.trim()) return;
-    const slug = window.prompt(
-      "Slug (the URL after the domain). Keep it unchanged to leave as-is.",
-      p.slug
-    );
+    const slug = await dialog.prompt({
+      title: "Page slug",
+      message:
+        "Slug (the URL after the domain). Keep it unchanged to leave as-is.",
+      defaultValue: p.slug,
+    });
     if (slug === null) return;
     setError(null);
     try {
@@ -91,8 +101,10 @@ export default function PagesPage() {
 
   async function remove(p: PageListItem) {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(`Delete "${p.title}"? This cannot be undone.`)
+      !(await dialog.confirm({
+        message: `Delete "${p.title}"? This cannot be undone.`,
+        danger: true,
+      }))
     )
       return;
     setError(null);
@@ -112,6 +124,17 @@ export default function PagesPage() {
           day: "numeric",
         })
       : "—";
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("pages", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Pages</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>
@@ -139,7 +162,7 @@ export default function PagesPage() {
         ) : pages.length === 0 ? (
           <p className="muted">No pages yet. Click “Add new page” to start.</p>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th>Title</th>
@@ -205,7 +228,7 @@ export default function PagesPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

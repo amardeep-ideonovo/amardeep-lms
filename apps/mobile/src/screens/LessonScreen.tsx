@@ -10,40 +10,24 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { ResizeMode, Video } from "expo-av";
 import { WebView } from "react-native-webview";
-import * as FileSystem from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system";
 import * as SecureStore from "expo-secure-store";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 
 import { api, ApiError, getToken, noteDownloadUrl } from "../api";
-import { API_BASE_URL } from "../config";
-import { Loading, ErrorState } from "../components/Screen";
+import { API_BASE_URL, WEB_ACCOUNT_URL, scopedKey } from "../config";
+import { Loading, ErrorState, Centered } from "../components/Screen";
+import { Press } from "../components/Press";
+import { LockedPanel } from "../components/LockedPanel";
+import { PopupHost } from "../components/PopupHost";
+import CertificateClaim from "../components/CertificateClaim";
+import { VideoPlayerView } from "../components/VideoPlayerView";
+import { vimeoEmbed } from "../format";
 import type { ScreenProps } from "../navigation";
-import { colors, spacing } from "../theme";
-
-// Placeholder HLS stream; in production the signed Mux playback URL is built from
-// muxPlaybackToken (e.g. https://stream.mux.com/<playbackId>.m3u8?token=<jwt>).
-const PLACEHOLDER_HLS =
-  "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
-
-function playbackUrl(token: string): string {
-  return `${PLACEHOLDER_HLS}?token=${encodeURIComponent(token)}`;
-}
-
-// Parse a Vimeo URL into its player embed URL (or null if not a Vimeo link).
-function vimeoEmbed(url: string | null | undefined): string | null {
-  if (!url) return null;
-  const id = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1];
-  if (!id) return null;
-  const h =
-    url.match(/[?&]h=([0-9A-Za-z]+)/)?.[1] ??
-    url.match(/vimeo\.com\/\d+\/([0-9A-Za-z]+)/)?.[1];
-  const params = [h ? `h=${h}` : "", "title=0", "byline=0", "portrait=0"]
-    .filter(Boolean)
-    .join("&");
-  return `https://player.vimeo.com/video/${id}?${params}`;
-}
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles, useTheme } from "../theme-provider";
 
 function fmtSize(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -52,6 +36,8 @@ function fmtSize(n: number): string {
 }
 
 export function LessonScreen({ route }: ScreenProps<"Lesson">) {
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
   const { lessonId } = route.params;
   const [lesson, setLesson] = useState<LessonDTO | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,8 +76,18 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
     setCompleting(true);
     setCompleteError(null);
     try {
-      await api.completeLesson(lessonId);
-      setLesson((prev) => (prev ? { ...prev, completed: true } : prev));
+      const res = await api.completeLesson(lessonId);
+      // Completing the final lesson of a class returns fresh certificate
+      // state — surface the "Get certificate" button without a refetch.
+      setLesson((prev) =>
+        prev
+          ? {
+              ...prev,
+              completed: true,
+              certificates: res?.certificates ?? prev.certificates,
+            }
+          : prev,
+      );
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
         setCompleteError("You no longer have access to this lesson.");
@@ -123,7 +119,7 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
       return;
     }
 
-    const SAF_DIR_KEY = "lms.saf.dir";
+    const SAF_DIR_KEY = scopedKey("lms.saf.dir");
     setSavingNoteId(note.id);
     try {
       const token = await getToken();
@@ -131,44 +127,47 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
       const ext = dot > 0 ? note.originalName.slice(dot) : "";
       const base = dot > 0 ? note.originalName.slice(0, dot) : note.originalName;
 
-      // 1) Download to the app cache (auth via header).
-      const tmp = `${FileSystem.cacheDirectory}note-${note.id}${ext}`;
-      const dl = await FileSystem.downloadAsync(
+      // 1) Download to the app cache (auth via header). Non-2xx throws.
+      const tmp = new File(Paths.cache, `note-${note.id}${ext}`);
+      const dl = await File.downloadFileAsync(
         `${API_BASE_URL}${note.downloadUrl}`,
         tmp,
-        { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          idempotent: true,
+        }
       );
-      if (dl.status !== 200) throw new Error(`Download failed (${dl.status})`);
-      const b64 = await FileSystem.readAsStringAsync(dl.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+      const bytes = await dl.bytes();
 
-      // 2) Write into a user-chosen folder (remembered for next time).
-      const writeInto = async (dirUri: string) => {
-        const destUri =
-          await FileSystem.StorageAccessFramework.createFileAsync(
-            dirUri,
-            base,
-            note.mimeType || "application/octet-stream"
-          );
-        await FileSystem.writeAsStringAsync(destUri, b64, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
+      // 2) Write into a user-chosen folder. The picker persists the SAF grant
+      //    natively, so the remembered folder stays writable across restarts.
+      const writeInto = (dirUri: string) => {
+        const dest = new Directory(dirUri).createFile(
+          base,
+          note.mimeType || "application/octet-stream"
+        );
+        dest.write(bytes);
       };
 
       const savedDir = await SecureStore.getItemAsync(SAF_DIR_KEY);
       try {
         if (!savedDir) throw new Error("no-saved-dir");
-        await writeInto(savedDir);
+        writeInto(savedDir); // a stale/revoked grant throws -> re-pick below
       } catch {
-        const perm =
-          await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
-        if (!perm.granted) {
+        let dir: Directory;
+        try {
+          dir = await Directory.pickDirectoryAsync();
+        } catch {
           setSavingNoteId(null);
           return; // user cancelled the folder picker
         }
-        await SecureStore.setItemAsync(SAF_DIR_KEY, perm.directoryUri);
-        await writeInto(perm.directoryUri);
+        await SecureStore.setItemAsync(SAF_DIR_KEY, dir.uri);
+        writeInto(dir.uri);
+      }
+      try {
+        tmp.delete();
+      } catch {
+        // best-effort cache cleanup
       }
 
       setSavedMsg(`Saved “${note.originalName}” to your chosen folder.`);
@@ -183,9 +182,17 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
 
   if (locked) {
     return (
-      <ErrorState
-        message={"🔒 This lesson is locked.\nUpgrade your membership on the web to unlock it."}
-      />
+      <Centered>
+        <View style={styles.lockedWrap}>
+          <LockedPanel
+            title="This lesson is locked"
+            message="Your current membership doesn't include this lesson."
+            note="Manage your plan on the web."
+            ctaLabel="Open my account"
+            onPress={() => Linking.openURL(WEB_ACCOUNT_URL)}
+          />
+        </View>
+      </Centered>
     );
   }
 
@@ -193,100 +200,99 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
   if (!lesson) return <ErrorState message="Lesson not found." onRetry={load} />;
 
   const completed = lesson.completed === true;
-  // Vimeo (production) plays in a WebView; a direct MP4/HLS or Mux stream
-  // plays in the native expo-av player.
+  // Vimeo plays in a WebView; a direct MP4/HLS URL plays in the native
+  // expo-av player.
   const vimeo = vimeoEmbed(lesson.videoUrl);
-  const videoUri = vimeo
-    ? null
-    : lesson.videoUrl ??
-      (lesson.muxPlaybackToken ? playbackUrl(lesson.muxPlaybackToken) : null);
+  const videoUri = vimeo ? null : lesson.videoUrl ?? null;
   const notes = lesson.notes ?? [];
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>{lesson.title}</Text>
+    <>
+      <PopupHost context={{ type: "lessons" }} />
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <Text style={styles.title}>{lesson.title}</Text>
 
-      {vimeo ? (
-        <WebView
-          style={styles.video}
-          source={{ uri: vimeo }}
-          allowsFullscreenVideo
-          allowsInlineMediaPlayback
-          javaScriptEnabled
-          domStorageEnabled
-        />
-      ) : videoUri ? (
-        <Video
-          style={styles.video}
-          source={{ uri: videoUri }}
-          useNativeControls
-          resizeMode={ResizeMode.CONTAIN}
-          isLooping={false}
-        />
-      ) : lesson.thumbnailUrl ? (
-        <Image
-          style={styles.video}
-          source={{ uri: lesson.thumbnailUrl }}
-          resizeMode="cover"
-        />
-      ) : null}
+        {vimeo ? (
+          <WebView
+            style={styles.video}
+            source={{ uri: vimeo }}
+            allowsFullscreenVideo
+            allowsInlineMediaPlayback
+            javaScriptEnabled
+            domStorageEnabled
+          />
+        ) : videoUri ? (
+          <VideoPlayerView style={styles.video} uri={videoUri} />
+        ) : lesson.thumbnailUrl ? (
+          <Image
+            style={styles.video}
+            source={{ uri: lesson.thumbnailUrl }}
+            resizeMode="cover"
+          />
+        ) : null}
 
-      {notes.length > 0 ? (
-        <View style={styles.notes}>
-          <Text style={styles.notesTitle}>Downloads</Text>
-          {noteError ? <Text style={styles.error}>{noteError}</Text> : null}
-          {savedMsg ? <Text style={styles.savedMsg}>{savedMsg}</Text> : null}
-          {notes.map((n) => (
-            <TouchableOpacity
-              key={n.id}
-              style={styles.noteRow}
-              activeOpacity={0.8}
-              onPress={() => saveNote(n)}
-              disabled={savingNoteId === n.id}
-            >
-              <Text style={styles.noteName} numberOfLines={1}>
-                {n.originalName}
-              </Text>
-              <Text style={styles.noteSize}>{fmtSize(n.size)}</Text>
-              <Text style={styles.noteIcon}>
-                {savingNoteId === n.id ? "…" : "⬇"}
-              </Text>
-            </TouchableOpacity>
+        {notes.length > 0 ? (
+          <View style={styles.notes}>
+            <Text style={styles.notesTitle}>Downloads</Text>
+            {noteError ? <Text style={styles.error}>{noteError}</Text> : null}
+            {savedMsg ? <Text style={styles.savedMsg}>{savedMsg}</Text> : null}
+            {notes.map((n) => (
+              <TouchableOpacity
+                key={n.id}
+                style={styles.noteRow}
+                activeOpacity={0.8}
+                onPress={() => saveNote(n)}
+                disabled={savingNoteId === n.id}
+              >
+                <Text style={styles.noteName} numberOfLines={1}>
+                  {n.originalName}
+                </Text>
+                <Text style={styles.noteSize}>{fmtSize(n.size)}</Text>
+                <Text style={styles.noteIcon}>
+                  {savingNoteId === n.id ? "…" : "⬇"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
+
+        {completeError ? <Text style={styles.error}>{completeError}</Text> : null}
+
+        <Press
+          style={[styles.button, (completed || completing) && styles.buttonDone]}
+          onPress={onComplete}
+          disabled={completed || completing}
+        >
+          {completing ? (
+            <ActivityIndicator color={colors.text} />
+          ) : (
+            <Text style={[styles.buttonText, completed && styles.buttonTextDone]}>
+              {completed ? "✓ Completed" : "Mark complete"}
+            </Text>
+          )}
+        </Press>
+
+        {(lesson.certificates ?? [])
+          .filter((c) => c.eligible || c.claimed)
+          .map((c) => (
+            <CertificateClaim key={c.levelId} status={c} />
           ))}
-        </View>
-      ) : null}
 
-      {completeError ? <Text style={styles.error}>{completeError}</Text> : null}
-
-      <TouchableOpacity
-        style={[styles.button, (completed || completing) && styles.buttonDone]}
-        onPress={onComplete}
-        disabled={completed || completing}
-        activeOpacity={0.8}
-      >
-        {completing ? (
-          <ActivityIndicator color={colors.text} />
+        {lesson.content ? (
+          <Text style={[styles.body, styles.bodyBelow]}>{lesson.content}</Text>
         ) : (
-          <Text style={styles.buttonText}>
-            {completed ? "✓ Completed" : "Mark complete"}
+          <Text style={[styles.bodyMuted, styles.bodyBelow]}>
+            No written content for this lesson.
           </Text>
         )}
-      </TouchableOpacity>
 
-      {lesson.content ? (
-        <Text style={[styles.body, styles.bodyBelow]}>{lesson.content}</Text>
-      ) : (
-        <Text style={[styles.bodyMuted, styles.bodyBelow]}>
-          No written content for this lesson.
-        </Text>
-      )}
-
-      <View style={styles.spacer} />
-    </ScrollView>
+        <View style={styles.spacer} />
+      </ScrollView>
+    </>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
   title: {
@@ -294,6 +300,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     marginBottom: spacing.md,
+    fontFamily: fonts.bold,
   },
   video: {
     width: "100%",
@@ -302,14 +309,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
     marginBottom: spacing.md,
   },
-  body: { color: colors.text, fontSize: 16, lineHeight: 24 },
-  bodyMuted: { color: colors.textMuted, fontSize: 15, fontStyle: "italic" },
+  body: { color: colors.text, fontSize: 16, lineHeight: 24, fontFamily: fonts.regular },
+  bodyMuted: { color: colors.textMuted, fontSize: 15, fontStyle: "italic", fontFamily: fonts.regular },
   bodyBelow: { marginTop: spacing.lg },
-  error: { color: colors.danger, marginTop: spacing.md },
-  savedMsg: { color: "#34d399", marginBottom: spacing.sm, fontSize: 14 },
+  error: { color: colors.danger, marginTop: spacing.md, fontFamily: fonts.regular },
+  savedMsg: { color: colors.success, marginBottom: spacing.sm, fontSize: 14, fontFamily: fonts.regular },
+  lockedWrap: { alignSelf: "stretch" },
   notes: {
     marginTop: spacing.lg,
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
     borderRadius: 12,
     padding: spacing.md,
   },
@@ -318,6 +328,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     marginBottom: spacing.sm,
+    fontFamily: fonts.bold,
   },
   noteRow: {
     flexDirection: "row",
@@ -326,9 +337,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.surfaceMuted,
   },
-  noteName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "500" },
-  noteSize: { color: colors.textMuted, fontSize: 13, marginHorizontal: spacing.sm },
-  noteIcon: { color: colors.primary, fontSize: 18, fontWeight: "700" },
+  noteName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "500", fontFamily: fonts.medium },
+  noteSize: { color: colors.textMuted, fontSize: 13, marginHorizontal: spacing.sm, fontFamily: fonts.regular },
+  noteIcon: { color: colors.primary, fontSize: 18, fontWeight: "700", fontFamily: fonts.bold },
   button: {
     backgroundColor: colors.primary,
     borderRadius: 10,
@@ -336,7 +347,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: spacing.lg,
   },
-  buttonDone: { backgroundColor: colors.surfaceMuted },
-  buttonText: { color: colors.text, fontSize: 16, fontWeight: "700" },
+  buttonDone: { backgroundColor: colors.successBg },
+  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700", fontFamily: fonts.bold },
+  // The done state sits on the success tint, so the label goes success too.
+  buttonTextDone: { color: colors.success },
   spacer: { height: spacing.lg },
 });

@@ -58,8 +58,10 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="form-card">
-      <h1>Create your account</h1>
+    <div className="dark-page">
+      <div className="dp-wrap">
+        <div className="form-card">
+      <h1>Create your <span className="t-gradient">account</span></h1>
       <p className="sub">
         Already a member?{" "}
         <Link href="/login" className="link">
@@ -141,12 +143,14 @@ export default function SignupPage() {
 
         <button
           type="submit"
-          className="btn btn-primary btn-block"
+          className="btn btn-primary btn-block press"
           disabled={loading}
         >
           {loading ? "Creating account…" : "Create account"}
         </button>
       </form>
+        </div>
+      </div>
     </div>
   );
 }

@@ -8,9 +8,13 @@ import { createPuckConfig } from "@lms/puck";
 import type { PageProps, RootProps } from "@lms/puck";
 import "@lms/puck/styles.css";
 import FormEmbed from "@/components/FormEmbed";
+import PageMenu from "@/components/PageMenu";
 import { fetchPublishedPage } from "@/lib/api";
 
-const config = createPuckConfig({ formComponent: FormEmbed });
+const config = createPuckConfig({
+  formComponent: FormEmbed,
+  menuComponent: PageMenu,
+});
 
 export default async function PageEmbed({ slug }: { slug: string }) {
   const page = await fetchPublishedPage(slug);

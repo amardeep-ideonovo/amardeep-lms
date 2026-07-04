@@ -1,0 +1,256 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import type { SubscriptionRowDTO } from "@lms/types";
+import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
+
+const money = (a: number | null, c: string) =>
+  a == null
+    ? "—"
+    : (a / 100).toLocaleString(undefined, {
+        style: "currency",
+        currency: (c || "usd").toUpperCase(),
+      });
+
+const fmtDate = (iso: string | null) =>
+  iso
+    ? new Date(iso).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : "–";
+
+// Status -> human label + pill colors (mirrors the WooCommerce status colors:
+// green active, grey cancelled, purple expired, yellow on-hold, red past-due).
+const STATUS_META: Record<string, { label: string; cls: string }> = {
+  active: { label: "Active", cls: "badge--ok" },
+  trialing: { label: "Trialing", cls: "badge--info" },
+  past_due: { label: "Past due", cls: "badge--danger" },
+  unpaid: { label: "Unpaid", cls: "badge--danger" },
+  paused: { label: "On hold", cls: "badge--warn" },
+  canceled: { label: "Cancelled", cls: "badge--neutral" },
+  incomplete: { label: "Incomplete", cls: "badge--neutral" },
+  incomplete_expired: { label: "Expired", cls: "badge--violet" },
+};
+
+// While billing is paused Stripe keeps `status: active`, so surface "On hold".
+const statusKey = (s: SubscriptionRowDTO): string =>
+  s.paused ? "paused" : s.status;
+
+function StatusBadge({ s }: { s: SubscriptionRowDTO }) {
+  const key = statusKey(s);
+  const meta = STATUS_META[key] ?? { label: key, cls: "badge--neutral" };
+  return (
+    <span className={`badge ${meta.cls}`}>
+      {meta.label}
+    </span>
+  );
+}
+
+export default function SubscriptionsPage() {
+  const { can, loading: authLoading } = useAdminAuth();
+  const [rows, setRows] = useState<SubscriptionRowDTO[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      setRows(await api.listSubscriptions());
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Failed to load subscriptions",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => {
+    if (authLoading || !can("subscriptions", "read")) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
+
+  // Only offer status values that actually appear in the data.
+  const statuses = useMemo(() => {
+    const set = new Set<string>();
+    rows.forEach((r) => set.add(statusKey(r)));
+    return Array.from(set);
+  }, [rows]);
+
+  const q = search.trim().toLowerCase();
+  const visible = rows.filter((r) => {
+    if (statusFilter !== "all" && statusKey(r) !== statusFilter) return false;
+    if (!q) return true;
+    return (
+      r.memberName.toLowerCase().includes(q) ||
+      (r.memberEmail ?? "").toLowerCase().includes(q) ||
+      r.levelName.toLowerCase().includes(q)
+    );
+  });
+
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("subscriptions", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Subscriptions</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
+
+  return (
+    <div>
+      <div className="page-header with-action">
+        <div>
+          <h1>Subscriptions</h1>
+          <p className="subtitle">
+            Every subscription — active and historical, across Stripe and
+            PayPal. Manage an individual member’s plan from their billing page.
+          </p>
+        </div>
+        <button className="btn btn--ghost" onClick={load} disabled={loading}>
+          {loading ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
+
+      {error && <p className="error">{error}</p>}
+
+      <div className="card">
+        {loading ? (
+          <p className="muted">Loading…</p>
+        ) : rows.length === 0 ? (
+          <p className="muted">No subscriptions yet.</p>
+        ) : (
+          <>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                marginBottom: 14,
+                flexWrap: "wrap",
+              }}
+            >
+              <label htmlFor="sub-search" style={{ fontWeight: 600 }}>
+                Search
+              </label>
+              <input
+                id="sub-search"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Name, email or class…"
+                style={{ minWidth: 220 }}
+              />
+              <label htmlFor="sub-status" style={{ fontWeight: 600 }}>
+                Status
+              </label>
+              <select
+                id="sub-status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all">All</option>
+                {statuses.map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_META[s]?.label ?? s}
+                  </option>
+                ))}
+              </select>
+              <span className="muted" style={{ fontSize: 13 }}>
+                Showing {visible.length} of {rows.length}
+              </span>
+            </div>
+
+            {visible.length === 0 ? (
+              <p className="muted">No subscriptions match this filter.</p>
+            ) : (
+              <div className="table-wrap"><table className="table">
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>Name</th>
+                    <th>Class Name</th>
+                    <th>Total</th>
+                    <th>Start Date</th>
+                    <th>Next Payment</th>
+                    <th>Last Order Date</th>
+                    <th>End Date</th>
+                    <th>Orders</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((r) => (
+                    <tr key={r.id}>
+                      <td>
+                        <StatusBadge s={r} />
+                        <div
+                          className="muted"
+                          style={{ fontSize: 11, marginTop: 4 }}
+                        >
+                          {r.provider === "paypal" ? "PayPal" : "Stripe"}
+                          {r.cancelAtPeriodEnd && !r.paused
+                            ? " · cancels at period end"
+                            : ""}
+                        </div>
+                      </td>
+                      <td>
+                        {r.memberId ? (
+                          <Link
+                            href={`/members/${r.memberId}`}
+                            className="linklike"
+                            title="View subscription & payments"
+                          >
+                            {r.memberName}
+                          </Link>
+                        ) : (
+                          r.memberName
+                        )}
+                        {r.memberEmail ? (
+                          <div className="muted" style={{ fontSize: 12 }}>
+                            {r.memberEmail}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td>{r.levelName}</td>
+                      <td>
+                        {money(r.amount, r.currency)}
+                        {r.interval ? (
+                          <span className="muted"> / {r.interval}</span>
+                        ) : null}
+                      </td>
+                      <td>{fmtDate(r.startDate)}</td>
+                      <td>{fmtDate(r.nextPayment)}</td>
+                      <td>{fmtDate(r.lastOrderDate)}</td>
+                      <td>{fmtDate(r.endDate)}</td>
+                      <td>
+                        {r.installmentsTotal != null ? (
+                          <span title="Installment payments made">
+                            {r.orders} / {r.installmentsTotal}
+                            <div className="muted" style={{ fontSize: 11 }}>
+                              → lifetime
+                            </div>
+                          </span>
+                        ) : (
+                          r.orders
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table></div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

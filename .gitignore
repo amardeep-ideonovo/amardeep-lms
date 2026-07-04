@@ -19,3 +19,15 @@ packages/db/generated/
 # os
 .DS_Store
 *.log
+
+# local tooling / sensitive (never commit)
+.mcp.json
+.claude/settings.local.json
+claude-memory.tgz
+
+# mobile native build (large; contains signing keystore)
+apps/mobile/android/
+apps/mobile/ios/
+
+# mobile store credentials (never commit)
+apps/mobile/play-service-account.json

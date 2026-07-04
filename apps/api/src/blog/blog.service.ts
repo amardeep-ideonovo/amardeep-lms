@@ -117,6 +117,13 @@ export class BlogService {
   async adminCreate(dto: CreatePostDto, authorId: string): Promise<PostAdminRow> {
     const slug = await this.uniquePostSlug(this.slugify(dto.title));
     const status: PostStatus = dto.status ?? 'DRAFT';
+    // authorId comes from the JWT. If it no longer maps to an Admin (e.g. a token
+    // issued before a DB reseed), fall back to an authorless post rather than
+    // letting the authorId foreign key throw a 500 — the column is nullable.
+    const author = await this.prisma.admin.findUnique({
+      where: { id: authorId },
+      select: { id: true },
+    });
     const post = await this.prisma.post.create({
       data: {
         slug,
@@ -130,7 +137,7 @@ export class BlogService {
           ? { connect: dto.categoryIds.map((id) => ({ id })) }
           : undefined,
         tags: dto.tags ?? [],
-        authorId,
+        authorId: author ? authorId : null,
       },
       include: BlogService.REL,
     });
@@ -234,7 +241,11 @@ export class BlogService {
   }
 
   private toDetail(p: PostRow): PostDetailDTO {
-    return { ...this.toListItem(p), content: p.content };
+    return {
+      ...this.toListItem(p),
+      content: p.content,
+      updatedAt: p.updatedAt.toISOString(),
+    };
   }
 
   private toAdminRow(p: PostRow): PostAdminRow {

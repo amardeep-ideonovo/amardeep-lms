@@ -15,7 +15,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import type { Request } from 'express';
-import { AdminGuard } from '../auth/guards/admin.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermission } from '../auth/require-permission.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { PagesService } from './pages.service';
@@ -42,7 +43,7 @@ const pageImageStorage = diskStorage({
 
 // Page routes mirror the blog: the /pages/* reads are PUBLIC (no guard) and
 // return PUBLISHED pages only; all writes + draft visibility live under
-// /admin/pages/* behind AdminGuard.
+// /admin/pages/* behind the `pages` permission.
 @Controller()
 export class PagesController {
   constructor(private readonly pages: PagesService) {}
@@ -61,20 +62,23 @@ export class PagesController {
 
   // ----- Admin -----
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('pages', 'read')
   @Get('admin/pages')
   adminList() {
     return this.pages.adminList();
   }
 
   // The editor loads the full document (including drafts) by id.
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('pages', 'read')
   @Get('admin/pages/:id')
   adminGet(@Param('id') id: string) {
     return this.pages.adminGet(id);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('pages', 'create')
   @Post('admin/pages')
   adminCreate(
     @Body() dto: CreatePageDto,
@@ -83,13 +87,15 @@ export class PagesController {
     return this.pages.adminCreate(dto, principal.sub);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('pages', 'edit')
   @Patch('admin/pages/:id')
   adminUpdate(@Param('id') id: string, @Body() dto: UpdatePageDto) {
     return this.pages.adminUpdate(id, dto);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('pages', 'delete')
   @Delete('admin/pages/:id')
   adminDelete(@Param('id') id: string) {
     return this.pages.adminDelete(id);
@@ -97,7 +103,8 @@ export class PagesController {
 
   // Upload an image used inside a page. Saved to <images>/page/<timestamp>.<ext>
   // and served back via the /images static route. Returns an absolute URL.
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('pages', 'edit')
   @Post('admin/pages/upload')
   @UseInterceptors(
     FileInterceptor('file', {

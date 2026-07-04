@@ -2,12 +2,13 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import type {
-  CategoryDTO,
+  CompleteLessonResponse,
   CourseCard,
   LessonDTO,
   LessonNoteDTO,
@@ -15,12 +16,12 @@ import type {
 import type { LessonNote } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccessService } from './access.service';
-import { MuxService } from './mux.service';
 import { isCourseLocked } from '../common/access.util';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { LESSON_NOTES_DIR } from './upload.config';
+import { CertificatesService } from '../certificates/certificates.service';
+import { AutomationService } from '../email/automation.service';
 import {
-  CreateCategoryDto,
   CreateCourseDto,
   CreateLessonDto,
   UpdateCourseDto,
@@ -29,55 +30,14 @@ import {
 
 @Injectable()
 export class LmsService {
+  private readonly logger = new Logger(LmsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
-    private readonly mux: MuxService,
+    private readonly certificates: CertificatesService,
+    private readonly automations: AutomationService,
   ) {}
-
-  // ---------- Categories ----------
-
-  async listCategories(): Promise<CategoryDTO[]> {
-    const cats = await this.prisma.category.findMany({
-      orderBy: { order: 'asc' },
-    });
-    return cats.map((c) => ({
-      id: c.id,
-      name: c.name,
-      thumbnailUrl: c.thumbnailUrl,
-      order: c.order,
-    }));
-  }
-
-  async createCategory(dto: CreateCategoryDto): Promise<CategoryDTO> {
-    const cat = await this.prisma.category.create({
-      data: {
-        name: dto.name,
-        thumbnailUrl: dto.thumbnailUrl ?? null,
-        order: dto.order ?? 0,
-      },
-    });
-    return {
-      id: cat.id,
-      name: cat.name,
-      thumbnailUrl: cat.thumbnailUrl,
-      order: cat.order,
-    };
-  }
-
-  async deleteCategory(id: string): Promise<{ ok: true }> {
-    const existing = await this.prisma.category.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Category not found');
-    // Detach courses (they become uncategorized), then remove the category.
-    await this.prisma.$transaction([
-      this.prisma.course.updateMany({
-        where: { categoryId: id },
-        data: { categoryId: null },
-      }),
-      this.prisma.category.delete({ where: { id } }),
-    ]);
-    return { ok: true };
-  }
 
   // ---------- Courses ----------
 
@@ -94,29 +54,40 @@ export class LmsService {
       },
     });
 
-    const activeLevels = userId
-      ? await this.access.activeLevelIds(userId)
-      : null;
-    const completedByCourse = userId
-      ? await this.access.completedCountByCourse(userId)
-      : null;
+    // Resolve the three per-request access inputs together (mirrors
+    // dashboard.service.build) rather than serially.
+    const [activeLevels, purchased, completedByCourse] = userId
+      ? await Promise.all([
+          this.access.activeLevelIds(userId),
+          this.access.purchasedCourseIds(userId),
+          this.access.completedCountByCourse(userId),
+        ])
+      : [null, null, null];
 
     return courses.map((c) => {
       const assigned = c.courseLevels.map((cl) => cl.levelId);
+      const owns = purchased?.has(c.id) ?? false;
       const locked = activeLevels
-        ? isCourseLocked(assigned, activeLevels)
+        ? isCourseLocked(assigned, activeLevels, owns)
         : false; // admin view
+      // "Buy this course" is offered only to a member for whom the course is
+      // LOCKED and a one-off price is configured + active. Admin view (no
+      // userId → locked false) never flags purchasable.
+      const hasOneOffPrice = c.priceActive && (c.priceAmount ?? 0) > 0;
       return {
         id: c.id,
         title: c.title,
         description: c.description,
         thumbnailUrl: c.thumbnailUrl,
         coverImageUrl: c.coverImageUrl,
-        categoryId: c.categoryId,
         levelIds: assigned,
         locked,
         lessonCount: c._count.lessons,
         completedCount: completedByCourse?.get(c.id) ?? 0,
+        purchasable: locked && hasOneOffPrice,
+        priceAmount: c.priceAmount,
+        priceCurrency: c.priceCurrency,
+        priceActive: c.priceActive,
       };
     });
   }
@@ -128,11 +99,14 @@ export class LmsService {
         description: dto.description ?? null,
         thumbnailUrl: dto.thumbnailUrl ?? null,
         coverImageUrl: dto.coverImageUrl ?? null,
-        categoryId: dto.categoryId ?? null,
         order: dto.order ?? 0,
-        courseLevels: dto.levelIds?.length
-          ? { create: dto.levelIds.map((levelId) => ({ levelId })) }
+        priceAmount: dto.priceAmount ?? null,
+        priceCurrency: dto.priceCurrency
+          ? dto.priceCurrency.toLowerCase()
           : undefined,
+        priceActive: dto.priceActive ?? undefined,
+        // levelIds is required + non-empty (DTO-validated): always link ≥1 class.
+        courseLevels: { create: dto.levelIds.map((levelId) => ({ levelId })) },
       },
     });
     return {
@@ -141,11 +115,14 @@ export class LmsService {
       description: course.description,
       thumbnailUrl: course.thumbnailUrl,
       coverImageUrl: course.coverImageUrl,
-      categoryId: course.categoryId,
-      levelIds: dto.levelIds ?? [],
+      levelIds: dto.levelIds,
       locked: false,
       lessonCount: 0,
       completedCount: 0,
+      purchasable: false,
+      priceAmount: course.priceAmount,
+      priceCurrency: course.priceCurrency,
+      priceActive: course.priceActive,
     };
   }
 
@@ -161,8 +138,15 @@ export class LmsService {
           description: dto.description ?? undefined,
           thumbnailUrl: dto.thumbnailUrl ?? undefined,
           coverImageUrl: dto.coverImageUrl ?? undefined,
-          categoryId: dto.categoryId ?? undefined,
           order: dto.order ?? undefined,
+          // priceAmount is nullable: `undefined` leaves it unchanged, explicit
+          // `null` clears the one-off price (course reverts to level-gated).
+          priceAmount:
+            dto.priceAmount === undefined ? undefined : dto.priceAmount,
+          priceCurrency: dto.priceCurrency
+            ? dto.priceCurrency.toLowerCase()
+            : undefined,
+          priceActive: dto.priceActive ?? undefined,
         },
       });
       // Replace level assignments wholesale when provided.
@@ -189,11 +173,14 @@ export class LmsService {
       description: course.description,
       thumbnailUrl: course.thumbnailUrl,
       coverImageUrl: course.coverImageUrl,
-      categoryId: course.categoryId,
       levelIds: levels.map((l) => l.levelId),
       locked: false,
       lessonCount: 0,
       completedCount: 0,
+      purchasable: false,
+      priceAmount: course.priceAmount,
+      priceCurrency: course.priceCurrency,
+      priceActive: course.priceActive,
     };
   }
 
@@ -236,8 +223,11 @@ export class LmsService {
     // so a locked course never leaks its lesson list or content.
     if (userId) {
       const assigned = course.courseLevels.map((cl) => cl.levelId);
-      const activeLevels = await this.access.activeLevelIds(userId);
-      if (isCourseLocked(assigned, activeLevels)) {
+      const [activeLevels, owns] = await Promise.all([
+        this.access.activeLevelIds(userId),
+        this.access.ownsCourse(userId, courseId),
+      ]);
+      if (isCourseLocked(assigned, activeLevels, owns)) {
         throw new ForbiddenException('You do not have access to this course');
       }
     }
@@ -258,6 +248,7 @@ export class LmsService {
       content: l.content,
       thumbnailUrl: l.thumbnailUrl,
       videoUrl: l.videoUrl,
+      durationSeconds: l.durationSeconds,
       order: l.order,
       completed: userId ? completedIds.has(l.id) : undefined,
       notes: l.notes.map((n) => this.toNoteDTO(n)),
@@ -278,8 +269,8 @@ export class LmsService {
         title: dto.title,
         content: dto.content ?? null,
         thumbnailUrl: dto.thumbnailUrl ?? null,
-        muxAssetId: dto.muxAssetId ?? null,
         videoUrl: dto.videoUrl ?? null,
+        durationSeconds: dto.durationSeconds ?? null,
         order: dto.order ?? 0,
       },
     });
@@ -290,6 +281,7 @@ export class LmsService {
       content: lesson.content,
       thumbnailUrl: lesson.thumbnailUrl,
       videoUrl: lesson.videoUrl,
+      durationSeconds: lesson.durationSeconds,
       order: lesson.order,
     };
   }
@@ -303,8 +295,8 @@ export class LmsService {
         title: dto.title ?? undefined,
         content: dto.content ?? undefined,
         thumbnailUrl: dto.thumbnailUrl ?? undefined,
-        muxAssetId: dto.muxAssetId ?? undefined,
         videoUrl: dto.videoUrl ?? undefined,
+        durationSeconds: dto.durationSeconds ?? undefined,
         order: dto.order ?? undefined,
       },
       include: { notes: { orderBy: { order: 'asc' } } },
@@ -316,6 +308,7 @@ export class LmsService {
       content: lesson.content,
       thumbnailUrl: lesson.thumbnailUrl,
       videoUrl: lesson.videoUrl,
+      durationSeconds: lesson.durationSeconds,
       order: lesson.order,
       notes: lesson.notes.map((n) => this.toNoteDTO(n)),
     };
@@ -334,8 +327,7 @@ export class LmsService {
 
   /**
    * Member lesson view. 403 unless the viewer holds an active UserLevel among
-   * the lesson's course's levels (open course => always allowed). When allowed
-   * and the lesson has video, attach a signed Mux playback token.
+   * the lesson's course's levels (open course => always allowed).
    */
   async getLesson(lessonId: string, userId: string): Promise<LessonDTO> {
     const lesson = await this.prisma.lesson.findUnique({
@@ -350,18 +342,22 @@ export class LmsService {
     if (!lesson) throw new NotFoundException('Lesson not found');
 
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
-    const activeLevels = await this.access.activeLevelIds(userId);
-    if (isCourseLocked(assigned, activeLevels)) {
+    const [activeLevels, owns] = await Promise.all([
+      this.access.activeLevelIds(userId),
+      this.access.ownsCourse(userId, lesson.courseId),
+    ]);
+    if (isCourseLocked(assigned, activeLevels, owns)) {
       throw new ForbiddenException('You do not have access to this lesson');
     }
 
-    const completed = await this.prisma.lessonProgress.findUnique({
-      where: { userId_lessonId: { userId, lessonId } },
-    });
-
-    const muxPlaybackToken = lesson.muxAssetId
-      ? this.mux.signPlaybackToken(lesson.muxAssetId)
-      : undefined;
+    const [completed, certificates] = await Promise.all([
+      this.prisma.lessonProgress.findUnique({
+        where: { userId_lessonId: { userId, lessonId } },
+      }),
+      // Present only when this lesson is the terminal lesson of an actively
+      // held class with certificates configured — drives "Get certificate".
+      this.certificates.statusForLesson(userId, lessonId, assigned, activeLevels),
+    ]);
 
     return {
       id: lesson.id,
@@ -369,18 +365,19 @@ export class LmsService {
       title: lesson.title,
       content: lesson.content,
       thumbnailUrl: lesson.thumbnailUrl,
-      muxPlaybackToken,
       videoUrl: lesson.videoUrl,
+      durationSeconds: lesson.durationSeconds,
       order: lesson.order,
       completed: !!completed,
       notes: lesson.notes.map((n) => this.toNoteDTO(n)),
+      ...(certificates.length ? { certificates } : {}),
     };
   }
 
   async completeLesson(
     lessonId: string,
     userId: string,
-  ): Promise<{ ok: true }> {
+  ): Promise<CompleteLessonResponse> {
     const lesson = await this.prisma.lesson.findUnique({
       where: { id: lessonId },
       include: {
@@ -393,16 +390,104 @@ export class LmsService {
 
     // Same access gate as viewing.
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
-    const activeLevels = await this.access.activeLevelIds(userId);
-    if (isCourseLocked(assigned, activeLevels)) {
+    const [activeLevels, owns] = await Promise.all([
+      this.access.activeLevelIds(userId),
+      this.access.ownsCourse(userId, lesson.courseId),
+    ]);
+    if (isCourseLocked(assigned, activeLevels, owns)) {
       throw new ForbiddenException('You do not have access to this lesson');
     }
 
+    // Detect a GENUINE first completion: only fire the LESSON_COMPLETED
+    // automation when no progress row existed before this write. A re-POST (the
+    // upsert just bumps completedAt) is not a new completion and must NOT
+    // re-trigger the mail — fire()'s per-recipient dedupeKey is a backstop, but
+    // this keeps us off the send path entirely on repeats.
+    const alreadyCompleted = await this.prisma.lessonProgress.findUnique({
+      where: { userId_lessonId: { userId, lessonId } },
+      select: { id: true },
+    });
     await this.prisma.lessonProgress.upsert({
       where: { userId_lessonId: { userId, lessonId } },
       create: { userId, lessonId },
       update: { completedAt: new Date() },
     });
+    if (!alreadyCompleted) {
+      // Best-effort, off the response path: never let a misfiring automation
+      // break the lesson-complete response. lesson/course titles are already
+      // loaded above, so no extra query for vars; we only look up the member's
+      // email (this method only carries userId).
+      void this.fireLessonCompleted(
+        userId,
+        lesson.title,
+        lesson.course.title,
+      );
+    }
+    // Completing the FINAL lesson of a class returns the fresh certificate
+    // state so clients can surface "Get certificate" without a refetch.
+    const certificates = await this.certificates.statusForLesson(
+      userId,
+      lessonId,
+      assigned,
+      activeLevels,
+    );
+    return { ok: true, ...(certificates.length ? { certificates } : {}) };
+  }
+
+  // Fire the LESSON_COMPLETED automation for a genuine new completion. Resolves
+  // the member's email + firstName (completeLesson only carries userId) and the
+  // brand, then hands off to AutomationService.fire (best-effort, never throws).
+  // The outer catch is belt-and-braces so a lookup/send hiccup can't surface on
+  // the lesson-complete response. Mirrors the SIGNUP/CERTIFICATE_ISSUED wiring.
+  private async fireLessonCompleted(
+    userId: string,
+    lessonTitle: string,
+    courseTitle: string,
+  ): Promise<void> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, firstName: true },
+      });
+      if (!user?.email) return;
+      const brand = await this.brandTitle();
+      const firstName = user.firstName?.trim() || 'there';
+      await this.automations.fire('LESSON_COMPLETED', {
+        email: user.email,
+        vars: { firstName, brand, lessonTitle, courseTitle },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[lesson] LESSON_COMPLETED automation failed for user ${userId}: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+    }
+  }
+
+  // Brand title for member-facing automation emails. Read straight from the
+  // AppConfig singleton (we don't inject AppConfigService — lms isn't in its
+  // module); fall back to the default if the row is missing/blank.
+  private async brandTitle(): Promise<string> {
+    try {
+      const row = await this.prisma.appConfig.findUnique({
+        where: { id: 'singleton' },
+      });
+      const title = (row?.config as { title?: unknown } | null)?.title;
+      return typeof title === 'string' && title.trim() ? title : 'LMS';
+    } catch {
+      return 'LMS';
+    }
+  }
+
+  /** Undo a mark-complete. Idempotent — no row, no error. */
+  async uncompleteLesson(
+    lessonId: string,
+    userId: string,
+  ): Promise<{ ok: true }> {
+    const lesson = await this.prisma.lesson.findUnique({ where: { id: lessonId } });
+    if (!lesson) throw new NotFoundException('Lesson not found');
+    await this.prisma.lessonProgress.deleteMany({ where: { userId, lessonId } });
     return { ok: true };
   }
 
@@ -526,8 +611,11 @@ export class LmsService {
     }
     if (!principal.isAdmin) {
       const assigned = note.lesson.course.courseLevels.map((cl) => cl.levelId);
-      const activeLevels = await this.access.activeLevelIds(principal.sub);
-      if (isCourseLocked(assigned, activeLevels)) {
+      const [activeLevels, owns] = await Promise.all([
+        this.access.activeLevelIds(principal.sub),
+        this.access.ownsCourse(principal.sub, note.lesson.courseId),
+      ]);
+      if (isCourseLocked(assigned, activeLevels, owns)) {
         throw new ForbiddenException('You do not have access to this lesson');
       }
     }

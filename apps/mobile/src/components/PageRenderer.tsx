@@ -12,26 +12,89 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Image,
-  Linking,
   StyleSheet,
   Text,
   TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
-import RenderHtml from "react-native-render-html";
 import { WebView } from "react-native-webview";
-import { ResizeMode, Video } from "expo-av";
-import type { PagePublicDTO, PuckComponentData, PuckDocument } from "@lms/types";
+import type {
+  PagePublicDTO,
+  PuckComponentData,
+  PuckDocument,
+  ResolvedMenu,
+  ResolvedMenuItem,
+} from "@lms/types";
 
 import { api } from "../api";
+import { FormEmbed } from "./FormEmbed";
+import { HtmlView } from "./HtmlView";
 import { Loading, ErrorState } from "./Screen";
-import { colors, spacing } from "../theme";
+import { VideoPlayerView } from "./VideoPlayerView";
+import {
+  openHref,
+  useInteraction,
+  useScopedStyles,
+  useScopedTheme,
+} from "./PageScope";
+import { spacing } from "../theme";
+import type { Theme, ThemePalette } from "../theme";
 
 type Props = Record<string, any>;
 
+// ---------- per-block design overrides (subset of the web editor's group) ----------
+// The admin's Design group carries web-only typography/animation too; natively
+// we honor the layout subset — background, padding, margins, radius, text
+// color/size on the wrapper's cascade-free equivalents are web-only — and the
+// hide-per-device switch (hideOn:"mobile" suppresses the block here, while
+// hideOn:"desktop" blocks render ONLY here).
+type BlockDesign = {
+  background?: string;
+  paddingY?: number;
+  paddingX?: number;
+  marginTop?: number;
+  marginBottom?: number;
+  radius?: number;
+  hideOn?: string;
+};
+
+const num = (v: unknown): number | undefined =>
+  typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined;
+
+// RN can't paint CSS gradients/images — only accept plain color syntaxes here;
+// anything else (e.g. "linear-gradient(...)") falls back to the theme surface.
+function asNativeColor(v: unknown): string | undefined {
+  if (typeof v !== "string") return undefined;
+  const c = v.trim();
+  return /^(#|rgb|hsl)/i.test(c) || /^[a-z]+$/i.test(c) ? c : undefined;
+}
+
+// `ownBackground` mirrors the web wrapper: the band blocks (Hero/CTA/Section)
+// paint design.background on their own band, so the wrapper must not.
+function designViewStyle(d?: BlockDesign, ownBackground = false): object | null {
+  if (!d || typeof d !== "object") return null;
+  const s: Record<string, unknown> = {};
+  const bg = ownBackground ? undefined : asNativeColor(d.background);
+  if (bg) s.backgroundColor = bg;
+  const py = num(d.paddingY);
+  if (py !== undefined) s.paddingVertical = py;
+  const px = num(d.paddingX);
+  if (px !== undefined) s.paddingHorizontal = px;
+  const mt = num(d.marginTop);
+  if (mt !== undefined) s.marginTop = mt;
+  const mb = num(d.marginBottom);
+  if (mb !== undefined) s.marginBottom = mb;
+  const r = num(d.radius);
+  if (r !== undefined) {
+    s.borderRadius = r;
+    s.overflow = "hidden";
+  }
+  return Object.keys(s).length ? s : null;
+}
+
 // ---------- helpers ----------
-function bgColor(bg?: string): string | undefined {
+function bgColor(colors: ThemePalette, bg?: string): string | undefined {
   switch (bg) {
     case "muted":
       return colors.surface;
@@ -43,6 +106,19 @@ function bgColor(bg?: string): string | undefined {
       return undefined;
   }
 }
+// Text color forced by a band background (mirrors the web CSS, where dark and
+// brand bands always get light-on-dark treatment regardless of page theme —
+// without this, light mode would paint near-black text on the dark band).
+function bandText(colors: ThemePalette, bg?: string): string | undefined {
+  switch (bg) {
+    case "dark":
+      return "#f8fafc";
+    case "brand":
+      return colors.onPrimary;
+    default:
+      return undefined; // none/muted: the normal theme text already reads fine
+  }
+}
 function alignItems(align?: string): "flex-start" | "center" | "flex-end" {
   return align === "center"
     ? "center"
@@ -52,11 +128,6 @@ function alignItems(align?: string): "flex-start" | "center" | "flex-end" {
 }
 function textAlign(align?: string): "left" | "center" | "right" {
   return align === "center" ? "center" : align === "right" ? "right" : "left";
-}
-function openHref(href?: string) {
-  if (!href) return;
-  // Only external schemes can be opened from here; in-app routes are app-specific.
-  if (/^(https?:|mailto:|tel:)/i.test(href)) Linking.openURL(href).catch(() => {});
 }
 function toEmbed(url?: string): { kind: "iframe" | "video"; src: string } | null {
   if (!url) return null;
@@ -71,30 +142,9 @@ function toEmbed(url?: string): { kind: "iframe" | "video"; src: string } | null
   return { kind: "iframe", src: u };
 }
 
-// Dark-theme styles for rendered rich-text HTML (mirrors BlogPostScreen).
-const htmlTagsStyles: any = {
-  body: { color: colors.text, fontSize: 16, lineHeight: 24 },
-  p: { marginTop: 0, marginBottom: spacing.md },
-  h1: { color: colors.text, fontSize: 22, fontWeight: "700", marginBottom: spacing.sm },
-  h2: { color: colors.text, fontSize: 20, fontWeight: "700", marginTop: spacing.md, marginBottom: spacing.sm },
-  h3: { color: colors.text, fontSize: 18, fontWeight: "700", marginTop: spacing.md, marginBottom: spacing.sm },
-  a: { color: colors.primary, textDecorationLine: "underline" },
-  li: { color: colors.text, marginBottom: spacing.xs },
-  strong: { fontWeight: "700" },
-  em: { fontStyle: "italic" },
-  blockquote: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.border,
-    paddingLeft: spacing.md,
-    marginLeft: 0,
-    marginBottom: spacing.md,
-    color: colors.textMuted,
-  },
-  img: { borderRadius: 8 },
-};
-
 // ---------- leaf components ----------
 function BlockImage({ uri, rounded }: { uri: string; rounded?: boolean }) {
+  const styles = useScopedStyles(makeStyles);
   const [ratio, setRatio] = useState(16 / 9);
   useEffect(() => {
     if (!uri) return;
@@ -121,19 +171,29 @@ function BlockImage({ uri, rounded }: { uri: string; rounded?: boolean }) {
 }
 
 function BlockButton(p: Props) {
+  const styles = useScopedStyles(makeStyles);
+  const onInteract = useInteraction();
   const variantStyle =
     p.variant === "secondary"
       ? styles.btnSecondary
       : p.variant === "outline"
       ? styles.btnOutline
       : styles.btnPrimary;
-  const textStyle = p.variant === "outline" ? styles.btnTextOutline : styles.btnText;
+  const textStyle =
+    p.variant === "outline"
+      ? styles.btnTextOutline
+      : p.variant === "secondary"
+      ? styles.btnTextSecondary
+      : styles.btnText;
   return (
     <View style={{ alignItems: alignItems(p.align) }}>
       <TouchableOpacity
         style={[styles.btn, variantStyle]}
         activeOpacity={0.85}
-        onPress={() => openHref(p.href)}
+        onPress={() => {
+          onInteract?.();
+          openHref(p.href);
+        }}
       >
         <Text style={textStyle}>{p.label}</Text>
       </TouchableOpacity>
@@ -142,6 +202,7 @@ function BlockButton(p: Props) {
 }
 
 function FaqRow({ q, a }: { q: string; a: string }) {
+  const styles = useScopedStyles(makeStyles);
   const [open, setOpen] = useState(false);
   return (
     <View style={styles.faqItem}>
@@ -160,7 +221,13 @@ function FaqRow({ q, a }: { q: string; a: string }) {
 
 // ---------- block components ----------
 function HeroBlock(p: Props) {
-  const bg = bgColor(p.background);
+  const styles = useScopedStyles(makeStyles);
+  const { colors } = useScopedTheme();
+  const d = (p.design ?? {}) as Props;
+  const customBg =
+    p.background === "custom" ? asNativeColor(p.backgroundColor) : undefined;
+  const bg = customBg ?? asNativeColor(d.background) ?? bgColor(colors, p.background);
+  const band = asNativeColor(d.textColor) ?? bandText(colors, p.background);
   return (
     <View
       style={[
@@ -169,10 +236,30 @@ function HeroBlock(p: Props) {
         { alignItems: alignItems(p.align) },
       ]}
     >
-      {p.eyebrow ? <Text style={styles.eyebrow}>{String(p.eyebrow).toUpperCase()}</Text> : null}
-      <Text style={[styles.heroTitle, { textAlign: textAlign(p.align) }]}>{p.title}</Text>
+      {p.eyebrow ? (
+        <Text style={[styles.eyebrow, band ? { color: band, opacity: 0.8 } : null]}>
+          {String(p.eyebrow).toUpperCase()}
+        </Text>
+      ) : null}
+      <Text
+        style={[
+          styles.heroTitle,
+          { textAlign: textAlign(p.align) },
+          band ? { color: band } : null,
+        ]}
+      >
+        {p.title}
+      </Text>
       {p.subtitle ? (
-        <Text style={[styles.heroSub, { textAlign: textAlign(p.align) }]}>{p.subtitle}</Text>
+        <Text
+          style={[
+            styles.heroSub,
+            { textAlign: textAlign(p.align) },
+            band ? { color: band, opacity: 0.85 } : null,
+          ]}
+        >
+          {p.subtitle}
+        </Text>
       ) : null}
       {p.buttonLabel ? (
         <View style={{ marginTop: spacing.md, alignSelf: "stretch" }}>
@@ -184,23 +271,30 @@ function HeroBlock(p: Props) {
 }
 
 function HeadingBlock(p: Props) {
+  const styles = useScopedStyles(makeStyles);
   const size = p.level === "1" ? 28 : p.level === "2" ? 24 : p.level === "3" ? 20 : 18;
   return <Text style={[styles.heading, { fontSize: size, textAlign: textAlign(p.align) }]}>{p.text}</Text>;
 }
 
 function RichTextBlock(p: Props) {
+  const onInteract = useInteraction();
   const { width } = useWindowDimensions();
   return (
-    <RenderHtml
+    <HtmlView
+      html={p.html || "<p></p>"}
       contentWidth={Math.max(0, width - spacing.md * 2)}
-      source={{ html: p.html || "<p></p>" }}
-      tagsStyles={htmlTagsStyles}
-      defaultTextProps={{ selectable: true }}
+      // Inside a popup, anchor taps count as engagement (web parity); outside,
+      // onInteract is null and links just open.
+      onLinkPress={(href) => {
+        onInteract?.();
+        openHref(href);
+      }}
     />
   );
 }
 
 function ImageBlock(p: Props) {
+  const styles = useScopedStyles(makeStyles);
   return (
     <View>
       <BlockImage uri={p.src} rounded={p.rounded} />
@@ -210,7 +304,11 @@ function ImageBlock(p: Props) {
 }
 
 function SectionBlock(p: Props) {
-  const bg = bgColor(p.background);
+  const { colors } = useScopedTheme();
+  const bg =
+    (p.background === "custom" ? asNativeColor(p.backgroundColor) : undefined) ??
+    asNativeColor((p.design as Props | undefined)?.background) ??
+    bgColor(colors, p.background);
   return (
     <View
       style={[
@@ -229,17 +327,13 @@ function ColumnsBlock(p: Props) {
 }
 
 function VideoBlock(p: Props) {
+  const styles = useScopedStyles(makeStyles);
   const embed = toEmbed(p.url);
   return (
     <View>
       <View style={styles.video}>
         {embed?.kind === "video" ? (
-          <Video
-            style={StyleSheet.absoluteFill}
-            source={{ uri: embed.src }}
-            useNativeControls
-            resizeMode={ResizeMode.CONTAIN}
-          />
+          <VideoPlayerView style={StyleSheet.absoluteFill} uri={embed.src} />
         ) : embed ? (
           <WebView
             style={StyleSheet.absoluteFill}
@@ -257,6 +351,8 @@ function VideoBlock(p: Props) {
 }
 
 function CardsBlock(p: Props) {
+  const styles = useScopedStyles(makeStyles);
+  const onInteract = useInteraction();
   const items: Props[] = Array.isArray(p.items) ? p.items : [];
   return (
     <View style={{ gap: spacing.md }}>
@@ -269,7 +365,15 @@ function CardsBlock(p: Props) {
           </>
         );
         return it.href ? (
-          <TouchableOpacity key={i} style={styles.card} activeOpacity={0.85} onPress={() => openHref(it.href)}>
+          <TouchableOpacity
+            key={i}
+            style={styles.card}
+            activeOpacity={0.85}
+            onPress={() => {
+              onInteract?.();
+              openHref(it.href);
+            }}
+          >
             {body}
           </TouchableOpacity>
         ) : (
@@ -283,11 +387,27 @@ function CardsBlock(p: Props) {
 }
 
 function CtaBlock(p: Props) {
-  const bg = bgColor(p.background) ?? colors.primary;
+  const styles = useScopedStyles(makeStyles);
+  const { colors } = useScopedTheme();
+  const d = (p.design ?? {}) as Props;
+  const bg =
+    (p.background === "custom" ? asNativeColor(p.backgroundColor) : undefined) ??
+    asNativeColor(d.background) ??
+    bgColor(colors, p.background) ??
+    colors.primary;
+  // The CTA band defaults to the primary color, so its text follows the band,
+  // not the page theme (otherwise light mode paints dark text on indigo).
+  const txt =
+    asNativeColor(d.textColor) ??
+    (p.background === "muted"
+      ? colors.text
+      : bandText(colors, p.background) ?? colors.onPrimary);
   return (
     <View style={[styles.bandPad, { backgroundColor: bg, borderRadius: 14, alignItems: alignItems(p.align) }]}>
-      <Text style={[styles.ctaTitle, { textAlign: textAlign(p.align) }]}>{p.title}</Text>
-      {p.subtitle ? <Text style={[styles.ctaSub, { textAlign: textAlign(p.align) }]}>{p.subtitle}</Text> : null}
+      <Text style={[styles.ctaTitle, { color: txt, textAlign: textAlign(p.align) }]}>{p.title}</Text>
+      {p.subtitle ? (
+        <Text style={[styles.ctaSub, { color: txt, textAlign: textAlign(p.align) }]}>{p.subtitle}</Text>
+      ) : null}
       {p.buttonLabel ? (
         <View style={{ marginTop: spacing.md, alignSelf: "stretch" }}>
           <BlockButton label={p.buttonLabel} href={p.buttonHref} variant="secondary" align={p.align} />
@@ -309,6 +429,7 @@ function FaqBlock(p: Props) {
 }
 
 function TestimonialBlock(p: Props) {
+  const styles = useScopedStyles(makeStyles);
   return (
     <View style={styles.quote}>
       <Text style={styles.quoteText}>“{p.quote}”</Text>
@@ -323,9 +444,138 @@ function TestimonialBlock(p: Props) {
   );
 }
 
+function DividerBlock(p: Props) {
+  const { colors } = useScopedTheme();
+  const style = p.style === "dashed" ? "dashed" : p.style === "dotted" ? "dotted" : "solid";
+  return (
+    <View
+      style={{
+        borderBottomWidth: Math.max(1, Number(p.thickness) || 1),
+        borderStyle: style,
+        borderColor:
+          typeof p.color === "string" && p.color.trim() ? p.color : colors.border,
+      }}
+    />
+  );
+}
+
+// Same glyph semantics as the web's inline SVG set.
+const LIST_GLYPHS: Record<string, string> = {
+  check: "✓",
+  star: "★",
+  arrow: "→",
+  dot: "•",
+  cross: "✕",
+};
+
+function IconListBlock(p: Props) {
+  const styles = useScopedStyles(makeStyles);
+  const { colors } = useScopedTheme();
+  const items: Props[] = Array.isArray(p.items) ? p.items : [];
+  const glyph = LIST_GLYPHS[String(p.icon)] ?? LIST_GLYPHS.check;
+  const color =
+    typeof p.iconColor === "string" && p.iconColor.trim()
+      ? p.iconColor
+      : colors.primary;
+  return (
+    <View style={{ gap: spacing.sm }}>
+      {items.map((it, i) => (
+        <View key={i} style={styles.iconRow}>
+          <Text style={[styles.iconGlyph, { color }]}>{glyph}</Text>
+          <Text style={styles.iconText}>{it.text}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function StatsBlock(p: Props) {
+  const styles = useScopedStyles(makeStyles);
+  const items: Props[] = Array.isArray(p.items) ? p.items : [];
+  return (
+    <View style={styles.statsWrap}>
+      {items.map((it, i) => (
+        <View key={i} style={styles.stat}>
+          <Text style={styles.statValue}>{it.value}</Text>
+          <Text style={styles.statLabel}>{it.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function EmbedBlock(p: Props) {
+  const onInteract = useInteraction();
+  const { width } = useWindowDimensions();
+  if (!p.html) return null;
+  // Sanitized server-side like RichText; HtmlView renders the CMS tag set.
+  return (
+    <HtmlView
+      html={String(p.html)}
+      contentWidth={Math.max(0, width - spacing.md * 2)}
+      onLinkPress={(href) => {
+        onInteract?.();
+        openHref(href);
+      }}
+    />
+  );
+}
+
+// Depth-first flatten with depth (mirrors web's flattenChildren) so nested
+// menu items render as one indented list.
+function flattenMenu(
+  items: ResolvedMenuItem[],
+  depth = 0
+): { item: ResolvedMenuItem; depth: number }[] {
+  const out: { item: ResolvedMenuItem; depth: number }[] = [];
+  for (const it of items) {
+    out.push({ item: it, depth });
+    out.push(...flattenMenu(it.children, depth + 1));
+  }
+  return out;
+}
+
+function MenuBlock({ menuId }: { menuId: string }) {
+  const styles = useScopedStyles(makeStyles);
+  const onInteract = useInteraction();
+  const [menu, setMenu] = useState<ResolvedMenu | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    api
+      .resolvedMenu(menuId)
+      .then((m) => {
+        if (alive) setMenu(m);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [menuId]);
+
+  if (!menu || menu.items.length === 0) return null;
+
+  return (
+    <View style={styles.menu}>
+      {flattenMenu(menu.items).map(({ item, depth }) => (
+        <TouchableOpacity
+          key={item.id}
+          style={[styles.menuLink, depth ? { marginLeft: depth * spacing.md } : null]}
+          activeOpacity={0.7}
+          onPress={() => {
+            onInteract?.();
+            openHref(item.href);
+          }}
+        >
+          <Text style={styles.menuLinkText}>{item.label}</Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+}
+
 // ---------- dispatcher ----------
-function Block({ item }: { item: PuckComponentData }) {
-  const p: Props = (item?.props as Props) ?? {};
+function blockBody(item: PuckComponentData, p: Props): React.ReactElement | null {
   switch (item?.type) {
     case "Hero":
       return <HeroBlock {...p} />;
@@ -353,9 +603,37 @@ function Block({ item }: { item: PuckComponentData }) {
       return <FaqBlock {...p} />;
     case "Testimonial":
       return <TestimonialBlock {...p} />;
+    case "Divider":
+      return <DividerBlock {...p} />;
+    case "IconList":
+      return <IconListBlock {...p} />;
+    case "Stats":
+      return <StatsBlock {...p} />;
+    case "Embed":
+      return <EmbedBlock {...p} />;
+    case "Form":
+      // Unset id = an unconfigured block; render nothing in the member app.
+      return p.formId ? <FormEmbed formId={String(p.formId)} /> : null;
+    case "Menu":
+      return p.menuId ? <MenuBlock menuId={String(p.menuId)} /> : null;
     default:
       return null;
   }
+}
+
+// Band blocks that paint design.background themselves (web parity).
+const OWN_BACKGROUND = new Set(["Hero", "CTA", "Section"]);
+
+function Block({ item }: { item: PuckComponentData }) {
+  const p: Props = (item?.props as Props) ?? {};
+  const design = p.design as BlockDesign | undefined;
+  // The admin's hide-per-device switch: "mobile" hides the block here;
+  // "desktop" means the block exists FOR this surface.
+  if (design?.hideOn === "mobile") return null;
+  const body = blockBody(item, p);
+  if (!body) return null;
+  const style = designViewStyle(design, OWN_BACKGROUND.has(item?.type));
+  return style ? <View style={style}>{body}</View> : body;
 }
 
 function renderItems(items?: PuckComponentData[]) {
@@ -365,6 +643,7 @@ function renderItems(items?: PuckComponentData[]) {
 
 // ---------- public API ----------
 export function PageRenderer({ data }: { data: PuckDocument }) {
+  const styles = useScopedStyles(makeStyles);
   return <View style={styles.page}>{renderItems(data?.content)}</View>;
 }
 
@@ -408,28 +687,50 @@ export function PageEmbed({
   return <PageRenderer data={data} />;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   page: { padding: spacing.md, gap: spacing.md },
   bandPad: { padding: spacing.lg },
   eyebrow: {
     color: colors.primary,
     fontSize: 12,
     fontWeight: "700",
+    fontFamily: fonts.bold,
     letterSpacing: 1,
     marginBottom: spacing.xs,
   },
-  heroTitle: { color: colors.text, fontSize: 28, fontWeight: "800", lineHeight: 34 },
-  heroSub: { color: colors.textMuted, fontSize: 16, lineHeight: 24, marginTop: spacing.sm },
-  heading: { color: colors.text, fontWeight: "800" },
-  caption: { color: colors.textMuted, fontSize: 13, textAlign: "center", marginTop: spacing.xs },
+  heroTitle: {
+    color: colors.text,
+    fontSize: 28,
+    fontWeight: "800",
+    fontFamily: fonts.display,
+    lineHeight: 34,
+  },
+  heroSub: {
+    color: colors.textMuted,
+    fontSize: 16,
+    lineHeight: 24,
+    marginTop: spacing.sm,
+    fontFamily: fonts.regular,
+  },
+  heading: { color: colors.text, fontWeight: "800", fontFamily: fonts.extrabold },
+  caption: {
+    color: colors.textMuted,
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: spacing.xs,
+    fontFamily: fonts.regular,
+  },
   img: { width: "100%", borderRadius: 0, backgroundColor: colors.surfaceMuted },
   imgRounded: { borderRadius: 12 },
   btn: { borderRadius: 999, paddingVertical: 12, paddingHorizontal: 22, alignItems: "center" },
   btnPrimary: { backgroundColor: colors.primary },
   btnSecondary: { backgroundColor: colors.surfaceMuted },
   btnOutline: { borderWidth: 2, borderColor: colors.primary },
-  btnText: { color: "#ffffff", fontWeight: "700", fontSize: 15 },
-  btnTextOutline: { color: colors.primary, fontWeight: "700", fontSize: 15 },
+  btnText: { color: colors.onPrimary, fontWeight: "700", fontSize: 15, fontFamily: fonts.bold },
+  // Secondary sits on the muted surface, so it follows the theme text (the old
+  // hardcoded white was invisible on the light palette's gray).
+  btnTextSecondary: { color: colors.text, fontWeight: "700", fontSize: 15, fontFamily: fonts.bold },
+  btnTextOutline: { color: colors.primary, fontWeight: "700", fontSize: 15, fontFamily: fonts.bold },
   video: {
     width: "100%",
     aspectRatio: 16 / 9,
@@ -443,10 +744,16 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
   },
-  cardTitle: { color: colors.text, fontSize: 17, fontWeight: "700" },
-  cardText: { color: colors.textMuted, fontSize: 14, lineHeight: 20 },
-  ctaTitle: { color: colors.text, fontSize: 22, fontWeight: "800" },
-  ctaSub: { color: colors.text, opacity: 0.9, fontSize: 15, marginTop: spacing.xs },
+  cardTitle: { color: colors.text, fontSize: 17, fontWeight: "700", fontFamily: fonts.bold },
+  cardText: { color: colors.textMuted, fontSize: 14, lineHeight: 20, fontFamily: fonts.regular },
+  ctaTitle: { color: colors.text, fontSize: 22, fontWeight: "800", fontFamily: fonts.display },
+  ctaSub: {
+    color: colors.text,
+    opacity: 0.9,
+    fontSize: 15,
+    marginTop: spacing.xs,
+    fontFamily: fonts.regular,
+  },
   faqItem: {
     backgroundColor: colors.surface,
     borderRadius: 10,
@@ -458,17 +765,58 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: spacing.md,
   },
-  faqQ: { color: colors.text, fontSize: 15, fontWeight: "600", flex: 1, paddingRight: spacing.sm },
-  faqToggle: { color: colors.textMuted, fontSize: 20, fontWeight: "700" },
-  faqA: { color: colors.textMuted, fontSize: 14, lineHeight: 20, paddingBottom: spacing.md },
+  faqQ: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "600",
+    fontFamily: fonts.semibold,
+    flex: 1,
+    paddingRight: spacing.sm,
+  },
+  faqToggle: { color: colors.textMuted, fontSize: 20, fontWeight: "700", fontFamily: fonts.bold },
+  faqA: {
+    color: colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    paddingBottom: spacing.md,
+    fontFamily: fonts.regular,
+  },
   quote: {
     borderLeftWidth: 4,
     borderLeftColor: colors.primary,
     paddingLeft: spacing.md,
   },
-  quoteText: { color: colors.text, fontSize: 18, fontStyle: "italic", lineHeight: 26, marginBottom: spacing.md },
+  quoteText: {
+    color: colors.text,
+    fontSize: 18,
+    fontStyle: "italic",
+    lineHeight: 26,
+    marginBottom: spacing.md,
+    fontFamily: fonts.regular,
+  },
   quoteByRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   quoteAvatar: { width: 44, height: 44, borderRadius: 999, backgroundColor: colors.surfaceMuted },
-  quoteAuthor: { color: colors.text, fontWeight: "700" },
-  quoteRole: { color: colors.textMuted, fontSize: 13 },
+  quoteAuthor: { color: colors.text, fontWeight: "700", fontFamily: fonts.bold },
+  quoteRole: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.regular },
+  menu: { gap: spacing.xs },
+  menuLink: { paddingVertical: spacing.sm, paddingHorizontal: 10, borderRadius: 8 },
+  menuLinkText: { color: colors.text, fontSize: 15, fontWeight: "500", fontFamily: fonts.medium },
+  iconRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
+  iconGlyph: { fontSize: 16, fontWeight: "800", fontFamily: fonts.extrabold, lineHeight: 22, width: 20 },
+  iconText: { color: colors.text, fontSize: 15, lineHeight: 22, flex: 1, fontFamily: fonts.regular },
+  statsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  stat: { alignItems: "center", minWidth: "42%", flexGrow: 1 },
+  statValue: { color: colors.text, fontSize: 28, fontWeight: "800", fontFamily: fonts.display },
+  statLabel: {
+    color: colors.textMuted,
+    fontSize: 13,
+    marginTop: 2,
+    textAlign: "center",
+    fontFamily: fonts.regular,
+  },
 });

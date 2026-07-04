@@ -9,10 +9,10 @@
     "start": "next start -p 3002"
   },
   "dependencies": {
-    "@lms/types": "*",
     "@lms/puck": "*",
-    "@mux/mux-player-react": "^3.1.0",
+    "@lms/types": "*",
     "@puckeditor/core": "^0.21.2",
+    "@zoom/meetingsdk": "^6.2.0",
     "next": "14.2.5",
     "react": "18.2.0",
     "react-dom": "18.2.0"

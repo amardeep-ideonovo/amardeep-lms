@@ -30,8 +30,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="form-card">
-      <h1>Welcome back</h1>
+    <div className="dark-page">
+      <div className="dp-wrap">
+        <div className="form-card">
+      <h1>Welcome <span className="t-gradient">back</span></h1>
       <p className="sub">Sign in to access your courses.</p>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -61,7 +63,7 @@ export default function LoginPage() {
         </div>
         <button
           type="submit"
-          className="btn btn-primary btn-block"
+          className="btn btn-primary btn-block press"
           disabled={loading}
         >
           {loading ? "Signing in…" : "Sign in"}
@@ -74,6 +76,8 @@ export default function LoginPage() {
           Create an account
         </Link>
       </p>
+        </div>
+      </div>
     </div>
   );
 }

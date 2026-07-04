@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -13,12 +14,20 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
+import { Press } from "../components/Press";
+import { IS_LOCKED_BUILD, unbindInstance } from "../config";
+import { useAppConfig } from "../config-provider";
 import type { AuthScreenProps } from "../navigation";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles, useTheme } from "../theme-provider";
 
 type Props = AuthScreenProps<"Login">;
 
 export function LoginScreen({ navigation }: Props) {
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
+  const { config } = useAppConfig();
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,7 +64,19 @@ export function LoginScreen({ navigation }: Props) {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.container}>
-          <Text style={styles.brand}>LMS</Text>
+          {config.logoUrl ? (
+            <Image
+              source={{ uri: config.logoUrl }}
+              style={styles.logo}
+              resizeMode="contain"
+              accessibilityLabel={config.title}
+            />
+          ) : (
+            <Text style={styles.brand}>{config.title}</Text>
+          )}
+          {config.tagline ? (
+            <Text style={styles.tagline}>{config.tagline}</Text>
+          ) : null}
           <Text style={styles.subtitle}>Sign in to your membership</Text>
 
           <TextInput
@@ -85,18 +106,17 @@ export function LoginScreen({ navigation }: Props) {
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <TouchableOpacity
+          <Press
             style={[styles.button, !canSubmit && styles.buttonDisabled]}
             onPress={onSubmit}
             disabled={!canSubmit}
-            activeOpacity={0.8}
           >
             {submitting ? (
-              <ActivityIndicator color={colors.text} />
+              <ActivityIndicator color={colors.onPrimary} />
             ) : (
               <Text style={styles.buttonText}>Sign in</Text>
             )}
-          </TouchableOpacity>
+          </Press>
 
           <TouchableOpacity
             onPress={() => navigation.navigate("Signup")}
@@ -108,13 +128,26 @@ export function LoginScreen({ navigation }: Props) {
               <Text style={styles.linkTextStrong}>Create an account</Text>
             </Text>
           </TouchableOpacity>
+
+          {!IS_LOCKED_BUILD && (
+            <TouchableOpacity
+              onPress={() => void unbindInstance()}
+              activeOpacity={0.7}
+              style={styles.linkButton}
+            >
+              <Text style={styles.linkText}>
+                Wrong academy?{" "}
+                <Text style={styles.linkTextStrong}>Switch academy</Text>
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
   container: {
@@ -127,6 +160,19 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: "800",
     textAlign: "center",
+    fontFamily: fonts.display,
+  },
+  logo: {
+    height: 56,
+    width: 220,
+    alignSelf: "center",
+  },
+  tagline: {
+    color: colors.textMuted,
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: spacing.xs,
+    fontFamily: fonts.regular,
   },
   subtitle: {
     color: colors.textMuted,
@@ -134,6 +180,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: spacing.xs,
     marginBottom: spacing.lg,
+    fontFamily: fonts.regular,
   },
   input: {
     backgroundColor: colors.surface,
@@ -145,6 +192,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     marginBottom: spacing.md,
+    fontFamily: fonts.regular,
   },
   button: {
     backgroundColor: colors.primary,
@@ -154,9 +202,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: colors.text, fontSize: 16, fontWeight: "700" },
-  error: { color: colors.danger, marginBottom: spacing.sm, textAlign: "center" },
+  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700", fontFamily: fonts.bold },
+  error: { color: colors.danger, marginBottom: spacing.sm, textAlign: "center", fontFamily: fonts.regular },
   linkButton: { marginTop: spacing.lg, alignItems: "center" },
-  linkText: { color: colors.textMuted, fontSize: 14 },
-  linkTextStrong: { color: colors.primary, fontWeight: "700" },
+  linkText: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
+  linkTextStrong: { color: colors.primary, fontWeight: "700", fontFamily: fonts.bold },
 });

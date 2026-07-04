@@ -3,7 +3,7 @@
 > **Status:** PLAN — for review, not yet executed.
 >
 > **Scope (revised):** Hosting setup (staging server, DNS, Render/Vercel/VPS,
-> Stripe dashboard, Mailchimp dashboard, Sentry account) is handled by the
+> Stripe dashboard, Sentry account) is handled by the
 > user. This plan covers ONLY the in-repo code/config changes I'll push to
 > GitHub to make the codebase production-ready. After the code lands, the
 > user wires up the actual environments using the hosting checklist in §13.
@@ -22,8 +22,8 @@ topology so we can:
    environment via `API_URL=...` (the BDD world already supports this — see
    `packages/bdd/features/support/world.ts:7`).
 3. Walk a 14-item manual checklist on staging before promoting to prod,
-   including Stripe checkout in test mode and Mailchimp tag sync against a
-   dedicated staging audience.
+   including Stripe checkout in test mode and contact tag sync against the
+   staging contact list.
 4. Have a fallback safety net (observability + rollback) for the rare
    regression that escapes both.
 
@@ -61,7 +61,6 @@ Render (API)        api.example.com                         api-staging.example.
 Render Postgres     lms-db (prod plan)                       lms-db-staging (starter plan)
 Render Redis        lms-redis (prod)                         lms-redis-staging
 Stripe              live keys (sk_live_*)                    test keys (sk_test_*)
-Mailchimp           prod audience id                         "LMS Staging" audience id
 Mux video           prod signing keys                        prod keys OR a 2nd dev signing key
 Uploads             Render disk (or S3 — see §9)              Render disk (ephemeral OK)
 ```
@@ -133,6 +132,8 @@ services:
     envVars:
       - key: ENV_NAME
         value: staging                 # NEW — surfaced in /health
+      - key: TRUST_PROXY
+        value: "1"                     # behind Render's proxy — real client IPs for rate limiting
       - key: DATABASE_URL
         fromDatabase: { name: lms-db-staging, property: connectionString }
       - key: REDIS_URL
@@ -150,20 +151,6 @@ services:
       - key: STRIPE_SECRET_KEY        # sk_test_*
         sync: false
       - key: STRIPE_WEBHOOK_SECRET    # whsec_* from staging webhook
-        sync: false
-      - key: MAILCHIMP_API_KEY        # same key as prod is fine
-        sync: false
-      - key: MAILCHIMP_SERVER_PREFIX
-        sync: false
-      - key: MAILCHIMP_AUDIENCE_ID    # ID of the "LMS Staging" audience
-        sync: false
-      - key: MUX_TOKEN_ID
-        sync: false
-      - key: MUX_TOKEN_SECRET
-        sync: false
-      - key: MUX_SIGNING_KEY_ID
-        sync: false
-      - key: MUX_SIGNING_KEY_PRIVATE
         sync: false
 ```
 
@@ -201,7 +188,7 @@ async check() {
   const env = process.env.ENV_NAME ?? 'production';
   const [db, redis] = await Promise.allSettled([
     this.prisma.$queryRaw`SELECT 1`,
-    this.mailchimpQueue.client.ping(),
+    this.contactSyncQueue.client.ping(),
   ]);
   const ok = db.status === 'fulfilled' && redis.status === 'fulfilled';
   return {
@@ -241,17 +228,7 @@ In Stripe **Test mode** dashboard:
   service
 - Stripe **test** secret key (`sk_test_*`) → `STRIPE_SECRET_KEY`
 
-### Step 6 — Mailchimp staging audience
-
-In Mailchimp:
-- Create a new audience named "LMS Staging" (yes, this counts against your
-  free 500 contact cap — it's fine, staging contacts will be a handful)
-- Copy its audience ID → Render `MAILCHIMP_AUDIENCE_ID` for staging
-- API key + server prefix: same as prod (Mailchimp keys aren't environment-
-  scoped). Discipline via audience-id separation is the only available
-  control.
-
-### Step 7 — Staging seed
+### Step 6 — Staging seed
 
 `packages/db/prisma/seed.ts` already seeds an admin + member. For staging
 we want it idempotent (re-runs don't duplicate). Add a small `seed:staging`
@@ -267,7 +244,7 @@ script that:
 Run it as a Render "Job" once after the first staging deploy, or invoke
 `npm run -w @lms/db seed:staging` manually via a shell session.
 
-### Step 8 — `@smoke` BDD subset
+### Step 7 — `@smoke` BDD subset
 
 The BDD world already accepts `API_URL` (see `world.ts:7`). All we need is:
 
@@ -291,7 +268,7 @@ The BDD world already accepts `API_URL` (see `world.ts:7`). All we need is:
 
 **Critical:** smoke scenarios that *write* must use `name: "smoke-YYYY-MM-DD-..."` so they're identifiable + cleanable. A weekly cron can later sweep them.
 
-### Step 9 — Manual QA checklist
+### Step 8 — Manual QA checklist
 
 New file `deploy/QA-CHECKLIST.md` — copyable markdown. The 14-item version
 from the audit, refined:
@@ -306,8 +283,8 @@ from the audit, refined:
 - [ ] Admin login (`admin@example.com`) → Members tab loads
 - [ ] Create test member with firstName/lastName/phone → row appears with all fields
 - [ ] Filter members by level → list narrows correctly
-- [ ] Grant FREE level → Mailchimp "LMS Staging" audience receives the email + tag
-- [ ] Edit the level's mailchimpTags (add one, remove one) → both changes reflect in Mailchimp within 30s
+- [ ] Grant FREE level → the contact list receives the email + tag
+- [ ] Edit the level's contact tags (add one, remove one) → both changes reflect in the Contacts view within 30s
 
 ## Member (web)
 - [ ] Member login → dashboard shows correct locked/unlocked courses
@@ -317,12 +294,12 @@ from the audit, refined:
 
 ## Billing (Stripe test mode)
 - [ ] PAID checkout: Subscribe → Stripe Checkout → card 4242 → success → UserLevel ACTIVE within 5s
-- [ ] Customer Portal cancel → UserLevel CANCELED + Mailchimp tag removed
+- [ ] Customer Portal cancel → UserLevel CANCELED + contact tag removed
 - [ ] Card 4000 0000 0000 0341 (past_due test card) → UserLevel PAST_DUE
 
 ## Public surfaces
 - [ ] Admin Pages → create → publish → public /<slug> renders Puck blocks
-- [ ] Form submission lands in admin entries view + Mailchimp staging audience
+- [ ] Form submission lands in admin entries view + the contact list
 - [ ] embed.js: paste snippet on a local HTML file → form renders + submits cross-origin
 
 ## Mobile (Expo Go pointed at api-staging)
@@ -330,10 +307,9 @@ from the audit, refined:
 
 ## Settings (do last — destructive)
 - [ ] Remove Stripe keys via Settings UI → re-add → no crash, login still works
-- [ ] Remove Mailchimp keys → re-add → audience list re-fetches
 ```
 
-### Step 10 — Sentry in `apps/api`
+### Step 9 — Sentry in `apps/api`
 
 ```bash
 npm install --workspace @lms/api @sentry/node @sentry/nestjs
@@ -353,11 +329,11 @@ if (process.env.SENTRY_DSN) {
 Plus the Nest integration in `app.module.ts`. New env var `SENTRY_DSN`
 added to both `render.yaml` and `render-staging.yaml` (`sync: false`).
 
-Why API only first: the billing webhook + Mailchimp queue are where silent
+Why API only first: the billing webhook + contact-sync queue are where silent
 failures hurt most. Admin/web/mobile Sentry can be a follow-up PR once we've
 seen what the API surfaces.
 
-### Step 11 — CI build checks
+### Step 10 — CI build checks
 
 Extend `.github/workflows/bdd.yml` (or add a `build.yml` companion) with:
 - `npm run -w @lms/api build`
@@ -369,7 +345,7 @@ Extend `.github/workflows/bdd.yml` (or add a `build.yml` companion) with:
 Marketing this as a "required" check on `main` (in addition to BDD) requires
 updating the GitHub ruleset; can defer that toggle.
 
-### Step 12 — Backup + restore drill
+### Step 11 — Backup + restore drill
 
 Render Postgres has automatic daily backups on starter+ plans. The plan:
 - Document the restore procedure in `deploy/BACKUP.md` (where to find the
@@ -394,7 +370,7 @@ worth listing the high-value targets:
 | Target | File | Why |
 |---|---|---|
 | `mapSubStatus` | `apps/api/src/billing/billing.service.ts:14-35` | Maps Stripe status → 6 internal statuses; if wrong, member access breaks silently |
-| `reconcileLevelTags` diff logic | `apps/api/src/levels/levels.service.ts:170-193` | Adds/removes wrong tags = wrong Mailchimp state |
+| `reconcileLevelTags` diff logic | `apps/api/src/levels/levels.service.ts:170-193` | Adds/removes wrong tags = wrong contact-list state |
 | `last4()` helper | `apps/api/src/settings/settings.controller.ts` | Returns the wrong key fingerprint = confused admin |
 
 Recommend **Vitest** (faster than Jest, native ESM, plays nicely with Nest).
@@ -404,8 +380,8 @@ just visible.
 ### Integration / BDD (exists, expand 2 scenarios)
 New scenarios I'd add post-staging:
 - `billing.feature` — mocked Stripe webhook (with valid HMAC signature)
-  → reconcileSubscription → assert UserLevel + Mailchimp queue job emitted
-- `levels.feature` — edit `mailchimpTags`, assert queue jobs emitted for
+  → reconcileSubscription → assert UserLevel + contact-sync queue job emitted
+- `levels.feature` — edit level contact tags, assert queue jobs emitted for
   every ACTIVE holder (uses a BullMQ test mode that captures jobs in
   memory rather than enqueueing for real)
 
@@ -413,8 +389,8 @@ This needs a BullMQ test-mode helper (~50 LOC). Defer to a separate PR
 after staging is up.
 
 ### E2E (manual + synthetic)
-- Manual: §5 step 9 checklist on staging
-- Synthetic: §5 step 8 `@smoke` cron against staging every 15min
+- Manual: §5 step 8 checklist on staging
+- Synthetic: §5 step 7 `@smoke` cron against staging every 15min
 
 ### Smoke against prod (after each deploy)
 - Same `@smoke` tag, just `API_URL=https://api.example.com`
@@ -431,7 +407,7 @@ Before we say "test in prod is possible":
 
 | Need | Owner | Effort |
 |---|---|---|
-| API errors visible | Sentry in `apps/api` (Step 10) | 3h |
+| API errors visible | Sentry in `apps/api` (Step 9) | 3h |
 | DB/Redis health | Deep `/health` (Step 3) | 1h |
 | Stripe webhook audit trail | Log every event with `event.id` + outcome (add to `BillingService.handleWebhook`) | 1h |
 | Queue backlog visible | Bull-board UI on a protected admin route (optional) | 2h |
@@ -561,9 +537,6 @@ flagged "anytime".
 - DNS records pointing staging subdomain(s) at your server
 - Stripe **test mode** webhook pointing at `<staging-api>/billing/webhook`
 - Stripe test mode secret + signing secret in staging env vars
-- Mailchimp dedicated "LMS Staging" audience (or use a tag like
-  `env:staging` if you don't want a second audience)
-- Mailchimp audience ID + API key in staging env vars
 - Mux signing keys (reuse prod or generate a dev key — your call)
 - Backup cron (`pg_dump` to off-server storage, daily)
 
@@ -583,7 +556,7 @@ flagged "anytime".
 
 ## Sign-off
 
-Once you've answered §9, I'll execute steps 1–12 in order, one PR each, and
+Once you've answered §9, I'll execute steps 1–11 in order, one PR each, and
 update this doc with a "✅ shipped" stamp per step. The whole sequence is
 ~13–14h of focused work and can be paced across however many sessions
 you want.

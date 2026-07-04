@@ -8,15 +8,21 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { LinearGradient } from "expo-linear-gradient";
 import type { CourseCard, LessonDTO } from "@lms/types";
 
 import { api } from "../api";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { ProgressBar } from "../components/ProgressBar";
+import { PopupHost } from "../components/PopupHost";
 import type { ScreenProps } from "../navigation";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
+import type { Theme } from "../theme";
+import { useStyles, useTheme } from "../theme-provider";
 
 export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
   const { courseId } = route.params;
   const [lessons, setLessons] = useState<LessonDTO[]>([]);
   const [course, setCourse] = useState<CourseCard | null>(null);
@@ -57,78 +63,109 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
   const completed = lessons.filter((l) => l.completed).length;
 
   return (
-    <FlatList
-      style={styles.list}
-      contentContainerStyle={styles.content}
-      data={lessons}
-      keyExtractor={(item) => item.id}
-      ListHeaderComponent={
-        <View>
-          {course?.coverImageUrl ? (
-            <Image
-              source={{ uri: course.coverImageUrl }}
-              style={styles.cover}
-              resizeMode="cover"
-            />
-          ) : null}
-          <View style={styles.progressHeader}>
-            <Text style={styles.progressTitle}>Course progress</Text>
-            <ProgressBar completed={completed} total={lessons.length} />
-          </View>
-        </View>
-      }
-      renderItem={({ item, index }) => (
-        <TouchableOpacity
-          style={styles.row}
-          activeOpacity={0.8}
-          onPress={() =>
-            navigation.navigate("Lesson", {
-              lessonId: item.id,
-              title: item.title,
-            })
-          }
-        >
-          <View style={styles.numberBadge}>
-            <Text style={styles.numberText}>{index + 1}</Text>
-          </View>
-          {item.thumbnailUrl ? (
-            <Image source={{ uri: item.thumbnailUrl }} style={styles.rowThumb} />
-          ) : (
-            <View style={[styles.rowThumb, styles.rowThumbEmpty]}>
-              <Text style={styles.rowThumbGlyph}>▶</Text>
+    <>
+      <PopupHost context={{ type: "courses" }} />
+      <FlatList
+        style={styles.list}
+        contentContainerStyle={styles.content}
+        data={lessons}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          <View>
+            {course?.coverImageUrl ? (
+              // Cinematic hero: cover + bottom scrim + overlaid title. Without a
+              // cover the nav header title carries the screen alone.
+              <View style={styles.hero}>
+                <Image
+                  source={{ uri: course.coverImageUrl }}
+                  style={styles.cover}
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={[colors.overlayFaint, colors.overlayStrong]}
+                  style={StyleSheet.absoluteFill}
+                />
+                <Text style={styles.heroTitle} numberOfLines={2}>
+                  {course.title}
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressTitle}>Course progress</Text>
+              <ProgressBar completed={completed} total={lessons.length} />
             </View>
-          )}
-          <Text style={styles.rowTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          {item.completed ? <Text style={styles.check}>✓</Text> : null}
-        </TouchableOpacity>
-      )}
-    />
+          </View>
+        }
+        renderItem={({ item, index }) => (
+          <TouchableOpacity
+            style={styles.row}
+            activeOpacity={0.8}
+            onPress={() =>
+              navigation.navigate("Lesson", {
+                lessonId: item.id,
+                title: item.title,
+              })
+            }
+          >
+            <View style={styles.numberBadge}>
+              <Text style={styles.numberText}>{index + 1}</Text>
+            </View>
+            {item.thumbnailUrl ? (
+              <Image source={{ uri: item.thumbnailUrl }} style={styles.rowThumb} />
+            ) : (
+              <View style={[styles.rowThumb, styles.rowThumbEmpty]}>
+                <Text style={styles.rowThumbGlyph}>▶</Text>
+              </View>
+            )}
+            <Text style={styles.rowTitle} numberOfLines={2}>
+              {item.title}
+            </Text>
+            {item.completed ? <Text style={styles.check}>✓</Text> : null}
+          </TouchableOpacity>
+        )}
+      />
+    </>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
+  hero: {
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: spacing.sm,
+  },
   cover: {
     width: "100%",
     aspectRatio: 16 / 9,
-    borderRadius: 12,
     backgroundColor: colors.surfaceMuted,
-    marginBottom: spacing.sm,
+  },
+  heroTitle: {
+    position: "absolute",
+    left: spacing.md,
+    right: spacing.md,
+    bottom: spacing.md,
+    color: colors.heroText,
+    fontSize: 24,
+    fontWeight: "800",
+    fontFamily: fonts.display,
   },
   progressHeader: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    borderRadius: 14,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
-  progressTitle: { color: colors.text, fontSize: 14, fontWeight: "700" },
+  progressTitle: { color: colors.text, fontSize: 14, fontWeight: "700", fontFamily: fonts.bold },
   row: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
     borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.sm,
@@ -137,12 +174,12 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: colors.chipBg,
     alignItems: "center",
     justifyContent: "center",
     marginRight: spacing.sm,
   },
-  numberText: { color: colors.text, fontWeight: "700" },
+  numberText: { color: colors.text, fontWeight: "700", fontFamily: fonts.bold },
   rowThumb: {
     width: 44,
     height: 44,
@@ -151,7 +188,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   rowThumbEmpty: { alignItems: "center", justifyContent: "center" },
-  rowThumbGlyph: { color: colors.textMuted, fontSize: 16 },
-  rowTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "500" },
-  check: { color: colors.primary, fontSize: 18, fontWeight: "700" },
+  rowThumbGlyph: { color: colors.textMuted, fontSize: 16, fontFamily: fonts.regular },
+  rowTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "500", fontFamily: fonts.medium },
+  check: { color: colors.success, fontSize: 18, fontWeight: "700", fontFamily: fonts.bold },
 });

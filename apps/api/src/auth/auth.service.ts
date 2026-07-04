@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -6,16 +7,41 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
+import type { Admin, User } from '@prisma/client';
 import type {
+  AdminPermissions,
+  AdminPrefs,
   AuthAdmin,
   AuthUser,
   LoginResponse,
 } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { MailchimpProducer } from '../mailchimp/mailchimp.producer';
+import { ContactsService } from '../contacts/contacts.service';
+import { AutomationService } from '../email/automation.service';
+import { AppConfigService } from '../site/app-config.service';
+import { MediaStorage } from '../media/media.storage';
+import { MEDIA_ROUTE } from '../media/media.config';
 import type { JwtPayload } from './jwt-payload.interface';
 import type { SignupDto } from './dto/signup.dto';
+import type { UpdateProfileDto } from './dto/update-profile.dto';
+import type { ChangePasswordDto } from './dto/change-password.dto';
+import type { UpdateAdminPrefsDto } from './dto/update-admin-prefs.dto';
+import type { UpdateAdminProfileDto } from './dto/update-admin-profile.dto';
+
+// Avatar uploads are image-only (no SVG — we don't sanitize here) and are stored
+// directly via MediaStorage WITHOUT a MediaAsset row, so they never appear in the
+// gallery. mime -> stored-file extension.
+const AVATAR_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+};
+const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
 
 @Injectable()
 export class AuthService {
@@ -24,8 +50,39 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-    private readonly mailchimp: MailchimpProducer,
+    private readonly contacts: ContactsService,
+    private readonly automations: AutomationService,
+    private readonly appConfig: AppConfigService,
+    private readonly config: ConfigService,
+    private readonly storage: MediaStorage,
   ) {}
+
+  // Build the AuthAdmin DTO from a full Admin row — used by login, /me, and the
+  // self-service updates so the shape stays consistent everywhere.
+  private toAuthAdmin(admin: Admin): AuthAdmin {
+    return {
+      id: admin.id,
+      email: admin.email,
+      name: admin.name ?? null,
+      avatarUrl: admin.avatarUrl ?? null,
+      role: admin.role,
+      permissions: (admin.permissions as AdminPermissions) ?? {},
+      prefs: (admin.prefs as AdminPrefs) ?? {},
+    };
+  }
+
+  // Single source of truth for the member-facing user shape (so avatarUrl and
+  // future fields are never dropped from one of the several return sites).
+  private toAuthUser(user: User): AuthUser {
+    return {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      avatarUrl: user.avatarUrl ?? null,
+    };
+  }
 
   async loginMember(
     email: string,
@@ -45,7 +102,7 @@ export class AuthService {
     };
     return {
       token: await this.jwt.signAsync(payload),
-      user: { id: user.id, email: user.email, username: user.username },
+      user: this.toAuthUser(user),
     };
   }
 
@@ -67,7 +124,7 @@ export class AuthService {
     };
     return {
       token: await this.jwt.signAsync(payload),
-      user: { id: admin.id, email: admin.email, role: admin.role },
+      user: this.toAuthAdmin(admin),
     };
   }
 
@@ -114,8 +171,13 @@ export class AuthService {
 
     // Optional: auto-grant a level named "Free" if one exists. No-op if the
     // tenant hasn't configured one. Keeps existing-user signups from blowing
-    // up when Mailchimp/queue is misconfigured (we log + swallow).
+    // up when the contacts write hiccups (we log + swallow).
     await this.maybeGrantFreeLevel(user.id, user.email);
+
+    // Branded welcome email — fires on EVERY signup (not only free-level grants).
+    // Best-effort: EmailService never throws and we swallow here too, so a mail
+    // misconfiguration can never block account creation.
+    await this.sendWelcomeEmail(user);
 
     const payload: JwtPayload = {
       sub: user.id,
@@ -125,8 +187,36 @@ export class AuthService {
     };
     return {
       token: await this.jwt.signAsync(payload),
-      user: { id: user.id, email: user.email, username: user.username },
+      user: this.toAuthUser(user),
     };
+  }
+
+  // Branded welcome via the SIGNUP automation (seeded to the `welcome` system
+  // template on bootstrap). Routing through AutomationService.fire — instead of
+  // a hard-coded sendTemplate — makes the welcome mail admin-configurable
+  // (toggle/replace via the Automations page) and keeps a single send path.
+  // fire() resolves the active automation(s), applies its own per-recipient
+  // dedupeKey (idempotent across retried signups), and is best-effort (never
+  // throws); the outer try/catch is belt-and-braces so signup can't break here.
+  private async sendWelcomeEmail(user: User): Promise<void> {
+    try {
+      const cfg = await this.appConfig.read();
+      const brand = cfg.title;
+      const siteUrl =
+        this.config.get<string>('WEB_APP_URL') || 'http://localhost:3002';
+      const firstName = user.firstName?.trim() || 'there';
+      await this.automations.fire('SIGNUP', {
+        email: user.email,
+        contactId: undefined,
+        vars: { firstName, brand, url: siteUrl },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[signup] welcome email failed for ${user.email}: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+    }
   }
 
   private async ensureUniqueUsername(base: string): Promise<string> {
@@ -168,23 +258,24 @@ export class AuthService {
       },
       update: { status: 'ACTIVE' },
     });
-    // Mailchimp tag/audience sync — never block the signup response on a
-    // queue/Mailchimp blip; signup must succeed even if marketing infra fails.
-    if (free.mailchimpTags.length || free.mailchimpAudienceId) {
-      try {
-        await this.mailchimp.enqueueTags(
-          'add',
-          email,
-          free.mailchimpTags,
-          free.mailchimpAudienceId ?? undefined,
-        );
-      } catch (err) {
-        this.logger.warn(
-          `[signup] mailchimp enqueue failed for ${email}: ${
-            err instanceof Error ? err.message : err
-          }`,
-        );
-      }
+    // ALWAYS capture the signed-up member into the Free class's in-house
+    // audience (null audienceId → default "Members"). syncTags upserts the
+    // contact first, so it lands the member even when audienceTags is empty.
+    // Best-effort: never block the signup response on a contacts blip.
+    try {
+      await this.contacts.syncTags(
+        'add',
+        email,
+        free.audienceTags,
+        free.audienceId ?? undefined,
+        { userId, source: 'SIGNUP' },
+      );
+    } catch (err) {
+      this.logger.warn(
+        `[signup] contacts sync failed for ${email}: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
     }
   }
 
@@ -195,12 +286,292 @@ export class AuthService {
         where: { id: principal.sub },
       });
       if (!admin) throw new UnauthorizedException();
-      return { id: admin.id, email: admin.email, role: admin.role };
+      return this.toAuthAdmin(admin);
     }
     const user = await this.prisma.user.findUnique({
       where: { id: principal.sub },
     });
     if (!user) throw new UnauthorizedException();
-    return { id: user.id, email: user.email, username: user.username };
+    return this.toAuthUser(user);
+  }
+
+  /**
+   * Member self-service profile update (PATCH /auth/me): first/last name and a
+   * unique username. Email is intentionally NOT updatable here. Username
+   * uniqueness is checked case-insensitively (so "Amar"/"amar" can't collide),
+   * with the DB @unique constraint as a P2002 backstop.
+   */
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<AuthUser> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    const data: Prisma.UserUpdateInput = {};
+    const firstName = dto.firstName?.trim();
+    const lastName = dto.lastName?.trim();
+    const username = dto.username?.trim();
+    if (firstName) data.firstName = firstName;
+    if (lastName) data.lastName = lastName;
+
+    // Only touch username when it actually changes (case-insensitively).
+    if (username && username.toLowerCase() !== user.username.toLowerCase()) {
+      const clash = await this.prisma.user.findFirst({
+        where: {
+          id: { not: userId },
+          username: { equals: username, mode: 'insensitive' },
+        },
+        select: { id: true },
+      });
+      if (clash) throw new ConflictException('That username is taken');
+      data.username = username;
+    }
+
+    // Clear the profile photo when asked (the on-disk file is removed after the
+    // row update succeeds, mirroring the admin self-service flow).
+    if (dto.removeAvatar) data.avatarUrl = null;
+
+    let updated = user;
+    if (Object.keys(data).length > 0) {
+      try {
+        updated = await this.prisma.user.update({
+          where: { id: userId },
+          data,
+        });
+      } catch (err) {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === 'P2002'
+        ) {
+          throw new ConflictException('That username is taken');
+        }
+        throw err;
+      }
+    }
+
+    // Remove the now-orphaned file after the row no longer references it.
+    if (dto.removeAvatar && user.avatarUrl) {
+      await this.deleteAvatarFile(user.avatarUrl);
+    }
+
+    return this.toAuthUser(updated);
+  }
+
+  /**
+   * Member changes their own password. Requires the current password (verified
+   * against the stored hash) and rejects reusing the same password. Throws 400
+   * (not 401) on a wrong current password so the web client doesn't mistake it
+   * for an expired session and bounce the user to /login.
+   */
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<{ ok: true }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    const currentOk = await bcrypt.compare(
+      dto.currentPassword,
+      user.passwordHash,
+    );
+    if (!currentOk) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const sameAsOld = await bcrypt.compare(dto.newPassword, user.passwordHash);
+    if (sameAsOld) {
+      throw new BadRequestException(
+        'New password must be different from the current one',
+      );
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    return { ok: true };
+  }
+
+  /** Admin changes their OWN password (verified against Admin.passwordHash). */
+  async changeAdminPassword(
+    adminId: string,
+    dto: ChangePasswordDto,
+  ): Promise<{ ok: true }> {
+    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin) throw new UnauthorizedException();
+
+    const currentOk = await bcrypt.compare(
+      dto.currentPassword,
+      admin.passwordHash,
+    );
+    if (!currentOk) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+    const sameAsOld = await bcrypt.compare(dto.newPassword, admin.passwordHash);
+    if (sameAsOld) {
+      throw new BadRequestException(
+        'New password must be different from the current one',
+      );
+    }
+    await this.prisma.admin.update({
+      where: { id: adminId },
+      data: { passwordHash: await bcrypt.hash(dto.newPassword, 10) },
+    });
+    return { ok: true };
+  }
+
+  /**
+   * Admin self-service: persist personal UI preferences (PATCH /auth/admin/prefs).
+   * Today that's just the sidebar `menuOrder` — a list of stable nav keys. We
+   * sanitize it (trim, drop empties, dedupe, cap) and MERGE into any existing
+   * prefs so future pref fields aren't clobbered. Keys aren't validated against a
+   * section list here: the admin app reconciles the saved order against the live
+   * nav (appends new items, ignores stale keys), so stray keys are harmless.
+   * Returns the refreshed AuthAdmin so the client can update its cached `me`.
+   */
+  async updateAdminPrefs(
+    adminId: string,
+    dto: UpdateAdminPrefsDto,
+  ): Promise<AuthAdmin> {
+    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin) throw new UnauthorizedException();
+
+    const current = (admin.prefs as AdminPrefs) ?? {};
+    const next: AdminPrefs = { ...current };
+
+    if (dto.menuOrder !== undefined) {
+      const seen = new Set<string>();
+      const cleaned: string[] = [];
+      for (const raw of dto.menuOrder) {
+        const key = typeof raw === 'string' ? raw.trim() : '';
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        cleaned.push(key);
+        if (cleaned.length >= 100) break;
+      }
+      next.menuOrder = cleaned;
+    }
+
+    const updated = await this.prisma.admin.update({
+      where: { id: adminId },
+      data: { prefs: next as unknown as Prisma.InputJsonValue },
+    });
+    return this.toAuthAdmin(updated);
+  }
+
+  /**
+   * Admin self-service: update display name and/or remove the avatar. Email is
+   * the login id and is intentionally NOT editable here.
+   */
+  async updateAdminProfile(
+    adminId: string,
+    dto: UpdateAdminProfileDto,
+  ): Promise<AuthAdmin> {
+    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin) throw new UnauthorizedException();
+
+    const data: Prisma.AdminUpdateInput = {};
+    if (dto.name !== undefined) {
+      const name = (dto.name ?? '').trim();
+      data.name = name ? name.slice(0, 120) : null;
+    }
+    if (dto.removeAvatar) {
+      await this.deleteAvatarFile(admin.avatarUrl);
+      data.avatarUrl = null;
+    }
+
+    const updated = Object.keys(data).length
+      ? await this.prisma.admin.update({ where: { id: adminId }, data })
+      : admin;
+    return this.toAuthAdmin(updated);
+  }
+
+  /**
+   * Admin self-service: upload a profile photo. Stored directly via MediaStorage
+   * (image-only, ≤8 MB) WITHOUT creating a gallery MediaAsset — so profile photos
+   * never show up in the media library. Replaces (and deletes) any prior avatar.
+   */
+  async setAdminAvatar(
+    adminId: string,
+    file: Express.Multer.File | undefined,
+    baseUrl: string,
+  ): Promise<AuthAdmin> {
+    if (!file) throw new BadRequestException('No file provided');
+    const ext = AVATAR_EXT[file.mimetype];
+    if (!ext) {
+      throw new BadRequestException(
+        'Please choose a JPG, PNG, WebP or GIF image.',
+      );
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      throw new BadRequestException('Image too large (max 8 MB).');
+    }
+    const admin = await this.prisma.admin.findUnique({
+      where: { id: adminId },
+      select: { id: true, avatarUrl: true },
+    });
+    if (!admin) throw new UnauthorizedException();
+
+    const key = `avatar-${adminId}-${Date.now()}${ext}`;
+    await this.storage.put(key, file.buffer, file.mimetype);
+    await this.deleteAvatarFile(admin.avatarUrl); // best-effort cleanup of the old file
+
+    const updated = await this.prisma.admin.update({
+      where: { id: adminId },
+      data: { avatarUrl: `${baseUrl}${MEDIA_ROUTE}/${key}` },
+    });
+    return this.toAuthAdmin(updated);
+  }
+
+  /**
+   * Member self-service: upload a profile photo. Same storage path and image
+   * rules as the admin avatar (image-only, ≤8 MB, stored via MediaStorage with
+   * no gallery MediaAsset). Replaces and deletes any prior photo.
+   */
+  async setUserAvatar(
+    userId: string,
+    file: Express.Multer.File | undefined,
+    baseUrl: string,
+  ): Promise<AuthUser> {
+    if (!file) throw new BadRequestException('No file provided');
+    const ext = AVATAR_EXT[file.mimetype];
+    if (!ext) {
+      throw new BadRequestException(
+        'Please choose a JPG, PNG, WebP or GIF image.',
+      );
+    }
+    if (file.size > AVATAR_MAX_BYTES) {
+      throw new BadRequestException('Image too large (max 8 MB).');
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, avatarUrl: true },
+    });
+    if (!user) throw new UnauthorizedException();
+
+    const key = `avatar-${userId}-${Date.now()}${ext}`;
+    await this.storage.put(key, file.buffer, file.mimetype);
+    await this.deleteAvatarFile(user.avatarUrl); // best-effort cleanup of the old file
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: `${baseUrl}${MEDIA_ROUTE}/${key}` },
+    });
+    return this.toAuthUser(updated);
+  }
+
+  // Delete a previously-stored avatar file (best effort). Only removes keys we
+  // generated (avatar-*), so it can never touch gallery media.
+  private async deleteAvatarFile(url: string | null): Promise<void> {
+    if (!url) return;
+    const marker = `${MEDIA_ROUTE}/`;
+    const idx = url.indexOf(marker);
+    if (idx === -1) return;
+    const key = url.slice(idx + marker.length);
+    if (key.startsWith('avatar-')) {
+      await this.storage.delete(key).catch(() => undefined);
+    }
   }
 }

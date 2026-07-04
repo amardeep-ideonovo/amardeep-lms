@@ -2,7 +2,6 @@
 
 import { ChangeEvent, Fragment, FormEvent, useEffect, useState } from "react";
 import type {
-  CategoryDTO,
   CourseCard,
   CreateCourseInput,
   LessonDTO,
@@ -10,27 +9,49 @@ import type {
   LevelDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAdminAuth } from "@/components/AdminAuthProvider";
+import { dialog } from "@/components/DialogProvider";
+import MediaPicker from "@/components/MediaPicker";
 
 const EMPTY_COURSE = {
   title: "",
   description: "",
-  categoryId: "",
   levelIds: [] as string[],
   thumbnailUrl: "",
   coverImageUrl: "",
+  // One-off purchase price. priceInput is in MAJOR units (what the admin types,
+  // e.g. "25" or "25.00"); it's converted to minor units (cents) on save. Blank
+  // = not individually purchasable (level-gated only).
+  priceInput: "",
+  priceCurrency: "usd",
+  priceActive: true,
 };
 
+// Parse an admin-entered duration ("12:30", "1:02:03", or plain seconds) into
+// seconds. Returns undefined for blank/invalid input.
+function parseDuration(input: string): number | undefined {
+  const s = input.trim();
+  if (!s) return undefined;
+  const parts = s.split(":").map((p) => Number(p));
+  if (parts.some((n) => Number.isNaN(n) || n < 0)) return undefined;
+  return parts.reduce((acc, n) => acc * 60 + n, 0);
+}
+// Seconds -> "mm:ss" (or "h:mm:ss"); "" when null.
+function formatDuration(sec?: number | null): string {
+  if (sec == null) return "";
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+}
+
 export default function CoursesPage() {
+  const { can, loading: authLoading } = useAdminAuth();
   const [courses, setCourses] = useState<CourseCard[]>([]);
-  const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // create-category form
-  const [newCategory, setNewCategory] = useState("");
-  const [newCategoryThumb, setNewCategoryThumb] = useState("");
-  const [uploadingCatThumb, setUploadingCatThumb] = useState(false);
 
   // course modal (create/edit)
   const [modalOpen, setModalOpen] = useState(false);
@@ -38,8 +59,6 @@ export default function CoursesPage() {
   const [form, setForm] = useState({ ...EMPTY_COURSE });
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [uploadingThumb, setUploadingThumb] = useState(false);
-  const [uploadingCover, setUploadingCover] = useState(false);
 
   // expanded course -> lessons
   const [openCourse, setOpenCourse] = useState<string | null>(null);
@@ -48,13 +67,11 @@ export default function CoursesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [c, cats, lvls] = await Promise.all([
+      const [c, lvls] = await Promise.all([
         api.listCourses(),
-        api.listCategories(),
         api.listLevels(),
       ]);
       setCourses(c);
-      setCategories(cats);
       setLevels(lvls);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load courses");
@@ -64,8 +81,10 @@ export default function CoursesPage() {
   }
 
   useEffect(() => {
+    if (authLoading || !can("courses", "read")) return;
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
 
   // Close the modal on Escape.
   useEffect(() => {
@@ -96,10 +115,13 @@ export default function CoursesPage() {
     setForm({
       title: course.title,
       description: course.description ?? "",
-      categoryId: course.categoryId ?? "",
       levelIds: course.levelIds ?? [],
       thumbnailUrl: course.thumbnailUrl ?? "",
       coverImageUrl: course.coverImageUrl ?? "",
+      priceInput:
+        course.priceAmount != null ? (course.priceAmount / 100).toString() : "",
+      priceCurrency: course.priceCurrency ?? "usd",
+      priceActive: course.priceActive ?? true,
     });
     setFormError(null);
     setModalOpen(true);
@@ -115,13 +137,23 @@ export default function CoursesPage() {
   }
 
   function buildPayload(): CreateCourseInput {
+    const priceStr = form.priceInput.trim();
+    // Blank clears the one-off price (null); a value converts major -> minor units.
+    const priceAmount =
+      priceStr === "" ? null : Math.round(Number(priceStr) * 100);
+    // Only a well-formed 3-letter code is sent; a stray 1-2 char value (e.g. from
+    // backspacing on an unpriced course) falls back to usd so it can never fail
+    // the API's ISO-4217 check on an otherwise-valid save.
+    const cur = form.priceCurrency.trim().toLowerCase();
     return {
       title: form.title.trim(),
       description: form.description.trim() || undefined,
-      categoryId: form.categoryId || undefined,
       levelIds: form.levelIds,
       thumbnailUrl: form.thumbnailUrl.trim() || undefined,
       coverImageUrl: form.coverImageUrl.trim() || undefined,
+      priceAmount,
+      priceCurrency: cur.length === 3 ? cur : "usd",
+      priceActive: form.priceActive,
     };
   }
 
@@ -130,6 +162,31 @@ export default function CoursesPage() {
     if (!form.title.trim()) {
       setFormError("Title is required");
       return;
+    }
+    if (form.levelIds.length === 0) {
+      setFormError("Assign the course to at least one class.");
+      return;
+    }
+    const priceStr = form.priceInput.trim();
+    if (priceStr !== "") {
+      const n = Number(priceStr);
+      if (!Number.isFinite(n) || n < 0) {
+        setFormError(
+          "Enter a valid one-off price (a number ≥ 0), or leave it blank.",
+        );
+        return;
+      }
+      // Reject sub-cent precision instead of silently rounding (e.g. 25.999).
+      if (Math.abs(n * 100 - Math.round(n * 100)) > 1e-9) {
+        setFormError("Price can have at most 2 decimal places.");
+        return;
+      }
+      // A priced course needs a valid 3-letter currency (the API validates
+      // ISO-4217). Catch it here with a clear message rather than a raw 400.
+      if (form.priceCurrency.trim().length !== 3) {
+        setFormError("Currency must be a 3-letter code (e.g. USD).");
+        return;
+      }
     }
     setSaving(true);
     setFormError(null);
@@ -150,10 +207,10 @@ export default function CoursesPage() {
 
   async function removeCourse(course: CourseCard) {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        `Delete "${course.title}"? This removes its lessons and notes and cannot be undone.`
-      )
+      !(await dialog.confirm({
+        message: `Delete "${course.title}"? This removes its lessons and notes and cannot be undone.`,
+        danger: true,
+      }))
     )
       return;
     setError(null);
@@ -167,83 +224,23 @@ export default function CoursesPage() {
     }
   }
 
-  async function uploadCourseImage(
-    e: ChangeEvent<HTMLInputElement>,
-    field: "thumbnailUrl" | "coverImageUrl"
-  ) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const setBusy = field === "thumbnailUrl" ? setUploadingThumb : setUploadingCover;
-    setBusy(true);
-    setFormError(null);
-    try {
-      const { url } = await api.uploadCourseImage(file);
-      setForm((f) => ({ ...f, [field]: url }));
-    } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Image upload failed");
-    } finally {
-      setBusy(false);
-      e.target.value = "";
-    }
-  }
+  // Map a course's assigned level IDs to their display names (skips any
+  // dangling IDs whose level was since deleted).
+  const levelNamesFor = (ids: string[]) =>
+    ids
+      .map((id) => levels.find((l) => l.id === id)?.name)
+      .filter((n): n is string => Boolean(n));
 
-  async function createCategory(e: FormEvent) {
-    e.preventDefault();
-    if (!newCategory.trim()) return;
-    setError(null);
-    try {
-      await api.createCategory(
-        newCategory.trim(),
-        categories.length,
-        newCategoryThumb || undefined
-      );
-      setNewCategory("");
-      setNewCategoryThumb("");
-      await load();
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Failed to create category"
-      );
-    }
-  }
-
-  async function onPickCategoryThumb(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingCatThumb(true);
-    setError(null);
-    try {
-      const { url } = await api.uploadCategoryImage(file);
-      setNewCategoryThumb(url);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Image upload failed");
-    } finally {
-      setUploadingCatThumb(false);
-      e.target.value = "";
-    }
-  }
-
-  async function removeCategory(c: CategoryDTO) {
-    if (
-      typeof window !== "undefined" &&
-      !window.confirm(
-        `Remove category "${c.name}"? Its courses will become uncategorized.`
-      )
-    )
-      return;
-    setError(null);
-    try {
-      await api.deleteCategory(c.id);
-      await load();
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Failed to remove category"
-      );
-    }
-  }
-
-  const categoryName = (id: string | null) =>
-    id ? categories.find((c) => c.id === id)?.name ?? "—" : "—";
+  if (authLoading) return <p className="muted">Loading…</p>;
+  if (!can("courses", "read"))
+    return (
+      <div>
+        <div className="page-header">
+          <h1>Courses</h1>
+        </div>
+        <p className="muted">You don’t have permission to view this.</p>
+      </div>
+    );
 
   return (
     <div>
@@ -251,8 +248,8 @@ export default function CoursesPage() {
         <div>
           <h1>Courses</h1>
           <p className="subtitle">
-            Assign each course to one or more levels. A course unlocks if a member
-            holds ANY assigned level.
+            Assign each course to one or more classes. A course unlocks if a member
+            holds ANY assigned class.
           </p>
         </div>
         <button className="btn" onClick={openCreate}>
@@ -261,70 +258,6 @@ export default function CoursesPage() {
       </div>
 
       {error && <p className="error">{error}</p>}
-
-      <div className="card">
-        <h2>New category</h2>
-        <form onSubmit={createCategory}>
-          <div className="form-row">
-            <div className="field">
-              <label>Name</label>
-              <input
-                placeholder="Category name"
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label>
-                Thumbnail <span className="muted">(optional)</span>
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={onPickCategoryThumb}
-                disabled={uploadingCatThumb}
-              />
-              {uploadingCatThumb && <span className="muted">Uploading…</span>}
-              {newCategoryThumb && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={newCategoryThumb}
-                  alt="Category thumbnail preview"
-                  className="thumb-preview"
-                />
-              )}
-            </div>
-          </div>
-          <button className="btn" type="submit">
-            Add category
-          </button>
-        </form>
-        {categories.length > 0 && (
-          <div className="chips" style={{ marginTop: 12 }}>
-            {categories
-              .slice()
-              .sort((a, b) => a.order - b.order)
-              .map((c) => (
-                <span key={c.id} className="chip chip--muted chip--thumb">
-                  {c.thumbnailUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.thumbnailUrl} alt="" className="chip-thumb" />
-                  )}
-                  {c.name}
-                  <button
-                    type="button"
-                    className="chip-x"
-                    aria-label={`Remove ${c.name}`}
-                    title={`Remove ${c.name}`}
-                    onClick={() => removeCategory(c)}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-          </div>
-        )}
-      </div>
 
       <div className="card">
         <div className="card-head">
@@ -338,13 +271,12 @@ export default function CoursesPage() {
         ) : courses.length === 0 ? (
           <p className="muted">No courses yet. Click “Add new course” to start.</p>
         ) : (
-          <table className="table">
+          <div className="table-wrap"><table className="table">
             <thead>
               <tr>
                 <th></th>
                 <th>Title</th>
-                <th>Category</th>
-                <th>Description</th>
+                <th>Class</th>
                 <th></th>
               </tr>
             </thead>
@@ -365,8 +297,19 @@ export default function CoursesPage() {
                       )}
                     </td>
                     <td>{course.title}</td>
-                    <td className="muted">{categoryName(course.categoryId)}</td>
-                    <td className="muted">{course.description ?? "—"}</td>
+                    <td>
+                      {levelNamesFor(course.levelIds).length === 0 ? (
+                        <span className="muted">—</span>
+                      ) : (
+                        <div className="chips">
+                          {levelNamesFor(course.levelIds).map((name, i) => (
+                            <span key={i} className="chip chip--muted">
+                              {name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
                     <td>
                       <div className="row-actions">
                         <button
@@ -396,7 +339,7 @@ export default function CoursesPage() {
                   </tr>
                   {openCourse === course.id && (
                     <tr>
-                      <td colSpan={5} style={{ padding: 0 }}>
+                      <td colSpan={4} style={{ padding: 0 }}>
                         <CourseLessons
                           courseId={course.id}
                           courseTitle={course.title}
@@ -407,7 +350,7 @@ export default function CoursesPage() {
                 </Fragment>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 
@@ -459,101 +402,120 @@ export default function CoursesPage() {
                       Square thumbnail{" "}
                       <span className="muted">(course cards)</span>
                     </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => uploadCourseImage(e, "thumbnailUrl")}
-                      disabled={uploadingThumb}
-                    />
-                    {uploadingThumb && <span className="muted">Uploading…</span>}
-                    <input
+                    <MediaPicker
                       value={form.thumbnailUrl}
-                      onChange={(e) =>
-                        setForm({ ...form, thumbnailUrl: e.target.value })
+                      onChange={(url) =>
+                        setForm({ ...form, thumbnailUrl: url })
                       }
-                      placeholder="…or paste an image URL"
-                      style={{ marginTop: 8 }}
                     />
-                    {form.thumbnailUrl.trim() && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={form.thumbnailUrl}
-                        alt="Thumbnail preview"
-                        className="thumb-preview"
-                      />
-                    )}
                   </div>
                   <div className="field">
                     <label>
                       Cover image{" "}
                       <span className="muted">(course page hero)</span>
                     </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => uploadCourseImage(e, "coverImageUrl")}
-                      disabled={uploadingCover}
-                    />
-                    {uploadingCover && <span className="muted">Uploading…</span>}
-                    <input
+                    <MediaPicker
                       value={form.coverImageUrl}
-                      onChange={(e) =>
-                        setForm({ ...form, coverImageUrl: e.target.value })
+                      onChange={(url) =>
+                        setForm({ ...form, coverImageUrl: url })
                       }
-                      placeholder="…or paste an image URL"
-                      style={{ marginTop: 8 }}
                     />
-                    {form.coverImageUrl.trim() && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={form.coverImageUrl}
-                        alt="Cover preview"
-                        className="cover-preview"
-                      />
-                    )}
                   </div>
                 </div>
 
                 <div className="form-row">
                   <div className="field">
-                    <label>Category</label>
-                    <select
-                      value={form.categoryId}
+                    <label>
+                      One-off price{" "}
+                      <span className="muted">
+                        (blank = not sold individually)
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      placeholder="e.g. 25.00"
+                      value={form.priceInput}
                       onChange={(e) =>
-                        setForm({ ...form, categoryId: e.target.value })
+                        setForm({ ...form, priceInput: e.target.value })
                       }
-                    >
-                      <option value="">No category</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
+                    />
                   </div>
                   <div className="field">
-                    <label>Levels (unlock access)</label>
-                    {levels.length === 0 ? (
-                      <p className="muted">No levels yet.</p>
-                    ) : (
-                      <div className="checkbox-list">
-                        {levels.map((l) => (
-                          <label key={l.id}>
-                            <input
-                              type="checkbox"
-                              checked={form.levelIds.includes(l.id)}
-                              onChange={() => toggleLevel(l.id)}
-                            />
-                            {l.name}
-                          </label>
-                        ))}
-                      </div>
-                    )}
+                    <label>
+                      Currency <span className="muted">(3-letter code)</span>
+                    </label>
+                    <input
+                      maxLength={3}
+                      placeholder="usd"
+                      value={form.priceCurrency}
+                      onChange={(e) =>
+                        setForm({ ...form, priceCurrency: e.target.value })
+                      }
+                    />
                   </div>
+                </div>
+                <div className="field">
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.priceActive}
+                      onChange={(e) =>
+                        setForm({ ...form, priceActive: e.target.checked })
+                      }
+                    />
+                    Available for one-off purchase
+                  </label>
+                  <p className="muted">
+                    A member who lacks membership access can buy lifetime access
+                    to just this course. Uncheck to pause sales without losing the
+                    price.
+                  </p>
+                </div>
+
+                <div className="field">
+                  <label>Classes (unlock access — at least one required)</label>
+                  {levels.length === 0 ? (
+                    <p className="muted">
+                      No classes yet — create a class first; every course must
+                      belong to one.
+                    </p>
+                  ) : (
+                    <div className="checkbox-list">
+                      {levels.map((l) => (
+                        <label key={l.id}>
+                          <input
+                            type="checkbox"
+                            checked={form.levelIds.includes(l.id)}
+                            onChange={() => toggleLevel(l.id)}
+                          />
+                          {l.name}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {levels.length > 0 && form.levelIds.length === 0 && (
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      Select at least one class to save.
+                    </span>
+                  )}
                 </div>
 
                 <div className="row-actions">
-                  <button className="btn" type="submit" disabled={saving}>
+                  <button
+                    className="btn"
+                    type="submit"
+                    disabled={saving || form.levelIds.length === 0}
+                  >
                     {saving
                       ? "Saving…"
                       : editingId
@@ -594,7 +556,7 @@ function CourseLessons({
   const [content, setContent] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
-  const [uploadingThumb, setUploadingThumb] = useState(false);
+  const [duration, setDuration] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function load() {
@@ -624,22 +586,6 @@ function CourseLessons({
     return () => window.removeEventListener("keydown", onKey);
   }, [showAdd]);
 
-  async function onPickNewThumb(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingThumb(true);
-    setError(null);
-    try {
-      const { url } = await api.uploadLessonImage(file);
-      setThumbnailUrl(url);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Thumbnail upload failed");
-    } finally {
-      setUploadingThumb(false);
-      e.target.value = "";
-    }
-  }
-
   async function addLesson(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -650,11 +596,13 @@ function CourseLessons({
         content: content.trim() || undefined,
         videoUrl: videoUrl.trim() || undefined,
         thumbnailUrl: thumbnailUrl.trim() || undefined,
+        durationSeconds: parseDuration(duration),
       });
       setTitle("");
       setContent("");
       setVideoUrl("");
       setThumbnailUrl("");
+      setDuration("");
       setShowAdd(false); // collapse back to the "+ Add lesson" button
       await load();
     } catch (err) {
@@ -667,7 +615,7 @@ function CourseLessons({
   return (
     <div
       style={{
-        background: "#f8fafc",
+        background: "var(--surface-2)",
         padding: "16px 20px",
         borderTop: "2px solid var(--border)",
       }}
@@ -756,18 +704,19 @@ function CourseLessons({
                   </div>
                   <div className="field">
                     <label>Thumbnail</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={onPickNewThumb}
-                      disabled={uploadingThumb}
-                    />
-                    {uploadingThumb && <span className="muted">Uploading…</span>}
-                    {thumbnailUrl.trim() && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={thumbnailUrl} alt="" className="thumb-preview" />
-                    )}
+                    <MediaPicker value={thumbnailUrl} onChange={setThumbnailUrl} />
                   </div>
+                </div>
+                <div className="field">
+                  <label>
+                    Duration <span className="muted">(mm:ss, optional)</span>
+                  </label>
+                  <input
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    placeholder="e.g. 12:30"
+                    style={{ maxWidth: 160 }}
+                  />
                 </div>
                 <div className="row-actions">
                   <button className="btn" type="submit" disabled={saving}>
@@ -808,6 +757,9 @@ function LessonRow({
   const [title, setTitle] = useState(lesson.title);
   const [content, setContent] = useState(lesson.content ?? "");
   const [videoUrl, setVideoUrl] = useState(lesson.videoUrl ?? "");
+  const [duration, setDuration] = useState(
+    formatDuration(lesson.durationSeconds)
+  );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [uploadingThumb, setUploadingThumb] = useState(false);
@@ -825,8 +777,10 @@ function LessonRow({
         title: title.trim(),
         content: content.trim() || undefined,
         videoUrl: videoUrl.trim() || undefined,
+        durationSeconds: parseDuration(duration),
       });
       setEditing(false);
+      setExpanded(false);
       await onChanged();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "Failed to save lesson");
@@ -841,7 +795,8 @@ function LessonRow({
     setUploadingThumb(true);
     setErr(null);
     try {
-      const { url } = await api.uploadLessonImage(file);
+      // Route through the Media Library so the upload is cataloged too.
+      const { url } = await api.uploadMedia(file);
       await api.updateLesson(lesson.id, { thumbnailUrl: url });
       await onChanged();
     } catch (e) {
@@ -901,8 +856,10 @@ function LessonRow({
 
   async function removeLesson() {
     if (
-      typeof window !== "undefined" &&
-      !window.confirm(`Delete lesson "${lesson.title}"?`)
+      !(await dialog.confirm({
+        message: `Delete lesson "${lesson.title}"?`,
+        danger: true,
+      }))
     )
       return;
     setBusy(true);
@@ -941,7 +898,19 @@ function LessonRow({
         <div className="row-actions">
           <button
             className="btn btn--ghost btn--sm"
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() => {
+              setExpanded(true);
+              setEditing(true);
+            }}
+          >
+            Edit details
+          </button>
+          <button
+            className="btn btn--ghost btn--sm"
+            onClick={() => {
+              setEditing(false);
+              setExpanded((v) => !v);
+            }}
           >
             {expanded ? "Close" : "Manage"}
           </button>
@@ -979,13 +948,27 @@ function LessonRow({
                   onChange={(e) => setVideoUrl(e.target.value)}
                 />
               </div>
+              <div className="field">
+                <label>
+                  Duration <span className="muted">(mm:ss)</span>
+                </label>
+                <input
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  placeholder="e.g. 12:30"
+                  style={{ maxWidth: 160 }}
+                />
+              </div>
               <div className="row-actions">
                 <button className="btn btn--sm" onClick={saveEdits} disabled={busy}>
                   {busy ? "Saving…" : "Save"}
                 </button>
                 <button
                   className="btn btn--ghost btn--sm"
-                  onClick={() => setEditing(false)}
+                  onClick={() => {
+                    setEditing(false);
+                    setExpanded(false);
+                  }}
                 >
                   Cancel
                 </button>
@@ -993,12 +976,6 @@ function LessonRow({
             </>
           ) : (
             <div className="row-actions">
-              <button
-                className="btn btn--ghost btn--sm"
-                onClick={() => setEditing(true)}
-              >
-                Edit details
-              </button>
               <label className="btn btn--ghost btn--sm file-btn">
                 {uploadingThumb ? "Uploading…" : "Replace thumbnail"}
                 <input
@@ -1012,6 +989,7 @@ function LessonRow({
             </div>
           )}
 
+          {!editing && (
           <div className="field" style={{ marginTop: 12 }}>
             <label>Notes (downloadable files)</label>
             {notes.length === 0 ? (
@@ -1068,6 +1046,7 @@ function LessonRow({
               />
             </label>
           </div>
+          )}
         </div>
       )}
     </div>

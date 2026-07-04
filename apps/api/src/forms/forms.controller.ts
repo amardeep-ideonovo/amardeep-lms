@@ -11,13 +11,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { AdminGuard } from '../auth/guards/admin.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
+import { RequirePermission } from '../auth/require-permission.decorator';
 import { FormsService } from './forms.service';
 import { CreateFormDto, FormSubmitDto, UpdateFormDto } from './dto/form.dto';
 
 // Form routes. The /forms/* reads + submit are PUBLIC (no guard) and only ACTIVE
-// forms are exposed. All management + the live Mailchimp lookups live under
-// /admin/* behind AdminGuard.
+// forms are exposed. All management + the in-house audience lookups live under
+// /admin/* behind the `forms` permission.
 @Controller()
 export class FormsController {
   constructor(private readonly forms: FormsService) {}
@@ -49,53 +50,50 @@ export class FormsController {
     res.send(this.forms.buildEmbedScript(id, base));
   }
 
-  // ----- Admin: live Mailchimp lookups for the form editor -----
-
-  @UseGuards(AdminGuard)
-  @Get('admin/mailchimp/audiences')
-  listAudiences() {
-    return this.forms.listAudiences();
-  }
-
-  @UseGuards(AdminGuard)
-  @Get('admin/mailchimp/audiences/:id/merge-fields')
-  getMergeFields(@Param('id') id: string) {
-    return this.forms.getMergeFields(id);
-  }
+  // The form editor's audience picker + field mapper read OUR in-house list via
+  // the canonical contacts endpoints (GET /admin/audiences and
+  // /admin/audiences/:id/fields on ContactsController), so this controller no
+  // longer exposes any audience lookups of its own.
 
   // ----- Admin: form CRUD -----
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('forms', 'read')
   @Get('admin/forms')
   adminList() {
     return this.forms.adminList();
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('forms', 'read')
   @Get('admin/forms/:id')
   adminGet(@Param('id') id: string) {
     return this.forms.adminGet(id);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('forms', 'read')
   @Get('admin/forms/:id/submissions')
   adminListSubmissions(@Param('id') id: string) {
     return this.forms.listSubmissions(id);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('forms', 'create')
   @Post('admin/forms')
   adminCreate(@Body() dto: CreateFormDto) {
     return this.forms.adminCreate(dto);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('forms', 'edit')
   @Patch('admin/forms/:id')
   adminUpdate(@Param('id') id: string, @Body() dto: UpdateFormDto) {
     return this.forms.adminUpdate(id, dto);
   }
 
-  @UseGuards(AdminGuard)
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('forms', 'delete')
   @Delete('admin/forms/:id')
   adminDelete(@Param('id') id: string) {
     return this.forms.adminDelete(id);

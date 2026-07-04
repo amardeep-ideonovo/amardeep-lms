@@ -1,0 +1,128 @@
+# Per-instance LMS stack — ONE fully isolated tenant (own Postgres, Redis,
+# uploads volume, and published ports). The control-plane provisioner brings one
+# of these up per client license:
+#
+#   docker compose -p lms_<id> \
+#     --env-file deploy/instance/<id>.env \
+#     -f deploy/instance/docker-compose.instance.yml up -d
+#
+# `-p lms_<id>` namespaces the containers AND the named volumes below, so any
+# number of instances run side by side on one host without colliding.
+#
+# Images are built ONCE (deploy/instance/build-images.sh) and reused by every
+# instance — runtime env (RUNTIME_API_URL etc. + /__env.js) makes a single
+# prebuilt web/admin image serve any instance, so there is NO per-client rebuild.
+#
+# NOTE: there is intentionally no Caddy here (that's for the single-domain VPS
+# deploy). Locally each app is published on its own host port; in production the
+# cloud driver puts a proxy/ingress in front.
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-lms}
+    volumes:
+      - pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-lms}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    volumes:
+      - redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    image: ${API_IMAGE:-lms-api:local}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Apply migrations, run the (parameterized) seed to create the first admin,
+    # then start. Idempotent on restart: migrate deploy + upsert-only seed.
+    command:
+      - sh
+      - -c
+      - >-
+        npx prisma migrate deploy --schema packages/db/prisma/schema.prisma &&
+        npm -w @lms/db run seed &&
+        node apps/api/dist/apps/api/src/main.js
+    environment:
+      NODE_ENV: production
+      ENV_NAME: ${ENV_NAME:-production}
+      PORT: "3000"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lms}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      SETTINGS_ENC_KEY: ${SETTINGS_ENC_KEY:?set SETTINGS_ENC_KEY}
+      # Browser origins allowed to call this API. The cloud driver injects the
+      # instance's real public origins (fleet subdomains + any verified custom
+      # domain); local/dev falls back to the localhost host ports.
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:${WEB_PORT},http://localhost:${ADMIN_PORT}}
+      WEB_APP_URL: ${WEB_APP_URL:-http://localhost:${WEB_PORT}}
+      # Public origin of THIS api, used to build absolute media URLs.
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:${API_PORT}}
+      BLOG_IMAGES_DIR: /data/images
+      LESSON_FILES_DIR: /data/files
+      # First-admin + content seeding (see packages/db/prisma/seed.ts).
+      SEED_DEMO_CONTENT: ${SEED_DEMO_CONTENT:-false}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:?set SEED_ADMIN_EMAIL}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?set SEED_ADMIN_PASSWORD}
+    volumes:
+      - uploads:/data
+    ports:
+      - "${API_PORT}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  web:
+    image: ${WEB_IMAGE:-lms-web:local}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      # Browser-facing API origin (injected to window.__ENV__ via /__env.js).
+      # Cloud injects the fleet subdomain / custom domain; dev uses localhost.
+      RUNTIME_API_URL: ${RUNTIME_API_URL:-http://localhost:${API_PORT}}
+      RUNTIME_WEB_URL: ${RUNTIME_WEB_URL:-http://localhost:${WEB_PORT}}
+      # Server-side (SSR) fetch base — reach the API over the compose network.
+      API_URL_INTERNAL: http://api:3000
+    ports:
+      - "${WEB_PORT}:3002"
+
+  admin:
+    image: ${ADMIN_IMAGE:-lms-admin:local}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      RUNTIME_API_URL: http://localhost:${API_PORT}
+      RUNTIME_WEB_URL: http://localhost:${WEB_PORT}
+      API_URL_INTERNAL: http://api:3000
+    ports:
+      - "${ADMIN_PORT}:3001"
+
+# Named per-instance because `-p lms_<id>` prefixes them. Each tenant gets its
+# own database files, redis data, and uploaded media — full isolation.
+volumes:
+  pg:
+  redis:
+  uploads:
