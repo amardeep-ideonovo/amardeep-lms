@@ -23,6 +23,7 @@ export type RootStackParamList = {
   CourseList: { title: string; categoryId?: string; all?: boolean };
   Course: { courseId: string; title?: string };
   Lesson: { lessonId: string; title?: string };
+  LiveSession: { sessionId: string; title?: string };
   Payments: undefined;
   Plans: undefined;
   BlogPost: { slug: string; title?: string };

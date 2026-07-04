@@ -38,6 +38,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get courseLevel() {
     return this.client.courseLevel;
   }
+  get userCourse() {
+    return this.client.userCourse;
+  }
   get lesson() {
     return this.client.lesson;
   }
@@ -171,6 +174,18 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   }
   get chatWorkflowRun() {
     return this.client.chatWorkflowRun;
+  }
+
+  // Live sessions: scheduled Zoom / Google Meet calls + their class targets and
+  // credential-release audit trail.
+  get liveSession() {
+    return this.client.liveSession;
+  }
+  get liveSessionTarget() {
+    return this.client.liveSessionTarget;
+  }
+  get liveJoinAudit() {
+    return this.client.liveJoinAudit;
   }
 
   get $transaction() {

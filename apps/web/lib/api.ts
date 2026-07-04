@@ -25,6 +25,9 @@ import type {
   FormSubmitResult,
   LessonDTO,
   LevelDTO,
+  LiveSessionBarDTO,
+  LiveJoinCredentialsDTO,
+  LiveZoomEmbedDTO,
   LoginResponse,
   MyClassCoursesDTO,
   MySubscriptionDTO,
@@ -213,6 +216,17 @@ export const api = {
   // classes (member): published class tiles for the dashboard, and a class's
   // courses (only returned when the member owns the class).
   myClasses: () => request<ClassTileDTO[]>("/levels/my-classes"),
+
+  // live sessions
+  liveCurrent: () => request<LiveSessionBarDTO[]>("/live/current"),
+  liveSession: (id: string) =>
+    request<LiveSessionBarDTO>(`/live/${encodeURIComponent(id)}`),
+  liveCredentials: (id: string) =>
+    request<LiveJoinCredentialsDTO>(
+      `/live/${encodeURIComponent(id)}/credentials`,
+    ),
+  liveZoomEmbed: (id: string) =>
+    request<LiveZoomEmbedDTO>(`/live/${encodeURIComponent(id)}/zoom`),
   myClassCourses: (slugOrId: string) =>
     request<MyClassCoursesDTO>(
       `/levels/${encodeURIComponent(slugOrId)}/my-courses`,
@@ -307,6 +321,20 @@ export const api = {
   portal: () => request<{ url: string }>("/billing/portal"),
   mySubscriptions: () =>
     request<MySubscriptionDTO[]>("/billing/subscriptions"),
+
+  // One-off course purchase (Stripe mode=payment). `courseCheckout` returns the
+  // hosted-checkout URL to redirect to; `confirmCoursePurchase` grants inline on
+  // return (the success URL carries ?session_id=…) without waiting on a webhook.
+  courseCheckout: (courseId: string) =>
+    request<{ url: string }>("/billing/course/checkout", {
+      method: "POST",
+      body: { courseId },
+    }),
+  confirmCoursePurchase: (sessionId: string) =>
+    request<{ granted: boolean }>("/billing/course/confirm", {
+      method: "POST",
+      body: { sessionId },
+    }),
 
   // Embedded checkout (Stripe Elements). `config` is public; the others need auth.
   billingConfig: () =>

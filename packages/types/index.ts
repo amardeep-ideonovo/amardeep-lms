@@ -68,6 +68,7 @@ export const ADMIN_SECTIONS = [
   { key: "reports", label: "Reports", readOnly: true },
   { key: "certificates", label: "Certificates" },
   { key: "projects", label: "Projects" },
+  { key: "liveSessions", label: "Live Sessions" },
 ] as const;
 export type AdminSection = (typeof ADMIN_SECTIONS)[number]["key"];
 
@@ -494,9 +495,19 @@ export interface CourseCard {
   thumbnailUrl: string | null; // squared thumbnail (cards)
   coverImageUrl: string | null; // wide cover/hero (course page)
   levelIds: string[]; // assigned access levels (drives the admin edit form)
-  locked: boolean; // computed from the viewer's active levels
+  locked: boolean; // computed from the viewer's active levels + course purchases
   lessonCount: number; // total lessons in the course
   completedCount: number; // lessons the viewer has completed (0 for admin/no context)
+  // One-off course purchase (Stripe mode=payment). `purchasable` is the
+  // member-facing flag: true only when the course is LOCKED for this viewer and a
+  // one-time price is configured + active — i.e. show a "Buy this course" button.
+  // priceAmount/priceCurrency/priceActive are the RAW configured values (minor
+  // units for the amount), always present so the admin edit form can round-trip
+  // them; priceAmount is null when no one-off price is set.
+  purchasable?: boolean;
+  priceAmount?: number | null;
+  priceCurrency?: string;
+  priceActive?: boolean;
 }
 // Downloadable lesson attachment (PDFs, docs, …). The file itself is never
 // public — `downloadUrl` points at an access-checked API route the client
@@ -676,6 +687,13 @@ export interface CreateCourseInput {
   coverImageUrl?: string;
   levelIds?: string[];
   order?: number;
+  // One-off purchase price. priceAmount is minor units (cents); send null to
+  // CLEAR it (course reverts to level-gated only), omit to leave unchanged.
+  // priceCurrency is a 3-letter ISO code; priceActive toggles sales without
+  // discarding the amount.
+  priceAmount?: number | null;
+  priceCurrency?: string;
+  priceActive?: boolean;
 }
 export type UpdateCourseInput = Partial<CreateCourseInput>;
 
@@ -1111,6 +1129,109 @@ export interface FormPublicDTO {
   redirectUrl: string | null;
 }
 // Admin record: full config + counts.
+// ---------- Live sessions ----------
+// Admin-scheduled Zoom / Google Meet calls surfaced to entitled members as a
+// countdown bar. Credentials are WRITE-ONLY on the admin side (presence booleans
+// only); the plaintext join URL is fetched separately via the reveal endpoint.
+export type LiveProvider = "ZOOM" | "GOOGLE_MEET";
+export type LiveAudience = "ALL_ACTIVE" | "LEVELS";
+export type LiveSessionStatus = "DRAFT" | "SCHEDULED" | "CANCELED";
+
+// Admin list/detail row. No plaintext credentials — only whether each is set.
+export interface AdminLiveSessionDTO {
+  id: string;
+  title: string;
+  description: string | null;
+  provider: LiveProvider;
+  audience: LiveAudience;
+  status: LiveSessionStatus;
+  levelIds: string[]; // targeted classes when audience === "LEVELS"
+  audienceLabel: string; // resolved class names, or "All members"
+  targetsEmpty: boolean; // LEVELS with 0 targets → shown to nobody (a warning state)
+  hasJoinUrl: boolean;
+  hasPassword: boolean;
+  startsAt: string; // ISO UTC
+  endsAt: string; // ISO UTC (stored = startsAt + durationMin)
+  durationMin: number;
+  joinLeadMin: number; // credentials/join unlock this many minutes before startsAt
+  timezone: string | null; // IANA zone the admin authored in (display only)
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Plaintext join URL (+ passcode) for the admin to verify/test-join a link.
+// Returned ONLY by GET /admin/live-sessions/:id/reveal (edit permission).
+export interface AdminLiveRevealDTO {
+  joinUrl: string;
+  password: string | null;
+}
+
+// Member-facing bar / join shell. Deliberately carries NO join URL or passcode —
+// those are released only by the credentials endpoint, inside the join window.
+export interface LiveSessionBarDTO {
+  id: string;
+  title: string;
+  description: string | null;
+  provider: LiveProvider;
+  audienceLabel: string; // "Directing" | "Directing, Screenwriting" | "All members"
+  startsAt: string; // ISO UTC
+  endsAt: string; // ISO UTC
+  joinsAt: string; // ISO UTC (startsAt - joinLeadMin)
+  timezone: string | null; // display label only
+  serverNow: string; // ISO UTC — client derives a clock offset from this
+  isLive: boolean; // server: now in [startsAt, endsAt)
+  canJoinNow: boolean; // server: now in [joinsAt, endsAt)
+  status: LiveSessionStatus; // members only ever see SCHEDULED here
+}
+
+// GET /live/current returns an array (capped).
+export type LiveCurrentDTO = LiveSessionBarDTO[];
+
+// Released ONLY by GET /live/:id/credentials, and only to an entitled member
+// inside the join window.
+export interface LiveJoinCredentialsDTO {
+  id: string;
+  title: string;
+  provider: LiveProvider;
+  joinUrl: string; // decrypted
+  password: string | null; // decrypted (null for Google Meet)
+  endsAt: string; // ISO UTC
+  serverNow: string; // ISO UTC
+}
+
+// Zoom Meeting SDK in-page embed config. Released by GET /live/:id/zoom to an
+// entitled member inside the window (Zoom sessions only). The signature is
+// minted server-side from the SDK secret; the member joins in-page with it. The
+// member may override `password` client-side (the SDK takes it at join time).
+export interface LiveZoomEmbedDTO {
+  sdkKey: string; // public SDK key (safe in the browser)
+  signature: string; // HS256 JWT signed with the SDK secret (server-only)
+  meetingNumber: string;
+  userName: string; // display name for the roster
+  password: string | null; // admin passcode if set (member can override/enter)
+  endsAt: string; // ISO UTC
+  serverNow: string; // ISO UTC
+}
+
+// Admin create/update payload. The SERVER converts startsAtLocal + timezone to a
+// UTC instant (never the browser). joinUrl/password travel plaintext over TLS and
+// are encrypted at rest; omit joinUrl on update to keep the stored one, and send
+// password: "" to clear a stored passcode (ignored entirely for GOOGLE_MEET).
+export interface LiveSessionInput {
+  title: string;
+  description?: string | null;
+  provider: LiveProvider;
+  audience: LiveAudience;
+  levelIds?: string[]; // required & non-empty when audience === "LEVELS"
+  joinUrl?: string; // required on create; omit on update to keep existing
+  password?: string; // "" clears; omit keeps; ignored for GOOGLE_MEET
+  startsAtLocal: string; // "YYYY-MM-DDTHH:mm" naive wall-time
+  timezone?: string | null; // IANA zone the wall-time is authored in
+  durationMin: number;
+  joinLeadMin?: number;
+}
+export type UpdateLiveSessionInput = Partial<LiveSessionInput>;
+
 export interface FormAdminRow {
   id: string;
   name: string;
@@ -1738,6 +1859,10 @@ export interface AppConfig {
   colorScheme: AppColorScheme; // which palette the app uses (system follows device)
   light: AppThemePalette;
   dark: AppThemePalette;
+  // ---- version handshake (injected by the API at response time, never stored;
+  // absent on instances older than the handshake) ----
+  apiVersion?: string | null; // the running API's version stamp (e.g. "2026.07.03-abc1234")
+  minAppVersion?: string | null; // oldest app version this API supports
 }
 export interface UpdateAppConfigInput {
   appConfig: AppConfig;

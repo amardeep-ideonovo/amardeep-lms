@@ -1384,6 +1384,20 @@ a.card:hover {
   margin: 0 0 20px;
 }
 
+/* Buy-course + view-plans stacked actions in the locked panel. */
+.locked-panel .locked-actions {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  min-width: 240px;
+}
+.locked-panel .locked-price {
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 4px;
+}
+
 .empty {
   color: var(--muted);
   padding: 24px 0;
@@ -3220,4 +3234,117 @@ a.card:hover {
   .press, .tap, .lift, .icon-btn, .hover-pop, .media-zoom > img {
     transition: none;
   }
+}
+
+/* ---------- Live sessions ---------- */
+/* Dashboard head becomes a row so the live bar sits top-right of the greeting. */
+.member-dash .md-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.member-dash .md-head-text { flex: 1 1 320px; min-width: 0; }
+
+.md-live-bar {
+  flex: 0 1 360px;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.md-live-eyebrow {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--md-soft, #cac3e0);
+}
+.md-live-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--md-green, #46d39a);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .md-live-dot { animation: mdLivePulse 1.8s ease-out infinite; }
+}
+@keyframes mdLivePulse {
+  0% { box-shadow: 0 0 0 0 rgba(70,211,154,.55); }
+  70% { box-shadow: 0 0 0 7px rgba(70,211,154,0); }
+  100% { box-shadow: 0 0 0 0 rgba(70,211,154,0); }
+}
+.md-live-list { display: flex; flex-direction: column; gap: 8px; }
+.md-live-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border-radius: 12px;
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--md-border, rgba(255,255,255,.10));
+  text-decoration: none; color: var(--md-text, #f4f1fb);
+  transition: background .15s ease, transform .15s ease;
+}
+.md-live-item:hover { background: rgba(255,255,255,.09); transform: translateY(-1px); }
+.md-live-info { min-width: 0; }
+.md-live-title {
+  font-weight: 700; font-size: 14px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.md-live-meta {
+  font-size: 12px; color: var(--md-muted, #948cb4);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.md-live-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.md-live-count { font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; color: var(--md-soft, #cac3e0); }
+.md-live-badge { font-size: 12px; font-weight: 800; letter-spacing: .04em; color: var(--md-green, #46d39a); }
+.md-live-cta {
+  font-size: 12.5px; font-weight: 700; padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--md-border, rgba(255,255,255,.16)); color: var(--md-soft, #cac3e0);
+}
+.md-live-cta.on { background: var(--md-primary, #7c5cfc); color: #fff; border-color: transparent; }
+
+/* Join page (/live/[id]) — outside .member-dash, so it uses the global tokens. */
+.live-join { max-width: 640px; margin: 0 auto; padding: 8px 0 48px; }
+.live-eyebrow {
+  font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--text-link, var(--primary)); margin: 18px 0 8px;
+}
+.live-title { font-size: 30px; font-weight: 800; letter-spacing: -.02em; margin: 0 0 8px; }
+.live-meta { color: var(--text-muted); margin: 0 0 6px; }
+.live-desc { color: var(--text-soft, var(--text)); margin: 8px 0 0; }
+.live-panel {
+  margin-top: 22px; padding: 28px; border-radius: 16px;
+  background: var(--surface); border: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 14px;
+}
+.live-countdown { font-size: 44px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.live-hint { color: var(--text-muted); margin: 0; font-size: 14px; }
+.live-status { font-size: 15px; font-weight: 700; margin: 0; }
+.live-status--go { color: var(--success); }
+.live-pass { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.live-pass-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); }
+.live-pass-code { font-size: 16px; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: var(--surface-2, rgba(255,255,255,.06)); }
+.live-pass-copy {
+  font-size: 12.5px; font-weight: 700; padding: 5px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: transparent; color: var(--text-soft, var(--text)); cursor: pointer;
+}
+.live-btn {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 13px 22px; border-radius: 11px; border: none;
+  background: var(--primary); color: var(--on-primary, #fff);
+  font-weight: 700; font-size: 15px; cursor: pointer;
+  transition: background .15s ease, transform .1s ease;
+}
+.live-btn:hover:not(:disabled) { background: var(--primary-hover, var(--primary)); }
+.live-btn:active:not(:disabled) { transform: translateY(1px); }
+.live-btn:disabled { opacity: .5; cursor: not-allowed; }
+.live-field { display: flex; flex-direction: column; gap: 6px; max-width: 300px; }
+.live-field label { font-size: 13px; font-weight: 500; color: var(--text-soft, var(--text)); }
+.live-field input {
+  padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-2, rgba(255,255,255,.05)); color: var(--text); font: inherit;
+}
+.live-error { color: var(--danger, #e5484d); font-size: 14px; margin: 0; }
+.live-zoom { width: 100%; }
+/* The Zoom Meeting SDK renders its Component View inside here — give it room. */
+.live-zoom-root {
+  width: 100%; min-height: 620px; border-radius: 16px; overflow: hidden;
+  background: #0b0b0f; border: 1px solid var(--border); margin-top: 12px;
 }

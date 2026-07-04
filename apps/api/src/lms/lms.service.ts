@@ -54,18 +54,26 @@ export class LmsService {
       },
     });
 
-    const activeLevels = userId
-      ? await this.access.activeLevelIds(userId)
-      : null;
-    const completedByCourse = userId
-      ? await this.access.completedCountByCourse(userId)
-      : null;
+    // Resolve the three per-request access inputs together (mirrors
+    // dashboard.service.build) rather than serially.
+    const [activeLevels, purchased, completedByCourse] = userId
+      ? await Promise.all([
+          this.access.activeLevelIds(userId),
+          this.access.purchasedCourseIds(userId),
+          this.access.completedCountByCourse(userId),
+        ])
+      : [null, null, null];
 
     return courses.map((c) => {
       const assigned = c.courseLevels.map((cl) => cl.levelId);
+      const owns = purchased?.has(c.id) ?? false;
       const locked = activeLevels
-        ? isCourseLocked(assigned, activeLevels)
+        ? isCourseLocked(assigned, activeLevels, owns)
         : false; // admin view
+      // "Buy this course" is offered only to a member for whom the course is
+      // LOCKED and a one-off price is configured + active. Admin view (no
+      // userId → locked false) never flags purchasable.
+      const hasOneOffPrice = c.priceActive && (c.priceAmount ?? 0) > 0;
       return {
         id: c.id,
         title: c.title,
@@ -76,6 +84,10 @@ export class LmsService {
         locked,
         lessonCount: c._count.lessons,
         completedCount: completedByCourse?.get(c.id) ?? 0,
+        purchasable: locked && hasOneOffPrice,
+        priceAmount: c.priceAmount,
+        priceCurrency: c.priceCurrency,
+        priceActive: c.priceActive,
       };
     });
   }
@@ -88,6 +100,11 @@ export class LmsService {
         thumbnailUrl: dto.thumbnailUrl ?? null,
         coverImageUrl: dto.coverImageUrl ?? null,
         order: dto.order ?? 0,
+        priceAmount: dto.priceAmount ?? null,
+        priceCurrency: dto.priceCurrency
+          ? dto.priceCurrency.toLowerCase()
+          : undefined,
+        priceActive: dto.priceActive ?? undefined,
         // levelIds is required + non-empty (DTO-validated): always link ≥1 class.
         courseLevels: { create: dto.levelIds.map((levelId) => ({ levelId })) },
       },
@@ -102,6 +119,10 @@ export class LmsService {
       locked: false,
       lessonCount: 0,
       completedCount: 0,
+      purchasable: false,
+      priceAmount: course.priceAmount,
+      priceCurrency: course.priceCurrency,
+      priceActive: course.priceActive,
     };
   }
 
@@ -118,6 +139,14 @@ export class LmsService {
           thumbnailUrl: dto.thumbnailUrl ?? undefined,
           coverImageUrl: dto.coverImageUrl ?? undefined,
           order: dto.order ?? undefined,
+          // priceAmount is nullable: `undefined` leaves it unchanged, explicit
+          // `null` clears the one-off price (course reverts to level-gated).
+          priceAmount:
+            dto.priceAmount === undefined ? undefined : dto.priceAmount,
+          priceCurrency: dto.priceCurrency
+            ? dto.priceCurrency.toLowerCase()
+            : undefined,
+          priceActive: dto.priceActive ?? undefined,
         },
       });
       // Replace level assignments wholesale when provided.
@@ -148,6 +177,10 @@ export class LmsService {
       locked: false,
       lessonCount: 0,
       completedCount: 0,
+      purchasable: false,
+      priceAmount: course.priceAmount,
+      priceCurrency: course.priceCurrency,
+      priceActive: course.priceActive,
     };
   }
 
@@ -190,8 +223,11 @@ export class LmsService {
     // so a locked course never leaks its lesson list or content.
     if (userId) {
       const assigned = course.courseLevels.map((cl) => cl.levelId);
-      const activeLevels = await this.access.activeLevelIds(userId);
-      if (isCourseLocked(assigned, activeLevels)) {
+      const [activeLevels, owns] = await Promise.all([
+        this.access.activeLevelIds(userId),
+        this.access.ownsCourse(userId, courseId),
+      ]);
+      if (isCourseLocked(assigned, activeLevels, owns)) {
         throw new ForbiddenException('You do not have access to this course');
       }
     }
@@ -306,8 +342,11 @@ export class LmsService {
     if (!lesson) throw new NotFoundException('Lesson not found');
 
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
-    const activeLevels = await this.access.activeLevelIds(userId);
-    if (isCourseLocked(assigned, activeLevels)) {
+    const [activeLevels, owns] = await Promise.all([
+      this.access.activeLevelIds(userId),
+      this.access.ownsCourse(userId, lesson.courseId),
+    ]);
+    if (isCourseLocked(assigned, activeLevels, owns)) {
       throw new ForbiddenException('You do not have access to this lesson');
     }
 
@@ -351,8 +390,11 @@ export class LmsService {
 
     // Same access gate as viewing.
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
-    const activeLevels = await this.access.activeLevelIds(userId);
-    if (isCourseLocked(assigned, activeLevels)) {
+    const [activeLevels, owns] = await Promise.all([
+      this.access.activeLevelIds(userId),
+      this.access.ownsCourse(userId, lesson.courseId),
+    ]);
+    if (isCourseLocked(assigned, activeLevels, owns)) {
       throw new ForbiddenException('You do not have access to this lesson');
     }
 
@@ -569,8 +611,11 @@ export class LmsService {
     }
     if (!principal.isAdmin) {
       const assigned = note.lesson.course.courseLevels.map((cl) => cl.levelId);
-      const activeLevels = await this.access.activeLevelIds(principal.sub);
-      if (isCourseLocked(assigned, activeLevels)) {
+      const [activeLevels, owns] = await Promise.all([
+        this.access.activeLevelIds(principal.sub),
+        this.access.ownsCourse(principal.sub, note.lesson.courseId),
+      ]);
+      if (isCourseLocked(assigned, activeLevels, owns)) {
         throw new ForbiddenException('You do not have access to this lesson');
       }
     }

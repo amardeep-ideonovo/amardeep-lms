@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { Press } from "../components/Press";
+import { IS_LOCKED_BUILD, unbindInstance } from "../config";
 import { useAppConfig } from "../config-provider";
 import type { AuthScreenProps } from "../navigation";
 import { spacing } from "../theme";
@@ -127,6 +128,19 @@ export function LoginScreen({ navigation }: Props) {
               <Text style={styles.linkTextStrong}>Create an account</Text>
             </Text>
           </TouchableOpacity>
+
+          {!IS_LOCKED_BUILD && (
+            <TouchableOpacity
+              onPress={() => void unbindInstance()}
+              activeOpacity={0.7}
+              style={styles.linkButton}
+            >
+              <Text style={styles.linkText}>
+                Wrong academy?{" "}
+                <Text style={styles.linkTextStrong}>Switch academy</Text>
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

@@ -43,6 +43,19 @@ export class UpdatePaymentProviderDto {
   provider!: 'stripe' | 'paypal';
 }
 
+export class UpdateZoomSettingsDto {
+  // SDK key is public (ships to the browser to join) but managed here alongside
+  // the secret; whitelisted so saving it isn't rejected by the global pipe.
+  @IsOptional()
+  @IsString()
+  sdkKey?: string;
+
+  // The SDK secret — write-only (signs the join signature server-side).
+  @IsOptional()
+  @IsString()
+  sdkSecret?: string;
+}
+
 export class UpdateEmailSettingsDto {
   // The pluggable sender id: "smtp" (nodemailer) or "resend" (REST API).
   @IsOptional()

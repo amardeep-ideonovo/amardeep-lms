@@ -18,11 +18,13 @@ import type {
   ClassTileDTO,
   CourseCard,
   DashboardResponse,
+  LiveSessionBarDTO,
 } from "@lms/types";
 
 import { api } from "../api";
 import { ErrorState } from "../components/Screen";
 import { ClassTile } from "../components/ClassTile";
+import { LiveSessionBar } from "../components/LiveSessionBar";
 import { CourseRow } from "../components/CourseRow";
 import { HeroBand } from "../components/HeroBand";
 import { PopupHost } from "../components/PopupHost";
@@ -51,6 +53,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Dashboard">) {
   const [classes, setClasses] = useState<ClassTileDTO[] | null>(null);
   const [dash, setDash] = useState<DashboardResponse | null>(null);
   const [me, setMe] = useState<AuthUser | null>(null);
+  const [live, setLive] = useState<LiveSessionBarDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const loadedOnce = useRef(false);
@@ -59,10 +62,11 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Dashboard">) {
     setError(null);
     // Keep previous data on refocus (no spinner flash) — only the very first
     // load shows skeletons.
-    const [cls, d, meRes] = await Promise.allSettled([
+    const [cls, d, meRes, liveRes] = await Promise.allSettled([
       api.myClasses(),
       api.dashboard(),
       api.me(),
+      api.liveCurrent(),
     ]);
     if (cls.status === "fulfilled") {
       setClasses(cls.value);
@@ -72,6 +76,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Dashboard">) {
     }
     if (d.status === "fulfilled") setDash(d.value);
     if (meRes.status === "fulfilled") setMe(meRes.value);
+    if (liveRes.status === "fulfilled") setLive(liveRes.value);
     loadedOnce.current = true;
   }, []);
 
@@ -172,6 +177,16 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Dashboard">) {
               ? "Explore the classes below to get started."
               : "No classes are available yet."}
         </Text>
+
+        <LiveSessionBar
+          sessions={live}
+          onOpen={(s) =>
+            navigation.navigate("LiveSession", {
+              sessionId: s.id,
+              title: s.title,
+            })
+          }
+        />
 
         <TextInput
           style={styles.search}

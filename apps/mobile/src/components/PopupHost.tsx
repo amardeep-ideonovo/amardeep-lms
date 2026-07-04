@@ -37,6 +37,7 @@ import type {
 } from "@lms/types";
 
 import { api } from "../api";
+import { scopedKey } from "../config";
 import { PageRenderer } from "./PageRenderer";
 import { PageScope } from "./PageScope";
 import { fonts, spacing } from "../theme";
@@ -47,12 +48,14 @@ import { useTheme } from "../theme-provider";
 // Map of popupId -> last-shown epoch ms, persisted across app runs. SecureStore
 // is the storage the app already ships (token + config cache); the value is a
 // tiny JSON object. Session scope is plain module memory (cleared on relaunch).
-const SEEN_KEY = "lmsPopupSeenV1";
+// Namespaced per instance (shared binary): one academy's frequency caps must
+// not silence another's popups.
+const seenKey = () => scopedKey("lmsPopupSeenV1");
 const sessionShown = new Set<string>();
 
 async function readSeen(): Promise<Record<string, number>> {
   try {
-    const raw = await SecureStore.getItemAsync(SEEN_KEY);
+    const raw = await SecureStore.getItemAsync(seenKey());
     const parsed = raw ? (JSON.parse(raw) as unknown) : null;
     return parsed && typeof parsed === "object"
       ? (parsed as Record<string, number>)
@@ -66,7 +69,7 @@ async function persistSeen(id: string): Promise<void> {
   try {
     const seen = await readSeen();
     seen[id] = Date.now();
-    await SecureStore.setItemAsync(SEEN_KEY, JSON.stringify(seen));
+    await SecureStore.setItemAsync(seenKey(), JSON.stringify(seen));
   } catch {
     /* storage unavailable — popup behaves like EVERY_VISIT */
   }

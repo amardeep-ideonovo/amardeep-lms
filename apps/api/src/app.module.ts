@@ -27,6 +27,7 @@ import { MenusModule } from './menus/menus.module';
 import { SiteModule } from './site/site.module';
 import { ReportsModule } from './reports/reports.module';
 import { ProjectsModule } from './projects/projects.module';
+import { LiveModule } from './live/live.module';
 import { HealthModule } from './health/health.module';
 
 @Module({
@@ -65,6 +66,7 @@ import { HealthModule } from './health/health.module';
     SiteModule,
     ReportsModule,
     ProjectsModule,
+    LiveModule,
   ],
 })
 export class AppModule {}
