@@ -15,6 +15,11 @@ import type { ExpoConfig } from "expo/config";
 //
 // Icon/splash are NOT env: scripts/sync-brand-assets.js (eas-build-pre-install)
 // overwrites ./assets/* from the instance's GET /app/config before prebuild.
+// Each app (shared + every white-label) has its own EAS project; OTA updates
+// and builds are served from it.
+const easProjectId =
+  process.env.INSTANCE_EAS_PROJECT_ID ?? "0f8efe5e-4424-495d-b4f3-2fe852ff9e90";
+
 const config = (): ExpoConfig => ({
   name: process.env.INSTANCE_APP_NAME ?? "LMS",
   slug: process.env.INSTANCE_SLUG ?? "lms-mobile",
@@ -23,6 +28,18 @@ const config = (): ExpoConfig => ({
   icon: "./assets/icon.png",
   userInterfaceStyle: "automatic",
   scheme: process.env.INSTANCE_SCHEME ?? "lms",
+  // OTA (expo-updates): ship JS-only fixes without a store round-trip. The
+  // runtime is pinned to the app version, so an OTA update only reaches builds
+  // with a matching native runtime — never a JS bundle that needs newer native
+  // code. fallbackToCacheTimeout: 0 means the app launches instantly from cache
+  // and fetches the update in the background (applied on the next launch), so an
+  // update never blocks startup. The version handshake stays the compatibility
+  // gate against the instance API.
+  runtimeVersion: { policy: "appVersion" },
+  updates: {
+    url: `https://u.expo.dev/${easProjectId}`,
+    fallbackToCacheTimeout: 0,
+  },
   plugins: [
     [
       "expo-splash-screen",
@@ -63,9 +80,7 @@ const config = (): ExpoConfig => ({
   },
   extra: {
     eas: {
-      projectId:
-        process.env.INSTANCE_EAS_PROJECT_ID ??
-        "0f8efe5e-4424-495d-b4f3-2fe852ff9e90",
+      projectId: easProjectId,
     },
   },
   owner: process.env.INSTANCE_EAS_OWNER ?? "amardeeplms",
