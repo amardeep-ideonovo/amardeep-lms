@@ -172,6 +172,12 @@ class AppConfigDto implements AppConfig {
   @IsIn(['light', 'dark', 'system']) colorScheme!: AppColorScheme;
   @ValidateNested() @Type(() => AppThemePaletteDto) light!: AppThemePaletteDto;
   @ValidateNested() @Type(() => AppThemePaletteDto) dark!: AppThemePaletteDto;
+  // Runtime-only version-handshake fields the PUBLIC GET /app/config echoes
+  // (apiVersion/minAppVersion come from env, not the stored config). Accepted
+  // but IGNORED here so a GET-edit-PUT round-trip of the public config doesn't
+  // 400 under forbidNonWhitelisted; sanitize()/write() never persist them.
+  @IsOptional() @IsString() @MaxLength(40) apiVersion?: string | null;
+  @IsOptional() @IsString() @MaxLength(40) minAppVersion?: string | null;
 }
 export class UpdateAppConfigDto {
   // @IsDefined: same rationale as UpdateFooterDto — an empty body must 400,
