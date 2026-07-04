@@ -29,6 +29,11 @@ jobs:
 
             git fetch origin
             git checkout main
+            # Discard any hand-edits made directly on the server: a dirty
+            # checkout makes `git pull` abort, which silently blocked every
+            # deploy from 2026-05-29 to 2026-07-04. The server checkout is
+            # deploy-only; origin/main is the sole source of truth.
+            git reset --hard origin/main
             git pull origin main
 
             set -a
@@ -46,6 +51,12 @@ jobs:
             # proven unreliable (rebuilds kept emitting /_next, i.e. no prefix).
             NEXT_PUBLIC_ADMIN_BASE_PATH=/admin npm -w apps/admin run build
             npm -w apps/api run build
+
+            # Exported after `source .env` (which may carry a development
+            # value) and after the builds, so pm2 --update-env bakes
+            # production into the running processes without starving
+            # npm install of devDependencies.
+            export NODE_ENV=production
 
             pm2 restart lms-web --update-env
             pm2 restart lms-admin --update-env
