@@ -322,6 +322,20 @@ export const api = {
   mySubscriptions: () =>
     request<MySubscriptionDTO[]>("/billing/subscriptions"),
 
+  // One-off course purchase (Stripe mode=payment). `courseCheckout` returns the
+  // hosted-checkout URL to redirect to; `confirmCoursePurchase` grants inline on
+  // return (the success URL carries ?session_id=…) without waiting on a webhook.
+  courseCheckout: (courseId: string) =>
+    request<{ url: string }>("/billing/course/checkout", {
+      method: "POST",
+      body: { courseId },
+    }),
+  confirmCoursePurchase: (sessionId: string) =>
+    request<{ granted: boolean }>("/billing/course/confirm", {
+      method: "POST",
+      body: { sessionId },
+    }),
+
   // Embedded checkout (Stripe Elements). `config` is public; the others need auth.
   billingConfig: () =>
     request<BillingConfigDTO>("/billing/config", { auth: false }),

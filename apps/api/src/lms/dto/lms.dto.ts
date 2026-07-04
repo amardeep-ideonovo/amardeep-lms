@@ -1,13 +1,28 @@
+import { Transform } from 'class-transformer';
 import {
   ArrayMinSize,
   ArrayNotEmpty,
   IsArray,
+  IsBoolean,
   IsInt,
+  IsISO4217CurrencyCode,
   IsOptional,
   IsString,
+  Max,
   Min,
   MinLength,
 } from 'class-validator';
+
+// Stripe's hard cap on a Checkout line-item unit_amount (minor units). Bounding
+// the one-off course price here turns a pathological amount into a clean 400 at
+// save time instead of a Stripe error when a member later clicks Buy.
+const MAX_PRICE_MINOR = 99_999_999;
+
+// Normalize a currency to the uppercase ISO-4217 form the validator expects; the
+// service lowercases it again for storage / Stripe. Leaves non-strings untouched
+// so @IsOptional short-circuits a missing value.
+const toCurrencyCode = ({ value }: { value: unknown }) =>
+  typeof value === 'string' ? value.trim().toUpperCase() : value;
 
 export class UpdateLessonNoteDto {
   @IsString()
@@ -41,6 +56,23 @@ export class CreateCourseDto {
   @IsOptional()
   @IsInt()
   order?: number;
+
+  // One-off purchase price (minor units / cents). null or omitted = not
+  // individually purchasable. priceCurrency is an ISO-4217 code.
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(MAX_PRICE_MINOR)
+  priceAmount?: number | null;
+
+  @IsOptional()
+  @Transform(toCurrencyCode)
+  @IsISO4217CurrencyCode()
+  priceCurrency?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  priceActive?: boolean;
 }
 
 export class UpdateCourseDto {
@@ -72,6 +104,23 @@ export class UpdateCourseDto {
   @IsOptional()
   @IsInt()
   order?: number;
+
+  // One-off purchase price. Send null for priceAmount to CLEAR the price
+  // (course reverts to level-gated only); omit to leave it unchanged.
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(MAX_PRICE_MINOR)
+  priceAmount?: number | null;
+
+  @IsOptional()
+  @Transform(toCurrencyCode)
+  @IsISO4217CurrencyCode()
+  priceCurrency?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  priceActive?: boolean;
 }
 
 export class CreateLessonDto {

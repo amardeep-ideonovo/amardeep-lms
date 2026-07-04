@@ -35,6 +35,7 @@ model User {
   levels       UserLevel[]
   progress     LessonProgress[]
   certificates Certificate[]
+  courses      UserCourse[]
 }
 
 enum AdminRole {
@@ -191,11 +192,51 @@ model Course {
   thumbnailUrl  String? // squared thumbnail shown on course cards
   coverImageUrl String? // wide cover/hero image shown on the course page
   order         Int      @default(0)
+  // One-off (one-time) purchase price. When priceAmount is set (> 0) AND
+  // priceActive, a member who lacks level access can buy LIFETIME access to this
+  // course directly (Stripe mode=payment) — independent of subscriptions. null
+  // amount = not individually purchasable (level-gated only). priceActive lets an
+  // admin pause sales without discarding the configured amount.
+  priceAmount   Int? // minor units (cents); one-time purchase price
+  priceCurrency String   @default("usd")
+  priceActive   Boolean  @default(true)
   createdAt     DateTime @default(now())
 
   lessons          Lesson[]
   courseLevels     CourseLevel[]
   featuredInLevels Level[]       @relation("ClassFeaturedCourse")
+  userCourses      UserCourse[]
+}
+
+enum UserCourseStatus {
+  ACTIVE // paid; grants access
+  REFUNDED // refund/dispute reversed the grant — access revoked
+  EXPIRED // time-limited grant that has lapsed (unused while one-off = lifetime)
+}
+
+// A course-scoped entitlement from a ONE-OFF purchase (or a MANUAL admin grant).
+// Distinct from UserLevel (which is class/subscription-scoped): this unlocks a
+// single course regardless of the member's levels. One-off purchases are
+// lifetime (expiresAt null). The unique checkout-session id makes the webhook +
+// inline-confirm grant idempotent (a replay can't double-grant or double-count).
+model UserCourse {
+  id                      String           @id @default(cuid())
+  userId                  String
+  user                    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId                String
+  course                  Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  source                  UserLevelSource  @default(STRIPE) // STRIPE | MANUAL | PAYPAL
+  status                  UserCourseStatus @default(ACTIVE)
+  stripeCheckoutSessionId String?          @unique // cs_… — idempotency key for the grant
+  stripePaymentIntentId   String? // pi_… (audit / refund correlation)
+  amount                  Int? // minor units actually paid (audit)
+  currency                String?
+  expiresAt               DateTime? // null = lifetime access
+  grantedAt               DateTime         @default(now())
+
+  @@unique([userId, courseId, source])
+  @@index([userId, status])
+  @@index([courseId])
 }
 
 // Many-to-many: a course is accessible to any of these levels.

@@ -495,9 +495,19 @@ export interface CourseCard {
   thumbnailUrl: string | null; // squared thumbnail (cards)
   coverImageUrl: string | null; // wide cover/hero (course page)
   levelIds: string[]; // assigned access levels (drives the admin edit form)
-  locked: boolean; // computed from the viewer's active levels
+  locked: boolean; // computed from the viewer's active levels + course purchases
   lessonCount: number; // total lessons in the course
   completedCount: number; // lessons the viewer has completed (0 for admin/no context)
+  // One-off course purchase (Stripe mode=payment). `purchasable` is the
+  // member-facing flag: true only when the course is LOCKED for this viewer and a
+  // one-time price is configured + active — i.e. show a "Buy this course" button.
+  // priceAmount/priceCurrency/priceActive are the RAW configured values (minor
+  // units for the amount), always present so the admin edit form can round-trip
+  // them; priceAmount is null when no one-off price is set.
+  purchasable?: boolean;
+  priceAmount?: number | null;
+  priceCurrency?: string;
+  priceActive?: boolean;
 }
 // Downloadable lesson attachment (PDFs, docs, …). The file itself is never
 // public — `downloadUrl` points at an access-checked API route the client
@@ -677,6 +687,13 @@ export interface CreateCourseInput {
   coverImageUrl?: string;
   levelIds?: string[];
   order?: number;
+  // One-off purchase price. priceAmount is minor units (cents); send null to
+  // CLEAR it (course reverts to level-gated only), omit to leave unchanged.
+  // priceCurrency is a 3-letter ISO code; priceActive toggles sales without
+  // discarding the amount.
+  priceAmount?: number | null;
+  priceCurrency?: string;
+  priceActive?: boolean;
 }
 export type UpdateCourseInput = Partial<CreateCourseInput>;
 
