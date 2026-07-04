@@ -64,6 +64,10 @@ import type {
   CreatePostInput,
   FormAdminRow,
   FormSubmissionDTO,
+  AdminLiveSessionDTO,
+  AdminLiveRevealDTO,
+  LiveSessionInput,
+  UpdateLiveSessionInput,
   LessonDTO,
   LessonNoteDTO,
   LevelCategoryDTO,
@@ -299,6 +303,14 @@ export interface StripeSettingsMasked {
   secretKeyLast4: string | null;
   webhookSecretLast4: string | null;
   publishableKey: string | null;
+}
+export interface ZoomSettings {
+  sdkKey?: string;
+  sdkSecret?: string;
+}
+export interface ZoomSettingsMasked {
+  sdkKey: string | null; // public (ships to the browser to join) — shown in full
+  sdkSecretLast4: string | null;
 }
 // Email sender settings live in @lms/types (write-only secrets: SMTP pass +
 // Resend API key). Re-exported so admin components import the contract from one
@@ -570,6 +582,12 @@ export const api = {
     request<StripeSettingsMasked>("PUT", "/admin/settings/stripe", input),
   clearStripeSettings: () =>
     request<StripeSettingsMasked>("DELETE", "/admin/settings/stripe"),
+  getZoomSettings: () =>
+    request<ZoomSettingsMasked>("GET", "/admin/settings/zoom"),
+  putZoomSettings: (input: ZoomSettings) =>
+    request<ZoomSettingsMasked>("PUT", "/admin/settings/zoom", input),
+  clearZoomSettings: () =>
+    request<ZoomSettingsMasked>("DELETE", "/admin/settings/zoom"),
   getEmailSettings: () =>
     request<EmailSettingsMasked>("GET", "/admin/settings/email"),
   putEmailSettings: (input: EmailSettingsInput) =>
@@ -630,6 +648,23 @@ export const api = {
   updateForm: (id: string, input: UpdateFormInput) =>
     request<FormAdminRow>("PATCH", `/admin/forms/${id}`, input),
   deleteForm: (id: string) => request<void>("DELETE", `/admin/forms/${id}`),
+
+  // ----- live sessions -----
+  listLiveSessions: () =>
+    request<AdminLiveSessionDTO[]>("GET", "/admin/live-sessions"),
+  getLiveSession: (id: string) =>
+    request<AdminLiveSessionDTO>("GET", `/admin/live-sessions/${id}`),
+  // Plaintext join URL for a test-join — separate call, edit permission.
+  revealLiveSession: (id: string) =>
+    request<AdminLiveRevealDTO>("GET", `/admin/live-sessions/${id}/reveal`),
+  createLiveSession: (input: LiveSessionInput) =>
+    request<AdminLiveSessionDTO>("POST", "/admin/live-sessions", input),
+  updateLiveSession: (id: string, input: UpdateLiveSessionInput) =>
+    request<AdminLiveSessionDTO>("PATCH", `/admin/live-sessions/${id}`, input),
+  publishLiveSession: (id: string) =>
+    request<AdminLiveSessionDTO>("POST", `/admin/live-sessions/${id}/publish`),
+  deleteLiveSession: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/live-sessions/${id}`),
   listFormSubmissions: (id: string) =>
     request<FormSubmissionDTO[]>("GET", `/admin/forms/${id}/submissions`),
   // Merge tags for the form field-mapping editor come from the chosen audience's

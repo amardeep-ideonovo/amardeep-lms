@@ -34,6 +34,11 @@ export const SETTING_KEYS = {
   // can't carry our JWT), so a request must present this secret (header or
   // ?key=) before it's allowed to suppress addresses. Write-only like emailPass.
   emailWebhookSecret: 'email.webhookSecret',
+  // Zoom Meeting SDK (in-page live-session embed). The SDK key is public (it
+  // ships to the browser to join); the SDK secret signs the join signature
+  // server-side and is write-only, exactly like the Stripe secret key.
+  zoomSdkKey: 'zoom.sdkKey',
+  zoomSdkSecret: 'zoom.sdkSecret',
 } as const;
 
 @Injectable()
@@ -113,6 +118,14 @@ export class SettingsService {
     await this.clearSecret(SETTING_KEYS.emailWebhookSecret);
   }
 
+  /** Clear the Zoom Meeting SDK credentials (key + secret). */
+  async clearZoom(): Promise<void> {
+    await Promise.all([
+      this.clearSecret(SETTING_KEYS.zoomSdkKey),
+      this.clearSecret(SETTING_KEYS.zoomSdkSecret),
+    ]);
+  }
+
   /** Clear all PayPal credentials (client id + secret + webhook id + mode). */
   async clearPayPal(): Promise<void> {
     await Promise.all([
@@ -181,6 +194,17 @@ export class SettingsService {
   async getPaymentProvider(): Promise<'stripe' | 'paypal'> {
     const v = await this.getSecret(SETTING_KEYS.paymentProvider);
     return v === 'paypal' ? 'paypal' : 'stripe';
+  }
+
+  // --- Zoom Meeting SDK accessors (consumed by the live-session embed) ---
+
+  /** Zoom SDK key — public (ships to the browser). Env fallback: ZOOM_SDK_KEY. */
+  getZoomSdkKey(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.zoomSdkKey, 'ZOOM_SDK_KEY');
+  }
+  /** Zoom SDK secret — server-only (signs the join signature). */
+  getZoomSdkSecret(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.zoomSdkSecret, 'ZOOM_SDK_SECRET');
   }
 
   // --- Outbound email / SMTP accessors (consumed by the email sender) ---

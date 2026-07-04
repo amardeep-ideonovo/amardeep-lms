@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import type { LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -24,8 +24,9 @@ import {
 
 import { AuthProvider, useAuth } from "./src/auth";
 import { BrandHeaderTitle } from "./src/components/BrandHeaderTitle";
-import { WEB_BASE_URL } from "./src/config";
+import { IS_LOCKED_BUILD, WEB_BASE_URL, unbindInstance } from "./src/config";
 import { ConfigProvider, useAppConfig } from "./src/config-provider";
+import { InstanceGate } from "./src/instance-gate";
 import { navigationRef } from "./src/nav-ref";
 import { ThemeProvider, useTheme } from "./src/theme-provider";
 import { fonts } from "./src/theme";
@@ -41,6 +42,7 @@ import { ClassScreen } from "./src/screens/ClassScreen";
 import { CourseListScreen } from "./src/screens/CourseListScreen";
 import { CourseScreen } from "./src/screens/CourseScreen";
 import { LessonScreen } from "./src/screens/LessonScreen";
+import { LiveSessionScreen } from "./src/screens/LiveSessionScreen";
 import { AccountScreen } from "./src/screens/AccountScreen";
 import { PaymentsScreen } from "./src/screens/PaymentsScreen";
 import { PlansScreen } from "./src/screens/PlansScreen";
@@ -51,33 +53,40 @@ import { PageScreen } from "./src/screens/PageScreen";
 // OS-level deep links (lms:// + the web origin) map straight onto the authed
 // stack — same table as src/links.ts. The Page catch-all MUST stay last.
 // Logged-out cold starts fall back to the Login stack (known v1 limit).
-const linking: LinkingOptions<RootStackParamList> = {
-  prefixes: [ExpoLinking.createURL("/"), WEB_BASE_URL],
-  // The expo-dev-client launch URL (lms://expo-development-client/?url=…) is
-  // for the dev launcher, not the app — without this filter the Page catch-all
-  // below swallows it and every dev launch lands on "Page not found".
-  filter: (url) => !url.includes("expo-development-client"),
-  config: {
-    screens: {
-      // Dashboard / Blog / Account now live inside the "Main" tab navigator, so
-      // their deep-link paths are declared as nested screens of Main.
-      Main: {
-        screens: {
-          Dashboard: "dashboard",
-          Blog: "blog",
-          Account: "account",
+// Built per render (not module-level): WEB_BASE_URL is a live binding that is
+// only known after the instance gate binds an instance on shared builds.
+function buildLinking(): LinkingOptions<RootStackParamList> {
+  return {
+    prefixes: WEB_BASE_URL
+      ? [ExpoLinking.createURL("/"), WEB_BASE_URL]
+      : [ExpoLinking.createURL("/")],
+    // The expo-dev-client launch URL (lms://expo-development-client/?url=…) is
+    // for the dev launcher, not the app — without this filter the Page catch-all
+    // below swallows it and every dev launch lands on "Page not found".
+    filter: (url) => !url.includes("expo-development-client"),
+    config: {
+      screens: {
+        // Dashboard / Blog / Account now live inside the "Main" tab navigator, so
+        // their deep-link paths are declared as nested screens of Main.
+        Main: {
+          screens: {
+            Dashboard: "dashboard",
+            Blog: "blog",
+            Account: "account",
+          },
         },
+        Class: "classes/:slugOrId",
+        Course: "courses/:courseId",
+        Lesson: "lessons/:lessonId",
+        LiveSession: "live/:sessionId",
+        BlogPost: "blog/:slug",
+        Payments: "account/payments",
+        Plans: "pricing/all",
+        Page: ":slug",
       },
-      Class: "classes/:slugOrId",
-      Course: "courses/:courseId",
-      Lesson: "lessons/:lessonId",
-      BlogPost: "blog/:slug",
-      Payments: "account/payments",
-      Plans: "pricing/all",
-      Page: ":slug",
     },
-  },
-};
+  };
+}
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -205,6 +214,11 @@ function AppNavigator() {
         options={({ route }) => ({ title: route.params.title ?? "Lesson" })}
       />
       <AppStack.Screen
+        name="LiveSession"
+        component={LiveSessionScreen}
+        options={({ route }) => ({ title: route.params.title ?? "Live Session" })}
+      />
+      <AppStack.Screen
         name="Payments"
         component={PaymentsScreen}
         options={{ title: "Payment history" }}
@@ -228,9 +242,69 @@ function AppNavigator() {
   );
 }
 
+// Version-skew gates: friendly full-screen states instead of screens breaking
+// on missing/renamed endpoints. Recovery is automatic — the config provider
+// re-fetches every 30s and on foreground, so these clear on their own.
+function VersionGate({ kind }: { kind: "appOutdated" | "apiOutdated" }) {
+  const { colors } = useTheme();
+  const { config } = useAppConfig();
+  const title = kind === "appOutdated" ? "Update required" : "Back soon";
+  const body =
+    kind === "appOutdated"
+      ? `A newer version of the ${config.title} app is required. Please update from the app store.`
+      : `${config.title} is being updated right now. This usually takes a few minutes — the app will reconnect automatically.`;
+  return (
+    <View style={[styles.center, { backgroundColor: colors.bg, padding: 32 }]}>
+      <Text
+        style={{
+          color: colors.text,
+          fontSize: 24,
+          fontFamily: fonts.display,
+          textAlign: "center",
+        }}
+      >
+        {title}
+      </Text>
+      <Text
+        style={{
+          color: colors.textMuted,
+          fontSize: 15,
+          fontFamily: fonts.regular,
+          textAlign: "center",
+          marginTop: 12,
+          lineHeight: 22,
+        }}
+      >
+        {body}
+      </Text>
+      {kind === "apiOutdated" && (
+        <ActivityIndicator color={colors.primary} style={{ marginTop: 24 }} />
+      )}
+      {/* Escape hatch: a shared binary must never be stranded on one instance
+          by a bad/misconfigured version response — let the user disconnect and
+          pick another academy (the instance gate remounts to the Connect
+          screen). Locked white-label builds serve one instance, so no hatch. */}
+      {!IS_LOCKED_BUILD && (
+        <Text
+          onPress={() => void unbindInstance()}
+          style={{
+            color: colors.primary,
+            fontSize: 15,
+            fontFamily: fonts.bold,
+            textAlign: "center",
+            marginTop: 28,
+          }}
+        >
+          Switch academy
+        </Text>
+      )}
+    </View>
+  );
+}
+
 function RootNavigator() {
   const { token, loading: authLoading } = useAuth();
-  const { loading: configLoading } = useAppConfig();
+  const { loading: configLoading, compat } = useAppConfig();
   const { colors } = useTheme();
 
   // Wait for both the stored token AND the branding config so the first paint is
@@ -243,6 +317,12 @@ function RootNavigator() {
     );
   }
 
+  // Version handshake: an app the API no longer supports must update; an API
+  // older than this app build gets a "updating" holding screen (fleet lockstep
+  // upgrades make this a minutes-long window, not a stuck state).
+  if (compat.appOutdated) return <VersionGate kind="appOutdated" />;
+  if (compat.apiOutdated) return <VersionGate kind="apiOutdated" />;
+
   // Auth gate: no stored token -> Login + Signup stack; otherwise the app.
   return token == null ? <AuthNavigator /> : <AppNavigator />;
 }
@@ -251,6 +331,9 @@ function RootNavigator() {
 // under ThemeProvider so it re-renders when the admin config / device theme changes.
 function ThemedApp() {
   const { mode, colors } = useTheme();
+  // Linking prefixes read the live WEB_BASE_URL — resolved by the instance
+  // gate before this tree mounts (and this tree remounts per instance).
+  const linking = useMemo(buildLinking, []);
   const navTheme = useMemo(
     () => ({
       ...DefaultTheme,
@@ -290,13 +373,15 @@ export default function App() {
   if (!fontsLoaded && !fontError) return null;
   return (
     <SafeAreaProvider>
-      <ConfigProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            <ThemedApp />
-          </AuthProvider>
-        </ThemeProvider>
-      </ConfigProvider>
+      <InstanceGate>
+        <ConfigProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <ThemedApp />
+            </AuthProvider>
+          </ThemeProvider>
+        </ConfigProvider>
+      </InstanceGate>
     </SafeAreaProvider>
   );
 }

@@ -117,6 +117,76 @@ export class StripeService {
     });
   }
 
+  // One-off (one-time) purchase checkout — mode=payment. The price is inlined
+  // via price_data so a course needs no provisioned Stripe Price object (courses
+  // aren't Products in our model). userId + courseId are stamped on the session
+  // AND the resulting PaymentIntent so both the webhook and the inline confirm
+  // can resolve the grant. `?session_id={CHECKOUT_SESSION_ID}` is appended to the
+  // success URL so the browser can confirm the purchase without waiting on a
+  // webhook (dev needs no `stripe listen`).
+  async createPaymentCheckoutSession(input: {
+    customerId: string;
+    amount: number; // minor units
+    currency: string;
+    productName: string;
+    userId: string;
+    courseId: string;
+    successUrl: string;
+    cancelUrl: string;
+  }): Promise<Stripe.Checkout.Session> {
+    const stripe = await this.getClient();
+    return stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer: input.customerId,
+      line_items: [
+        {
+          quantity: 1,
+          price_data: {
+            currency: input.currency,
+            unit_amount: input.amount,
+            product_data: { name: input.productName },
+          },
+        },
+      ],
+      client_reference_id: input.userId,
+      metadata: { userId: input.userId, courseId: input.courseId, kind: 'course' },
+      payment_intent_data: {
+        metadata: {
+          userId: input.userId,
+          courseId: input.courseId,
+          kind: 'course',
+        },
+      },
+      success_url: input.successUrl,
+      cancel_url: input.cancelUrl,
+    });
+  }
+
+  // Retrieve a Checkout Session (payment_intent expanded) — used by the inline
+  // confirm to verify payment status + ownership and read the charge id.
+  async retrieveCheckoutSession(
+    sessionId: string,
+  ): Promise<Stripe.Checkout.Session> {
+    const stripe = await this.getClient();
+    return stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['payment_intent'],
+    });
+  }
+
+  // Recent Checkout Sessions for a customer — used to REUSE an already-open
+  // one-off session instead of creating a duplicate (double-charge backstop).
+  async listCheckoutSessionsForCustomer(
+    customerId: string,
+    limit = 10,
+  ): Promise<Stripe.Checkout.Session[]> {
+    const stripe = await this.getClient();
+    const res = await stripe.checkout.sessions.list({
+      customer: customerId,
+      limit,
+    });
+    return res.data;
+  }
+
   async createPortalSession(input: {
     customerId: string;
     returnUrl: string;

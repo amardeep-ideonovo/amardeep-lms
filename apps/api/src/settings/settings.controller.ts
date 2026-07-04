@@ -16,6 +16,7 @@ import {
   UpdatePaymentProviderDto,
   UpdatePayPalSettingsDto,
   UpdateStripeSettingsDto,
+  UpdateZoomSettingsDto,
 } from './dto/settings.dto';
 
 // The webhook shared secret lives on its own endpoint (and its own DTO, declared
@@ -238,6 +239,38 @@ export class SettingsController {
     // Whatever app these ids belonged to is no longer configured.
     await this.settings.clearPayPalProvisionedIds();
     return this.getPayPal();
+  }
+
+  // ----- Zoom Meeting SDK (in-page live-session embed) -----
+  // SDK key is public (shown in full); SDK secret is write-only (last4 only).
+
+  @Get('zoom')
+  @RequirePermission('settings', 'read')
+  async getZoom() {
+    const [sdkKey, sdkSecret] = await Promise.all([
+      this.settings.getSecret(SETTING_KEYS.zoomSdkKey),
+      this.settings.getSecret(SETTING_KEYS.zoomSdkSecret),
+    ]);
+    return {
+      sdkKey: sdkKey ?? null,
+      sdkSecretLast4: last4(sdkSecret),
+    };
+  }
+
+  @Put('zoom')
+  @RequirePermission('settings', 'edit')
+  async putZoom(@Body() dto: UpdateZoomSettingsDto) {
+    await this.settings.setSecret(SETTING_KEYS.zoomSdkKey, dto.sdkKey);
+    // Blank/omitted secret keeps the stored one (setSecret no-ops on '').
+    await this.settings.setSecret(SETTING_KEYS.zoomSdkSecret, dto.sdkSecret);
+    return this.getZoom();
+  }
+
+  @Delete('zoom')
+  @RequirePermission('settings', 'delete')
+  async deleteZoom() {
+    await this.settings.clearZoom();
+    return this.getZoom();
   }
 
   // ----- Active payment provider (governs NEW checkouts only) -----

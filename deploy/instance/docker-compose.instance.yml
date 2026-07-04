@@ -69,11 +69,13 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
       SETTINGS_ENC_KEY: ${SETTINGS_ENC_KEY:?set SETTINGS_ENC_KEY}
-      # Browser origins allowed to call this API (the web + admin host ports).
-      CORS_ORIGIN: http://localhost:${WEB_PORT},http://localhost:${ADMIN_PORT}
-      WEB_APP_URL: http://localhost:${WEB_PORT}
+      # Browser origins allowed to call this API. The cloud driver injects the
+      # instance's real public origins (fleet subdomains + any verified custom
+      # domain); local/dev falls back to the localhost host ports.
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:${WEB_PORT},http://localhost:${ADMIN_PORT}}
+      WEB_APP_URL: ${WEB_APP_URL:-http://localhost:${WEB_PORT}}
       # Public origin of THIS api, used to build absolute media URLs.
-      PUBLIC_API_URL: http://localhost:${API_PORT}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:${API_PORT}}
       BLOG_IMAGES_DIR: /data/images
       LESSON_FILES_DIR: /data/files
       # First-admin + content seeding (see packages/db/prisma/seed.ts).
@@ -98,8 +100,9 @@ services:
       - api
     environment:
       # Browser-facing API origin (injected to window.__ENV__ via /__env.js).
-      RUNTIME_API_URL: http://localhost:${API_PORT}
-      RUNTIME_WEB_URL: http://localhost:${WEB_PORT}
+      # Cloud injects the fleet subdomain / custom domain; dev uses localhost.
+      RUNTIME_API_URL: ${RUNTIME_API_URL:-http://localhost:${API_PORT}}
+      RUNTIME_WEB_URL: ${RUNTIME_WEB_URL:-http://localhost:${WEB_PORT}}
       # Server-side (SSR) fetch base — reach the API over the compose network.
       API_URL_INTERNAL: http://api:3000
     ports:

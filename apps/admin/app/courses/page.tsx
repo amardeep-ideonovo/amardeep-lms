@@ -19,6 +19,12 @@ const EMPTY_COURSE = {
   levelIds: [] as string[],
   thumbnailUrl: "",
   coverImageUrl: "",
+  // One-off purchase price. priceInput is in MAJOR units (what the admin types,
+  // e.g. "25" or "25.00"); it's converted to minor units (cents) on save. Blank
+  // = not individually purchasable (level-gated only).
+  priceInput: "",
+  priceCurrency: "usd",
+  priceActive: true,
 };
 
 // Parse an admin-entered duration ("12:30", "1:02:03", or plain seconds) into
@@ -112,6 +118,10 @@ export default function CoursesPage() {
       levelIds: course.levelIds ?? [],
       thumbnailUrl: course.thumbnailUrl ?? "",
       coverImageUrl: course.coverImageUrl ?? "",
+      priceInput:
+        course.priceAmount != null ? (course.priceAmount / 100).toString() : "",
+      priceCurrency: course.priceCurrency ?? "usd",
+      priceActive: course.priceActive ?? true,
     });
     setFormError(null);
     setModalOpen(true);
@@ -127,12 +137,23 @@ export default function CoursesPage() {
   }
 
   function buildPayload(): CreateCourseInput {
+    const priceStr = form.priceInput.trim();
+    // Blank clears the one-off price (null); a value converts major -> minor units.
+    const priceAmount =
+      priceStr === "" ? null : Math.round(Number(priceStr) * 100);
+    // Only a well-formed 3-letter code is sent; a stray 1-2 char value (e.g. from
+    // backspacing on an unpriced course) falls back to usd so it can never fail
+    // the API's ISO-4217 check on an otherwise-valid save.
+    const cur = form.priceCurrency.trim().toLowerCase();
     return {
       title: form.title.trim(),
       description: form.description.trim() || undefined,
       levelIds: form.levelIds,
       thumbnailUrl: form.thumbnailUrl.trim() || undefined,
       coverImageUrl: form.coverImageUrl.trim() || undefined,
+      priceAmount,
+      priceCurrency: cur.length === 3 ? cur : "usd",
+      priceActive: form.priceActive,
     };
   }
 
@@ -145,6 +166,27 @@ export default function CoursesPage() {
     if (form.levelIds.length === 0) {
       setFormError("Assign the course to at least one class.");
       return;
+    }
+    const priceStr = form.priceInput.trim();
+    if (priceStr !== "") {
+      const n = Number(priceStr);
+      if (!Number.isFinite(n) || n < 0) {
+        setFormError(
+          "Enter a valid one-off price (a number ≥ 0), or leave it blank.",
+        );
+        return;
+      }
+      // Reject sub-cent precision instead of silently rounding (e.g. 25.999).
+      if (Math.abs(n * 100 - Math.round(n * 100)) > 1e-9) {
+        setFormError("Price can have at most 2 decimal places.");
+        return;
+      }
+      // A priced course needs a valid 3-letter currency (the API validates
+      // ISO-4217). Catch it here with a clear message rather than a raw 400.
+      if (form.priceCurrency.trim().length !== 3) {
+        setFormError("Currency must be a 3-letter code (e.g. USD).");
+        return;
+      }
     }
     setSaving(true);
     setFormError(null);
@@ -379,6 +421,65 @@ export default function CoursesPage() {
                       }
                     />
                   </div>
+                </div>
+
+                <div className="form-row">
+                  <div className="field">
+                    <label>
+                      One-off price{" "}
+                      <span className="muted">
+                        (blank = not sold individually)
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      placeholder="e.g. 25.00"
+                      value={form.priceInput}
+                      onChange={(e) =>
+                        setForm({ ...form, priceInput: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="field">
+                    <label>
+                      Currency <span className="muted">(3-letter code)</span>
+                    </label>
+                    <input
+                      maxLength={3}
+                      placeholder="usd"
+                      value={form.priceCurrency}
+                      onChange={(e) =>
+                        setForm({ ...form, priceCurrency: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="field">
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.priceActive}
+                      onChange={(e) =>
+                        setForm({ ...form, priceActive: e.target.checked })
+                      }
+                    />
+                    Available for one-off purchase
+                  </label>
+                  <p className="muted">
+                    A member who lacks membership access can buy lifetime access
+                    to just this course. Uncheck to pause sales without losing the
+                    price.
+                  </p>
                 </div>
 
                 <div className="field">

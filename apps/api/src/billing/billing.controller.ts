@@ -20,6 +20,8 @@ import { BillingService } from './billing.service';
 import {
   CancelSubDto,
   CheckoutDto,
+  CourseCheckoutDto,
+  CoursePurchaseConfirmDto,
   CouponValidateDto,
   PayPalActivateDto,
   PayPalPrepareDto,
@@ -43,6 +45,27 @@ export class BillingController {
   @Get('portal')
   portal(@CurrentUser() principal: AuthenticatedPrincipal) {
     return this.billing.createPortal(principal.sub);
+  }
+
+  // One-off course purchase: start a mode=payment checkout for a single course.
+  @UseGuards(JwtAuthGuard)
+  @Post('course/checkout')
+  courseCheckout(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: CourseCheckoutDto,
+  ) {
+    return this.billing.createCoursePurchaseCheckout(principal.sub, dto.courseId);
+  }
+
+  // Confirm a course purchase inline after the Stripe redirect (grants without
+  // waiting on the webhook). Ownership of the session is enforced in the service.
+  @UseGuards(JwtAuthGuard)
+  @Post('course/confirm')
+  confirmCoursePurchase(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: CoursePurchaseConfirmDto,
+  ) {
+    return this.billing.confirmCoursePurchase(principal.sub, dto.sessionId);
   }
 
   @UseGuards(JwtAuthGuard)

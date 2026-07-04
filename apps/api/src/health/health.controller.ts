@@ -29,6 +29,10 @@ export class HealthController {
     return {
       status: dbOk && redisOk ? 'ok' : 'degraded',
       env,
+      // Image build stamp (deploy/instance/build-images.sh) — lets the control
+      // plane and smoke tests see which code version an instance actually runs.
+      // `|| null`: an unstamped build sets APP_VERSION="", which must read null.
+      version: process.env.APP_VERSION || null,
       uptime: process.uptime(),
       checks: {
         db: dbOk ? 'ok' : 'fail',
