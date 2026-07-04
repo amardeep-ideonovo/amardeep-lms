@@ -85,7 +85,9 @@ services:
     volumes:
       - uploads:/data
     ports:
-      - "${API_PORT}:3000"
+      # Bind to loopback by default; the cloud driver sets PORT_BIND_IP=127.0.0.1
+      # so only the shared Caddy ingress reaches the stack (raw HTTP not public).
+      - "${PORT_BIND_IP:-127.0.0.1}:${API_PORT}:3000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -106,7 +108,7 @@ services:
       # Server-side (SSR) fetch base — reach the API over the compose network.
       API_URL_INTERNAL: http://api:3000
     ports:
-      - "${WEB_PORT}:3002"
+      - "${PORT_BIND_IP:-127.0.0.1}:${WEB_PORT}:3002"
 
   admin:
     image: ${ADMIN_IMAGE:-lms-admin:local}
@@ -114,11 +116,11 @@ services:
     depends_on:
       - api
     environment:
-      RUNTIME_API_URL: http://localhost:${API_PORT}
-      RUNTIME_WEB_URL: http://localhost:${WEB_PORT}
+      RUNTIME_API_URL: ${RUNTIME_API_URL:-http://localhost:${API_PORT}}
+      RUNTIME_WEB_URL: ${RUNTIME_WEB_URL:-http://localhost:${WEB_PORT}}
       API_URL_INTERNAL: http://api:3000
     ports:
-      - "${ADMIN_PORT}:3001"
+      - "${PORT_BIND_IP:-127.0.0.1}:${ADMIN_PORT}:3001"
 
 # Named per-instance because `-p lms_<id>` prefixes them. Each tenant gets its
 # own database files, redis data, and uploaded media — full isolation.
