@@ -162,7 +162,7 @@ function SignupCard() {
       </div>
 
       {step === 0 && (
-        <form className="login-form" onSubmit={continueFromAccount}>
+        <form method="post" className="login-form" onSubmit={continueFromAccount}>
           <div className="wizard-two-col">
             <Field label="Your name">
               <input
@@ -290,7 +290,7 @@ function SignupCard() {
       )}
 
       {step === 2 && (
-        <form className="login-form" onSubmit={submitCheckout}>
+        <form method="post" className="login-form" onSubmit={submitCheckout}>
           <div className="preview-badge" role="note">
             <Icon name="shield" size={13} />
             Preview checkout — no real charge

@@ -40,7 +40,7 @@ export default function OperatorLoginPage() {
         </div>
         <h1 className="oplogin-title">Operator sign-in</h1>
         <p className="oplogin-sub">Internal fleet console.</p>
-        <form className="login-form" onSubmit={submit}>
+        <form method="post" className="login-form" onSubmit={submit}>
           <label className="field field-dark">
             <span className="field-label">Email</span>
             <input

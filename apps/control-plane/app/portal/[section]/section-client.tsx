@@ -11,6 +11,7 @@ import { notFound } from "next/navigation";
 import { useState } from "react";
 import { Icon } from "@/components/icons";
 import { InstanceSwitcher } from "@/components/instance-switcher";
+import { ProvisionSlots } from "@/components/provision-slots";
 import {
   handleDownloadBackup,
   ManageBillingModal,
@@ -79,7 +80,12 @@ export default function PortalSection({ section: sectionParam }: { section: stri
       {showSwitcher && (
         <InstanceSwitcher instances={owned} selectedId={selected.id} onSelect={setSelected} />
       )}
-      {section === "instance" && <InstanceView instance={selected} />}
+      {section === "instance" && (
+        <>
+          <InstanceView instance={selected} />
+          <ProvisionSlots fleet={fleet} client={client} owned={owned} suspended={suspended} />
+        </>
+      )}
       {section === "backups" && <BackupsView instance={selected} suspended={suspended} />}
       {section === "mobile" && (
         <MobileView fleet={fleet} client={client} instance={selected} suspended={suspended} />

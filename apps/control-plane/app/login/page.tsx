@@ -48,7 +48,7 @@ export default function LoginPage() {
         </Link>
         <h1 className="login-title">Sign in to your academy</h1>
         <p className="login-sub">Your license, instance, backups, apps &amp; billing.</p>
-        <form className="login-form" onSubmit={submit}>
+        <form method="post" className="login-form" onSubmit={submit}>
           <Field label="Email">
             <input
               className="input"
