@@ -31,3 +31,4 @@ apps/mobile/ios/
 
 # mobile store credentials (never commit)
 apps/mobile/play-service-account.json
+apps/control-plane/out/

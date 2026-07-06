@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Montserrat, Playfair_Display } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
@@ -11,22 +11,18 @@ import {
 } from "@/lib/api";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
 
-// UI/body sans + display serif — exposed as CSS vars consumed by globals.css
-// (--font-sans / --font-display reference these).
-const montserrat = Montserrat({
+// Ink Hero single typeface — exposed as a CSS var consumed by globals.css
+// (BOTH --font-sans and --font-display resolve to it).
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-montserrat",
-  display: "swap",
-});
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800", "900"],
-  variable: "--font-playfair",
+  variable: "--font-jakarta",
   display: "swap",
 });
 
-// Resolve the saved theme (default dark) before first paint to avoid a flash.
+// Legacy theme resolution kept harmless: Ink Hero is a SINGLE theme (both
+// :root and [data-theme="light"] carry identical tokens), so whatever stored
+// preference this resolves to renders the same. The attribute plumbing stays.
 const themeScript = `(function(){try{var p=localStorage.getItem('lms.theme')||'dark';var d=p==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;document.documentElement.setAttribute('data-theme',d);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
 
 export const metadata: Metadata = {
@@ -55,7 +51,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#7c5cfc",
+  themeColor: "#221c3d",
 };
 
 export default async function RootLayout({
@@ -75,7 +71,7 @@ export default async function RootLayout({
     <html
       lang="en"
       data-theme="dark"
-      className={`${montserrat.variable} ${playfair.variable}`}
+      className={jakarta.variable}
       suppressHydrationWarning
     >
       <body>

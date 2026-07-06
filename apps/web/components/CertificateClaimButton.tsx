@@ -106,8 +106,10 @@ export default function CertificateClaimButton({
             style={{
               padding: "10px 12px",
               borderRadius: 9,
-              border: "1px solid rgba(255,255,255,.18)",
-              background: "rgba(255,255,255,.06)",
+              // Inherits the scope's tokens: light border/surface on white
+              // panels, white-alpha inside the ink certificate card.
+              border: "1px solid var(--border)",
+              background: "var(--fill-subtle)",
               color: "inherit",
               font: "inherit",
             }}
@@ -136,11 +138,11 @@ export default function CertificateClaimButton({
           disabled={claiming}
           onClick={() => (status.needsName ? setAskName(true) : void claim())}
         >
-          {claiming ? "Issuing…" : "🎓 Get certificate"}
+          {claiming ? "Issuing…" : "Get certificate"}
         </button>
       )}
       {error && (
-        <span style={{ color: "#f4607a", fontSize: 13 }}>{error}</span>
+        <span style={{ color: "var(--danger, #ea4f4f)", fontSize: 13 }}>{error}</span>
       )}
     </div>
   );

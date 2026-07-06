@@ -2225,11 +2225,11 @@ async function seedCertificateTemplates() {
 // ---------- app customization (mobile branding) ----------
 
 async function seedAppConfig() {
-  // The app mirrors the web member area's "liquid glass" design: a deep
-  // violet-ink canvas with a violet #7c5cfc primary (pink accents come from the
-  // gradients). The app ships dark by default; both palettes are the web's exact
-  // tokens (= cross-stack defaults in apps/mobile/src/theme.ts /
-  // app-config.service.ts). Admins can still recolor live via App Customization.
+  // The app mirrors the "Ink Hero" design: light content under ink #221c3d
+  // chrome with a teal #3cc4b2 accent. The app ships LIGHT by default; DARK is
+  // the all-ink variant. Both palettes are the cross-stack defaults in
+  // apps/mobile/src/theme.ts / apps/api/src/site/app-config.service.ts.
+  // Admins can still recolor live via App Customization.
   const config = {
     title: "Spotlight Academy",
     tagline: "Learn from the best. Love what you make.",
@@ -2238,26 +2238,26 @@ async function seedAppConfig() {
     logoUrl: null,
     iconUrl: null,
     splashUrl: null,
-    colorScheme: "dark",
+    colorScheme: "light",
     light: {
-      bg: "#f5f3fc",
+      bg: "#f4f3f8",
       surface: "#ffffff",
-      surfaceMuted: "#f2eefb",
-      border: "#e7e2f4",
-      text: "#251f3d",
-      textMuted: "#8b84a4",
-      primary: "#7c5cfc",
-      danger: "#e11d48",
+      surfaceMuted: "#f1eff7",
+      border: "#e4e1ee",
+      text: "#272144",
+      textMuted: "#8b87a3",
+      primary: "#3cc4b2",
+      danger: "#e04848",
     },
     dark: {
-      bg: "#100c1b",
-      surface: "#211a33",
-      surfaceMuted: "#2a2240",
-      border: "#342a4f",
-      text: "#f4f1fb",
-      textMuted: "#948cb4",
-      primary: "#7c5cfc",
-      danger: "#f2557b",
+      bg: "#221c3d",
+      surface: "#272144",
+      surfaceMuted: "#322b52",
+      border: "#3a3460",
+      text: "#ffffff",
+      textMuted: "#a7a3bd",
+      primary: "#3cc4b2",
+      danger: "#ea4f4f",
     },
   } as Prisma.InputJsonValue;
   // Singleton: drop any stray rows, keep exactly one.

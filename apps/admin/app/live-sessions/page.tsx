@@ -10,8 +10,10 @@ import type {
   UpdateLiveSessionInput,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { classAccentIndex } from "@/lib/class-accent";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import RowMenu from "@/components/RowMenu";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -73,26 +75,65 @@ function providerLabel(p: LiveProvider): string {
 
 // Human status for the list, derived from the clock for a SCHEDULED session.
 function statusInfo(s: AdminLiveSessionDTO): { label: string; cls: string } {
-  if (s.status === "CANCELED") return { label: "Canceled", cls: "badge badge--draft" };
+  if (s.status === "CANCELED") return { label: "Canceled", cls: "badge badge--neutral" };
   if (s.status === "DRAFT") return { label: "Draft", cls: "badge badge--draft" };
   const now = Date.now();
   const starts = Date.parse(s.startsAt);
   const ends = Date.parse(s.endsAt);
-  if (now >= ends) return { label: "Ended", cls: "badge badge--draft" };
-  if (now >= starts) return { label: "● Live", cls: "badge badge--published" };
-  return { label: "Scheduled", cls: "badge badge--published" };
+  if (now >= ends) return { label: "Ended", cls: "badge badge--neutral" };
+  if (now >= starts) return { label: "Live", cls: "badge badge--ok" };
+  return { label: "Scheduled", cls: "badge badge--ok" };
 }
 
 function fmtStart(s: AdminLiveSessionDTO): string {
   try {
     return new Intl.DateTimeFormat("en-US", {
       timeZone: s.timezone ?? undefined,
-      dateStyle: "medium",
-      timeStyle: "short",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
     }).format(new Date(s.startsAt));
   } catch {
     return new Date(s.startsAt).toLocaleString();
   }
+}
+
+// Buckets for the Ink Hero list: upcoming (this week / later), drafts, past.
+type Bucket = "week" | "later" | "draft" | "past";
+function bucketOf(s: AdminLiveSessionDTO): Bucket {
+  if (s.status === "DRAFT") return "draft";
+  if (s.status === "CANCELED") return "past";
+  const now = Date.now();
+  if (Date.parse(s.endsAt) <= now) return "past";
+  const starts = Date.parse(s.startsAt);
+  return starts - now < 7 * 86_400_000 ? "week" : "later";
+}
+
+// Class accent text colors — cycle by stable class-list index (Ink Hero
+// decision: the seeded catalog then matches the mocks). Tint = color + "1f".
+const CLASS_TAG_COLORS = [
+  "#b46f0a",
+  "#7a3bab",
+  "#2d7a45",
+  "#c03a3a",
+  "#3a62b4",
+  "#1f8a7c",
+];
+
+// Red-dot countdown chip text, computed from the real session datetime.
+function countdown(s: AdminLiveSessionDTO): string | null {
+  const now = Date.now();
+  const starts = Date.parse(s.startsAt);
+  const ends = Date.parse(s.endsAt);
+  if (now >= starts && now < ends) return "Live now";
+  const days = Math.ceil((starts - now) / 86_400_000);
+  if (days <= 0) return "Live today";
+  if (days === 1) return "Live in 1 day";
+  if (days <= 7) return `Live in ${days} days`;
+  return null;
 }
 
 type EditorState = {
@@ -232,6 +273,38 @@ export default function LiveSessionsPage() {
     }
   }
 
+  // "Start live room" — reveal the stored join URL (edit permission) and open
+  // it in a new tab so the admin lands in their Zoom/Meet room.
+  async function startLiveRoom(id: string) {
+    setError(null);
+    try {
+      const { joinUrl } = await api.revealLiveSession(id);
+      window.open(joinUrl, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not load the link");
+    }
+  }
+
+  // Cover art for a session card: the first targeted class's real cover image
+  // (sessions have no artwork of their own; ALL_ACTIVE sessions get none).
+  function coverFor(s: AdminLiveSessionDTO): string | null {
+    for (const id of s.levelIds) {
+      const img = levels.find((l) => l.id === id)?.imageUrl;
+      if (img) return img;
+    }
+    return null;
+  }
+
+  // Accent for the class tag pill — stable index of the first targeted class.
+  function tagColorFor(s: AdminLiveSessionDTO): string | null {
+    if (!s.levelIds.length) return null;
+    const idx = levels.findIndex((l) => l.id === s.levelIds[0]);
+    if (idx < 0) return null;
+    return CLASS_TAG_COLORS[
+      classAccentIndex(levels[idx].name, idx) % CLASS_TAG_COLORS.length
+    ];
+  }
+
   async function save(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -329,101 +402,196 @@ export default function LiveSessionsPage() {
       </div>
     );
 
-  // ---------------- list view ----------------
+  // ---------------- list view (Ink Hero: This week / Later / Drafts / Past) ----------------
   if (mode === "list") {
+    const week = sessions
+      .filter((s) => bucketOf(s) === "week")
+      .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
+    const later = sessions
+      .filter((s) => bucketOf(s) === "later")
+      .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
+    const drafts = sessions.filter((s) => bucketOf(s) === "draft");
+    const past = sessions
+      .filter((s) => bucketOf(s) === "past")
+      .sort((a, b) => Date.parse(b.startsAt) - Date.parse(a.startsAt));
+
+    // One upcoming-session card row (This week / Later / Drafts share it).
+    const sessionCard = (s: AdminLiveSessionDTO, kind: "week" | "later" | "draft") => {
+      const cover = coverFor(s);
+      const tagColor = tagColorFor(s);
+      const chip = kind === "week" ? countdown(s) : null;
+      const menuItems = [
+        ...(can("liveSessions", "delete")
+          ? [
+              {
+                label: s.status === "SCHEDULED" ? "Cancel session" : "Delete",
+                danger: true,
+                onClick: () => remove(s),
+              },
+            ]
+          : []),
+      ];
+      return (
+        <div
+          className={kind === "week" ? "live-card" : "live-card live-card--later"}
+          key={s.id}
+        >
+          {cover ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={cover} alt="" className="live-card-thumb" />
+          ) : (
+            <span className="live-card-thumb row-thumb--empty" aria-hidden="true">
+              {providerLabel(s.provider)}
+            </span>
+          )}
+          <span className="live-card-main">
+            <span className="live-card-title">{s.title}</span>
+            <span className="live-card-meta">
+              {s.targetsEmpty ? (
+                <span className="badge badge--warn">No audience</span>
+              ) : (
+                <span
+                  className="class-tag"
+                  style={
+                    tagColor
+                      ? { background: `${tagColor}1f`, color: tagColor }
+                      : undefined
+                  }
+                >
+                  {s.audienceLabel}
+                </span>
+              )}
+              <span className="live-card-when">{fmtStart(s)}</span>
+              {chip && (
+                <span className="live-chip">
+                  <span className="live-dot" />
+                  {chip}
+                </span>
+              )}
+              {kind === "draft" && (
+                <span className="badge badge--draft">Draft</span>
+              )}
+            </span>
+          </span>
+          <span className="live-card-aud">{providerLabel(s.provider)}</span>
+          {can("liveSessions", "edit") && (
+            <button className="btn btn--ghost" onClick={() => openEdit(s.id)}>
+              Manage
+            </button>
+          )}
+          {kind === "draft" && can("liveSessions", "edit") && (
+            <button className="btn" onClick={() => publish(s)}>
+              Publish
+            </button>
+          )}
+          {kind === "week" && s.hasJoinUrl && can("liveSessions", "edit") && (
+            <button className="btn" onClick={() => startLiveRoom(s.id)}>
+              Start live room
+            </button>
+          )}
+          {menuItems.length > 0 && (
+            <RowMenu label={`Actions for ${s.title}`} items={menuItems} />
+          )}
+        </div>
+      );
+    };
+
     return (
-      <div>
-        <div className="page-header with-action">
-          <div>
-            <h1>Live Sessions</h1>
-            <p className="subtitle">
-              Schedule a Zoom or Google Meet call. Entitled members see a
-              countdown on their dashboard and join from a gated page — the link
-              and passcode are stored encrypted and revealed only in the join
-              window.
-            </p>
-          </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+        <div className="filter-row" style={{ marginBottom: 0 }}>
+          <p className="subtitle" style={{ maxWidth: 620 }}>
+            Schedule a Zoom or Google Meet call. Entitled members see a countdown
+            on their dashboard and join from a gated page — credentials stay
+            encrypted until the join window.
+          </p>
+          <div className="filter-spacer" />
           {can("liveSessions", "create") && (
             <button className="btn" onClick={openCreate}>
-              + New live session
+              + Schedule session
             </button>
           )}
         </div>
 
         {error && <p className="error">{error}</p>}
 
-        <div className="card">
-          {loading ? (
-            <p className="muted">Loading…</p>
-          ) : sessions.length === 0 ? (
-            <p className="muted">No live sessions yet. Click “New live session”.</p>
-          ) : (
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Provider</th>
-                    <th>Audience</th>
-                    <th>Starts</th>
-                    <th>Status</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sessions.map((s) => {
-                    const st = statusInfo(s);
-                    return (
-                      <tr key={s.id}>
-                        <td>{s.title}</td>
-                        <td className="muted">{providerLabel(s.provider)}</td>
-                        <td className="muted">
-                          {s.targetsEmpty ? (
-                            <span className="badge badge--draft">No audience</span>
-                          ) : (
-                            s.audienceLabel
-                          )}
-                        </td>
-                        <td className="muted">{fmtStart(s)}</td>
-                        <td>
-                          <span className={st.cls}>{st.label}</span>
-                        </td>
-                        <td>
-                          <div className="row-actions">
-                            {s.status === "DRAFT" && can("liveSessions", "edit") && (
-                              <button
-                                className="btn btn--ghost btn--sm"
-                                onClick={() => publish(s)}
-                              >
-                                Publish
-                              </button>
-                            )}
-                            {can("liveSessions", "edit") && (
-                              <button
-                                className="btn btn--ghost btn--sm"
-                                onClick={() => openEdit(s.id)}
-                              >
-                                Edit
-                              </button>
-                            )}
-                            {can("liveSessions", "delete") && (
-                              <button
-                                className="btn btn--danger btn--sm"
-                                onClick={() => remove(s)}
-                              >
-                                {s.status === "SCHEDULED" ? "Cancel" : "Delete"}
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        {loading ? (
+          <div className="card">
+            <p className="muted" style={{ margin: 0 }}>
+              Loading…
+            </p>
+          </div>
+        ) : sessions.length === 0 ? (
+          <div className="card">
+            <p className="muted" style={{ margin: 0 }}>
+              No live sessions yet. Click “+ Schedule session”.
+            </p>
+          </div>
+        ) : (
+          <>
+            {week.length > 0 && (
+              <>
+                <div className="section-label">This week</div>
+                {week.map((s) => sessionCard(s, "week"))}
+              </>
+            )}
+            {later.length > 0 && (
+              <>
+                <div className="section-label">Later</div>
+                {later.map((s) => sessionCard(s, "later"))}
+              </>
+            )}
+            {drafts.length > 0 && (
+              <>
+                <div className="section-label">Drafts</div>
+                {drafts.map((s) => sessionCard(s, "draft"))}
+              </>
+            )}
+            {past.length > 0 && (
+              <div className="card" style={{ marginBottom: 0 }}>
+                <h2 style={{ marginBottom: 4 }}>Past sessions</h2>
+                {past.map((s) => {
+                  const st = statusInfo(s);
+                  return (
+                    <div
+                      className="mini-grid"
+                      style={{ gridTemplateColumns: "2fr .9fr .6fr .7fr .4fr" }}
+                      key={s.id}
+                    >
+                      <span
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "var(--ink-800)",
+                        }}
+                      >
+                        {s.title}
+                      </span>
+                      <span className="mini-cell--muted">{fmtStart(s)}</span>
+                      <span className="mini-cell">{s.durationMin} min</span>
+                      <span>
+                        <span className={st.cls}>{st.label}</span>
+                      </span>
+                      <span style={{ textAlign: "right" }}>
+                        {can("liveSessions", "delete") && (
+                          <RowMenu
+                            label={`Actions for ${s.title}`}
+                            items={[
+                              {
+                                label: "Delete",
+                                danger: true,
+                                onClick: () => remove(s),
+                              },
+                            ]}
+                          />
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
       </div>
     );
   }

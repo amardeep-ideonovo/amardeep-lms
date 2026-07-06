@@ -6,15 +6,16 @@
  */
 .lmspb-root {
   /* Brand follows the site theme when the host app defines --primary (the
-     member site does: #7c5cfc); the fallback matches that cross-stack default. */
-  --lmspb-brand: var(--primary, #7c5cfc);
+     member site does: teal #2f9d8e); the fallback matches that Ink Hero
+     cross-stack default. */
+  --lmspb-brand: var(--primary, #2f9d8e);
   --lmspb-brand-contrast: #ffffff;
-  --lmspb-fg: #111827;
-  --lmspb-muted-fg: #6b7280;
-  --lmspb-muted-bg: #f4f4f5;
-  --lmspb-dark-bg: #100c1b;
-  --lmspb-dark-fg: #f8fafc;
-  --lmspb-border: #e5e7eb;
+  --lmspb-fg: #272144;
+  --lmspb-muted-fg: #8b87a3;
+  --lmspb-muted-bg: #f1eff7;
+  --lmspb-dark-bg: #221c3d;
+  --lmspb-dark-fg: #ffffff;
+  --lmspb-border: #e4e1ee;
   --lmspb-radius: 12px;
   --lmspb-maxw: 1100px;
   color: var(--lmspb-fg);
@@ -187,25 +188,29 @@
 .lmspb-video > iframe,
 .lmspb-video > video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
-/* ---- Dark CMS skin (single source) ----
+/* ---- CMS skin (single source) — Ink Hero ----
    The PUBLIC site applies it through its `.cms-dark` page wrapper; the admin
    editor applies `.lmspb-dark` directly on the canvas root so the canvas
-   previews the real (dark) member site rather than the admin chrome theme. */
+   previews the real member site rather than the admin chrome theme. Both
+   selectors now resolve to the LIGHT Ink Hero surfaces (single theme); the
+   class names are kept so existing pages/editor code keep compiling. */
 .cms-dark .lmspb-root,
 .lmspb-root.lmspb-dark {
-  --lmspb-fg: #f4f4f6;
-  --lmspb-muted-fg: #9aa1ad;
-  --lmspb-muted-bg: #211a33;
-  --lmspb-border: rgba(255, 255, 255, 0.12);
+  --lmspb-fg: #272144;
+  --lmspb-muted-fg: #8b87a3;
+  --lmspb-muted-bg: #f1eff7;
+  --lmspb-border: #e4e1ee;
   color: var(--lmspb-fg);
 }
 .cms-dark .lmspb-card,
 .lmspb-root.lmspb-dark .lmspb-card,
 .cms-dark .lmspb-faq-item,
-.lmspb-root.lmspb-dark .lmspb-faq-item,
+.lmspb-root.lmspb-dark .lmspb-faq-item {
+  background: #ffffff;
+}
 .cms-dark .lmspb-bg-muted,
 .lmspb-root.lmspb-dark .lmspb-bg-muted {
-  background: #211a33;
+  background: #f1eff7;
 }
 
 /* ---- Divider ---- */
@@ -261,10 +266,10 @@
 .lmspb-fs .lmspb-stat-value,
 .lmspb-fs .lmspb-quote-text { font-size: var(--lmspb-fs) !important; }
 
-/* Shadows */
-.lmspb-sh-soft { box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08); }
-.lmspb-sh-medium { box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14); }
-.lmspb-sh-large { box-shadow: 0 16px 48px rgba(15, 23, 42, 0.22); }
+/* Shadows (Ink Hero ink-tinted) */
+.lmspb-sh-soft { box-shadow: 0 2px 10px rgba(39, 33, 68, 0.05); }
+.lmspb-sh-medium { box-shadow: 0 8px 24px rgba(39, 33, 68, 0.1); }
+.lmspb-sh-large { box-shadow: 0 14px 40px rgba(20, 15, 45, 0.12); }
 
 /* Hide per device (breakpoint matches the grid collapse at 720px) */
 @media (max-width: 720px) {

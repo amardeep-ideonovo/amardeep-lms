@@ -81,13 +81,14 @@ const PaymentSection = forwardRef<PaymentHandle, Props>(
         stripeRef.current = stripe;
         const elements = stripe.elements({});
         const cardEl = elements.create("card", {
-          // Dark checkout: light text + placeholder so the Stripe-hosted card
-          // iframe stays legible (CSS can't reach inside that iframe).
+          // Ink Hero light checkout: ink text + muted placeholder so the
+          // Stripe-hosted card iframe matches the white form fields (CSS
+          // can't reach inside that iframe).
           style: {
             base: {
               fontSize: "16px",
-              color: "#f4f4f6",
-              "::placeholder": { color: "#8a8a95" },
+              color: "#272144",
+              "::placeholder": { color: "#8b87a3" },
             },
           },
         });

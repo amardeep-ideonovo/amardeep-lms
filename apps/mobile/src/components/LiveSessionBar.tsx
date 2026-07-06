@@ -1,3 +1,8 @@
+// Live-session ink strip (design frame 1f): an ink card per session with the
+// red dot + "LIVE · TUE 7:00 PM" eyebrow, session title, and a teal pill on
+// the right. The server only returns sessions the member is entitled to, so
+// this just renders them; nothing shows when the list is empty. The countdown
+// tracks the SERVER clock via an offset derived from serverNow.
 import React, { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import type { LiveSessionBarDTO } from "@lms/types";
@@ -17,7 +22,7 @@ function countdown(ms: number): string {
 }
 
 type Phase = "upcoming" | "joinable" | "live" | "ended";
-function phaseOf(s: LiveSessionBarDTO, now: number): Phase {
+export function phaseOf(s: LiveSessionBarDTO, now: number): Phase {
   const starts = Date.parse(s.startsAt);
   const joins = Date.parse(s.joinsAt);
   const ends = Date.parse(s.endsAt);
@@ -27,9 +32,23 @@ function phaseOf(s: LiveSessionBarDTO, now: number): Phase {
   return "upcoming";
 }
 
-// Dashboard live-session bar. The server only returns sessions the member is
-// entitled to, so this just renders them; nothing shows when the list is empty.
-// The countdown tracks the SERVER clock via an offset derived from serverNow.
+// "TUE 7:00 PM" — the design's eyebrow datetime.
+export function fmtSessionWhen(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const day = d
+      .toLocaleDateString(undefined, { weekday: "short" })
+      .toUpperCase();
+    const time = d
+      .toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+      .toUpperCase()
+      .replace(/\s+/g, " ");
+    return `${day} ${time}`;
+  } catch {
+    return "";
+  }
+}
+
 export function LiveSessionBar({
   sessions,
   onOpen,
@@ -52,37 +71,34 @@ export function LiveSessionBar({
   if (visible.length === 0) return null;
 
   return (
-    <View style={styles.card}>
-      <View style={styles.eyebrowRow}>
-        <View style={styles.dot} />
-        <Text style={styles.eyebrow}>LIVE SESSION</Text>
-      </View>
+    <View style={styles.wrap}>
       {visible.map((s) => {
         const ph = phaseOf(s, now);
         const joinable = ph === "joinable" || ph === "live";
+        const startsIn = Date.parse(s.startsAt) - now;
+        const eyebrow =
+          ph === "live"
+            ? "LIVE · NOW"
+            : startsIn < 3_600_000
+              ? `LIVE · IN ${countdown(startsIn)}`
+              : `LIVE · ${fmtSessionWhen(s.startsAt)}`;
         return (
-          <Press key={s.id} style={styles.row} onPress={() => onOpen(s)}>
+          <Press key={s.id} style={styles.card} onPress={() => onOpen(s)}>
             <View style={styles.info}>
+              <View style={styles.eyebrowRow}>
+                <View style={styles.dot} />
+                <Text style={styles.eyebrow} numberOfLines={1}>
+                  {eyebrow}
+                </Text>
+              </View>
               <Text style={styles.title} numberOfLines={1}>
                 {s.title}
               </Text>
-              <Text style={styles.meta} numberOfLines={1}>
-                {s.audienceLabel}
-              </Text>
             </View>
-            <View style={styles.right}>
-              {ph === "live" ? (
-                <Text style={styles.liveBadge}>● Live</Text>
-              ) : (
-                <Text style={styles.count}>
-                  in {countdown(Date.parse(s.startsAt) - now)}
-                </Text>
-              )}
-              <View style={[styles.cta, joinable && styles.ctaOn]}>
-                <Text style={[styles.ctaText, joinable && styles.ctaTextOn]}>
-                  {joinable ? "Join" : "Details"}
-                </Text>
-              </View>
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>
+                {joinable ? "Join" : "Details"}
+              </Text>
             </View>
           </Press>
         );
@@ -93,50 +109,35 @@ export function LiveSessionBar({
 
 const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
+    wrap: { gap: spacing.sm },
     card: {
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.borderSoft,
+      backgroundColor: colors.inkCard,
       borderRadius: 14,
-      padding: spacing.md,
-      gap: spacing.sm,
-    },
-    eyebrowRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
-    eyebrow: {
-      color: colors.textMuted,
-      fontSize: 11.5,
-      fontFamily: fonts.bold,
-      letterSpacing: 1,
-    },
-    row: {
+      paddingVertical: 12,
+      paddingHorizontal: 14,
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      gap: spacing.sm,
-      backgroundColor: colors.chipBg,
-      borderRadius: 12,
-      padding: spacing.sm,
+      gap: 11,
     },
-    info: { flex: 1, minWidth: 0 },
-    title: { color: colors.text, fontSize: 14.5, fontFamily: fonts.bold },
-    meta: {
-      color: colors.textMuted,
-      fontSize: 12,
-      fontFamily: fonts.regular,
-      marginTop: 1,
+    info: { flex: 1, minWidth: 0, gap: 1 },
+    eyebrowRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.danger },
+    eyebrow: {
+      color: "rgba(255,255,255,0.6)",
+      fontSize: 9.5,
+      fontFamily: fonts.bold,
+      letterSpacing: 0.8,
     },
-    right: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-    count: { color: colors.text, fontSize: 13, fontFamily: fonts.bold },
-    liveBadge: { color: colors.success, fontSize: 12.5, fontFamily: fonts.extrabold },
-    cta: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
+    title: { color: "#ffffff", fontSize: 12.5, fontFamily: fonts.semibold },
+    pill: {
+      backgroundColor: `${colors.primary}33`,
       borderRadius: 999,
-      borderWidth: 1,
-      borderColor: colors.borderSoft,
+      paddingVertical: 7,
+      paddingHorizontal: 13,
     },
-    ctaOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-    ctaText: { color: colors.textMuted, fontSize: 12.5, fontFamily: fonts.bold },
-    ctaTextOn: { color: colors.onPrimary },
+    pillText: {
+      color: colors.primaryOnDark,
+      fontSize: 11,
+      fontFamily: fonts.bold,
+    },
   });

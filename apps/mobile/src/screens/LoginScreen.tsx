@@ -1,9 +1,12 @@
+// Sign in — Ink Hero: full ink chrome canvas, brand block, floating light
+// card with the form, teal gradient CTA. Links on the ink use the on-dark
+// accent.
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -11,10 +14,12 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
-import { Press } from "../components/Press";
+import { CtaButton } from "../components/CtaButton";
+import { SpotlightMark } from "../components/SpotlightMark";
 import { IS_LOCKED_BUILD, unbindInstance } from "../config";
 import { useAppConfig } from "../config-provider";
 import type { AuthScreenProps } from "../navigation";
@@ -42,7 +47,7 @@ export function LoginScreen({ navigation }: Props) {
     setError(null);
     try {
       const res = await api.login(email.trim(), password);
-      // Storing the token flips the auth gate -> the Dashboard stack mounts.
+      // Storing the token flips the auth gate -> the Home stack mounts.
       await signIn(res.token);
     } catch (e) {
       const msg =
@@ -59,64 +64,75 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* The whole screen sits on ink chrome — light status icons. */}
+      <StatusBar style="light" />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.container}>
-          {config.logoUrl ? (
-            <Image
-              source={{ uri: config.logoUrl }}
-              style={styles.logo}
-              resizeMode="contain"
-              accessibilityLabel={config.title}
-            />
-          ) : (
-            <Text style={styles.brand}>{config.title}</Text>
-          )}
-          {config.tagline ? (
-            <Text style={styles.tagline}>{config.tagline}</Text>
-          ) : null}
-          <Text style={styles.subtitle}>Sign in to your membership</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={colors.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            value={email}
-            onChangeText={setEmail}
-            editable={!submitting}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={colors.textMuted}
-            secureTextEntry
-            textContentType="password"
-            value={password}
-            onChangeText={setPassword}
-            editable={!submitting}
-            onSubmitEditing={onSubmit}
-            returnKeyType="go"
-          />
-
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
-          <Press
-            style={[styles.button, !canSubmit && styles.buttonDisabled]}
-            onPress={onSubmit}
-            disabled={!canSubmit}
-          >
-            {submitting ? (
-              <ActivityIndicator color={colors.onPrimary} />
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.brandBlock}>
+            {config.logoUrl ? (
+              <Image
+                source={{ uri: config.logoUrl }}
+                style={styles.logo}
+                resizeMode="contain"
+                accessibilityLabel={config.title}
+              />
             ) : (
-              <Text style={styles.buttonText}>Sign in</Text>
+              <View style={styles.brandRow}>
+                <SpotlightMark size={26} />
+                <Text style={styles.brand}>{config.title}</Text>
+              </View>
             )}
-          </Press>
+            {config.tagline ? (
+              <Text style={styles.tagline}>{config.tagline}</Text>
+            ) : null}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Welcome back</Text>
+            <Text style={styles.cardSub}>Sign in to your membership</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+              value={email}
+              onChangeText={setEmail}
+              editable={!submitting}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              textContentType="password"
+              value={password}
+              onChangeText={setPassword}
+              editable={!submitting}
+              onSubmitEditing={onSubmit}
+              returnKeyType="go"
+            />
+
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            <CtaButton
+              style={styles.button}
+              label="Sign in"
+              textStyle={styles.buttonText}
+              disabled={!canSubmit}
+              busy={submitting}
+              onPress={onSubmit}
+            />
+          </View>
 
           <TouchableOpacity
             onPress={() => navigation.navigate("Signup")}
@@ -141,26 +157,28 @@ export function LoginScreen({ navigation }: Props) {
               </Text>
             </TouchableOpacity>
           )}
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: colors.chrome },
   flex: { flex: 1 },
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
   },
+  brandBlock: { alignItems: "center", marginBottom: spacing.lg },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   brand: {
-    color: colors.text,
-    fontSize: 40,
-    fontWeight: "800",
+    color: "#ffffff",
+    fontSize: 26,
+    fontFamily: fonts.bold,
     textAlign: "center",
-    fontFamily: fonts.display,
   },
   logo: {
     height: 56,
@@ -168,43 +186,59 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
     alignSelf: "center",
   },
   tagline: {
-    color: colors.textMuted,
-    fontSize: 14,
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 13,
     textAlign: "center",
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
     fontFamily: fonts.regular,
   },
-  subtitle: {
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    padding: spacing.lg,
+    shadowColor: "#140f2d",
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.25,
+    shadowRadius: 24,
+    elevation: 10,
+  },
+  cardTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontFamily: fonts.bold,
+  },
+  cardSub: {
     color: colors.textMuted,
-    fontSize: 16,
-    textAlign: "center",
-    marginTop: spacing.xs,
-    marginBottom: spacing.lg,
+    fontSize: 12.5,
+    marginTop: 2,
+    marginBottom: spacing.md,
     fontFamily: fonts.regular,
   },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.bg,
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: 10,
     color: colors.text,
-    fontSize: 16,
+    fontSize: 15,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.md,
+    paddingVertical: spacing.md - 2,
+    marginBottom: spacing.md - 4,
     fontFamily: fonts.regular,
   },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-    marginTop: spacing.sm,
+  button: { marginTop: spacing.xs },
+  buttonText: { fontSize: 14, fontFamily: fonts.bold },
+  error: {
+    color: colors.danger,
+    marginBottom: spacing.sm,
+    textAlign: "center",
+    fontFamily: fonts.regular,
   },
-  buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700", fontFamily: fonts.bold },
-  error: { color: colors.danger, marginBottom: spacing.sm, textAlign: "center", fontFamily: fonts.regular },
   linkButton: { marginTop: spacing.lg, alignItems: "center" },
-  linkText: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
-  linkTextStrong: { color: colors.primary, fontWeight: "700", fontFamily: fonts.bold },
+  linkText: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 13.5,
+    fontFamily: fonts.regular,
+  },
+  linkTextStrong: { color: colors.primaryOnDark, fontFamily: fonts.bold },
 });

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ClassPublicDTO } from "@lms/types";
 import { fetchClassPage } from "@/lib/api";
@@ -6,20 +7,21 @@ import { buildMetadata } from "@/lib/seo";
 import ClassMemberArea from "@/components/ClassMemberArea";
 import PopupHost from "@/components/PopupHost";
 
-// Public, server-rendered class landing page (cinematic dark theme). Dynamic so
-// we never reach the API at build time and the page always reflects admin edits.
-// Hero + skills are static SSR (SEO-friendly); the ownership-dependent body
-// (Your Courses vs. Get-Class/trailer) is resolved client-side in <ClassMemberArea>.
+// Public, server-rendered class landing page (Ink Hero). Dynamic so we never
+// reach the API at build time and the page always reflects admin edits. The
+// band hero (class photo under an ink scrim — photos stay the highlight) is
+// static SSR (SEO-friendly); the ownership-dependent body (course accordions
+// vs. buy card/trailer) is resolved client-side in <ClassMemberArea>.
 export const dynamic = "force-dynamic";
 
 type Params = { params: { slug: string } };
 
-// Total runtime, human-readable: "2hr 52min" / "45min".
+// Total runtime, human-readable: "1h 47m" / "45m".
 function fmtTotal(seconds: number): string {
   if (!seconds) return "";
   const h = Math.floor(seconds / 3600);
   const m = Math.round((seconds % 3600) / 60);
-  return h > 0 ? `${h}hr ${m}min` : `${m}min`;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 function priceLabel(cls: ClassPublicDTO): string | null {
   if (cls.prices.length === 0) return null;
@@ -49,95 +51,86 @@ export default async function ClassPage({ params }: Params) {
 
   const slugOrId = cls.slug ?? cls.id;
   const totalLabel = fmtTotal(cls.totalDurationSeconds);
+  const metaBits = [
+    cls.lessonCount > 0
+      ? `${cls.lessonCount} lesson${cls.lessonCount === 1 ? "" : "s"}`
+      : null,
+    totalLabel ? `${totalLabel} of video` : null,
+  ].filter(Boolean);
 
   return (
-    <article className="class-cinema">
+    <article className="ink-page">
       <PopupHost context={{ type: "classes" }} />
-      {/* ---------- HERO: image-prominent (image band on top, details below) ---- */}
-      <header className="cc-hero">
-        <div
-          className={cls.imageUrl ? "cc-hero-bg" : "cc-hero-bg cc-hero-bg--empty"}
-          style={cls.imageUrl ? { backgroundImage: `url(${cls.imageUrl})` } : undefined}
-        />
-        <div className="cc-hero-inner">
-          {cls.categories.length > 0 && (
-            <div className="cc-cats">
-              {cls.categories.map((c) => (
-                <span key={c.id} className="cc-chip">{c.name}</span>
-              ))}
+
+      {/* ---- band hero: class photo under an ink scrim + breadcrumb/title ---- */}
+      <header
+        className={cls.imageUrl ? "ik-band ik-band--photo" : "ik-band"}
+        style={cls.imageUrl ? { backgroundImage: `url(${cls.imageUrl})` } : undefined}
+      >
+        <div className="ik-band-inner ik-band-inner--crumbs">
+          <nav className="ik-crumbs" aria-label="Breadcrumb">
+            <Link href="/classes">My Classes</Link>
+            <span aria-hidden="true">›</span>
+            <span className="on">{cls.name}</span>
+          </nav>
+          <div className="ik-band-row" style={{ marginTop: 14 }}>
+            <div className="ik-grow">
+              <h1 className="ik-band-title">{cls.name}</h1>
+              <p className="ik-band-sub" style={{ fontSize: 13.5 }}>
+                {metaBits.length > 0 ? metaBits.join(" · ") : cls.categories.map((c) => c.name).join(" · ")}
+              </p>
             </div>
-          )}
-          <h1 className="cc-title">{cls.name}</h1>
+            {/* member-only 72px progress ring (client) */}
+            <ClassMemberArea
+              slugOrId={slugOrId}
+              name={cls.name}
+              checkoutHref={`/checkout/${slugOrId}`}
+              priceLabel={priceLabel(cls)}
+              trailerUrl={cls.trailerUrl}
+              lessonCount={cls.lessonCount}
+              totalLabel={totalLabel}
+              slot="hero-ring"
+            />
+          </div>
         </div>
       </header>
 
-      {/* details panel below the image (~30%): blurb, meta + the buy/resume card */}
-      <div className="cc-hero-panel">
-        <div className="cc-hero-panel-inner">
-          <div className="cc-hero-panel-info">
-            {cls.description && <p className="cc-teaches">{cls.description}</p>}
-            <div className="cc-meta">
-              {cls.lessonCount > 0 && (
-                <>
-                  <span>{cls.lessonCount} lesson{cls.lessonCount === 1 ? "" : "s"}</span>
-                  {totalLabel && <span className="dot" />}
-                </>
-              )}
-              {totalLabel && <span>{totalLabel}</span>}
-            </div>
-          </div>
-
-          {/* The buy / resume card is ownership-dependent → client component. */}
-          <ClassMemberArea
-            slugOrId={slugOrId}
-            name={cls.name}
-            checkoutHref={`/checkout/${slugOrId}`}
-            priceLabel={priceLabel(cls)}
-            trailerUrl={cls.trailerUrl}
-            lessonCount={cls.lessonCount}
-            totalLabel={totalLabel}
-            slot="hero-card"
-          />
-        </div>
-      </div>
-
-      {/* ---------- BODY: skills + trailer + courses + closing CTA ---------- */}
-      {/* Ownership-gated ORDER: guests see Skills first (marketing), members
-          see Your Courses first with Skills below. The skills markup is built
-          here (server, SEO-friendly) and ordered by the client component. */}
-      <ClassMemberArea
-        slugOrId={slugOrId}
-        name={cls.name}
-        checkoutHref={`/checkout/${slugOrId}`}
-        priceLabel={priceLabel(cls)}
-        trailerUrl={cls.trailerUrl}
-        lessonCount={cls.lessonCount}
-        totalLabel={totalLabel}
-        slot="body"
-        skills={
-          cls.skills.length > 0 ? (
-            <section className="cc-section">
-              <div className="cc-wrap">
-                <p className="cc-eyebrow">Curriculum</p>
-                <h2 className="cc-h2">Skills You&apos;ll Learn</h2>
-                <p className="cc-sub">What you&apos;ll be able to do by the end.</p>
-                <div className="cc-skills">
+      {/* ---- overlap body: accordions + rail (member) / buy + marketing (guest) */}
+      <div className="ik-main">
+        <ClassMemberArea
+          slugOrId={slugOrId}
+          name={cls.name}
+          checkoutHref={`/checkout/${slugOrId}`}
+          priceLabel={priceLabel(cls)}
+          trailerUrl={cls.trailerUrl}
+          lessonCount={cls.lessonCount}
+          totalLabel={totalLabel}
+          slot="body"
+          description={cls.description}
+          imageUrl={cls.imageUrl}
+          skills={
+            cls.skills.length > 0 ? (
+              <section style={{ marginTop: 30 }}>
+                <div className="ik-section-head">
+                  <h2 className="ik-section-title">Skills You&apos;ll Learn</h2>
+                </div>
+                <div className="ik-skills">
                   {cls.skills.map((s, i) => (
-                    <div key={i} className={s.imageUrl ? "cc-skill" : "cc-skill cc-skill--empty"}>
-                      <span className="cc-skill-num">{i + 1}</span>
+                    <div key={i} className={s.imageUrl ? "ik-skill" : "ik-skill ik-skill--empty"}>
+                      <span className="ik-skill-num">{i + 1}</span>
                       {s.imageUrl && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={s.imageUrl} alt="" />
                       )}
-                      <div className="cc-skill-title">{s.title}</div>
+                      <div className="ik-skill-title">{s.title}</div>
                     </div>
                   ))}
                 </div>
-              </div>
-            </section>
-          ) : null
-        }
-      />
+              </section>
+            ) : null
+          }
+        />
+      </div>
     </article>
   );
 }
