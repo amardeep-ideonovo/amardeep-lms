@@ -29,6 +29,10 @@ jobs:
 
             git fetch origin
             git checkout main
+            # Hand-edited tracked files on the server make `git pull` abort and
+            # every deploy fail ~15s in (caused the May 29 → Jul 4 stale-deploy
+            # outage). Server files are never the source of truth — discard drift.
+            git checkout -- .
             git pull origin main
 
             set -a
@@ -47,6 +51,11 @@ jobs:
             NEXT_PUBLIC_ADMIN_BASE_PATH=/admin npm -w apps/admin run build
             npm -w apps/api run build
 
+            # Runtime-only: the root .env is sourced before npm install, so
+            # NODE_ENV=production cannot live there (it would prune devDeps and
+            # break the builds above). Exported here, --update-env bakes it into
+            # the pm2 processes.
+            export NODE_ENV=production
             pm2 restart lms-web --update-env
             pm2 restart lms-admin --update-env
             pm2 restart lms-api --update-env
