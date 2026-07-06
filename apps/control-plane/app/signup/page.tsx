@@ -2,53 +2,38 @@
 
 // Self-serve signup — the client journey starts on the sales page and lands
 // here: account → plan → PREVIEW checkout, then straight into the portal to
-// provision their instance. Single page, 3 steps, Ink Hero band + overlapping
-// white card. No real payment is processed anywhere in this flow.
+// provision their instance(s). Single page, 3 steps, Ink Hero band +
+// overlapping white card. Step 2 renders the operator's ACTIVE plan catalog
+// (?plan=<id> preselects). No real payment is processed anywhere in this flow.
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useState } from "react";
+import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { clientSignUp } from "@/lib/auth";
-import { findClientByEmail, PLAN_PRICE } from "@/lib/provisioner";
-import type { PlanTier } from "@/lib/types";
+import {
+  activePlans,
+  findClientByEmail,
+  getSeededPlans,
+  trackChipLabel,
+} from "@/lib/provisioner";
+import { useFleet } from "@/lib/useFleet";
+import type { Plan } from "@/lib/types";
 import { Icon, LogoGlyph } from "@/components/icons";
 import { Field } from "@/components/ui";
 
-const TIERS: Array<{
-  tier: PlanTier;
-  desc: string;
-  features: string[];
-  featured?: boolean;
-}> = [
-  {
-    tier: "Starter",
-    desc: "For a first cohort",
-    features: ["1 instance · your domain", "Up to 500 members", "Web only (no mobile apps)", "Weekly backups"],
-  },
-  {
-    tier: "Pro",
-    desc: "For a growing academy",
-    featured: true,
-    features: [
-      "1 instance · your domain",
-      "Up to 5,000 members",
-      "iOS & Android apps included",
-      "Daily backups + restore drills",
-    ],
-  },
-  {
-    tier: "Scale",
-    desc: "For schools & networks",
-    features: ["Up to 3 instances", "Unlimited members", "Dedicated host & SLA 99.9%", "Hourly backups"],
-  },
-];
-
 const STEP_LABELS = ["Account", "Plan", "Checkout"] as const;
 
-function planFromParam(param: string | null): PlanTier {
-  if (param === "starter") return "Starter";
-  if (param === "scale") return "Scale";
-  return "Pro";
+/** Pre-hydration fallback = the seeded catalog (deterministic markup). */
+function seededActive(): Plan[] {
+  return getSeededPlans()
+    .filter((p) => p.active)
+    .sort((a, b) => a.order - b.order);
+}
+
+function defaultPlanId(plans: Plan[], param: string | null): string {
+  const fromParam = param && plans.find((p) => p.id === param.toLowerCase());
+  if (fromParam) return fromParam.id;
+  return (plans.find((p) => p.featured) ?? plans[0])?.id ?? "";
 }
 
 export default function SignupPage() {
@@ -83,13 +68,17 @@ export default function SignupPage() {
 function SignupCard() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const fleet = useFleet();
+  const plans = fleet ? activePlans(fleet) : seededActive();
 
+  const planParam = searchParams.get("plan");
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [academyName, setAcademyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [plan, setPlan] = useState<PlanTier>(() => planFromParam(searchParams.get("plan")));
+  const [planId, setPlanId] = useState<string>(() => defaultPlanId(seededActive(), planParam));
+  const planTouched = useRef(false);
   const [cardName, setCardName] = useState("");
   const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
   const [cardExpiry, setCardExpiry] = useState("12 / 29");
@@ -98,7 +87,20 @@ function SignupCard() {
   const [error, setError] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState(false);
 
-  const price = PLAN_PRICE[plan];
+  // Once the live catalog loads, re-resolve the preselect (an operator-added
+  // plan id in ?plan= isn't in the seeded fallback) unless the user picked one.
+  useEffect(() => {
+    if (!fleet || planTouched.current) return;
+    setPlanId((current) => {
+      const live = activePlans(fleet);
+      if (live.some((p) => p.id === current) && !(planParam && live.some((p) => p.id === planParam)))
+        return current;
+      return defaultPlanId(live, planParam);
+    });
+  }, [fleet, planParam]);
+
+  const selectedPlan = plans.find((p) => p.id === planId) ?? plans[0];
+  const price = selectedPlan?.priceMonthly ?? 0;
 
   const continueFromAccount = (e: FormEvent) => {
     e.preventDefault();
@@ -119,6 +121,10 @@ function SignupCard() {
 
   const submitCheckout = async (e: FormEvent) => {
     e.preventDefault();
+    if (!selectedPlan) {
+      setError("Pick a plan first.");
+      return;
+    }
     setError(null);
     setDuplicate(false);
     setBusy(true);
@@ -127,7 +133,7 @@ function SignupCard() {
       academyName: academyName.trim(),
       email: email.trim(),
       password,
-      plan,
+      planId: selectedPlan.id,
     });
     if (!result.ok) {
       setBusy(false);
@@ -229,24 +235,30 @@ function SignupCard() {
       {step === 1 && (
         <div>
           <div className="plan-pick" role="radiogroup" aria-label="Choose a plan">
-            {TIERS.map((t) => {
-              const selected = plan === t.tier;
+            {plans.map((t) => {
+              const selected = planId === t.id;
               return (
                 <button
-                  key={t.tier}
+                  key={t.id}
                   type="button"
                   role="radio"
                   aria-checked={selected}
                   className={`plan-card${t.featured ? " featured" : ""}${selected ? " selected" : ""}`}
-                  onClick={() => setPlan(t.tier)}
+                  onClick={() => {
+                    planTouched.current = true;
+                    setPlanId(t.id);
+                  }}
                 >
                   {t.featured && <span className="ribbon">MOST POPULAR</span>}
-                  <span className="plan-name">{t.tier}</span>
+                  <span className="plan-name">{t.name}</span>
                   <span className="plan-price-row">
-                    <span className="plan-price">${PLAN_PRICE[t.tier]}</span>
+                    <span className="plan-price">${t.priceMonthly}</span>
                     <span className="plan-per">/month</span>
                   </span>
-                  <span className="plan-desc">{t.desc}</span>
+                  <span className="plan-desc">{t.blurb}</span>
+                  <span className={`pill plan-track ${t.featured ? "pill-teal-dark" : "pill-info"}`}>
+                    {trackChipLabel(t.appTrack)}
+                  </span>
                   <span className="plan-divider" />
                   <span className="plan-features">
                     {t.features.map((f) => (
@@ -268,6 +280,7 @@ function SignupCard() {
               type="button"
               className="btn btn-primary"
               style={{ padding: "11px 22px" }}
+              disabled={!selectedPlan}
               onClick={() => setStep(2)}
             >
               Continue to checkout
@@ -284,7 +297,7 @@ function SignupCard() {
           </div>
           <div className="summary-row">
             <span className="summary-plan">
-              {plan} plan — {academyName.trim() || "your academy"}
+              {selectedPlan?.name ?? "—"} plan — {academyName.trim() || "your academy"}
             </span>
             <span className="summary-spacer" />
             <span className="summary-price">
@@ -350,7 +363,7 @@ function SignupCard() {
             disabled={busy}
             style={{ padding: "13px 16px", fontSize: 13.5 }}
           >
-            {busy ? "Creating your academy…" : `Start ${plan} — $${price}/mo`}
+            {busy ? "Creating your academy…" : `Start ${selectedPlan?.name ?? ""} — $${price}/mo`}
           </button>
           <div className="wizard-actions" style={{ marginTop: 2 }}>
             <button type="button" className="btn btn-ghost" onClick={() => setStep(1)}>

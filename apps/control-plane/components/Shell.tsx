@@ -15,17 +15,20 @@ import {
   operatorSignOut,
   startDemoSession,
 } from "@/lib/auth";
+import { useSelectedInstance } from "@/lib/instance-selection";
 import {
+  activePlans,
+  clientInstances,
+  effectiveCap,
+  getPlan,
+  instanceIdTaken,
   openAlertCount,
-  openTicketCount,
-  PLAN_PRICE,
+  openTicketCountForClient,
   portalClient,
-  portalInstance,
   provisionInstance,
   setInstanceQuery,
 } from "@/lib/provisioner";
 import { useFleet } from "@/lib/useFleet";
-import type { PlanTier } from "@/lib/types";
 import { Icon, IconName, LogoGlyph } from "./icons";
 import { Field, Modal } from "./ui";
 
@@ -56,6 +59,7 @@ const OPERATOR_NAV: NavGroup[] = [
   {
     label: "CLIENTS",
     items: [
+      { label: "Plans", href: "/operator/plans", icon: "tag" },
       { label: "Licenses", href: "/operator/licenses", icon: "shield" },
       { label: "Clients", href: "/operator/clients", icon: "users" },
       { label: "Billing", href: "/operator/billing", icon: "credit-card" },
@@ -72,25 +76,37 @@ const OPERATOR_NAV: NavGroup[] = [
   },
 ];
 
-const PORTAL_NAV: NavGroup[] = [
-  {
-    label: "MY LICENSE",
-    items: [
-      { label: "Overview", href: "/portal", icon: "grid" },
-      { label: "My instance", href: "/portal/instance", icon: "package" },
-      { label: "Backups", href: "/portal/backups", icon: "database" },
-      { label: "Mobile apps", href: "/portal/mobile", icon: "smartphone" },
-      { label: "Billing", href: "/portal/billing", icon: "credit-card" },
-      { label: "Support", href: "/portal/support", icon: "lifebuoy", badge: "tickets" },
-    ],
-  },
-];
+function portalNav(multiInstance: boolean): NavGroup[] {
+  return [
+    {
+      label: "MY LICENSE",
+      items: [
+        { label: "Overview", href: "/portal", icon: "grid" },
+        {
+          label: multiInstance ? "My instances" : "My instance",
+          href: "/portal/instance",
+          icon: "package",
+        },
+        { label: "Backups", href: "/portal/backups", icon: "database" },
+        { label: "Mobile apps", href: "/portal/mobile", icon: "smartphone" },
+        { label: "Billing", href: "/portal/billing", icon: "credit-card" },
+        { label: "Support", href: "/portal/support", icon: "lifebuoy", badge: "tickets" },
+      ],
+    },
+  ];
+}
 
-function titleFor(role: ShellRole, pathname: string): string {
-  const nav = role === "operator" ? OPERATOR_NAV : PORTAL_NAV;
+/** Static export serves trailing-slash URLs — normalize before matching. */
+function normalizePath(pathname: string): string {
+  const trimmed = pathname.replace(/\/+$/, "");
+  return trimmed === "" ? "/" : trimmed;
+}
+
+function titleFor(role: ShellRole, nav: NavGroup[], pathname: string): string {
+  const path = normalizePath(pathname);
   for (const group of nav) {
     for (const item of group.items) {
-      if (item.href === pathname) return item.label;
+      if (item.href === path) return item.label;
     }
   }
   return role === "operator" ? "Instances" : "Overview";
@@ -138,21 +154,27 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
     }
   }, [role, authed, fleet, session, router]);
 
+  const client = role === "client" && fleet ? portalClient(fleet, session) : undefined;
+  const owned = fleet && client ? clientInstances(fleet, client.id) : [];
+  const [selectedInstance] = useSelectedInstance(owned);
+
   if (!authed) return <div className="shell shell-blank" />;
 
-  const nav = role === "operator" ? OPERATOR_NAV : PORTAL_NAV;
-  const title = titleFor(role, pathname);
+  const cap = fleet && client ? effectiveCap(fleet, client.license) : 1;
+  const multiInstance = cap > 1 || owned.length > 1;
+  const nav = role === "operator" ? OPERATOR_NAV : portalNav(multiInstance);
+  const title = titleFor(role, nav, pathname);
+  const path = normalizePath(pathname);
   const alertCount = fleet ? openAlertCount(fleet) : 0;
-  const client = role === "client" && fleet ? portalClient(fleet, session) : undefined;
-  const ownInstance = fleet ? portalInstance(fleet, client) : undefined;
-  const ticketCount = fleet && ownInstance ? openTicketCount(fleet, ownInstance.id) : 0;
+  const ticketCount = fleet && client ? openTicketCountForClient(fleet, client.id) : 0;
   const persona =
     role === "operator"
       ? fleet?.operator
       : client
         ? { name: client.name, role: `Owner · ${client.academyName}`, avatarSeed: client.avatarSeed }
         : undefined;
-  const licenseSource = ownInstance?.license ?? client?.license;
+  const plan = fleet && client ? getPlan(fleet, client.license.planId) : undefined;
+  const licenseSuspended = client?.license.status === "suspended";
 
   const signOut = () => {
     if (role === "operator") {
@@ -178,7 +200,7 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
           <div key={group.label}>
             <div className="sb-group">{group.label}</div>
             {group.items.map((item) => {
-              const active = pathname === item.href;
+              const active = path === item.href;
               const badge =
                 item.badge === "alerts" ? alertCount : item.badge === "tickets" ? ticketCount : 0;
               return (
@@ -216,9 +238,11 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
           <span className="tb-title">{title}</span>
           {role === "operator" ? (
             <span className="tb-env">PRODUCTION</span>
-          ) : licenseSource ? (
+          ) : licenseSuspended ? (
+            <span className="pill pill-warning tb-license">License suspended</span>
+          ) : plan && client ? (
             <span className="pill pill-teal-dark tb-license">
-              {licenseSource.plan} license · renews {licenseSource.renewsAt.replace(/, \d{4}$/, "")}
+              {plan.name} license · renews {client.license.renewsAt.replace(/, \d{4}$/, "")}
             </span>
           ) : null}
           <div className="tb-spacer" />
@@ -246,9 +270,9 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
               <Link href="/" className="btn btn-ghost-dark">
                 Docs
               </Link>
-              {ownInstance ? (
+              {selectedInstance ? (
                 <a
-                  href={ownInstance.urls.admin}
+                  href={selectedInstance.urls.admin}
                   target="_blank"
                   rel="noreferrer"
                   className="btn btn-primary"
@@ -259,7 +283,18 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
             </>
           )}
         </header>
-        <main className="content">{children}</main>
+        <main className="content">
+          {role === "client" && licenseSuspended && (
+            <div className="suspend-banner" role="alert">
+              <Icon name="alert-triangle" size={16} />
+              <span>
+                <b>License suspended</b> — your instances keep running, but portal actions are
+                disabled. Contact support to reactivate.
+              </span>
+            </div>
+          )}
+          {children}
+        </main>
       </div>
 
       {provisionOpen && <ProvisionModal onClose={() => setProvisionOpen(false)} />}
@@ -267,21 +302,29 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
   );
 }
 
-// ---------- provision modal (operator) ----------
+// ---------- provision modal (operator — new license holder + first instance) ----------
 
 function ProvisionModal({ onClose }: { onClose: () => void }) {
+  const fleet = useFleet();
+  const plans = fleet ? activePlans(fleet) : [];
   const [id, setId] = useState("");
   const [domain, setDomain] = useState("");
-  const [plan, setPlan] = useState<PlanTier>("Pro");
+  const [planId, setPlanId] = useState<string>("");
   const [adminEmail, setAdminEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const effectivePlanId = planId || plans.find((p) => p.featured)?.id || plans[0]?.id || "";
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const slug = id.trim().toLowerCase();
     if (!/^[a-z0-9][a-z0-9-]{1,30}$/.test(slug)) {
       setError("Instance id must be a short slug (a–z, 0–9, dashes).");
+      return;
+    }
+    if (instanceIdTaken(slug)) {
+      setError(`Instance id "${slug}" is already taken.`);
       return;
     }
     if (!domain.trim()) {
@@ -292,8 +335,17 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
       setError("A valid admin email is required — the seeded first admin is created with it.");
       return;
     }
+    if (!effectivePlanId) {
+      setError("Pick a plan — activate one in the Plans section first.");
+      return;
+    }
     setBusy(true);
-    await provisionInstance({ id: slug, domain, plan, adminEmail });
+    const result = await provisionInstance({ id: slug, domain, planId: effectivePlanId, adminEmail });
+    if (!result.ok) {
+      setBusy(false);
+      setError(result.error);
+      return;
+    }
     onClose();
   };
 
@@ -302,8 +354,10 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
       <form onSubmit={submit}>
         <div className="modal-body">
           <p className="modal-note">
-            Brings up a fully isolated stack — <span className="mono">docker compose -p lms_{id.trim() || "<id>"}</span>{" "}
-            with its own Postgres, Redis and uploads volumes, unique secrets, and a seeded first admin.
+            Brings up a fully isolated stack for a NEW license holder —{" "}
+            <span className="mono">docker compose -p lms_{id.trim() || "<id>"}</span> with its own
+            Postgres, Redis and uploads volumes, unique secrets, and a seeded first admin. The client
+            account + license are created alongside it.
           </p>
           <Field label="Instance id" hint="Compose project + database become lms_<id>.">
             <input
@@ -322,11 +376,11 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setDomain(e.target.value)}
             />
           </Field>
-          <Field label="Plan">
-            <select className="input" value={plan} onChange={(e) => setPlan(e.target.value as PlanTier)}>
-              {(Object.keys(PLAN_PRICE) as PlanTier[]).map((tier) => (
-                <option key={tier} value={tier}>
-                  {tier} — ${PLAN_PRICE[tier]}/mo
+          <Field label="Plan" hint="From the catalog — edit plans in the Plans section.">
+            <select className="input" value={effectivePlanId} onChange={(e) => setPlanId(e.target.value)}>
+              {plans.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} — ${p.priceMonthly}/mo · cap {p.instanceCap}
                 </option>
               ))}
             </select>

@@ -3,17 +3,64 @@
 //
 // These mirror the real per-instance model in deploy/instance/
 // (docker-compose.instance.yml + .env.instance.example):
-//   - one fully isolated stack per client license, compose project
+//   - one fully isolated stack per client instance, compose project
 //     "lms_<id>" namespacing containers + pg/redis/uploads volumes
 //   - distinct published host ports per instance (API/WEB/ADMIN)
 //   - unique secrets + a seeded first admin on first boot
 //   - lifecycle verbs: provision (up -d), start, stop, down, down -v
 //   - healthchecks: api /health, pg_isready, redis ping
 //
+// LICENSING MODEL:
+//   Plan (operator-defined catalog) → License (one per client, points at a
+//   plan, may carry per-client overrides) → up to effectiveCap(license)
+//   Instances. The plan catalog drives the sales page, the signup wizard,
+//   the portal billing cards and the operator console.
+//
 // Do NOT import from packages/types — these are local to the app.
 // ============================================================
 
-export type PlanTier = "Starter" | "Pro" | "Scale";
+/** Which mobile-app lane a plan (or license override) puts a client on. */
+export type AppTrack = "none" | "shared" | "whitelabel";
+
+/** Operator-defined catalog entry — fully customizable from /operator/plans. */
+export interface Plan {
+  /** Stable slug, minted at creation (e.g. "pro"). */
+  id: string;
+  name: string;
+  /** One-liner under the name ("For a growing academy"). */
+  blurb: string;
+  priceMonthly: number;
+  /** How many instances a license on this plan may run. */
+  instanceCap: number;
+  appTrack: AppTrack;
+  /** Marketing feature lines, rendered verbatim on sales/signup/billing. */
+  features: string[];
+  /** Featured plans get the ribbon + dark card on sales/signup. */
+  featured: boolean;
+  /** Inactive plans are hidden from sales/signup/upgrade but keep licenses. */
+  active: boolean;
+  /** Sort position in every plan list (0-based). */
+  order: number;
+}
+
+export type LicenseStatus = "active" | "suspended";
+
+/**
+ * The client's license — ONE per client account. Cap/track come from the
+ * plan unless the operator sets a per-license override.
+ */
+export interface License {
+  planId: string;
+  status: LicenseStatus;
+  /** Display date, e.g. "Aug 12, 2026" (or "lapsed Jun 30"). */
+  renewsAt: string;
+  cardBrand: string;
+  cardLast4: string;
+  /** Operator override; null/undefined = use the plan's instanceCap. */
+  instanceCapOverride?: number | null;
+  /** Operator override; null/undefined = use the plan's appTrack. */
+  appTrackOverride?: AppTrack | null;
+}
 
 export type InstanceStatus =
   | "Running"
@@ -83,21 +130,10 @@ export interface MobileBuild {
   detail: string;
 }
 
-export interface InstanceLicense {
-  plan: PlanTier;
-  priceMonthly: number;
-  /** Display date, e.g. "Aug 12, 2026" */
-  renewsAt: string;
-  cardBrand: string;
-  cardLast4: string;
-  /** e.g. "1 instance, 5,000 members, mobile apps, daily backups" */
-  includes: string;
-}
-
 /**
- * A self-serve client account (license holder). Created on /signup; the
- * license exists from purchase, the instance only after the client runs
- * "Provision my instance" in the portal (1 license = 1 instance).
+ * A self-serve client account (license holder). Created on /signup or by the
+ * operator; owns the license and up to effectiveCap(license) instances
+ * (instances point back via Instance.clientId).
  */
 export interface ClientAccount {
   /** Short unique slug (derived from the academy name). */
@@ -107,12 +143,9 @@ export interface ClientAccount {
   academyName: string;
   /** Stored lowercase; sign-in lookup is case-insensitive. */
   email: string;
-  plan: PlanTier;
   createdAt: string;
-  /** Set once the client provisions; null while onboarding. */
-  instanceId: string | null;
   avatarSeed: string;
-  license: InstanceLicense;
+  license: License;
 }
 
 export type TicketStatus = "Open" | "Replied" | "Closed";
@@ -154,6 +187,8 @@ export interface UpdateAvailable {
 export interface Instance {
   /** Short slug — compose project is "lms_<id>". */
   id: string;
+  /** The owning license holder (ClientAccount.id). */
+  clientId: string;
   clientName: string;
   domain: string;
   /** "lms_<id>" */
@@ -163,8 +198,6 @@ export interface Instance {
   version: string;
   health: InstanceHealth;
   membersCount: number | null;
-  plan: PlanTier;
-  mrr: number;
   status: InstanceStatus;
   uptimePct: number | null;
   createdAt: string;
@@ -175,7 +208,6 @@ export interface Instance {
   /** Scheduled by the client ("Update tonight"). Shows a "Scheduled" pill. */
   updateScheduled: boolean;
   mobileBuilds: { ios: MobileBuild; android: MobileBuild };
-  license: InstanceLicense;
   tickets: Ticket[];
   usage: UsageQuota[];
   metrics: InstanceMetrics | null;
@@ -261,7 +293,9 @@ export interface OpsSettings {
 }
 
 export interface FleetState {
-  /** Self-serve client accounts (license holders), incl. the seeded demo client. */
+  /** Operator-defined plan catalog — drives sales, signup, portal, licenses. */
+  plans: Plan[];
+  /** License holders (every instance has an owning client record). */
   clients: ClientAccount[];
   instances: Instance[];
   rollout: Rollout;
@@ -280,7 +314,7 @@ export interface FleetState {
 export interface ProvisionInput {
   id: string;
   domain: string;
-  plan: PlanTier;
+  planId: string;
   adminEmail: string;
 }
 

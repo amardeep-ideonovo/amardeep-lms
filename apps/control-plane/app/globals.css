@@ -1648,6 +1648,129 @@ textarea.input { resize: vertical; min-height: 84px; line-height: 1.5; }
 .summary-per { font-size: 11px; font-weight: 500; color: var(--text-muted); }
 
 /* ============================================================
+   Licensing: instance switcher, connect code, suspended banner,
+   plan-catalog table bits, instance chips
+   ============================================================ */
+
+/* ---- portal instance switcher (multi-instance licenses) ---- */
+
+.iswitch { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.iswitch-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-body);
+  background: var(--surface);
+  transition: border-color var(--t-fast) ease-out, background var(--t-fast) ease-out,
+    box-shadow var(--t-fast) ease-out;
+}
+.iswitch-pill:hover { background: #f8f7fc; }
+.iswitch-pill.active {
+  border-color: var(--teal);
+  background: rgba(53, 179, 162, 0.07);
+  color: var(--teal-text);
+  box-shadow: 0 0 0 3px var(--teal-tint);
+}
+.iswitch-domain { font-size: 10.5px; font-weight: 500; color: var(--text-faint); font-family: var(--font-mono); }
+.iswitch-pill.active .iswitch-domain { color: var(--teal-text); opacity: 0.75; }
+
+/* ---- status dot used by switcher pills + client instance chips ---- */
+
+.chip-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--text-faint); }
+.chip-dot.tone-success { background: var(--success); }
+.chip-dot.tone-warning { background: var(--warning); }
+.chip-dot.tone-danger  { background: var(--danger); }
+.chip-dot.tone-info    { background: var(--info); }
+.chip-dot.tone-neutral { background: var(--text-faint); }
+
+.chip-inst {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-tint);
+  border-radius: var(--r-pill);
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-body);
+  font-family: var(--font-mono);
+  margin: 2px 5px 2px 0;
+}
+
+/* ---- shared-app connect code ---- */
+
+.connect-code {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--ink-900);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 12px;
+}
+.connect-code-text {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--teal-on-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- suspended-license banner (every portal page) ---- */
+
+.suspend-banner {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--warning-tint);
+  color: var(--warning-text);
+  border: 1px solid rgba(246, 166, 35, 0.35);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+.suspend-banner b { font-weight: 700; }
+.suspend-banner svg { flex: none; }
+
+/* ---- plans table: reorder arrows + override marker ---- */
+
+.order-btns { display: inline-flex; flex-direction: column; gap: 1px; }
+.order-btn {
+  width: 22px;
+  height: 15px;
+  font-size: 8.5px;
+  line-height: 1;
+  color: var(--text-muted);
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--t-fast) ease-out, color var(--t-fast) ease-out;
+}
+.order-btn:hover:not(:disabled) { background: var(--surface-tint); color: var(--text-ink); }
+.order-btn:disabled { opacity: 0.25; cursor: default; }
+
+.override-mark { font-size: 10.5px; font-weight: 600; color: var(--warning-text); }
+
+/* ---- app-track chip on sales tiers + signup plan cards ---- */
+
+.tier-track { align-self: flex-start; margin-top: 12px; }
+.plan-track { align-self: flex-start; margin-top: 9px; }
+
+/* ============================================================
    Portal onboarding (no instance yet / booting)
    ============================================================ */
 

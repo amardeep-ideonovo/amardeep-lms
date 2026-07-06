@@ -1,28 +1,44 @@
 "use client";
 
 // Operator sidebar sections — small live views over the same fleet store so
-// no nav item is dead: provisioning, updates, backups, licenses, clients,
-// billing, hosts, alerts, audit, settings.
+// no nav item is dead: provisioning, updates, backups, plans, licenses,
+// clients, billing, hosts, alerts, audit, settings.
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useState } from "react";
 import { AddHostModal } from "@/components/AddHostModal";
+import {
+  CapOverrideModal,
+  ChangeLicensePlanModal,
+  PlanEditorModal,
+  ProvisionForClientModal,
+  TrackOverrideModal,
+} from "@/components/operator-modals";
 import { RolloutCard } from "@/components/RolloutCard";
 import { Icon } from "@/components/icons";
-import { HealthLabel, PageSkeleton, Pill } from "@/components/ui";
+import { ConfirmModal, Kebab, PageSkeleton, Pill } from "@/components/ui";
 import {
+  clientInstances,
+  clientsOnPlan,
   displayStatus,
+  effectiveCap,
+  effectiveTrack,
+  getPlan,
   initialsOf,
+  planName,
+  reorderPlan,
   resolveAlert,
+  resumeLicense,
+  sortedPlans,
+  suspendLicense,
+  togglePlanActive,
+  trackLabel,
   updateSettings,
 } from "@/lib/provisioner";
 import { useFleet } from "@/lib/useFleet";
-import type { FleetState, Instance } from "@/lib/types";
+import type { AppTrack, ClientAccount, FleetState, Instance, Plan } from "@/lib/types";
 import { SECTIONS, type Section } from "./sections";
-
-
-
-
 
 export default function OperatorSection({ section: sectionParam }: { section: string }) {
   const fleet = useFleet();
@@ -35,6 +51,7 @@ export default function OperatorSection({ section: sectionParam }: { section: st
       {section === "provisioning" && <ProvisioningView fleet={fleet} />}
       {section === "updates" && <UpdatesView fleet={fleet} />}
       {section === "backups" && <BackupsView fleet={fleet} />}
+      {section === "plans" && <PlansView fleet={fleet} />}
       {section === "licenses" && <LicensesView fleet={fleet} />}
       {section === "clients" && <ClientsView fleet={fleet} />}
       {section === "billing" && <BillingView fleet={fleet} />}
@@ -60,6 +77,24 @@ function InstCell({ inst }: { inst: Instance }) {
   );
 }
 
+function ClientCell({ client }: { client: ClientAccount }) {
+  return (
+    <span className="inst-cell">
+      <span className="inst-tile">{initialsOf(client.academyName)}</span>
+      <span className="inst-text">
+        <span className="inst-name">{client.academyName}</span>
+        <span className="inst-domain">{client.email}</span>
+      </span>
+    </span>
+  );
+}
+
+function trackTone(track: AppTrack): "neutral" | "info" | "success" {
+  if (track === "shared") return "info";
+  if (track === "whitelabel") return "success";
+  return "neutral";
+}
+
 function filtered(fleet: FleetState): Instance[] {
   const q = fleet.ui.instanceQuery.trim().toLowerCase();
   if (!q) return fleet.instances;
@@ -69,6 +104,20 @@ function filtered(fleet: FleetState): Instance[] {
       i.domain.toLowerCase().includes(q) ||
       i.id.includes(q) ||
       i.owner.toLowerCase().includes(q)
+  );
+}
+
+/** Topbar-search filter for the client/license views. */
+function filteredClients(fleet: FleetState): ClientAccount[] {
+  const q = fleet.ui.instanceQuery.trim().toLowerCase();
+  if (!q) return fleet.clients;
+  return fleet.clients.filter(
+    (c) =>
+      c.academyName.toLowerCase().includes(q) ||
+      c.name.toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q) ||
+      planName(fleet, c.license.planId).toLowerCase().includes(q) ||
+      clientInstances(fleet, c.id).some((i) => i.id.includes(q) || i.domain.toLowerCase().includes(q))
   );
 }
 
@@ -158,7 +207,7 @@ function UpdatesView({ fleet }: { fleet: FleetState }) {
                       <Pill tone="warning">Scheduled tonight</Pill>
                     ) : inst.updateQueued ? (
                       <Pill tone="warning">Update queued</Pill>
-                    ) : inst.status === "Suspended" ? (
+                    ) : inst.status === "Suspended" || inst.status === "Stopped" ? (
                       <Pill tone="neutral">On hold</Pill>
                     ) : (
                       <Pill tone="info">Waiting on wave</Pill>
@@ -235,93 +284,426 @@ function BackupsView({ fleet }: { fleet: FleetState }) {
   );
 }
 
-// ---------- licenses ----------
+// ---------- plans (operator-defined catalog) ----------
+
+function PlansView({ fleet }: { fleet: FleetState }) {
+  const [editor, setEditor] = useState<{ open: boolean; plan: Plan | null }>({
+    open: false,
+    plan: null,
+  });
+  const [deactivateTarget, setDeactivateTarget] = useState<Plan | null>(null);
+  const plans = sortedPlans(fleet);
+
+  return (
+    <>
+      <div className="card">
+        <div className="card-head baseline" style={{ marginBottom: 6 }}>
+          <span className="card-title">Plan catalog</span>
+          <span className="card-sub">
+            drives the sales page, signup, portal billing and every license
+          </span>
+          <div className="card-head-spacer" />
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setEditor({ open: true, plan: null })}
+          >
+            + New plan
+          </button>
+        </div>
+        <table className="itable">
+          <colgroup>
+            <col style={{ width: "6%" }} />
+            <col style={{ width: "28%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "12%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "11%" }} />
+            <col style={{ width: "9%" }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Plan</th>
+              <th>Price</th>
+              <th>Instance cap</th>
+              <th>App track</th>
+              <th>Clients</th>
+              <th>Status</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {plans.map((plan, idx) => {
+              const clients = clientsOnPlan(fleet, plan.id);
+              return (
+                <tr key={plan.id} style={plan.active ? undefined : { opacity: 0.6 }}>
+                  <td>
+                    <span className="order-btns">
+                      <button
+                        type="button"
+                        className="order-btn"
+                        aria-label={`Move ${plan.name} up`}
+                        disabled={idx === 0}
+                        onClick={() => reorderPlan(plan.id, -1)}
+                      >
+                        ▲
+                      </button>
+                      <button
+                        type="button"
+                        className="order-btn"
+                        aria-label={`Move ${plan.name} down`}
+                        disabled={idx === plans.length - 1}
+                        onClick={() => reorderPlan(plan.id, 1)}
+                      >
+                        ▼
+                      </button>
+                    </span>
+                  </td>
+                  <td>
+                    <span className="inst-cell">
+                      <span className="inst-text">
+                        <span className="inst-name">
+                          {plan.name}
+                          {plan.featured ? " ★" : ""}
+                        </span>
+                        <span className="inst-domain">{plan.blurb || "—"}</span>
+                      </span>
+                    </span>
+                  </td>
+                  <td>${plan.priceMonthly}/mo</td>
+                  <td>
+                    {plan.instanceCap} instance{plan.instanceCap === 1 ? "" : "s"}
+                  </td>
+                  <td>
+                    <Pill tone={trackTone(plan.appTrack)}>{trackLabel(plan.appTrack)}</Pill>
+                  </td>
+                  <td>{clients}</td>
+                  <td>
+                    {plan.active ? <Pill tone="success">Active</Pill> : <Pill tone="neutral">Off sale</Pill>}
+                  </td>
+                  <td style={{ textAlign: "right", overflow: "visible" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <button
+                        type="button"
+                        className="chip-action"
+                        onClick={() => setEditor({ open: true, plan })}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="chip-action"
+                        onClick={() => {
+                          if (plan.active) setDeactivateTarget(plan);
+                          else togglePlanActive(plan.id);
+                        }}
+                      >
+                        {plan.active ? "Deactivate" : "Activate"}
+                      </button>
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="card">
+        <div className="card-title" style={{ marginBottom: 8 }}>
+          How the catalog flows
+        </div>
+        {[
+          "Active plans render on the sales page and the signup wizard in this order — features verbatim, featured plans get the ribbon.",
+          "Every license points at a plan: price, instance cap and app track follow it live (per-license overrides win).",
+          "Deactivating a plan hides it from sale — existing licenses keep it until you change their plan.",
+          "Price edits reprice every active license on the plan and the fleet MRR immediately.",
+        ].map((line, idx) => (
+          <div key={line} className="boot-step">
+            <span className="boot-num">{idx + 1}</span>
+            {line}
+          </div>
+        ))}
+      </div>
+
+      {editor.open && (
+        <PlanEditorModal plan={editor.plan} onClose={() => setEditor({ open: false, plan: null })} />
+      )}
+      {deactivateTarget && (
+        <ConfirmModal
+          title={`Deactivate ${deactivateTarget.name}?`}
+          body={
+            <>
+              <div className="warn-box">
+                {deactivateTarget.name} disappears from the sales page, signup and the portal upgrade
+                dialog. Nothing changes for the {clientsOnPlan(fleet, deactivateTarget.id)} client
+                {clientsOnPlan(fleet, deactivateTarget.id) === 1 ? "" : "s"} already on it.
+              </div>
+            </>
+          }
+          confirmLabel="Deactivate plan"
+          onConfirm={() => togglePlanActive(deactivateTarget.id)}
+          onClose={() => setDeactivateTarget(null)}
+        />
+      )}
+    </>
+  );
+}
+
+// ---------- licenses (full operator control) ----------
+
+type LicenseDialog =
+  | { kind: "plan"; client: ClientAccount }
+  | { kind: "cap"; client: ClientAccount }
+  | { kind: "track"; client: ClientAccount }
+  | { kind: "suspend"; client: ClientAccount }
+  | { kind: "resume"; client: ClientAccount }
+  | { kind: "provision"; client: ClientAccount }
+  | null;
 
 function LicensesView({ fleet }: { fleet: FleetState }) {
+  const [dialog, setDialog] = useState<LicenseDialog>(null);
+  const clients = filteredClients(fleet);
+
   return (
-    <div className="card">
-      <div className="card-head" style={{ marginBottom: 6 }}>
-        <span className="card-title">Licenses</span>
-        <span className="card-sub">1 license = 1 fully isolated instance</span>
-      </div>
-      <table className="itable">
-        <thead>
-          <tr>
-            <th>Client</th>
-            <th>Plan</th>
-            <th>Price</th>
-            <th>Renews</th>
-            <th>Card</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filtered(fleet).map((inst) => {
-            const status = displayStatus(inst);
-            return (
-              <tr key={inst.id}>
-                <td>
-                  <InstCell inst={inst} />
-                </td>
-                <td>{inst.license.plan}</td>
-                <td>${inst.license.priceMonthly}/mo</td>
-                <td>{inst.license.renewsAt}</td>
-                <td>
-                  {inst.license.cardBrand} •••• {inst.license.cardLast4}
-                </td>
-                <td>
-                  {inst.status === "Suspended" ? (
-                    <Pill tone="neutral">Lapsed</Pill>
-                  ) : (
-                    <Pill tone={status.tone === "neutral" ? "neutral" : "success"}>Active</Pill>
-                  )}
+    <>
+      <div className="card">
+        <div className="card-head" style={{ marginBottom: 6 }}>
+          <span className="card-title">Licenses</span>
+          <span className="card-sub">
+            one per client — plan, cap and app track are yours to change
+          </span>
+        </div>
+        <table className="itable">
+          <colgroup>
+            <col style={{ width: "27%" }} />
+            <col style={{ width: "11%" }} />
+            <col style={{ width: "10%" }} />
+            <col style={{ width: "13%" }} />
+            <col style={{ width: "14%" }} />
+            <col style={{ width: "11%" }} />
+            <col style={{ width: "9%" }} />
+            <col style={{ width: "5%" }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Plan</th>
+              <th>Price</th>
+              <th>Instances</th>
+              <th>App track</th>
+              <th>Status</th>
+              <th>Since</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {clients.map((client) => {
+              const plan = getPlan(fleet, client.license.planId);
+              const owned = clientInstances(fleet, client.id);
+              const cap = effectiveCap(fleet, client.license);
+              const track = effectiveTrack(fleet, client.license);
+              const capOverridden = typeof client.license.instanceCapOverride === "number";
+              const trackOverridden = client.license.appTrackOverride != null;
+              const suspended = client.license.status === "suspended";
+              const atCap = owned.length >= cap;
+              return (
+                <tr key={client.id}>
+                  <td>
+                    <ClientCell client={client} />
+                  </td>
+                  <td>{plan?.name ?? client.license.planId}</td>
+                  <td>${plan?.priceMonthly ?? 0}/mo</td>
+                  <td>
+                    {owned.length} / {cap}
+                    {capOverridden && <span className="override-mark"> · override</span>}
+                  </td>
+                  <td>
+                    <Pill tone={trackTone(track)}>{trackLabel(track)}</Pill>
+                    {trackOverridden && <span className="override-mark"> · override</span>}
+                  </td>
+                  <td>
+                    {suspended ? <Pill tone="warning">Suspended</Pill> : <Pill tone="success">Active</Pill>}
+                  </td>
+                  <td>{client.createdAt}</td>
+                  <td style={{ overflow: "visible", textAlign: "right" }}>
+                    <Kebab
+                      items={[
+                        { label: "Change plan…", onSelect: () => setDialog({ kind: "plan", client }) },
+                        {
+                          label: "Override instance cap…",
+                          onSelect: () => setDialog({ kind: "cap", client }),
+                        },
+                        {
+                          label: "Switch app track…",
+                          onSelect: () => setDialog({ kind: "track", client }),
+                        },
+                        {
+                          label: atCap
+                            ? `Provision instance (at cap ${owned.length}/${cap})`
+                            : "Provision instance for client…",
+                          disabled: atCap || suspended,
+                          onSelect: () => setDialog({ kind: "provision", client }),
+                        },
+                        suspended
+                          ? { label: "Resume license", onSelect: () => setDialog({ kind: "resume", client }) }
+                          : {
+                              label: "Suspend license",
+                              danger: true,
+                              onSelect: () => setDialog({ kind: "suspend", client }),
+                            },
+                      ]}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+            {clients.length === 0 && (
+              <tr>
+                <td colSpan={8}>
+                  <span className="empty-note">No licenses match — clear the search.</span>
                 </td>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {dialog?.kind === "plan" && (
+        <ChangeLicensePlanModal fleet={fleet} client={dialog.client} onClose={() => setDialog(null)} />
+      )}
+      {dialog?.kind === "cap" && (
+        <CapOverrideModal fleet={fleet} client={dialog.client} onClose={() => setDialog(null)} />
+      )}
+      {dialog?.kind === "track" && (
+        <TrackOverrideModal fleet={fleet} client={dialog.client} onClose={() => setDialog(null)} />
+      )}
+      {dialog?.kind === "provision" && (
+        <ProvisionForClientModal fleet={fleet} client={dialog.client} onClose={() => setDialog(null)} />
+      )}
+      {dialog?.kind === "suspend" && (
+        <ConfirmModal
+          title={`Suspend ${dialog.client.academyName}'s license?`}
+          tone="danger"
+          body={
+            <>
+              <div className="warn-box">
+                The portal shows a “License suspended” banner and every mutating action is disabled.
+                Their {clientInstances(fleet, dialog.client.id).length} instance
+                {clientInstances(fleet, dialog.client.id).length === 1 ? " keeps" : "s keep"} running —
+                members are not interrupted.
+              </div>
+              <p className="modal-note">
+                MRR drops by ${getPlan(fleet, dialog.client.license.planId)?.priceMonthly ?? 0}/mo until
+                you resume.
+              </p>
+            </>
+          }
+          confirmLabel="Suspend license"
+          onConfirm={() => suspendLicense(dialog.client.id)}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog?.kind === "resume" && (
+        <ConfirmModal
+          title={`Resume ${dialog.client.academyName}'s license?`}
+          body={
+            <p className="modal-note">
+              Billing restarts at ${getPlan(fleet, dialog.client.license.planId)?.priceMonthly ?? 0}/mo,
+              the portal banner clears, and any parked instances come back up.
+            </p>
+          }
+          confirmLabel="Resume license"
+          onConfirm={() => resumeLicense(dialog.client.id)}
+          onClose={() => setDialog(null)}
+        />
+      )}
+    </>
   );
 }
 
 // ---------- clients ----------
 
 function ClientsView({ fleet }: { fleet: FleetState }) {
+  const clients = filteredClients(fleet);
   return (
     <div className="card">
       <div className="card-head" style={{ marginBottom: 6 }}>
         <span className="card-title">Clients</span>
-        <span className="card-sub">{fleet.instances.length} on this page · license holders</span>
+        <span className="card-sub">{fleet.clients.length} license holders</span>
       </div>
       <table className="itable">
+        <colgroup>
+          <col style={{ width: "26%" }} />
+          <col style={{ width: "13%" }} />
+          <col style={{ width: "27%" }} />
+          <col style={{ width: "10%" }} />
+          <col style={{ width: "12%" }} />
+          <col style={{ width: "12%" }} />
+        </colgroup>
         <thead>
           <tr>
             <th>Client</th>
             <th>Owner</th>
+            <th>Instances</th>
             <th>Members</th>
-            <th>Since</th>
             <th>Open tickets</th>
+            <th>License</th>
           </tr>
         </thead>
         <tbody>
-          {filtered(fleet).map((inst) => (
-            <tr key={inst.id}>
-              <td>
-                <InstCell inst={inst} />
-              </td>
-              <td>{inst.owner}</td>
-              <td>{inst.membersCount === null ? "—" : inst.membersCount.toLocaleString("en-US")}</td>
-              <td>{inst.createdAt}</td>
-              <td>
-                {inst.tickets.filter((t) => t.status === "Open").length > 0 ? (
-                  <Pill tone="danger">{inst.tickets.filter((t) => t.status === "Open").length} open</Pill>
-                ) : (
-                  <Pill tone="neutral">none</Pill>
-                )}
+          {clients.map((client) => {
+            const owned = clientInstances(fleet, client.id);
+            const cap = effectiveCap(fleet, client.license);
+            const members = owned.reduce((sum, i) => sum + (i.membersCount ?? 0), 0);
+            const openTickets = owned.flatMap((i) => i.tickets).filter((t) => t.status === "Open").length;
+            return (
+              <tr key={client.id}>
+                <td>
+                  <ClientCell client={client} />
+                </td>
+                <td>{client.name}</td>
+                <td>
+                  {owned.length === 0 ? (
+                    <span className="empty-note" style={{ padding: 0 }}>
+                      none yet · 0 of {cap}
+                    </span>
+                  ) : (
+                    owned.map((inst) => {
+                      const status = displayStatus(inst);
+                      return (
+                        <span key={inst.id} className="chip-inst" title={inst.domain}>
+                          <span className={`chip-dot tone-${status.tone}`} />
+                          {inst.id}
+                        </span>
+                      );
+                    })
+                  )}
+                </td>
+                <td>{members === 0 && owned.every((i) => i.membersCount === null) ? "—" : members.toLocaleString("en-US")}</td>
+                <td>
+                  {openTickets > 0 ? (
+                    <Pill tone="danger">{openTickets} open</Pill>
+                  ) : (
+                    <Pill tone="neutral">none</Pill>
+                  )}
+                </td>
+                <td>
+                  <Link href="/operator/licenses" className="link-teal">
+                    {planName(fleet, client.license.planId)} →
+                  </Link>
+                </td>
+              </tr>
+            );
+          })}
+          {clients.length === 0 && (
+            <tr>
+              <td colSpan={6}>
+                <span className="empty-note">No clients match — clear the search.</span>
               </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
     </div>
@@ -371,7 +753,7 @@ function BillingView({ fleet }: { fleet: FleetState }) {
       <div className="card">
         <div className="card-head" style={{ marginBottom: 6 }}>
           <span className="card-title">Subscriptions</span>
-          <span className="card-sub">billed by the platform Stripe account</span>
+          <span className="card-sub">billed by the platform Stripe account · one per license</span>
         </div>
         <table className="itable">
           <thead>
@@ -384,23 +766,21 @@ function BillingView({ fleet }: { fleet: FleetState }) {
             </tr>
           </thead>
           <tbody>
-            {filtered(fleet).map((inst) => (
-              <tr key={inst.id}>
-                <td>
-                  <InstCell inst={inst} />
-                </td>
-                <td>{inst.license.plan}</td>
-                <td>${inst.status === "Suspended" ? 0 : inst.license.priceMonthly}</td>
-                <td>{inst.license.renewsAt}</td>
-                <td>
-                  {inst.status === "Suspended" ? (
-                    <Pill tone="warning">Past due</Pill>
-                  ) : (
-                    <Pill tone="success">Paid</Pill>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {filteredClients(fleet).map((client) => {
+              const suspended = client.license.status === "suspended";
+              const price = getPlan(fleet, client.license.planId)?.priceMonthly ?? 0;
+              return (
+                <tr key={client.id}>
+                  <td>
+                    <ClientCell client={client} />
+                  </td>
+                  <td>{planName(fleet, client.license.planId)}</td>
+                  <td>${suspended ? 0 : price}</td>
+                  <td>{client.license.renewsAt}</td>
+                  <td>{suspended ? <Pill tone="warning">Past due</Pill> : <Pill tone="success">Paid</Pill>}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

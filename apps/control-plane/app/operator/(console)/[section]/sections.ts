@@ -5,6 +5,7 @@ export const SECTIONS = [
   "provisioning",
   "updates",
   "backups",
+  "plans",
   "licenses",
   "clients",
   "billing",

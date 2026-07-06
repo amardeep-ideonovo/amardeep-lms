@@ -13,17 +13,19 @@ import { ConfirmModal, HealthLabel, Kebab, PageSkeleton, Pill } from "@/componen
 import {
   activeWaveName,
   awaitingUpdateCount,
+  clientForInstance,
   criticalAlertCount,
   destroyInstance,
   displayStatus,
   hostWorstMetric,
   initialsOf,
   openAlertCount,
+  planName,
   resolveAlert,
-  resumeInstance,
+  resumeLicense,
   startInstance,
   stopInstance,
-  suspendInstance,
+  suspendLicense,
 } from "@/lib/provisioner";
 import { useFleet } from "@/lib/useFleet";
 import type { FleetAlert, Instance } from "@/lib/types";
@@ -198,6 +200,8 @@ export default function OperatorDashboard() {
             <tbody>
               {rows.map((inst) => {
                 const status = displayStatus(inst);
+                const owner = clientForInstance(fleet, inst);
+                const licenseSuspended = owner?.license.status === "suspended";
                 return (
                   <tr key={inst.id}>
                     <td>
@@ -214,7 +218,7 @@ export default function OperatorDashboard() {
                       <HealthLabel tone={inst.health.tone} label={inst.health.label} />
                     </td>
                     <td>{inst.membersCount === null ? "—" : inst.membersCount.toLocaleString("en-US")}</td>
-                    <td>{inst.plan}</td>
+                    <td>{owner ? planName(fleet, owner.license.planId) : "—"}</td>
                     <td>
                       <Pill tone={status.tone}>{status.label}</Pill>
                     </td>
@@ -224,18 +228,26 @@ export default function OperatorDashboard() {
                           { label: "Open admin", href: inst.urls.admin },
                           { label: "Member site", href: inst.urls.web },
                           ...(inst.status === "Running"
+                            ? [{ label: "Stop (compose stop)", onSelect: () => stopInstance(inst.id) }]
+                            : inst.status === "Stopped" ||
+                                (inst.status === "Suspended" && !licenseSuspended)
+                              ? [{ label: "Start (compose start)", onSelect: () => startInstance(inst.id) }]
+                              : inst.status === "Provisioning"
+                                ? [{ label: "Booting…", disabled: true }]
+                                : []),
+                          ...(owner
                             ? [
-                                { label: "Stop (compose stop)", onSelect: () => stopInstance(inst.id) },
-                                { label: "Suspend license", onSelect: () => suspendInstance(inst.id) },
+                                licenseSuspended
+                                  ? {
+                                      label: "Resume license",
+                                      onSelect: () => resumeLicense(owner.id),
+                                    }
+                                  : {
+                                      label: "Suspend license",
+                                      onSelect: () => suspendLicense(owner.id),
+                                    },
                               ]
-                            : inst.status === "Stopped"
-                              ? [
-                                  { label: "Start (compose start)", onSelect: () => startInstance(inst.id) },
-                                  { label: "Suspend license", onSelect: () => suspendInstance(inst.id) },
-                                ]
-                              : inst.status === "Suspended"
-                                ? [{ label: "Resume license", onSelect: () => resumeInstance(inst.id) }]
-                                : [{ label: "Booting…", disabled: true }]),
+                            : []),
                           { label: "Destroy…", danger: true, onSelect: () => setDestroyTarget(inst) },
                         ]}
                       />

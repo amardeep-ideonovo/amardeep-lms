@@ -1,7 +1,14 @@
-// Sales page — transcribed from frame 1c (public, no auth).
+"use client";
+
+// Sales page — transcribed from frame 1c (public, no auth). Pricing renders
+// the operator's ACTIVE plan catalog live from the store (same-browser edits
+// in /operator/plans show up here; fresh visitors see the seeded catalog).
 
 import Link from "next/link";
 import { Icon, LogoGlyph } from "@/components/icons";
+import { activePlans, getSeededPlans, trackChipLabel } from "@/lib/provisioner";
+import { useFleet } from "@/lib/useFleet";
+import type { Plan } from "@/lib/types";
 
 const COVER_MUSIC = "https://www.masterclass.com/course-images/attachments/QpxuNEFhJE8MsFqsiKQ11u1C";
 const COVER_COOKING = "https://www.masterclass.com/course-images/attachments/ce3SwsNJRtiLU96MqFEfa3WU";
@@ -30,7 +37,7 @@ const FEATURES = [
     icon: "smartphone" as const,
     title: "Mobile apps included",
     copy:
-      "iOS and Android apps built for your brand and shipped to the stores under your name. Content and login, synced to your instance.",
+      "Hand members a connect code for the shared Spotlight app, or go white-label with your own store listings on the top plan.",
   },
   {
     icon: "brush" as const,
@@ -48,60 +55,22 @@ const FEATURES = [
 const CHECKLIST = [
   "Admin panel — classes, members, subscriptions, reports",
   "Member web — dashboard, lessons, certificates, community",
-  "iOS & Android member apps, branded to you",
+  "iOS & Android member apps — shared or white-label",
   "Live sessions with registration and recordings",
   "Email campaigns and contact tagging built in",
 ];
 
-const TIERS: Array<{
-  name: string;
-  price: string;
-  desc: string;
-  features: string[];
-  featured?: boolean;
-}> = [
-  {
-    name: "Starter",
-    price: "$99",
-    desc: "For a first cohort",
-    features: [
-      "1 instance · your domain",
-      "Up to 500 members",
-      "Web only (no mobile apps)",
-      "Weekly backups",
-      "Community support",
-    ],
-  },
-  {
-    name: "Pro",
-    price: "$249",
-    desc: "For a growing academy",
-    featured: true,
-    features: [
-      "1 instance · your domain",
-      "Up to 5,000 members",
-      "iOS & Android apps included",
-      "Daily backups + restore drills",
-      "Live sessions & certificates",
-      "Priority support (4h)",
-    ],
-  },
-  {
-    name: "Scale",
-    price: "$599",
-    desc: "For schools & networks",
-    features: [
-      "Up to 3 instances",
-      "Unlimited members",
-      "Dedicated host & SLA 99.9%",
-      "Hourly backups",
-      "White-glove migration",
-      "Slack support channel",
-    ],
-  },
-];
+/** Pre-hydration fallback = the seeded catalog (deterministic markup). */
+function seededActive(): Plan[] {
+  return getSeededPlans()
+    .filter((p) => p.active)
+    .sort((a, b) => a.order - b.order);
+}
 
 export default function SalesPage() {
+  const fleet = useFleet();
+  const tiers = fleet ? activePlans(fleet) : seededActive();
+
   return (
     <main className="sales page-in">
       {/* ---- ink band: nav + hero ---- */}
@@ -128,7 +97,7 @@ export default function SalesPage() {
 
         <div className="hero">
           <div className="hero-left">
-            <span className="badge-pill">1 LICENSE = 1 FULLY ISOLATED INSTANCE</span>
+            <span className="badge-pill">1 LICENSE = YOUR OWN ISOLATED INSTANCES</span>
             <h1 className="hero-h1">
               Your own academy.
               <br />
@@ -275,26 +244,29 @@ export default function SalesPage() {
         </div>
       </div>
 
-      {/* ---- pricing ---- */}
+      {/* ---- pricing (live from the operator's plan catalog) ---- */}
       <div className="pricing-section" id="pricing">
         <div className="pricing-inner">
           <div className="pricing-head">
             <div className="eyebrow">PRICING</div>
             <h2 className="pricing-h2">One license. Your whole platform.</h2>
             <p className="pricing-sub">
-              Every plan is a fully isolated instance — pick the size that fits your academy.
+              Every plan runs fully isolated instances — pick the size that fits your academy.
             </p>
           </div>
           <div className="tier-grid">
-            {TIERS.map((tier) => (
-              <div key={tier.name} className={`tier${tier.featured ? " tier-featured" : ""}`}>
+            {tiers.map((tier) => (
+              <div key={tier.id} className={`tier${tier.featured ? " tier-featured" : ""}`}>
                 {tier.featured && <span className="ribbon">MOST POPULAR</span>}
                 <div className="tier-name">{tier.name}</div>
                 <div className="tier-price-row">
-                  <span className="tier-price">{tier.price}</span>
+                  <span className="tier-price">${tier.priceMonthly}</span>
                   <span className="tier-per">/month</span>
                 </div>
-                <div className="tier-desc">{tier.desc}</div>
+                <div className="tier-desc">{tier.blurb}</div>
+                <span className={`pill tier-track ${tier.featured ? "pill-teal-dark" : "pill-info"}`}>
+                  {trackChipLabel(tier.appTrack)}
+                </span>
                 <div className="tier-divider" />
                 <div className="tier-features">
                   {tier.features.map((f) => (
@@ -304,7 +276,7 @@ export default function SalesPage() {
                     </span>
                   ))}
                 </div>
-                <Link href={`/signup?plan=${tier.name.toLowerCase()}`} className="tier-cta">
+                <Link href={`/signup?plan=${tier.id}`} className="tier-cta">
                   Get {tier.name}
                 </Link>
               </div>

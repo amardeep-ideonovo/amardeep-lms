@@ -2,19 +2,22 @@
 
 // Client-portal dialogs shared by the Overview page and the section pages:
 // restore (type-the-id confirm), new ticket, request mobile build, manage
-// billing, upgrade plan, changelog.
+// billing (license-level), upgrade plan (catalog-driven), changelog.
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
-  changePlan,
+  activePlans,
+  changeLicensePlan,
+  clientInstances,
   createTicket,
   downloadBackup,
-  PLAN_PRICE,
+  getPlan,
   requestMobileBuilds,
   restoreBackup,
+  trackLabel,
   updateCard,
 } from "@/lib/provisioner";
-import type { Instance, PlanTier } from "@/lib/types";
+import type { ClientAccount, FleetState, Instance } from "@/lib/types";
 import { Field, Modal } from "./ui";
 
 // ---------- backup download (mock manifest as a real file download) ----------
@@ -118,7 +121,7 @@ export function NewTicketModal({ instance, onClose }: { instance: Instance; onCl
             autoFocus
           />
         </Field>
-        <Field label="Message" hint="Average first response: 4h on the Pro plan.">
+        <Field label="Message" hint="Average first response: 4h.">
           <textarea
             className="input"
             placeholder="Add any details, URLs, or member emails…"
@@ -201,18 +204,28 @@ export function RequestBuildModal({ instance, onClose }: { instance: Instance; o
   );
 }
 
-// ---------- manage billing (card on file) ----------
+// ---------- manage billing (license-level card on file) ----------
 
-export function ManageBillingModal({ instance, onClose }: { instance: Instance; onClose: () => void }) {
-  const [brand, setBrand] = useState(instance.license.cardBrand);
-  const [last4, setLast4] = useState(instance.license.cardLast4);
+export function ManageBillingModal({
+  fleet,
+  client,
+  onClose,
+}: {
+  fleet: FleetState;
+  client: ClientAccount;
+  onClose: () => void;
+}) {
+  const plan = getPlan(fleet, client.license.planId);
+  const [brand, setBrand] = useState(client.license.cardBrand);
+  const [last4, setLast4] = useState(client.license.cardLast4);
   const [busy, setBusy] = useState(false);
   return (
     <Modal title="Manage billing" onClose={onClose} width={420}>
       <div className="modal-body">
         <p className="modal-note">
-          {instance.license.plan} — ${instance.license.priceMonthly}/month · renews{" "}
-          {instance.license.renewsAt}. In production this opens the hosted billing portal.
+          {plan?.name ?? client.license.planId} — ${plan?.priceMonthly ?? 0}/month · renews{" "}
+          {client.license.renewsAt}. One license covers every instance. In production this opens the
+          hosted billing portal.
         </p>
         <Field label="Card brand">
           <select className="input" value={brand} onChange={(e) => setBrand(e.target.value)}>
@@ -240,7 +253,7 @@ export function ManageBillingModal({ instance, onClose }: { instance: Instance; 
           disabled={busy || last4.length !== 4}
           onClick={async () => {
             setBusy(true);
-            await updateCard(instance.id, brand, last4);
+            await updateCard(client.id, brand, last4);
             onClose();
           }}
         >
@@ -251,33 +264,63 @@ export function ManageBillingModal({ instance, onClose }: { instance: Instance; 
   );
 }
 
-// ---------- upgrade / change plan ----------
+// ---------- upgrade / change plan (from the ACTIVE catalog) ----------
 
-const PLAN_BLURBS: Record<PlanTier, string> = {
-  Starter: "500 members · web only · weekly backups",
-  Pro: "5,000 members · mobile apps · daily backups · 4h support",
-  Scale: "Unlimited members · dedicated host · hourly backups · SLA 99.9%",
-};
-
-export function UpgradeModal({ instance, onClose }: { instance: Instance; onClose: () => void }) {
-  const [plan, setPlan] = useState<PlanTier>(instance.license.plan);
+export function UpgradeModal({
+  fleet,
+  client,
+  onClose,
+}: {
+  fleet: FleetState;
+  client: ClientAccount;
+  onClose: () => void;
+}) {
+  const current = getPlan(fleet, client.license.planId);
+  const owned = clientInstances(fleet, client.id).length;
+  const choices = activePlans(fleet);
+  const list = current && !choices.some((p) => p.id === current.id) ? [current, ...choices] : choices;
+  const [planId, setPlanId] = useState(client.license.planId);
   const [busy, setBusy] = useState(false);
-  const tiers = useMemo(() => Object.keys(PLAN_PRICE) as PlanTier[], []);
+  const selectedName = list.find((p) => p.id === planId)?.name ?? "plan";
+
   return (
-    <Modal title="Change plan" onClose={onClose} width={440}>
+    <Modal title="Change plan" onClose={onClose} width={460}>
       <div className="modal-body">
-        {tiers.map((tier) => (
-          <label key={tier} className={`radio-row${plan === tier ? " checked" : ""}`}>
-            <input type="radio" name="plan" checked={plan === tier} onChange={() => setPlan(tier)} />
-            <span className="radio-main">
-              <span className="radio-title">
-                {tier} — ${PLAN_PRICE[tier]}/mo{tier === instance.license.plan ? " (current)" : ""}
+        {list.map((p) => {
+          const capAfter = client.license.instanceCapOverride ?? p.instanceCap;
+          const tooSmall = capAfter < owned;
+          return (
+            <label
+              key={p.id}
+              className={`radio-row${planId === p.id ? " checked" : ""}`}
+              style={tooSmall ? { opacity: 0.55 } : undefined}
+            >
+              <input
+                type="radio"
+                name="plan"
+                checked={planId === p.id}
+                disabled={tooSmall}
+                onChange={() => setPlanId(p.id)}
+              />
+              <span className="radio-main">
+                <span className="radio-title">
+                  {p.name} — ${p.priceMonthly}/mo{p.id === client.license.planId ? " (current)" : ""}
+                </span>
+                <span className="radio-sub">
+                  {tooSmall
+                    ? `Not available — you run ${owned} instances (this plan caps at ${p.instanceCap})`
+                    : `${p.blurb ? `${p.blurb} · ` : ""}${p.instanceCap} instance${
+                        p.instanceCap === 1 ? "" : "s"
+                      } · ${trackLabel(p.appTrack)}`}
+                </span>
               </span>
-              <span className="radio-sub">{PLAN_BLURBS[tier]}</span>
-            </span>
-          </label>
-        ))}
-        <p className="modal-note">Changes prorate on the next invoice. Your instance is untouched.</p>
+            </label>
+          );
+        })}
+        <p className="modal-note">
+          Changes prorate on the next invoice. Your instances are untouched — the new instance cap
+          and app track apply immediately.
+        </p>
       </div>
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>
@@ -286,14 +329,14 @@ export function UpgradeModal({ instance, onClose }: { instance: Instance; onClos
         <button
           type="button"
           className="btn btn-primary"
-          disabled={busy || plan === instance.license.plan}
+          disabled={busy || planId === client.license.planId}
           onClick={async () => {
             setBusy(true);
-            await changePlan(instance.id, plan);
+            await changeLicensePlan(client.id, planId, "client");
             onClose();
           }}
         >
-          {busy ? "Updating…" : `Switch to ${plan}`}
+          {busy ? "Updating…" : `Switch to ${selectedName}`}
         </button>
       </div>
     </Modal>

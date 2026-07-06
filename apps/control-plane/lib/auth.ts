@@ -23,7 +23,6 @@ import {
   findClientByEmail,
   getFleetSnapshot,
 } from "./provisioner";
-import type { PlanTier } from "./types";
 
 const OPERATOR_TOKEN_KEY = "lms.ops.operator.token";
 const CLIENT_SESSION_KEY = "lms.ops.client.session";
@@ -97,7 +96,8 @@ export interface ClientSignUpInput {
   email: string;
   /** Accepted but unused — preview build. */
   password: string;
-  plan: PlanTier;
+  /** Catalog plan id (Plan.id). */
+  planId: string;
 }
 
 export type ClientAuthResult =
@@ -113,7 +113,7 @@ export async function clientSignUp(input: ClientSignUpInput): Promise<ClientAuth
     name: input.name,
     academyName: input.academyName,
     email: input.email,
-    plan: input.plan,
+    planId: input.planId,
   });
   if (!result.ok) return { ok: false, error: result.error };
   const session: ClientSession = {

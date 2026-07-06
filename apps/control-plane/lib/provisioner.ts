@@ -9,90 +9,80 @@
 // interactions persist for the browser session; every function
 // resolves after ~150ms of simulated network latency.
 //
+// DOMAIN MODEL (operator-controlled licensing):
+//   Plan     — operator-defined catalog entry (price, instance cap, app
+//              track, feature lines). CRUD from /operator/plans; the ACTIVE
+//              set renders on the sales page, the signup wizard and the
+//              portal upgrade dialog.
+//   License  — one per client account; points at a plan and may carry
+//              per-license overrides (instance cap, app track) plus an
+//              active/suspended flag. effectiveCap()/effectiveTrack()
+//              resolve override ?? plan value.
+//   Instance — an isolated stack owned by a client (Instance.clientId).
+//              A client may run up to effectiveCap(license) instances.
+//
 // SWAP PLAN — what replaces each function when the real control-plane
 // service (LocalDockerDriver, later a cloud driver) lands:
 //
 //   getFleetState()      → aggregate of the GETs below (or a websocket snapshot)
-//   listInstances()      → GET  /fleet/instances
-//                          driver: `docker compose ls` + per-project inspect
-//   getInstance(id)      → GET  /fleet/instances/:id
-//   provisionInstance()  → POST /fleet/instances {id, domain, plan, adminEmail}
+//   provisionInstance()  → POST /fleet/instances {id, domain, planId, adminEmail}
 //                          driver: mint unique secrets + allocate API/WEB/ADMIN
 //                          ports, write deploy/instance/<id>.env, then
 //                          `docker compose -p lms_<id> --env-file <id>.env
 //                           -f docker-compose.instance.yml up -d`.
 //                          Status stays "Provisioning" until the api /health
-//                          check passes (migrate deploy + seeded first admin),
-//                          then flips to "Running" — mocked here with a timer.
+//                          check passes, then flips to "Running" — mocked
+//                          here with a timer.
 //   startInstance(id)    → POST /fleet/instances/:id/start   (compose start)
 //   stopInstance(id)     → POST /fleet/instances/:id/stop    (compose stop)
-//   suspendInstance(id)  → POST /fleet/instances/:id/suspend (compose stop + license flag)
-//   resumeInstance(id)   → POST /fleet/instances/:id/resume  (compose start)
-//   destroyInstance(id)  → DELETE /fleet/instances/:id       (compose down;
-//                          `?purge=true` runs down -v and deletes pg/uploads volumes)
+//   destroyInstance(id)  → DELETE /fleet/instances/:id       (compose down -v)
+//   suspendLicense()/resumeLicense() → POST /licenses/:clientId/(suspend|resume)
+//   changeLicensePlan()  → POST /licenses/:clientId/plan {planId}
+//   setLicenseCapOverride()/setLicenseTrackOverride()
+//                        → PATCH /licenses/:clientId {instanceCapOverride|appTrackOverride}
+//   createPlan()/updatePlan()/togglePlanActive()/reorderPlan()
+//                        → CRUD on /plans (operator-only)
 //   scheduleUpdate(id)   → POST /fleet/instances/:id/update {version, window:"tonight"}
-//                          driver: retag images + `compose up -d` in the window
-//   queueRolloutUpdate() → POST /fleet/rollouts/current/queue {instanceId}
-//   getRollout()         → GET  /fleet/rollouts/current
 //   pauseRollout()/resumeRollout() → POST /fleet/rollouts/current/(pause|resume)
 //   listAlerts()/resolveAlert()    → GET /fleet/alerts · POST /fleet/alerts/:id/resolve
-//   listHosts()          → GET  /fleet/hosts (node-exporter style host metrics)
-//   listActivity()       → GET  /fleet/audit
-//   runBackup(id)        → POST /fleet/instances/:id/backups (pg_dump + uploads tar
-//                          from the lms_<id> volumes, then verify + off-server mirror)
-//   downloadBackup(id)   → GET  /fleet/instances/:id/backups/:backupId/download
-//   restoreBackup(id)    → POST /fleet/instances/:id/restore {backupId, confirm:"<id>"}
-//   listTickets()/createTicket()   → GET /fleet/tickets · POST /fleet/instances/:id/tickets
-//   requestMobileBuilds()→ POST /fleet/instances/:id/mobile-builds (per-client EAS track)
-//   changePlan()/updateCard()      → POST /fleet/instances/:id/license (billing provider)
-//   addHost()            → POST /fleet/hosts (cloud driver: order + join a VPS)
-//   updateSettings()     → PUT  /fleet/settings
-//   getFleetStats()      → GET  /fleet/stats
+//   runBackup()/downloadBackup()/restoreBackup() → per-instance backup endpoints
+//   createTicket()/requestMobileBuilds()/updateCard() → per-client endpoints
+//   addHost()/updateSettings()     → fleet admin endpoints
 //
 // SELF-SERVE verbs (sales → signup → portal journey):
 //   createClientAccount()  → POST /auth/signup  (account + license; billing
 //                            provider charges the plan — mocked as the 4242 card)
 //   provisionOwnInstance() → POST /portal/instances {name, domain} — same
 //                            pipeline as the operator provision, quota-checked
-//                            against the client's license (1 license = 1 instance)
+//                            against effectiveCap(license).
 //
-// PERSISTENCE (preview-only): the mutable slice — self-serve clients, their
-// licenses/instances, alert resolutions, runtime activity, stat deltas — is
-// mirrored to localStorage ("lms.ops.store.v1") so a signed-up client and the
-// operator view of them survive reloads. The seeded fleet is always the base;
-// the persisted slice replays on top at module init. Corrupt/old blobs are
-// discarded silently.
+// PERSISTENCE (preview-only): the whole mutable slice — plans, clients,
+// instances, rollout, alerts, hosts, activity, stats, settings — is mirrored
+// to localStorage ("lms.ops.store.v2"; v1 blobs are discarded silently) so
+// operator edits and self-serve accounts survive reloads AND are visible to
+// the sales/signup/portal surfaces in the same browser. Other browsers see
+// the seed. A `storage` listener re-hydrates other open tabs live.
 // ============================================================
 
 import type {
   ActivityEntry,
+  AppTrack,
   ClientAccount,
   FleetAlert,
   FleetState,
+  FleetStats,
   Host,
   Instance,
   InstanceHealth,
+  License,
   OpsSettings,
-  PlanTier,
+  Plan,
   ProvisionInput,
   Rollout,
   StatusPillInfo,
   Ticket,
   UsageQuota,
 } from "./types";
-
-export const PLAN_PRICE: Record<PlanTier, number> = {
-  Starter: 99,
-  Pro: 249,
-  Scale: 599,
-};
-
-/** License blurbs, matching the seeded fleet + sales tiers. */
-export const PLAN_INCLUDES: Record<PlanTier, string> = {
-  Starter: "1 instance, 500 members, weekly backups",
-  Pro: "1 instance, 5,000 members, mobile apps, daily backups",
-  Scale: "Up to 3 instances, unlimited members, dedicated host",
-};
 
 /** "?demo=1" sessions bind to this seeded client (Priya's Harbor Yoga School). */
 export const DEMO_CLIENT_ID = "harbor";
@@ -127,10 +117,79 @@ function urlsFor(domain: string) {
   };
 }
 
+// ---------- seed: plan catalog ----------
+
+function seedPlans(): Plan[] {
+  return [
+    {
+      id: "starter",
+      name: "Starter",
+      blurb: "For a first cohort",
+      priceMonthly: 99,
+      instanceCap: 1,
+      appTrack: "none",
+      features: [
+        "1 instance · your domain",
+        "Up to 500 members",
+        "Web only (no mobile apps)",
+        "Weekly backups",
+        "Community support",
+      ],
+      featured: false,
+      active: true,
+      order: 0,
+    },
+    {
+      id: "pro",
+      name: "Pro",
+      blurb: "For a growing academy",
+      priceMonthly: 249,
+      instanceCap: 1,
+      appTrack: "shared",
+      features: [
+        "1 instance · your domain",
+        "Up to 5,000 members",
+        "iOS & Android via the shared Spotlight app",
+        "Daily backups + restore drills",
+        "Live sessions & certificates",
+        "Priority support (4h)",
+      ],
+      featured: true,
+      active: true,
+      order: 1,
+    },
+    {
+      id: "scale",
+      name: "Scale",
+      blurb: "For schools & networks",
+      priceMonthly: 599,
+      instanceCap: 3,
+      appTrack: "whitelabel",
+      features: [
+        "Up to 3 instances",
+        "Unlimited members",
+        "White-label apps on your store accounts",
+        "Dedicated host & SLA 99.9%",
+        "Hourly backups",
+        "White-glove migration",
+      ],
+      featured: false,
+      active: true,
+      order: 2,
+    },
+  ];
+}
+
+/** Fresh copy of the seed catalog — pre-hydration fallback for public pages. */
+export function getSeededPlans(): Plan[] {
+  return seedPlans();
+}
+
+// ---------- seed: fleet ----------
+
 function baseInstance(
-  partial: Pick<Instance, "id" | "clientName" | "domain" | "plan"> & Partial<Instance>
+  partial: Pick<Instance, "id" | "clientId" | "clientName" | "domain"> & Partial<Instance>
 ): Instance {
-  const price = PLAN_PRICE[partial.plan];
   return {
     dbName: `lms_${partial.id}`,
     ports: { api: 8010, web: 8011, admin: 8012 },
@@ -138,7 +197,6 @@ function baseInstance(
     version: "v1.8.1",
     health: HEALTHY,
     membersCount: 0,
-    mrr: price,
     status: "Running",
     uptimePct: 99.9,
     createdAt: "2026-01-15",
@@ -157,14 +215,6 @@ function baseInstance(
       ios: { status: "—", version: "—", detail: "Not requested" },
       android: { status: "—", version: "—", detail: "Not requested" },
     },
-    license: {
-      plan: partial.plan,
-      priceMonthly: price,
-      renewsAt: "Aug 1, 2026",
-      cardBrand: "Visa",
-      cardLast4: "4242",
-      includes: "1 instance, 5,000 members, mobile apps, daily backups",
-    },
     tickets: [],
     usage: [],
     metrics: null,
@@ -174,13 +224,23 @@ function baseInstance(
   };
 }
 
+function seedClient(
+  partial: Pick<ClientAccount, "id" | "name" | "academyName" | "email" | "createdAt"> &
+    Partial<ClientAccount> & { license: License }
+): ClientAccount {
+  return {
+    avatarSeed: `client-${partial.id}`,
+    ...partial,
+  };
+}
+
 function seedState(): FleetState {
   const instances: Instance[] = [
     baseInstance({
       id: "spotlight",
+      clientId: "spotlight",
       clientName: "Spotlight Academy",
       domain: "spotlightacademy.com",
-      plan: "Pro",
       ports: { api: 8010, web: 8011, admin: 8012 },
       version: "v1.8.2",
       membersCount: 1284,
@@ -195,14 +255,6 @@ function seedState(): FleetState {
         retentionNote: "30 daily copies kept · off-server mirror on",
         entries: [],
       },
-      license: {
-        plan: "Pro",
-        priceMonthly: 249,
-        renewsAt: "Nov 2, 2026",
-        cardBrand: "Visa",
-        cardLast4: "5031",
-        includes: "1 instance, 5,000 members, mobile apps, daily backups",
-      },
       tickets: [
         {
           id: 479,
@@ -216,9 +268,9 @@ function seedState(): FleetState {
     }),
     baseInstance({
       id: "codecraft",
+      clientId: "codecraft",
       clientName: "CodeCraft Bootcamp",
       domain: "codecraft.io",
-      plan: "Scale",
       ports: { api: 8020, web: 8021, admin: 8022 },
       version: "v1.8.1",
       health: {
@@ -242,13 +294,9 @@ function seedState(): FleetState {
         retentionNote: "72 hourly + 30 daily copies kept",
         entries: [],
       },
-      license: {
-        plan: "Scale",
-        priceMonthly: 599,
-        renewsAt: "Sep 18, 2026",
-        cardBrand: "Amex",
-        cardLast4: "1006",
-        includes: "Up to 3 instances, unlimited members, dedicated host",
+      mobileBuilds: {
+        ios: { status: "Live", version: "v1.3", detail: "App Store · 640 installs" },
+        android: { status: "Live", version: "v1.3", detail: "Google Play · 890 installs" },
       },
       tickets: [
         {
@@ -263,9 +311,9 @@ function seedState(): FleetState {
     }),
     baseInstance({
       id: "harbor",
+      clientId: "harbor",
       clientName: "Harbor Yoga School",
       domain: "harboryoga.com",
-      plan: "Pro",
       ports: { api: 8030, web: 8031, admin: 8032 },
       version: "v1.8.1",
       membersCount: 412,
@@ -325,18 +373,6 @@ function seedState(): FleetState {
         version: "v1.8.2",
         notes: "v1.8.2 adds live-session waiting rooms and faster uploads.",
       },
-      mobileBuilds: {
-        ios: { status: "In review", version: "v1.4", detail: "submitted Jul 3 · App Store" },
-        android: { status: "Live", version: "v1.4", detail: "Google Play · 1,208 installs" },
-      },
-      license: {
-        plan: "Pro",
-        priceMonthly: 249,
-        renewsAt: "Aug 12, 2026",
-        cardBrand: "Visa",
-        cardLast4: "4242",
-        includes: "1 instance, 5,000 members, mobile apps, daily backups",
-      },
       tickets: [
         {
           id: 482,
@@ -364,9 +400,9 @@ function seedState(): FleetState {
     }),
     baseInstance({
       id: "luthier",
+      clientId: "luthier",
       clientName: "Luthier's Guild",
       domain: "luthiersguild.com",
-      plan: "Starter",
       ports: { api: 8040, web: 8041, admin: 8042 },
       version: "v1.7.9",
       health: {
@@ -391,14 +427,6 @@ function seedState(): FleetState {
         retentionNote: "12 weekly copies kept",
         entries: [],
       },
-      license: {
-        plan: "Starter",
-        priceMonthly: 99,
-        renewsAt: "Jul 30, 2026",
-        cardBrand: "Mastercard",
-        cardLast4: "7719",
-        includes: "1 instance, 500 members, weekly backups",
-      },
       tickets: [
         {
           id: 476,
@@ -412,9 +440,9 @@ function seedState(): FleetState {
     }),
     baseInstance({
       id: "bright",
+      clientId: "bright",
       clientName: "Bright Kitchen Co",
       domain: "brightkitchen.co",
-      plan: "Pro",
       ports: { api: 8050, web: 8051, admin: 8052 },
       version: "v1.8.2",
       health: UNKNOWN_HEALTH,
@@ -434,9 +462,9 @@ function seedState(): FleetState {
     }),
     baseInstance({
       id: "northstar",
+      clientId: "northstar",
       clientName: "Northstar Pilates",
       domain: "northstarpilates.com",
-      plan: "Starter",
       ports: { api: 8060, web: 8061, admin: 8062 },
       version: "v1.7.9",
       health: UNKNOWN_HEALTH,
@@ -453,39 +481,101 @@ function seedState(): FleetState {
         retentionNote: "Volumes kept while suspended",
         entries: [],
       },
-      license: {
-        plan: "Starter",
-        priceMonthly: 99,
-        renewsAt: "lapsed Jun 30",
-        cardBrand: "Visa",
-        cardLast4: "0341",
-        includes: "1 instance, 500 members, weekly backups",
-      },
     }),
   ];
 
+  // Every instance has an owning license holder — the seeded fleet maps to
+  // synthetic client records so per-client caps and counts always resolve.
   const clients: ClientAccount[] = [
-    {
+    seedClient({
+      id: "spotlight",
+      name: "Ava Chen",
+      academyName: "Spotlight Academy",
+      email: "ava@spotlightacademy.com",
+      createdAt: "2025-11-02",
+      license: {
+        planId: "pro",
+        status: "active",
+        renewsAt: "Nov 2, 2026",
+        cardBrand: "Visa",
+        cardLast4: "5031",
+      },
+    }),
+    seedClient({
+      id: "codecraft",
+      name: "Jonah Park",
+      academyName: "CodeCraft Bootcamp",
+      email: "jonah@codecraft.io",
+      createdAt: "2025-09-18",
+      license: {
+        planId: "scale",
+        status: "active",
+        renewsAt: "Sep 18, 2026",
+        cardBrand: "Amex",
+        cardLast4: "1006",
+      },
+    }),
+    seedClient({
       id: "harbor",
       name: "Priya Sharma",
       academyName: "Harbor Yoga School",
       email: "priya@harboryoga.com",
-      plan: "Pro",
       createdAt: "2026-02-12",
-      instanceId: "harbor",
       avatarSeed: "priya-av",
       license: {
-        plan: "Pro",
-        priceMonthly: 249,
+        planId: "pro",
+        status: "active",
         renewsAt: "Aug 12, 2026",
         cardBrand: "Visa",
         cardLast4: "4242",
-        includes: "1 instance, 5,000 members, mobile apps, daily backups",
       },
-    },
+    }),
+    seedClient({
+      id: "luthier",
+      name: "Sam Osei",
+      academyName: "Luthier's Guild",
+      email: "sam@luthiersguild.com",
+      createdAt: "2026-03-30",
+      license: {
+        planId: "starter",
+        status: "active",
+        renewsAt: "Jul 30, 2026",
+        cardBrand: "Mastercard",
+        cardLast4: "7719",
+      },
+    }),
+    seedClient({
+      id: "bright",
+      name: "Dana Whitfield",
+      academyName: "Bright Kitchen Co",
+      email: "dana@brightkitchen.co",
+      createdAt: "2026-07-06",
+      license: {
+        planId: "pro",
+        status: "active",
+        renewsAt: "Aug 6, 2026",
+        cardBrand: "Visa",
+        cardLast4: "8817",
+      },
+    }),
+    seedClient({
+      id: "northstar",
+      name: "Noah Berg",
+      academyName: "Northstar Pilates",
+      email: "noah@northstarpilates.com",
+      createdAt: "2025-12-08",
+      license: {
+        planId: "starter",
+        status: "suspended",
+        renewsAt: "lapsed Jun 30",
+        cardBrand: "Visa",
+        cardLast4: "0341",
+      },
+    }),
   ];
 
   return {
+    plans: seedPlans(),
     clients,
     instances,
     rollout: {
@@ -555,9 +645,9 @@ function seedState(): FleetState {
         id: "act-2",
         actor: "Dana Kovacs",
         avatarSeed: "dana-av",
-        prefix: "Suspended ",
+        prefix: "Suspended the license for ",
         target: "Northstar Pilates",
-        suffix: " — license lapsed Jun 30",
+        suffix: " — lapsed Jun 30",
         ago: "1d",
       },
       {
@@ -599,55 +689,67 @@ function seedState(): FleetState {
 
 // ---------- module-level mutable store (persisted to localStorage) ----------
 
-/** Versioned persistence key — bump the suffix to invalidate old blobs. */
-const STORE_KEY = "lms.ops.store.v1";
+/** Versioned persistence key — v1 blobs are discarded silently. */
+const STORE_KEY = "lms.ops.store.v2";
+const LEGACY_KEYS = ["lms.ops.store.v1"];
 
 /** How long a mock provision takes before the /health checks "pass". */
 const PROVISION_BOOT_MS = 8000;
 
-// Frozen reference copy of the seed — used to diff/replay the persisted slice.
-const SEED_BASE = seedState();
-const SEED_CLIENT_IDS = new Set(SEED_BASE.clients.map((c) => c.id));
-const SEED_INSTANCE_IDS = new Set(SEED_BASE.instances.map((i) => i.id));
-const SEED_ACTIVITY_IDS = new Set(SEED_BASE.activity.map((a) => a.id));
+// Seed instance ids — their in-flight demo states (e.g. bright, forever
+// "Provisioning") are NOT re-armed as real boots on reload.
+const SEED_INSTANCE_IDS = new Set(seedState().instances.map((i) => i.id));
 
-/** The mutable slice mirrored to localStorage (user-created state only). */
-interface PersistedStoreV1 {
-  v: 1;
+/**
+ * The persisted slice — the ENTIRE mutable store (not just user-created
+ * records), so operator actions against seeded records (plan edits, license
+ * overrides, suspends, stops) survive reloads too.
+ */
+interface PersistedStoreV2 {
+  v: 2;
+  plans: Plan[];
   clients: ClientAccount[];
   instances: Instance[];
-  resolvedAlertIds: string[];
+  rollout: Rollout;
+  alerts: FleetAlert[];
+  hosts: Host[];
   activity: ActivityEntry[];
-  /** Deltas vs the seeded base stats, so seed changes stay the base. */
-  statsDelta: { licenses: number; running: number; mrr: number };
+  stats: FleetStats;
+  settings: OpsSettings;
 }
 
-function readPersisted(): PersistedStoreV1 | null {
+function readPersisted(): PersistedStoreV2 | null {
   if (typeof window === "undefined") return null;
   let raw: string | null = null;
   try {
+    for (const key of LEGACY_KEYS) window.localStorage.removeItem(key);
     raw = window.localStorage.getItem(STORE_KEY);
   } catch {
     return null;
   }
   if (!raw) return null;
   try {
-    const blob = JSON.parse(raw) as Partial<PersistedStoreV1> | null;
+    const blob = JSON.parse(raw) as Partial<PersistedStoreV2> | null;
     const valid =
       !!blob &&
-      blob.v === 1 &&
+      blob.v === 2 &&
+      Array.isArray(blob.plans) &&
+      blob.plans.length > 0 &&
       Array.isArray(blob.clients) &&
       Array.isArray(blob.instances) &&
-      Array.isArray(blob.resolvedAlertIds) &&
+      Array.isArray(blob.alerts) &&
+      Array.isArray(blob.hosts) &&
       Array.isArray(blob.activity) &&
-      typeof blob.statsDelta?.licenses === "number" &&
-      typeof blob.statsDelta?.running === "number" &&
-      typeof blob.statsDelta?.mrr === "number";
+      !!blob.rollout &&
+      !!blob.settings &&
+      typeof blob.stats?.licenses === "number" &&
+      typeof blob.stats?.running === "number" &&
+      typeof blob.stats?.mrr === "number";
     if (!valid) {
       window.localStorage.removeItem(STORE_KEY);
       return null;
     }
-    return blob as PersistedStoreV1;
+    return blob as PersistedStoreV2;
   } catch {
     try {
       window.localStorage.removeItem(STORE_KEY);
@@ -658,43 +760,40 @@ function readPersisted(): PersistedStoreV1 | null {
   }
 }
 
-/** Seeded fleet is the base; the persisted user-created slice replays on top. */
+/** Seed is the base; a valid persisted blob replaces the mutable slice wholesale. */
 function hydrateState(): FleetState {
   const seed = seedState();
   const saved = readPersisted();
   if (!saved) return seed;
-  const resolved = new Set(saved.resolvedAlertIds);
-  const merged: FleetState = {
+  return {
     ...seed,
-    clients: [...seed.clients, ...saved.clients.filter((c) => !SEED_CLIENT_IDS.has(c.id))],
-    instances: [...seed.instances, ...saved.instances.filter((i) => !SEED_INSTANCE_IDS.has(i.id))],
-    alerts: seed.alerts.map((a) => (resolved.has(a.id) ? { ...a, resolved: true } : a)),
-    activity: [...saved.activity.filter((a) => !SEED_ACTIVITY_IDS.has(a.id)), ...seed.activity],
-    stats: {
-      ...seed.stats,
-      licenses: Math.max(0, seed.stats.licenses + saved.statsDelta.licenses),
-      running: Math.max(0, seed.stats.running + saved.statsDelta.running),
-      mrr: Math.max(0, seed.stats.mrr + saved.statsDelta.mrr),
-    },
+    plans: saved.plans,
+    clients: saved.clients,
+    // A restore timer never survives a reload — clear the in-progress flag.
+    instances: saved.instances.map((i) => (i.restoreInProgress ? { ...i, restoreInProgress: null } : i)),
+    rollout: saved.rollout,
+    alerts: saved.alerts,
+    hosts: saved.hosts,
+    activity: saved.activity,
+    stats: saved.stats,
+    settings: saved.settings,
   };
-  // Replay side effects of persisted alert resolutions (e.g. luthier's re-run).
-  return saved.resolvedAlertIds.reduce((s, id) => applyAlertResolutionEffects(s, id), merged);
 }
 
 function persistStore(): void {
   if (typeof window === "undefined") return;
   try {
-    const slice: PersistedStoreV1 = {
-      v: 1,
-      clients: state.clients.filter((c) => !SEED_CLIENT_IDS.has(c.id)),
-      instances: state.instances.filter((i) => !SEED_INSTANCE_IDS.has(i.id)),
-      resolvedAlertIds: state.alerts.filter((a) => a.resolved).map((a) => a.id),
-      activity: state.activity.filter((a) => !SEED_ACTIVITY_IDS.has(a.id)),
-      statsDelta: {
-        licenses: state.stats.licenses - SEED_BASE.stats.licenses,
-        running: state.stats.running - SEED_BASE.stats.running,
-        mrr: state.stats.mrr - SEED_BASE.stats.mrr,
-      },
+    const slice: PersistedStoreV2 = {
+      v: 2,
+      plans: state.plans,
+      clients: state.clients,
+      instances: state.instances,
+      rollout: state.rollout,
+      alerts: state.alerts,
+      hosts: state.hosts,
+      activity: state.activity,
+      stats: state.stats,
+      settings: state.settings,
     };
     window.localStorage.setItem(STORE_KEY, JSON.stringify(slice));
   } catch {
@@ -705,14 +804,21 @@ function persistStore(): void {
 let state: FleetState = hydrateState();
 const listeners = new Set<() => void>();
 
-// Re-arm boots that were persisted mid-provision (browser only): the flip to
-// Running would otherwise be lost with the reloaded timer.
 if (typeof window !== "undefined") {
+  // Re-arm boots that were persisted mid-provision: the flip to Running would
+  // otherwise be lost with the reloaded timer. Seeded demo states are skipped.
   for (const inst of state.instances) {
     if (!SEED_INSTANCE_IDS.has(inst.id) && inst.status === "Provisioning") {
       scheduleBootCompletion(inst.id);
     }
   }
+  // Live cross-tab sync: a write in another tab (e.g. operator console beside
+  // a client portal) re-hydrates this tab without persisting back.
+  window.addEventListener("storage", (e) => {
+    if (e.key !== STORE_KEY) return;
+    state = hydrateState();
+    listeners.forEach((fn) => fn());
+  });
 }
 
 function emit() {
@@ -729,6 +835,13 @@ function patchInstance(id: string, patch: (i: Instance) => Instance) {
   mutate((s) => ({
     ...s,
     instances: s.instances.map((i) => (i.id === id ? patch(i) : i)),
+  }));
+}
+
+function patchLicense(clientId: string, patch: (l: License) => License) {
+  mutate((s) => ({
+    ...s,
+    clients: s.clients.map((c) => (c.id === clientId ? { ...c, license: patch(c.license) } : c)),
   }));
 }
 
@@ -767,29 +880,103 @@ export async function getInstance(id: string): Promise<Instance | undefined> {
   return state.instances.find((i) => i.id === id);
 }
 
-export async function getRollout(): Promise<Rollout> {
-  await latency();
-  return state.rollout;
-}
-
-export async function listAlerts(): Promise<FleetAlert[]> {
-  await latency();
-  return state.alerts;
-}
-
-export async function listHosts(): Promise<Host[]> {
-  await latency();
-  return state.hosts;
-}
-
-export async function listActivity(): Promise<ActivityEntry[]> {
-  await latency();
-  return state.activity;
-}
-
 export async function listTickets(): Promise<Ticket[]> {
   await latency();
   return state.instances.flatMap((i) => i.tickets);
+}
+
+// ---------- plan catalog helpers (pure) ----------
+
+export function getPlan(s: FleetState, planId: string): Plan | undefined {
+  return s.plans.find((p) => p.id === planId);
+}
+
+export function planName(s: FleetState, planId: string): string {
+  return getPlan(s, planId)?.name ?? planId;
+}
+
+export function planPrice(s: FleetState, planId: string): number {
+  return getPlan(s, planId)?.priceMonthly ?? 0;
+}
+
+/** All plans, sorted by their operator-set order. */
+export function sortedPlans(s: FleetState): Plan[] {
+  return [...s.plans].sort((a, b) => a.order - b.order);
+}
+
+/** The sellable set — what sales, signup and the upgrade dialog render. */
+export function activePlans(s: FleetState): Plan[] {
+  return sortedPlans(s).filter((p) => p.active);
+}
+
+/** How many instances this license may run — override ?? plan cap. */
+export function effectiveCap(s: FleetState, license: License): number {
+  if (typeof license.instanceCapOverride === "number") return license.instanceCapOverride;
+  return getPlan(s, license.planId)?.instanceCap ?? 1;
+}
+
+/** Which app track this license is on — override ?? plan track. */
+export function effectiveTrack(s: FleetState, license: License): AppTrack {
+  return license.appTrackOverride ?? getPlan(s, license.planId)?.appTrack ?? "none";
+}
+
+export function trackLabel(track: AppTrack): string {
+  if (track === "shared") return "Shared app";
+  if (track === "whitelabel") return "White-label";
+  return "Web only";
+}
+
+/** Longer chip copy used on sales/signup tier cards. */
+export function trackChipLabel(track: AppTrack): string {
+  if (track === "shared") return "Shared app included";
+  if (track === "whitelabel") return "White-label apps included";
+  return "Web only";
+}
+
+export function clientsOnPlan(s: FleetState, planId: string): number {
+  return s.clients.filter((c) => c.license.planId === planId).length;
+}
+
+/** "Includes …" one-liner for license cards. */
+export function licenseSummary(s: FleetState, license: License): string {
+  const cap = effectiveCap(s, license);
+  return `${cap} instance${cap === 1 ? "" : "s"} · ${trackLabel(effectiveTrack(s, license))}`;
+}
+
+// ---------- client/instance helpers (pure) ----------
+
+/** All instances owned by a client's license, oldest first. */
+export function clientInstances(s: FleetState, clientId: string): Instance[] {
+  return s.instances.filter((i) => i.clientId === clientId);
+}
+
+export function clientForInstance(s: FleetState, instance: Instance): ClientAccount | undefined {
+  return s.clients.find((c) => c.id === instance.clientId);
+}
+
+/** Case-insensitive account lookup against the persisted store (sync — used by sign-in). */
+export function findClientByEmail(email: string): ClientAccount | undefined {
+  const needle = email.trim().toLowerCase();
+  if (!needle) return undefined;
+  return state.clients.find((c) => c.email.toLowerCase() === needle);
+}
+
+export function getClient(id: string): ClientAccount | undefined {
+  return state.clients.find((c) => c.id === id);
+}
+
+/** Resolves a client session (demo or real) to its account record. */
+export function portalClient(
+  s: FleetState,
+  session: { clientId: string } | null | undefined
+): ClientAccount | undefined {
+  if (!session) return undefined;
+  return s.clients.find((c) => c.id === session.clientId);
+}
+
+/** Sync check for the provision forms — instance ids are compose projects. */
+export function instanceIdTaken(id: string): boolean {
+  return state.instances.some((i) => i.id === id);
 }
 
 // ---------- derived helpers (pure) ----------
@@ -814,6 +1001,21 @@ export function displayStatus(i: Instance): StatusPillInfo {
   return { label: "Running", tone: "success" };
 }
 
+/**
+ * Honest uptime copy: "—" while provisioning/down, "uptime 100% since Jul 6"
+ * until an instance has 30 days of history, then the usual 30-day window.
+ */
+export function uptimeLabel(i: Instance): string {
+  if (i.uptimePct === null || i.status === "Provisioning") return "uptime —";
+  const created = new Date(`${i.createdAt}T00:00:00`);
+  const ageDays = (Date.now() - created.getTime()) / 86_400_000;
+  if (Number.isFinite(ageDays) && ageDays < 30) {
+    const since = created.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return `uptime ${i.uptimePct}% since ${since}`;
+  }
+  return `uptime ${i.uptimePct}% (30d)`;
+}
+
 export function openAlertCount(s: FleetState): number {
   return s.alerts.filter((a) => !a.resolved).length;
 }
@@ -834,6 +1036,13 @@ export function activeWaveName(s: FleetState): string {
 export function openTicketCount(s: FleetState, instanceId?: string): number {
   const all = s.instances.flatMap((i) => i.tickets);
   return all.filter((t) => t.status === "Open" && (!instanceId || t.instanceId === instanceId)).length;
+}
+
+/** Open tickets across every instance a client owns. */
+export function openTicketCountForClient(s: FleetState, clientId: string): number {
+  return clientInstances(s, clientId)
+    .flatMap((i) => i.tickets)
+    .filter((t) => t.status === "Open").length;
 }
 
 /** Worst utilization metric for the host-capacity bars ("82% disk"). */
@@ -859,113 +1068,6 @@ function clientNameFromId(id: string): string {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 }
-
-// ---------- boot completion (shared by operator + self-serve provisions) ----------
-
-function leastLoadedHost(s: FleetState): Host {
-  const sorted = [...s.hosts].sort((a, b) => a.instanceCount - b.instanceCount);
-  return sorted[0] ?? { name: "vps-1", region: "Frankfurt", instanceCount: 0, cpuPct: 0, memPct: 0, diskPct: 0 };
-}
-
-/**
- * Mock of the /health poll: flips Provisioning → Running once the boot
- * sequence (migrate deploy + seed) would have finished, places the instance
- * on the least-loaded host, and updates the fleet stats. Operator-provisioned
- * instances count their license + MRR here; self-serve licenses were already
- * counted at signup (createClientAccount), so only "running" moves.
- */
-function completeBoot(id: string): void {
-  const inst = state.instances.find((i) => i.id === id);
-  if (!inst || inst.status !== "Provisioning") return;
-  const owningClient = state.clients.find((c) => c.instanceId === id);
-  const selfServe = !!owningClient;
-  const host = leastLoadedHost(state);
-
-  patchInstance(id, (i) => ({
-    ...i,
-    status: "Running",
-    health: { ...HEALTHY, lastCheck: new Date().toISOString() },
-    membersCount: 0,
-    uptimePct: 100,
-    metrics: {
-      cpuPct: 3,
-      memPct: 9,
-      diskPct: 2,
-      host: host.name,
-      region: host.region,
-      normalNote: "All systems normal — API, web, admin, database, queue",
-    },
-  }));
-  mutate((s) => ({
-    ...s,
-    hosts: s.hosts.map((h) =>
-      h.name === host.name ? { ...h, instanceCount: h.instanceCount + 1 } : h
-    ),
-    stats: {
-      ...s.stats,
-      running: s.stats.running + 1,
-      licenses: selfServe ? s.stats.licenses : s.stats.licenses + 1,
-      mrr: selfServe ? s.stats.mrr : s.stats.mrr + PLAN_PRICE[inst.plan],
-    },
-  }));
-  prependActivity({
-    actor: "Fleet monitor",
-    avatarSeed: "fleet-bot",
-    prefix: "",
-    target: inst.clientName,
-    suffix: ` is Running — first admin invite sent to ${owningClient?.email ?? inst.owner}`,
-  });
-}
-
-function scheduleBootCompletion(id: string, delayMs: number = PROVISION_BOOT_MS): void {
-  if (typeof window === "undefined") return;
-  setTimeout(() => completeBoot(id), delayMs);
-}
-
-// ---------- lifecycle verbs (mutations) ----------
-
-export async function provisionInstance(input: ProvisionInput): Promise<Instance> {
-  await latency();
-  const id = input.id.trim().toLowerCase();
-  const base = nextPortBase(state);
-  const clientName = clientNameFromId(id);
-  const inst = baseInstance({
-    id,
-    clientName,
-    domain: input.domain.trim().toLowerCase(),
-    plan: input.plan,
-    ports: { api: base, web: base + 1, admin: base + 2 },
-    version: state.rollout.targetVersion,
-    health: UNKNOWN_HEALTH,
-    membersCount: null,
-    status: "Provisioning",
-    uptimePct: null,
-    createdAt: new Date().toISOString().slice(0, 10),
-    owner: input.adminEmail,
-    backups: {
-      schedule: "Daily · 02:00",
-      lastRunAt: "—",
-      verified: false,
-      sizeMb: 0,
-      retentionNote: "First backup runs tonight at 02:00",
-      entries: [],
-    },
-  });
-
-  mutate((s) => ({ ...s, instances: [...s.instances, inst] }));
-  prependActivity({
-    actor: state.operator.name,
-    avatarSeed: state.operator.avatarSeed,
-    prefix: "Provisioned ",
-    target: clientName,
-    suffix: ` (${input.plan}) — boot in progress`,
-  });
-  scheduleBootCompletion(id);
-
-  return inst;
-}
-
-// ---------- self-serve accounts & provisioning (sales → signup → portal) ----------
 
 function slugify(text: string): string {
   return text
@@ -993,34 +1095,184 @@ function renewalDateLabel(): string {
 }
 
 /** Fresh-instance usage quotas — near-zero values against the plan's caps. */
-function zeroUsage(plan: PlanTier): UsageQuota[] {
-  const members = plan === "Starter" ? "of 500" : plan === "Pro" ? "of 5,000" : "unlimited";
-  const storage = plan === "Starter" ? "of 20 GB" : plan === "Pro" ? "of 50 GB" : "of 200 GB";
-  const video = plan === "Starter" ? "of 500 / mo" : plan === "Pro" ? "of 2,000 / mo" : "of 10,000 / mo";
+function zeroUsage(plan: Plan | undefined): UsageQuota[] {
+  const memberLine = plan?.features.find((f) => /member/i.test(f)) ?? "";
+  const capMatch = memberLine.match(/up to ([\d,]+)/i);
+  const members = capMatch ? `of ${capMatch[1]}` : /unlimited/i.test(memberLine) ? "unlimited" : "plan limit";
   return [
     { name: "Members", value: "0", limitNote: members, pct: 0 },
-    { name: "Storage", value: "0.0 GB", limitNote: storage, pct: 0 },
-    { name: "Video minutes", value: "0", limitNote: video, pct: 0 },
+    { name: "Storage", value: "0.0 GB", limitNote: "of 50 GB", pct: 0 },
+    { name: "Video minutes", value: "0", limitNote: "of 2,000 / mo", pct: 0 },
     { name: "Visits (30d)", value: "0", limitNote: "bandwidth 0%", pct: 0 },
   ];
 }
 
-/** Case-insensitive account lookup against the persisted store (sync — used by sign-in). */
-export function findClientByEmail(email: string): ClientAccount | undefined {
-  const needle = email.trim().toLowerCase();
-  if (!needle) return undefined;
-  return state.clients.find((c) => c.email.toLowerCase() === needle);
+// ---------- boot completion (shared by operator + self-serve provisions) ----------
+
+function leastLoadedHost(s: FleetState): Host {
+  const sorted = [...s.hosts].sort((a, b) => a.instanceCount - b.instanceCount);
+  return sorted[0] ?? { name: "vps-1", region: "Frankfurt", instanceCount: 0, cpuPct: 0, memPct: 0, diskPct: 0 };
 }
 
-export function getClient(id: string): ClientAccount | undefined {
-  return state.clients.find((c) => c.id === id);
+/**
+ * Mock of the /health poll: flips Provisioning → Running once the boot
+ * sequence (migrate deploy + seed) would have finished, places the instance
+ * on the least-loaded host, and bumps the running count. The license/MRR were
+ * already counted when the license was created (signup or operator provision).
+ */
+function completeBoot(id: string): void {
+  const inst = state.instances.find((i) => i.id === id);
+  if (!inst || inst.status !== "Provisioning") return;
+  const owningClient = state.clients.find((c) => c.id === inst.clientId);
+  const host = leastLoadedHost(state);
+
+  patchInstance(id, (i) => ({
+    ...i,
+    status: "Running",
+    health: { ...HEALTHY, lastCheck: new Date().toISOString() },
+    membersCount: 0,
+    uptimePct: 100,
+    metrics: {
+      cpuPct: 3,
+      memPct: 9,
+      diskPct: 2,
+      host: host.name,
+      region: host.region,
+      normalNote: "All systems normal — API, web, admin, database, queue",
+    },
+  }));
+  mutate((s) => ({
+    ...s,
+    hosts: s.hosts.map((h) =>
+      h.name === host.name ? { ...h, instanceCount: h.instanceCount + 1 } : h
+    ),
+    stats: { ...s.stats, running: s.stats.running + 1 },
+  }));
+  prependActivity({
+    actor: "Fleet monitor",
+    avatarSeed: "fleet-bot",
+    prefix: "",
+    target: inst.clientName,
+    suffix: ` is Running — first admin invite sent to ${owningClient?.email ?? inst.owner}`,
+  });
 }
+
+function scheduleBootCompletion(id: string, delayMs: number = PROVISION_BOOT_MS): void {
+  if (typeof window === "undefined") return;
+  setTimeout(() => completeBoot(id), delayMs);
+}
+
+/** Shared instance factory for both provisioning paths. */
+function buildProvisioningInstance(input: {
+  id: string;
+  clientId: string;
+  clientName: string;
+  domain: string;
+  owner: string;
+  usage?: UsageQuota[];
+}): Instance {
+  const base = nextPortBase(state);
+  return baseInstance({
+    id: input.id,
+    clientId: input.clientId,
+    clientName: input.clientName,
+    domain: input.domain,
+    ports: { api: base, web: base + 1, admin: base + 2 },
+    version: state.rollout.targetVersion,
+    health: UNKNOWN_HEALTH,
+    membersCount: null,
+    status: "Provisioning",
+    uptimePct: null,
+    createdAt: new Date().toISOString().slice(0, 10),
+    owner: input.owner,
+    usage: input.usage ?? [],
+    backups: {
+      schedule: "Daily · 02:00",
+      lastRunAt: "—",
+      verified: false,
+      sizeMb: 0,
+      retentionNote: "First backup runs tonight at 02:00",
+      entries: [],
+    },
+  });
+}
+
+// ---------- operator provisioning (creates a client + license + instance) ----------
+
+export type ProvisionResult = { ok: true; instance: Instance } | { ok: false; error: string };
+
+/**
+ * Operator "+ Provision instance": brings up a stack for a NEW license
+ * holder — creates the client account + license (counted into stats/MRR
+ * immediately, like a signup) and boots the instance.
+ */
+export async function provisionInstance(input: ProvisionInput): Promise<ProvisionResult> {
+  await latency();
+  const id = input.id.trim().toLowerCase();
+  if (state.instances.some((i) => i.id === id)) {
+    return { ok: false, error: `Instance id "${id}" is already taken.` };
+  }
+  const plan = getPlan(state, input.planId);
+  if (!plan) return { ok: false, error: "Pick a plan from the catalog." };
+
+  const clientName = clientNameFromId(id);
+  const email = input.adminEmail.trim().toLowerCase();
+  const ownerName =
+    clientNameFromId(slugify(email.split("@")[0] ?? "")) || clientName;
+  const clientId = uniqueId(id, (candidate) => state.clients.some((c) => c.id === candidate));
+  const client: ClientAccount = {
+    id: clientId,
+    name: ownerName,
+    academyName: clientName,
+    email,
+    createdAt: new Date().toISOString().slice(0, 10),
+    avatarSeed: `client-${clientId}`,
+    license: {
+      planId: plan.id,
+      status: "active",
+      renewsAt: renewalDateLabel(),
+      cardBrand: "Visa",
+      cardLast4: "4242",
+    },
+  };
+  const inst = buildProvisioningInstance({
+    id,
+    clientId,
+    clientName,
+    domain: input.domain.trim().toLowerCase(),
+    owner: email,
+    usage: zeroUsage(plan),
+  });
+
+  mutate((s) => ({
+    ...s,
+    clients: [...s.clients, client],
+    instances: [...s.instances, inst],
+    stats: {
+      ...s.stats,
+      licenses: s.stats.licenses + 1,
+      mrr: s.stats.mrr + plan.priceMonthly,
+    },
+  }));
+  prependActivity({
+    actor: state.operator.name,
+    avatarSeed: state.operator.avatarSeed,
+    prefix: "Provisioned ",
+    target: clientName,
+    suffix: ` (${plan.name}) — boot in progress`,
+  });
+  scheduleBootCompletion(id);
+
+  return { ok: true, instance: inst };
+}
+
+// ---------- self-serve accounts & provisioning (sales → signup → portal) ----------
 
 export interface CreateClientInput {
   name: string;
   academyName: string;
   email: string;
-  plan: PlanTier;
+  planId: string;
 }
 
 export type CreateClientResult =
@@ -1030,8 +1282,8 @@ export type CreateClientResult =
 /**
  * Self-serve purchase: creates the client account + license records and
  * counts the new license into the fleet stats/MRR, so the operator console
- * shows the signup immediately. The instance is provisioned separately from
- * the portal (provisionOwnInstance) — 1 license = 1 instance.
+ * shows the signup immediately. Instances are provisioned separately from
+ * the portal (provisionOwnInstance), up to effectiveCap(license).
  */
 export async function createClientAccount(input: CreateClientInput): Promise<CreateClientResult> {
   await latency();
@@ -1039,61 +1291,69 @@ export async function createClientAccount(input: CreateClientInput): Promise<Cre
   if (findClientByEmail(email)) {
     return { ok: false, error: "An academy is already registered to that email — sign in instead." };
   }
+  const plan = getPlan(state, input.planId);
+  if (!plan || !plan.active) {
+    return { ok: false, error: "That plan is no longer available — pick another." };
+  }
   const id = uniqueId(
     slugify(input.academyName),
     (candidate) =>
       state.clients.some((c) => c.id === candidate) || state.instances.some((i) => i.id === candidate)
   );
-  const price = PLAN_PRICE[input.plan];
   const client: ClientAccount = {
     id,
     name: input.name.trim(),
     academyName: input.academyName.trim(),
     email,
-    plan: input.plan,
     createdAt: new Date().toISOString().slice(0, 10),
-    instanceId: null,
     avatarSeed: `client-${id}`,
     license: {
-      plan: input.plan,
-      priceMonthly: price,
+      planId: plan.id,
+      status: "active",
       renewsAt: renewalDateLabel(),
       cardBrand: "Visa",
       cardLast4: "4242",
-      includes: PLAN_INCLUDES[input.plan],
     },
   };
   mutate((s) => ({
     ...s,
     clients: [...s.clients, client],
-    stats: { ...s.stats, licenses: s.stats.licenses + 1, mrr: s.stats.mrr + price },
+    stats: { ...s.stats, licenses: s.stats.licenses + 1, mrr: s.stats.mrr + plan.priceMonthly },
   }));
   prependActivity({
     actor: client.name,
     avatarSeed: client.avatarSeed,
     prefix: "New license — ",
     target: client.academyName,
-    suffix: ` (${input.plan}) · self-serve`,
+    suffix: ` (${plan.name}) · self-serve`,
   });
   return { ok: true, client };
 }
 
 /**
- * Portal onboarding: brings up the client's OWN instance on their license —
- * same pipeline as the operator provision (unique id/ports, fleet target
- * version, Provisioning → Running after the mock boot).
+ * Portal onboarding + "Provision another instance": brings up an instance on
+ * the client's license — same pipeline as the operator provision. Quota- and
+ * suspension-checked against the license (the UI hides the forms too; this is
+ * the backstop).
  */
 export async function provisionOwnInstance(
   clientId: string,
-  input: { name: string; domain: string }
-): Promise<Instance | undefined> {
+  input: { name: string; domain: string },
+  by: "client" | "operator" = "client"
+): Promise<ProvisionResult> {
   await latency();
   const client = state.clients.find((c) => c.id === clientId);
-  if (!client) return undefined;
-  // 1 license = 1 instance — an existing live instance wins.
-  if (client.instanceId) {
-    const existing = state.instances.find((i) => i.id === client.instanceId);
-    if (existing) return existing;
+  if (!client) return { ok: false, error: "Account not found." };
+  if (client.license.status === "suspended") {
+    return { ok: false, error: "License suspended — provisioning is disabled. Contact support." };
+  }
+  const owned = clientInstances(state, clientId);
+  const cap = effectiveCap(state, client.license);
+  if (owned.length >= cap) {
+    return {
+      ok: false,
+      error: `Instance limit reached — ${owned.length} of ${cap} used. Upgrade the plan or raise the cap.`,
+    };
   }
 
   const academyName = input.name.trim() || client.academyName;
@@ -1107,65 +1367,47 @@ export async function provisionOwnInstance(
     state.instances.some((i) => i.id === candidate)
   );
   const domain = domainInput || `${id}.spotlightlms.site`;
-  const base = nextPortBase(state);
-  const inst = baseInstance({
+  const inst = buildProvisioningInstance({
     id,
+    clientId,
     clientName: academyName,
     domain,
-    plan: client.plan,
-    ports: { api: base, web: base + 1, admin: base + 2 },
-    version: state.rollout.targetVersion,
-    health: UNKNOWN_HEALTH,
-    membersCount: null,
-    status: "Provisioning",
-    uptimePct: null,
-    createdAt: new Date().toISOString().slice(0, 10),
     owner: client.name,
-    usage: zeroUsage(client.plan),
-    license: { ...client.license },
-    backups: {
-      schedule: "Daily · 02:00",
-      lastRunAt: "—",
-      verified: false,
-      sizeMb: 0,
-      retentionNote: "First backup runs tonight at 02:00",
-      entries: [],
-    },
+    usage: zeroUsage(getPlan(state, client.license.planId)),
   });
 
   mutate((s) => ({
     ...s,
     instances: [...s.instances, inst],
-    clients: s.clients.map((c) => (c.id === clientId ? { ...c, academyName, instanceId: id } : c)),
+    // The first provision names the academy; later instances have their own names.
+    clients:
+      owned.length === 0
+        ? s.clients.map((c) => (c.id === clientId ? { ...c, academyName } : c))
+        : s.clients,
   }));
-  prependActivity({
-    actor: client.name,
-    avatarSeed: client.avatarSeed,
-    prefix: "Provisioned ",
-    target: academyName,
-    suffix: ` (${client.plan}) — self-serve, boot in progress`,
-  });
+  prependActivity(
+    by === "operator"
+      ? {
+          actor: state.operator.name,
+          avatarSeed: state.operator.avatarSeed,
+          prefix: "Provisioned ",
+          target: academyName,
+          suffix: ` for ${client.academyName} — boot in progress`,
+        }
+      : {
+          actor: client.name,
+          avatarSeed: client.avatarSeed,
+          prefix: "Provisioned ",
+          target: academyName,
+          suffix: ` (${owned.length + 1} of ${cap}) — self-serve, boot in progress`,
+        }
+  );
   scheduleBootCompletion(id);
 
-  return inst;
+  return { ok: true, instance: inst };
 }
 
-// ---------- session → portal record resolution (pure helpers) ----------
-
-/** Resolves a client session (demo or real) to its account record. */
-export function portalClient(
-  s: FleetState,
-  session: { clientId: string } | null | undefined
-): ClientAccount | undefined {
-  if (!session) return undefined;
-  return s.clients.find((c) => c.id === session.clientId);
-}
-
-/** Resolves a client account to their own instance (undefined while onboarding). */
-export function portalInstance(s: FleetState, client: ClientAccount | undefined): Instance | undefined {
-  if (!client?.instanceId) return undefined;
-  return s.instances.find((i) => i.id === client.instanceId);
-}
+// ---------- instance lifecycle (containers only — the license is separate) ----------
 
 export async function startInstance(id: string): Promise<void> {
   await latency();
@@ -1186,8 +1428,12 @@ export async function stopInstance(id: string): Promise<void> {
   await latency();
   const inst = state.instances.find((i) => i.id === id);
   if (!inst) return;
+  const wasRunning = inst.status === "Running";
   patchInstance(id, (i) => ({ ...i, status: "Stopped", health: UNKNOWN_HEALTH, uptimePct: null }));
-  mutate((s) => ({ ...s, stats: { ...s.stats, running: Math.max(0, s.stats.running - 1) } }));
+  mutate((s) => ({
+    ...s,
+    stats: { ...s.stats, running: wasRunning ? Math.max(0, s.stats.running - 1) : s.stats.running },
+  }));
   prependActivity({
     actor: state.operator.name,
     avatarSeed: state.operator.avatarSeed,
@@ -1197,64 +1443,16 @@ export async function stopInstance(id: string): Promise<void> {
   });
 }
 
-export async function suspendInstance(id: string): Promise<void> {
-  await latency();
-  const inst = state.instances.find((i) => i.id === id);
-  if (!inst) return;
-  const wasRunning = inst.status === "Running";
-  patchInstance(id, (i) => ({ ...i, status: "Suspended", health: UNKNOWN_HEALTH, uptimePct: null }));
-  mutate((s) => ({
-    ...s,
-    stats: {
-      ...s.stats,
-      running: wasRunning ? Math.max(0, s.stats.running - 1) : s.stats.running,
-      mrr: Math.max(0, s.stats.mrr - inst.license.priceMonthly),
-    },
-  }));
-  prependActivity({
-    actor: state.operator.name,
-    avatarSeed: state.operator.avatarSeed,
-    prefix: "Suspended ",
-    target: inst.clientName,
-    suffix: " — license on hold, data kept",
-  });
-}
-
-export async function resumeInstance(id: string): Promise<void> {
-  await latency();
-  const inst = state.instances.find((i) => i.id === id);
-  if (!inst) return;
-  patchInstance(id, (i) => ({ ...i, status: "Running", health: HEALTHY, uptimePct: 99.9 }));
-  mutate((s) => ({
-    ...s,
-    stats: {
-      ...s.stats,
-      running: s.stats.running + 1,
-      mrr: s.stats.mrr + inst.license.priceMonthly,
-    },
-  }));
-  prependActivity({
-    actor: state.operator.name,
-    avatarSeed: state.operator.avatarSeed,
-    prefix: "Resumed ",
-    target: inst.clientName,
-    suffix: " — license reactivated",
-  });
-}
-
-/** compose down -v — removes containers AND data volumes. */
+/** compose down -v — removes containers AND data volumes. The license stays. */
 export async function destroyInstance(id: string): Promise<void> {
   await latency();
   const inst = state.instances.find((i) => i.id === id);
   if (!inst) return;
   const wasRunning = inst.status === "Running";
-  const wasBilling = inst.status === "Running" || inst.status === "Provisioning" || inst.status === "Stopped";
   const hostName = inst.metrics?.host;
   mutate((s) => ({
     ...s,
     instances: s.instances.filter((i) => i.id !== id),
-    // A destroyed self-serve instance sends its owner back to portal onboarding.
-    clients: s.clients.map((c) => (c.instanceId === id ? { ...c, instanceId: null } : c)),
     hosts: hostName
       ? s.hosts.map((h) =>
           h.name === hostName ? { ...h, instanceCount: Math.max(0, h.instanceCount - 1) } : h
@@ -1262,9 +1460,7 @@ export async function destroyInstance(id: string): Promise<void> {
       : s.hosts,
     stats: {
       ...s.stats,
-      licenses: Math.max(0, s.stats.licenses - 1),
       running: wasRunning ? Math.max(0, s.stats.running - 1) : s.stats.running,
-      mrr: wasBilling ? Math.max(0, s.stats.mrr - inst.license.priceMonthly) : s.stats.mrr,
     },
   }));
   prependActivity({
@@ -1272,8 +1468,245 @@ export async function destroyInstance(id: string): Promise<void> {
     avatarSeed: state.operator.avatarSeed,
     prefix: "Destroyed ",
     target: inst.clientName,
-    suffix: " — compose down -v, volumes purged",
+    suffix: " — compose down -v, volumes purged; the license keeps its slot",
   });
+}
+
+// ---------- license control (operator) ----------
+
+/**
+ * Suspends the LICENSE: the client portal shows a warning banner and every
+ * mutating action is disabled; instances keep running. MRR drops by the
+ * plan price.
+ */
+export async function suspendLicense(clientId: string): Promise<void> {
+  await latency();
+  const client = state.clients.find((c) => c.id === clientId);
+  if (!client || client.license.status === "suspended") return;
+  const price = planPrice(state, client.license.planId);
+  patchLicense(clientId, (l) => ({ ...l, status: "suspended" }));
+  mutate((s) => ({ ...s, stats: { ...s.stats, mrr: Math.max(0, s.stats.mrr - price) } }));
+  prependActivity({
+    actor: state.operator.name,
+    avatarSeed: state.operator.avatarSeed,
+    prefix: "Suspended the license for ",
+    target: client.academyName,
+    suffix: " — portal actions disabled, instances keep running",
+  });
+}
+
+/**
+ * Resumes the license (MRR back on). Any instance that was parked in the
+ * seeded "Suspended" state comes back up with it.
+ */
+export async function resumeLicense(clientId: string): Promise<void> {
+  await latency();
+  const client = state.clients.find((c) => c.id === clientId);
+  if (!client || client.license.status === "active") return;
+  const price = planPrice(state, client.license.planId);
+  const revived = clientInstances(state, clientId).filter((i) => i.status === "Suspended");
+  mutate((s) => ({
+    ...s,
+    clients: s.clients.map((c) =>
+      c.id === clientId
+        ? { ...c, license: { ...c.license, status: "active", renewsAt: renewalDateLabel() } }
+        : c
+    ),
+    instances: s.instances.map((i) =>
+      i.clientId === clientId && i.status === "Suspended"
+        ? { ...i, status: "Running", health: HEALTHY, uptimePct: 99.9 }
+        : i
+    ),
+    stats: {
+      ...s.stats,
+      running: s.stats.running + revived.length,
+      mrr: s.stats.mrr + price,
+    },
+  }));
+  prependActivity({
+    actor: state.operator.name,
+    avatarSeed: state.operator.avatarSeed,
+    prefix: "Resumed the license for ",
+    target: client.academyName,
+    suffix: revived.length > 0 ? " — parked instances restarted" : "",
+  });
+}
+
+/**
+ * Moves the license to another catalog plan — MRR repriced, cap/track follow
+ * the new plan (per-license overrides stay). Called from the operator console
+ * and the portal Upgrade dialog.
+ */
+export async function changeLicensePlan(
+  clientId: string,
+  planId: string,
+  by: "operator" | "client" = "client"
+): Promise<void> {
+  await latency();
+  const client = state.clients.find((c) => c.id === clientId);
+  const plan = getPlan(state, planId);
+  if (!client || !plan || client.license.planId === planId) return;
+  const oldPrice = planPrice(state, client.license.planId);
+  const delta = client.license.status === "active" ? plan.priceMonthly - oldPrice : 0;
+  mutate((s) => ({
+    ...s,
+    clients: s.clients.map((c) =>
+      c.id === clientId ? { ...c, license: { ...c.license, planId } } : c
+    ),
+    stats: { ...s.stats, mrr: Math.max(0, s.stats.mrr + delta) },
+  }));
+  prependActivity({
+    actor: by === "operator" ? state.operator.name : client.name,
+    avatarSeed: by === "operator" ? state.operator.avatarSeed : client.avatarSeed,
+    prefix: "Changed the license for ",
+    target: client.academyName,
+    suffix: ` to ${plan.name} ($${plan.priceMonthly}/mo)`,
+  });
+}
+
+/** Operator override of the instance cap; null clears back to the plan value. */
+export async function setLicenseCapOverride(clientId: string, cap: number | null): Promise<void> {
+  await latency();
+  const client = state.clients.find((c) => c.id === clientId);
+  if (!client) return;
+  const before = effectiveCap(state, client.license);
+  patchLicense(clientId, (l) => ({ ...l, instanceCapOverride: cap }));
+  const after = effectiveCap(state, state.clients.find((c) => c.id === clientId)!.license);
+  prependActivity({
+    actor: state.operator.name,
+    avatarSeed: state.operator.avatarSeed,
+    prefix: cap === null ? "Cleared the instance-cap override for " : "Overrode the instance cap for ",
+    target: client.academyName,
+    suffix: ` — ${before} → ${after}${cap === null ? " (plan default)" : ""}`,
+  });
+}
+
+/** Operator override of the app track; null clears back to the plan value. */
+export async function setLicenseTrackOverride(clientId: string, track: AppTrack | null): Promise<void> {
+  await latency();
+  const client = state.clients.find((c) => c.id === clientId);
+  if (!client) return;
+  const before = trackLabel(effectiveTrack(state, client.license));
+  patchLicense(clientId, (l) => ({ ...l, appTrackOverride: track }));
+  const after = trackLabel(effectiveTrack(state, state.clients.find((c) => c.id === clientId)!.license));
+  prependActivity({
+    actor: state.operator.name,
+    avatarSeed: state.operator.avatarSeed,
+    prefix: "Switched the app track for ",
+    target: client.academyName,
+    suffix: ` — ${before} → ${after}${track === null ? " (plan default)" : ""}`,
+  });
+}
+
+export async function updateCard(clientId: string, brand: string, last4: string): Promise<void> {
+  await latency();
+  patchLicense(clientId, (l) => ({ ...l, cardBrand: brand, cardLast4: last4 }));
+}
+
+// ---------- plan catalog CRUD (operator) ----------
+
+export interface PlanInput {
+  name: string;
+  blurb: string;
+  priceMonthly: number;
+  instanceCap: number;
+  appTrack: AppTrack;
+  features: string[];
+  featured: boolean;
+}
+
+export async function createPlan(input: PlanInput): Promise<Plan> {
+  await latency();
+  const id = uniqueId(slugify(input.name) || "plan", (candidate) =>
+    state.plans.some((p) => p.id === candidate)
+  );
+  const plan: Plan = {
+    id,
+    ...input,
+    active: true,
+    order: Math.max(-1, ...state.plans.map((p) => p.order)) + 1,
+  };
+  mutate((s) => ({ ...s, plans: [...s.plans, plan] }));
+  prependActivity({
+    actor: state.operator.name,
+    avatarSeed: state.operator.avatarSeed,
+    prefix: "Created plan ",
+    target: plan.name,
+    suffix: ` — $${plan.priceMonthly}/mo · cap ${plan.instanceCap} · ${trackLabel(plan.appTrack)}`,
+  });
+  return plan;
+}
+
+export async function updatePlan(planId: string, patch: PlanInput): Promise<void> {
+  await latency();
+  const before = state.plans.find((p) => p.id === planId);
+  if (!before) return;
+
+  // Live catalog repricing: active licenses on this plan follow the new price.
+  const priceDelta = patch.priceMonthly - before.priceMonthly;
+  const activeLicenses = state.clients.filter(
+    (c) => c.license.planId === planId && c.license.status === "active"
+  ).length;
+
+  const changes: string[] = [];
+  if (before.name !== patch.name) changes.push(`renamed ${before.name} → ${patch.name}`);
+  if (priceDelta !== 0) changes.push(`$${before.priceMonthly} → $${patch.priceMonthly}`);
+  if (before.instanceCap !== patch.instanceCap)
+    changes.push(`cap ${before.instanceCap} → ${patch.instanceCap}`);
+  if (before.appTrack !== patch.appTrack)
+    changes.push(`${trackLabel(before.appTrack)} → ${trackLabel(patch.appTrack)}`);
+  if (before.featured !== patch.featured) changes.push(patch.featured ? "featured" : "unfeatured");
+  if (
+    before.blurb !== patch.blurb ||
+    before.features.join("\n") !== patch.features.join("\n")
+  )
+    changes.push("copy updated");
+
+  mutate((s) => ({
+    ...s,
+    plans: s.plans.map((p) => (p.id === planId ? { ...p, ...patch } : p)),
+    stats: { ...s.stats, mrr: Math.max(0, s.stats.mrr + priceDelta * activeLicenses) },
+  }));
+  prependActivity({
+    actor: state.operator.name,
+    avatarSeed: state.operator.avatarSeed,
+    prefix: "Plan updated — ",
+    target: patch.name,
+    suffix: changes.length > 0 ? `: ${changes.join(" · ")}` : ": no changes",
+  });
+}
+
+export async function togglePlanActive(planId: string): Promise<void> {
+  await latency();
+  const plan = state.plans.find((p) => p.id === planId);
+  if (!plan) return;
+  mutate((s) => ({
+    ...s,
+    plans: s.plans.map((p) => (p.id === planId ? { ...p, active: !p.active } : p)),
+  }));
+  prependActivity({
+    actor: state.operator.name,
+    avatarSeed: state.operator.avatarSeed,
+    prefix: plan.active ? "Deactivated plan " : "Activated plan ",
+    target: plan.name,
+    suffix: plan.active ? " — hidden from sales & signup, licenses keep it" : " — back on sale",
+  });
+}
+
+/** Moves a plan up (-1) or down (+1) in every plan list. */
+export async function reorderPlan(planId: string, direction: -1 | 1): Promise<void> {
+  await latency();
+  const ordered = sortedPlans(state);
+  const idx = ordered.findIndex((p) => p.id === planId);
+  const swapWith = ordered[idx + direction];
+  if (idx === -1 || !swapWith) return;
+  const a = ordered[idx];
+  mutate((s) => ({
+    ...s,
+    plans: s.plans.map((p) =>
+      p.id === a.id ? { ...p, order: swapWith.order } : p.id === swapWith.id ? { ...p, order: a.order } : p
+    ),
+  }));
 }
 
 // ---------- updates & rollout ----------
@@ -1282,10 +1715,11 @@ export async function scheduleUpdate(id: string): Promise<void> {
   await latency();
   const inst = state.instances.find((i) => i.id === id);
   if (!inst || !inst.updateAvailable) return;
+  const owner = clientForInstance(state, inst);
   patchInstance(id, (i) => ({ ...i, updateScheduled: true }));
   prependActivity({
-    actor: inst.owner,
-    avatarSeed: "priya-av",
+    actor: owner?.name ?? inst.owner,
+    avatarSeed: owner?.avatarSeed ?? "fleet-bot",
     prefix: "Scheduled tonight's update to ",
     target: inst.updateAvailable.version,
     suffix: ` for ${inst.clientName}`,
@@ -1318,10 +1752,7 @@ export async function resumeRollout(): Promise<void> {
 
 // ---------- alerts ----------
 
-/**
- * Side effects mirroring what the real resolution action would do — pure, so
- * the store hydration can replay persisted resolutions on top of the seed.
- */
+/** Side effects mirroring what the real resolution action would do. */
 function applyAlertResolutionEffects(s: FleetState, alertId: string): FleetState {
   if (alertId !== "a-backup-luthier") return s;
   return {
@@ -1391,12 +1822,13 @@ export async function restoreBackup(instanceId: string, entryId: string): Promis
   await latency();
   const inst = state.instances.find((i) => i.id === instanceId);
   if (!inst) return;
+  const owner = clientForInstance(state, inst);
   const entry = inst.backups.entries.find((e) => e.id === entryId);
   const label = entry?.label ?? "latest backup";
   patchInstance(instanceId, (i) => ({ ...i, restoreInProgress: { entryLabel: label } }));
   prependActivity({
-    actor: inst.owner,
-    avatarSeed: "priya-av",
+    actor: owner?.name ?? inst.owner,
+    avatarSeed: owner?.avatarSeed ?? "fleet-bot",
     prefix: "Started a restore of ",
     target: label,
     suffix: ` for ${inst.clientName}`,
@@ -1419,13 +1851,14 @@ export async function createTicket(instanceId: string, subject: string): Promise
   await latency();
   const inst = state.instances.find((i) => i.id === instanceId);
   if (!inst) return;
+  const owner = clientForInstance(state, inst);
   const nextId = Math.max(482, ...state.instances.flatMap((i) => i.tickets.map((t) => t.id))) + 1;
   const ticket: Ticket = {
     id: nextId,
     instanceId,
     subject,
     meta: `#${nextId} · just now · avg response 4h`,
-    requester: inst.owner,
+    requester: owner?.name ?? inst.owner,
     status: "Open",
   };
   patchInstance(instanceId, (i) => ({ ...i, tickets: [ticket, ...i.tickets] }));
@@ -1440,6 +1873,7 @@ export async function requestMobileBuilds(
   await latency();
   const inst = state.instances.find((i) => i.id === instanceId);
   if (!inst) return;
+  const owner = clientForInstance(state, inst);
   patchInstance(instanceId, (i) => ({
     ...i,
     mobileBuilds: {
@@ -1452,64 +1886,12 @@ export async function requestMobileBuilds(
     },
   }));
   prependActivity({
-    actor: inst.owner,
-    avatarSeed: "priya-av",
+    actor: owner?.name ?? inst.owner,
+    avatarSeed: owner?.avatarSeed ?? "fleet-bot",
     prefix: "Requested mobile builds for ",
     target: inst.clientName,
     suffix: ` (${[platforms.ios && "iOS", platforms.android && "Android"].filter(Boolean).join(" + ")})`,
   });
-}
-
-// ---------- license / billing ----------
-
-export async function changePlan(instanceId: string, plan: PlanTier): Promise<void> {
-  await latency();
-  const inst = state.instances.find((i) => i.id === instanceId);
-  if (!inst || inst.plan === plan) return;
-  const delta = PLAN_PRICE[plan] - inst.license.priceMonthly;
-  patchInstance(instanceId, (i) => ({
-    ...i,
-    plan,
-    mrr: PLAN_PRICE[plan],
-    license: { ...i.license, plan, priceMonthly: PLAN_PRICE[plan], includes: PLAN_INCLUDES[plan] },
-  }));
-  mutate((s) => ({
-    ...s,
-    // Keep the owning self-serve account's license record in sync.
-    clients: s.clients.map((c) =>
-      c.instanceId === instanceId
-        ? {
-            ...c,
-            plan,
-            license: { ...c.license, plan, priceMonthly: PLAN_PRICE[plan], includes: PLAN_INCLUDES[plan] },
-          }
-        : c
-    ),
-    stats: { ...s.stats, mrr: s.stats.mrr + delta },
-  }));
-  prependActivity({
-    actor: inst.owner,
-    avatarSeed: "priya-av",
-    prefix: "Changed the license for ",
-    target: inst.clientName,
-    suffix: ` to ${plan} ($${PLAN_PRICE[plan]}/mo)`,
-  });
-}
-
-export async function updateCard(instanceId: string, brand: string, last4: string): Promise<void> {
-  await latency();
-  patchInstance(instanceId, (i) => ({
-    ...i,
-    license: { ...i.license, cardBrand: brand, cardLast4: last4 },
-  }));
-  mutate((s) => ({
-    ...s,
-    clients: s.clients.map((c) =>
-      c.instanceId === instanceId
-        ? { ...c, license: { ...c.license, cardBrand: brand, cardLast4: last4 } }
-        : c
-    ),
-  }));
 }
 
 // ---------- hosts & settings ----------

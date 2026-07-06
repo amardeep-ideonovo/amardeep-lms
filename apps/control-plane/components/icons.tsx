@@ -25,6 +25,7 @@ export type IconName =
   | "video"
   | "brush"
   | "award"
+  | "tag"
   | "play";
 
 const PATHS: Record<IconName, ReactNode> = {
@@ -220,6 +221,18 @@ const PATHS: Record<IconName, ReactNode> = {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </>
+  ),
+  tag: (
+    <>
+      <path
+        d="M20.59 13.41 11.42 4.24A2 2 0 0 0 10 3.66H5a2 2 0 0 0-2 2v5a2 2 0 0 0 .59 1.42l9.17 9.17a2 2 0 0 0 2.83 0l5-5a2 2 0 0 0 0-2.84Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M7.6 8.26h.01" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
     </>
   ),
   play: <path d="m8 5 12 7-12 7z" fill="currentColor" />,
