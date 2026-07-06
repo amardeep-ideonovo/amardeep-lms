@@ -10,11 +10,14 @@ export function Skeleton({
   width = "100%",
   height,
   radius = 10,
+  color,
   style,
 }: {
   width?: DimensionValue;
   height: number;
   radius?: number;
+  // Override for ink surfaces (design: rgba(255,255,255,.08) shimmer on ink).
+  color?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const { colors } = useScopedTheme();
@@ -40,7 +43,13 @@ export function Skeleton({
   return (
     <Animated.View
       style={[
-        { width, height, borderRadius: radius, backgroundColor: colors.surfaceMuted, opacity },
+        {
+          width,
+          height,
+          borderRadius: radius,
+          backgroundColor: color ?? colors.surfaceMuted,
+          opacity,
+        },
         style,
       ]}
     />

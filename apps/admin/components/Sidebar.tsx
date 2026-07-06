@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { AdminSection } from "@lms/types";
-import { clearToken, getToken } from "@/lib/api";
+import { getToken } from "@/lib/api";
 import { useAdminAuth } from "./AdminAuthProvider";
-import ThemeToggle from "./ThemeToggle";
 
 type NavItem = {
   href: string;
@@ -247,10 +246,24 @@ const GROUPS: NavGroup[] = [
   },
 ];
 
+// "Amara Diallo" -> "AD"; falls back to the email's first letters.
+function initialsOf(name: string | null | undefined, email?: string | null): string {
+  const src = (name && name.trim()) || email || "?";
+  const parts = src.split(/[\s@._-]+/).filter(Boolean);
+  const first = parts[0]?.[0] ?? "A";
+  const second = parts[1]?.[0] ?? "";
+  return (first + second).toUpperCase();
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: "Super admin",
+  ADMIN: "Admin",
+  EDITOR: "Editor",
+};
+
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { can, isSuperAdmin } = useAdminAuth();
+  const { can, isSuperAdmin, me } = useAdminAuth();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -261,11 +274,6 @@ export default function Sidebar() {
   // Hide when unauthenticated — but only after mount (token lives in localStorage,
   // unknown to SSR), keeping server and first client render identical.
   if (mounted && !getToken()) return null;
-
-  const logout = () => {
-    clearToken();
-    router.replace("/login");
-  };
 
   const renderItem = (item: NavItem) => {
     // "/" must match exactly; everything else matches by prefix. "/projects" is
@@ -291,13 +299,14 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand sidebar-brand--row">
+        {/* Spotlight mark: teal beam + light pool (from the Ink Hero frames) */}
         <span className="brand-mark" aria-hidden="true">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
-            <path d="M12 3 3 8l9 5 9-5-9-5Z" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
-            <path d="M3 16l9 5 9-5M3 12l9 5 9-5" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M5 2.2 11.6 6 7.8 12.6 1.2 8.8Z" fill="#3cc4b2" />
+            <ellipse cx="14.8" cy="18.6" rx="6.8" ry="2.9" fill="rgba(60,196,178,.32)" />
           </svg>
         </span>
-        <span className="brand-name">LMS Admin</span>
+        <span className="brand-name">Spotlight Admin</span>
       </div>
 
       {GROUPS.map((group) => {
@@ -319,11 +328,24 @@ export default function Sidebar() {
         );
       })}
 
-      <ThemeToggle />
-
-      <button className="btn btn--ghost sidebar-logout" onClick={logout}>
-        Log out
-      </button>
+      {/* Signed-in admin card (theme toggle removed — Ink Hero is single-theme;
+          log out lives in the topbar avatar menu). */}
+      <Link href="/profile" className="sidebar-me" title="Your profile">
+        {me?.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={me.avatarUrl} alt="" className="sidebar-me-avatar" />
+        ) : (
+          <span className="sidebar-me-initials" aria-hidden="true">
+            {initialsOf(me?.name, me?.email)}
+          </span>
+        )}
+        <span className="sidebar-me-main">
+          <span className="sidebar-me-name">{me?.name || me?.email || "Admin"}</span>
+          <span className="sidebar-me-role">
+            {ROLE_LABELS[me?.role ?? ""] ?? "Admin"}
+          </span>
+        </span>
+      </Link>
     </aside>
   );
 }

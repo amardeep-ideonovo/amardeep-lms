@@ -14,13 +14,9 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
-import type {
-  AuthUser,
-  MyCertificateDTO,
-  SubscriptionDetailDTO,
-} from "@lms/types";
+import type { AuthUser, SubscriptionDetailDTO } from "@lms/types";
 
-import { api, certificateDownloadUrl } from "../api";
+import { api } from "../api";
 import { useAuth } from "../auth";
 import { Chip } from "../components/Chip";
 import { ErrorState } from "../components/Screen";
@@ -75,14 +71,13 @@ function initialsOf(u: AuthUser): string {
 
 type DetailsMode = "view" | "edit" | "password";
 
-export function AccountScreen({ navigation }: TabScreenProps<"Account">) {
+export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const styles = useStyles(makeStyles);
   const { config } = useAppConfig();
   const { signOut } = useAuth();
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [subs, setSubs] = useState<SubscriptionDetailDTO[]>([]);
-  const [certificates, setCertificates] = useState<MyCertificateDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,14 +108,12 @@ export function AccountScreen({ navigation }: TabScreenProps<"Account">) {
     setError(null);
     try {
       // A billing hiccup shouldn't blank the profile — only me() is fatal.
-      const [u, s, certs] = await Promise.all([
+      const [u, s] = await Promise.all([
         api.me(),
         api.mySubscriptionDetails().catch(() => [] as SubscriptionDetailDTO[]),
-        api.myCertificates().catch(() => [] as MyCertificateDTO[]),
       ]);
       setUser(u);
       setSubs(s);
-      setCertificates(certs);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load your account.");
     } finally {
@@ -599,36 +592,27 @@ export function AccountScreen({ navigation }: TabScreenProps<"Account">) {
               </View>
             </View>
 
-            {certificates.length > 0 ? (
-              <View style={styles.card}>
-                <Text style={styles.heading}>My certificates</Text>
-                {certificates.map((c, i) => (
-                  <View
-                    key={c.id}
-                    style={[styles.planRow, i > 0 && styles.planRowDivider]}
-                  >
-                    <View style={styles.planTop}>
-                      <Text style={styles.planName}>{c.className}</Text>
-                    </View>
-                    <Text style={styles.planMeta}>
-                      {c.serial} · issued{" "}
-                      {new Date(c.issuedAt).toLocaleDateString()}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={async () => {
-                        // Opens the access-checked PDF in the device browser
-                        // (?token= URL — same contract as lesson notes).
-                        const url = await certificateDownloadUrl(c);
-                        Linking.openURL(url).catch(() => {});
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.downloadLink}>Download PDF</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            ) : null}
+            {/* Certificates live on their own Ink Hero screen now; Blog moved
+                out of the tab bar, so both stay reachable from here. */}
+            <View style={styles.card}>
+              <Text style={styles.heading}>More</Text>
+              <TouchableOpacity
+                style={styles.moreRow}
+                onPress={() => navigation.navigate("Certificates")}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.moreText}>My certificates</Text>
+                <Text style={styles.moreChevron}>›</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.moreRow, styles.moreRowDivider]}
+                onPress={() => navigation.navigate("Blog")}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.moreText}>Blog</Text>
+                <Text style={styles.moreChevron}>›</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Card management is a Stripe-portal feature. PayPal members
                 manage their payment method in their PayPal account. */}
@@ -890,13 +874,18 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
     marginTop: spacing.sm,
     fontFamily: fonts.semibold,
   },
-  downloadLink: {
-    color: colors.primarySoft,
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: spacing.sm,
-    fontFamily: fonts.semibold,
+  moreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: spacing.sm + 2,
   },
+  moreRowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSoft,
+  },
+  moreText: { color: colors.text, fontSize: 15, fontWeight: "600", fontFamily: fonts.semibold },
+  moreChevron: { color: colors.textMuted, fontSize: 18, fontFamily: fonts.regular },
   note: {
     color: colors.textMuted,
     fontSize: 14,

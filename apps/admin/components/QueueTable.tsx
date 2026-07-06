@@ -70,16 +70,16 @@ const FIELD_TYPES: { type: ChatFieldType; label: string }[] = [
   { type: "SECRET", label: "Secret" },
 ];
 
-// Swatch palette — drawn from the existing token hues so options stay on-brand.
+// Swatch palette — drawn from the Ink Hero token hues so options stay on-brand.
 const SWATCHES = [
-  "#7c5cfc", // primary violet
-  "#ec58a8", // accent pink
-  "#9577fb", // purple
-  "#46c9a0", // green
-  "#f6a623", // amber
-  "#f2557b", // danger/rose
-  "#6fd6e6", // teal (matches .chip default)
-  "#948cb4", // muted
+  "#3cc4b2", // teal (accent)
+  "#f7a01e", // music amber
+  "#9046c8", // cooking purple
+  "#43a565", // photo green
+  "#e04848", // film red
+  "#4a76d0", // dance blue
+  "#27a596", // comedy sea
+  "#8b87a3", // muted
 ];
 
 // Render an option's chip color: explicit color → tinted chip; otherwise muted.

@@ -10,20 +10,14 @@ import { StatusBar } from "expo-status-bar";
 import * as ExpoLinking from "expo-linking";
 import { useFonts } from "expo-font";
 import {
-  Montserrat_400Regular,
-  Montserrat_500Medium,
-  Montserrat_600SemiBold,
-  Montserrat_700Bold,
-  Montserrat_800ExtraBold,
-} from "@expo-google-fonts/montserrat";
-import {
-  PlayfairDisplay_600SemiBold,
-  PlayfairDisplay_700Bold,
-  PlayfairDisplay_800ExtraBold,
-} from "@expo-google-fonts/playfair-display";
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from "@expo-google-fonts/plus-jakarta-sans";
 
 import { AuthProvider, useAuth } from "./src/auth";
-import { BrandHeaderTitle } from "./src/components/BrandHeaderTitle";
 import { IS_LOCKED_BUILD, WEB_BASE_URL, unbindInstance } from "./src/config";
 import { ConfigProvider, useAppConfig } from "./src/config-provider";
 import { InstanceGate } from "./src/instance-gate";
@@ -38,12 +32,15 @@ import type {
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { SignupScreen } from "./src/screens/SignupScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
+import { MyClassesScreen } from "./src/screens/MyClassesScreen";
+import { LiveScreen } from "./src/screens/LiveScreen";
 import { ClassScreen } from "./src/screens/ClassScreen";
 import { CourseListScreen } from "./src/screens/CourseListScreen";
 import { CourseScreen } from "./src/screens/CourseScreen";
 import { LessonScreen } from "./src/screens/LessonScreen";
 import { LiveSessionScreen } from "./src/screens/LiveSessionScreen";
 import { AccountScreen } from "./src/screens/AccountScreen";
+import { CertificatesScreen } from "./src/screens/CertificatesScreen";
 import { PaymentsScreen } from "./src/screens/PaymentsScreen";
 import { PlansScreen } from "./src/screens/PlansScreen";
 import { BlogListScreen } from "./src/screens/BlogListScreen";
@@ -66,19 +63,24 @@ function buildLinking(): LinkingOptions<RootStackParamList> {
     filter: (url) => !url.includes("expo-development-client"),
     config: {
       screens: {
-        // Dashboard / Blog / Account now live inside the "Main" tab navigator, so
-        // their deep-link paths are declared as nested screens of Main.
+        // Home / Classes / Live / Profile live inside the "Main" tab navigator,
+        // so their deep-link paths are declared as nested screens of Main. The
+        // web paths ("dashboard", "account") stay the same — only the route
+        // names changed with the Ink Hero tabs.
         Main: {
           screens: {
-            Dashboard: "dashboard",
-            Blog: "blog",
-            Account: "account",
+            Home: "dashboard",
+            Classes: "my-classes",
+            Live: "live",
+            Profile: "account",
           },
         },
         Class: "classes/:slugOrId",
         Course: "courses/:courseId",
         Lesson: "lessons/:lessonId",
         LiveSession: "live/:sessionId",
+        Certificates: "account/certificates",
+        Blog: "blog",
         BlogPost: "blog/:slug",
         Payments: "account/payments",
         Plans: "pricing/all",
@@ -92,20 +94,32 @@ const AppStack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
-// Bottom-tab icon (Ionicons, bundled with Expo). Active/inactive tint comes
-// from the navigator's tabBarActive/InactiveTintColor.
+// Bottom-tab icon (Ionicons, bundled with Expo) + the Ink Hero active marker:
+// an 18×3 underline pill under the focused icon (design tab-bar spec).
 function TabIcon({
   name,
   color,
+  focused,
 }: {
   name: React.ComponentProps<typeof Ionicons>["name"];
   color: string;
+  focused: boolean;
 }) {
-  return <Ionicons name={name} size={22} color={color} />;
+  return (
+    <View style={styles.tabIconWrap}>
+      <Ionicons name={name} size={21} color={color} />
+      <View
+        style={[
+          styles.tabPill,
+          { backgroundColor: focused ? color : "transparent" },
+        ]}
+      />
+    </View>
+  );
 }
 
 // Unauthenticated screens — Login + Signup. Header is hidden so the screens
-// own their own layout.
+// own their own layout (ink band + white card).
 function AuthNavigator() {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
@@ -115,10 +129,10 @@ function AuthNavigator() {
   );
 }
 
-// The persistent authed shell — a bottom tab bar with Dashboard / Blog /
-// Account. Each tab owns its OWN header (styled like the stack chrome below);
-// detail screens push OVER the tabs from the root stack. The bottom safe-area
-// inset is handled automatically by bottom-tabs via safe-area-context.
+// The persistent authed shell — Ink Hero bottom tabs: Home / Classes / Live /
+// Profile. Home draws its own ink chrome band (no nav header); the other tabs
+// carry a light app bar. Detail screens push OVER the tabs from the root
+// stack. The bottom safe-area inset is handled by bottom-tabs itself.
 function MainTabs() {
   const { colors } = useTheme();
   return (
@@ -127,47 +141,77 @@ function MainTabs() {
         headerShown: true,
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.text,
-        headerTitleStyle: { fontFamily: fonts.bold, fontSize: 17 },
-        // Dark glass tab bar.
+        headerTitleAlign: "center",
+        headerShadowVisible: false,
+        headerTitleStyle: { fontFamily: fonts.semibold, fontSize: 17 },
+        // Light surface bar, soft top hairline, ink active / muted inactive.
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.borderSoft,
         },
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 11 },
       }}
     >
       <Tab.Screen
-        name="Dashboard"
+        name="Home"
         component={DashboardScreen}
         options={{
-          // The home header carries the brand (admin-configured logo or title),
-          // not the screen name — matches the admin live-preview.
-          headerTitle: () => <BrandHeaderTitle />,
+          // The ink band IS the header on Home (brand row lives inside it).
+          headerShown: false,
           title: "Home",
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? "home" : "home-outline"} color={color} />
+            <TabIcon
+              name={focused ? "home" : "home-outline"}
+              color={color}
+              focused={focused}
+            />
           ),
         }}
       />
       <Tab.Screen
-        name="Blog"
-        component={BlogListScreen}
+        name="Classes"
+        component={MyClassesScreen}
         options={{
-          title: "Blog",
+          title: "My Classes",
+          tabBarLabel: "Classes",
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? "newspaper" : "newspaper-outline"} color={color} />
+            <TabIcon
+              name={focused ? "grid" : "grid-outline"}
+              color={color}
+              focused={focused}
+            />
           ),
         }}
       />
       <Tab.Screen
-        name="Account"
+        name="Live"
+        component={LiveScreen}
+        options={{
+          title: "Live sessions",
+          tabBarLabel: "Live",
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon
+              name={focused ? "videocam" : "videocam-outline"}
+              color={color}
+              focused={focused}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
         component={AccountScreen}
         options={{
-          title: "Account",
+          // Plain title — the screen body carries the brand block itself.
+          title: "Profile",
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? "person" : "person-outline"} color={color} />
+            <TabIcon
+              name={focused ? "person" : "person-outline"}
+              color={color}
+              focused={focused}
+            />
           ),
         }}
       />
@@ -183,7 +227,7 @@ function AppNavigator() {
   const screenOptions = {
     headerStyle: { backgroundColor: colors.surface },
     headerTintColor: colors.text,
-    headerTitleStyle: { fontFamily: fonts.bold, fontSize: 17 },
+    headerTitleStyle: { fontFamily: fonts.semibold, fontSize: 17 },
     contentStyle: { backgroundColor: colors.bg },
   };
   return (
@@ -219,6 +263,11 @@ function AppNavigator() {
         options={({ route }) => ({ title: route.params.title ?? "Live Session" })}
       />
       <AppStack.Screen
+        name="Certificates"
+        component={CertificatesScreen}
+        options={{ title: "Certificates" }}
+      />
+      <AppStack.Screen
         name="Payments"
         component={PaymentsScreen}
         options={{ title: "Payment history" }}
@@ -227,6 +276,11 @@ function AppNavigator() {
         name="Plans"
         component={PlansScreen}
         options={{ title: "All plans" }}
+      />
+      <AppStack.Screen
+        name="Blog"
+        component={BlogListScreen}
+        options={{ title: "Blog" }}
       />
       <AppStack.Screen
         name="BlogPost"
@@ -288,7 +342,7 @@ function VersionGate({ kind }: { kind: "appOutdated" | "apiOutdated" }) {
         <Text
           onPress={() => void unbindInstance()}
           style={{
-            color: colors.primary,
+            color: colors.primarySoft,
             fontSize: 15,
             fontFamily: fonts.bold,
             textAlign: "center",
@@ -351,6 +405,8 @@ function ThemedApp() {
 
   return (
     <NavigationContainer ref={navigationRef} linking={linking} theme={navTheme}>
+      {/* Screens with ink chrome at the top (Home, Login/Signup) override this
+          to light-content while focused; this is the light-page default. */}
       <StatusBar style={mode === "light" ? "dark" : "light"} />
       <RootNavigator />
     </NavigationContainer>
@@ -361,14 +417,11 @@ export default function App() {
   // Load the brand faces before first paint. On error we proceed anyway so a
   // font hiccup never hangs the app (text falls back to the system face).
   const [fontsLoaded, fontError] = useFonts({
-    Montserrat_400Regular,
-    Montserrat_500Medium,
-    Montserrat_600SemiBold,
-    Montserrat_700Bold,
-    Montserrat_800ExtraBold,
-    PlayfairDisplay_600SemiBold,
-    PlayfairDisplay_700Bold,
-    PlayfairDisplay_800ExtraBold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
   });
   if (!fontsLoaded && !fontError) return null;
   return (
@@ -392,4 +445,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  tabIconWrap: { alignItems: "center", gap: 3 },
+  tabPill: { width: 18, height: 3, borderRadius: 2 },
 });

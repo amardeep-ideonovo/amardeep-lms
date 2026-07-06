@@ -98,7 +98,7 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
                   </Text>
                 ) : null}
                 <TouchableOpacity
-                  onPress={() => navigation.navigate("Main", { screen: "Account" })}
+                  onPress={() => navigation.navigate("Main", { screen: "Profile" })}
                 >
                   <Text style={styles.link}>Manage subscription →</Text>
                 </TouchableOpacity>

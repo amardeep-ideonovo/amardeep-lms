@@ -48,6 +48,9 @@ export function HeroBand({
   const onDarkSurface = !!imageUrl || !!gradientSeed || theme.mode === "dark";
   const titleColor = onDarkSurface ? colors.heroText : colors.text;
   const softColor = onDarkSurface ? colors.heroTextSoft : colors.textMuted;
+  // Over the dark scrim the AA-darkened primarySoft would vanish — lift to the
+  // on-dark accent there.
+  const eyebrowColor = onDarkSurface ? colors.primaryOnDark : colors.primarySoft;
 
   const pct =
     progress && progress.total > 0
@@ -83,7 +86,9 @@ export function HeroBand({
       )}
 
       <View style={styles.inner}>
-        {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+        {eyebrow ? (
+          <Text style={[styles.eyebrow, { color: eyebrowColor }]}>{eyebrow}</Text>
+        ) : null}
         <Text style={[styles.title, { color: titleColor }]}>{title}</Text>
         {chips && chips.length > 0 ? (
           <View style={styles.chips}>
@@ -115,7 +120,15 @@ export function HeroBand({
         ) : null}
         {buttonLabel && onButtonPress ? (
           <Press style={styles.button} onPress={onButtonPress}>
-            <Text style={styles.buttonText}>▶ {buttonLabel}</Text>
+            {/* Teal CTA gradient (design --teal-grad) */}
+            <LinearGradient
+              colors={[colors.ctaStart, colors.ctaEnd]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0.18 }}
+              style={styles.buttonGrad}
+            >
+              <Text style={styles.buttonText}>▶ {buttonLabel}</Text>
+            </LinearGradient>
           </Press>
         ) : null}
       </View>
@@ -134,14 +147,13 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
     },
     inner: { padding: spacing.lg, gap: spacing.sm },
     eyebrow: {
-      color: colors.primarySoft,
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: "700",
       fontFamily: fonts.bold,
       textTransform: "uppercase",
-      letterSpacing: 1.6,
+      letterSpacing: 1.4,
     },
-    title: { fontSize: 28, fontWeight: "800", fontFamily: fonts.display, lineHeight: 34 },
+    title: { fontSize: 24, fontWeight: "700", fontFamily: fonts.display, lineHeight: 30 },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
     progressWrap: { gap: 6, marginTop: spacing.xs },
     progressLabels: { flexDirection: "row", justifyContent: "space-between" },
@@ -156,14 +168,20 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
     button: {
       alignSelf: "flex-start",
       marginTop: spacing.xs,
-      backgroundColor: colors.primary,
+      borderRadius: 11,
+    },
+    buttonGrad: {
       borderRadius: 11,
       paddingVertical: 11,
       paddingHorizontal: 18,
+      shadowColor: "#35b3a2",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.35,
+      shadowRadius: 12,
     },
     buttonText: {
-      color: colors.onPrimary,
-      fontSize: 14,
+      color: "#ffffff",
+      fontSize: 13,
       fontWeight: "700",
       fontFamily: fonts.bold,
     },

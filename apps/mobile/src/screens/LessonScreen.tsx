@@ -1,3 +1,8 @@
+// Lesson player — Ink Hero (design frame 2m): light page, rounded ink video
+// block, lesson title + duration/status line, downloads, the teal MARK AS
+// COMPLETE gradient button, certificate claim, and an "Up next" list built
+// from the lesson's course (best-effort fetch). All completion/certificate
+// logic is unchanged.
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,12 +18,14 @@ import {
 import { WebView } from "react-native-webview";
 import { Directory, File, Paths } from "expo-file-system";
 import * as SecureStore from "expo-secure-store";
+import { Ionicons } from "@expo/vector-icons";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 
 import { api, ApiError, getToken, noteDownloadUrl } from "../api";
 import { API_BASE_URL, WEB_ACCOUNT_URL, scopedKey } from "../config";
 import { Loading, ErrorState, Centered } from "../components/Screen";
 import { Press } from "../components/Press";
+import { CtaButton } from "../components/CtaButton";
 import { LockedPanel } from "../components/LockedPanel";
 import { PopupHost } from "../components/PopupHost";
 import CertificateClaim from "../components/CertificateClaim";
@@ -35,11 +42,19 @@ function fmtSize(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
-export function LessonScreen({ route }: ScreenProps<"Lesson">) {
+// "10:15" — lesson duration clock.
+function fmtClock(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
   const { lessonId } = route.params;
   const [lesson, setLesson] = useState<LessonDTO | null>(null);
+  const [siblings, setSiblings] = useState<LessonDTO[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
@@ -54,9 +69,16 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
     setLoading(true);
     setError(null);
     setLocked(false);
+    setSiblings(null);
     try {
       const data = await api.lesson(lessonId);
       setLesson(data);
+      // Course siblings drive the "Lesson x of y" line and the Up-next rows —
+      // decorative, so a failure never blocks the player.
+      api
+        .courseLessons(data.courseId)
+        .then((ls) => setSiblings([...ls].sort((a, b) => a.order - b.order)))
+        .catch(() => {});
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
         setLocked(true);
@@ -201,17 +223,24 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
 
   const completed = lesson.completed === true;
   // Vimeo plays in a WebView; a direct MP4/HLS URL plays in the native
-  // expo-av player.
+  // expo-video player.
   const vimeo = vimeoEmbed(lesson.videoUrl);
   const videoUri = vimeo ? null : lesson.videoUrl ?? null;
   const notes = lesson.notes ?? [];
+
+  const idx = siblings?.findIndex((l) => l.id === lesson.id) ?? -1;
+  const metaBits = [
+    lesson.durationSeconds ? `Duration ${fmtClock(lesson.durationSeconds)}` : null,
+    siblings && idx >= 0 ? `Lesson ${idx + 1} of ${siblings.length}` : null,
+  ].filter(Boolean);
+  const upNext = siblings
+    ? siblings.filter((l) => l.order > lesson.order).slice(0, 3)
+    : [];
 
   return (
     <>
       <PopupHost context={{ type: "lessons" }} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{lesson.title}</Text>
-
         {vimeo ? (
           <WebView
             style={styles.video}
@@ -231,6 +260,24 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
           />
         ) : null}
 
+        <Text style={styles.title}>{lesson.title}</Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.meta} numberOfLines={1}>
+            {metaBits.join(" · ")}
+          </Text>
+          <View style={styles.statusWrap}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: completed ? colors.success : colors.primary },
+              ]}
+            />
+            <Text style={styles.statusText}>
+              {completed ? "Completed" : "In progress"}
+            </Text>
+          </View>
+        </View>
+
         {notes.length > 0 ? (
           <View style={styles.notes}>
             <Text style={styles.notesTitle}>Downloads</Text>
@@ -248,9 +295,15 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
                   {n.originalName}
                 </Text>
                 <Text style={styles.noteSize}>{fmtSize(n.size)}</Text>
-                <Text style={styles.noteIcon}>
-                  {savingNoteId === n.id ? "…" : "⬇"}
-                </Text>
+                {savingNoteId === n.id ? (
+                  <Text style={styles.noteIcon}>…</Text>
+                ) : (
+                  <Ionicons
+                    name="download-outline"
+                    size={17}
+                    color={colors.primarySoft}
+                  />
+                )}
               </TouchableOpacity>
             ))}
           </View>
@@ -258,19 +311,20 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
 
         {completeError ? <Text style={styles.error}>{completeError}</Text> : null}
 
-        <Press
-          style={[styles.button, (completed || completing) && styles.buttonDone]}
-          onPress={onComplete}
-          disabled={completed || completing}
-        >
-          {completing ? (
-            <ActivityIndicator color={colors.text} />
-          ) : (
-            <Text style={[styles.buttonText, completed && styles.buttonTextDone]}>
-              {completed ? "✓ Completed" : "Mark complete"}
-            </Text>
-          )}
-        </Press>
+        {completed ? (
+          <View style={styles.doneBanner}>
+            <Text style={styles.doneBannerText}>✓ COMPLETED</Text>
+          </View>
+        ) : (
+          <CtaButton
+            style={styles.completeBtn}
+            radius={12}
+            busy={completing}
+            label="MARK AS COMPLETE"
+            textStyle={styles.completeText}
+            onPress={onComplete}
+          />
+        )}
 
         {(lesson.certificates ?? [])
           .filter((c) => c.eligible || c.claimed)
@@ -286,6 +340,47 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
           </Text>
         )}
 
+        {upNext.length > 0 ? (
+          <>
+            <Text style={styles.upNextTitle}>Up next</Text>
+            {upNext.map((l) => (
+              <Press
+                key={l.id}
+                style={styles.upNextRow}
+                onPress={() =>
+                  navigation.push("Lesson", { lessonId: l.id, title: l.title })
+                }
+              >
+                {l.thumbnailUrl ? (
+                  <Image
+                    source={{ uri: l.thumbnailUrl }}
+                    style={styles.upNextThumb}
+                  />
+                ) : (
+                  <View style={[styles.upNextThumb, styles.upNextThumbEmpty]}>
+                    <Text style={styles.upNextGlyph}>▶</Text>
+                  </View>
+                )}
+                <View style={styles.upNextInfo}>
+                  <Text style={styles.upNextName} numberOfLines={1}>
+                    {l.title}
+                  </Text>
+                  <Text style={styles.upNextMeta} numberOfLines={1}>
+                    {l.durationSeconds
+                      ? fmtClock(l.durationSeconds)
+                      : l.completed
+                        ? "Completed"
+                        : "Lesson"}
+                  </Text>
+                </View>
+                <View style={styles.upNextPlay}>
+                  <Text style={styles.upNextPlayGlyph}>▶</Text>
+                </View>
+              </Press>
+            ))}
+          </>
+        ) : null}
+
         <View style={styles.spacer} />
       </ScrollView>
     </>
@@ -295,25 +390,45 @@ export function LessonScreen({ route }: ScreenProps<"Lesson">) {
 const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
-  title: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: spacing.md,
-    fontFamily: fonts.bold,
-  },
   video: {
     width: "100%",
     aspectRatio: 16 / 9,
-    borderRadius: 12,
-    backgroundColor: "#000",
-    marginBottom: spacing.md,
+    borderRadius: 16,
+    backgroundColor: colors.inkCard,
+    overflow: "hidden",
   },
-  body: { color: colors.text, fontSize: 16, lineHeight: 24, fontFamily: fonts.regular },
-  bodyMuted: { color: colors.textMuted, fontSize: 15, fontStyle: "italic", fontFamily: fonts.regular },
+  title: {
+    color: colors.text,
+    fontSize: 16.5,
+    fontFamily: fonts.semibold,
+    lineHeight: 22,
+    marginTop: spacing.md,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    marginTop: 7,
+  },
+  meta: {
+    color: colors.textMuted,
+    fontSize: 11.5,
+    fontFamily: fonts.regular,
+    flexShrink: 1,
+  },
+  statusWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
+  statusDot: { width: 7, height: 7, borderRadius: 3.5 },
+  statusText: {
+    color: colors.primarySoft,
+    fontSize: 11.5,
+    fontFamily: fonts.semibold,
+  },
+  body: { color: colors.text, fontSize: 15, lineHeight: 23, fontFamily: fonts.regular },
+  bodyMuted: { color: colors.textMuted, fontSize: 14, fontStyle: "italic", fontFamily: fonts.regular },
   bodyBelow: { marginTop: spacing.lg },
   error: { color: colors.danger, marginTop: spacing.md, fontFamily: fonts.regular },
-  savedMsg: { color: colors.success, marginBottom: spacing.sm, fontSize: 14, fontFamily: fonts.regular },
+  savedMsg: { color: colors.success, marginBottom: spacing.sm, fontSize: 13.5, fontFamily: fonts.regular },
   lockedWrap: { alignSelf: "stretch" },
   notes: {
     marginTop: spacing.lg,
@@ -325,10 +440,9 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   },
   notesTitle: {
     color: colors.text,
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 14,
+    fontFamily: fonts.semibold,
     marginBottom: spacing.sm,
-    fontFamily: fonts.bold,
   },
   noteRow: {
     flexDirection: "row",
@@ -337,19 +451,67 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.surfaceMuted,
   },
-  noteName: { flex: 1, color: colors.text, fontSize: 15, fontWeight: "500", fontFamily: fonts.medium },
-  noteSize: { color: colors.textMuted, fontSize: 13, marginHorizontal: spacing.sm, fontFamily: fonts.regular },
-  noteIcon: { color: colors.primary, fontSize: 18, fontWeight: "700", fontFamily: fonts.bold },
-  button: {
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-    marginTop: spacing.lg,
+  noteName: { flex: 1, color: colors.text, fontSize: 13.5, fontFamily: fonts.medium },
+  noteSize: { color: colors.textMuted, fontSize: 12, marginHorizontal: spacing.sm, fontFamily: fonts.regular },
+  noteIcon: { color: colors.primarySoft, fontSize: 16, fontFamily: fonts.bold },
+  completeBtn: { marginTop: spacing.lg },
+  completeText: {
+    fontSize: 12.5,
+    fontFamily: fonts.bold,
+    letterSpacing: 0.6,
   },
-  buttonDone: { backgroundColor: colors.successBg },
-  buttonText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700", fontFamily: fonts.bold },
-  // The done state sits on the success tint, so the label goes success too.
-  buttonTextDone: { color: colors.success },
+  doneBanner: {
+    marginTop: spacing.lg,
+    backgroundColor: colors.successBg,
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: "center",
+  },
+  doneBannerText: {
+    color: colors.success,
+    fontSize: 12.5,
+    fontFamily: fonts.bold,
+    letterSpacing: 0.6,
+  },
+  upNextTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontFamily: fonts.semibold,
+    marginTop: spacing.lg,
+    marginBottom: 9,
+    marginHorizontal: 4,
+  },
+  upNextRow: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    borderRadius: 12,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    marginBottom: 9,
+  },
+  upNextThumb: {
+    width: 56,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceMuted,
+  },
+  upNextThumbEmpty: { alignItems: "center", justifyContent: "center" },
+  upNextGlyph: { color: colors.textMuted, fontSize: 12, fontFamily: fonts.regular },
+  upNextInfo: { flex: 1, gap: 1 },
+  upNextName: { color: colors.text, fontSize: 12, fontFamily: fonts.semibold },
+  upNextMeta: { color: colors.textMuted, fontSize: 10.5, fontFamily: fonts.regular },
+  upNextPlay: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  upNextPlayGlyph: { color: colors.textMuted, fontSize: 9, fontFamily: fonts.regular },
   spacer: { height: spacing.lg },
 });

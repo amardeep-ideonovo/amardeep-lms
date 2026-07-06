@@ -99,7 +99,9 @@ function bgColor(colors: ThemePalette, bg?: string): string | undefined {
     case "muted":
       return colors.surface;
     case "dark":
-      return "#0b1220";
+      // CMS "dark" bands render as the Ink Hero chrome so page sections match
+      // the app's band treatment.
+      return colors.chrome;
     case "brand":
       return colors.primary;
     default:

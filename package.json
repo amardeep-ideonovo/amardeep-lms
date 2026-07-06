@@ -11,7 +11,8 @@
     "db:migrate": "npm -w packages/db run migrate",
     "dev:api": "npm -w apps/api run dev",
     "dev:admin": "npm -w apps/admin run dev",
-    "dev:web": "npm -w apps/web run dev"
+    "dev:web": "npm -w apps/web run dev",
+    "dev:control-plane": "npm -w apps/control-plane run dev"
   },
   "engines": {
     "node": ">=20"

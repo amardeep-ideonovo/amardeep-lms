@@ -15,7 +15,7 @@ export default function PuckColorField({
   onChange: (v: string) => void;
 }) {
   const v = (value || "").trim();
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v) ? v : "#4f46e5";
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v) ? v : "#3cc4b2";
   return (
     <div style={{ display: "grid", gap: 4 }}>
       {label ? (

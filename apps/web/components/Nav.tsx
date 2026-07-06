@@ -18,7 +18,7 @@ import {
   setCachedMe,
 } from "@/lib/api";
 import { MenuLink, flattenChildren, isExternal } from "./MenuLink";
-import ThemeToggle from "./ThemeToggle";
+import SpotlightLogo from "./SpotlightLogo";
 
 // Avatar fallback initials from the member's name, else username/email.
 function avatarInitials(u: AuthUser): string {
@@ -163,6 +163,8 @@ export default function Nav({
       : "var(--fill-primary)";
   }
 
+  // Default brand: the Spotlight glyph + site title (Ink Hero). An admin-
+  // uploaded header logo still replaces the whole mark.
   const Brand = h?.logoUrl ? (
     <Link href="/dashboard" className="nav-brand nav-brand--logo">
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -170,7 +172,8 @@ export default function Nav({
     </Link>
   ) : (
     <Link href="/dashboard" className="nav-brand">
-      {brandTitle?.trim() || "LMS"}
+      <SpotlightLogo size={26} />
+      <span>{brandTitle?.trim() || "LMS"}</span>
     </Link>
   );
 
@@ -243,20 +246,23 @@ export default function Nav({
     <div className="nav-profile" ref={profileRef}>
       <button
         type="button"
-        className="nav-avatar"
+        className="nav-profile-btn"
         title="Account"
         aria-haspopup="menu"
         aria-expanded={profileOpen}
         onClick={() => setProfileOpen((v) => !v)}
       >
-        {me?.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={me.avatarUrl} alt="" className="nav-avatar-img" />
-        ) : (
-          <span className="nav-avatar-initials">
-            {me ? avatarInitials(me) : ""}
-          </span>
-        )}
+        <span className="nav-avatar">
+          {me?.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={me.avatarUrl} alt="" className="nav-avatar-img" />
+          ) : (
+            <span className="nav-avatar-initials">
+              {me ? avatarInitials(me) : ""}
+            </span>
+          )}
+        </span>
+        {me && <span className="nav-profile-name">{profileName}</span>}
       </button>
       {profileOpen && (
         <div className="nav-avatar-menu" role="menu">
@@ -314,7 +320,6 @@ export default function Nav({
               ))
             : Fallback}
           <span className="nav-sep" aria-hidden="true" />
-          <ThemeToggle />
           {!layout3 && ProfileMenu}
         </nav>
 
@@ -389,7 +394,6 @@ export default function Nav({
                   {ctas.map((c) => renderCta(c, "nav-drawer-cta"))}
                 </div>
               )}
-              <ThemeToggle className="nav-theme--drawer" />
               {authed && (
                 <>
                   <Link

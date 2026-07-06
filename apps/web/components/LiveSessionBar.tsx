@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { LiveSessionBarDTO } from "@lms/types";
 import { api } from "@/lib/api";
 
@@ -12,6 +13,19 @@ function countdown(ms: number): string {
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
   return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+}
+
+// "TUE 7:00 PM" from the session start (viewer-local time).
+function eyebrowTime(iso: string): string {
+  const d = new Date(iso);
+  const day = d
+    .toLocaleDateString(undefined, { weekday: "short" })
+    .toUpperCase();
+  const time = d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${day} ${time}`;
 }
 
 type Phase = "upcoming" | "joinable" | "live" | "ended";
@@ -25,11 +39,14 @@ function phaseOf(s: LiveSessionBarDTO, now: number): Phase {
   return "upcoming";
 }
 
-// The dashboard live-session bar. Shows only when the entitled member has a live
-// or upcoming session; renders nothing otherwise (so it never reveals existence
-// to anyone not entitled). The countdown tracks the SERVER clock via an offset
-// derived from serverNow, so a skewed client can't false-enable "Join".
+// The dashboard live-session card — Ink Hero: an ink #272144 card with the red
+// LIVE eyebrow, session title, audience line and a teal Register/Join CTA.
+// Shows only when the entitled member has a live or upcoming session; renders
+// nothing otherwise (never reveals existence to anyone not entitled). The
+// countdown tracks the SERVER clock via an offset derived from serverNow, so a
+// skewed client can't false-enable "Join".
 export default function LiveSessionBar() {
+  const router = useRouter();
   const [sessions, setSessions] = useState<LiveSessionBarDTO[] | null>(null);
   const offsetRef = useRef(0); // serverNow - clientNow (ms)
   const [now, setNow] = useState(() => Date.now());
@@ -43,7 +60,7 @@ export default function LiveSessionBar() {
       }
       setSessions(list);
     } catch {
-      setSessions([]); // stay silent — the bar never surfaces errors
+      setSessions([]); // stay silent — the card never surfaces errors
     }
   }, []);
 
@@ -80,37 +97,48 @@ export default function LiveSessionBar() {
   const visible = sessions.filter((s) => phaseOf(s, now) !== "ended");
   if (visible.length === 0) return null;
 
+  const [first, ...rest] = visible;
+  const ph = phaseOf(first, now);
+  const joinable = ph === "joinable" || ph === "live";
+
   return (
-    <aside className="md-live-bar glass--strong" aria-label="Live sessions">
-      <div className="md-live-eyebrow">
-        <span className="md-live-dot" aria-hidden="true" /> Live session
+    <aside className="ik-live-card" aria-label="Live sessions">
+      <div className="ik-live-eyebrow">
+        <span className="ik-live-dot" aria-hidden="true" />
+        <span>
+          {ph === "live" ? "Live now" : `Live · ${eyebrowTime(first.startsAt)}`}
+        </span>
       </div>
-      <div className="md-live-list">
-        {visible.map((s) => {
-          const ph = phaseOf(s, now);
-          const joinable = ph === "joinable" || ph === "live";
-          return (
-            <Link key={s.id} href={`/live/${s.id}`} className="md-live-item">
-              <div className="md-live-info">
-                <div className="md-live-title">{s.title}</div>
-                <div className="md-live-meta">{s.audienceLabel}</div>
-              </div>
-              <div className="md-live-right">
-                {ph === "live" ? (
-                  <span className="md-live-badge">● Live now</span>
-                ) : (
-                  <span className="md-live-count">
-                    in {countdown(Date.parse(s.startsAt) - now)}
-                  </span>
-                )}
-                <span className={joinable ? "md-live-cta on" : "md-live-cta"}>
-                  {joinable ? "Join" : "Details"}
+      <div className="ik-live-title">{first.title}</div>
+      <div className="ik-live-meta">
+        {first.audienceLabel}
+        {!joinable && <> · starts in {countdown(Date.parse(first.startsAt) - now)}</>}
+      </div>
+      <div style={{ flex: 1 }} />
+      <button
+        type="button"
+        className="ik-cta ik-cta--block"
+        onClick={() => router.push(`/live/${first.id}`)}
+      >
+        {joinable ? "Join now" : "Register"}
+      </button>
+      {rest.length > 0 && (
+        <div className="ik-live-more">
+          {rest.map((s) => {
+            const p = phaseOf(s, now);
+            return (
+              <Link key={s.id} href={`/live/${s.id}`}>
+                <span>{s.title}</span>
+                <span>
+                  {p === "live" || p === "joinable"
+                    ? "Join"
+                    : eyebrowTime(s.startsAt)}
                 </span>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </aside>
   );
 }

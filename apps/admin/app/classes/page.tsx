@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import type {
   AudienceDTO,
+  CourseCard,
   CreateLevelInput,
   LevelCategoryDTO,
   LevelDTO,
@@ -30,9 +31,16 @@ export default function ClassesPage() {
   const { can, loading: authLoading } = useAdminAuth();
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [categories, setCategories] = useState<LevelCategoryDTO[]>([]);
+  // Courses power the per-class COURSES/LESSONS columns (CourseCard.levelIds);
+  // null = not readable by this admin, so those columns are hidden.
+  const [courses, setCourses] = useState<CourseCard[] | null>(null);
   const [newCategory, setNewCategory] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Published/Draft chip-bar filter for the management table.
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">(
+    "all",
+  );
 
   // create/edit form state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -92,6 +100,13 @@ export default function ClassesPage() {
   useEffect(() => {
     if (authLoading || !can("classes", "read")) return;
     load();
+    // Courses for the per-class counts. 403 (no permission) → hide columns.
+    if (can("courses", "read")) {
+      api
+        .listCourses()
+        .then(setCourses)
+        .catch(() => setCourses(null));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
@@ -351,22 +366,47 @@ export default function ClassesPage() {
       </div>
     );
 
+  const publishedLevels = levels.filter((l) => l.published);
+  const draftLevels = levels.filter((l) => !l.published);
+  const visible =
+    statusFilter === "published"
+      ? publishedLevels
+      : statusFilter === "draft"
+        ? draftLevels
+        : levels;
+
+  // Course/lesson counts per class, from the real course list (levelIds).
+  const countsFor = (levelId: string) => {
+    if (!courses) return null;
+    const inClass = courses.filter((c) => c.levelIds.includes(levelId));
+    return {
+      courses: inClass.length,
+      lessons: inClass.reduce((sum, c) => sum + c.lessonCount, 0),
+    };
+  };
+
+  const planPill = (lvl: LevelDTO) => {
+    if (lvl.type === "FREE")
+      return <span className="badge badge--ok">Free</span>;
+    if (lvl.type === "MANUAL")
+      return <span className="badge badge--neutral">Manual</span>;
+    const p = lvl.prices[0];
+    const label = p
+      ? `${(p.amount / 100).toLocaleString(undefined, {
+          style: "currency",
+          currency: p.currency || "USD",
+          minimumFractionDigits: p.amount % 100 === 0 ? 0 : 2,
+        })}/${p.interval === "year" ? "yr" : "mo"}`
+      : "Paid";
+    return <span className="badge badge--ink">{label}</span>;
+  };
+
+  const gridCols = courses
+    ? "2.4fr .7fr .7fr .8fr .9fr 1fr .3fr"
+    : "2.4fr .8fr .9fr 1fr .3fr";
+
   return (
     <div>
-      <div className="page-header with-action">
-        <div>
-          <h1>Classes</h1>
-          <p className="subtitle">
-            Membership tiers. Each class subscribes granted members to an
-            audience (and applies tags within it), and — if PAID — has Stripe
-            prices.
-          </p>
-        </div>
-        <button className="btn" onClick={openCreate}>
-          + Add new class
-        </button>
-      </div>
-
       {error && <p className="error">{error}</p>}
 
       {modalOpen && (
@@ -735,8 +775,142 @@ export default function ClassesPage() {
         </div>
       )}
 
+      {/* chip bar: All / Published / Draft + primary CTA */}
+      <div className="chipbar">
+        <button
+          type="button"
+          className={
+            statusFilter === "all" ? "chipbar-chip chipbar-chip--on" : "chipbar-chip"
+          }
+          onClick={() => setStatusFilter("all")}
+        >
+          All · {levels.length}
+        </button>
+        <button
+          type="button"
+          className={
+            statusFilter === "published"
+              ? "chipbar-chip chipbar-chip--on"
+              : "chipbar-chip"
+          }
+          onClick={() => setStatusFilter("published")}
+        >
+          Published · {publishedLevels.length}
+        </button>
+        <button
+          type="button"
+          className={
+            statusFilter === "draft"
+              ? "chipbar-chip chipbar-chip--on"
+              : "chipbar-chip"
+          }
+          onClick={() => setStatusFilter("draft")}
+        >
+          Draft · {draftLevels.length}
+        </button>
+        <div className="filter-spacer" />
+        {can("classes", "create") && (
+          <button className="btn" onClick={openCreate}>
+            + New class
+          </button>
+        )}
+      </div>
+
+      {/* management table */}
       <div className="card">
-        <h2>New category</h2>
+        {loading ? (
+          <p className="muted">Loading…</p>
+        ) : levels.length === 0 ? (
+          <p className="muted">No classes yet — click “+ New class”.</p>
+        ) : (
+          <>
+            <div
+              className="mini-grid mini-grid--head"
+              style={{ gridTemplateColumns: gridCols }}
+            >
+              <span>Class</span>
+              {courses && <span>Courses</span>}
+              {courses && <span>Lessons</span>}
+              <span>Enrolled</span>
+              <span>Plan</span>
+              <span>Status</span>
+              <span />
+            </div>
+            {visible.map((lvl) => {
+              const counts = countsFor(lvl.id);
+              return (
+                <div
+                  className="mini-grid"
+                  style={{ gridTemplateColumns: gridCols }}
+                  key={lvl.id}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                    {lvl.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={lvl.imageUrl} alt="" className="row-thumb" />
+                    ) : (
+                      <span className="row-thumb row-thumb--empty" aria-hidden="true">
+                        —
+                      </span>
+                    )}
+                    <span
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--ink-800)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {lvl.name}
+                    </span>
+                  </span>
+                  {courses && <span className="mini-cell">{counts?.courses ?? "—"}</span>}
+                  {courses && <span className="mini-cell">{counts?.lessons ?? "—"}</span>}
+                  <span
+                    className="mini-cell"
+                    style={{ fontWeight: 600, color: "var(--ink-800)" }}
+                  >
+                    {lvl.memberCount}
+                  </span>
+                  <span>{planPill(lvl)}</span>
+                  <span
+                    className={
+                      lvl.published
+                        ? "dot-status dot-status--ok"
+                        : "dot-status dot-status--warn"
+                    }
+                  >
+                    <span className="dot" />
+                    {lvl.published ? "Published" : "Draft"}
+                  </span>
+                  <span style={{ textAlign: "right" }}>
+                    <RowMenu
+                      label={`Actions for ${lvl.name}`}
+                      items={[
+                        { label: "Edit", onClick: () => startEdit(lvl) },
+                        {
+                          label: "Delete",
+                          danger: true,
+                          onClick: () => onDelete(lvl.id),
+                        },
+                      ]}
+                    />
+                  </span>
+                </div>
+              );
+            })}
+            <div className="table-foot">
+              Showing {visible.length} of {levels.length} classes
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* categories (admin-only grouping) */}
+      <div className="card">
+        <h2>Categories</h2>
         <form onSubmit={createCategory} className="row-actions">
           <input
             placeholder="Category name"
@@ -764,90 +938,6 @@ export default function ClassesPage() {
               </span>
             ))}
           </div>
-        )}
-      </div>
-
-      <div className="card">
-        <div className="card-head">
-          <h2>All classes</h2>
-          <button className="btn btn--sm" onClick={openCreate}>
-            + Add new class
-          </button>
-        </div>
-        {loading ? (
-          <p className="muted">Loading…</p>
-        ) : levels.length === 0 ? (
-          <p className="muted">No classes yet.</p>
-        ) : (
-          <div className="table-wrap"><table className="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Type</th>
-                <th>Members</th>
-                <th>Prices</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {levels.map((lvl) => (
-                <tr key={lvl.id}>
-                  <td>
-                    {lvl.name}
-                    {!lvl.published && (
-                      <span
-                        className="chip chip--muted"
-                        style={{ marginLeft: 8 }}
-                      >
-                        Draft
-                      </span>
-                    )}
-                  </td>
-                  <td className="muted">
-                    {lvl.categories.length
-                      ? lvl.categories.map((c) => c.name).join(", ")
-                      : "—"}
-                  </td>
-                  <td>{lvl.type}</td>
-                  <td>{lvl.memberCount}</td>
-                  <td>
-                    {lvl.prices.length === 0 ? (
-                      <span className="muted">—</span>
-                    ) : (
-                      <div className="chips">
-                        {lvl.prices.map((p) => (
-                          <span key={p.id} className="chip chip--muted">
-                            {(p.amount / 100).toLocaleString(undefined, {
-                              style: "currency",
-                              currency: p.currency || "USD",
-                            })}
-                            /{p.interval}
-                            {p.installments
-                              ? ` ×${p.installments} → lifetime`
-                              : ""}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  <td>
-                    <RowMenu
-                      label={`Actions for ${lvl.name}`}
-                      items={[
-                        { label: "Edit", onClick: () => startEdit(lvl) },
-                        {
-                          label: "Delete",
-                          danger: true,
-                          onClick: () => onDelete(lvl.id),
-                        },
-                      ]}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table></div>
         )}
       </div>
     </div>

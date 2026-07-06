@@ -45,7 +45,13 @@ export default function LoginPage() {
     <div className="login-wrap">
       <form className="card login-card" onSubmit={onSubmit}>
         <div className="page-header">
-          <h1>LMS Admin</h1>
+          <div className="login-brand">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 2.2 11.6 6 7.8 12.6 1.2 8.8Z" fill="#3cc4b2" />
+              <ellipse cx="14.8" cy="18.6" rx="6.8" ry="2.9" fill="rgba(60,196,178,.32)" />
+            </svg>
+            <h1 style={{ margin: 0 }}>Spotlight Admin</h1>
+          </div>
           <p className="subtitle">Sign in to continue</p>
         </div>
         <div className="field">

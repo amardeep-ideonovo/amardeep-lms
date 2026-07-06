@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError, setToken } from "@/lib/api";
+import SpotlightLogo from "@/components/SpotlightLogo";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -58,10 +59,15 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="dark-page">
+    <div className="dark-page ik-auth">
+      {/* Ink band + overlapping white form card (nav renders on this page,
+          but the band keeps the auth pair visually consistent with /login). */}
+      <div className="ik-auth-band" aria-hidden="true">
+        <SpotlightLogo size={26} />
+      </div>
       <div className="dp-wrap">
         <div className="form-card">
-      <h1>Create your <span className="t-gradient">account</span></h1>
+      <h1>Create your account</h1>
       <p className="sub">
         Already a member?{" "}
         <Link href="/login" className="link">

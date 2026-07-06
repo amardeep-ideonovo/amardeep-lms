@@ -9,12 +9,14 @@ import { HeroBand } from "../components/HeroBand";
 import { Press } from "../components/Press";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { fmtDate } from "../format";
-import type { TabScreenProps } from "../navigation";
+import type { ScreenProps } from "../navigation";
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
 
-export function BlogListScreen({ navigation }: TabScreenProps<"Blog">) {
+// The blog list lives in the root stack (Ink Hero tabs are Home / Classes /
+// Live / Profile); it's reached from Profile → Blog and the /blog deep link.
+export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
   const styles = useStyles(makeStyles);
   const [posts, setPosts] = useState<PostListItem[]>([]);
   const [loading, setLoading] = useState(true);

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Montserrat, Playfair_Display } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
@@ -8,17 +8,12 @@ import { AdminAuthProvider } from "@/components/AdminAuthProvider";
 import { DialogProvider } from "@/components/DialogProvider";
 import { withBase } from "@/lib/base-path";
 
-// UI/body sans + display serif — exposed as CSS vars consumed by globals.css.
-const montserrat = Montserrat({
+// Ink Hero UI type — Plus Jakarta Sans everywhere (display + body), exposed as
+// a CSS var consumed by globals.css (--font-sans AND --font-display).
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-montserrat",
-  display: "swap",
-});
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-playfair",
+  variable: "--font-jakarta",
   display: "swap",
 });
 
@@ -28,9 +23,10 @@ export const metadata: Metadata = {
 };
 
 // Resolve the saved theme preference before first paint to avoid a flash.
-// Defaults to "dark" (the brand's home base). ThemeToggle keeps localStorage +
-// <html data-theme> in sync; "system" remains a selectable preference.
-const themeScript = `(function(){try{var p=localStorage.getItem('lms.admin.theme')||'dark';var d=p==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;document.documentElement.setAttribute('data-theme',d);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
+// Ink Hero has a SINGLE appearance — :root and [data-theme="light"] carry the
+// same token values — so whatever preference is stored renders identically.
+// The plumbing stays so stored preferences keep resolving without errors.
+const themeScript = `(function(){try{var p=localStorage.getItem('lms.admin.theme')||'light';var d=p==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;document.documentElement.setAttribute('data-theme',d);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();`;
 
 export default function RootLayout({
   children,
@@ -40,7 +36,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${montserrat.variable} ${playfair.variable}`}
+      className={jakarta.variable}
       suppressHydrationWarning
     >
       <head>
@@ -58,8 +54,14 @@ export default function RootLayout({
               <Sidebar />
               <main className="app-main">
                 <Topbar />
+                {/* .app-content is the scrolling light panel (the signature
+                    22px top-left radius against the ink chrome holds while
+                    scrolling because the radius lives on the scroll container).
+                    .app-content-inner caps the line length on wide screens. */}
                 <div className="app-content">
-                  <AuthGuard>{children}</AuthGuard>
+                  <div className="app-content-inner">
+                    <AuthGuard>{children}</AuthGuard>
+                  </div>
                 </div>
               </main>
             </div>

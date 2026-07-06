@@ -110,6 +110,26 @@ const COMMANDS: Cmd[] = [
 type Row = { id: string; title: string; subtitle: string; href: string };
 type RenderGroup = { key: string; label: string; rows: Row[] };
 
+// Page title for the ink top bar, derived from the route: exact command match
+// first, then longest matching prefix, then a prettified first segment.
+function titleForPath(pathname: string): string {
+  if (pathname === "/") return "Dashboard";
+  if (pathname === "/profile") return "Your profile";
+  if (pathname === "/admins") return "Admins";
+  let best: Cmd | null = null;
+  for (const c of COMMANDS) {
+    if (c.href === "/") continue;
+    if (pathname === c.href || pathname.startsWith(`${c.href}/`)) {
+      if (!best || c.href.length > best.href.length) best = c;
+    }
+  }
+  if (best) return best.title;
+  const seg = pathname.split("/").filter(Boolean)[0] ?? "";
+  return seg
+    ? seg.charAt(0).toUpperCase() + seg.slice(1).replace(/-/g, " ")
+    : "Dashboard";
+}
+
 // Avatar fallback initials (when there's no photo): from the name, else email.
 function initialsOf(me: AuthAdmin | null): string {
   if (!me) return "?";
@@ -287,13 +307,15 @@ export default function Topbar() {
 
   return (
     <header className="topbar">
+      <span className="topbar-title">{titleForPath(pathname)}</span>
+      <div className="topbar-spacer" />
       <div className="topbar-search" ref={boxRef}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" />
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+          <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
           <path
-            d="m20 20-3-3"
+            d="m20 20-3.5-3.5"
             stroke="currentColor"
-            strokeWidth="1.8"
+            strokeWidth="2"
             strokeLinecap="round"
           />
         </svg>
@@ -306,7 +328,7 @@ export default function Topbar() {
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
-          placeholder="Search members, classes, or type a command…"
+          placeholder="Search members, classes…"
           aria-label="Search"
           role="combobox"
           aria-expanded={showDropdown}
