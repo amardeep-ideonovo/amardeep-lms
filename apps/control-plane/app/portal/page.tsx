@@ -1,13 +1,18 @@
 "use client";
 
-// Client dashboard (license-holder portal) — transcribed from frame 1b:
-// instance hero card, 4 usage quota cards, instance health, backups, version,
-// mobile apps, license & billing, support. All interactions mutate the mock
-// provisioner store optimistically.
+// Client dashboard (license-holder portal) — session-driven over the mock
+// store. Three states:
+//   1. no instance yet  → "Launch <academy>" onboarding card (self-serve provision)
+//   2. Provisioning     → boot progress card
+//   3. Running          → frame-1b dashboard: hero, quotas, health, backups,
+//                         version, mobile apps, license & billing, support —
+//                         with zero-states for a freshly provisioned instance.
+// The seeded demo session (?demo=1) binds to Harbor Yoga and renders exactly
+// as before.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { Icon } from "@/components/icons";
 import {
   ChangelogModal,
@@ -18,9 +23,18 @@ import {
   RestoreModal,
   UpgradeModal,
 } from "@/components/portal-modals";
-import { Kebab, PageSkeleton, Pill } from "@/components/ui";
-import { initialsOf, PORTAL_INSTANCE_ID, scheduleUpdate } from "@/lib/provisioner";
+import { Field, Kebab, PageSkeleton, Pill } from "@/components/ui";
+import { useClientSession } from "@/lib/auth";
+import {
+  displayStatus,
+  initialsOf,
+  portalClient,
+  portalInstance,
+  provisionOwnInstance,
+  scheduleUpdate,
+} from "@/lib/provisioner";
 import { useFleet } from "@/lib/useFleet";
+import type { ClientAccount, Instance } from "@/lib/types";
 
 type PortalDialog =
   | "restore"
@@ -32,15 +46,142 @@ type PortalDialog =
   | null;
 
 export default function PortalOverview() {
-  const router = useRouter();
+  const session = useClientSession();
   const fleet = useFleet();
+
+  const client = fleet ? portalClient(fleet, session) : undefined;
+  const instance = fleet ? portalInstance(fleet, client) : undefined;
+  if (!fleet || !session || !client) return <PageSkeleton />;
+
+  if (!instance) return <LaunchAcademyCard client={client} />;
+  if (instance.status === "Provisioning") {
+    return <ProvisioningCard instance={instance} bootSteps={fleet.bootSteps} />;
+  }
+  return <InstanceDashboard instance={instance} />;
+}
+
+// ---------- onboarding: no instance yet ----------
+
+function LaunchAcademyCard({ client }: { client: ClientAccount }) {
+  const [academy, setAcademy] = useState(client.academyName);
+  const [domain, setDomain] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!academy.trim()) {
+      setError("Give your academy a name — it appears on your member site.");
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    await provisionOwnInstance(client.id, { name: academy, domain });
+    // The store flips this page to the provisioning card on its own.
+  };
+
+  return (
+    <div className="stack page-in">
+      <div className="card onboard-card">
+        <div className="card-head" style={{ marginBottom: 4 }}>
+          <span className="hero-tile">{initialsOf(academy || client.academyName)}</span>
+          <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span className="hero-name">Launch {academy.trim() || client.academyName}</span>
+            <span className="card-sub">
+              Your {client.license.plan} license is active — one step left.
+            </span>
+          </span>
+          <div className="card-head-spacer" />
+          <Pill tone="success">{client.license.plan} license</Pill>
+        </div>
+        <p className="modal-note" style={{ margin: "10px 0 16px", maxWidth: 480 }}>
+          Provisioning brings up your own fully isolated stack — database, media storage, admin
+          panel, member site and job queue — with a first admin account for {client.email}.
+        </p>
+        <form onSubmit={submit} className="modal-body" style={{ maxWidth: 480 }}>
+          <Field label="Academy name">
+            <input
+              className="input"
+              autoComplete="organization"
+              value={academy}
+              onChange={(e) => setAcademy(e.target.value)}
+              autoFocus
+            />
+          </Field>
+          <Field label="Domain" hint="Optional for now — point DNS whenever you're ready.">
+            <input
+              className="input mono"
+              placeholder="youracademy.com"
+              autoComplete="off"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+            />
+          </Field>
+          {error && <p className="form-error">{error}</p>}
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={busy}
+            style={{ padding: "12px 18px", alignSelf: "flex-start" }}
+          >
+            {busy ? "Starting the boot…" : "Provision my instance"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------- onboarding: instance booting ----------
+
+function ProvisioningCard({ instance, bootSteps }: { instance: Instance; bootSteps: string[] }) {
+  return (
+    <div className="stack page-in">
+      <div className="card onboard-card">
+        <div className="card-head" style={{ marginBottom: 10 }}>
+          <span className="hero-tile">{initialsOf(instance.clientName)}</span>
+          <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <span className="hero-name">{instance.clientName}</span>
+            <span className="hero-meta">
+              {instance.domain} · {instance.dbName} · {instance.version}
+            </span>
+          </span>
+          <div className="card-head-spacer" />
+          <Pill tone="info">
+            <span className="wave-dot active pulse" style={{ background: "currentColor" }} />
+            Provisioning
+          </Pill>
+        </div>
+        <div className="rollout-track">
+          <span className="rollout-fill boot-progress" />
+        </div>
+        <div style={{ marginTop: 14 }}>
+          {bootSteps.map((step, idx) => (
+            <div key={step} className="boot-step">
+              <span className="boot-num">{idx + 1}</span>
+              {step}
+            </div>
+          ))}
+        </div>
+        <p className="modal-note" style={{ marginTop: 10 }}>
+          Usually under a minute. This page flips to your dashboard the moment the health checks
+          pass — no refresh needed.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---------- the full dashboard (Running / Stopped / Suspended) ----------
+
+function InstanceDashboard({ instance }: { instance: Instance }) {
+  const router = useRouter();
   const [dialog, setDialog] = useState<PortalDialog>(null);
   const [downloading, setDownloading] = useState(false);
 
-  const instance = fleet?.instances.find((i) => i.id === PORTAL_INSTANCE_ID);
-  if (!fleet || !instance) return <PageSkeleton />;
-
+  const status = displayStatus(instance);
   const backupsPreview = instance.backups.entries.slice(0, 2);
+  const hasBackups = instance.backups.entries.length > 0;
 
   return (
     <div className="stack page-in">
@@ -50,10 +191,11 @@ export default function PortalOverview() {
         <span className="hero-body">
           <span className="hero-title-row">
             <span className="hero-name">{instance.clientName}</span>
-            <Pill tone="success">● {instance.status}</Pill>
+            <Pill tone={status.tone}>● {status.label}</Pill>
           </span>
           <span className="hero-meta">
-            {instance.domain} · {instance.dbName} · {instance.version} · uptime {instance.uptimePct}% (30d)
+            {instance.domain} · {instance.dbName} · {instance.version} · uptime{" "}
+            {instance.uptimePct === null ? "—" : `${instance.uptimePct}%`} (30d)
           </span>
         </span>
         <span className="hero-actions">
@@ -84,20 +226,22 @@ export default function PortalOverview() {
       </div>
 
       {/* ---- usage quota cards ---- */}
-      <div className="quota-grid">
-        {instance.usage.map((quota) => (
-          <div key={quota.name} className="quota-card">
-            <div className="quota-label">{quota.name}</div>
-            <div className="quota-value-row">
-              <span className="quota-value">{quota.value}</span>
-              <span className="quota-limit">{quota.limitNote}</span>
+      {instance.usage.length > 0 && (
+        <div className="quota-grid">
+          {instance.usage.map((quota) => (
+            <div key={quota.name} className="quota-card">
+              <div className="quota-label">{quota.name}</div>
+              <div className="quota-value-row">
+                <span className="quota-value">{quota.value}</span>
+                <span className="quota-limit">{quota.limitNote}</span>
+              </div>
+              <div className="quota-bar">
+                <span className="quota-fill" style={{ width: `${quota.pct}%` }} />
+              </div>
             </div>
-            <div className="quota-bar">
-              <span className="quota-fill" style={{ width: `${quota.pct}%` }} />
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* ---- health | backups | version ---- */}
       <div className="grid-thirds">
@@ -111,26 +255,31 @@ export default function PortalOverview() {
               </span>
             )}
           </div>
-          {instance.metrics &&
-            (
-              [
-                ["CPU", instance.metrics.cpuPct],
-                ["Memory", instance.metrics.memPct],
-                ["Disk", instance.metrics.diskPct],
-              ] as const
-            ).map(([label, pct]) => (
-              <div key={label} className="meter-row">
-                <span className="meter-name">{label}</span>
-                <span className="bar" style={{ height: 8 }}>
-                  <span className="bar-fill" style={{ width: `${pct}%`, height: 8 }} />
-                </span>
-                <span className="meter-pct">{pct}%</span>
+          {instance.metrics ? (
+            <>
+              {(
+                [
+                  ["CPU", instance.metrics.cpuPct],
+                  ["Memory", instance.metrics.memPct],
+                  ["Disk", instance.metrics.diskPct],
+                ] as const
+              ).map(([label, pct]) => (
+                <div key={label} className="meter-row">
+                  <span className="meter-name">{label}</span>
+                  <span className="bar" style={{ height: 8 }}>
+                    <span className="bar-fill" style={{ width: `${pct}%`, height: 8 }} />
+                  </span>
+                  <span className="meter-pct">{pct}%</span>
+                </div>
+              ))}
+              <div className="ok-banner">
+                <Icon name="check" size={14} />
+                <span>{instance.metrics.normalNote}</span>
               </div>
-            ))}
-          <div className="ok-banner">
-            <Icon name="check" size={14} />
-            <span>{instance.metrics?.normalNote}</span>
-          </div>
+            </>
+          ) : (
+            <div className="empty-note">Metrics appear after the first health sweep.</div>
+          )}
         </div>
 
         <div className="card">
@@ -155,11 +304,22 @@ export default function PortalOverview() {
               </span>
             </div>
           ))}
+          {!hasBackups && (
+            <div className="brow">
+              <span className="brow-icon">
+                <Icon name="database" size={14} />
+              </span>
+              <span className="brow-body">
+                <span className="brow-title">No snapshots yet</span>
+                <span className="brow-meta">{instance.backups.retentionNote}</span>
+              </span>
+            </div>
+          )}
           <div className="card-btn-row" style={{ marginTop: 10 }}>
             <button
               type="button"
               className="btn-line"
-              disabled={downloading}
+              disabled={downloading || !hasBackups}
               onClick={async () => {
                 setDownloading(true);
                 await handleDownloadBackup(instance.id);
@@ -171,7 +331,7 @@ export default function PortalOverview() {
             <button
               type="button"
               className="btn-line"
-              disabled={!!instance.restoreInProgress}
+              disabled={!!instance.restoreInProgress || !hasBackups}
               onClick={() => setDialog("restore")}
             >
               Restore…
@@ -324,6 +484,9 @@ export default function PortalOverview() {
                 </Link>
               </div>
             ))}
+            {instance.tickets.length === 0 && (
+              <div className="empty-note">No tickets yet — we're here when you need us.</div>
+            )}
           </div>
           <button
             type="button"

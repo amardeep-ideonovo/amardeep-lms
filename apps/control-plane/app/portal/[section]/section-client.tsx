@@ -1,8 +1,10 @@
 "use client";
 
-// Portal sidebar sections — live views over the Harbor Yoga instance in the
-// mock store: my instance, backups, mobile apps, billing, support.
+// Portal sidebar sections — live views over the signed-in client's OWN
+// instance in the mock store (the demo session binds to Harbor Yoga):
+// my instance, backups, mobile apps, billing, support.
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useState } from "react";
 import { Icon } from "@/components/icons";
@@ -15,20 +17,40 @@ import {
   UpgradeModal,
 } from "@/components/portal-modals";
 import { PageSkeleton, Pill } from "@/components/ui";
-import { initialsOf, PORTAL_INSTANCE_ID } from "@/lib/provisioner";
+import { useClientSession } from "@/lib/auth";
+import { displayStatus, initialsOf, portalClient, portalInstance } from "@/lib/provisioner";
 import { useFleet } from "@/lib/useFleet";
 import type { Instance, MobileBuild } from "@/lib/types";
 import { SECTIONS, type Section } from "./sections";
 
-
-
-
 export default function PortalSection({ section: sectionParam }: { section: string }) {
+  const session = useClientSession();
   const fleet = useFleet();
   if (!SECTIONS.includes(sectionParam as Section)) notFound();
 
-  const instance = fleet?.instances.find((i) => i.id === PORTAL_INSTANCE_ID);
-  if (!fleet || !instance) return <PageSkeleton />;
+  const client = fleet ? portalClient(fleet, session) : undefined;
+  const instance = fleet ? portalInstance(fleet, client) : undefined;
+  if (!fleet || !session || !client) return <PageSkeleton />;
+
+  if (!instance) {
+    return (
+      <div className="stack page-in">
+        <div className="card onboard-card">
+          <div className="card-head" style={{ marginBottom: 6 }}>
+            <span className="card-title">No instance yet</span>
+          </div>
+          <p className="modal-note" style={{ marginBottom: 14, maxWidth: 460 }}>
+            Your {client.license.plan} license is active, but {client.academyName} hasn't been
+            provisioned yet. Launch it from the overview — everything here lights up the moment it
+            boots.
+          </p>
+          <Link href="/portal" className="btn btn-primary" style={{ alignSelf: "flex-start" }}>
+            Launch {client.academyName}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const section = sectionParam as Section;
   return (
@@ -45,6 +67,7 @@ export default function PortalSection({ section: sectionParam }: { section: stri
 // ---------- my instance ----------
 
 function InstanceView({ instance }: { instance: Instance }) {
+  const status = displayStatus(instance);
   const services: Array<[string, string]> = [
     ["API", instance.health.api],
     ["Web", instance.health.web],
@@ -59,10 +82,11 @@ function InstanceView({ instance }: { instance: Instance }) {
         <span className="hero-body">
           <span className="hero-title-row">
             <span className="hero-name">{instance.clientName}</span>
-            <Pill tone="success">● {instance.status}</Pill>
+            <Pill tone={status.tone}>● {status.label}</Pill>
           </span>
           <span className="hero-meta">
-            {instance.domain} · {instance.dbName} · {instance.version} · uptime {instance.uptimePct}% (30d)
+            {instance.domain} · {instance.dbName} · {instance.version} · uptime{" "}
+            {instance.uptimePct === null ? "—" : `${instance.uptimePct}%`} (30d)
           </span>
         </span>
         <span className="hero-actions">
@@ -211,11 +235,17 @@ function BackupsView({ instance }: { instance: Instance }) {
             ))}
           </tbody>
         </table>
+        {instance.backups.entries.length === 0 && (
+          <div className="empty-note">
+            No snapshots yet — {instance.backups.retentionNote.toLowerCase()}. Every run is verified
+            and mirrored off-server.
+          </div>
+        )}
         <div className="card-btn-row" style={{ maxWidth: 360 }}>
           <button
             type="button"
             className="btn-line"
-            disabled={!!instance.restoreInProgress}
+            disabled={!!instance.restoreInProgress || instance.backups.entries.length === 0}
             onClick={() => setRestoreOpen(true)}
           >
             Restore…
@@ -296,11 +326,25 @@ function MobileView({ instance }: { instance: Instance }) {
 
 // ---------- billing ----------
 
-const INVOICES: Array<{ id: string; date: string; amount: string; status: "Paid" }> = [
+const HARBOR_INVOICES: Array<{ id: string; date: string; amount: string; status: "Paid" }> = [
   { id: "INV-0231", date: "Jun 12, 2026", amount: "$249.00", status: "Paid" },
   { id: "INV-0198", date: "May 12, 2026", amount: "$249.00", status: "Paid" },
   { id: "INV-0164", date: "Apr 12, 2026", amount: "$249.00", status: "Paid" },
 ];
+
+/** Harbor keeps its seeded history; a fresh self-serve academy has just the signup charge. */
+function invoicesFor(instance: Instance): Array<{ id: string; date: string; amount: string; status: "Paid" }> {
+  if (instance.id === "harbor") return HARBOR_INVOICES;
+  const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return [
+    {
+      id: `INV-${instance.id.slice(0, 6).toUpperCase()}-001`,
+      date: today,
+      amount: `$${instance.license.priceMonthly}.00`,
+      status: "Paid",
+    },
+  ];
+}
 
 function BillingView({ instance }: { instance: Instance }) {
   const [dialog, setDialog] = useState<"billing" | "upgrade" | null>(null);
@@ -366,7 +410,7 @@ function BillingView({ instance }: { instance: Instance }) {
             </tr>
           </thead>
           <tbody>
-            {INVOICES.map((inv) => (
+            {invoicesFor(instance).map((inv) => (
               <tr key={inv.id}>
                 <td className="cell-version">{inv.id}</td>
                 <td>{inv.date}</td>

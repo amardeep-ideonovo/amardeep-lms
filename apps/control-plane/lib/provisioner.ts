@@ -48,10 +48,25 @@
 //   addHost()            → POST /fleet/hosts (cloud driver: order + join a VPS)
 //   updateSettings()     → PUT  /fleet/settings
 //   getFleetStats()      → GET  /fleet/stats
+//
+// SELF-SERVE verbs (sales → signup → portal journey):
+//   createClientAccount()  → POST /auth/signup  (account + license; billing
+//                            provider charges the plan — mocked as the 4242 card)
+//   provisionOwnInstance() → POST /portal/instances {name, domain} — same
+//                            pipeline as the operator provision, quota-checked
+//                            against the client's license (1 license = 1 instance)
+//
+// PERSISTENCE (preview-only): the mutable slice — self-serve clients, their
+// licenses/instances, alert resolutions, runtime activity, stat deltas — is
+// mirrored to localStorage ("lms.ops.store.v1") so a signed-up client and the
+// operator view of them survive reloads. The seeded fleet is always the base;
+// the persisted slice replays on top at module init. Corrupt/old blobs are
+// discarded silently.
 // ============================================================
 
 import type {
   ActivityEntry,
+  ClientAccount,
   FleetAlert,
   FleetState,
   Host,
@@ -63,6 +78,7 @@ import type {
   Rollout,
   StatusPillInfo,
   Ticket,
+  UsageQuota,
 } from "./types";
 
 export const PLAN_PRICE: Record<PlanTier, number> = {
@@ -71,8 +87,15 @@ export const PLAN_PRICE: Record<PlanTier, number> = {
   Scale: 599,
 };
 
-/** The license-holder portal is scoped to this instance (Priya's Harbor Yoga School). */
-export const PORTAL_INSTANCE_ID = "harbor";
+/** License blurbs, matching the seeded fleet + sales tiers. */
+export const PLAN_INCLUDES: Record<PlanTier, string> = {
+  Starter: "1 instance, 500 members, weekly backups",
+  Pro: "1 instance, 5,000 members, mobile apps, daily backups",
+  Scale: "Up to 3 instances, unlimited members, dedicated host",
+};
+
+/** "?demo=1" sessions bind to this seeded client (Priya's Harbor Yoga School). */
+export const DEMO_CLIENT_ID = "harbor";
 
 const latency = () => new Promise<void>((r) => setTimeout(r, 150));
 
@@ -441,7 +464,29 @@ function seedState(): FleetState {
     }),
   ];
 
+  const clients: ClientAccount[] = [
+    {
+      id: "harbor",
+      name: "Priya Sharma",
+      academyName: "Harbor Yoga School",
+      email: "priya@harboryoga.com",
+      plan: "Pro",
+      createdAt: "2026-02-12",
+      instanceId: "harbor",
+      avatarSeed: "priya-av",
+      license: {
+        plan: "Pro",
+        priceMonthly: 249,
+        renewsAt: "Aug 12, 2026",
+        cardBrand: "Visa",
+        cardLast4: "4242",
+        includes: "1 instance, 5,000 members, mobile apps, daily backups",
+      },
+    },
+  ];
+
   return {
+    clients,
     instances,
     rollout: {
       targetVersion: "v1.8.2",
@@ -552,12 +597,126 @@ function seedState(): FleetState {
   };
 }
 
-// ---------- module-level mutable store ----------
+// ---------- module-level mutable store (persisted to localStorage) ----------
 
-let state: FleetState = seedState();
+/** Versioned persistence key — bump the suffix to invalidate old blobs. */
+const STORE_KEY = "lms.ops.store.v1";
+
+/** How long a mock provision takes before the /health checks "pass". */
+const PROVISION_BOOT_MS = 8000;
+
+// Frozen reference copy of the seed — used to diff/replay the persisted slice.
+const SEED_BASE = seedState();
+const SEED_CLIENT_IDS = new Set(SEED_BASE.clients.map((c) => c.id));
+const SEED_INSTANCE_IDS = new Set(SEED_BASE.instances.map((i) => i.id));
+const SEED_ACTIVITY_IDS = new Set(SEED_BASE.activity.map((a) => a.id));
+
+/** The mutable slice mirrored to localStorage (user-created state only). */
+interface PersistedStoreV1 {
+  v: 1;
+  clients: ClientAccount[];
+  instances: Instance[];
+  resolvedAlertIds: string[];
+  activity: ActivityEntry[];
+  /** Deltas vs the seeded base stats, so seed changes stay the base. */
+  statsDelta: { licenses: number; running: number; mrr: number };
+}
+
+function readPersisted(): PersistedStoreV1 | null {
+  if (typeof window === "undefined") return null;
+  let raw: string | null = null;
+  try {
+    raw = window.localStorage.getItem(STORE_KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  try {
+    const blob = JSON.parse(raw) as Partial<PersistedStoreV1> | null;
+    const valid =
+      !!blob &&
+      blob.v === 1 &&
+      Array.isArray(blob.clients) &&
+      Array.isArray(blob.instances) &&
+      Array.isArray(blob.resolvedAlertIds) &&
+      Array.isArray(blob.activity) &&
+      typeof blob.statsDelta?.licenses === "number" &&
+      typeof blob.statsDelta?.running === "number" &&
+      typeof blob.statsDelta?.mrr === "number";
+    if (!valid) {
+      window.localStorage.removeItem(STORE_KEY);
+      return null;
+    }
+    return blob as PersistedStoreV1;
+  } catch {
+    try {
+      window.localStorage.removeItem(STORE_KEY);
+    } catch {
+      // ignore
+    }
+    return null;
+  }
+}
+
+/** Seeded fleet is the base; the persisted user-created slice replays on top. */
+function hydrateState(): FleetState {
+  const seed = seedState();
+  const saved = readPersisted();
+  if (!saved) return seed;
+  const resolved = new Set(saved.resolvedAlertIds);
+  const merged: FleetState = {
+    ...seed,
+    clients: [...seed.clients, ...saved.clients.filter((c) => !SEED_CLIENT_IDS.has(c.id))],
+    instances: [...seed.instances, ...saved.instances.filter((i) => !SEED_INSTANCE_IDS.has(i.id))],
+    alerts: seed.alerts.map((a) => (resolved.has(a.id) ? { ...a, resolved: true } : a)),
+    activity: [...saved.activity.filter((a) => !SEED_ACTIVITY_IDS.has(a.id)), ...seed.activity],
+    stats: {
+      ...seed.stats,
+      licenses: Math.max(0, seed.stats.licenses + saved.statsDelta.licenses),
+      running: Math.max(0, seed.stats.running + saved.statsDelta.running),
+      mrr: Math.max(0, seed.stats.mrr + saved.statsDelta.mrr),
+    },
+  };
+  // Replay side effects of persisted alert resolutions (e.g. luthier's re-run).
+  return saved.resolvedAlertIds.reduce((s, id) => applyAlertResolutionEffects(s, id), merged);
+}
+
+function persistStore(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const slice: PersistedStoreV1 = {
+      v: 1,
+      clients: state.clients.filter((c) => !SEED_CLIENT_IDS.has(c.id)),
+      instances: state.instances.filter((i) => !SEED_INSTANCE_IDS.has(i.id)),
+      resolvedAlertIds: state.alerts.filter((a) => a.resolved).map((a) => a.id),
+      activity: state.activity.filter((a) => !SEED_ACTIVITY_IDS.has(a.id)),
+      statsDelta: {
+        licenses: state.stats.licenses - SEED_BASE.stats.licenses,
+        running: state.stats.running - SEED_BASE.stats.running,
+        mrr: state.stats.mrr - SEED_BASE.stats.mrr,
+      },
+    };
+    window.localStorage.setItem(STORE_KEY, JSON.stringify(slice));
+  } catch {
+    // Private mode / quota exceeded — persistence is best-effort in the preview.
+  }
+}
+
+let state: FleetState = hydrateState();
 const listeners = new Set<() => void>();
 
+// Re-arm boots that were persisted mid-provision (browser only): the flip to
+// Running would otherwise be lost with the reloaded timer.
+if (typeof window !== "undefined") {
+  for (const inst of state.instances) {
+    if (!SEED_INSTANCE_IDS.has(inst.id) && inst.status === "Provisioning") {
+      scheduleBootCompletion(inst.id);
+    }
+  }
+}
+
 function emit() {
+  persistStore();
   listeners.forEach((fn) => fn());
 }
 
@@ -701,10 +860,69 @@ function clientNameFromId(id: string): string {
     .join(" ");
 }
 
-// ---------- lifecycle verbs (mutations) ----------
+// ---------- boot completion (shared by operator + self-serve provisions) ----------
 
-/** How long a mock provision takes before the /health checks "pass". */
-const PROVISION_BOOT_MS = 8000;
+function leastLoadedHost(s: FleetState): Host {
+  const sorted = [...s.hosts].sort((a, b) => a.instanceCount - b.instanceCount);
+  return sorted[0] ?? { name: "vps-1", region: "Frankfurt", instanceCount: 0, cpuPct: 0, memPct: 0, diskPct: 0 };
+}
+
+/**
+ * Mock of the /health poll: flips Provisioning → Running once the boot
+ * sequence (migrate deploy + seed) would have finished, places the instance
+ * on the least-loaded host, and updates the fleet stats. Operator-provisioned
+ * instances count their license + MRR here; self-serve licenses were already
+ * counted at signup (createClientAccount), so only "running" moves.
+ */
+function completeBoot(id: string): void {
+  const inst = state.instances.find((i) => i.id === id);
+  if (!inst || inst.status !== "Provisioning") return;
+  const owningClient = state.clients.find((c) => c.instanceId === id);
+  const selfServe = !!owningClient;
+  const host = leastLoadedHost(state);
+
+  patchInstance(id, (i) => ({
+    ...i,
+    status: "Running",
+    health: { ...HEALTHY, lastCheck: new Date().toISOString() },
+    membersCount: 0,
+    uptimePct: 100,
+    metrics: {
+      cpuPct: 3,
+      memPct: 9,
+      diskPct: 2,
+      host: host.name,
+      region: host.region,
+      normalNote: "All systems normal — API, web, admin, database, queue",
+    },
+  }));
+  mutate((s) => ({
+    ...s,
+    hosts: s.hosts.map((h) =>
+      h.name === host.name ? { ...h, instanceCount: h.instanceCount + 1 } : h
+    ),
+    stats: {
+      ...s.stats,
+      running: s.stats.running + 1,
+      licenses: selfServe ? s.stats.licenses : s.stats.licenses + 1,
+      mrr: selfServe ? s.stats.mrr : s.stats.mrr + PLAN_PRICE[inst.plan],
+    },
+  }));
+  prependActivity({
+    actor: "Fleet monitor",
+    avatarSeed: "fleet-bot",
+    prefix: "",
+    target: inst.clientName,
+    suffix: ` is Running — first admin invite sent to ${owningClient?.email ?? inst.owner}`,
+  });
+}
+
+function scheduleBootCompletion(id: string, delayMs: number = PROVISION_BOOT_MS): void {
+  if (typeof window === "undefined") return;
+  setTimeout(() => completeBoot(id), delayMs);
+}
+
+// ---------- lifecycle verbs (mutations) ----------
 
 export async function provisionInstance(input: ProvisionInput): Promise<Instance> {
   await latency();
@@ -742,40 +960,211 @@ export async function provisionInstance(input: ProvisionInput): Promise<Instance
     target: clientName,
     suffix: ` (${input.plan}) — boot in progress`,
   });
-
-  // Mock of the /health poll: flips Provisioning → Running once the boot
-  // sequence (migrate deploy + seed) would have finished.
-  setTimeout(() => {
-    patchInstance(id, (i) =>
-      i.status === "Provisioning"
-        ? {
-            ...i,
-            status: "Running",
-            health: { ...HEALTHY, lastCheck: new Date().toISOString() },
-            membersCount: 0,
-            uptimePct: 100,
-          }
-        : i
-    );
-    mutate((s) => ({
-      ...s,
-      stats: {
-        ...s.stats,
-        licenses: s.stats.licenses + 1,
-        running: s.stats.running + 1,
-        mrr: s.stats.mrr + PLAN_PRICE[input.plan],
-      },
-    }));
-    prependActivity({
-      actor: "Fleet monitor",
-      avatarSeed: "fleet-bot",
-      prefix: "",
-      target: clientName,
-      suffix: ` is Running — first admin invite sent to ${input.adminEmail}`,
-    });
-  }, PROVISION_BOOT_MS);
+  scheduleBootCompletion(id);
 
   return inst;
+}
+
+// ---------- self-serve accounts & provisioning (sales → signup → portal) ----------
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 24)
+    .replace(/-+$/, "");
+}
+
+function uniqueId(base: string, taken: (candidate: string) => boolean): string {
+  const root = base || "academy";
+  if (!taken(root)) return root;
+  for (let n = 2; ; n += 1) {
+    const candidate = `${root}-${n}`;
+    if (!taken(candidate)) return candidate;
+  }
+}
+
+/** Display date one month out, e.g. "Aug 6, 2026". */
+function renewalDateLabel(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 1);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+/** Fresh-instance usage quotas — near-zero values against the plan's caps. */
+function zeroUsage(plan: PlanTier): UsageQuota[] {
+  const members = plan === "Starter" ? "of 500" : plan === "Pro" ? "of 5,000" : "unlimited";
+  const storage = plan === "Starter" ? "of 20 GB" : plan === "Pro" ? "of 50 GB" : "of 200 GB";
+  const video = plan === "Starter" ? "of 500 / mo" : plan === "Pro" ? "of 2,000 / mo" : "of 10,000 / mo";
+  return [
+    { name: "Members", value: "0", limitNote: members, pct: 0 },
+    { name: "Storage", value: "0.0 GB", limitNote: storage, pct: 0 },
+    { name: "Video minutes", value: "0", limitNote: video, pct: 0 },
+    { name: "Visits (30d)", value: "0", limitNote: "bandwidth 0%", pct: 0 },
+  ];
+}
+
+/** Case-insensitive account lookup against the persisted store (sync — used by sign-in). */
+export function findClientByEmail(email: string): ClientAccount | undefined {
+  const needle = email.trim().toLowerCase();
+  if (!needle) return undefined;
+  return state.clients.find((c) => c.email.toLowerCase() === needle);
+}
+
+export function getClient(id: string): ClientAccount | undefined {
+  return state.clients.find((c) => c.id === id);
+}
+
+export interface CreateClientInput {
+  name: string;
+  academyName: string;
+  email: string;
+  plan: PlanTier;
+}
+
+export type CreateClientResult =
+  | { ok: true; client: ClientAccount }
+  | { ok: false; error: string };
+
+/**
+ * Self-serve purchase: creates the client account + license records and
+ * counts the new license into the fleet stats/MRR, so the operator console
+ * shows the signup immediately. The instance is provisioned separately from
+ * the portal (provisionOwnInstance) — 1 license = 1 instance.
+ */
+export async function createClientAccount(input: CreateClientInput): Promise<CreateClientResult> {
+  await latency();
+  const email = input.email.trim().toLowerCase();
+  if (findClientByEmail(email)) {
+    return { ok: false, error: "An academy is already registered to that email — sign in instead." };
+  }
+  const id = uniqueId(
+    slugify(input.academyName),
+    (candidate) =>
+      state.clients.some((c) => c.id === candidate) || state.instances.some((i) => i.id === candidate)
+  );
+  const price = PLAN_PRICE[input.plan];
+  const client: ClientAccount = {
+    id,
+    name: input.name.trim(),
+    academyName: input.academyName.trim(),
+    email,
+    plan: input.plan,
+    createdAt: new Date().toISOString().slice(0, 10),
+    instanceId: null,
+    avatarSeed: `client-${id}`,
+    license: {
+      plan: input.plan,
+      priceMonthly: price,
+      renewsAt: renewalDateLabel(),
+      cardBrand: "Visa",
+      cardLast4: "4242",
+      includes: PLAN_INCLUDES[input.plan],
+    },
+  };
+  mutate((s) => ({
+    ...s,
+    clients: [...s.clients, client],
+    stats: { ...s.stats, licenses: s.stats.licenses + 1, mrr: s.stats.mrr + price },
+  }));
+  prependActivity({
+    actor: client.name,
+    avatarSeed: client.avatarSeed,
+    prefix: "New license — ",
+    target: client.academyName,
+    suffix: ` (${input.plan}) · self-serve`,
+  });
+  return { ok: true, client };
+}
+
+/**
+ * Portal onboarding: brings up the client's OWN instance on their license —
+ * same pipeline as the operator provision (unique id/ports, fleet target
+ * version, Provisioning → Running after the mock boot).
+ */
+export async function provisionOwnInstance(
+  clientId: string,
+  input: { name: string; domain: string }
+): Promise<Instance | undefined> {
+  await latency();
+  const client = state.clients.find((c) => c.id === clientId);
+  if (!client) return undefined;
+  // 1 license = 1 instance — an existing live instance wins.
+  if (client.instanceId) {
+    const existing = state.instances.find((i) => i.id === client.instanceId);
+    if (existing) return existing;
+  }
+
+  const academyName = input.name.trim() || client.academyName;
+  const domainInput = input.domain
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/\/.*$/, "");
+  const id = uniqueId(slugify(domainInput.split(".")[0] || academyName), (candidate) =>
+    state.instances.some((i) => i.id === candidate)
+  );
+  const domain = domainInput || `${id}.spotlightlms.site`;
+  const base = nextPortBase(state);
+  const inst = baseInstance({
+    id,
+    clientName: academyName,
+    domain,
+    plan: client.plan,
+    ports: { api: base, web: base + 1, admin: base + 2 },
+    version: state.rollout.targetVersion,
+    health: UNKNOWN_HEALTH,
+    membersCount: null,
+    status: "Provisioning",
+    uptimePct: null,
+    createdAt: new Date().toISOString().slice(0, 10),
+    owner: client.name,
+    usage: zeroUsage(client.plan),
+    license: { ...client.license },
+    backups: {
+      schedule: "Daily · 02:00",
+      lastRunAt: "—",
+      verified: false,
+      sizeMb: 0,
+      retentionNote: "First backup runs tonight at 02:00",
+      entries: [],
+    },
+  });
+
+  mutate((s) => ({
+    ...s,
+    instances: [...s.instances, inst],
+    clients: s.clients.map((c) => (c.id === clientId ? { ...c, academyName, instanceId: id } : c)),
+  }));
+  prependActivity({
+    actor: client.name,
+    avatarSeed: client.avatarSeed,
+    prefix: "Provisioned ",
+    target: academyName,
+    suffix: ` (${client.plan}) — self-serve, boot in progress`,
+  });
+  scheduleBootCompletion(id);
+
+  return inst;
+}
+
+// ---------- session → portal record resolution (pure helpers) ----------
+
+/** Resolves a client session (demo or real) to its account record. */
+export function portalClient(
+  s: FleetState,
+  session: { clientId: string } | null | undefined
+): ClientAccount | undefined {
+  if (!session) return undefined;
+  return s.clients.find((c) => c.id === session.clientId);
+}
+
+/** Resolves a client account to their own instance (undefined while onboarding). */
+export function portalInstance(s: FleetState, client: ClientAccount | undefined): Instance | undefined {
+  if (!client?.instanceId) return undefined;
+  return s.instances.find((i) => i.id === client.instanceId);
 }
 
 export async function startInstance(id: string): Promise<void> {
@@ -860,9 +1249,17 @@ export async function destroyInstance(id: string): Promise<void> {
   if (!inst) return;
   const wasRunning = inst.status === "Running";
   const wasBilling = inst.status === "Running" || inst.status === "Provisioning" || inst.status === "Stopped";
+  const hostName = inst.metrics?.host;
   mutate((s) => ({
     ...s,
     instances: s.instances.filter((i) => i.id !== id),
+    // A destroyed self-serve instance sends its owner back to portal onboarding.
+    clients: s.clients.map((c) => (c.instanceId === id ? { ...c, instanceId: null } : c)),
+    hosts: hostName
+      ? s.hosts.map((h) =>
+          h.name === hostName ? { ...h, instanceCount: Math.max(0, h.instanceCount - 1) } : h
+        )
+      : s.hosts,
     stats: {
       ...s.stats,
       licenses: Math.max(0, s.stats.licenses - 1),
@@ -921,21 +1318,37 @@ export async function resumeRollout(): Promise<void> {
 
 // ---------- alerts ----------
 
+/**
+ * Side effects mirroring what the real resolution action would do — pure, so
+ * the store hydration can replay persisted resolutions on top of the seed.
+ */
+function applyAlertResolutionEffects(s: FleetState, alertId: string): FleetState {
+  if (alertId !== "a-backup-luthier") return s;
+  return {
+    ...s,
+    instances: s.instances.map((i) =>
+      i.id === "luthier"
+        ? {
+            ...i,
+            health: { ...HEALTHY, lastCheck: new Date().toISOString() },
+            backups: { ...i.backups, lastRunAt: "Just now — re-run", verified: true },
+          }
+        : i
+    ),
+  };
+}
+
 export async function resolveAlert(id: string): Promise<void> {
   await latency();
   const alert = state.alerts.find((a) => a.id === id);
   if (!alert || alert.resolved) return;
-  mutate((s) => ({
-    ...s,
-    alerts: s.alerts.map((a) => (a.id === id ? { ...a, resolved: true } : a)),
-  }));
-  // Side effects mirroring what the real action would do:
+  mutate((s) =>
+    applyAlertResolutionEffects(
+      { ...s, alerts: s.alerts.map((a) => (a.id === id ? { ...a, resolved: true } : a)) },
+      id
+    )
+  );
   if (alert.id === "a-backup-luthier") {
-    patchInstance("luthier", (i) => ({
-      ...i,
-      health: { ...HEALTHY, lastCheck: new Date().toISOString() },
-      backups: { ...i.backups, lastRunAt: "Just now — re-run", verified: true },
-    }));
     prependActivity({
       actor: state.operator.name,
       avatarSeed: state.operator.avatarSeed,
@@ -1058,9 +1471,22 @@ export async function changePlan(instanceId: string, plan: PlanTier): Promise<vo
     ...i,
     plan,
     mrr: PLAN_PRICE[plan],
-    license: { ...i.license, plan, priceMonthly: PLAN_PRICE[plan] },
+    license: { ...i.license, plan, priceMonthly: PLAN_PRICE[plan], includes: PLAN_INCLUDES[plan] },
   }));
-  mutate((s) => ({ ...s, stats: { ...s.stats, mrr: s.stats.mrr + delta } }));
+  mutate((s) => ({
+    ...s,
+    // Keep the owning self-serve account's license record in sync.
+    clients: s.clients.map((c) =>
+      c.instanceId === instanceId
+        ? {
+            ...c,
+            plan,
+            license: { ...c.license, plan, priceMonthly: PLAN_PRICE[plan], includes: PLAN_INCLUDES[plan] },
+          }
+        : c
+    ),
+    stats: { ...s.stats, mrr: s.stats.mrr + delta },
+  }));
   prependActivity({
     actor: inst.owner,
     avatarSeed: "priya-av",
@@ -1075,6 +1501,14 @@ export async function updateCard(instanceId: string, brand: string, last4: strin
   patchInstance(instanceId, (i) => ({
     ...i,
     license: { ...i.license, cardBrand: brand, cardLast4: last4 },
+  }));
+  mutate((s) => ({
+    ...s,
+    clients: s.clients.map((c) =>
+      c.instanceId === instanceId
+        ? { ...c, license: { ...c.license, cardBrand: brand, cardLast4: last4 } }
+        : c
+    ),
   }));
 }
 

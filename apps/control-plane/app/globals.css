@@ -425,9 +425,19 @@ img {
   background: rgba(255, 255, 255, 0.06);
 }
 .sb-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; display: block; flex: none; }
-.sb-user-text { display: flex; flex-direction: column; min-width: 0; }
-.sb-user-name { color: #fff; font-size: 12.5px; font-weight: 600; }
-.sb-user-role { color: rgba(255, 255, 255, 0.45); font-size: 10.5px; }
+.sb-user-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.sb-user-name { color: #fff; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-user-role { color: rgba(255, 255, 255, 0.45); font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-signout {
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: color var(--t-fast) ease-out, background var(--t-fast) ease-out;
+}
+.sb-signout:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
 
 .main {
   flex: 1;
@@ -1088,26 +1098,74 @@ textarea.input { resize: vertical; min-height: 84px; line-height: 1.5; }
 .login-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 18px; line-height: 1.5; }
 .login-form { display: flex; flex-direction: column; gap: 13px; }
 
-.role-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
-.role-opt {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 11px 12px;
+.login-links {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color var(--t-fast) ease-out, background var(--t-fast) ease-out;
+  gap: 7px;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-soft);
 }
-.role-opt:hover { background: #f8f7fc; }
-.role-opt.checked { border-color: var(--teal); background: rgba(53, 179, 162, 0.06); }
-.role-opt-title { font-size: 12.5px; font-weight: 700; color: var(--text-ink); display: flex; align-items: center; gap: 7px; }
-.role-opt-title svg { color: var(--teal-text); }
-.role-opt-sub { font-size: 10.5px; color: var(--text-muted); line-height: 1.4; }
+.login-link-main { font-size: 12.5px; font-weight: 700; color: var(--teal-text); }
+.login-link-main:hover { text-decoration: underline; }
+.login-link-sub { font-size: 11.5px; font-weight: 500; color: var(--text-muted); }
+.login-link-sub:hover { color: var(--text-ink); }
 
 .login-foot { margin-top: 16px; font-size: 11px; color: var(--text-faint); text-align: center; line-height: 1.5; }
 .login-foot a { color: var(--teal-text); font-weight: 600; }
+
+.form-error-link { color: var(--teal-text); text-decoration: underline; }
+
+/* ============================================================
+   Operator sign-in — internal, ink-on-ink (deliberately distinct
+   from every client-facing surface)
+   ============================================================ */
+
+.oplogin-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(520px 320px at 50% -80px, rgba(60, 196, 178, 0.14), transparent 70%),
+    var(--ink-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+}
+.oplogin-card {
+  width: 400px;
+  max-width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--r-card-lg);
+  padding: 30px 28px 26px;
+}
+.oplogin-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+.oplogin-logo-text { display: flex; flex-direction: column; }
+.oplogin-logo-name { font-size: 15.5px; font-weight: 700; color: #fff; }
+.oplogin-logo-sub { font-size: 10px; font-weight: 600; letter-spacing: 1px; color: rgba(255, 255, 255, 0.4); }
+.oplogin-env {
+  margin-left: auto;
+  background: rgba(60, 196, 178, 0.14);
+  color: var(--teal-on-dark);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+}
+.oplogin-title { font-size: 20px; font-weight: 800; color: #fff; margin: 0 0 4px; }
+.oplogin-sub { font-size: 12.5px; color: var(--dark-text-2); margin: 0 0 18px; line-height: 1.5; }
+.oplogin-foot { margin-top: 16px; font-size: 11px; color: var(--dark-text-3); text-align: center; line-height: 1.5; }
+
+.field-dark .field-label { color: rgba(255, 255, 255, 0.65); }
+.input-dark {
+  background: var(--dark-input);
+  border-color: var(--dark-border);
+  color: #fff;
+}
+.input-dark::placeholder { color: rgba(255, 255, 255, 0.35); }
+.input-dark:focus { border-color: var(--teal); }
 
 /* ============================================================
    Sales page (frame 1c)
@@ -1471,11 +1529,149 @@ textarea.input { resize: vertical; min-height: 84px; line-height: 1.5; }
 .footer-links a:hover { color: #fff; }
 
 /* ============================================================
+   Signup wizard (sales journey: band + overlapping white card)
+   ============================================================ */
+
+.signup-page { min-height: 100vh; background: var(--bg-member); }
+.signup-band { background: var(--ink-900); padding: 0 60px 118px; }
+.signup-head { max-width: 620px; margin: 0 auto; padding-top: 30px; text-align: center; }
+.signup-h1 { color: #fff; font-size: 34px; font-weight: 800; letter-spacing: -0.3px; margin: 0; }
+.signup-sub { color: rgba(255, 255, 255, 0.55); font-size: 14px; line-height: 1.6; margin: 10px 0 0; }
+
+.signup-card {
+  width: 760px;
+  max-width: calc(100% - 40px);
+  margin: -72px auto 60px;
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: var(--shadow-overlap);
+  padding: 26px 32px 30px;
+}
+
+.wizard-steps { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+.wstep {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.wstep-num {
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: var(--surface-tint);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.wstep.active { color: var(--text-ink); }
+.wstep.active .wstep-num { background: var(--teal-grad); color: #fff; }
+.wstep.done { color: var(--teal-text); }
+.wstep.done .wstep-num { background: var(--teal-tint); color: var(--teal-text); }
+.wstep-line { flex: 1; max-width: 44px; height: 1px; background: var(--border); }
+
+.wizard-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.wizard-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
+.wizard-fine { font-size: 11px; color: var(--text-faint); line-height: 1.5; }
+
+/* ---- plan step (same visual language as the sales tiers, compact) ---- */
+
+.plan-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 12px; }
+.plan-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 18px 18px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--t-fast) ease-out, box-shadow var(--t-fast) ease-out, transform var(--t-fast) ease-out;
+}
+.plan-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); }
+.plan-card.selected { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-tint); }
+.plan-name { font-size: 13.5px; font-weight: 700; color: var(--text-ink); }
+.plan-price-row { display: flex; align-items: baseline; gap: 5px; margin-top: 7px; }
+.plan-price { font-size: 26px; font-weight: 800; color: var(--text-ink); }
+.plan-per { font-size: 11.5px; color: var(--text-muted); }
+.plan-desc { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+.plan-divider { height: 1px; background: var(--surface-tint); margin: 13px 0; }
+.plan-features { display: flex; flex-direction: column; gap: 7px; }
+.plan-feature { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-body); }
+.plan-feature svg { color: var(--teal-text); flex: none; }
+
+.plan-card.featured { background: var(--ink-900); border-color: var(--ink-900); }
+.plan-card.featured.selected { border-color: var(--teal); }
+.plan-card.featured .plan-name,
+.plan-card.featured .plan-price { color: #fff; }
+.plan-card.featured .plan-per,
+.plan-card.featured .plan-desc { color: var(--dark-text-2); }
+.plan-card.featured .plan-divider { background: rgba(255, 255, 255, 0.12); }
+.plan-card.featured .plan-feature { color: rgba(255, 255, 255, 0.8); }
+.plan-card.featured .plan-feature svg { color: var(--teal-on-dark); }
+
+/* ---- checkout step ---- */
+
+.preview-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  align-self: flex-start;
+  background: var(--warning-tint);
+  color: var(--warning-text);
+  border-radius: var(--r-pill);
+  padding: 6px 13px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.summary-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface-tint);
+  border-radius: 12px;
+  padding: 12px 15px;
+}
+.summary-plan { font-size: 12.5px; font-weight: 600; color: var(--text-ink); }
+.summary-spacer { flex: 1; }
+.summary-price { font-size: 16px; font-weight: 800; color: var(--text-ink); }
+.summary-per { font-size: 11px; font-weight: 500; color: var(--text-muted); }
+
+/* ============================================================
+   Portal onboarding (no instance yet / booting)
+   ============================================================ */
+
+.onboard-card { max-width: 640px; display: flex; flex-direction: column; }
+
+@keyframes bootProgress {
+  0%   { width: 4%; }
+  20%  { width: 31%; }
+  45%  { width: 52%; }
+  70%  { width: 74%; }
+  100% { width: 96%; }
+}
+.boot-progress {
+  display: block;
+  animation: bootProgress 8s linear forwards;
+}
+
+/* ============================================================
    Responsive safety (desktop-first, 1280–1512 must not break)
    ============================================================ */
 
 @media (max-width: 1512px) {
   .sales-band { padding-left: 48px; padding-right: 48px; }
+  .signup-band { padding-left: 48px; padding-right: 48px; }
   .hero,
   .features,
   .box-section,
@@ -1499,4 +1695,9 @@ textarea.input { resize: vertical; min-height: 84px; line-height: 1.5; }
   .tier-grid { grid-template-columns: 1fr; }
   .hero { flex-direction: column; align-items: flex-start; }
   .bmock { width: 100%; }
+}
+
+@media (max-width: 760px) {
+  .plan-pick { grid-template-columns: 1fr; }
+  .wizard-two-col { grid-template-columns: 1fr; }
 }

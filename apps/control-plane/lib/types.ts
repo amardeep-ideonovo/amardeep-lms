@@ -94,6 +94,27 @@ export interface InstanceLicense {
   includes: string;
 }
 
+/**
+ * A self-serve client account (license holder). Created on /signup; the
+ * license exists from purchase, the instance only after the client runs
+ * "Provision my instance" in the portal (1 license = 1 instance).
+ */
+export interface ClientAccount {
+  /** Short unique slug (derived from the academy name). */
+  id: string;
+  /** Person's name. */
+  name: string;
+  academyName: string;
+  /** Stored lowercase; sign-in lookup is case-insensitive. */
+  email: string;
+  plan: PlanTier;
+  createdAt: string;
+  /** Set once the client provisions; null while onboarding. */
+  instanceId: string | null;
+  avatarSeed: string;
+  license: InstanceLicense;
+}
+
 export type TicketStatus = "Open" | "Replied" | "Closed";
 
 export interface Ticket {
@@ -240,6 +261,8 @@ export interface OpsSettings {
 }
 
 export interface FleetState {
+  /** Self-serve client accounts (license holders), incl. the seeded demo client. */
+  clients: ClientAccount[];
   instances: Instance[];
   rollout: Rollout;
   alerts: FleetAlert[];

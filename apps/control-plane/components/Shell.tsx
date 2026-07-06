@@ -7,12 +7,20 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
-import { getRole, getToken, homeFor } from "@/lib/auth";
+import {
+  ClientSession,
+  clientSignOut,
+  getClientSession,
+  isOperator,
+  operatorSignOut,
+  startDemoSession,
+} from "@/lib/auth";
 import {
   openAlertCount,
   openTicketCount,
   PLAN_PRICE,
-  PORTAL_INSTANCE_ID,
+  portalClient,
+  portalInstance,
   provisionInstance,
   setInstanceQuery,
 } from "@/lib/provisioner";
@@ -93,31 +101,68 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
   const pathname = usePathname();
   const fleet = useFleet();
   const [authed, setAuthed] = useState(false);
+  const [session, setSession] = useState<ClientSession | null>(null);
   const [provisionOpen, setProvisionOpen] = useState(false);
 
-  // UI-only auth guard, mirroring the admin app's localStorage token pattern.
+  // UI-only auth guards — two fully separate surfaces:
+  //   operator → its own internal sign-in at /operator/login;
+  //   client   → /login, except "?demo=1" seeds the Harbor Yoga demo session.
   useEffect(() => {
-    const token = getToken();
-    const storedRole = getRole();
-    if (!token || !storedRole) {
+    if (role === "operator") {
+      if (!isOperator()) {
+        router.replace("/operator/login");
+        return;
+      }
+      setAuthed(true);
+      return;
+    }
+    let clientSession = getClientSession();
+    if (!clientSession && typeof window !== "undefined") {
+      const demo = new URLSearchParams(window.location.search).get("demo") === "1";
+      if (demo) clientSession = startDemoSession();
+    }
+    if (!clientSession) {
       router.replace("/login");
       return;
     }
-    if (storedRole !== role) {
-      router.replace(homeFor(storedRole));
-      return;
-    }
+    setSession(clientSession);
     setAuthed(true);
   }, [role, router]);
+
+  // Stale client session (account no longer in the persisted store) → sign out.
+  useEffect(() => {
+    if (role !== "client" || !authed || !fleet || !session) return;
+    if (!portalClient(fleet, session)) {
+      clientSignOut();
+      router.replace("/login");
+    }
+  }, [role, authed, fleet, session, router]);
 
   if (!authed) return <div className="shell shell-blank" />;
 
   const nav = role === "operator" ? OPERATOR_NAV : PORTAL_NAV;
   const title = titleFor(role, pathname);
   const alertCount = fleet ? openAlertCount(fleet) : 0;
-  const ticketCount = fleet ? openTicketCount(fleet, PORTAL_INSTANCE_ID) : 0;
-  const persona = role === "operator" ? fleet?.operator : fleet?.portalUser;
-  const portalInstance = fleet?.instances.find((i) => i.id === PORTAL_INSTANCE_ID);
+  const client = role === "client" && fleet ? portalClient(fleet, session) : undefined;
+  const ownInstance = fleet ? portalInstance(fleet, client) : undefined;
+  const ticketCount = fleet && ownInstance ? openTicketCount(fleet, ownInstance.id) : 0;
+  const persona =
+    role === "operator"
+      ? fleet?.operator
+      : client
+        ? { name: client.name, role: `Owner · ${client.academyName}`, avatarSeed: client.avatarSeed }
+        : undefined;
+  const licenseSource = ownInstance?.license ?? client?.license;
+
+  const signOut = () => {
+    if (role === "operator") {
+      operatorSignOut();
+      router.replace("/operator/login");
+    } else {
+      clientSignOut();
+      router.replace("/login");
+    }
+  };
 
   return (
     <div className="shell">
@@ -159,6 +204,9 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
               <span className="sb-user-name">{persona.name}</span>
               <span className="sb-user-role">{persona.role}</span>
             </span>
+            <button type="button" className="sb-signout" onClick={signOut}>
+              Sign out
+            </button>
           </div>
         ) : null}
       </aside>
@@ -168,10 +216,9 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
           <span className="tb-title">{title}</span>
           {role === "operator" ? (
             <span className="tb-env">PRODUCTION</span>
-          ) : portalInstance ? (
+          ) : licenseSource ? (
             <span className="pill pill-teal-dark tb-license">
-              {portalInstance.license.plan} license · renews{" "}
-              {portalInstance.license.renewsAt.replace(/, \d{4}$/, "")}
+              {licenseSource.plan} license · renews {licenseSource.renewsAt.replace(/, \d{4}$/, "")}
             </span>
           ) : null}
           <div className="tb-spacer" />
@@ -199,9 +246,9 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
               <Link href="/" className="btn btn-ghost-dark">
                 Docs
               </Link>
-              {portalInstance ? (
+              {ownInstance ? (
                 <a
-                  href={portalInstance.urls.admin}
+                  href={ownInstance.urls.admin}
                   target="_blank"
                   rel="noreferrer"
                   className="btn btn-primary"

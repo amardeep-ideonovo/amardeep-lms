@@ -118,10 +118,10 @@ export default function SalesPage() {
             <a href="#pricing">Pricing</a>
             <a href="#faq">FAQ</a>
           </div>
-          <Link href="/login" className="btn btn-ghost-dark">
+          <Link href="/signup" className="btn btn-ghost-dark">
             Book a demo
           </Link>
-          <Link href="/login" className="btn btn-primary">
+          <Link href="/signup" className="btn btn-primary">
             Get your instance
           </Link>
         </nav>
@@ -139,10 +139,10 @@ export default function SalesPage() {
               apps — running on <b>your domain</b> with <b>your own database</b>. No shared anything.
             </p>
             <div className="hero-ctas">
-              <Link href="/login" className="btn btn-primary btn-lg">
+              <Link href="/signup" className="btn btn-primary btn-lg">
                 Launch your academy
               </Link>
-              <Link href="/portal" className="hero-ghost">
+              <Link href="/portal?demo=1" className="hero-ghost">
                 <Icon name="play" size={13} />
                 See it live
               </Link>
@@ -304,7 +304,7 @@ export default function SalesPage() {
                     </span>
                   ))}
                 </div>
-                <Link href="/login" className="tier-cta">
+                <Link href={`/signup?plan=${tier.name.toLowerCase()}`} className="tier-cta">
                   Get {tier.name}
                 </Link>
               </div>
@@ -322,10 +322,10 @@ export default function SalesPage() {
               Provisioning takes minutes. Migration from WordPress? We have a runbook for that.
             </div>
           </div>
-          <Link href="/login" className="btn btn-primary btn-lg">
+          <Link href="/signup" className="btn btn-primary btn-lg">
             Get your instance
           </Link>
-          <Link href="/login" className="hero-ghost">
+          <Link href="/signup" className="hero-ghost">
             Book a demo
           </Link>
         </div>
@@ -338,8 +338,9 @@ export default function SalesPage() {
             <span className="footer-copy">© 2026</span>
             <div className="footer-spacer" />
             <span className="footer-links">
-              <Link href="/">Docs</Link> · <Link href="/portal">Status</Link> · <Link href="/">Privacy</Link> ·{" "}
-              <Link href="/">Terms</Link>
+              <Link href="/">Docs</Link> · <Link href="/portal?demo=1">Status</Link> ·{" "}
+              <Link href="/">Privacy</Link> · <Link href="/">Terms</Link> ·{" "}
+              <Link href="/operator/login">Operator sign-in</Link>
             </span>
           </div>
         </footer>
