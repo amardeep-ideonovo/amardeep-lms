@@ -20,22 +20,14 @@
       "android": {
         "buildType": "apk"
       },
-      "ios": {},
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://your-api.example.com",
-        "EXPO_PUBLIC_WEB_ACCOUNT_URL": "https://your-web.example.com/account"
-      }
+      "ios": {}
     },
     "production": {
       "channel": "production",
       "android": {
         "buildType": "app-bundle"
       },
-      "ios": {},
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://your-api.example.com",
-        "EXPO_PUBLIC_WEB_ACCOUNT_URL": "https://your-web.example.com/account"
-      }
+      "ios": {}
     }
   },
   "submit": {
