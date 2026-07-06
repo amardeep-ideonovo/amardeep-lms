@@ -1,1 +1,0 @@
-self.__SSG_MANIFEST=new Set(["\u002Foperator\u002F[section]","\u002Fportal\u002F[section]"]);self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()
