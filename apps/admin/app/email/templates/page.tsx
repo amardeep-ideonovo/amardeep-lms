@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { EmailTemplateDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useAppBrand } from "@/lib/app-brand";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 
@@ -79,7 +80,12 @@ function csvToList(s: string): string[] {
 // Build a sample vars object from declared names, so Preview / Test send show
 // something representative without the admin hand-typing JSON. `url` gets a real
 // URL; everything else gets a humanized placeholder ("First name" → from FNAME).
-function sampleVars(names: string[]): Record<string, string> {
+// Brand-ish vars use THIS instance's AppConfig title so previews and test sends
+// never leak another instance's brand.
+function sampleVars(
+  names: string[],
+  brand: string | null
+): Record<string, string> {
   const out: Record<string, string> = {};
   for (const n of names) {
     const lower = n.toLowerCase();
@@ -90,7 +96,7 @@ function sampleVars(names: string[]): Record<string, string> {
     } else if (lower.includes("last")) {
       out[n] = "Lovelace";
     } else if (lower.includes("brand") || lower.includes("site")) {
-      out[n] = "Spotlight Academy";
+      out[n] = brand ?? "Your Academy";
     } else if (lower.includes("name")) {
       out[n] = "Ada Lovelace";
     } else if (lower.includes("email")) {
@@ -104,6 +110,8 @@ function sampleVars(names: string[]): Record<string, string> {
 
 export default function EmailTemplatesPage() {
   const { can, loading: authLoading } = useAdminAuth();
+  // This instance's brand for sample template vars (preview + test send).
+  const brand = useAppBrand();
 
   const [templates, setTemplates] = useState<EmailTemplateDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,7 +261,7 @@ export default function EmailTemplatesPage() {
       const res = await api.previewEmailTemplate({
         subject: draft.subject,
         mjml: draft.mjml,
-        vars: sampleVars(csvToList(draft.variablesCsv)),
+        vars: sampleVars(csvToList(draft.variablesCsv), brand),
       });
       setPreviewHtml(res.html);
       setPreviewSubject(res.subject);
@@ -285,7 +293,7 @@ export default function EmailTemplatesPage() {
     try {
       const res = await api.testSendEmailTemplate(selected.id, {
         to: to.trim(),
-        vars: sampleVars(selected.variables),
+        vars: sampleVars(selected.variables, brand),
       });
       if (res.status === "SENT") {
         await dialog.notify(`Test sent to ${res.to}.`);

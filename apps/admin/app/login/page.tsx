@@ -3,9 +3,12 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, api, setToken } from "@/lib/api";
+import { useAppBrand } from "@/lib/app-brand";
 
 export default function LoginPage() {
   const router = useRouter();
+  // Per-instance brand (AppConfig title); neutral "Admin" until set.
+  const brand = useAppBrand();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +53,7 @@ export default function LoginPage() {
               <path d="M5 2.2 11.6 6 7.8 12.6 1.2 8.8Z" fill="#3cc4b2" />
               <ellipse cx="14.8" cy="18.6" rx="6.8" ry="2.9" fill="rgba(60,196,178,.32)" />
             </svg>
-            <h1 style={{ margin: 0 }}>Spotlight Admin</h1>
+            <h1 style={{ margin: 0 }}>{brand ?? "Admin"}</h1>
           </div>
           <p className="subtitle">Sign in to continue</p>
         </div>
