@@ -37,40 +37,10 @@ export type LevelCheckoutConfig = {
 };
 
 // ─── Editable slug → level map ───────────────────────────────────────────────
-// Add an entry per level you want a pretty URL for. Replace the REPLACE_* values
-// with the real Level id and Stripe price ids from your admin (Levels page).
-// Until then, /checkout/<rawLevelId> still works via the fallback below.
+// Add an entry per level you want a pretty URL for. Set levelId + stripePriceId
+// to the real ids from your admin (Levels page). Until then,
+// /checkout/<rawLevelId> still works via the fallback below.
 export const CHECKOUT_LEVELS: Record<string, LevelCheckoutConfig> = {
-  "master-class": {
-    slug: "master-class",
-    levelId: "REPLACE_WITH_LEVEL_ID",
-    heading: "Master Class Complete School Access",
-    options: [
-      {
-        key: "plan-12mo",
-        title: "Master Class Complete School Access | 12 Months Payment Plan",
-        subLabel: "12 MONTHLY PAYMENTS",
-        priceText: "$167.00/Month",
-        kind: "recurring",
-        stripePriceId: "price_REPLACE_MONTHLY",
-        localPriceId: null,
-        amount: 16700,
-        currency: "usd",
-      },
-      {
-        key: "pay-in-full",
-        title: "Master Class Complete School Access | Pay in Full",
-        subLabel: "PAY IN FULL",
-        priceText: "$1997.00 One Time Payment",
-        kind: "one_time",
-        stripePriceId: "price_REPLACE_ONETIME",
-        localPriceId: null,
-        amount: 199700,
-        currency: "usd",
-      },
-    ],
-  },
-
   // Real, working example wired to the seeded "Stripe Test" level (test-mode
   // Stripe prices). Visit /checkout/stripe-test to run a live test purchase.
   "stripe-test": {
@@ -147,7 +117,7 @@ function priceToOption(levelName: string, p: PriceDTO): CheckoutProductOption {
 export async function resolveCheckoutConfig(
   idOrSlug: string,
 ): Promise<LevelCheckoutConfig | null> {
-  // Hand-tuned configs above win (e.g. master-class's one-time "Pay in full").
+  // Hand-tuned configs above win (e.g. the stripe-test slug).
   const bySlug = CHECKOUT_LEVELS[idOrSlug];
   if (bySlug) return bySlug;
 
