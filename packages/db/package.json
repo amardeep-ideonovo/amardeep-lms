@@ -8,6 +8,7 @@
     "migrate": "prisma migrate dev",
     "seed": "prisma db seed",
     "seed:staging": "prisma db seed",
+    "test:seed": "ts-node prisma/seed-provisioning-check.ts",
     "studio": "prisma studio"
   },
   "prisma": {
