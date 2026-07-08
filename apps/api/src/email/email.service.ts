@@ -27,6 +27,10 @@ export interface SendTemplateInput {
   vars: Record<string, unknown>;
   contactId?: string;
   dedupeKey?: string;
+  // Security/account mail (e.g. password reset) that must reach the recipient
+  // even when they've unsubscribed from marketing. Skips ONLY the suppression
+  // check — idempotency, audit logging and provider transport are unchanged.
+  transactional?: boolean;
 }
 
 // What a caller hands to EmailService.send(). Everything past `html` is
@@ -43,6 +47,8 @@ export interface SendEmailInput {
   // Idempotency key (unique on EmailLog): a repeat send with the same key that
   // already succeeded is skipped and the prior row returned.
   dedupeKey?: string;
+  // Bypass suppression for security/account mail (see SendTemplateInput).
+  transactional?: boolean;
   // One-click unsubscribe URL surfaced as a List-Unsubscribe header. Set
   // automatically for templated sends (see sendTemplate); raw send() callers may
   // pass their own. Not persisted — transport-only.
@@ -134,6 +140,7 @@ export class EmailService {
       templateKey: input.templateKey,
       contactId: input.contactId,
       dedupeKey: input.dedupeKey,
+      transactional: input.transactional,
       // Prefer a caller-supplied unsubscribe target; else the signed default.
       listUnsubscribe:
         (input.vars?.unsubscribeUrl as string | undefined) || unsubscribeUrl,
@@ -208,7 +215,10 @@ export class EmailService {
 
     // 2) Suppression — never mail an unsubscribed/cleaned contact or an
     // opted-out user. Recorded as a FAILED row so it's visible, but not sent.
-    if (await this.isSuppressed(to)) {
+    // Transactional mail (password reset & co.) skips this: an unsubscribe is
+    // a marketing preference and must never lock a member out of their
+    // account. Nothing else in the pipeline changes for transactional sends.
+    if (!input.transactional && (await this.isSuppressed(to))) {
       return this.writeLog(input, to, 'FAILED', { error: 'suppressed' });
     }
 

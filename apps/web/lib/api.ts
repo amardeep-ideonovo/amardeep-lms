@@ -45,6 +45,7 @@ import type {
   FooterConfig,
   FooterSubscribeResult,
   ChangePasswordInput,
+  ResetPasswordInput,
   SignupInput,
   UpdateProfileInput,
 } from "@lms/types";
@@ -208,6 +209,20 @@ export const api = {
     request<{ ok: true }>("/auth/change-password", {
       method: "POST",
       body: input,
+    }),
+  // Self-serve password reset (both public). forgotPassword always resolves
+  // { ok: true } — the API never reveals whether the email has an account.
+  forgotPassword: (email: string) =>
+    request<{ ok: true }>("/auth/forgot-password", {
+      method: "POST",
+      body: { email },
+      auth: false,
+    }),
+  resetPassword: (input: ResetPasswordInput) =>
+    request<{ ok: true }>("/auth/reset-password", {
+      method: "POST",
+      body: input,
+      auth: false,
     }),
 
   // member dashboard

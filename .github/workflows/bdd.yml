@@ -43,6 +43,7 @@ jobs:
       # the limit only for CI (real prod keeps the secure default).
       THROTTLE_LOGIN_LIMIT: "1000"
       THROTTLE_SIGNUP_LIMIT: "1000"
+      THROTTLE_FORGOT_LIMIT: "1000"
       # The API is built and run from dist at the repo-root cwd (see "Start API"),
       # so the default process.cwd()/src/... media + cert paths resolve to
       # <root>/src/... and MISS the files the seed writes (apps/api/src/...). Pin

@@ -5,6 +5,7 @@ import React, { useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -20,7 +21,7 @@ import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { CtaButton } from "../components/CtaButton";
 import { SpotlightMark } from "../components/SpotlightMark";
-import { IS_LOCKED_BUILD, unbindInstance } from "../config";
+import { IS_LOCKED_BUILD, WEB_BASE_URL, unbindInstance } from "../config";
 import { useAppConfig } from "../config-provider";
 import type { AuthScreenProps } from "../navigation";
 import { spacing } from "../theme";
@@ -133,6 +134,27 @@ export function LoginScreen({ navigation }: Props) {
               onPress={onSubmit}
             />
           </View>
+
+          {/* Password reset is web-only by policy (like billing/account), so
+              this opens the member site's forgot-password page in the browser.
+              WEB_BASE_URL is a live binding — empty only when no instance is
+              bound yet, in which case the link is hidden. */}
+          {WEB_BASE_URL ? (
+            <TouchableOpacity
+              onPress={() =>
+                void Linking.openURL(`${WEB_BASE_URL}/forgot-password`).catch(
+                  () => undefined,
+                )
+              }
+              activeOpacity={0.7}
+              style={styles.linkButton}
+            >
+              <Text style={styles.linkText}>
+                Forgot your password?{" "}
+                <Text style={styles.linkTextStrong}>Reset it</Text>
+              </Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity
             onPress={() => navigation.navigate("Signup")}

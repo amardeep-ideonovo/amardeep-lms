@@ -58,7 +58,11 @@ export class SmtpMailSender implements MailSender {
       host: host ?? undefined,
       port,
       secure, // true for 465 (implicit TLS); false uses STARTTLS on 587
-      auth: user ? { user, pass: pass ?? undefined } : undefined,
+      // Auth only when BOTH are stored: nodemailer rejects a user with no
+      // password client-side ("Missing credentials for PLAIN") before even
+      // connecting, so user-without-pass could never send — treat it as an
+      // unauthenticated relay instead (nodemailer's convention: omit auth).
+      auth: user && pass ? { user, pass } : undefined,
     });
 
     const from = msg.from || (await this.resolveFrom());

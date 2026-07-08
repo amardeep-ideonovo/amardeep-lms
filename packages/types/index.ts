@@ -136,6 +136,20 @@ export interface ChangePasswordInput {
   newPassword: string;
 }
 
+// Member self-serve password reset, step 1 (POST /auth/forgot-password).
+// ALWAYS answers { ok: true } — whether or not an account exists — so the
+// endpoint can't be used to enumerate registered emails.
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+// Member self-serve password reset, step 2 (POST /auth/reset-password). The
+// token arrives by email; it is short-lived and dies once the password changes.
+export interface ResetPasswordInput {
+  token: string;
+  newPassword: string;
+}
+
 export interface PriceDTO {
   id: string; // local Price id — the provider-neutral checkout identifier
   stripePriceId: string | null; // price_… (null until provisioned under Stripe)
@@ -2198,6 +2212,8 @@ export const ROUTES = {
   updateMe: "PATCH /auth/me", // body UpdateProfileInput -> AuthUser (member self-service)
   uploadAvatar: "POST /auth/me/avatar", // member self; multipart file -> AuthUser
   changePassword: "POST /auth/change-password", // body ChangePasswordInput -> { ok: true }
+  forgotPassword: "POST /auth/forgot-password", // body ForgotPasswordInput -> { ok: true } ALWAYS (no account enumeration)
+  resetPassword: "POST /auth/reset-password", // body ResetPasswordInput -> { ok: true }; 400 invalid/expired/used token
   adminChangeOwnPassword: "POST /auth/admin/change-password", // admin self; body ChangePasswordInput -> { ok: true }
   adminUpdateMyPrefs: "PATCH /auth/admin/prefs", // admin self; body UpdateAdminPrefsInput -> AuthAdmin
   adminUpdateProfile: "PATCH /auth/admin/profile", // admin self; body UpdateAdminProfileInput -> AuthAdmin

@@ -21,9 +21,17 @@ import type {
 import { PrismaService } from '../prisma/prisma.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { AutomationService } from '../email/automation.service';
+import { EmailService } from '../email/email.service';
 import { AppConfigService } from '../site/app-config.service';
 import { MediaStorage } from '../media/media.storage';
 import { MEDIA_ROUTE } from '../media/media.config';
+import {
+  RESET_TOKEN_TTL_MINUTES,
+  fingerprintMatches,
+  makePasswordResetToken,
+  passwordHashFingerprint,
+  verifyPasswordResetToken,
+} from './reset-token.util';
 import type { JwtPayload } from './jwt-payload.interface';
 import type { SignupDto } from './dto/signup.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
@@ -52,6 +60,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly contacts: ContactsService,
     private readonly automations: AutomationService,
+    private readonly email: EmailService,
     private readonly appConfig: AppConfigService,
     private readonly config: ConfigService,
     private readonly storage: MediaStorage,
@@ -390,6 +399,113 @@ export class AuthService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { passwordHash },
+    });
+    return { ok: true };
+  }
+
+  // Uniform 400 for every way a reset token can be bad (malformed, forged,
+  // expired, already used, account gone). One message so the response never
+  // reveals WHICH check failed — the requester isn't necessarily the account
+  // owner.
+  private static readonly RESET_LINK_INVALID =
+    'This reset link is invalid or has expired. Please request a new one.';
+
+  /**
+   * Member self-serve password reset, step 1 (POST /auth/forgot-password).
+   * ALWAYS resolves { ok: true } — an unknown email must be indistinguishable
+   * from a known one, so this endpoint can't enumerate accounts. For a real
+   * member we email a signed, stateless reset link (see reset-token.util.ts):
+   * no token row is stored; the token dies on expiry or the moment the
+   * password changes. Everything past the user lookup is best-effort and
+   * swallowed — a mail/config failure must surface in logs, never in the
+   * response. Members only: admins have their own reset path in the admin app.
+   */
+  async forgotPassword(email: string): Promise<{ ok: true }> {
+    const normalized = email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalized },
+    });
+    if (!user) return { ok: true };
+
+    try {
+      // makePasswordResetToken fails closed (throws) in a production with no
+      // signing secret — caught here so the response stays a uniform 200.
+      const token = makePasswordResetToken(user.id, user.passwordHash);
+      const webUrl = (
+        this.config.get<string>('WEB_APP_URL') || 'http://localhost:3002'
+      ).replace(/\/$/, '');
+      const resetUrl = `${webUrl}/reset-password?token=${encodeURIComponent(token)}`;
+      const cfg = await this.appConfig.read();
+
+      // Straight through EmailService (not an automation): resetting a
+      // password is a security flow, so it must not be admin-toggleable the
+      // way the welcome automation is. transactional:true bypasses marketing
+      // suppression — an unsubscribed member must still be able to get back
+      // into their account. sendTemplate never throws; the try/catch guards
+      // the token/config work above it.
+      await this.email.sendTemplate({
+        to: user.email,
+        templateKey: 'password-reset',
+        vars: {
+          firstName: user.firstName?.trim() || 'there',
+          brand: cfg.title,
+          resetUrl,
+          expiresMinutes: RESET_TOKEN_TTL_MINUTES,
+        },
+        transactional: true,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[forgot-password] reset email failed for ${user.email}: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Member self-serve password reset, step 2 (POST /auth/reset-password).
+   * The signed token from the emailed link is the sole credential. Beyond the
+   * signature/expiry check, the token's password-hash fingerprint must still
+   * match the CURRENT hash — that's what makes tokens single-use: the update
+   * below changes the hash, so this token (and any other outstanding one for
+   * the account) stops matching immediately. Rejecting a same-as-old password
+   * isn't just UX parity with changePassword — reusing the old password would
+   * leave the fingerprint (and thus the token) alive until expiry.
+   */
+  async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<{ ok: true }> {
+    const data = verifyPasswordResetToken(token);
+    if (!data) {
+      throw new BadRequestException(AuthService.RESET_LINK_INVALID);
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: data.userId },
+    });
+    if (
+      !user ||
+      !fingerprintMatches(
+        data.fingerprint,
+        passwordHashFingerprint(user.passwordHash),
+      )
+    ) {
+      throw new BadRequestException(AuthService.RESET_LINK_INVALID);
+    }
+
+    const sameAsOld = await bcrypt.compare(newPassword, user.passwordHash);
+    if (sameAsOld) {
+      throw new BadRequestException(
+        'New password must be different from the current one',
+      );
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await bcrypt.hash(newPassword, 10) },
     });
     return { ok: true };
   }
