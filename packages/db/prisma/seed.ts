@@ -14,19 +14,42 @@
 //   SEED_WIPE=1 npm run seed -w @lms/db   # wipe + reseed (the only destructive path)
 //   npm run seed -w @lms/db               # plain idempotent refresh (migrate-dev safe)
 //
+// Provisioned instances (deploy/instance compose, driven by the control-plane
+// provisioner) run this SAME seed on every container start, parameterized:
+//   SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD — the first SUPER_ADMIN (the client
+//     owner). The operator dashboard's "Admin login" disclosure shows exactly
+//     these credentials, so they MUST work — the contract is guarded by
+//     prisma/seed-provisioning-check.ts (CI: .github/workflows/bdd.yml).
+//   SEED_DEMO_CONTENT=true|false — whether the Spotlight catalog ships too.
+//     Unset it defaults to ON for local dev/CI and OFF once SEED_ADMIN_EMAIL
+//     is present (a provisioned client must never get demo content by accident).
+// With SEED_ADMIN_* set the well-known demo admin is NOT created, and a
+// leftover admin@example.com/admin123 from a pre-fix image is neutralized
+// (password rotated to a random throwaway).
+//
 // Class/course cover art hotlinks masterclass.com course images (public CDN
 // paths, verified to serve without auth/referer) — dev/demo use only.
 //
 // QA fixtures: the BDD suite (packages/bdd/features/*.feature) hard-codes the
 // ids/slugs/titles in seedFixtureCluster() — see the comment there before
 // renaming anything.
+import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Admin, Prisma, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 const WIPE = process.env.SEED_WIPE === "1";
+
+// Provisioning knobs (see header). Admin login lower-cases the email before
+// the lookup (auth.service.ts loginAdmin), so the stored row must be lowercase
+// or the disclosed credentials would never match.
+const OWNER_EMAIL =
+  process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase() || null;
+const OWNER_PASSWORD = process.env.SEED_ADMIN_PASSWORD || null;
+const demoRaw = (process.env.SEED_DEMO_CONTENT || "").trim();
+const SEED_DEMO = demoRaw ? demoRaw !== "false" : !OWNER_EMAIL;
 
 // ---------- shared helpers ----------
 
@@ -2225,11 +2248,11 @@ async function seedCertificateTemplates() {
 // ---------- app customization (mobile branding) ----------
 
 async function seedAppConfig() {
-  // The app mirrors the web member area's "liquid glass" design: a deep
-  // violet-ink canvas with a violet #7c5cfc primary (pink accents come from the
-  // gradients). The app ships dark by default; both palettes are the web's exact
-  // tokens (= cross-stack defaults in apps/mobile/src/theme.ts /
-  // app-config.service.ts). Admins can still recolor live via App Customization.
+  // The app mirrors the "Ink Hero" design: light content under ink #221c3d
+  // chrome with a teal #3cc4b2 accent. The app ships LIGHT by default; DARK is
+  // the all-ink variant. Both palettes are the cross-stack defaults in
+  // apps/mobile/src/theme.ts / apps/api/src/site/app-config.service.ts.
+  // Admins can still recolor live via App Customization.
   const config = {
     title: "Spotlight Academy",
     tagline: "Learn from the best. Love what you make.",
@@ -2238,26 +2261,26 @@ async function seedAppConfig() {
     logoUrl: null,
     iconUrl: null,
     splashUrl: null,
-    colorScheme: "dark",
+    colorScheme: "light",
     light: {
-      bg: "#f5f3fc",
+      bg: "#f4f3f8",
       surface: "#ffffff",
-      surfaceMuted: "#f2eefb",
-      border: "#e7e2f4",
-      text: "#251f3d",
-      textMuted: "#8b84a4",
-      primary: "#7c5cfc",
-      danger: "#e11d48",
+      surfaceMuted: "#f1eff7",
+      border: "#e4e1ee",
+      text: "#272144",
+      textMuted: "#8b87a3",
+      primary: "#3cc4b2",
+      danger: "#e04848",
     },
     dark: {
-      bg: "#100c1b",
-      surface: "#211a33",
-      surfaceMuted: "#2a2240",
-      border: "#342a4f",
-      text: "#f4f1fb",
-      textMuted: "#948cb4",
-      primary: "#7c5cfc",
-      danger: "#f2557b",
+      bg: "#221c3d",
+      surface: "#272144",
+      surfaceMuted: "#322b52",
+      border: "#3a3460",
+      text: "#ffffff",
+      textMuted: "#a7a3bd",
+      primary: "#3cc4b2",
+      danger: "#ea4f4f",
     },
   } as Prisma.InputJsonValue;
   // Singleton: drop any stray rows, keep exactly one.
@@ -2269,6 +2292,93 @@ async function seedAppConfig() {
   });
 }
 
+// ---------- first admin ----------
+
+const DEMO_ADMIN = { email: "admin@example.com", password: "admin123" };
+
+// The instance stack re-runs the seed on every container start, so passwords
+// are set on CREATE only — an owner who changed theirs in the admin must never
+// have it reset. The one exception: a row still carrying the well-known demo
+// password (an instance first seeded by a pre-fix image) is healed to the
+// provisioned password so the control plane's "Admin login" disclosure works.
+async function seedFirstAdmin(): Promise<Admin> {
+  if (!OWNER_EMAIL) {
+    // Local dev/CI — the BDD suite logs in with exactly these credentials
+    // (packages/bdd/features/support/world.ts).
+    return prisma.admin.upsert({
+      where: { email: DEMO_ADMIN.email },
+      update: {},
+      create: {
+        email: DEMO_ADMIN.email,
+        passwordHash: await bcrypt.hash(DEMO_ADMIN.password, 10),
+        role: "SUPER_ADMIN",
+      },
+    });
+  }
+
+  if (!OWNER_PASSWORD) {
+    throw new Error(
+      "SEED_ADMIN_EMAIL is set but SEED_ADMIN_PASSWORD is empty — refusing to seed a first admin with a default password.",
+    );
+  }
+
+  const existing = await prisma.admin.findUnique({
+    where: { email: OWNER_EMAIL },
+  });
+  let owner: Admin;
+  if (!existing) {
+    owner = await prisma.admin.create({
+      data: {
+        email: OWNER_EMAIL,
+        passwordHash: await bcrypt.hash(OWNER_PASSWORD, 10),
+        role: "SUPER_ADMIN",
+      },
+    });
+    console.log(`First admin created from SEED_ADMIN_*: ${OWNER_EMAIL}`);
+  } else if (
+    await bcrypt.compare(DEMO_ADMIN.password, existing.passwordHash)
+  ) {
+    owner = await prisma.admin.update({
+      where: { id: existing.id },
+      data: {
+        passwordHash: await bcrypt.hash(OWNER_PASSWORD, 10),
+        role: "SUPER_ADMIN",
+      },
+    });
+    console.log(
+      `First admin ${OWNER_EMAIL} carried the demo password — reset to SEED_ADMIN_PASSWORD.`,
+    );
+  } else {
+    owner = existing; // in-app password change (or already-correct row): hands off
+  }
+
+  // Neutralize a leftover demo admin from a pre-fix image. The row is kept
+  // (seeded blog/pages may reference its id) but its well-known password is
+  // rotated to a random throwaway, so admin123 never opens a provisioned
+  // instance. Skipped when the owner IS admin@example.com (healed above).
+  if (OWNER_EMAIL !== DEMO_ADMIN.email) {
+    const demo = await prisma.admin.findUnique({
+      where: { email: DEMO_ADMIN.email },
+    });
+    if (demo && (await bcrypt.compare(DEMO_ADMIN.password, demo.passwordHash))) {
+      await prisma.admin.update({
+        where: { id: demo.id },
+        data: {
+          passwordHash: await bcrypt.hash(
+            crypto.randomBytes(24).toString("base64url"),
+            10,
+          ),
+        },
+      });
+      console.log(
+        `Leftover demo admin ${DEMO_ADMIN.email} neutralized (random password).`,
+      );
+    }
+  }
+
+  return owner;
+}
+
 // ---------- main ----------
 
 async function main() {
@@ -2277,16 +2387,20 @@ async function main() {
     wipeUploadDirs();
   }
 
-  const adminPassword = "admin123";
-  const admin = await prisma.admin.upsert({
-    where: { email: "admin@example.com" },
-    update: {},
-    create: {
-      email: "admin@example.com",
-      passwordHash: await bcrypt.hash(adminPassword, 10),
-      role: "SUPER_ADMIN",
-    },
-  });
+  const admin = await seedFirstAdmin();
+
+  // Real client instances stop here: first admin only, no demo content. The
+  // app is fully functional empty — signup's "Free" auto-grant tolerates the
+  // missing level and the AppConfig singleton is default-merged on first read.
+  if (!SEED_DEMO) {
+    console.log("Seed complete — baseline only (no demo content).");
+    console.log(
+      OWNER_EMAIL
+        ? `  Admin: ${admin.email} (SEED_ADMIN_* credentials)`
+        : `  Admin: ${DEMO_ADMIN.email} / ${DEMO_ADMIN.password}`,
+    );
+    return;
+  }
 
   const { memberId } = await seedFixtureCluster();
   await seedCatalog();
@@ -2308,7 +2422,12 @@ async function main() {
     ),
   };
   console.log("Seed complete — Spotlight Academy demo content.");
-  console.log(`  Admin:   admin@example.com / ${adminPassword}`);
+  // Never print the provisioned password — container logs are operator-visible.
+  console.log(
+    OWNER_EMAIL
+      ? `  Admin:   ${admin.email} (SEED_ADMIN_* credentials)`
+      : `  Admin:   ${DEMO_ADMIN.email} / ${DEMO_ADMIN.password}`,
+  );
   console.log(
     "  Member:  member@example.com / member123 (enrolled in Music + Cooking)",
   );

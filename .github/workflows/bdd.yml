@@ -79,6 +79,13 @@ jobs:
       - name: Seed database
         run: npm run -w @lms/db seed
 
+      # Provisioning contract: SEED_ADMIN_* / SEED_DEMO_CONTENT must keep
+      # producing the first admin the control plane discloses. Runs against
+      # its own scratch database on the service postgres — the BDD database
+      # seeded above is untouched.
+      - name: Seed provisioning check
+        run: npm run -w @lms/db test:seed
+
       - name: Build API
         run: npm run -w @lms/api build
 

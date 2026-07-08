@@ -267,10 +267,71 @@ export default function AppCustomizationBuilder({
         <div className="hb-preview-label" style={{ marginBottom: 8 }}>
           Live preview
         </div>
-        <PhonePreview cfg={cfg} palette={cfg[previewMode]} />
+        <PhonePreview cfg={cfg} palette={cfg[previewMode]} mode={previewMode} />
       </div>
     </div>
   );
+}
+
+// Mirrors the app's HSL + chrome/CTA derivations (apps/mobile/src/theme.ts,
+// paletteFrom) so the preview shows exactly what the app will compute. Keep
+// these byte-identical to the mobile copies.
+function hexToHsl(hex: string): { h: number; s: number; l: number } {
+  const n = parseInt(hex.slice(1), 16);
+  const r = ((n >> 16) & 255) / 255;
+  const g = ((n >> 8) & 255) / 255;
+  const b = (n & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  const l = (max + min) / 2;
+  const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
+  let h = 0;
+  if (d !== 0) {
+    if (max === r) h = 60 * (((g - b) / d + 6) % 6);
+    else if (max === g) h = 60 * ((b - r) / d + 2);
+    else h = 60 * ((r - g) / d + 4);
+  }
+  return { h, s, l };
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  if (h < 60) [r, g, b] = [c, x, 0];
+  else if (h < 120) [r, g, b] = [x, c, 0];
+  else if (h < 180) [r, g, b] = [0, c, x];
+  else if (h < 240) [r, g, b] = [0, x, c];
+  else if (h < 300) [r, g, b] = [x, 0, c];
+  else [r, g, b] = [c, 0, x];
+  const to = (v: number) =>
+    Math.round((v + m) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
+
+// Ink band chrome: text-hue ink in light mode (stock #272144 text → exactly
+// #221c3d), the bg itself in dark mode.
+function chromeColor(p: AppThemePalette, mode: "light" | "dark"): string {
+  if (mode === "dark") return p.bg;
+  const t = hexToHsl(p.text);
+  return hslToHex(t.h, t.s < 0.08 ? t.s : 0.37, 0.175);
+}
+
+// Teal CTA gradient: stock primary pins the design values; custom primaries
+// get a same-hue ramp.
+function ctaGradient(primary: string): string {
+  if (primary.toLowerCase() === "#3cc4b2")
+    return "linear-gradient(100deg, #4fcdb8, #2f9d8e)";
+  const { h, s, l } = hexToHsl(primary);
+  const start = hslToHex(h, Math.max(s, 0.35), Math.min(0.62, l + 0.06));
+  const end = hslToHex(h, Math.max(s, 0.35), Math.max(0.18, l - 0.11));
+  return `linear-gradient(100deg, ${start}, ${end})`;
 }
 
 // Mirrors the app's onPrimary derivation (apps/mobile/src/theme.ts) so the
@@ -291,10 +352,13 @@ function onColor(hex: string): string {
 function PhonePreview({
   cfg,
   palette: p,
+  mode,
 }: {
   cfg: AppConfig;
   palette: AppThemePalette;
+  mode: "light" | "dark";
 }) {
+  const chrome = chromeColor(p, mode);
   const card = (title: string, sub: string, pct: number) => (
     <div
       style={{
@@ -365,11 +429,10 @@ function PhonePreview({
           />
         </div>
 
-        {/* app header */}
+        {/* app header — ink band chrome, matching the app's Home band */}
         <div
           style={{
-            background: p.surface,
-            borderBottom: `1px solid ${p.border}`,
+            background: chrome,
             padding: "12px 16px",
             display: "flex",
             alignItems: "center",
@@ -384,7 +447,7 @@ function PhonePreview({
               style={{ height: 24, maxWidth: 130, objectFit: "contain" }}
             />
           ) : (
-            <span style={{ color: p.text, fontSize: 17, fontWeight: 800 }}>
+            <span style={{ color: "#ffffff", fontSize: 17, fontWeight: 800 }}>
               {cfg.title || "LMS"}
             </span>
           )}
@@ -394,7 +457,7 @@ function PhonePreview({
               width: 22,
               height: 22,
               borderRadius: 999,
-              background: p.surfaceMuted,
+              background: "rgba(255,255,255,.16)",
             }}
           />
         </div>
@@ -413,7 +476,7 @@ function PhonePreview({
             disabled
             style={{
               width: "100%",
-              background: p.primary,
+              background: ctaGradient(p.primary),
               color: onColor(p.primary),
               border: "none",
               borderRadius: 10,

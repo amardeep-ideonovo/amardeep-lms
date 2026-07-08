@@ -20,7 +20,7 @@ export default function OpengraphImage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #4f46e5 0%, #9333ea 100%)",
+          background: "linear-gradient(135deg, #221c3d 0%, #2f9d8e 130%)",
           color: "#ffffff",
           fontSize: 84,
           fontWeight: 700,

@@ -340,7 +340,7 @@ export default function CertificateTemplateEditorPage() {
                   padding: "7px 10px",
                   borderRadius: 8,
                   cursor: "pointer",
-                  border: `1px solid ${selected === f.kind ? "var(--primary, #4f46e5)" : "var(--border)"}`,
+                  border: `1px solid ${selected === f.kind ? "var(--primary, #3cc4b2)" : "var(--border)"}`,
                 }}
               >
                 <strong style={{ flex: 1, fontSize: 13.5 }}>{FIELD_LABELS[f.kind]}</strong>
@@ -522,7 +522,7 @@ export default function CertificateTemplateEditorPage() {
                       textTransform: f.uppercase ? "uppercase" : undefined,
                       outline:
                         selected === f.kind
-                          ? "1.5px dashed rgba(79,70,229,.9)"
+                          ? "1.5px dashed rgba(42,157,141,.9)"
                           : "1px dashed rgba(120,120,140,.45)",
                       outlineOffset: 3,
                     }}
@@ -542,7 +542,7 @@ export default function CertificateTemplateEditorPage() {
                           width: 12,
                           height: 12,
                           borderRadius: 999,
-                          background: "#4f46e5",
+                          background: "#2a9d8d",
                           cursor: "ew-resize",
                         }}
                       />

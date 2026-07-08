@@ -64,22 +64,23 @@ function openPath(pathname: string, browserFallback: string): void {
   }
   const nav = navigationRef;
 
-  // Dashboard / Blog / Account live inside the "Main" tab navigator now — a
+  // Home / Classes / Live / Profile live inside the "Main" tab navigator — a
   // nested route is NOT found by a bare navigate from the root, so target the
-  // tab explicitly via Main → { screen }.
+  // tab explicitly via Main → { screen }. The blog LIST is a root-stack screen
+  // now (Ink Hero tabs are Home/Classes/Live/Profile).
   if (segs.length === 0) {
-    nav.navigate("Main", { screen: "Dashboard" });
+    nav.navigate("Main", { screen: "Home" });
     return;
   }
 
   const [head, second] = segs;
   switch (head) {
     case "dashboard":
-      nav.navigate("Main", { screen: "Dashboard" });
+      nav.navigate("Main", { screen: "Home" });
       return;
     case "classes":
       if (second) nav.navigate("Class", { slugOrId: second });
-      else nav.navigate("Main", { screen: "Dashboard" });
+      else nav.navigate("Main", { screen: "Classes" });
       return;
     case "courses":
       if (second) nav.navigate("Course", { courseId: second });
@@ -87,15 +88,15 @@ function openPath(pathname: string, browserFallback: string): void {
       return;
     case "lessons":
       if (second) nav.navigate("Lesson", { lessonId: second });
-      else nav.navigate("Main", { screen: "Dashboard" });
+      else nav.navigate("Main", { screen: "Home" });
       return;
     case "blog":
       if (second) nav.navigate("BlogPost", { slug: second });
-      else nav.navigate("Main", { screen: "Blog" });
+      else nav.navigate("Blog");
       return;
     case "account":
       if (second === "payments") nav.navigate("Payments");
-      else nav.navigate("Main", { screen: "Account" });
+      else nav.navigate("Main", { screen: "Profile" });
       return;
     case "pricing":
       // The plans LIST is native now; actual checkout stays on the web.

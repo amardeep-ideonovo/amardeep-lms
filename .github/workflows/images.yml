@@ -1,0 +1,65 @@
+name: Publish images
+
+# Builds the three LMS runtime images (api, web, admin) and pushes them to the
+# GitHub Container Registry (GHCR). Provisioned client instances PULL these tags
+# via the cloud driver (deploy/instance/docker-compose.instance.yml's
+# API_IMAGE/WEB_IMAGE/ADMIN_IMAGE) — a shared host never builds on the fly.
+#
+# This is the CI counterpart of deploy/instance/build-images.sh (which builds
+# lms-*:local for local dev). Runtime env (/__env.js + RUNTIME_API_URL) means one
+# image serves every client, so no per-client build args are needed here.
+#
+# Published (lowercase — GHCR requires it):
+#   ghcr.io/<owner>/<repo>/{api,web,admin}:{latest,sha-<sha>}
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Build & push (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [api, web, admin]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/${{ matrix.app }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
+            type=sha
+            type=ref,event=tag
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}

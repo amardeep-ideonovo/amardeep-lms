@@ -301,9 +301,9 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   success: {
     padding: spacing.md,
     borderRadius: 10,
-    backgroundColor: "rgba(34,197,94,0.14)",
+    backgroundColor: colors.successBg,
     borderWidth: 1,
-    borderColor: "rgba(34,197,94,0.4)",
+    borderColor: `${colors.primary}66`,
   },
   successText: { color: colors.text, fontSize: 14, lineHeight: 20, fontFamily: fonts.regular },
 });

@@ -1,73 +1,60 @@
 /* =========================================================================
-   Puck editor chrome ↔ admin theme bridge.
+   Puck editor chrome ↔ admin theme bridge (Ink Hero).
 
-   Problem this solves: the admin's dark theme cascades `color: var(--text)`
-   (near-white) into Puck's LIGHT-styled chrome — light text on white drag
-   cards is unreadable. Puck's entire chrome reads a 12-step variable scale
-   (--puck-color-grey/azure-01..12 + black/white), so under
-   `html[data-theme="dark"]` we remap that scale onto the admin palette:
-   the grey ramp is INVERTED (01 stays "strongest text", 12 stays "subtlest
-   background" — just dark now) and azure becomes the admin teal accent.
-   Under the light admin theme, Puck's stock light palette already matches.
+   The admin is single-appearance now: light chrome, ink text, teal accent.
+   Puck's stock LIGHT palette already fits, so the grey ramp needs no remap —
+   we only retint the azure (action) ramp from Puck-blue to the Ink Hero teal
+   so buttons/selection outlines match the app.
+
+   A stored `data-theme="dark"` preference must render identically (single
+   theme), so the same remap is pinned under BOTH attribute values; the old
+   dark-ramp override is gone on purpose.
 
    These rules are also copied into the canvas iframe by Puck's style sync,
    where they are inert: the iframe's <html> carries no data-theme attribute.
    ========================================================================= */
 
+html,
+html[data-theme="light"],
 html[data-theme="dark"] {
-  --puck-color-white: #131316; /* --surface */
-  --puck-color-black: #ededf0; /* --text */
+  --puck-color-white: #ffffff;
+  --puck-color-black: #272144; /* ink text */
 
-  /* greys: 01 = strongest foreground … 12 = subtlest background */
-  --puck-color-grey-01: #f2f2f5;
-  --puck-color-grey-02: #e6e6ea;
-  --puck-color-grey-03: #cfcfd6;
-  --puck-color-grey-04: #b6b6bd; /* --text-soft */
-  --puck-color-grey-05: #9a9aa2;
-  --puck-color-grey-06: #82828a;
-  --puck-color-grey-07: #64646c;
-  --puck-color-grey-08: #3f3f46;
-  --puck-color-grey-09: #2b2b31; /* the chrome's main border tone */
-  --puck-color-grey-10: #1c1c21; /* --surface-hover */
-  --puck-color-grey-11: #17171b; /* --surface-2 */
-  --puck-color-grey-12: #0f0f12;
-
-  /* azure: action color becomes the admin violet; tints become violet-dark fills */
-  --puck-color-azure-01: #efe9ff;
-  --puck-color-azure-02: #e0d6ff;
-  --puck-color-azure-03: #c9bbff;
-  --puck-color-azure-04: #7c5cfc; /* --accent */
-  --puck-color-azure-05: #9577fb;
-  --puck-color-azure-06: #ad97ff;
-  --puck-color-azure-07: #3f2a86;
-  --puck-color-azure-08: #35246f;
-  --puck-color-azure-09: #2a1d5c;
-  --puck-color-azure-10: #241850;
-  --puck-color-azure-11: #1d1442; /* selected/hover fills */
-  --puck-color-azure-12: #160f33;
+  /* azure: action color becomes the admin teal; tints become teal washes */
+  --puck-color-azure-01: #0d3f38;
+  --puck-color-azure-02: #14544b;
+  --puck-color-azure-03: #1f7d70;
+  --puck-color-azure-04: #2a9d8d; /* primary action (teal on light) */
+  --puck-color-azure-05: #35b3a2;
+  --puck-color-azure-06: #3cc4b2;
+  --puck-color-azure-07: #7ce4d2;
+  --puck-color-azure-08: #b3efe4;
+  --puck-color-azure-09: #d2f5ee;
+  --puck-color-azure-10: #e2f8f3;
+  --puck-color-azure-11: #eefbf8; /* selected/hover fills */
+  --puck-color-azure-12: #f6fdfb;
 }
 
 /* =========================================================================
    Canvas fidelity — the iframe previews the RENDER TARGET, not the admin.
 
-   Pages render on the member site's dark shell; popups render in a white
-   box. Pinning both here (plus the site's brand color, since the iframe
-   would otherwise inherit the admin's teal --primary through style sync)
-   keeps the canvas truthful in BOTH admin themes. `.lmspb-dark` (shared
-   styles.css) supplies the dark CMS tokens for the page canvas.
+   Pages render on the member site's Ink Hero shell (light #f4f3f8 with teal
+   brand); popups render in a white box. Pinning both here keeps the canvas
+   truthful regardless of the admin chrome. Shared styles.css supplies the
+   member CMS tokens for the page canvas.
    ========================================================================= */
 
 .lmspb-root.lmspb-canvas-page {
-  --primary: #7c5cfc; /* member-site brand violet, NOT the admin chrome */
-  background: #100c1b; /* member site page background (violet-ink) */
+  --primary: #3cc4b2; /* member-site brand teal, NOT the admin chrome */
+  background: #f4f3f8; /* member site page background (Ink Hero light) */
   min-height: 100vh;
   padding: 16px 0 48px;
 }
 
 .lmspb-root.lmspb-canvas-popup {
-  --primary: #7c5cfc;
+  --primary: #3cc4b2;
   background: #ffffff; /* popups live in a white box by default */
-  color: #111827;
+  color: #272144;
   min-height: 100vh;
   padding: 16px;
 }

@@ -5,13 +5,16 @@ import type {
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
-// Bottom-tab param list — the persistent authed shell (Dashboard / Blog /
-// Account). These live INSIDE the "Main" tab navigator, nested in the root
-// stack below; detail screens push OVER the tabs from the stack.
+// Bottom-tab param list — the persistent authed shell (Home / Classes / Live /
+// Profile, per the Ink Hero design). These live INSIDE the "Main" tab
+// navigator, nested in the root stack below; detail screens push OVER the tabs
+// from the stack. Blog moved out of the tabs into the root stack (reached from
+// Profile + deep links).
 export type TabParamList = {
-  Dashboard: undefined;
-  Blog: undefined;
-  Account: undefined;
+  Home: undefined;
+  Classes: undefined;
+  Live: undefined;
+  Profile: undefined;
 };
 
 // Param list for the authenticated stack. Titles are optional where a screen
@@ -24,8 +27,10 @@ export type RootStackParamList = {
   Course: { courseId: string; title?: string };
   Lesson: { lessonId: string; title?: string };
   LiveSession: { sessionId: string; title?: string };
+  Certificates: undefined;
   Payments: undefined;
   Plans: undefined;
+  Blog: undefined;
   BlogPost: { slug: string; title?: string };
   Page: { slug: string; title?: string };
 };

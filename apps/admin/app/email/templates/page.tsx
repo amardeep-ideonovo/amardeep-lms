@@ -45,7 +45,7 @@ const STARTER_MJML = `<mjml>
           Write your message here. Use {{handlebars}} placeholders for any
           variables you declare below.
         </mj-text>
-        <mj-button href="{{url}}" background-color="#7c5cfc" border-radius="10px">
+        <mj-button href="{{url}}" background-color="#2f9d8e" border-radius="10px">
           Call to action
         </mj-button>
       </mj-column>

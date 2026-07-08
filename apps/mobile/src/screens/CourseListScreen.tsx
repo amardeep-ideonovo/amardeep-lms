@@ -94,6 +94,8 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   content: { padding: spacing.md },
   search: {
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
     borderRadius: 10,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,

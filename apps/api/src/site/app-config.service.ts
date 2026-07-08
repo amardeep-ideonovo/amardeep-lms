@@ -6,28 +6,30 @@ import { PrismaService } from '../prisma/prisma.service';
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const SCHEMES: AppColorScheme[] = ['light', 'dark', 'system'];
 
-// Defaults mirror the member WEBSITE's theme (apps/web/app/globals.css and its
-// cinematic dark scopes), so web, app, and admin preview agree out of the box.
-// MUST stay in sync with apps/mobile/src/theme.ts (the offline fallback).
+// Defaults mirror the member WEBSITE's "Ink Hero" theme (light content with
+// ink #221c3d chrome and a teal #3cc4b2 accent), so web, app, and admin
+// preview agree out of the box. DARK is the all-ink variant for admins who
+// pick a dark scheme. MUST stay in sync with apps/mobile/src/theme.ts (the
+// offline fallback) and seedAppConfig() in packages/db/prisma/seed.ts.
 const DARK: AppThemePalette = {
-  bg: '#100c1b',
-  surface: '#211a33',
-  surfaceMuted: '#2a2240',
-  border: '#342a4f',
-  text: '#f4f1fb',
-  textMuted: '#948cb4',
-  primary: '#7c5cfc',
-  danger: '#f2557b',
+  bg: '#221c3d',
+  surface: '#272144',
+  surfaceMuted: '#322b52',
+  border: '#3a3460',
+  text: '#ffffff',
+  textMuted: '#a7a3bd',
+  primary: '#3cc4b2',
+  danger: '#ea4f4f',
 };
 const LIGHT: AppThemePalette = {
-  bg: '#f5f3fc',
+  bg: '#f4f3f8',
   surface: '#ffffff',
-  surfaceMuted: '#f2eefb',
-  border: '#e7e2f4',
-  text: '#251f3d',
-  textMuted: '#8b84a4',
-  primary: '#7c5cfc',
-  danger: '#e11d48',
+  surfaceMuted: '#f1eff7',
+  border: '#e4e1ee',
+  text: '#272144',
+  textMuted: '#8b87a3',
+  primary: '#3cc4b2',
+  danger: '#e04848',
 };
 const DEFAULT_APP_CONFIG: AppConfig = {
   title: 'LMS',
@@ -36,7 +38,7 @@ const DEFAULT_APP_CONFIG: AppConfig = {
   logoUrl: null,
   iconUrl: null,
   splashUrl: null,
-  colorScheme: 'dark',
+  colorScheme: 'light',
   light: LIGHT,
   dark: DARK,
 };
