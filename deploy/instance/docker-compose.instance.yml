@@ -82,6 +82,11 @@ services:
       SEED_DEMO_CONTENT: ${SEED_DEMO_CONTENT:-false}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:?set SEED_ADMIN_EMAIL}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?set SEED_ADMIN_PASSWORD}
+      # Error reporting. Empty = Sentry stays a no-op (see apps/api/src/instrument.ts).
+      # The control-plane provisioner injects the real DSN per instance.
+      # (APP_VERSION is baked into the api image at build time — do NOT pass it
+      # through here, or an unset host var would blank out the stamped value.)
+      SENTRY_DSN: ${SENTRY_DSN:-}
     volumes:
       - uploads:/data
     ports:

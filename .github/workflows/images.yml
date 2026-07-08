@@ -53,6 +53,12 @@ jobs:
             type=sha
             type=ref,event=tag
 
+      # Short SHA that matches metadata-action's `type=sha` tag (sha-<7 chars>),
+      # baked into the api image as APP_VERSION so /health + /app/config report it.
+      - name: Short SHA
+        id: sha
+        run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
       - name: Build & push
         uses: docker/build-push-action@v6
         with:
@@ -61,5 +67,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Only the api image declares APP_VERSION; stamp it with the sha-<sha>
+          # tag so an instance stops reporting version:null.
+          build-args: ${{ matrix.app == 'api' && format('APP_VERSION=sha-{0}', steps.sha.outputs.short) || '' }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
