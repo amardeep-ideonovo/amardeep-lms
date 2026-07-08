@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import type { AdminSection } from "@lms/types";
 import { getToken } from "@/lib/api";
+import { useAppBrand } from "@/lib/app-brand";
 import { useAdminAuth } from "./AdminAuthProvider";
 
 type NavItem = {
@@ -264,6 +265,8 @@ const ROLE_LABELS: Record<string, string> = {
 export default function Sidebar() {
   const pathname = usePathname();
   const { can, isSuperAdmin, me } = useAdminAuth();
+  // Per-instance brand (AppConfig title); neutral "Admin" until set.
+  const brand = useAppBrand();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -306,7 +309,9 @@ export default function Sidebar() {
             <ellipse cx="14.8" cy="18.6" rx="6.8" ry="2.9" fill="rgba(60,196,178,.32)" />
           </svg>
         </span>
-        <span className="brand-name">Spotlight Admin</span>
+        <span className="brand-name" title={brand ?? undefined}>
+          {brand ?? "Admin"}
+        </span>
       </div>
 
       {GROUPS.map((group) => {
