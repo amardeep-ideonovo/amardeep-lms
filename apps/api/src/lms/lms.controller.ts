@@ -293,6 +293,9 @@ export class LmsController {
       noteId,
       principal,
     );
+    // The token can ride in ?token=; no-referrer stops it leaking to any third
+    // party via the Referer header on downstream navigations.
+    res.setHeader('Referrer-Policy', 'no-referrer');
     res.download(absPath, originalName);
   }
 }

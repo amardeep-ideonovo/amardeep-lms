@@ -59,6 +59,8 @@ export class CertificatesController {
       id,
       principal,
     );
+    // The token can ride in ?token=; no-referrer stops it leaking via Referer.
+    res.setHeader('Referrer-Policy', 'no-referrer');
     res.download(absPath, filename);
   }
 
