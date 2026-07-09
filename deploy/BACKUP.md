@@ -30,7 +30,12 @@ Add to root's crontab (`crontab -e`):
 30 2 * * * /opt/lms/deploy/scripts/backup-uploads.sh >> /var/log/lms-backup.log 2>&1
 ```
 
-Backup script (`deploy/scripts/backup-db.sh` — create if missing):
+> These scripts **ship in this repo** (`deploy/scripts/`, already executable) —
+> you don't need to create them. The blocks below show the core of what they
+> run; the real scripts also honour env overrides (`BACKUP_DIR`, `RETAIN_DAYS`,
+> …) and, if `RCLONE_REMOTE` is set, mirror each backup off-server (§3).
+
+Backup script (`deploy/scripts/backup-db.sh`):
 
 ```bash
 #!/usr/bin/env bash
@@ -60,7 +65,7 @@ docker run --rm -v lms_uploads:/source:ro -v "$BACKUP_DIR":/backup alpine \
 find "$BACKUP_DIR" -name 'lms-uploads-*.tar.gz' -mtime +30 -delete
 ```
 
-`chmod +x` both scripts after creating them.
+Both scripts are committed executable, so the cron lines above work as-is.
 
 ---
 
@@ -83,6 +88,12 @@ operator knows where the off-server copy lives.
 
 A backup you've never restored is a wish, not a backup. **Do a real
 restore drill at least once per quarter.**
+
+> **Automated:** `deploy/scripts/restore-drill.sh` runs the whole procedure
+> below against the latest `/opt/backups/lms-db-*.sql.gz` in a throwaway
+> Postgres, prints the row counts, and appends the result to
+> `deploy/BACKUP-DRILLS.md`. Wire it to a quarterly cron. The manual steps
+> below are what it automates (and what to do if you want to poke around).
 
 Drill procedure (~20 min):
 
