@@ -34,6 +34,26 @@ export function absoluteUrl(pathOrUrl = "/"): string {
   }
 }
 
+// Serialize a JSON-LD object for injection into a <script type="application/ld+json">.
+// JSON.stringify does NOT escape "<", ">", "&" or the U+2028/U+2029 line
+// separators, so a value containing "</script>" (e.g. an admin-authored blog
+// title/tag/category) would break out of the script element and execute — a
+// stored XSS on the public member origin. Escaping these to their \uXXXX
+// forms keeps the payload valid JSON while making a tag breakout impossible.
+export function jsonLdScript(data: unknown): string {
+  // Map each dangerous code point to its \\uXXXX escape. Using escape-based
+  // regexes (never literal U+2028/U+2029, which are JS line terminators and
+  // cannot appear in a regex literal).
+  const esc: Record<string, string> = {
+    "<": "\\u003c",
+    ">": "\\u003e",
+    "&": "\\u0026",
+    "\u2028": "\\u2028",
+    "\u2029": "\\u2029",
+  };
+  return JSON.stringify(data).replace(/[<>&\u2028\u2029]/g, (c) => esc[c]);
+}
+
 type BuildMetadataArgs = {
   title?: string; // bare title; the root layout adds the " | <brand>" suffix
   description?: string;

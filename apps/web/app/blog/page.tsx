@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { PostListItem } from "@lms/types";
 import { fetchPublishedPosts } from "@/lib/api";
-import { absoluteUrl, buildMetadata } from "@/lib/seo";
+import { absoluteUrl, buildMetadata, jsonLdScript } from "@/lib/seo";
 
 // Public, server-rendered (no auth). Dynamic so content is always fresh and we
 // never try to reach the API at build time.
@@ -142,13 +142,13 @@ export default async function BlogIndexPage() {
       {/* eslint-disable-next-line react/no-danger */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbLd) }}
       />
       {posts.length > 0 && (
         // eslint-disable-next-line react/no-danger
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListLd) }}
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(itemListLd) }}
         />
       )}
 

@@ -40,39 +40,15 @@ export type LevelCheckoutConfig = {
 // Add an entry per level you want a pretty URL for. Set levelId + stripePriceId
 // to the real ids from your admin (Levels page). Until then,
 // /checkout/<rawLevelId> still works via the fallback below.
-export const CHECKOUT_LEVELS: Record<string, LevelCheckoutConfig> = {
-  // Real, working example wired to the seeded "Stripe Test" level (test-mode
-  // Stripe prices). Visit /checkout/stripe-test to run a live test purchase.
-  "stripe-test": {
-    slug: "stripe-test",
-    levelId: "cmpshpddy0002mtv65lh9p50c",
-    heading: "Stripe Test",
-    options: [
-      {
-        key: "monthly",
-        title: "Stripe Test | Monthly Plan",
-        subLabel: "BILLED MONTHLY",
-        priceText: "$10.00/Month",
-        kind: "recurring",
-        stripePriceId: "price_1TcoZ0L80rvd0GTRyVsyoRqk",
-        localPriceId: null,
-        amount: 1000,
-        currency: "usd",
-      },
-      {
-        key: "yearly",
-        title: "Stripe Test | Pay Yearly",
-        subLabel: "BILLED YEARLY",
-        priceText: "$100.00/Year",
-        kind: "recurring",
-        stripePriceId: "price_1TdPFuL80rvd0GTRJYnOWliT",
-        localPriceId: null,
-        amount: 10000,
-        currency: "usd",
-      },
-    ],
-  },
-};
+// Intentionally empty in shipped code. Hand-tuned slug configs win over the
+// backend lookup in resolveCheckoutConfig(), so any entry here renders on EVERY
+// client instance regardless of that instance's own catalog — a demo/sample
+// entry (the removed "stripe-test", like the earlier "master-class") would show
+// a real-looking but un-chargeable checkout, wired to the developer's own level
+// id + Stripe price. Add pretty slugs per-instance from the admin instead, or
+// gate any dev sample behind an explicit dev-only flag. Every /checkout/<slug>
+// still resolves via the backend-by-slug-or-levelId fallback below.
+export const CHECKOUT_LEVELS: Record<string, LevelCheckoutConfig> = {};
 
 export function formatMoney(amount: number, currency: string): string {
   return (amount / 100).toLocaleString(undefined, {

@@ -278,7 +278,7 @@ function DashboardInner() {
     .map((c) => ({ cls: c, next: extras.get(c.id)?.next ?? null }))
     .filter((q): q is { cls: ClassTileDTO; next: NonNullable<typeof q.next> } => !!q.next);
 
-  const brand = appConfig?.title?.trim() || "Spotlight Academy";
+  const brand = appConfig?.title?.trim() || "LMS";
   const year = new Date().getFullYear();
 
   return (
