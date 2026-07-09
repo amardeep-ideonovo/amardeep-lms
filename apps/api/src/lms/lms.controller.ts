@@ -17,12 +17,18 @@ import {
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import type { Request, Response } from 'express';
+import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermission } from '../auth/require-permission.decorator';
 import { JwtDownloadGuard } from '../auth/guards/jwt-download.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
+import {
+  DOWNLOAD_TOKEN_TTL_SECONDS,
+  noteDownloadScope,
+  type DownloadTokenPayload,
+} from '../auth/download-token.util';
 import { LmsService } from './lms.service';
 import {
   CreateCourseDto,
@@ -89,7 +95,10 @@ function publicBase(req: Request): string {
 // everything unlocked.
 @Controller()
 export class LmsController {
-  constructor(private readonly lms: LmsService) {}
+  constructor(
+    private readonly lms: LmsService,
+    private readonly jwt: JwtService,
+  ) {}
 
   private memberContext(principal: AuthenticatedPrincipal): string | undefined {
     return principal.isAdmin ? undefined : principal.sub;
@@ -277,9 +286,38 @@ export class LmsController {
     return this.lms.deleteNote(id, noteId);
   }
 
-  // Member download (access-checked). Token via Authorization header OR a
-  // ?token= query param (so a mobile browser open works). Admins bypass the
-  // lock check (see LmsService.getDownloadableNote).
+  // Mint a short-lived, note-scoped download token. Authed via the normal
+  // header (JwtAuthGuard), access-checked by resolving the note as this member,
+  // and returned as a bare token the client puts in the ?token= download URL —
+  // so the long-lived session JWT never rides in a URL. See download-token.util.
+  @UseGuards(JwtAuthGuard)
+  @Get('lessons/:id/notes/:noteId/download-url')
+  async noteDownloadToken(
+    @Param('id') id: string,
+    @Param('noteId') noteId: string,
+    @CurrentUser() principal: AuthenticatedPrincipal,
+  ): Promise<{ token: string }> {
+    // Throws (403/404) if this member can't access the note — same gate the
+    // download route runs.
+    await this.lms.getDownloadableNote(id, noteId, principal);
+    const payload: DownloadTokenPayload = {
+      sub: principal.sub,
+      email: principal.email,
+      username: principal.username,
+      isAdmin: principal.isAdmin,
+      role: principal.role,
+      typ: 'dl',
+      scope: noteDownloadScope(id, noteId),
+    };
+    const token = await this.jwt.signAsync(payload, {
+      expiresIn: DOWNLOAD_TOKEN_TTL_SECONDS,
+    });
+    return { token };
+  }
+
+  // Member download (access-checked). Token via Authorization header (web) OR a
+  // short-lived download token in ?token= (mobile browser open). Admins bypass
+  // the lock check (see LmsService.getDownloadableNote).
   @UseGuards(JwtDownloadGuard)
   @Get('lessons/:id/notes/:noteId/download')
   async downloadNote(
