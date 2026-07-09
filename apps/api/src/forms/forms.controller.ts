@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermission } from '../auth/require-permission.decorator';
 import { FormsService } from './forms.service';
@@ -30,6 +31,10 @@ export class FormsController {
     return this.forms.getPublic(id);
   }
 
+  // Per-IP rate limit: unauthenticated write that persists a FormSubmission
+  // row per call — cap submission spam / DB-row growth.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('forms/:id/submit')
   submit(@Param('id') id: string, @Body() dto: FormSubmitDto) {
     return this.forms.submit(id, dto.values);

@@ -11,7 +11,7 @@ import FormEmbed from "@/components/FormEmbed";
 import PageMenu from "@/components/PageMenu";
 import PopupHost from "@/components/PopupHost";
 import { fetchPublishedPage } from "@/lib/api";
-import { absoluteUrl, buildMetadata } from "@/lib/seo";
+import { absoluteUrl, buildMetadata, jsonLdScript } from "@/lib/seo";
 
 // Root-level catch-all for CMS pages: /:slug. Next.js resolves the app's static
 // routes (/, /blog, /courses, /dashboard, /account, /login, …) BEFORE this
@@ -76,7 +76,7 @@ export default async function CmsPage({ params }: Params) {
       {/* eslint-disable-next-line react/no-danger */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbLd) }}
       />
       {/* Guaranteed single H1 for crawlers. Puck canvases don't always include a
           heading block, so we surface the page/SEO title here (visually hidden

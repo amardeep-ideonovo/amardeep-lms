@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchPublishedPost } from "@/lib/api";
-import { SITE_NAME, absoluteUrl, buildMetadata } from "@/lib/seo";
+import { SITE_NAME, absoluteUrl, buildMetadata, jsonLdScript } from "@/lib/seo";
 
 // Public, server-rendered (no auth) for SEO.
 export const dynamic = "force-dynamic";
@@ -81,12 +81,12 @@ export default async function BlogPostPage({ params }: Params) {
       {/* eslint-disable-next-line react/no-danger */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(articleLd) }}
       />
       {/* eslint-disable-next-line react/no-danger */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbLd) }}
       />
 
       <div className="breadcrumb">

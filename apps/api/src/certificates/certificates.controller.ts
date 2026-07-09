@@ -11,12 +11,18 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { JwtService } from '@nestjs/jwt';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JwtDownloadGuard } from '../auth/guards/jwt-download.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermission } from '../auth/require-permission.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
+import {
+  DOWNLOAD_TOKEN_TTL_SECONDS,
+  certDownloadScope,
+  type DownloadTokenPayload,
+} from '../auth/download-token.util';
 import { CertificatesService } from './certificates.service';
 import { ClaimCertificateDto } from './dto/certificate.dto';
 
@@ -24,7 +30,10 @@ import { ClaimCertificateDto } from './dto/certificate.dto';
 // management lives in CertificateTemplatesController.
 @Controller()
 export class CertificatesController {
-  constructor(private readonly certificates: CertificatesService) {}
+  constructor(
+    private readonly certificates: CertificatesService,
+    private readonly jwt: JwtService,
+  ) {}
 
   // ----- Member -----
 
@@ -46,8 +55,36 @@ export class CertificatesController {
     return this.certificates.mine(principal.sub);
   }
 
-  // Owner (or admin) download. Token via Authorization header OR ?token= so a
-  // mobile browser open works — same contract as lesson-note downloads.
+  // Mint a short-lived, certificate-scoped download token (see the note-download
+  // equivalent + download-token.util): authed via header, access-checked, and
+  // returned as a bare token the client puts in the ?token= download URL so the
+  // session JWT never lands in a URL.
+  @UseGuards(JwtAuthGuard)
+  @Get('certificates/:id/download-url')
+  async downloadToken(
+    @Param('id') id: string,
+    @CurrentUser() principal: AuthenticatedPrincipal,
+  ): Promise<{ token: string }> {
+    // Throws if this principal can't download the certificate — same gate as
+    // the download route.
+    await this.certificates.getDownloadableFile(id, principal);
+    const payload: DownloadTokenPayload = {
+      sub: principal.sub,
+      email: principal.email,
+      username: principal.username,
+      isAdmin: principal.isAdmin,
+      role: principal.role,
+      typ: 'dl',
+      scope: certDownloadScope(id),
+    };
+    const token = await this.jwt.signAsync(payload, {
+      expiresIn: DOWNLOAD_TOKEN_TTL_SECONDS,
+    });
+    return { token };
+  }
+
+  // Owner (or admin) download. Token via Authorization header (web) OR a
+  // short-lived download token in ?token= (mobile browser open).
   @UseGuards(JwtDownloadGuard)
   @Get('certificates/:id/download')
   async download(
@@ -59,6 +96,8 @@ export class CertificatesController {
       id,
       principal,
     );
+    // The token can ride in ?token=; no-referrer stops it leaking via Referer.
+    res.setHeader('Referrer-Policy', 'no-referrer');
     res.download(absPath, filename);
   }
 

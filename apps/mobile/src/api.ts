@@ -35,11 +35,11 @@ import type {
 } from "@lms/types";
 
 import { File, UploadType } from "expo-file-system";
-import { API_BASE_URL, scopedKey } from "./config";
+import { API_BASE_URL, scopedKey, AUTH_TOKEN_BASE } from "./config";
 
 // Namespaced per instance (see config.ts): a shared binary switching between
 // instances must never reuse another instance's session token.
-const tokenKey = () => scopedKey("lms.auth.token");
+const tokenKey = () => scopedKey(AUTH_TOKEN_BASE);
 
 // ---------- token storage ----------
 // SecureStore is native-only; on web (incl. the Expo-web preview) fall back to
@@ -312,24 +312,22 @@ export const api = {
 
 // Build the (access-checked) download URL for a lesson note. The file is
 // streamed by an authenticated route; on mobile we open it in the device
-// browser via Linking, passing the member's token as a query param (this is
-// the one route that accepts ?token=). No native file modules required.
+// browser via Linking, which can't send a header — so we first fetch a
+// SHORT-LIVED, note-scoped download token over the authed API (Authorization
+// header) and put THAT in the URL, never the long-lived session token. The
+// download-url endpoint is the download route with the "-url" suffix.
 export async function noteDownloadUrl(note: LessonNoteDTO): Promise<string> {
-  const token = await getToken();
-  const sep = note.downloadUrl.includes("?") ? "&" : "?";
-  return `${API_BASE_URL}${note.downloadUrl}${
-    token ? `${sep}token=${encodeURIComponent(token)}` : ""
-  }`;
+  const urlPath = note.downloadUrl.replace(/\/download$/, "/download-url");
+  const { token } = await request<{ token: string }>(urlPath);
+  return `${API_BASE_URL}${note.downloadUrl}?token=${encodeURIComponent(token)}`;
 }
 
-// Same contract for certificate PDFs: the download route accepts ?token=, so
-// the device browser can open/save the file without native file modules.
+// Same contract for certificate PDFs: fetch a short-lived cert-scoped download
+// token, then open the file URL with it (device browser, no native modules).
 export async function certificateDownloadUrl(cert: {
   downloadUrl: string;
 }): Promise<string> {
-  const token = await getToken();
-  const sep = cert.downloadUrl.includes("?") ? "&" : "?";
-  return `${API_BASE_URL}${cert.downloadUrl}${
-    token ? `${sep}token=${encodeURIComponent(token)}` : ""
-  }`;
+  const urlPath = cert.downloadUrl.replace(/\/download$/, "/download-url");
+  const { token } = await request<{ token: string }>(urlPath);
+  return `${API_BASE_URL}${cert.downloadUrl}?token=${encodeURIComponent(token)}`;
 }
