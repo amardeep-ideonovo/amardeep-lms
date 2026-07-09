@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type {
   FooterConfig,
   FooterSubscribeResult,
@@ -38,6 +39,10 @@ export class PublicSiteController {
     return this.footer.readPublic();
   }
 
+  // Per-IP rate limit: unauthenticated newsletter opt-in — cap mail-cannon /
+  // email-enumeration abuse (the class-level OptionalJwtAuthGuard still applies).
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('footer/subscribe')
   subscribe(@Body() dto: FooterSubscribeDto): Promise<FooterSubscribeResult> {
     return this.footer.subscribe(dto.email);

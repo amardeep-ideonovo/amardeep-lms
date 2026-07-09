@@ -77,6 +77,28 @@ export function scopedKey(base: string): string {
 const BINDING_KEY = "lms.instance.binding";
 const isWeb = Platform.OS === "web";
 
+// Storage base for the member auth token. Single source of truth shared with
+// api.ts so "Switch academy" (unbindInstance) can clear the exact scoped key.
+export const AUTH_TOKEN_BASE = "lms.auth.token";
+
+// The app POSTs the member's credentials + session token to the bound origin,
+// so in a release build that origin MUST be https. http is allowed only in dev
+// (localhost testing). Blocks a mistyped / social-engineered http:// origin from
+// exfiltrating the login over cleartext, and is the last-line check even if the
+// resolver response is ever tampered.
+export function isAllowedInstanceUrl(url: string): boolean {
+  try {
+    const proto = new URL(url).protocol;
+    if (proto === "https:") return true;
+    // Metro defines __DEV__ as a runtime global; read it via globalThis so this
+    // stays type-safe without an ambient declaration. http only in dev.
+    const dev = (globalThis as { __DEV__?: boolean }).__DEV__ === true;
+    return dev && proto === "http:";
+  } catch {
+    return false;
+  }
+}
+
 function applyBinding(b: InstanceBinding): void {
   API_BASE_URL = b.apiUrl.replace(/\/$/, "");
   WEB_ACCOUNT_URL = accountUrlFrom(b.webUrl);
@@ -96,6 +118,11 @@ export async function loadInstanceBinding(): Promise<InstanceBinding | null> {
     if (!raw) return null;
     const b = JSON.parse(raw) as InstanceBinding;
     if (!b?.apiUrl || !b?.webUrl) return null;
+    // Drop a stored binding that isn't https (in prod) — forces a re-connect
+    // rather than silently reusing a cleartext origin.
+    if (!isAllowedInstanceUrl(b.apiUrl) || !isAllowedInstanceUrl(b.webUrl)) {
+      return null;
+    }
     applyBinding(b);
     return b;
   } catch {
@@ -104,6 +131,9 @@ export async function loadInstanceBinding(): Promise<InstanceBinding | null> {
 }
 
 export async function bindInstance(b: InstanceBinding): Promise<void> {
+  if (!isAllowedInstanceUrl(b.apiUrl) || !isAllowedInstanceUrl(b.webUrl)) {
+    throw new Error("This academy must use a secure (https) address.");
+  }
   applyBinding(b);
   const raw = JSON.stringify(b);
   if (isWeb) {
@@ -121,6 +151,18 @@ export function setUnbindListener(fn: (() => void) | null): void {
 }
 
 export async function unbindInstance(): Promise<void> {
+  // Clear the current instance's auth token FIRST, while API_BASE_URL still
+  // resolves the scoped key — otherwise "Switch academy" would leave the
+  // previous member's session token at rest in the Keychain and silently
+  // re-activate it on reconnect (a shared-device leak). This makes the switch a
+  // real sign-out for that academy.
+  const tokenKey = scopedKey(AUTH_TOKEN_BASE);
+  if (isWeb) {
+    if (typeof localStorage !== "undefined") localStorage.removeItem(tokenKey);
+  } else {
+    await SecureStore.deleteItemAsync(tokenKey);
+  }
+
   API_BASE_URL = "";
   WEB_ACCOUNT_URL = "";
   WEB_BASE_URL = "";

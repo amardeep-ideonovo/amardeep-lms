@@ -35,11 +35,11 @@ import type {
 } from "@lms/types";
 
 import { File, UploadType } from "expo-file-system";
-import { API_BASE_URL, scopedKey } from "./config";
+import { API_BASE_URL, scopedKey, AUTH_TOKEN_BASE } from "./config";
 
 // Namespaced per instance (see config.ts): a shared binary switching between
 // instances must never reuse another instance's session token.
-const tokenKey = () => scopedKey("lms.auth.token");
+const tokenKey = () => scopedKey(AUTH_TOKEN_BASE);
 
 // ---------- token storage ----------
 // SecureStore is native-only; on web (incl. the Expo-web preview) fall back to
