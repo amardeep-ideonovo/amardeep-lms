@@ -87,6 +87,12 @@ services:
       # (APP_VERSION is baked into the api image at build time — do NOT pass it
       # through here, or an unset host var would blank out the stamped value.)
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # Support ticketing: where this instance reaches the control plane, and the
+      # per-instance bearer it authenticates with. Both are injected by the
+      # provisioner (from Instance.secretsEnc + CONTROL_PLANE_PUBLIC_URL). Unset
+      # in a bare/dev run => the LMS support module stays inert (logs once).
+      CONTROL_PLANE_URL: ${CONTROL_PLANE_URL:-}
+      INSTANCE_SERVICE_TOKEN: ${INSTANCE_SERVICE_TOKEN:-}
     volumes:
       - uploads:/data
     ports:

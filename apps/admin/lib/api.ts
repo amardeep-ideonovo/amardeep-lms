@@ -123,6 +123,11 @@ import type {
   ChatCanvasDTO,
   CreateCanvasInput,
   UpdateCanvasInput,
+  SupportTicketListItemDTO,
+  SupportThreadDTO,
+  RaiseSupportTicketInput,
+  SupportReplyInput,
+  SupportCsatInput,
 } from "@lms/types";
 import { withBase } from "./base-path";
 import { apiUrl } from "./runtime-env";
@@ -515,6 +520,33 @@ export const api = {
     request<{ ok: true }>("POST", `/admin/notifications/${id}/read`),
   markAllNotificationsRead: () =>
     request<{ ok: true }>("POST", "/admin/notifications/read-all"),
+
+  // support tickets (instance-side mirror of the client<->operator conversation;
+  // only admin-visible messages ever reach here). Opening a thread clears the
+  // unread badge server-side.
+  listSupportTickets: () =>
+    request<{ items: SupportTicketListItemDTO[] }>(
+      "GET",
+      "/admin/support/tickets",
+    ),
+  supportUnreadCount: () =>
+    request<{ count: number }>("GET", "/admin/support/unread-count"),
+  raiseSupportTicket: (input: RaiseSupportTicketInput) =>
+    request<SupportThreadDTO>("POST", "/admin/support/tickets", input),
+  getSupportThread: (id: string) =>
+    request<SupportThreadDTO>("GET", `/admin/support/tickets/${id}`),
+  replySupportTicket: (id: string, body: string) =>
+    request<SupportThreadDTO>(
+      "POST",
+      `/admin/support/tickets/${id}/messages`,
+      { body } satisfies SupportReplyInput,
+    ),
+  submitSupportCsat: (id: string, input: SupportCsatInput) =>
+    request<SupportThreadDTO>(
+      "POST",
+      `/admin/support/tickets/${id}/csat`,
+      input,
+    ),
 
   // coupons (Stripe-backed; admin-only)
   listCoupons: () => request<CouponDTO[]>("GET", "/admin/coupons"),
