@@ -16,6 +16,10 @@ export interface RecordNotificationInput {
   title: string;
   body: string;
   userId?: string | null;
+  // Generic deep-link target for notifications that don't point at a member
+  // (e.g. support tickets: entityType="support", entityId=ticketId → /support/<id>).
+  entityType?: string | null;
+  entityId?: string | null;
   dedupeKey: string;
 }
 
@@ -38,6 +42,8 @@ export class NotificationsService {
         title: input.title,
         body: input.body,
         userId: input.userId ?? null,
+        entityType: input.entityType ?? null,
+        entityId: input.entityId ?? null,
         dedupeKey: input.dedupeKey,
       },
     });

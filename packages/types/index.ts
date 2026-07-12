@@ -1522,7 +1522,10 @@ export type AdminNotificationType =
   | "PAYMENT_FAILED"
   | "PAYMENT_SUCCEEDED"
   | "INSTALLMENT_PLAN_COMPLETED"
-  | "CERTIFICATE_ISSUED";
+  | "CERTIFICATE_ISSUED"
+  | "SUPPORT_REPLY"
+  | "SUPPORT_STATUS"
+  | "SUPPORT_INVITED_OPS";
 
 export type AdminNotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
 
@@ -1543,6 +1546,77 @@ export interface AdminNotificationListDTO {
   page: number;
   pageSize: number;
   unreadCount: number; // requesting admin's unread total across the whole feed (not just this page)
+}
+
+// ---------- Admin support tickets (instance-side mirror) ----------
+// The client admin's view of the support conversation. The instance holds only
+// admin-visible messages: the MAIN lane, plus the OPS lane once the client has
+// invited the operator in. Internal operator notes never reach this mirror.
+export type SupportTicketStatus = "OPEN" | "PENDING" | "RESOLVED" | "CLOSED";
+export type SupportTicketPriority = "LOW" | "NORMAL" | "HIGH" | "URGENT";
+export type SupportTicketCategory =
+  | "BILLING"
+  | "TECHNICAL"
+  | "BUG"
+  | "HOWTO"
+  | "FEATURE_REQUEST"
+  | "ACCOUNT"
+  | "OTHER";
+export type SupportMessageLane = "MAIN" | "OPS";
+export type SupportMessageAuthorKind =
+  | "ADMIN"
+  | "CLIENT"
+  | "OPERATOR"
+  | "SYSTEM";
+
+// One ticket as shown in the list. `unread` drives the sidebar dot/badge and is
+// cleared server-side when the thread is opened. `raiserAdminEmail` is a label
+// only — tickets are org-level, so every admin sees every ticket.
+export interface SupportTicketListItemDTO {
+  id: string;
+  subject: string;
+  status: SupportTicketStatus;
+  priority: SupportTicketPriority;
+  category: SupportTicketCategory;
+  ownerTier: string | null;
+  adminInOpsLane: boolean;
+  unread: boolean;
+  raiserAdminEmail: string;
+  lastMessageAt: string; // ISO
+  createdAt: string; // ISO
+}
+
+export interface SupportMessageDTO {
+  id: string;
+  lane: SupportMessageLane;
+  authorKind: SupportMessageAuthorKind;
+  authorEmail: string;
+  authorName: string | null;
+  body: string;
+  createdAt: string; // ISO
+}
+
+// Full thread (list row + CSAT state + the admin-visible messages).
+export interface SupportThreadDTO extends SupportTicketListItemDTO {
+  csatPromptedAt: string | null; // set when the operator resolves + asks for a rating
+  csatRating: number | null; // 1..5 once submitted
+  csatSubmittedAt: string | null;
+  messages: SupportMessageDTO[];
+}
+
+// Inputs
+export interface RaiseSupportTicketInput {
+  subject: string;
+  body: string;
+  priority?: SupportTicketPriority;
+  category?: SupportTicketCategory;
+}
+export interface SupportReplyInput {
+  body: string;
+}
+export interface SupportCsatInput {
+  rating: number; // 1..5
+  comment?: string;
 }
 
 // ---------- Admin global search (topbar) ----------
@@ -2305,6 +2379,14 @@ export const ROUTES = {
   adminNotificationsUnreadCount: "GET /admin/notifications/unread-count", // -> { count: number }
   adminMarkNotificationRead: "POST /admin/notifications/:id/read", // -> { ok: true }
   adminMarkAllNotificationsRead: "POST /admin/notifications/read-all", // -> { ok: true }
+
+  // admin: support tickets (instance-side mirror; admin-visible messages only)
+  adminListSupportTickets: "GET /admin/support/tickets", // -> { items: SupportTicketListItemDTO[] }
+  adminSupportUnreadCount: "GET /admin/support/unread-count", // -> { count: number }
+  adminRaiseSupportTicket: "POST /admin/support/tickets", // body RaiseSupportTicketInput -> SupportThreadDTO
+  adminGetSupportThread: "GET /admin/support/tickets/:id", // -> SupportThreadDTO (opening clears the unread badge)
+  adminReplySupportTicket: "POST /admin/support/tickets/:id/messages", // body SupportReplyInput -> SupportThreadDTO
+  adminSubmitSupportCsat: "POST /admin/support/tickets/:id/csat", // body SupportCsatInput -> SupportThreadDTO
 
   // admin: media library (gallery) — files served at public, embeddable URLs
   adminListMedia: "GET /admin/media", // ?q&kind&page&pageSize -> MediaListDTO

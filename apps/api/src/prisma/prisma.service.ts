@@ -188,6 +188,17 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.liveJoinAudit;
   }
 
+  // Support ticketing: the instance-side admin-visible mirror + sync cursor.
+  get supportTicket() {
+    return this.client.supportTicket;
+  }
+  get supportMessage() {
+    return this.client.supportMessage;
+  }
+  get supportSyncState() {
+    return this.client.supportSyncState;
+  }
+
   get $transaction() {
     return this.client.$transaction.bind(this.client);
   }

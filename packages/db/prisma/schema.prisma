@@ -67,7 +67,7 @@ model Admin {
   pages             Page[]
   media             MediaAsset[]
   notificationReads AdminNotificationRead[]
-  liveSessions      LiveSession[]          @relation("AdminLiveSessions")
+  liveSessions      LiveSession[]           @relation("AdminLiveSessions")
 }
 
 // ---------- Membership levels ----------
@@ -620,6 +620,10 @@ enum AdminNotificationType {
   PAYMENT_SUCCEEDED // invoice.paid renewal (first invoice suppressed in favor of CREATED)
   INSTALLMENT_PLAN_COMPLETED // paid-in-full installment plan converted to lifetime
   CERTIFICATE_ISSUED // member claimed a class-completion certificate
+  // ---- Support ticketing (deep-links to /support/<entityId>) ----
+  SUPPORT_REPLY // the client or operator replied on a support ticket
+  SUPPORT_STATUS // a support ticket was resolved / reopened / status-changed
+  SUPPORT_INVITED_OPS // the client invited this instance into the operator conversation
 }
 
 enum AdminNotificationSeverity {
@@ -629,14 +633,20 @@ enum AdminNotificationSeverity {
 }
 
 model AdminNotification {
-  id        String                    @id @default(cuid())
-  type      AdminNotificationType
-  severity  AdminNotificationSeverity @default(INFO)
-  title     String // short headline (rendered at emit time)
-  body      String // one-line detail (member email + plan + amount)
-  userId    String? // local User.id for deep-linking to /members/<userId>; no FK so history survives member deletion
-  dedupeKey String                    @unique // idempotency key — same logical event upserts to the same row
-  createdAt DateTime                  @default(now())
+  id         String                    @id @default(cuid())
+  type       AdminNotificationType
+  severity   AdminNotificationSeverity @default(INFO)
+  title      String // short headline (rendered at emit time)
+  body       String // one-line detail (member email + plan + amount)
+  userId     String? // local User.id for deep-linking to /members/<userId>; no FK so history survives member deletion
+  // Generic deep-link target for notification types that don't point at a member
+  // (e.g. support tickets: entityType="support", entityId=SupportTicket.id →
+  // /support/<entityId>). Kept separate from userId so the members deep-link
+  // stays unambiguous. No FK (cross-feature, history-durable).
+  entityType String?
+  entityId   String?
+  dedupeKey  String                    @unique // idempotency key — same logical event upserts to the same row
+  createdAt  DateTime                  @default(now())
 
   reads AdminNotificationRead[]
 
@@ -808,12 +818,12 @@ enum ConsentKind {
 
 // An audience / list a contact belongs to.
 model Audience {
-  id         String   @id @default(cuid())
-  name       String
-  slug       String?  @unique
-  isDefault  Boolean  @default(false) // the single global default audience
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  slug      String?  @unique
+  isDefault Boolean  @default(false) // the single global default audience
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   fields   AudienceField[]
   contacts Contact[]
@@ -1121,18 +1131,18 @@ model ChatMember {
 }
 
 model ChatMessage {
-  id              String       @id @default(cuid())
-  seq             Int          @unique @default(autoincrement()) // global monotonic order; reconnect catch-up via ?afterSeq=
+  id              String        @id @default(cuid())
+  seq             Int           @unique @default(autoincrement()) // global monotonic order; reconnect catch-up via ?afterSeq=
   channelId       String
-  channel         ChatChannel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  channel         ChatChannel   @relation(fields: [channelId], references: [id], onDelete: Cascade)
   authorAdminId   String
   body            String
   parentMessageId String? // set => thread reply; the root is the parent
-  parent          ChatMessage? @relation("ChatThread", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  parent          ChatMessage?  @relation("ChatThread", fields: [parentMessageId], references: [id], onDelete: SetNull)
   replies         ChatMessage[] @relation("ChatThread")
   listItemId      String? // when set, the message renders an inline list-item ("task") card
   workflowId      String? // set when a workflow auto-posted this message (UI shows the workflow as author + a WORKFLOW badge)
-  createdAt       DateTime     @default(now())
+  createdAt       DateTime      @default(now())
   editedAt        DateTime?
   deletedAt       DateTime?
 
@@ -1380,4 +1390,118 @@ model LiveJoinAudit {
 
   @@index([liveSessionId, at])
   @@index([userId, at])
+}
+
+// ---------- Support ticketing (instance mirror) ----------
+// An admin-visible MIRROR of the canonical tickets that live in the control
+// plane (licensing-dashboard). The instance PUSHES raises/replies over a
+// per-instance service token and PULLS the admin-visible slice back via a Cron
+// (per-ticket reconcile). By construction this mirror can ONLY ever hold what
+// the admin is allowed to see — there is no `visibility` column and INTERNAL
+// notes / non-invited OPS messages are filtered out server-side before they are
+// ever returned. Tickets are ORG-LEVEL: visible to ALL admins (raiserAdminId is
+// a label only, lists are not filtered by it).
+
+enum SupportStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum SupportPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// MAIN = admin<->client thread. OPS = the client<->operator lane this instance
+// was invited into (only present when the client turned on the invite).
+enum SupportLane {
+  MAIN
+  OPS
+}
+
+enum SupportAuthorKind {
+  ADMIN
+  CLIENT
+  OPERATOR
+  SYSTEM
+}
+
+model SupportTicket {
+  id       String  @id @default(cuid())
+  // Canonical control-plane ticket id — set after the first successful push and
+  // the reconcile key thereafter. null while a create push is pending/failed.
+  remoteId String? @unique
+
+  // The admin who raised it — a LABEL only. Tickets are org-level (every admin
+  // sees every ticket), so lists are NOT filtered by this. No FK: a ticket
+  // survives the raising admin being deleted.
+  raiserAdminId    String?
+  raiserAdminEmail String
+
+  subject        String
+  category       String          @default("OTHER") // mirrors the CP category as a string
+  priority       SupportPriority @default(NORMAL)
+  status         SupportStatus   @default(OPEN)
+  ownerTier      String? // "CLIENT" | "OPERATOR" | null — display only
+  adminInOpsLane Boolean         @default(false)
+
+  // CSAT prompt/submit state (mirrored so the admin UI knows when to prompt).
+  csatPromptedAt  DateTime?
+  csatRating      Int?
+  csatSubmittedAt DateTime?
+
+  // Set true when an admin-visible reply/status change is pulled; cleared when
+  // any admin opens the thread. Drives the sidebar unread badge (org-level).
+  unreadForAdmins Boolean @default(false)
+
+  // Outbound push state for the ticket create.
+  syncedAt  DateTime?
+  lastError String?
+
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  messages SupportMessage[]
+
+  @@index([status, lastMessageAt])
+  @@index([unreadForAdmins])
+}
+
+model SupportMessage {
+  id       String        @id @default(cuid())
+  ticketId String
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  // Canonical control-plane message id — the reconcile upsert/tombstone key. For
+  // a locally-authored ADMIN message it is null until the push is acked; the
+  // reconcile then matches the CP echo of this row's own id (pushed as
+  // originMessageId) and back-fills remoteId.
+  remoteId String?       @unique
+
+  lane        SupportLane
+  authorKind  SupportAuthorKind
+  authorEmail String
+  authorName  String?
+  body        String
+
+  // Outbound push state (ADMIN messages only).
+  syncedAt  DateTime?
+  lastError String?
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+// Single-row cursor for the support sync Cron. The pull is a per-ticket
+// reconcile (select tickets whose updatedAt changed, then reconcile each
+// ticket's local rows to exactly the returned admin-visible slice), so an
+// overlapping window is harmless; this just bounds the query.
+model SupportSyncState {
+  id           Int      @id @default(1)
+  lastPulledAt DateTime @default("1970-01-01T00:00:00Z")
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import type { AdminSection } from "@lms/types";
-import { getToken } from "@/lib/api";
+import { getToken, api } from "@/lib/api";
 import { useAppBrand } from "@/lib/app-brand";
 import { useAdminAuth } from "./AdminAuthProvider";
 
@@ -147,6 +147,12 @@ const I = {
       <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
+  support: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
   certificates: (
     <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
       <circle cx="12" cy="9" r="6" stroke="currentColor" strokeWidth="1.7" />
@@ -241,6 +247,7 @@ const GROUPS: NavGroup[] = [
     label: "System",
     items: [
       { href: "/notifications", label: "Notifications", icon: I.notifications },
+      { href: "/support", label: "Support", icon: I.support },
       { href: "/settings", label: "Settings", section: "settings", icon: I.settings },
       { href: "/app-customization", label: "App Customization", section: "appCustomization", icon: I.appCustomization },
     ],
@@ -270,6 +277,27 @@ export default function Sidebar() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // Live unread-support badge: poll the mirror's unread count every 30s (no
+  // websocket for this surface). Only runs while authenticated.
+  const [supportUnread, setSupportUnread] = useState(0);
+  useEffect(() => {
+    if (!getToken()) return;
+    let active = true;
+    const tick = () =>
+      api
+        .supportUnreadCount()
+        .then((r) => {
+          if (active) setSupportUnread(r.count);
+        })
+        .catch(() => undefined);
+    tick();
+    const timer = setInterval(tick, 30_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [pathname]);
+
   // Hide the chrome on the login screen.
   if (pathname === "/login") return null;
   // Hide the chrome in the full-screen builders (/pages/:id/edit, /popups/:id/edit).
@@ -286,6 +314,13 @@ export default function Sidebar() {
     const active = exactOnly
       ? pathname === item.href
       : pathname.startsWith(item.href);
+    // Live unread count overrides any static badge on the Support item.
+    const badge =
+      item.href === "/support" && supportUnread > 0
+        ? supportUnread > 9
+          ? "9+"
+          : String(supportUnread)
+        : item.badge;
     return (
       <Link
         key={item.href}
@@ -294,7 +329,7 @@ export default function Sidebar() {
       >
         {item.icon}
         <span>{item.label}</span>
-        {item.badge && <span className="nav-badge">{item.badge}</span>}
+        {badge && <span className="nav-badge">{badge}</span>}
       </Link>
     );
   };
