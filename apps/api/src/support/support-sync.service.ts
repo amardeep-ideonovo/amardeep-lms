@@ -40,6 +40,7 @@ export class SupportSyncService {
   private readonly token: string;
   private readonly enabled: boolean;
   private running = false;
+  private resyncRequested = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -67,17 +68,35 @@ export class SupportSyncService {
   }
 
   // ---- the recurring tick ----
-  // Every 30s: the instance only learns of client/operator replies by pulling,
-  // so this bounds inbound latency. Paired with the admin thread's 6s UI poll,
-  // a reply surfaces within ~30s even on a ticket no one has open. (A future
-  // on-demand pull on thread-open would make an actively-viewed ticket instant.)
+  // Every 30s: the instance learns of client/operator replies by pulling, so
+  // this bounds inbound latency even for a ticket no one has open. The control
+  // plane ALSO pushes us the moment a ticket changes (requestSync below), so in
+  // practice a reply surfaces near-instantly; this cron is the safety net for a
+  // missed/failed push.
   @Cron(CronExpression.EVERY_30_SECONDS)
   async tick(): Promise<void> {
+    await this.runSync();
+  }
+
+  // On-demand pull triggered by the control-plane push-back (POST /support/push).
+  // Flags a resync so that if a sync is already mid-flight — and may have queried
+  // the control plane BEFORE this change landed — one more pass runs when it
+  // finishes. runSync's concurrency guard means a burst of pushes coalesces into
+  // at most one extra pull, so the control plane is never hammered.
+  async requestSync(): Promise<void> {
+    this.resyncRequested = true;
+    await this.runSync();
+  }
+
+  private async runSync(): Promise<void> {
     if (!this.enabled || this.running) return;
     this.running = true;
     try {
-      await this.reconcileOutbound(); // retry unacked pushes FIRST
-      await this.pullReplies(); //         then pull the admin-visible slice
+      do {
+        this.resyncRequested = false;
+        await this.reconcileOutbound(); // retry unacked pushes FIRST
+        await this.pullReplies(); //         then pull the admin-visible slice
+      } while (this.resyncRequested); // a push that arrived mid-sync → one more pass
     } catch (e) {
       this.logger.error(`support sync tick failed: ${this.msg(e)}`);
     } finally {
