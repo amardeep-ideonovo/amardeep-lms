@@ -67,6 +67,35 @@ test('a push landing mid-sync coalesces into exactly one extra pass', async () =
   assert.equal(state.passes, 2, 'a burst of pushes collapses to a single extra pass');
 });
 
+test('a pass that THROWS still honors a resync requested mid-flight', async () => {
+  // The failure window the push-back must survive: a transient CP/DB error
+  // during the very pass a push is trying to coalesce into. The thrown pass must
+  // not strand the pending resync (else the reply waits for the 30s cron).
+  const svc = makeService();
+  let release!: () => void;
+  const gate = new Promise<void>((r) => (release = r));
+  const state = { passes: 0 };
+  const s = svc as unknown as {
+    reconcileOutbound: () => Promise<void>;
+    pullReplies: () => Promise<void>;
+  };
+  s.reconcileOutbound = async () => {};
+  s.pullReplies = async () => {
+    state.passes++;
+    if (state.passes === 1) {
+      await gate;
+      throw new Error('transient control-plane error');
+    }
+  };
+
+  const inFlight = svc.requestSync(); // pass 1 starts, parks on the gate
+  await Promise.resolve();
+  await svc.requestSync(); //            push arrives mid-flight → resyncRequested=true
+  release(); //                          pass 1 now THROWS
+  await inFlight;
+  assert.equal(state.passes, 2, 'the thrown pass must still trigger the pending resync');
+});
+
 test('requestSync is inert when sync is disabled (no service token)', async () => {
   const svc = makeService(false);
   const state = instrument(svc);

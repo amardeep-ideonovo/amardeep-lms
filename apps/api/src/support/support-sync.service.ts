@@ -94,11 +94,17 @@ export class SupportSyncService {
     try {
       do {
         this.resyncRequested = false;
-        await this.reconcileOutbound(); // retry unacked pushes FIRST
-        await this.pullReplies(); //         then pull the admin-visible slice
+        try {
+          await this.reconcileOutbound(); // retry unacked pushes FIRST
+          await this.pullReplies(); //         then pull the admin-visible slice
+        } catch (e) {
+          // Swallow a transient CP/DB error HERE, inside the loop — so a resync
+          // requested by a push that landed mid-pass is still honored by the
+          // `while` re-check below instead of being stranded until the next cron
+          // (which would reintroduce the very latency this push-back removes).
+          this.logger.error(`support sync pass failed: ${this.msg(e)}`);
+        }
       } while (this.resyncRequested); // a push that arrived mid-sync → one more pass
-    } catch (e) {
-      this.logger.error(`support sync tick failed: ${this.msg(e)}`);
     } finally {
       this.running = false;
     }
