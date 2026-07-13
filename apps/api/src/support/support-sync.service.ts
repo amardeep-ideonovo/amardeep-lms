@@ -67,7 +67,11 @@ export class SupportSyncService {
   }
 
   // ---- the recurring tick ----
-  @Cron(CronExpression.EVERY_MINUTE)
+  // Every 30s: the instance only learns of client/operator replies by pulling,
+  // so this bounds inbound latency. Paired with the admin thread's 6s UI poll,
+  // a reply surfaces within ~30s even on a ticket no one has open. (A future
+  // on-demand pull on thread-open would make an actively-viewed ticket instant.)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async tick(): Promise<void> {
     if (!this.enabled || this.running) return;
     this.running = true;

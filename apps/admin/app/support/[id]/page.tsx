@@ -179,6 +179,9 @@ export default function SupportThreadPage() {
   const [csatSubmitting, setCsatSubmitting] = useState(false);
 
   const endRef = useRef<HTMLDivElement | null>(null);
+  // Mirror `sending` into a ref so the poll's stale closure can skip a refresh
+  // mid-send (avoids briefly clobbering the just-posted reply).
+  const sendingRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -203,6 +206,30 @@ export default function SupportThreadPage() {
     };
   }, [id]);
 
+  // Live updates: client/operator replies reach this instance via the
+  // control-plane sync, so the open thread must re-poll to show them without the
+  // admin having to post first. Silent (no spinner), paused while a hidden tab or
+  // an in-flight send, and given an instant catch-up on window focus.
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      if (document.hidden || sendingRef.current) return;
+      try {
+        const t = await api.getSupportThread(id);
+        if (active && !sendingRef.current) setThread(t);
+      } catch {
+        /* transient poll failure — keep the last good thread */
+      }
+    };
+    const iv = window.setInterval(refresh, 6000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      active = false;
+      window.clearInterval(iv);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [id]);
+
   // Keep the newest message in view as the thread grows.
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "nearest" });
@@ -212,6 +239,7 @@ export default function SupportThreadPage() {
     e.preventDefault();
     if (!reply.trim()) return;
     setSending(true);
+    sendingRef.current = true;
     setError(null);
     try {
       const t = await api.replySupportTicket(id, reply.trim());
@@ -221,6 +249,7 @@ export default function SupportThreadPage() {
       setError(err instanceof ApiError ? err.message : "Failed to send reply");
     } finally {
       setSending(false);
+      sendingRef.current = false;
     }
   }
 
