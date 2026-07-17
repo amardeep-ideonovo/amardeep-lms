@@ -61,13 +61,17 @@
   --teal-on-dark: #7ce4d2;
   --teal-tint: rgba(53, 179, 162, 0.12);
 
-  /* ---- Class palette (photo-tint cards; base/dark are RGB triplets) ---- */
-  --music: #f7a01e;   --music-base: 196, 112, 6;    --music-dark: 120, 66, 2;    --music-text: #b46f0a;
-  --cooking: #9046c8; --cooking-base: 112, 42, 163; --cooking-dark: 74, 22, 112; --cooking-text: #7a3bab;
-  --photo: #43a565;   --photo-base: 42, 124, 72;    --photo-dark: 24, 88, 48;    --photo-text: #2d7a45;
-  --film: #e04848;    --film-base: 187, 41, 41;     --film-dark: 132, 22, 22;    --film-text: #c03a3a;
-  --dance: #4a76d0;   --dance-base: 32, 84, 150;    --dance-dark: 18, 52, 96;    --dance-text: #3a62b4;
-  --comedy: #27a596;  --comedy-base: 14, 116, 105;  --comedy-dark: 8, 72, 66;    --comedy-text: #1f8a7c;
+  /* ---- Class palette (photo-tint cards; base/dark are RGB triplets).
+     Named by COLOR, not by subject: these slots dress whatever a client's
+     catalog happens to sell, and the seeded demo is only one such catalog.
+     (They used to be --music/--cooking/--photo/--film/--dance/--comedy, after
+     an earlier demo catalog — the names went stale the moment it changed.) ---- */
+  --amber: #f7a01e;  --amber-base: 196, 112, 6;   --amber-dark: 120, 66, 2;   --amber-text: #b46f0a;
+  --violet: #9046c8; --violet-base: 112, 42, 163; --violet-dark: 74, 22, 112; --violet-text: #7a3bab;
+  --green: #43a565;  --green-base: 42, 124, 72;   --green-dark: 24, 88, 48;   --green-text: #2d7a45;
+  --red: #e04848;    --red-base: 187, 41, 41;     --red-dark: 132, 22, 22;    --red-text: #c03a3a;
+  --blue: #4a76d0;   --blue-base: 32, 84, 150;    --blue-dark: 18, 52, 96;    --blue-text: #3a62b4;
+  --sea: #27a596;    --sea-base: 14, 116, 105;    --sea-dark: 8, 72, 66;      --sea-text: #1f8a7c;
 
   /* ---- Fonts (next/font var injected on <html>) — one family, Plus Jakarta
      Sans; --font-display is kept as a token so existing selectors resolve. ---- */
@@ -210,14 +214,15 @@
   --glass-shadow: 0 2px 10px rgba(39, 33, 68, 0.05);
 }
 
-/* ---- Class-color cycle: assign by stable class-list index (index % 6). The
-   custom props feed the photo-tint gradient, dots, bars and button text. ---- */
-.class-c0 { --cls: var(--music);   --cls-base: var(--music-base);   --cls-dark: var(--music-dark);   --cls-text: var(--music-text); }
-.class-c1 { --cls: var(--cooking); --cls-base: var(--cooking-base); --cls-dark: var(--cooking-dark); --cls-text: var(--cooking-text); }
-.class-c2 { --cls: var(--photo);   --cls-base: var(--photo-base);   --cls-dark: var(--photo-dark);   --cls-text: var(--photo-text); }
-.class-c3 { --cls: var(--film);    --cls-base: var(--film-base);    --cls-dark: var(--film-dark);    --cls-text: var(--film-text); }
-.class-c4 { --cls: var(--dance);   --cls-base: var(--dance-base);   --cls-dark: var(--dance-dark);   --cls-text: var(--dance-text); }
-.class-c5 { --cls: var(--comedy);  --cls-base: var(--comedy-base);  --cls-dark: var(--comedy-dark);  --cls-text: var(--comedy-text); }
+/* ---- Class-color cycle: slot 0-5, resolved per class by classAccentIndex()
+   (lib/memberData.ts) — subject keywords first, list position as the fallback.
+   The custom props feed the photo-tint gradient, dots, bars and button text. ---- */
+.class-c0 { --cls: var(--amber);  --cls-base: var(--amber-base);  --cls-dark: var(--amber-dark);  --cls-text: var(--amber-text); }
+.class-c1 { --cls: var(--violet); --cls-base: var(--violet-base); --cls-dark: var(--violet-dark); --cls-text: var(--violet-text); }
+.class-c2 { --cls: var(--green);  --cls-base: var(--green-base);  --cls-dark: var(--green-dark);  --cls-text: var(--green-text); }
+.class-c3 { --cls: var(--red);    --cls-base: var(--red-base);    --cls-dark: var(--red-dark);    --cls-text: var(--red-text); }
+.class-c4 { --cls: var(--blue);   --cls-base: var(--blue-base);   --cls-dark: var(--blue-dark);   --cls-text: var(--blue-text); }
+.class-c5 { --cls: var(--sea);    --cls-base: var(--sea-base);    --cls-dark: var(--sea-dark);    --cls-text: var(--sea-text); }
 
 /* Ink Hero focus ring (README §Interactions) */
 :focus-visible {

@@ -1,9 +1,9 @@
-// Ink Hero class accent palette (design tokens.css --music/--cooking/…).
-// Accent slots are NAMED after content categories, so a real class picks its
-// slot by category/name keywords (the API lists classes alphabetically — a
-// pure position cycle scrambles the intended colors); unmatched classes fall
-// back to the list-position cycle. `base`/`dark` are the RGB triplets the
-// photo-tint gradient uses (signature pattern #2); `text` is on-light text.
+// Ink Hero class accent palette (mirrors globals.css --amber/--violet/…).
+// A class picks its slot by category/name keyword (the API lists classes
+// alphabetically — a pure position cycle scrambles the colors); unmatched
+// classes fall back to the list-position cycle. `base`/`dark` are the RGB
+// triplets the photo-tint gradient uses (signature pattern #2); `text` is
+// on-light text.
 export type ClassAccent = {
   color: string;
   base: string; // "r,g,b"
@@ -12,14 +12,14 @@ export type ClassAccent = {
 };
 
 export const CLASS_ACCENTS: ClassAccent[] = [
-  { color: "#f7a01e", base: "196,112,6", dark: "120,66,2", text: "#b46f0a" }, // music amber
-  { color: "#9046c8", base: "112,42,163", dark: "74,22,112", text: "#7a3bab" }, // cooking purple
-  { color: "#43a565", base: "42,124,72", dark: "24,88,48", text: "#2d7a45" }, // photography green
-  { color: "#e04848", base: "187,41,41", dark: "132,22,22", text: "#c03a3a" }, // filmmaking red
-  // tokens.css ships no gradient triplets for dance/comedy — these are derived
-  // with the same darken ratio as the published four.
-  { color: "#4a76d0", base: "42,86,176", dark: "26,54,118", text: "#3a62b4" }, // dance blue
-  { color: "#27a596", base: "24,138,124", dark: "14,90,80", text: "#1f8a7c" }, // comedy sea
+  { color: "#f7a01e", base: "196,112,6", dark: "120,66,2", text: "#b46f0a" }, // 0 amber
+  { color: "#9046c8", base: "112,42,163", dark: "74,22,112", text: "#7a3bab" }, // 1 violet
+  { color: "#43a565", base: "42,124,72", dark: "24,88,48", text: "#2d7a45" }, // 2 green
+  { color: "#e04848", base: "187,41,41", dark: "132,22,22", text: "#c03a3a" }, // 3 red
+  // globals.css shipped no gradient triplets for slots 4-5 originally — these
+  // are derived with the same darken ratio as the published four.
+  { color: "#4a76d0", base: "42,86,176", dark: "26,54,118", text: "#3a62b4" }, // 4 blue
+  { color: "#27a596", base: "24,138,124", dark: "14,90,80", text: "#1f8a7c" }, // 5 sea
 ];
 
 export function classAccent(index: number): ClassAccent {
@@ -27,12 +27,20 @@ export function classAccent(index: number): ClassAccent {
   return CLASS_ACCENTS[((index % n) + n) % n];
 }
 
-// Slot keywords in priority order — comedy before film so "Film & TV · Comedy"
-// lands on sea, not red.
+// Slot keywords in priority order — first match wins. The seeded demo catalog
+// leads (music/food/sports/technology → amber/violet/green/blue, matching the
+// artwork in packages/db/prisma/assets/generate-demo-art.ts); the rest cover
+// other subjects a client catalog might use. Comedy precedes film so
+// "Film & TV · Comedy" lands on sea, not red.
+//
+// Keep in sync with apps/web/lib/memberData.ts and apps/admin/lib/class-accent.ts
+// — three copies, no shared package.
 const ACCENT_KEYWORDS: Array<[RegExp, number]> = [
-  [/comedy|stand.?up/i, 5],
   [/music|song/i, 0],
-  [/cook|food|culinary|kitchen|flavor/i, 1],
+  [/cook|food|culinary|kitchen|flavor|baking/i, 1],
+  [/sport|fitness|athlet|strength|conditioning/i, 2],
+  [/technolog|software|coding|web develop|developer|programming/i, 4],
+  [/comedy|stand.?up/i, 5],
   [/photo/i, 2],
   [/film|cinema|screen|tv/i, 3],
   [/dance|choreo/i, 4],
