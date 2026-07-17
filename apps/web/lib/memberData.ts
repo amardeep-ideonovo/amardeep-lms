@@ -131,18 +131,27 @@ export function classColorClass(index: number): string {
 }
 
 /**
- * Design accent slots are NAMED after content categories (tokens.css:
- * 0 music amber · 1 cooking purple · 2 photography green · 3 film red ·
- * 4 dance blue · 5 comedy sea), so a class picks its slot by category/name
- * keywords — the API lists classes alphabetically, which makes a pure
- * position cycle scramble the intended per-class colors. Unmatched classes
- * fall back to the list-position cycle. Comedy is matched before film so
+ * Accent slots (globals.css: 0 amber · 1 violet · 2 green · 3 red · 4 blue ·
+ * 5 sea) are picked by subject keyword rather than list position, because the
+ * API lists classes alphabetically and a pure position cycle would re-color
+ * every class whenever one is added or renamed. Unmatched classes fall back to
+ * the position cycle, so an arbitrary client catalog still looks deliberate.
+ *
+ * Order matters — first match wins. The seeded demo catalog is listed first
+ * (music/food/sports/technology → amber/violet/green/blue, which is what
+ * assets/generate-demo-art.ts paints its artwork to match); the rest are
+ * common subjects a client catalog might use. Comedy precedes film so
  * "Film & TV · Comedy" lands on sea, not red.
+ *
+ * Keep this list in sync with apps/admin/lib/class-accent.ts and
+ * apps/mobile/src/class-colors.ts — three copies, no shared package.
  */
 const ACCENT_KEYWORDS: Array<[RegExp, number]> = [
-  [/comedy|stand.?up/i, 5],
   [/music|song/i, 0],
-  [/cook|food|culinary|kitchen|flavor/i, 1],
+  [/cook|food|culinary|kitchen|flavor|baking/i, 1],
+  [/sport|fitness|athlet|strength|conditioning/i, 2],
+  [/technolog|software|coding|web develop|developer|programming/i, 4],
+  [/comedy|stand.?up/i, 5],
   [/photo/i, 2],
   [/film|cinema|screen|tv/i, 3],
   [/dance|choreo/i, 4],

@@ -4,6 +4,49 @@
 
 import { ReactNode, useEffect, useRef, useState } from "react";
 
+// ---------- avatar ----------
+
+// Initials tile. Replaces the picsum.photos avatars the console used to pull:
+// those served photographs of real, identifiable people as stand-ins for our
+// operators and clients, and broke entirely offline or behind a firewall.
+// Rendered locally, so it works in both.
+
+/** "Jane Doe" -> "JD"; also handles emails and handles. */
+export function initials(name: string): string {
+  const parts = name.split(/[\s@._-]+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "?") + (parts[1]?.[0] ?? "")).toUpperCase();
+}
+
+// Deterministic tint per person, so a face-less feed is still scannable.
+const AVATAR_TONES = ["amber", "violet", "green", "blue", "sea"] as const;
+
+export function Avatar({
+  name,
+  seed,
+  size = 28,
+}: {
+  name: string;
+  /** Stable key for the color; defaults to the name. */
+  seed?: string;
+  size?: number;
+}) {
+  const key = seed ?? name;
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  const tone = AVATAR_TONES[h % AVATAR_TONES.length];
+  // Sized inline rather than by a composed class, so it can't depend on which
+  // avatar rule happens to come later in globals.css.
+  return (
+    <span
+      className={`avatar-initials avatar-${tone}`}
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }}
+      aria-hidden="true"
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
 // ---------- status pill ----------
 
 export type PillTone = "success" | "warning" | "danger" | "info" | "neutral" | "teal-dark";

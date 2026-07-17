@@ -92,15 +92,18 @@ function sampleVars(
     if (lower === "url" || lower.endsWith("url")) {
       out[n] = "https://example.com";
     } else if (lower.includes("first")) {
-      out[n] = "Ada";
+      out[n] = "Jane";
     } else if (lower.includes("last")) {
-      out[n] = "Lovelace";
+      out[n] = "Doe";
     } else if (lower.includes("brand") || lower.includes("site")) {
       out[n] = brand ?? "Your Academy";
     } else if (lower.includes("name")) {
-      out[n] = "Ada Lovelace";
+      // Placeholder-by-convention, like the reserved example.com below — a
+      // real person's name here would be borrowed identity in a preview the
+      // admin can also send as a test email.
+      out[n] = "Jane Doe";
     } else if (lower.includes("email")) {
-      out[n] = "ada@example.com";
+      out[n] = "jane@example.com";
     } else {
       out[n] = `{${n}}`;
     }

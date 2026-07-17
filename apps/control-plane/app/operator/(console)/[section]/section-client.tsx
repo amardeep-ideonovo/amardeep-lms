@@ -17,7 +17,7 @@ import {
 } from "@/components/operator-modals";
 import { RolloutCard } from "@/components/RolloutCard";
 import { Icon } from "@/components/icons";
-import { ConfirmModal, Kebab, PageSkeleton, Pill } from "@/components/ui";
+import { Avatar, ConfirmModal, Kebab, PageSkeleton, Pill } from "@/components/ui";
 import {
   clientInstances,
   clientsOnPlan,
@@ -899,8 +899,7 @@ function AuditView({ fleet }: { fleet: FleetState }) {
               <Icon name="server" size={13} />
             </span>
           ) : (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={`https://picsum.photos/seed/${entry.avatarSeed}/200/200`} alt="" className="act-avatar" />
+            <Avatar name={entry.actor} seed={entry.avatarSeed} />
           )}
           <span className="act-text">
             <b>{entry.actor}</b> — {entry.prefix}
