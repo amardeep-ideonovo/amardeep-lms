@@ -130,7 +130,7 @@ export function ConnectScreen({
             <TextInput
               value={code}
               onChangeText={setCode}
-              placeholder="e.g. spotlight-academy"
+              placeholder="e.g. your-academy"
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
