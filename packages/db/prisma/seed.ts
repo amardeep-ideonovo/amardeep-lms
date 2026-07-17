@@ -2082,9 +2082,20 @@ async function seedNav() {
 // gallery, so the catalog's art is served by THIS instance (no hotlinking) and
 // an admin poking around the demo finds a populated Media library.
 //
-// Re-copied on every seed by design: MEDIA_DIR isn't a mounted volume in the
-// instance compose, so a container replacement takes the files with it. Same
-// reasoning as seedCertificateTemplates() below.
+// Re-copied on every seed because that's how changed or added art reaches an
+// existing instance — the copy is idempotent, and MEDIA_DIR is a persistent
+// volume (apps/api/src/storage/storage-dirs.ts owns that rule and refuses to
+// boot in production without it).
+//
+// The dir MUST resolve to the same place the API serves /media from, or the
+// art 404s. Two different anchors get there:
+//   - MEDIA_DIR set (every container)   → both use it verbatim.
+//   - MEDIA_DIR unset (local dev only)  → the API falls back cwd-relative
+//     against cwd=apps/api; the seed can't, since its cwd is packages/db, so
+//     it anchors on __dirname instead. Both land on apps/api/src/media-uploads.
+// That makes the literal below a duplicate of STORAGE_DIRS.MEDIA_DIR.devFallback
+// — @lms/db must not import from apps/api. If that fallback ever moves, move
+// this with it; the API's boot guard won't catch a dev-only split.
 async function seedDemoMedia() {
   const apiSrc = path.resolve(__dirname, "../../../apps/api/src");
   const mediaRoot = process.env.MEDIA_DIR || path.join(apiSrc, "media-uploads");
