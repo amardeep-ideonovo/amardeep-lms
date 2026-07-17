@@ -30,6 +30,7 @@ import {
 } from "@/lib/provisioner";
 import { useFleet } from "@/lib/useFleet";
 import { Icon, IconName, LogoGlyph } from "./icons";
+import { Avatar } from "./ui";
 import { Field, Modal } from "./ui";
 
 type ShellRole = "operator" | "client";
@@ -216,12 +217,7 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
         <div className="sb-spacer" />
         {persona ? (
           <div className="sb-user">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`https://picsum.photos/seed/${persona.avatarSeed}/200/200`}
-              alt={persona.name}
-              className="sb-avatar"
-            />
+            <Avatar name={persona.name} seed={persona.avatarSeed} size={30} />
             <span className="sb-user-text">
               <span className="sb-user-name">{persona.name}</span>
               <span className="sb-user-role">{persona.role}</span>

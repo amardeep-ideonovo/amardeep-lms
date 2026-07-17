@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 import { AddHostModal } from "@/components/AddHostModal";
 import { RolloutCard } from "@/components/RolloutCard";
 import { Icon } from "@/components/icons";
-import { ConfirmModal, HealthLabel, Kebab, PageSkeleton, Pill } from "@/components/ui";
+import { Avatar, ConfirmModal, HealthLabel, Kebab, PageSkeleton, Pill } from "@/components/ui";
 import {
   activeWaveName,
   awaitingUpdateCount,
@@ -352,12 +352,7 @@ export default function OperatorDashboard() {
                   <Icon name="server" size={13} />
                 </span>
               ) : (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img
-                  src={`https://picsum.photos/seed/${entry.avatarSeed}/200/200`}
-                  alt=""
-                  className="act-avatar"
-                />
+                <Avatar name={entry.actor} seed={entry.avatarSeed} />
               )}
               <span className="act-text">
                 {entry.prefix}
