@@ -1,12 +1,65 @@
+# Build context for apps/{api,web,admin}/Dockerfile is the REPO ROOT, and each
+# one does `COPY . .` — so anything not excluded here is baked into a published
+# image. Keep this list tight: it is the only thing standing between local
+# working-tree litter and GHCR.
+#
+# Unlike .gitignore, a bare name here is NOT "match at any depth": patterns are
+# matched against the whole context-relative path, so `src` and `/src` both mean
+# root-level only. Reach for `**/` when you really do want any depth — and never
+# for `src` (that would eat apps/api/src). Verify with:
+#   docker build -f apps/api/Dockerfile -t t . && docker run --rm t find /app -maxdepth 1
+
+# ---------- dependencies & build output (installed/regenerated in-image) ----------
 node_modules
 **/node_modules
 **/dist
 **/.next
 **/.expo
+**/*.tsbuildinfo
+# Prisma client: the Dockerfile runs `prisma generate` itself, and a fresh clone
+# never has this, so a host-generated copy (darwin engines) must not leak in.
+packages/db/generated
+
+# ---------- VCS & CI ----------
 .git
+.gitignore
 .github
+
+# ---------- secrets ----------
 **/.env
 **/.env.*
 !**/.env.example
-*.log
-coverage
+.mcp.json
+apps/mobile/play-service-account.json
+
+# ---------- agent / local tooling litter ----------
+# .claude/worktrees holds a checked-out git worktree per agent branch — a full
+# second copy of the source tree each, unrelated to the branch being built.
+.claude
+graphify-out
+claude-memory.tgz
+
+# ---------- host cwd-fallback litter (contained REAL member uploads) ----------
+# A root-level src/ is NOT part of the repo — nothing under it is tracked. It
+# only appears when the API is run with cwd=repo-root, which makes the
+# MEDIA_DIR/CERT_FILES_DIR fallbacks in apps/api/src/{media,certificates}/
+# *.config.ts resolve to <root>/src/... and write member avatars there.
+# Root-anchored on purpose: apps/api/src (the actual API source, including the
+# bundled certificate TTFs) must NOT match.
+/src
+
+# ---------- mobile native builds (~2.3 GB; rebuilt by EAS, never served) ----------
+apps/mobile/android
+apps/mobile/ios
+
+# ---------- docs & local reports (not runtime) ----------
+docs
+*.md
+!README.md
+*.pdf
+*.pptx
+
+# ---------- os / logs / test output ----------
+**/.DS_Store
+**/*.log
+**/coverage
