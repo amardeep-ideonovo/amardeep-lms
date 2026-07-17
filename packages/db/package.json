@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "generate": "prisma generate",
+    "art": "ts-node prisma/assets/generate-demo-art.ts",
     "migrate": "prisma migrate dev",
     "seed": "prisma db seed",
     "seed:staging": "prisma db seed",
