@@ -13,9 +13,15 @@ import { fmtDuration, fmtTotalMinutes } from "@/lib/memberData";
 import CertificateClaimButton from "@/components/CertificateClaimButton";
 
 // Vimeo URL -> player embed URL; null for non-Vimeo (then we use <video>).
+// title/byline/portrait are suppressed for the same reason the lesson player
+// suppresses them: the overlay credits the VIMEO ACCOUNT that uploaded the
+// clip, which on a client's own trailer is someone else's name over their
+// class.
 function vimeoEmbed(url: string): string | null {
   const m = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-  return m ? `https://player.vimeo.com/video/${m[1]}` : null;
+  return m
+    ? `https://player.vimeo.com/video/${m[1]}?title=0&byline=0&portrait=0`
+    : null;
 }
 
 type Slot = "hero-ring" | "body";

@@ -210,7 +210,13 @@ function toEmbed(url: string): { kind: "iframe" | "video"; src: string } | null 
   const yt = u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{6,})/);
   if (yt) return { kind: "iframe", src: `https://www.youtube.com/embed/${yt[1]}` };
   const vimeo = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-  if (vimeo) return { kind: "iframe", src: `https://player.vimeo.com/video/${vimeo[1]}` };
+  // title/byline/portrait off: the overlay credits the uploading Vimeo account,
+  // which has no business appearing on a page the admin built.
+  if (vimeo)
+    return {
+      kind: "iframe",
+      src: `https://player.vimeo.com/video/${vimeo[1]}?title=0&byline=0&portrait=0`,
+    };
   if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(u)) return { kind: "video", src: u };
   return { kind: "iframe", src: u }; // assume it's already an embed URL
 }
