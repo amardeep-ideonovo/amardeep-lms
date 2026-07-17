@@ -309,6 +309,21 @@ into the backup dir if client media matters (it does).
   redeploy instances wave-by-wave (`docker compose -p lms_<id> pull && up -d`;
   migrations run on boot). The stored per-instance tag gives you lockstep +
   reproducibility.
+- **ONE-TIME, before the first upgrade past the storage-pin fix**: any instance
+  provisioned while `MEDIA_DIR` / `CERT_FILES_DIR` were unpinned wrote gallery
+  media, avatars and certificate PDFs into the container's writable layer.
+
+  ```bash
+  DRY_RUN=1 deploy/scripts/migrate-media-to-volume.sh   # report; copies nothing
+  deploy/scripts/migrate-media-to-volume.sh             # then, for real
+  ```
+
+  **Run it while the old containers are still up, and per instance BEFORE that
+  instance's `pull && up -d`.** The recreate destroys the layer, and those files
+  are on no volume — so `backup-uploads.sh` never captured them and there is
+  nothing to restore from. The script is idempotent and aborts non-zero rather
+  than let you upgrade over unrescued files; if it aborts, do not upgrade that
+  instance until it passes.
 - **Control plane**: `git pull` in `/opt/licensing-dashboard` →
   `docker compose -f deploy/host/docker-compose.host.yml --env-file .env up -d --build`.
 - **Caddy**: routes live in the DB too — after any Caddy mishap,

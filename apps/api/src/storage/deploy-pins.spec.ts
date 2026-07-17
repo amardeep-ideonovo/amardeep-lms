@@ -15,6 +15,10 @@ import { STORAGE_DIRS, STORAGE_DIR_IDS, WRITABLE_STORAGE_DIR_IDS } from './stora
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const COMPOSE = path.join(REPO_ROOT, 'deploy/instance/docker-compose.instance.yml');
 const DOCKERFILE = path.join(REPO_ROOT, 'apps/api/Dockerfile');
+const MIGRATION = path.join(REPO_ROOT, 'deploy/scripts/migrate-media-to-volume.sh');
+
+/** The Dockerfile's WORKDIR — what an unpinned dir resolves its fallback against. */
+const CONTAINER_CWD = '/app';
 
 const read = (p: string) => fs.readFileSync(p, 'utf8');
 
@@ -100,6 +104,48 @@ test('image defaults and compose pins agree', () => {
       image.get(id),
       `${id} disagrees between compose and the image default. Whichever loses, ` +
         `uploads written under one path go missing when the other takes effect.`,
+    );
+  }
+});
+
+/** `"<src>:<dst>"` entries from the migration script's PAIRS array. */
+function migrationPairs(): Array<{ src: string; dst: string }> {
+  const block = /^PAIRS=\(([\s\S]*?)^\)/m.exec(read(MIGRATION));
+  assert.ok(block, 'migrate-media-to-volume.sh no longer declares a PAIRS array');
+  return [...block[1].matchAll(/"([^":]+):([^":]+)"/g)].map((m) => ({
+    src: m[1],
+    dst: m[2],
+  }));
+}
+
+test('the migration script rescues into the paths compose actually pins', () => {
+  // The script copies files off the container layer BEFORE an upgrade recreates
+  // it. If its destination and the compose pin disagree, it reports success and
+  // the files are still lost — unrecoverably, since they were never on the
+  // volume and so are in no backup. That is not hypothetical: the script was
+  // written against /data/certificates while the merged pin was
+  // /data/files/certificates.
+  const pins = composePins();
+  const bySrc = new Map(
+    WRITABLE_STORAGE_DIR_IDS.map((id) => [
+      path.posix.join(CONTAINER_CWD, ...STORAGE_DIRS[id].devFallback),
+      id,
+    ]),
+  );
+
+  for (const { src, dst } of migrationPairs()) {
+    const id = bySrc.get(src);
+    assert.ok(
+      id,
+      `the script migrates from ${src}, which is no storage dir's container ` +
+        `fallback. Either the dir moved in storage-dirs.ts (and the script now ` +
+        `rescues nothing), or this line is dead.`,
+    );
+    assert.equal(
+      dst,
+      pins.get(id),
+      `the script copies ${id} to ${dst}, but compose pins it to ${pins.get(id)}. ` +
+        `The upgraded api reads the pin, so the rescued files would be invisible.`,
     );
   }
 });
