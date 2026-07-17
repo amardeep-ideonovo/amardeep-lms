@@ -4,7 +4,7 @@
 import './instrument';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
 import { AppModule } from './app.module';
@@ -18,8 +18,15 @@ import {
   ensureCertificateDirs,
 } from './certificates/certificates.config';
 import { RedisIoAdapter } from './projects/redis-io.adapter';
+import { assertStorageDirsConfigured } from './storage/storage-dirs';
 
 async function bootstrap() {
+  // Before anything touches the disk: every writable storage dir must be an
+  // explicit path in production. Left to its dev fallback the app would write
+  // uploads into the container layer and lose them on the next recreate —
+  // silently. Fail the boot instead, while someone is watching the deploy.
+  assertStorageDirsConfigured(new Logger('StorageDirs'));
+
   // bodyParser disabled here so we can register a raw-body parser for the
   // Stripe webhook route (signature verification needs the untouched payload),
   // and JSON everywhere else.

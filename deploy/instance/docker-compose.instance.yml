@@ -76,8 +76,16 @@ services:
       WEB_APP_URL: ${WEB_APP_URL:-http://localhost:${WEB_PORT}}
       # Public origin of THIS api, used to build absolute media URLs.
       PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:${API_PORT}}
+      # Every dir the API writes member data to, pinned onto the `uploads`
+      # volume below. Unset, each falls back to a cwd-relative dev default that
+      # resolves INSIDE the container layer (cwd here is /app) and is destroyed
+      # on every recreate/upgrade — silently, since the app just recreates it.
+      # apps/api/Dockerfile carries the same values as image defaults, and the
+      # API refuses to boot in production if one is missing (see storage-dirs.ts).
+      MEDIA_DIR: /data/media
       BLOG_IMAGES_DIR: /data/images
       LESSON_FILES_DIR: /data/files
+      CERT_FILES_DIR: /data/files/certificates
       # First-admin + content seeding (see packages/db/prisma/seed.ts).
       SEED_DEMO_CONTENT: ${SEED_DEMO_CONTENT:-false}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:?set SEED_ADMIN_EMAIL}

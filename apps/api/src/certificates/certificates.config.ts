@@ -1,22 +1,21 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
-import * as path from 'path';
 import type { CertificateFontId } from '@lms/types';
+import { resolveStorageDir } from '../storage/storage-dirs';
 
 // ---------- Class-completion certificates: storage + serials ----------
 
 // Rendered certificate PDFs. Deliberately NOT statically served — downloads
 // stream through an access-checked route (owner or admin), like lesson notes.
-// On ephemeral hosts point CERT_FILES_DIR at a persistent disk.
-export const CERT_FILES_DIR =
-  process.env.CERT_FILES_DIR ||
-  path.resolve(process.cwd(), 'src', 'files', 'certificates');
+// CERT_FILES_DIR must point at a persistent volume in production; storage-dirs.ts
+// owns that rule and refuses to boot without it.
+export const CERT_FILES_DIR = resolveStorageDir('CERT_FILES_DIR');
 
 // Bundled OFL TTFs (see fonts/OFL.txt). Served PUBLICLY at /cert-fonts so the
-// admin template editor can @font-face the exact bytes the PDF embeds.
-export const CERT_FONTS_DIR =
-  process.env.CERT_FONTS_DIR ||
-  path.resolve(process.cwd(), 'src', 'certificates', 'fonts');
+// admin template editor can @font-face the exact bytes the PDF embeds. These
+// ship inside the image rather than on the volume, so CERT_FONTS_DIR is pinned
+// in apps/api/Dockerfile — the cwd fallback misses them entirely under Docker.
+export const CERT_FONTS_DIR = resolveStorageDir('CERT_FONTS_DIR');
 export const CERT_FONTS_ROUTE = '/cert-fonts';
 
 export function ensureCertificateDirs(): void {

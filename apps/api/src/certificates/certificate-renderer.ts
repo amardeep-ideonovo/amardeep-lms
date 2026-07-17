@@ -87,7 +87,10 @@ export async function renderCertificatePdf(input: RenderCertificateInput): Promi
     try {
       bytes = loadFontBytes(field.fontFamily);
     } catch {
-      bytes = loadFontBytes('inter'); // fall back; boot logs flag missing files
+      // Fall back to Inter. If CERT_FONTS_DIR itself is wrong this throws too
+      // — by design: boot already logged the bad path (see storage-dirs.ts),
+      // and a certificate with substituted glyphs is worse than a loud failure.
+      bytes = loadFontBytes('inter');
     }
     fonts.set(field.fontFamily, await doc.embedFont(bytes));
   }

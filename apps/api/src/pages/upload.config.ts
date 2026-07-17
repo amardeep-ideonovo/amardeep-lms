@@ -1,12 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { resolveStorageDir } from '../storage/storage-dirs';
 
 // Page-builder images share the same images root as the rest of the app.
 // In prod BLOG_IMAGES_DIR points at a persistent volume; in dev it falls back
 // to <api>/src/images. Page images live under a `page/` subdir and are served
 // by the single /images static mount in main.ts (so /images/page/* just works).
-export const IMAGES_ROOT =
-  process.env.BLOG_IMAGES_DIR || path.resolve(process.cwd(), 'src', 'images');
+export const IMAGES_ROOT = resolveStorageDir('BLOG_IMAGES_DIR');
 
 export const PAGE_IMAGE_DIR = path.join(IMAGES_ROOT, 'page');
 export const PAGE_IMAGE_URL_PATH = '/images/page';

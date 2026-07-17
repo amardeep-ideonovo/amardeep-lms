@@ -32,6 +32,29 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 ENV PORT=3000
 
+# Where the API keeps files on disk. These MUST be set in the image. Every
+# storage dir falls back to a cwd-relative dev default (<cwd>/src/...), and the
+# cwd here is /app — so an unset var writes member uploads to /app/src/..., a
+# path inside the container layer that is destroyed on the next recreate. The
+# app can't tell the difference, so the loss is silent (see storage-dirs.ts).
+#
+# /data is the per-instance `uploads` volume mounted by
+# deploy/instance/docker-compose.instance.yml, which pins these too. The image
+# defaults are the belt to compose's braces: instances are recreated with
+# whatever compose file is on the host, so an image bump that lands before a
+# repo pull would otherwise boot against the fallback.
+ENV MEDIA_DIR=/data/media
+ENV BLOG_IMAGES_DIR=/data/images
+ENV LESSON_FILES_DIR=/data/files
+ENV CERT_FILES_DIR=/data/files/certificates
+
+# Read-only repo assets, NOT member data: the TTFs ship in the image, so this
+# points into the source tree rather than the volume. The cwd fallback would
+# resolve to /app/src/certificates/fonts, which does not exist under Docker —
+# the sources live at /app/apps/api/src — and every certificate render would
+# throw ENOENT.
+ENV CERT_FONTS_DIR=/app/apps/api/src/certificates/fonts
+
 # Version stamp for the app<->API handshake (GET /app/config + /health).
 # Set by deploy/instance/build-images.sh; empty means "unstamped dev build".
 ARG APP_VERSION=""

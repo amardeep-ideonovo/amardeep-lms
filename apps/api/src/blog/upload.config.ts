@@ -1,18 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { resolveStorageDir } from '../storage/storage-dirs';
 
-// Where uploaded blog images are stored on disk AND served from.
-//
-// Default: the API's own `src/images` dir (as requested) — i.e.
-// `<api>/src/images/blog-post/<timestamp>.<ext>`. The dev server runs with
-// cwd = apps/api, so this resolves to apps/api/src/images.
-//
-// PRODUCTION NOTE: Render's container filesystem is ephemeral — files written
-// here are wiped on every redeploy/restart. For persistence in prod, set
-// BLOG_IMAGES_DIR to a mounted persistent disk path (or switch to object
-// storage). The route + filename scheme stay identical.
-export const IMAGES_ROOT =
-  process.env.BLOG_IMAGES_DIR || path.resolve(process.cwd(), 'src', 'images');
+// Where uploaded blog images are stored on disk AND served from, i.e.
+// `<IMAGES_ROOT>/blog-post/<timestamp>.<ext>`. In dev this is the API's own
+// `src/images` dir; in production BLOG_IMAGES_DIR points at a persistent
+// volume (storage-dirs.ts refuses to boot otherwise). The route + filename
+// scheme stay identical either way.
+export const IMAGES_ROOT = resolveStorageDir('BLOG_IMAGES_DIR');
 
 // Sub-folder for blog post images, served under /images/blog-post/*.
 export const BLOG_POST_DIR = path.join(IMAGES_ROOT, 'blog-post');
