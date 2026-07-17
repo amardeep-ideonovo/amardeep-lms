@@ -289,6 +289,68 @@ async function main() {
     }
     console.log("PASS  fresh demo instance: owner is the only admin");
 
+    // ----- 7. Demo instance CONVERTED to baseline (SEED_DEMO_CONTENT flipped
+    // to false on a database that already carries the demo). This happened in
+    // production: a client instance seeded with the demo in an earlier life
+    // kept serving the retired catalog — and accepting the well-known
+    // member@example.com/member123 login — because the baseline path deleted
+    // nothing. The purge must remove every seed-authored row and NOTHING the
+    // client made themselves.
+    {
+      const owner = await db.admin.findFirstOrThrow();
+      await db.page.create({
+        data: {
+          // A cuid-shaped id, like every admin-created row — the purge's
+          // "seed-" boundary must leave it alone.
+          slug: "client-made-page",
+          title: "The client's own page",
+          status: "DRAFT",
+          authorId: owner.id,
+          data: { root: { props: {} }, content: [], zones: {} },
+        },
+      });
+    }
+    runSeed(
+      {
+        SEED_ADMIN_EMAIL: OWNER_ENV_EMAIL,
+        SEED_ADMIN_PASSWORD: OWNER.password,
+        SEED_DEMO_CONTENT: "false",
+      },
+      "same instance, converted to baseline (demo=false)",
+    );
+    {
+      for (const [name, count] of Object.entries({
+        level: await db.level.count(),
+        course: await db.course.count(),
+        lesson: await db.lesson.count(),
+        post: await db.post.count(),
+        popup: await db.popup.count(),
+        form: await db.form.count(),
+        menu: await db.menu.count(),
+        header: await db.header.count(),
+        certificateTemplate: await db.certificateTemplate.count(),
+        footer: await db.footer.count(),
+        appConfig: await db.appConfig.count(),
+        seedMedia: await db.mediaAsset.count({
+          where: { id: { startsWith: "seed-media-" } },
+        }),
+      })) {
+        assert.equal(count, 0, `baseline conversion must purge demo ${name} rows`);
+      }
+      assert.equal(
+        await db.user.findUnique({ where: { email: "member@example.com" } }),
+        null,
+        "the demo member (a public repo password) must not survive conversion",
+      );
+      const pages = await db.page.findMany();
+      assert.equal(pages.length, 1, "client-authored content must survive");
+      assert.equal(pages[0].slug, "client-made-page");
+      const admins = await db.admin.findMany();
+      assert.equal(admins.length, 1, "the owner admin must survive");
+      assert.ok(await bcrypt.compare(OWNER.password, admins[0].passwordHash));
+    }
+    console.log("PASS  demo→baseline conversion purges demo content only");
+
     console.log("\nSeed provisioning check: ALL PASS");
   } finally {
     await db.$disconnect();
