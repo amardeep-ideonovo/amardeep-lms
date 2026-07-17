@@ -90,6 +90,12 @@ services:
       SEED_DEMO_CONTENT: ${SEED_DEMO_CONTENT:-false}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:?set SEED_ADMIN_EMAIL}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?set SEED_ADMIN_PASSWORD}
+      # The demo catalog's lesson video, read only when SEED_DEMO_CONTENT=true.
+      # Empty (the default here) = the seed's own DEMO_VIDEO constant, so this
+      # knob is what points a demo at a clip WE own instead of a third party's
+      # upload. The control-plane provisioner forwards it from its own env, so
+      # one setting in deploy/host/.env covers every demo and trial instance.
+      SEED_DEMO_VIDEO_URL: ${SEED_DEMO_VIDEO_URL:-}
       # Error reporting. Empty = Sentry stays a no-op (see apps/api/src/instrument.ts).
       # The control-plane provisioner injects the real DSN per instance.
       # (APP_VERSION is baked into the api image at build time — do NOT pass it
