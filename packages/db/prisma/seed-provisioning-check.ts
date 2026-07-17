@@ -55,6 +55,17 @@ function withDb(url: string, db: string): string {
 const BASE = baseUrl();
 const CHECK_URL = withDb(BASE, CHECK_DB);
 
+// The check's own media dir, like its own database. The seed doesn't just
+// write rows — it copies artwork into MEDIA_DIR (and the baseline purge
+// unlinks it), and in production every instance owns that directory. Without
+// this, the scenarios share the REAL apps/api/src/media-uploads with whatever
+// else is running: in CI, scenario 7's purge deleted the certificate artwork
+// out from under the BDD suite's API, and three certificate scenarios failed
+// on render. Scratch database + shared filesystem was an isolation lie.
+const CHECK_MEDIA_DIR = fs.mkdtempSync(
+  path.join(require("os").tmpdir(), "lms-seed-check-media-"),
+);
+
 // Child env: inherit, but scrub every seed knob so the dev shell can't leak
 // one into a case, then apply the case's own.
 function childEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
@@ -67,7 +78,12 @@ function childEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
   ]) {
     delete env[k];
   }
-  return { ...env, DATABASE_URL: CHECK_URL, ...extra };
+  return {
+    ...env,
+    DATABASE_URL: CHECK_URL,
+    MEDIA_DIR: CHECK_MEDIA_DIR,
+    ...extra,
+  };
 }
 
 function runSeed(extra: Record<string, string>, label: string): void {
@@ -348,6 +364,12 @@ async function main() {
       const admins = await db.admin.findMany();
       assert.equal(admins.length, 1, "the owner admin must survive");
       assert.ok(await bcrypt.compare(OWNER.password, admins[0].passwordHash));
+      // The rows' backing files must go with them — this is the check's own
+      // media dir, so anything left is the purge forgetting to unlink.
+      const leftover = fs
+        .readdirSync(CHECK_MEDIA_DIR)
+        .filter((f) => f.startsWith("seed-") || f.startsWith("demo-"));
+      assert.deepEqual(leftover, [], "purged media rows must take their files");
     }
     console.log("PASS  demo→baseline conversion purges demo content only");
 
@@ -355,6 +377,7 @@ async function main() {
   } finally {
     await db.$disconnect();
     await dropDb();
+    fs.rmSync(CHECK_MEDIA_DIR, { recursive: true, force: true });
   }
 }
 
