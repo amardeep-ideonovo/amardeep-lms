@@ -11,7 +11,7 @@ Feature: Course access control
     Given the admin has revoked the "seed-level-pro" level from the member
     And I am logged in as the member
     When I GET "/dashboard"
-    Then the course "Pro Masterclass" should be locked
+    Then the course "Locked Pro Course" should be locked
     When I GET "/courses/seed-course-pro/lessons"
     Then the response status should be 403
     When I GET "/lessons/seed-lesson-pro-1"
@@ -21,7 +21,7 @@ Feature: Course access control
     Given the admin has granted the "seed-level-pro" level to the member
     And I am logged in as the member
     When I GET "/dashboard"
-    Then the course "Pro Masterclass" should be unlocked
+    Then the course "Locked Pro Course" should be unlocked
     When I GET "/courses/seed-course-pro/lessons"
     Then the response status should be 200
 
