@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { IMAGES_ROOT, imageExt } from '../blog/upload.config';
+import { resolveStorageDir } from '../storage/storage-dirs';
 
 // Reuse the blog image validator + the same public images root so all uploaded
 // images share one served tree (/images/*, see main.ts).
@@ -17,10 +18,9 @@ export const LESSON_IMG_URL_PATH = '/images/lesson';
 // Lesson note attachments. Streamed only through an access-checked endpoint so
 // a locked course can't leak its materials via a guessable URL.
 //
-// PRODUCTION NOTE: like the images dir, this is ephemeral on Render. Point
-// LESSON_FILES_DIR at a mounted persistent disk (or object storage) in prod.
-export const FILES_ROOT =
-  process.env.LESSON_FILES_DIR || path.resolve(process.cwd(), 'src', 'files');
+// LESSON_FILES_DIR must point at a persistent volume in production —
+// storage-dirs.ts owns that rule and refuses to boot without it.
+export const FILES_ROOT = resolveStorageDir('LESSON_FILES_DIR');
 export const LESSON_NOTES_DIR = path.join(FILES_ROOT, 'lesson-notes');
 
 // Create the upload directory tree if missing (idempotent).

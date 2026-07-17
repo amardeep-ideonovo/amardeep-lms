@@ -45,12 +45,19 @@ jobs:
       THROTTLE_SIGNUP_LIMIT: "1000"
       THROTTLE_FORGOT_LIMIT: "1000"
       # The API is built and run from dist at the repo-root cwd (see "Start API"),
-      # so the default process.cwd()/src/... media + cert paths resolve to
-      # <root>/src/... and MISS the files the seed writes (apps/api/src/...). Pin
+      # so the default process.cwd()/src/... storage paths resolve to <root>/src/...
+      # and MISS the files the seed writes (apps/api/src/...). Pin every one of
       # them to the source tree (absolute) so cert-artwork reads + font embedding
       # find the seeded/committed assets — otherwise certificate claims 409 on a
       # missing-artwork render.
+      #
+      # ENV_NAME is deliberately unset here, which means isProduction() — so this
+      # job also exercises the boot guard in storage-dirs.ts: add a storage dir
+      # without pinning it and the API refuses to start, failing this job rather
+      # than shipping an instance that quietly eats uploads.
       MEDIA_DIR: ${{ github.workspace }}/apps/api/src/media-uploads
+      BLOG_IMAGES_DIR: ${{ github.workspace }}/apps/api/src/images
+      LESSON_FILES_DIR: ${{ github.workspace }}/apps/api/src/files
       CERT_FONTS_DIR: ${{ github.workspace }}/apps/api/src/certificates/fonts
       CERT_FILES_DIR: ${{ github.workspace }}/apps/api/src/files/certificates
       # Dummy Stripe key (valid format, never used for real API calls) so the

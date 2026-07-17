@@ -1,14 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import sanitizeHtml from 'sanitize-html';
+import { resolveStorageDir } from '../storage/storage-dirs';
 
 // ---------- Local-disk storage (cloud impl swaps in later) ----------
 // Served PUBLICLY at /media (see main.ts) so every asset has a stable,
-// embeddable URL. On ephemeral hosts (Render), point MEDIA_DIR at a persistent
-// disk — or switch the storage service to object storage.
-export const MEDIA_ROOT =
-  process.env.MEDIA_DIR ||
-  path.resolve(process.cwd(), 'src', 'media-uploads');
+// embeddable URL. MEDIA_DIR must point at a persistent volume in production —
+// storage-dirs.ts owns that rule and refuses to boot without it.
+export const MEDIA_ROOT = resolveStorageDir('MEDIA_DIR');
 export const MEDIA_ROUTE = '/media';
 
 export function ensureMediaDir(): void {
