@@ -17,6 +17,8 @@ import type {
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermission } from '../auth/require-permission.decorator';
 import { EmailService } from './email.service';
+import { ResendMailSender } from './resend.sender';
+import { SettingsService } from '../settings/settings.service';
 import { EmailTemplateService } from './email-template.service';
 import { CampaignService } from './campaign.service';
 import { AutomationService } from './automation.service';
@@ -42,7 +44,27 @@ export class EmailController {
     private readonly campaigns: CampaignService,
     private readonly automations: AutomationService,
     private readonly logs: EmailLogService,
+    private readonly resend: ResendMailSender,
+    private readonly settings: SettingsService,
   ) {}
+
+  // Deliverability health for the admin Email settings card. When the active
+  // provider is Resend, a live check against Resend's /domains tells the admin
+  // whether the From domain is actually VERIFIED — Resend silently drops sends
+  // from an unverified domain, so isConfigured() true is not enough. null =
+  // provider isn't Resend, not configured, or Resend was unreachable (no verdict).
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('email', 'read')
+  @Get('admin/email/health')
+  async health(): Promise<{
+    provider: 'smtp' | 'resend';
+    resendDomainVerified: boolean | null;
+  }> {
+    const provider = await this.settings.getEmailProvider();
+    const resendDomainVerified =
+      provider === 'resend' ? await this.resend.domainVerified() : null;
+    return { provider, resendDomainVerified };
+  }
 
   @UseGuards(PermissionsGuard)
   @RequirePermission('email', 'read')

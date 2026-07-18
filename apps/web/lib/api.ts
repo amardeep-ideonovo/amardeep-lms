@@ -205,11 +205,16 @@ export const api = {
     }
     return res.json();
   },
-  changePassword: (input: ChangePasswordInput) =>
-    request<{ ok: true }>("/auth/change-password", {
-      method: "POST",
-      body: input,
-    }),
+  // The API bumps tokenVersion (revoking other sessions) and returns a fresh
+  // token for THIS session — store it so the current session isn't logged out.
+  changePassword: async (input: ChangePasswordInput) => {
+    const res = await request<{ ok: true; token: string }>(
+      "/auth/change-password",
+      { method: "POST", body: input },
+    );
+    setToken(res.token);
+    return res;
+  },
   // Self-serve password reset (both public). forgotPassword always resolves
   // { ok: true } — the API never reveals whether the email has an account.
   forgotPassword: (email: string) =>

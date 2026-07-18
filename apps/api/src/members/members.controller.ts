@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Ip,
   Param,
   Patch,
   Post,
@@ -10,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermission } from '../auth/require-permission.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { MembersService } from './members.service';
 import {
   AddMemberLevelDto,
@@ -43,14 +46,30 @@ export class MembersController {
   // Admin override: set a member's password without their current one.
   @Post(':id/password')
   @RequirePermission('members', 'edit')
-  setPassword(@Param('id') id: string, @Body() dto: SetMemberPasswordDto) {
-    return this.members.setPassword(id, dto.newPassword);
+  setPassword(
+    @Param('id') id: string,
+    @Body() dto: SetMemberPasswordDto,
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Ip() ip: string,
+  ) {
+    return this.members.setPassword(id, dto.newPassword, {
+      adminId: principal.sub,
+      ip,
+    });
   }
 
   @Post(':id/levels')
   @RequirePermission('members', 'edit')
-  addLevel(@Param('id') id: string, @Body() dto: AddMemberLevelDto) {
-    return this.members.addLevel(id, dto.levelId);
+  addLevel(
+    @Param('id') id: string,
+    @Body() dto: AddMemberLevelDto,
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Ip() ip: string,
+  ) {
+    return this.members.addLevel(id, dto.levelId, {
+      adminId: principal.sub,
+      ip,
+    });
   }
 
   @Delete(':id/levels/:levelId')

@@ -282,14 +282,31 @@ export default function ClassesPage() {
   }
 
   async function onDelete(id: string) {
-    if (!(await dialog.confirm({ message: "Delete this class?", danger: true })))
+    if (
+      !(await dialog.confirm({
+        message:
+          "Delete this class permanently? If any member still has access, deletion is blocked — archive it instead to keep their grants and issued certificates.",
+        danger: true,
+      }))
+    )
       return;
     try {
       await api.deleteLevel(id);
       if (editingId === id) resetForm();
       await load();
     } catch (err) {
+      // A 409 here carries the "archive instead" guidance from the API.
       setError(err instanceof ApiError ? err.message : "Delete failed");
+    }
+  }
+
+  async function onArchive(id: string, archived: boolean) {
+    try {
+      if (archived) await api.unarchiveLevel(id);
+      else await api.archiveLevel(id);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Archive failed");
     }
   }
 
@@ -890,6 +907,10 @@ export default function ClassesPage() {
                       label={`Actions for ${lvl.name}`}
                       items={[
                         { label: "Edit", onClick: () => startEdit(lvl) },
+                        {
+                          label: lvl.archivedAt ? "Unarchive" : "Archive",
+                          onClick: () => onArchive(lvl.id, !!lvl.archivedAt),
+                        },
                         {
                           label: "Delete",
                           danger: true,

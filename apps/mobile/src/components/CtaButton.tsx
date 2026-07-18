@@ -36,6 +36,10 @@ export function CtaButton({
       style={[{ borderRadius: radius }, disabled && styles.disabled, style]}
       onPress={onPress}
       disabled={disabled || busy}
+      accessibilityRole="button"
+      accessibilityLabel={typeof label === "string" ? label : undefined}
+      accessibilityState={{ disabled: disabled || busy, busy }}
+      hitSlop={8}
     >
       <LinearGradient
         colors={[colors.ctaStart, colors.ctaEnd]}
@@ -44,11 +48,13 @@ export function CtaButton({
         style={[styles.grad, { borderRadius: radius }]}
       >
         {busy ? (
-          <ActivityIndicator color="#ffffff" />
+          <ActivityIndicator color={colors.onCta} />
         ) : (
           <View style={styles.row}>
             {icon}
-            <Text style={[styles.label, textStyle]}>{label}</Text>
+            <Text style={[styles.label, { color: colors.onCta }, textStyle]}>
+              {label}
+            </Text>
           </View>
         )}
       </LinearGradient>

@@ -37,6 +37,7 @@ export default function SettingsPage() {
       <StripeSection />
       <PayPalSection />
       <EmailSenderSection />
+      <EmailWebhookSecretSection />
       <ZoomSection />
     </div>
   );
@@ -584,6 +585,11 @@ function EmailSenderSection() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Live Resend deliverability: false = From domain is NOT verified (Resend
+  // silently drops sends), null = no verdict (SMTP, unconfigured, unreachable).
+  const [resendDomainVerified, setResendDomainVerified] = useState<
+    boolean | null
+  >(null);
 
   // Mirror the loaded (non-secret) config into the editable fields.
   function hydrate(s: EmailSettingsMasked) {
@@ -597,10 +603,21 @@ function EmailSenderSection() {
     setSecure(s.secure);
   }
 
+  // Best-effort deliverability probe; never blocks or errors the settings form.
+  async function refreshHealth() {
+    try {
+      const h = await api.getEmailHealth();
+      setResendDomainVerified(h.resendDomainVerified);
+    } catch {
+      setResendDomainVerified(null);
+    }
+  }
+
   async function load() {
     setError(null);
     try {
       hydrate(await api.getEmailSettings());
+      void refreshHealth();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Failed to load email settings"
@@ -635,6 +652,7 @@ function EmailSenderSection() {
       setPass("");
       setResendApiKey("");
       setStatus("Email settings saved.");
+      void refreshHealth();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Save failed");
     } finally {
@@ -659,6 +677,7 @@ function EmailSenderSection() {
       hydrate(cleared);
       setPass("");
       setResendApiKey("");
+      setResendDomainVerified(null);
       setStatus("Email settings removed.");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Remove failed");
@@ -675,6 +694,20 @@ function EmailSenderSection() {
         Until it’s configured, messages (like the signup welcome) are logged but
         not delivered.
       </p>
+      {provider === "resend" && resendDomainVerified === false && (
+        <p
+          className="error"
+          role="alert"
+          style={{ display: "flex", gap: 8, alignItems: "flex-start" }}
+        >
+          <span aria-hidden="true">⚠</span>
+          <span>
+            Your From domain is <strong>not verified</strong> in Resend. Sends
+            will be silently rejected. Add and verify the domain in your Resend
+            dashboard (Domains → add the DNS records), then reload this page.
+          </span>
+        </p>
+      )}
       <form onSubmit={save}>
         <div className="field" style={{ display: "grid", gap: 6 }}>
           <label>Provider</label>
@@ -833,6 +866,134 @@ function EmailSenderSection() {
           >
             {removing ? "Removing…" : "Remove settings"}
           </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// The shared secret that authenticates the provider's bounce/complaint webhook.
+// Without it the webhook fails closed, so no delivery failures are ingested and
+// the suppression list never populates. This wires the existing (previously
+// UI-less) backend endpoints so an admin can actually turn suppression on.
+function EmailWebhookSecretSection() {
+  const [secretSet, setSecretSet] = useState<boolean | null>(null);
+  const [secret, setSecret] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
+  async function load() {
+    setError(null);
+    try {
+      const s = await api.getEmailWebhookSecret();
+      setSecretSet(s.secretSet);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load");
+    }
+  }
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    if (!secret.trim()) return;
+    setSaving(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const s = await api.putEmailWebhookSecret(secret.trim());
+      setSecretSet(s.secretSet);
+      setSecret("");
+      setStatus(
+        "Webhook secret saved. Bounce/complaint suppression is now active.",
+      );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function clear() {
+    if (
+      !(await dialog.confirm({
+        message:
+          "Clear the email webhook secret? The bounce/complaint webhook will stop being accepted until a new secret is set, and suppression will pause.",
+        danger: true,
+      }))
+    )
+      return;
+    setClearing(true);
+    setError(null);
+    setStatus(null);
+    try {
+      const s = await api.deleteEmailWebhookSecret();
+      setSecretSet(s.secretSet);
+      setStatus("Webhook secret cleared.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Clear failed");
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <h2>Email webhook secret</h2>
+      <p className="muted">
+        Shared secret that authenticates your provider&rsquo;s bounce/complaint
+        webhook. Until it&rsquo;s set, delivery failures aren&rsquo;t ingested
+        and the unsubscribe/suppression list never populates. Set the same value
+        here and in your email provider&rsquo;s webhook (Resend / SES / Svix).
+      </p>
+      <form onSubmit={save}>
+        <div className="field">
+          <label htmlFor="email-webhook-secret">Webhook signing secret</label>
+          <input
+            id="email-webhook-secret"
+            type="password"
+            value={secret}
+            placeholder={
+              secretSet
+                ? "A secret is set — enter a new value to rotate"
+                : "Not set — paste your provider's webhook secret"
+            }
+            onChange={(e) => setSecret(e.target.value)}
+          />
+        </div>
+        <p className="muted">
+          Status:{" "}
+          {secretSet === null ? (
+            "…"
+          ) : secretSet ? (
+            <span className="badge badge--ok">Configured</span>
+          ) : (
+            <span className="badge">Not set</span>
+          )}
+        </p>
+        {error && <p className="error">{error}</p>}
+        {status && <p className="muted">{status}</p>}
+        <div className="row-actions">
+          <button
+            className="btn"
+            type="submit"
+            disabled={saving || clearing || !secret.trim()}
+          >
+            {saving ? "Saving…" : "Save secret"}
+          </button>
+          {secretSet && (
+            <button
+              type="button"
+              className="btn btn--danger"
+              onClick={clear}
+              disabled={clearing || saving}
+            >
+              {clearing ? "Clearing…" : "Clear secret"}
+            </button>
+          )}
         </div>
       </form>
     </div>

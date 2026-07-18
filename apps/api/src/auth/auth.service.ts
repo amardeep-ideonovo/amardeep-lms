@@ -108,6 +108,7 @@ export class AuthService {
       email: user.email,
       username: user.username,
       isAdmin: false,
+      tv: user.tokenVersion,
     };
     return {
       token: await this.jwt.signAsync(payload),
@@ -130,6 +131,7 @@ export class AuthService {
       email: admin.email,
       isAdmin: true,
       role: admin.role,
+      tv: admin.tokenVersion,
     };
     return {
       token: await this.jwt.signAsync(payload),
@@ -193,6 +195,7 @@ export class AuthService {
       email: user.email,
       username: user.username,
       isAdmin: false,
+      tv: user.tokenVersion,
     };
     return {
       token: await this.jwt.signAsync(payload),
@@ -376,7 +379,7 @@ export class AuthService {
   async changePassword(
     userId: string,
     dto: ChangePasswordDto,
-  ): Promise<{ ok: true }> {
+  ): Promise<{ ok: true; token: string }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException();
 
@@ -396,11 +399,21 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, 10);
-    await this.prisma.user.update({
+    // Bump tokenVersion to revoke every outstanding JWT for this account, then
+    // re-issue a fresh token for THIS session so the caller isn't logged out of
+    // the very request that changed their password (other sessions are killed).
+    const updated = await this.prisma.user.update({
       where: { id: userId },
-      data: { passwordHash },
+      data: { passwordHash, tokenVersion: { increment: 1 } },
     });
-    return { ok: true };
+    const payload: JwtPayload = {
+      sub: updated.id,
+      email: updated.email,
+      username: updated.username,
+      isAdmin: false,
+      tv: updated.tokenVersion,
+    };
+    return { ok: true, token: await this.jwt.signAsync(payload) };
   }
 
   // Uniform 400 for every way a reset token can be bad (malformed, forged,
@@ -503,9 +516,14 @@ export class AuthService {
       );
     }
 
+    // Bump tokenVersion so every live session is revoked — a reset is a
+    // lock-me-out flow, so no token is re-issued here (the user signs in anew).
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash: await bcrypt.hash(newPassword, 10) },
+      data: {
+        passwordHash: await bcrypt.hash(newPassword, 10),
+        tokenVersion: { increment: 1 },
+      },
     });
     return { ok: true };
   }
@@ -514,7 +532,7 @@ export class AuthService {
   async changeAdminPassword(
     adminId: string,
     dto: ChangePasswordDto,
-  ): Promise<{ ok: true }> {
+  ): Promise<{ ok: true; token: string }> {
     const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
     if (!admin) throw new UnauthorizedException();
 
@@ -531,11 +549,21 @@ export class AuthService {
         'New password must be different from the current one',
       );
     }
-    await this.prisma.admin.update({
+    const updated = await this.prisma.admin.update({
       where: { id: adminId },
-      data: { passwordHash: await bcrypt.hash(dto.newPassword, 10) },
+      data: {
+        passwordHash: await bcrypt.hash(dto.newPassword, 10),
+        tokenVersion: { increment: 1 },
+      },
     });
-    return { ok: true };
+    const payload: JwtPayload = {
+      sub: updated.id,
+      email: updated.email,
+      isAdmin: true,
+      role: updated.role,
+      tv: updated.tokenVersion,
+    };
+    return { ok: true, token: await this.jwt.signAsync(payload) };
   }
 
   /**

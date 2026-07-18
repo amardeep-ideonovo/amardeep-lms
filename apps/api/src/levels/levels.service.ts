@@ -33,6 +33,7 @@ type LevelWithPrices = {
   name: string;
   slug: string | null;
   published: boolean;
+  archivedAt: Date | null;
   type: any;
   audienceTags: string[];
   audienceId: string | null;
@@ -74,6 +75,7 @@ export class LevelsService {
       name: level.name,
       slug: level.slug,
       published: level.published,
+      archivedAt: level.archivedAt ? level.archivedAt.toISOString() : null,
       type: level.type,
       audienceTags: level.audienceTags,
       audienceId: level.audienceId,
@@ -785,10 +787,48 @@ export class LevelsService {
   async remove(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.level.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Level not found');
-    // Issued-certificate rows cascade with the level; their rendered PDFs
-    // don't, so unlink them first (best-effort).
-    await this.certificates.unlinkFilesForLevel(id).catch(() => undefined);
+    // Guard: refuse to hard-delete a class that still has paying/paused members.
+    // Deleting cascade-revokes their UserLevel access WITHOUT canceling their
+    // subscription (they'd keep being billed with no access). Cancel their subs
+    // or archive the class instead.
+    const active = await this.prisma.userLevel.count({
+      where: { levelId: id, status: { in: ['ACTIVE', 'PAST_DUE', 'PAUSED'] } },
+    });
+    if (active > 0) {
+      throw new ConflictException(
+        `Cannot delete: ${active} member grant(s) are still active. Cancel their subscriptions or archive this class instead.`,
+      );
+    }
+    // NOTE: we deliberately do NOT unlink certificate files here. Certificate.level
+    // is SetNull, so issued certificates (and their PDFs) survive a class deletion
+    // — they stay publicly verifiable and downloadable.
     await this.prisma.level.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  /**
+   * Soft-archive a class: hide it from members (published:false makes the
+   * existing member-facing `published:true` filters skip it) while KEEPING every
+   * grant, subscription, and issued certificate intact. The ergonomic
+   * alternative to a hard delete when a class still has members.
+   */
+  async archive(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.level.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Level not found');
+    await this.prisma.level.update({
+      where: { id },
+      data: { archivedAt: new Date(), published: false },
+    });
+    return { ok: true };
+  }
+
+  async unarchive(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.level.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Level not found');
+    await this.prisma.level.update({
+      where: { id },
+      data: { archivedAt: null },
+    });
     return { ok: true };
   }
 

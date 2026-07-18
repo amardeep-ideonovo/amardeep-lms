@@ -10,6 +10,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -189,6 +190,7 @@ export class BillingController {
   // registered for this exact path in main.ts.
   @Post('webhook')
   @HttpCode(200)
+  @SkipThrottle() // Stripe bursts events; never rate-limit the signed webhook.
   async webhook(
     @Req() req: Request,
     @Headers('stripe-signature') signature: string,
@@ -207,6 +209,7 @@ export class BillingController {
   // byte-exact original payload.
   @Post('paypal/webhook')
   @HttpCode(200)
+  @SkipThrottle() // never rate-limit the PayPal webhook.
   async paypalWebhook(@Req() req: Request) {
     const rawBody = req.body as Buffer;
     if (!Buffer.isBuffer(rawBody)) {

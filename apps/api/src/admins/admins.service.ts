@@ -123,9 +123,14 @@ export class AdminsService {
       select: { id: true },
     });
     if (!target) throw new NotFoundException('Admin not found');
+    // Bump tokenVersion so the target admin's existing sessions are revoked —
+    // a super-admin reset must lock the target out of any live session.
     await this.prisma.admin.update({
       where: { id },
-      data: { passwordHash: await bcrypt.hash(password, 10) },
+      data: {
+        passwordHash: await bcrypt.hash(password, 10),
+        tokenVersion: { increment: 1 },
+      },
     });
     return { ok: true };
   }

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -45,8 +46,14 @@ export class LmsService {
    * List courses. When `userId` is given (member context), compute `locked`
    * from the user's active levels; admins (no userId) see everything unlocked.
    */
-  async listCourses(userId?: string): Promise<CourseCard[]> {
+  async listCourses(
+    userId?: string,
+    includeArchived = false,
+  ): Promise<CourseCard[]> {
     const courses = await this.prisma.course.findMany({
+      // Members never see archived courses; admins (includeArchived) see all so
+      // they can badge + unarchive them.
+      where: includeArchived ? {} : { archivedAt: null },
       orderBy: { order: 'asc' },
       include: {
         courseLevels: { select: { levelId: true } },
@@ -88,6 +95,7 @@ export class LmsService {
         priceAmount: c.priceAmount,
         priceCurrency: c.priceCurrency,
         priceActive: c.priceActive,
+        archivedAt: c.archivedAt ? c.archivedAt.toISOString() : null,
       };
     });
   }
@@ -192,12 +200,49 @@ export class LmsService {
       },
     });
     if (!existing) throw new NotFoundException('Course not found');
+    // Guard: refuse to hard-delete a course that members still own. UserCourse
+    // is Cascade, so deleting wipes lifetime one-off purchases along with their
+    // Stripe payment-correlation fields (breaking refund/chargeback handling).
+    // Archive it instead.
+    const active = await this.prisma.userCourse.count({
+      where: { courseId: id, status: 'ACTIVE' },
+    });
+    if (active > 0) {
+      throw new ConflictException(
+        `Cannot delete: ${active} member(s) own this course. Archive it instead.`,
+      );
+    }
     // DB cascades lessons/levels/notes; clean up the note files on disk too.
     const files = existing.lessons.flatMap((l) =>
       l.notes.map((n) => n.filename),
     );
     await this.prisma.course.delete({ where: { id } });
     this.unlinkNoteFiles(files);
+    return { ok: true };
+  }
+
+  /**
+   * Soft-archive a course: hide it from members while KEEPING every lifetime
+   * purchase (UserCourse) + its payment correlation. The ergonomic alternative
+   * to a hard delete when members still own the course.
+   */
+  async archiveCourse(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.course.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Course not found');
+    await this.prisma.course.update({
+      where: { id },
+      data: { archivedAt: new Date() },
+    });
+    return { ok: true };
+  }
+
+  async unarchiveCourse(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.course.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Course not found');
+    await this.prisma.course.update({
+      where: { id },
+      data: { archivedAt: null },
+    });
     return { ok: true };
   }
 
