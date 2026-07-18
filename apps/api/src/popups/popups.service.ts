@@ -17,6 +17,7 @@ import type {
 } from '@lms/types';
 import type { Prisma } from '@prisma/client';
 import sanitizeHtml from 'sanitize-html';
+import { ALLOWED_STYLES } from '../common/sanitize-styles';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePopupDto, UpdatePopupDto } from './dto/popup.dto';
 
@@ -36,6 +37,7 @@ const SANITIZE_OPTS: sanitizeHtml.IOptions = {
     img: ['src', 'alt', 'title', 'width', 'height'],
     '*': ['style'],
   },
+  allowedStyles: ALLOWED_STYLES,
   allowedSchemes: ['http', 'https', 'mailto'],
   allowedSchemesByTag: { img: ['http', 'https', 'data'] },
   transformTags: {

@@ -8,6 +8,7 @@ import type {
   PostStatus,
 } from '@lms/types';
 import sanitizeHtml from 'sanitize-html';
+import { ALLOWED_STYLES } from '../common/sanitize-styles';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreatePostCategoryDto,
@@ -30,6 +31,7 @@ const SANITIZE_OPTS: sanitizeHtml.IOptions = {
     img: ['src', 'alt', 'title', 'width', 'height'],
     '*': ['style'],
   },
+  allowedStyles: ALLOWED_STYLES,
   // No data: in <a href> (phishing/JS vector); data: only for inline images.
   allowedSchemes: ['http', 'https', 'mailto'],
   allowedSchemesByTag: { img: ['http', 'https', 'data'] },
