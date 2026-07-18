@@ -202,7 +202,10 @@ export class MembersService {
   /**
    * Admin override: set a member's password directly. Unlike the member's own
    * change-password flow, no current password is required (the admin is trusted).
-   * Existing sessions stay valid until their token expires.
+   * Bumps tokenVersion so every outstanding JWT for the member is revoked — an
+   * admin-forced reset is typically for a locked-out or compromised account, so
+   * any attacker session must die immediately (mirrors AdminsService.setPassword
+   * and the self-service password paths).
    */
   async setPassword(
     id: string,
@@ -215,7 +218,10 @@ export class MembersService {
     });
     if (!user) throw new NotFoundException('Member not found');
     const passwordHash = await bcrypt.hash(newPassword, 10);
-    await this.prisma.user.update({ where: { id }, data: { passwordHash } });
+    await this.prisma.user.update({
+      where: { id },
+      data: { passwordHash, tokenVersion: { increment: 1 } },
+    });
     await this.audit.write({
       actorAdminId: actor?.adminId,
       action: 'member.password_reset',
