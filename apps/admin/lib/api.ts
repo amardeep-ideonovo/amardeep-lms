@@ -437,6 +437,12 @@ export const api = {
   updateLevel: (id: string, input: Partial<CreateLevelInput>) =>
     request<LevelDTO>("PATCH", `/levels/${id}`, input),
   deleteLevel: (id: string) => request<void>("DELETE", `/levels/${id}`),
+  // Soft-archive: hide from members but keep grants/subs/certs (the non-
+  // destructive alternative when a class still has members).
+  archiveLevel: (id: string) =>
+    request<{ ok: true }>("PATCH", `/levels/${id}/archive`),
+  unarchiveLevel: (id: string) =>
+    request<{ ok: true }>("PATCH", `/levels/${id}/unarchive`),
   listLevelCategories: () =>
     request<LevelCategoryDTO[]>("GET", "/levels/categories"),
   createLevelCategory: (name: string, order?: number) =>
@@ -594,6 +600,10 @@ export const api = {
   updateCourse: (id: string, input: UpdateCourseInput) =>
     request<CourseCard>("PATCH", `/courses/${id}`, input),
   deleteCourse: (id: string) => request<void>("DELETE", `/courses/${id}`),
+  archiveCourse: (id: string) =>
+    request<{ ok: true }>("PATCH", `/courses/${id}/archive`),
+  unarchiveCourse: (id: string) =>
+    request<{ ok: true }>("PATCH", `/courses/${id}/unarchive`),
   listCourseLessons: (courseId: string) =>
     request<LessonDTO[]>("GET", `/courses/${courseId}/lessons`),
   createLesson: (courseId: string, input: CreateLessonInput) =>

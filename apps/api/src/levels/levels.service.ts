@@ -33,6 +33,7 @@ type LevelWithPrices = {
   name: string;
   slug: string | null;
   published: boolean;
+  archivedAt: Date | null;
   type: any;
   audienceTags: string[];
   audienceId: string | null;
@@ -74,6 +75,7 @@ export class LevelsService {
       name: level.name,
       slug: level.slug,
       published: level.published,
+      archivedAt: level.archivedAt ? level.archivedAt.toISOString() : null,
       type: level.type,
       audienceTags: level.audienceTags,
       audienceId: level.audienceId,

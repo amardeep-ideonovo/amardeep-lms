@@ -177,6 +177,7 @@ export interface LevelDTO {
   name: string;
   slug: string | null; // pretty checkout URL key (/checkout/<slug>); null = use raw id
   published: boolean; // show as a class tile on the member dashboard
+  archivedAt: string | null; // ISO when soft-archived (hidden from members, grants kept); null = active
   type: LevelType;
   audienceTags: string[]; // tag names applied within the in-house audience on grant
   audienceId: string | null; // in-house Audience this class captures granted members into (null = default "Members" audience)
