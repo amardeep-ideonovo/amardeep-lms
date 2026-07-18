@@ -4,9 +4,13 @@ import {
   Controller,
   Delete,
   Get,
+  Ip,
   Put,
   UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from '../auth/current-user.decorator';
+import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
+import { AuditService } from '../audit/audit.service';
 import { IsOptional, IsString } from 'class-validator';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermission } from '../auth/require-permission.decorator';
@@ -38,7 +42,10 @@ const last4 = (s: string | null): string | null => (s ? s.slice(-4) : null);
 @UseGuards(PermissionsGuard)
 @Controller('admin/settings')
 export class SettingsController {
-  constructor(private readonly settings: SettingsService) {}
+  constructor(
+    private readonly settings: SettingsService,
+    private readonly audit: AuditService,
+  ) {}
 
   @Get('stripe')
   @RequirePermission('settings', 'read')
@@ -58,7 +65,11 @@ export class SettingsController {
 
   @Put('stripe')
   @RequirePermission('settings', 'edit')
-  async putStripe(@Body() dto: UpdateStripeSettingsDto) {
+  async putStripe(
+    @Body() dto: UpdateStripeSettingsDto,
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Ip() ip: string,
+  ) {
     await this.settings.setSecret(SETTING_KEYS.stripeSecretKey, dto.secretKey);
     await this.settings.setSecret(
       SETTING_KEYS.stripeWebhookSecret,
@@ -68,13 +79,28 @@ export class SettingsController {
       SETTING_KEYS.stripePublishableKey,
       dto.publishableKey,
     );
+    await this.audit.write({
+      actorAdminId: principal.sub,
+      action: 'settings.stripe_rotate',
+      targetType: 'setting',
+      ip,
+    });
     return this.getStripe();
   }
 
   @Delete('stripe')
   @RequirePermission('settings', 'delete')
-  async deleteStripe() {
+  async deleteStripe(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Ip() ip: string,
+  ) {
     await this.settings.clearStripe();
+    await this.audit.write({
+      actorAdminId: principal.sub,
+      action: 'settings.stripe_clear',
+      targetType: 'setting',
+      ip,
+    });
     return this.getStripe();
   }
 
@@ -206,7 +232,11 @@ export class SettingsController {
 
   @Put('paypal')
   @RequirePermission('settings', 'edit')
-  async putPayPal(@Body() dto: UpdatePayPalSettingsDto) {
+  async putPayPal(
+    @Body() dto: UpdatePayPalSettingsDto,
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Ip() ip: string,
+  ) {
     // Plan/product ids are environment-scoped at PayPal — a different app or a
     // sandbox↔live switch invalidates them all, so detect the change first.
     const [prevClientId, prevMode] = await Promise.all([
@@ -229,6 +259,13 @@ export class SettingsController {
     if (clientChanged || modeChanged) {
       await this.settings.clearPayPalProvisionedIds();
     }
+    await this.audit.write({
+      actorAdminId: principal.sub,
+      action: 'settings.paypal_rotate',
+      targetType: 'setting',
+      metadata: { mode: dto.mode ?? null },
+      ip,
+    });
     return this.getPayPal();
   }
 
