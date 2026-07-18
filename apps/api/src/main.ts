@@ -112,7 +112,15 @@ async function bootstrap() {
   // Course/lesson images live under IMAGES_ROOT too, so this one static mount
   // serves them all. Lesson NOTE files are deliberately NOT served here — they
   // stream through an access-checked route (see LmsController).
-  app.use(IMAGES_ROUTE, express.static(IMAGES_ROOT));
+  // nosniff for parity with the /media + cert-fonts mounts — stops content-type
+  // confusion on a mislabeled upload (defense-in-depth; only image extensions
+  // are accepted here and filenames are server-generated).
+  app.use(
+    IMAGES_ROUTE,
+    express.static(IMAGES_ROOT, {
+      setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+    }),
+  );
 
   // Media Library (Gallery): publicly served so each asset has an embeddable
   // URL. `nosniff` stops content-type confusion; SVGs are sanitized on upload.
