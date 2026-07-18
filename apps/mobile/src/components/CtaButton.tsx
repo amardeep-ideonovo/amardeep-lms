@@ -36,6 +36,10 @@ export function CtaButton({
       style={[{ borderRadius: radius }, disabled && styles.disabled, style]}
       onPress={onPress}
       disabled={disabled || busy}
+      accessibilityRole="button"
+      accessibilityLabel={typeof label === "string" ? label : undefined}
+      accessibilityState={{ disabled: disabled || busy, busy }}
+      hitSlop={8}
     >
       <LinearGradient
         colors={[colors.ctaStart, colors.ctaEnd]}

@@ -111,6 +111,25 @@ function onColor(hex: string): string {
   return luminance(hex) > 0.45 ? "#101828" : "#ffffff";
 }
 
+// WCAG contrast ratio between two #rrggbb colors.
+function contrastRatio(a: string, b: string): number {
+  const la = luminance(a);
+  const lb = luminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+// Darken a color (drop HSL lightness) until it meets WCAG AA (4.5:1) against bg,
+// so a brand accent used as TEXT stays readable for ANY brand hue — not just
+// clamped by lightness (which doesn't guarantee contrast).
+function darkenUntilAA(hex: string, bg: string): string {
+  const { h, s, l } = hexToHsl(hex);
+  for (let li = l; li >= 0; li -= 0.02) {
+    const c = hslToHex(h, s, li);
+    if (contrastRatio(c, bg) >= 4.5) return c;
+  }
+  return hslToHex(h, s, 0);
+}
+
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
   const n = parseInt(hex.slice(1), 16);
   const r = ((n >> 16) & 255) / 255;
@@ -205,9 +224,12 @@ export function paletteFrom(p: AppThemePalette, mode: "light" | "dark"): ThemePa
     primarySoft:
       mode === "dark"
         ? primaryOnDark
-        : stockPrimary
-          ? "#2a9d8d"
-          : hslToHex(h, Math.max(s, 0.35), Math.min(l, 0.4)),
+        : darkenUntilAA(
+            stockPrimary
+              ? "#2a9d8d"
+              : hslToHex(h, Math.max(s, 0.35), Math.min(l, 0.4)),
+            p.surface,
+          ),
     borderSoft: p.border + "80",
     heroText: "#f4f4f6",
     heroTextSoft: "#c2c2cb",
