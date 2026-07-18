@@ -17,7 +17,16 @@ type EmbeddedClient = {
   leave?: () => Promise<void>;
 };
 
-export default function ZoomEmbed({ embed }: { embed: LiveZoomEmbedDTO }) {
+export default function ZoomEmbed({
+  embed,
+  onUnavailable,
+}: {
+  embed: LiveZoomEmbedDTO;
+  // Called when the in-page join fails (e.g. a present-but-wrong SDK
+  // key/secret mints a bad signature) so the parent can reveal the raw
+  // join-link fallback instead of stranding the member in the embed.
+  onUnavailable?: () => void;
+}) {
   const rootRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<EmbeddedClient | null>(null);
   const [passcode, setPasscode] = useState(embed.password ?? "");
@@ -86,6 +95,22 @@ export default function ZoomEmbed({ embed }: { embed: LiveZoomEmbedDTO }) {
           <button className="live-btn" type="button" onClick={join}>
             {phase === "error" ? "Try again" : "Join meeting here"}
           </button>
+          {phase === "error" && onUnavailable && (
+            <button
+              type="button"
+              onClick={onUnavailable}
+              className="live-hint"
+              style={{
+                background: "none",
+                border: "none",
+                textDecoration: "underline",
+                cursor: "pointer",
+                marginTop: 8,
+              }}
+            >
+              Having trouble? Join in Zoom directly instead
+            </button>
+          )}
         </div>
       )}
       {phase === "joining" && (
