@@ -444,6 +444,16 @@ export class StripeService {
     return stripe.subscriptions.retrieve(subId);
   }
 
+  async retrieveCharge(chargeId: string): Promise<Stripe.Charge> {
+    const stripe = await this.getClient();
+    return stripe.charges.retrieve(chargeId);
+  }
+
+  async retrieveInvoice(invoiceId: string): Promise<Stripe.Invoice> {
+    const stripe = await this.getClient();
+    return stripe.invoices.retrieve(invoiceId);
+  }
+
   // Cancel immediately. Used when an installment plan is paid in full: the member
   // keeps lifetime access via their UserLevel grant, so there's no reason to keep
   // the subscription around or let it bill again.
