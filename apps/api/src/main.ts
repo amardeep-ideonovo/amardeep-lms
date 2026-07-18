@@ -7,6 +7,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { isProduction } from './common/env.util';
 import { IMAGES_ROOT, IMAGES_ROUTE, ensureUploadDirs } from './blog/upload.config';
@@ -56,6 +57,19 @@ async function bootstrap() {
   // owns /forms preflight (responds to OPTIONS with `*`). For the real GET/POST
   // the global cors below may overwrite ACAO with the matching origin (still
   // valid) or leave our `*` (external origins). These routes carry no cookies.
+  // Security headers (HSTS, X-Frame-Options, Referrer-Policy, global nosniff, …).
+  // This API serves EMBEDDABLE assets (/media, /images, cert fonts) to the
+  // separately-hosted web/admin/mobile clients, so allow cross-origin resource
+  // loading and disable CSP (it's a JSON + asset API, not an HTML app) — a
+  // same-origin CORP would otherwise block those cross-origin loads.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
+
   app.use(
     '/forms',
     (req: express.Request, res: express.Response, next: express.NextFunction) => {
