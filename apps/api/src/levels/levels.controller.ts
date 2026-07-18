@@ -111,4 +111,20 @@ export class LevelsController {
   remove(@Param('id') id: string) {
     return this.levels.remove(id);
   }
+
+  // Soft-archive: a reversible 'edit' state change (hides the class from members
+  // but keeps grants/subs/certs), unlike the destructive 'delete' above.
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('classes', 'edit')
+  @Patch(':id/archive')
+  archive(@Param('id') id: string) {
+    return this.levels.archive(id);
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('classes', 'edit')
+  @Patch(':id/unarchive')
+  unarchive(@Param('id') id: string) {
+    return this.levels.unarchive(id);
+  }
 }

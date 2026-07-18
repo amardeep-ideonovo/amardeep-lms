@@ -518,6 +518,7 @@ export interface CourseCard {
   // priceAmount/priceCurrency/priceActive are the RAW configured values (minor
   // units for the amount), always present so the admin edit form can round-trip
   // them; priceAmount is null when no one-off price is set.
+  archivedAt?: string | null; // ISO when soft-archived (admin view only); null = active
   purchasable?: boolean;
   priceAmount?: number | null;
   priceCurrency?: string;
@@ -657,7 +658,7 @@ export interface ClaimCertificateInput {
 export interface MyCertificateDTO {
   id: string;
   serial: string;
-  levelId: string;
+  levelId: string | null; // null once the class was deleted (cert survives)
   className: string; // snapshot at claim time
   memberName: string; // snapshot at claim time
   issuedAt: string; // ISO

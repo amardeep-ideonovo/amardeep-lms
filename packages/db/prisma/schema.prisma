@@ -99,6 +99,7 @@ model Level {
   // Completion-certificate template override; null = use the default template.
   certificateTemplateId String?
   createdAt             DateTime  @default(now())
+  archivedAt            DateTime? // soft-archive: hidden from members, grants/certs kept (vs hard delete)
 
   prices              Price[]
   userLevels          UserLevel[]
@@ -203,6 +204,7 @@ model Course {
   priceCurrency String   @default("usd")
   priceActive   Boolean  @default(true)
   createdAt     DateTime @default(now())
+  archivedAt    DateTime? // soft-archive: hidden from members, purchases kept (vs hard delete)
 
   lessons          Lesson[]
   courseLevels     CourseLevel[]
@@ -775,8 +777,11 @@ model Certificate {
   serial     String               @unique // CERT-<year>-<6 chars>, printed on the PDF + publicly verifiable
   userId     String
   user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  levelId    String
-  level      Level                @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  // Nullable + SetNull: an issued certificate is a permanent, independently
+  // verifiable record (serial/memberName/className/fileKey are snapshots), so
+  // deleting its class must NOT destroy it — the levelId just goes null.
+  levelId    String?
+  level      Level?               @relation(fields: [levelId], references: [id], onDelete: SetNull)
   templateId String?
   template   CertificateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   memberName String

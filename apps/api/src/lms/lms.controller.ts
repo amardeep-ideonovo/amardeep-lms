@@ -109,7 +109,11 @@ export class LmsController {
   @UseGuards(JwtAuthGuard)
   @Get('courses')
   listCourses(@CurrentUser() principal: AuthenticatedPrincipal) {
-    return this.lms.listCourses(this.memberContext(principal));
+    // Admins see archived courses (to badge + unarchive); members never do.
+    return this.lms.listCourses(
+      this.memberContext(principal),
+      principal.isAdmin,
+    );
   }
 
   @UseGuards(PermissionsGuard)
@@ -131,6 +135,22 @@ export class LmsController {
   @Delete('courses/:id')
   deleteCourse(@Param('id') id: string) {
     return this.lms.deleteCourse(id);
+  }
+
+  // Soft-archive: a reversible 'edit' state change (hides the course from
+  // members but keeps lifetime purchases), unlike the destructive 'delete'.
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('courses', 'edit')
+  @Patch('courses/:id/archive')
+  archiveCourse(@Param('id') id: string) {
+    return this.lms.archiveCourse(id);
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('courses', 'edit')
+  @Patch('courses/:id/unarchive')
+  unarchiveCourse(@Param('id') id: string) {
+    return this.lms.unarchiveCourse(id);
   }
 
   // Upload a course image (thumbnail or cover). Saved under the public
