@@ -18,6 +18,7 @@ export type ThemePalette = AppThemePalette & {
   inkCard: string; // ink cards floated on light surfaces (live strip, certs)
   ctaStart: string; // teal CTA gradient (design --teal-grad)
   ctaEnd: string;
+  onCta: string; // label color legible on the CTA gradient (white or dark ink)
   primaryOnDark: string; // primary accent legible on chrome/ink surfaces
   gradientStart: string; // hero-band gradient start (primary-tinted shade)
   gradientEnd: string; // hero-band gradient end (= bg)
@@ -192,6 +193,9 @@ export function paletteFrom(p: AppThemePalette, mode: "light" | "dark"): ThemePa
     inkCard,
     ctaStart,
     ctaEnd,
+    // Label color chosen against the LIGHTER gradient stop (worst case for white
+    // text), so a light brand accent gets dark ink instead of unreadable white.
+    onCta: onColor(luminance(ctaStart) >= luminance(ctaEnd) ? ctaStart : ctaEnd),
     primaryOnDark,
     gradientStart: hslToHex(h, 0.36, mode === "dark" ? 0.17 : 0.92),
     gradientEnd: p.bg,

@@ -44,11 +44,13 @@ export function CtaButton({
         style={[styles.grad, { borderRadius: radius }]}
       >
         {busy ? (
-          <ActivityIndicator color="#ffffff" />
+          <ActivityIndicator color={colors.onCta} />
         ) : (
           <View style={styles.row}>
             {icon}
-            <Text style={[styles.label, textStyle]}>{label}</Text>
+            <Text style={[styles.label, { color: colors.onCta }, textStyle]}>
+              {label}
+            </Text>
           </View>
         )}
       </LinearGradient>
