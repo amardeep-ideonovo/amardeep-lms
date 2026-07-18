@@ -72,6 +72,23 @@ model Admin {
   liveSessions      LiveSession[]           @relation("AdminLiveSessions")
 }
 
+// Append-only trace of privileged admin actions (password resets, manual level
+// grants, payment-key rotations, …). Kept deliberately generic (action string +
+// target + JSON metadata) so new actions don't need a schema change.
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorAdminId String? // the admin who did it (null = system/unknown)
+  action       String // e.g. "member.password_reset", "member.level_grant", "settings.secret_rotate"
+  targetType   String? // "user" | "level" | "setting" | …
+  targetId     String?
+  metadata     Json     @default("{}")
+  ip           String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorAdminId])
+}
+
 // ---------- Membership levels ----------
 
 enum LevelType {

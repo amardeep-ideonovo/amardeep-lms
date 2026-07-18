@@ -10,6 +10,9 @@ import type { MemberRow } from '@lms/types';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
+
+type ActorContext = { adminId?: string | null; ip?: string | null };
 import { ContactsService } from '../contacts/contacts.service';
 import { StripeService } from '../billing/stripe.service';
 import { UpdateMemberDto } from './dto/member.dto';
@@ -27,6 +30,7 @@ export class MembersService {
     private readonly prisma: PrismaService,
     private readonly contacts: ContactsService,
     private readonly stripe: StripeService,
+    private readonly audit: AuditService,
   ) {}
 
   private static readonly WITH_LEVELS = {
@@ -200,7 +204,11 @@ export class MembersService {
    * change-password flow, no current password is required (the admin is trusted).
    * Existing sessions stay valid until their token expires.
    */
-  async setPassword(id: string, newPassword: string): Promise<{ ok: true }> {
+  async setPassword(
+    id: string,
+    newPassword: string,
+    actor?: ActorContext,
+  ): Promise<{ ok: true }> {
     const user = await this.prisma.user.findUnique({
       where: { id },
       select: { id: true },
@@ -208,11 +216,22 @@ export class MembersService {
     if (!user) throw new NotFoundException('Member not found');
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await this.prisma.user.update({ where: { id }, data: { passwordHash } });
+    await this.audit.write({
+      actorAdminId: actor?.adminId,
+      action: 'member.password_reset',
+      targetType: 'user',
+      targetId: id,
+      ip: actor?.ip,
+    });
     return { ok: true };
   }
 
   /** Manually grant a level (source=MANUAL, status=ACTIVE) + enqueue tag add. */
-  async addLevel(userId: string, levelId: string): Promise<{ ok: true }> {
+  async addLevel(
+    userId: string,
+    levelId: string,
+    actor?: ActorContext,
+  ): Promise<{ ok: true }> {
     const [user, level] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: userId } }),
       this.prisma.level.findUnique({ where: { id: levelId } }),
@@ -248,6 +267,14 @@ export class MembersService {
         }`,
       );
     }
+    await this.audit.write({
+      actorAdminId: actor?.adminId,
+      action: 'member.level_grant',
+      targetType: 'user',
+      targetId: userId,
+      metadata: { levelId },
+      ip: actor?.ip,
+    });
     return { ok: true };
   }
 

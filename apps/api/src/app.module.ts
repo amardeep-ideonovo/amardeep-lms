@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { SentryModule } from '@sentry/nestjs/setup';
 import { PrismaModule } from './prisma/prisma.module';
+import { AuditModule } from './audit/audit.module';
 import { QueueModule } from './queue/queue.module';
 import { SettingsModule } from './settings/settings.module';
 import { ContactsModule } from './contacts/contacts.module';
@@ -40,6 +41,7 @@ import { HealthModule } from './health/health.module';
     SentryModule.forRoot(),
     // Global infrastructure modules.
     PrismaModule,
+    AuditModule,
     QueueModule,
     SettingsModule,
     ContactsModule,
