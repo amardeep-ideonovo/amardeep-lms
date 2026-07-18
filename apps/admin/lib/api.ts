@@ -813,6 +813,14 @@ export const api = {
   deleteSegment: (id: string) =>
     request<{ ok: true }>("DELETE", `/admin/segments/${id}`),
 
+  // deliverability health: is the active provider's From domain sendable?
+  // resendDomainVerified === false → Resend will silently drop sends.
+  getEmailHealth: () =>
+    request<{ provider: "smtp" | "resend"; resendDomainVerified: boolean | null }>(
+      "GET",
+      "/admin/email/health",
+    ),
+
   // email templates (MJML + Handlebars)
   listEmailTemplates: () =>
     request<EmailTemplateDTO[]>("GET", "/admin/email/templates"),

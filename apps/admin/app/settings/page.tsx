@@ -585,6 +585,11 @@ function EmailSenderSection() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Live Resend deliverability: false = From domain is NOT verified (Resend
+  // silently drops sends), null = no verdict (SMTP, unconfigured, unreachable).
+  const [resendDomainVerified, setResendDomainVerified] = useState<
+    boolean | null
+  >(null);
 
   // Mirror the loaded (non-secret) config into the editable fields.
   function hydrate(s: EmailSettingsMasked) {
@@ -598,10 +603,21 @@ function EmailSenderSection() {
     setSecure(s.secure);
   }
 
+  // Best-effort deliverability probe; never blocks or errors the settings form.
+  async function refreshHealth() {
+    try {
+      const h = await api.getEmailHealth();
+      setResendDomainVerified(h.resendDomainVerified);
+    } catch {
+      setResendDomainVerified(null);
+    }
+  }
+
   async function load() {
     setError(null);
     try {
       hydrate(await api.getEmailSettings());
+      void refreshHealth();
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Failed to load email settings"
@@ -636,6 +652,7 @@ function EmailSenderSection() {
       setPass("");
       setResendApiKey("");
       setStatus("Email settings saved.");
+      void refreshHealth();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Save failed");
     } finally {
@@ -660,6 +677,7 @@ function EmailSenderSection() {
       hydrate(cleared);
       setPass("");
       setResendApiKey("");
+      setResendDomainVerified(null);
       setStatus("Email settings removed.");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Remove failed");
@@ -676,6 +694,20 @@ function EmailSenderSection() {
         Until it’s configured, messages (like the signup welcome) are logged but
         not delivered.
       </p>
+      {provider === "resend" && resendDomainVerified === false && (
+        <p
+          className="error"
+          role="alert"
+          style={{ display: "flex", gap: 8, alignItems: "flex-start" }}
+        >
+          <span aria-hidden="true">⚠</span>
+          <span>
+            Your From domain is <strong>not verified</strong> in Resend. Sends
+            will be silently rejected. Add and verify the domain in your Resend
+            dashboard (Domains → add the DNS records), then reload this page.
+          </span>
+        </p>
+      )}
       <form onSubmit={save}>
         <div className="field" style={{ display: "grid", gap: 6 }}>
           <label>Provider</label>

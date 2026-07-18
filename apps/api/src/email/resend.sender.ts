@@ -32,6 +32,35 @@ export class ResendMailSender implements MailSender {
     return !!apiKey && !!fromEmail;
   }
 
+  // Live health check: is the From domain actually VERIFIED in Resend? Resend
+  // silently rejects sends from an unverified domain (delivery fails even though
+  // isConfigured() is true), so the admin needs to see this. Returns null when
+  // not configured or Resend can't be reached — the caller shows no verdict.
+  async domainVerified(): Promise<boolean | null> {
+    const [apiKey, fromEmail] = await Promise.all([
+      this.settings.getEmailResendApiKey(),
+      this.settings.getEmailFromEmail(),
+    ]);
+    const domain = (fromEmail || '').split('@')[1]?.toLowerCase();
+    if (!apiKey || !domain) return null;
+    try {
+      const res = await fetch('https://api.resend.com/domains', {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as {
+        data?: { name?: string; status?: string }[];
+      };
+      const match = (data.data ?? []).find(
+        (d) => d.name?.toLowerCase() === domain,
+      );
+      return match ? match.status === 'verified' : false;
+    } catch {
+      return null;
+    }
+  }
+
   // Resolve "<fromName> <fromEmail>", falling back fromName→app title. Unlike
   // SMTP there is NO fromEmail fallback: Resend rejects sends from an
   // unverified domain, so the address must be configured explicitly.
