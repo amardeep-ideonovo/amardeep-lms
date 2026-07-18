@@ -632,6 +632,24 @@ export const api = {
     request<EmailSettingsMasked>("PUT", "/admin/settings/email", input),
   deleteEmailSettings: () =>
     request<EmailSettingsMasked>("DELETE", "/admin/settings/email"),
+  // Shared secret that authenticates the public bounce/complaint webhook.
+  // Write-only: GET returns only whether one is stored (never the value).
+  getEmailWebhookSecret: () =>
+    request<{ secretSet: boolean }>(
+      "GET",
+      "/admin/settings/email/webhook-secret",
+    ),
+  putEmailWebhookSecret: (secret: string) =>
+    request<{ secretSet: boolean }>(
+      "PUT",
+      "/admin/settings/email/webhook-secret",
+      { secret },
+    ),
+  deleteEmailWebhookSecret: () =>
+    request<{ secretSet: boolean }>(
+      "DELETE",
+      "/admin/settings/email/webhook-secret",
+    ),
   getPayPalSettings: () =>
     request<PayPalSettingsMasked>("GET", "/admin/settings/paypal"),
   putPayPalSettings: (input: PayPalSettings) =>
