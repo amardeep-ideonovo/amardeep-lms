@@ -24,9 +24,13 @@ export function certDownloadScope(certId: string): DownloadScope {
   return `cert:${certId}`;
 }
 
-// A download token reuses the session principal fields (so admin lock-bypass +
-// ownership checks still work) plus the purpose marker and resource scope.
-export interface DownloadTokenPayload extends JwtPayload {
+// A download token carries only what the download path needs — the subject and
+// the admin flag (for the lock-bypass + ownership checks) plus the purpose
+// marker and resource scope. It deliberately OMITS member PII (email/username):
+// this token rides in a `?token=` URL that reaches browser history, the OS share
+// sheet, and server logs, so it must not leak identity.
+export interface DownloadTokenPayload
+  extends Omit<JwtPayload, 'email' | 'username'> {
   typ: 'dl';
   scope: DownloadScope;
 }

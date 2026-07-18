@@ -302,10 +302,7 @@ export class LmsController {
     await this.lms.getDownloadableNote(id, noteId, principal);
     const payload: DownloadTokenPayload = {
       sub: principal.sub,
-      email: principal.email,
-      username: principal.username,
       isAdmin: principal.isAdmin,
-      role: principal.role,
       typ: 'dl',
       scope: noteDownloadScope(id, noteId),
     };
