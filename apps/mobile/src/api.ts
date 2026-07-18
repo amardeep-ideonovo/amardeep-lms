@@ -219,11 +219,16 @@ export const api = {
     }
     return JSON.parse(result.body) as AuthUser;
   },
-  changePassword: (input: ChangePasswordInput) =>
-    request<{ ok: true }>("/auth/change-password", {
-      method: "POST",
-      body: input,
-    }),
+  // The API bumps tokenVersion (revoking other sessions) and returns a fresh
+  // token for THIS session — persist it so the current session isn't logged out.
+  changePassword: async (input: ChangePasswordInput) => {
+    const res = await request<{ ok: true; token: string }>(
+      "/auth/change-password",
+      { method: "POST", body: input },
+    );
+    await setToken(res.token);
+    return res;
+  },
 
   // billing — read + self-cancel + Stripe portal link (NO purchasing in-app)
   levels: () => request<LevelDTO[]>("/levels"),

@@ -348,11 +348,17 @@ export const api = {
       password,
     }),
   me: () => request<AuthAdmin>("GET", "/auth/me"),
-  changeOwnPassword: (currentPassword: string, newPassword: string) =>
-    request<{ ok: true }>("POST", "/auth/admin/change-password", {
-      currentPassword,
-      newPassword,
-    }),
+  // The API bumps tokenVersion (revoking other sessions) and returns a fresh
+  // token for THIS session — store it so the current session survives.
+  changeOwnPassword: async (currentPassword: string, newPassword: string) => {
+    const res = await request<{ ok: true; token: string }>(
+      "POST",
+      "/auth/admin/change-password",
+      { currentPassword, newPassword },
+    );
+    setToken(res.token);
+    return res;
+  },
   // Admin self-service UI prefs (e.g. custom sidebar order). Returns the
   // refreshed AuthAdmin so the caller can update its cached `me` in place.
   updateMyPrefs: (input: UpdateAdminPrefsInput) =>

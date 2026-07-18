@@ -31,6 +31,7 @@ model User {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   emailOptOut      Boolean  @default(false) // set by the email unsubscribe webhook
+  tokenVersion     Int      @default(0) // bumped on password change/reset; invalidates live JWTs (see JwtStrategy)
 
   levels       UserLevel[]
   progress     LessonProgress[]
@@ -61,6 +62,7 @@ model Admin {
   // { menuOrder?: string[] } — the admin's custom sidebar ordering by nav key.
   // Self-service via PATCH /auth/admin/prefs; every admin manages their own.
   prefs        Json      @default("{}")
+  tokenVersion Int       @default(0) // bumped on password change/reset; invalidates live JWTs (see JwtStrategy)
   createdAt    DateTime  @default(now())
 
   posts             Post[]
