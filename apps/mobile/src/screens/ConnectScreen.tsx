@@ -42,7 +42,10 @@ export function ConnectScreen({
   // Validate a binding by fetching the instance's public branding config —
   // proves the URL is a live LMS API before we commit to it. Timed out so a
   // black-holing host doesn't hang the button forever.
-  const validateAndBind = async (b: InstanceBinding) => {
+  const validateAndBind = async (
+    b: InstanceBinding,
+    source: "directory" | "manual",
+  ) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
     let res: Response;
@@ -58,7 +61,7 @@ export function ConnectScreen({
     if (!res.ok) throw new Error("That server doesn't look like an academy.");
     const cfg = (await res.json()) as { title?: string };
     const bound: InstanceBinding = { ...b, name: cfg.title ?? b.name };
-    await bindInstance(bound);
+    await bindInstance(bound, source);
     onConnected(bound);
   };
 
@@ -86,7 +89,7 @@ export function ConnectScreen({
         apiUrl: string;
         webUrl: string;
       };
-      await validateAndBind({ ...data, code: trimmed });
+      await validateAndBind({ ...data, code: trimmed }, "directory");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not connect.");
     } finally {
@@ -104,7 +107,7 @@ export function ConnectScreen({
       const apiUrl = /^https?:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`;
       // Without the directory we don't know the member website URL; default to
       // the API origin (account links degrade gracefully). Dev/self-host path.
-      await validateAndBind({ apiUrl, webUrl: apiUrl });
+      await validateAndBind({ apiUrl, webUrl: apiUrl }, "manual");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not connect.");
     } finally {
