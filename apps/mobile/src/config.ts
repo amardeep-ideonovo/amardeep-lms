@@ -100,7 +100,7 @@ export function isAllowedInstanceUrl(url: string): boolean {
 }
 
 // Optional fleet-domain allowlist for MANUALLY-typed instance URLs. Set
-// EXPO_PUBLIC_FLEET_DOMAIN (e.g. "thewebpanda.com") to require a hand-entered
+// EXPO_PUBLIC_FLEET_DOMAIN (e.g. "thewebpaanda.com") to require a hand-entered
 // server address to be the fleet domain or a subdomain of it. The connect-code
 // / directory path is trusted (the control-plane resolver vetted the URL) and is
 // exempt. Unset = no host restriction (https-only, unchanged behavior).
