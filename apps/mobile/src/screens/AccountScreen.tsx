@@ -100,7 +100,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const [portalError, setPortalError] = useState<string | null>(null);
 
   // Profile photo upload/remove state.
-  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState<null | "pick" | "remove">(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -165,7 +165,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       });
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
-      setAvatarBusy(true);
+      setAvatarBusy("pick");
       const updated = await api.uploadAvatar(asset.uri, asset.mimeType);
       setUser(updated);
     } catch (e) {
@@ -173,12 +173,12 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
         e instanceof Error ? e.message : "Couldn't update your photo.",
       );
     } finally {
-      setAvatarBusy(false);
+      setAvatarBusy(null);
     }
   }
 
   async function removeAvatar() {
-    setAvatarBusy(true);
+    setAvatarBusy("remove");
     setAvatarError(null);
     try {
       const updated = await api.updateMe({ removeAvatar: true });
@@ -188,7 +188,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
         e instanceof Error ? e.message : "Couldn't remove the photo.",
       );
     } finally {
-      setAvatarBusy(false);
+      setAvatarBusy(null);
     }
   }
 
@@ -332,7 +332,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
 
               {mode === "view" ? (
                 <>
-                  <View style={styles.avatarBlock}>
+                  <View
+                    style={[styles.avatarBlock, avatarBusy && { opacity: 0.6 }]}
+                  >
                     {user.avatarUrl ? (
                       <Image
                         source={{ uri: user.avatarUrl }}
@@ -349,12 +351,12 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       <TouchableOpacity
                         style={[styles.btnSecondary, styles.grow]}
                         onPress={pickAvatar}
-                        disabled={avatarBusy}
+                        disabled={!!avatarBusy}
                         activeOpacity={0.8}
                       >
                         <Text style={styles.btnSecondaryText}>
-                          {avatarBusy
-                            ? "Working…"
+                          {avatarBusy === "pick"
+                            ? "Uploading…"
                             : user.avatarUrl
                               ? "Change photo"
                               : "Add photo"}
@@ -364,10 +366,12 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                         <TouchableOpacity
                           style={[styles.btnSecondary, styles.grow]}
                           onPress={removeAvatar}
-                          disabled={avatarBusy}
+                          disabled={!!avatarBusy}
                           activeOpacity={0.8}
                         >
-                          <Text style={styles.btnSecondaryText}>Remove</Text>
+                          <Text style={styles.btnSecondaryText}>
+                            {avatarBusy === "remove" ? "Removing…" : "Remove"}
+                          </Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>
