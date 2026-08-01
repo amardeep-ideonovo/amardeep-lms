@@ -25,6 +25,7 @@ import { useAppConfig } from "../config-provider";
 import { WEB_BASE_URL } from "../config";
 import { fmtDate, money } from "../format";
 import type { TabScreenProps } from "../navigation";
+import { optimistic } from "../optimistic";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
@@ -159,6 +160,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   // upload. The picker's allowsEditing flow IS the resize/crop step on mobile.
   async function pickAvatar() {
     setAvatarError(null);
+    // Set once the optimistic swap has happened, so a failure BEFORE it (denied
+    // permission, a picker error) has nothing to undo.
+    let revert: (() => void) | null = null;
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
@@ -174,9 +178,17 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
       setAvatarBusy("pick");
-      const updated = await api.uploadAvatar(asset.uri, asset.mimeType);
-      setUser(updated);
+      // Optimistic: show the photo the member just cropped instead of leaving
+      // the OLD one up for the whole upload. <Image> renders the picker's local
+      // file:// URI exactly like the served /media URL, so when the response
+      // lands the swap to the real URL is invisible. A profile photo is
+      // cosmetic — it grants nothing — so it is safe to be wrong about.
+      revert = optimistic(setUser, (prev) =>
+        prev ? { ...prev, avatarUrl: asset.uri } : prev,
+      );
+      setUser(await api.uploadAvatar(asset.uri, asset.mimeType));
     } catch (e) {
+      revert?.(); // upload failed -> the previous photo comes back
       setAvatarError(
         e instanceof Error ? e.message : "Couldn't update your photo.",
       );
@@ -188,10 +200,15 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   async function removeAvatar() {
     setAvatarBusy("remove");
     setAvatarError(null);
+    // Optimistic in the same way: the photo drops to the initials fallback now,
+    // and comes back untouched if the request fails.
+    const revert = optimistic(setUser, (prev) =>
+      prev ? { ...prev, avatarUrl: null } : prev,
+    );
     try {
-      const updated = await api.updateMe({ removeAvatar: true });
-      setUser(updated);
+      setUser(await api.updateMe({ removeAvatar: true }));
     } catch (e) {
+      revert();
       setAvatarError(
         e instanceof Error ? e.message : "Couldn't remove the photo.",
       );
@@ -370,7 +387,11 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                               : "Add photo"}
                         </Text>
                       </TouchableOpacity>
-                      {user.avatarUrl ? (
+                      {/* The optimistic remove clears `avatarUrl` immediately,
+                          which would yank this button out from under the tap —
+                          keep it mounted for the in-flight window so its
+                          "Removing…" state still reads. */}
+                      {user.avatarUrl || avatarBusy === "remove" ? (
                         <TouchableOpacity
                           style={[styles.btnSecondary, styles.grow]}
                           onPress={removeAvatar}
