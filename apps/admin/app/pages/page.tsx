@@ -18,6 +18,9 @@ export default function PagesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Per-row guard for publish/delete so a row's own control can disable while
+  // its mutation + reload run (separate from `busy`, which owns "New page").
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -89,6 +92,7 @@ export default function PagesPage() {
 
   async function togglePublish(p: PageListItem) {
     setError(null);
+    setRowBusy(p.id);
     try {
       await api.updatePage(p.id, {
         status: p.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED",
@@ -96,6 +100,8 @@ export default function PagesPage() {
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to update status");
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -108,11 +114,14 @@ export default function PagesPage() {
     )
       return;
     setError(null);
+    setRowBusy(p.id);
     try {
       await api.deletePage(p.id);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete page");
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -214,12 +223,18 @@ export default function PagesPage() {
                       <button
                         className="btn btn--ghost btn--sm"
                         onClick={() => togglePublish(p)}
+                        disabled={rowBusy === p.id}
                       >
-                        {p.status === "PUBLISHED" ? "Unpublish" : "Publish"}
+                        {rowBusy === p.id
+                          ? "Saving…"
+                          : p.status === "PUBLISHED"
+                            ? "Unpublish"
+                            : "Publish"}
                       </button>
                       <button
                         className="btn btn--danger btn--sm"
                         onClick={() => remove(p)}
+                        disabled={rowBusy === p.id}
                       >
                         Delete
                       </button>

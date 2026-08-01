@@ -184,6 +184,8 @@ export default function LiveSessionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Names the session whose delete is mid-flight so its row menu locks.
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
   const [mode, setMode] = useState<"list" | "edit">("list");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<EditorState>(newSession());
@@ -383,11 +385,14 @@ export default function LiveSessionsPage() {
     });
     if (!ok) return;
     setError(null);
+    setRowBusy(s.id);
     try {
       await api.deleteLiveSession(s.id);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete");
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -427,6 +432,7 @@ export default function LiveSessionsPage() {
                 label: s.status === "SCHEDULED" ? "Cancel session" : "Delete",
                 danger: true,
                 onClick: () => remove(s),
+                disabled: rowBusy === s.id,
               },
             ]
           : []),
@@ -580,6 +586,7 @@ export default function LiveSessionsPage() {
                                 label: "Delete",
                                 danger: true,
                                 onClick: () => remove(s),
+                                disabled: rowBusy === s.id,
                               },
                             ]}
                           />
