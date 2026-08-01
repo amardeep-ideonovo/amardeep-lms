@@ -62,6 +62,7 @@ export default function CertificateClaim({
   }
 
   async function download() {
+    setClaiming(true);
     setError(null);
     try {
       // claim() is idempotent — it returns the existing certificate when the
@@ -71,6 +72,8 @@ export default function CertificateClaim({
       await openPdf(c);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Download failed.");
+    } finally {
+      setClaiming(false);
     }
   }
 
@@ -78,8 +81,12 @@ export default function CertificateClaim({
     <View style={styles.wrap}>
       {claimed ? (
         <>
-          <Press style={styles.button} onPress={download}>
-            <Text style={styles.buttonText}>Download certificate</Text>
+          <Press style={styles.button} onPress={download} disabled={claiming}>
+            {claiming ? (
+              <ActivityIndicator color={colors.onPrimary} />
+            ) : (
+              <Text style={styles.buttonText}>Download certificate</Text>
+            )}
           </Press>
           {serial ? <Text style={styles.serial}>{serial}</Text> : null}
         </>
