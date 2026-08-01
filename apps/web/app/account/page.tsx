@@ -56,6 +56,7 @@ function planStatus(sub: SubscriptionDetailDTO): { label: string; cls: string } 
 function CertificatesSection() {
   const [certs, setCerts] = useState<MyCertificateDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -67,6 +68,18 @@ function CertificatesSection() {
       active = false;
     };
   }, []);
+
+  async function download(c: MyCertificateDTO) {
+    setDownloadingId(c.id);
+    setError(null);
+    try {
+      await api.downloadCertificate(c);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Download failed");
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   if (certs === null || certs.length === 0) return null; // nothing earned yet
 
@@ -91,15 +104,11 @@ function CertificatesSection() {
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={() =>
-                  api
-                    .downloadCertificate(c)
-                    .catch((e) =>
-                      setError(e instanceof Error ? e.message : "Download failed"),
-                    )
-                }
+                onClick={() => download(c)}
+                disabled={downloadingId === c.id}
+                aria-busy={downloadingId === c.id}
               >
-                Download
+                {downloadingId === c.id ? "Preparing…" : "Download"}
               </button>
             </div>
           </div>
@@ -157,7 +166,7 @@ function AccountInner() {
   const [pwOk, setPwOk] = useState(false);
   // Profile photo: cropper file + upload state.
   const [cropFile, setCropFile] = useState<File | null>(null);
-  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState<null | "upload" | "remove">(null);
   const [avatarErr, setAvatarErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -286,7 +295,7 @@ function AccountInner() {
   }
 
   async function uploadCroppedAvatar(blob: Blob) {
-    setAvatarBusy(true);
+    setAvatarBusy("upload");
     setAvatarErr(null);
     try {
       const updated = await api.uploadAvatar(blob);
@@ -301,12 +310,12 @@ function AccountInner() {
         err instanceof ApiError ? err.message : "Couldn’t upload the photo.",
       );
     } finally {
-      setAvatarBusy(false);
+      setAvatarBusy(null);
     }
   }
 
   async function removeAvatar() {
-    setAvatarBusy(true);
+    setAvatarBusy("remove");
     setAvatarErr(null);
     try {
       const updated = await api.updateMe({ removeAvatar: true });
@@ -320,7 +329,7 @@ function AccountInner() {
         err instanceof ApiError ? err.message : "Couldn’t remove the photo.",
       );
     } finally {
-      setAvatarBusy(false);
+      setAvatarBusy(null);
     }
   }
 
@@ -581,11 +590,11 @@ function AccountInner() {
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    disabled={avatarBusy}
+                    disabled={!!avatarBusy}
                     onClick={() => fileRef.current?.click()}
                   >
-                    {avatarBusy
-                      ? "Working…"
+                    {avatarBusy === "upload"
+                      ? "Uploading…"
                       : user.avatarUrl
                         ? "Change photo"
                         : "Upload photo"}
@@ -594,10 +603,11 @@ function AccountInner() {
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      disabled={avatarBusy}
+                      disabled={!!avatarBusy}
+                      aria-busy={avatarBusy === "remove"}
                       onClick={removeAvatar}
                     >
-                      Remove
+                      {avatarBusy === "remove" ? "Removing…" : "Remove"}
                     </button>
                   )}
                 </div>
@@ -772,7 +782,7 @@ function AccountInner() {
       {cropFile && (
         <AvatarCropper
           file={cropFile}
-          busy={avatarBusy}
+          busy={avatarBusy === "upload"}
           error={avatarErr}
           onCancel={() => {
             if (!avatarBusy) setCropFile(null);

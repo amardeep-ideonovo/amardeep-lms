@@ -131,18 +131,22 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   async function saveNote(note: LessonNoteDTO) {
     setNoteError(null);
     setSavedMsg(null);
+    // Must be stamped before the platform branch — the non-Android path returns
+    // early, so setting it further down left that row's `disabled` guard inert.
+    setSavingNoteId(note.id);
 
     if (Platform.OS !== "android") {
       try {
         await Linking.openURL(await noteDownloadUrl(note));
       } catch (e) {
         setNoteError(e instanceof Error ? e.message : "Could not open the file.");
+      } finally {
+        setSavingNoteId(null);
       }
       return;
     }
 
     const SAF_DIR_KEY = scopedKey("lms.saf.dir");
-    setSavingNoteId(note.id);
     try {
       const token = await getToken();
       const dot = note.originalName.lastIndexOf(".");
