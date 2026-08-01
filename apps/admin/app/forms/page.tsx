@@ -308,6 +308,19 @@ export default function FormsPage() {
     load();
   }
 
+  // Create/update return exactly the FormAdminRow the list renders (same
+  // toAdminRow mapper as the list, `submissionCount` and `audienceName`
+  // included), so apply the response instead of refetching. GET /admin/forms is
+  // ordered by updatedAt desc — a saved form moves to the top.
+  function applyForm(row: FormAdminRow) {
+    setForms((prev) =>
+      (prev.some((f) => f.id === row.id)
+        ? prev.map((f) => (f.id === row.id ? row : f))
+        : [row, ...prev]
+      ).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    );
+  }
+
   function onSelectAudience(id: string) {
     const a = audiences.find((x) => x.id === id);
     setForm((f) => ({
@@ -390,9 +403,13 @@ export default function FormsPage() {
     setSaving(true);
     setFormError(null);
     try {
-      if (editingId) await api.updateForm(editingId, buildPayload());
-      else await api.createForm(buildPayload());
-      backToList();
+      applyForm(
+        editingId
+          ? await api.updateForm(editingId, buildPayload())
+          : await api.createForm(buildPayload()),
+      );
+      setMode("list");
+      setEditingId(null);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Failed to save form");
     } finally {
@@ -411,7 +428,7 @@ export default function FormsPage() {
     setError(null);
     try {
       await api.deleteForm(f.id);
-      await load();
+      setForms((prev) => prev.filter((x) => x.id !== f.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete form");
     }

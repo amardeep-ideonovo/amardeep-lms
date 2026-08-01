@@ -204,6 +204,10 @@ export default function EmailTemplatesPage() {
     setEditorError(null);
     const variables = csvToList(draft.variablesCsv);
     try {
+      // Refetch on save (both branches): GET /admin/email/templates is ordered
+      // [category asc, name asc] in the database, and a save can change either.
+      // A client-side re-sort would have to reproduce Postgres' collation and
+      // NULLS-last ordering for uncategorised rows, so we let the server say.
       if (creating) {
         const created = await api.createEmailTemplate({
           name: draft.name.trim(),
@@ -251,7 +255,9 @@ export default function EmailTemplatesPage() {
     try {
       await api.deleteEmailTemplate(t.id);
       if (selectedId === t.id) closeEditor();
-      await load();
+      // A hard delete (the API 400s on system templates before deleting), so
+      // dropping the row locally matches the list the server would return.
+      setTemplates((prev) => prev.filter((row) => row.id !== t.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete");
     } finally {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PopupListItem } from "@lms/types";
+import type { PopupAdminRow, PopupListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { withBase } from "@/lib/base-path";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
@@ -75,6 +75,35 @@ export default function PopupsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
+  // Create/update return the full PopupAdminRow. It carries every list column,
+  // with `pageCount` derived the same way the API's list mapper derives it
+  // (pageIds.length), so we can apply it locally instead of refetching. GET
+  // /admin/popups is ordered by updatedAt desc — a saved popup moves to the top.
+  function applyPopup(row: PopupAdminRow) {
+    const item: PopupListItem = {
+      id: row.id,
+      name: row.name,
+      status: row.status,
+      position: row.position,
+      showOnDashboard: row.showOnDashboard,
+      showOnClasses: row.showOnClasses,
+      showOnCourses: row.showOnCourses,
+      showOnLessons: row.showOnLessons,
+      pageMode: row.pageMode,
+      pageCount: row.pageIds.length,
+      views: row.views,
+      clicks: row.clicks,
+      dismissals: row.dismissals,
+      updatedAt: row.updatedAt,
+    };
+    setPopups((prev) =>
+      (prev.some((p) => p.id === item.id)
+        ? prev.map((p) => (p.id === item.id ? item : p))
+        : [item, ...prev]
+      ).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    );
+  }
+
   function openEditor(id: string) {
     window.open(withBase(`/popups/${id}/edit`), "_blank", "noopener");
   }
@@ -90,7 +119,7 @@ export default function PopupsPage() {
       const popup = await api.createPopup({ name: "Untitled popup" });
       if (win) win.location.href = withBase(`/popups/${popup.id}/edit`);
       else openEditor(popup.id);
-      await load();
+      applyPopup(popup);
     } catch (err) {
       if (win) win.close();
       setError(err instanceof ApiError ? err.message : "Failed to create popup");
@@ -108,8 +137,7 @@ export default function PopupsPage() {
     if (name === null || !name.trim()) return;
     setError(null);
     try {
-      await api.updatePopup(p.id, { name: name.trim() });
-      await load();
+      applyPopup(await api.updatePopup(p.id, { name: name.trim() }));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to rename popup");
     }
@@ -119,10 +147,11 @@ export default function PopupsPage() {
     setError(null);
     setRowBusy(p.id);
     try {
-      await api.updatePopup(p.id, {
-        status: p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
-      });
-      await load();
+      applyPopup(
+        await api.updatePopup(p.id, {
+          status: p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+        }),
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to update status");
     } finally {
@@ -142,7 +171,7 @@ export default function PopupsPage() {
     setRowBusy(p.id);
     try {
       await api.deletePopup(p.id);
-      await load();
+      setPopups((prev) => prev.filter((x) => x.id !== p.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete popup");
     } finally {

@@ -275,6 +275,10 @@ export default function ClassesPage() {
       else await api.createLevel(input);
       setModalOpen(false);
       resetForm();
+      // Refetch: POST/PATCH /levels return a PARTIAL LevelDTO — the admin list
+      // asks for member counts (`includeCounts`), but the mutation responses go
+      // through toDTO() with its `memberCount = 0` default, and this table
+      // renders that number.
       await load();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Save failed");
@@ -296,7 +300,9 @@ export default function ClassesPage() {
     try {
       await api.deleteLevel(id);
       if (editingId === id) resetForm();
-      await load();
+      // Hard delete (the API 409s instead when members still hold the class).
+      // Categories and the other classes' counts are unaffected.
+      setLevels((prev) => prev.filter((l) => l.id !== id));
     } catch (err) {
       // A 409 here carries the "archive instead" guidance from the API.
       setError(err instanceof ApiError ? err.message : "Delete failed");
@@ -310,6 +316,8 @@ export default function ClassesPage() {
     try {
       if (archived) await api.unarchiveLevel(id);
       else await api.archiveLevel(id);
+      // Refetch: both endpoints return {ok:true} only, and archiving also flips
+      // `published` server-side — nothing in the response says so.
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Archive failed");
@@ -350,9 +358,12 @@ export default function ClassesPage() {
     if (!newCategory.trim()) return;
     setError(null);
     try {
-      await api.createLevelCategory(newCategory.trim());
+      // The response is the full LevelCategoryDTO and the list is ordered by
+      // `order` asc; the API assigns `order = count`, so it lands last. No class
+      // changes, so the levels list needs no refresh.
+      const cat = await api.createLevelCategory(newCategory.trim());
       setNewCategory("");
-      await load();
+      setCategories((prev) => [...prev, cat].sort((a, b) => a.order - b.order));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Failed to create category"
@@ -372,6 +383,9 @@ export default function ClassesPage() {
     try {
       await api.deleteLevelCategory(c.id);
       setCategoryIds((prev) => prev.filter((id) => id !== c.id));
+      // Refetch: deleting a category also detaches it from every class (the
+      // implicit M2M join rows go with it), and the {ok:true} response carries
+      // none of those class rows.
       await load();
     } catch (err) {
       setError(

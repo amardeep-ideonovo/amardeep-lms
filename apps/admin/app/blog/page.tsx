@@ -64,6 +64,19 @@ export default function BlogPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
+  // Create/update return exactly the PostAdminRow the list renders (the API maps
+  // list rows and mutation responses through the same toAdminRow), so apply the
+  // response instead of refetching. GET /admin/blog/posts is ordered by
+  // createdAt desc: a new post goes first, an edited one keeps its slot.
+  function applyPost(row: PostAdminRow) {
+    setPosts((prev) =>
+      (prev.some((p) => p.id === row.id)
+        ? prev.map((p) => (p.id === row.id ? row : p))
+        : [row, ...prev]
+      ).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    );
+  }
+
   // Close the modal on Escape.
   useEffect(() => {
     if (!modalOpen) return;
@@ -139,11 +152,13 @@ export default function BlogPage() {
     setSaving(true);
     setFormError(null);
     try {
-      if (editingId) await api.updatePost(editingId, buildPayload());
-      else await api.createPost(buildPayload());
+      applyPost(
+        editingId
+          ? await api.updatePost(editingId, buildPayload())
+          : await api.createPost(buildPayload()),
+      );
       setModalOpen(false);
       resetForm();
-      await load();
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Failed to save post"
@@ -156,10 +171,11 @@ export default function BlogPage() {
   async function togglePublish(post: PostAdminRow) {
     setError(null);
     try {
-      await api.updatePost(post.id, {
-        status: post.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED",
-      });
-      await load();
+      applyPost(
+        await api.updatePost(post.id, {
+          status: post.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED",
+        }),
+      );
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Failed to update status"
@@ -179,7 +195,7 @@ export default function BlogPage() {
     try {
       await api.deletePost(post.id);
       if (editingId === post.id) closeModal();
-      await load();
+      setPosts((prev) => prev.filter((p) => p.id !== post.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete post");
     }
@@ -190,9 +206,15 @@ export default function BlogPage() {
     if (!newCategory.trim()) return;
     setError(null);
     try {
-      await api.createPostCategory(newCategory.trim(), categories.length);
+      // The response is the full PostCategoryDTO and the list is ordered by
+      // `order` asc — we send `categories.length`, so the new one lands last.
+      // No post changes, so the post list needs no refresh.
+      const cat = await api.createPostCategory(
+        newCategory.trim(),
+        categories.length,
+      );
       setNewCategory("");
-      await load();
+      setCategories((prev) => [...prev, cat].sort((a, b) => a.order - b.order));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Failed to create category"
@@ -216,6 +238,8 @@ export default function BlogPage() {
         ...f,
         categoryIds: f.categoryIds.filter((id) => id !== c.id),
       }));
+      // Refetch: deleting a category also detaches it from every post, and the
+      // {ok:true} response carries none of those post rows.
       await load();
     } catch (err) {
       setError(
