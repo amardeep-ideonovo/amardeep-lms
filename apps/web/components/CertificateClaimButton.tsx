@@ -52,6 +52,7 @@ export default function CertificateClaimButton({
   }
 
   async function download() {
+    setClaiming(true);
     setError(null);
     try {
       if (cert) {
@@ -65,6 +66,8 @@ export default function CertificateClaimButton({
       await api.downloadCertificate(existing);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Download failed.");
+    } finally {
+      setClaiming(false);
     }
   }
 
@@ -74,8 +77,14 @@ export default function CertificateClaimButton({
         <>
           {/* Secondary weight: the class card's primary action is "Continue
               learning"; the certificate download is the optional follow-up. */}
-          <button type="button" className="btn btn-secondary press" onClick={download}>
-            Download certificate
+          <button
+            type="button"
+            className="btn btn-secondary press"
+            onClick={download}
+            disabled={claiming}
+            aria-busy={claiming}
+          >
+            {claiming ? "Preparing…" : "Download certificate"}
           </button>
           {serial && (
             <span style={{ fontSize: 12.5, opacity: 0.75 }}>
