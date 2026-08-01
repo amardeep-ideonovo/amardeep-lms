@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -80,6 +80,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const [subs, setSubs] = useState<SubscriptionDetailDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedOnce = useRef(false);
 
   // Your details card: exactly one of view / edit / change-password is visible.
   const [mode, setMode] = useState<DetailsMode>("view");
@@ -104,7 +105,11 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
+    // Keep the rendered account on screen while refetching (house pattern —
+    // see DashboardScreen): coming back from Payments/Plans/Certificates used
+    // to drop the whole profile to skeletons on every focus, and a failed
+    // refetch replaced it with an error page.
+    if (!loadedOnce.current) setLoading(true);
     setError(null);
     try {
       // A billing hiccup shouldn't blank the profile — only me() is fatal.
@@ -114,8 +119,11 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       ]);
       setUser(u);
       setSubs(s);
+      loadedOnce.current = true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load your account.");
+      if (!loadedOnce.current) {
+        setError(e instanceof Error ? e.message : "Could not load your account.");
+      }
     } finally {
       setLoading(false);
     }

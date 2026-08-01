@@ -25,6 +25,7 @@ import { Press } from "../components/Press";
 import { ProgressRing } from "../components/ProgressRing";
 import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
+import { classSeed, courseSeed } from "../navigation";
 import type { TabScreenProps } from "../navigation";
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -108,8 +109,14 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
   const activeIdx = active ? accentIndex.get(active.id) ?? 0 : 0;
   const tileWidth = (width - spacing.md * 2 - spacing.sm) / 2;
 
+  // The card already shows this class's artwork and name — hand them to the
+  // Class screen so it paints the same hero instead of a cold skeleton.
   const openClass = (c: ClassTileDTO) =>
-    navigation.navigate("Class", { slugOrId: c.slug ?? c.id, title: c.name });
+    navigation.navigate("Class", {
+      slugOrId: c.slug ?? c.id,
+      title: c.name,
+      seed: classSeed(c),
+    });
 
   const courses = activeCourses?.owned ? activeCourses.courses : [];
   const lessonsTotal = courses.reduce((n, c) => n + c.lessonCount, 0);
@@ -184,6 +191,7 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
                       navigation.navigate("Course", {
                         courseId: c.id,
                         title: c.title,
+                        seed: courseSeed(c),
                       })
                     }
                   >

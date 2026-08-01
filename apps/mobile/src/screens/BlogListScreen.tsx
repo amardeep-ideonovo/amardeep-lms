@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   Image,
@@ -28,15 +28,22 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
   const [posts, setPosts] = useState<PostListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedOnce = useRef(false);
 
-  // `silent` keeps the rendered posts on screen while refetching.
+  // `silent` keeps the rendered posts on screen while refetching; `loadedOnce`
+  // extends that to every other path (house pattern — see DashboardScreen), so
+  // a refetch that FAILS leaves the rendered posts alone instead of swapping
+  // them for an error page.
   const load = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
+    if (!silent && !loadedOnce.current) setLoading(true);
     setError(null);
     try {
       setPosts(await api.posts());
+      loadedOnce.current = true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load the blog.");
+      if (!loadedOnce.current) {
+        setError(e instanceof Error ? e.message : "Could not load the blog.");
+      }
     } finally {
       setLoading(false);
     }
