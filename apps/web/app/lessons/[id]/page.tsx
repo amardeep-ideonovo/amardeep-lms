@@ -186,10 +186,6 @@ function LessonInner() {
   }, [siblings, lessonId]);
 
   const railDone = siblings?.filter((l) => l.completed || l.id === (completed ? lessonId : "")).length ?? 0;
-  // Every lesson in THIS course is now ticked — so the in-flight completion
-  // could be the one that earns the certificate. Only used to pick honest copy
-  // while the grant is still in flight; it never unlocks anything.
-  const courseJustFinished = !!siblings && siblings.length > 0 && railDone === siblings.length;
 
   /* ---------- locked / error / loading states on the light canvas ---------- */
   if (locked) {
@@ -362,12 +358,18 @@ function LessonInner() {
                         )}
                         {c.eligible || c.claimed ? (
                           <CertificateClaimButton status={c} />
-                        ) : completing && courseJustFinished ? (
+                        ) : completing ? (
                           // The optimistic tick has already landed but the grant
                           // hasn't come back yet. Saying "finish every lesson"
                           // here would contradict the ✓ the member just saw, and
                           // showing the claim button would promise a credential
                           // the server hasn't issued.
+                          //
+                          // No extra "is this the last lesson?" guard is needed:
+                          // the API returns certificate status ONLY for a class's
+                          // terminal lesson (certificates.service statusForLesson
+                          // returns [] otherwise), so this block rendering at all
+                          // is already the server saying so.
                           <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
                             Checking your certificate…
                           </span>
