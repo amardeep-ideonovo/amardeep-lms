@@ -313,6 +313,7 @@ function LessonInner() {
                     className="ik-cta ik-cta--sm"
                     onClick={markComplete}
                     disabled={completing}
+                    aria-busy={completing}
                   >
                     <CheckIcon color="#fff" />
                     {completing ? "Saving…" : "Mark as complete"}
@@ -369,6 +370,7 @@ function LessonInner() {
                         className="ik-ghost ik-ghost--sm"
                         onClick={() => download(n)}
                         disabled={downloadingId === n.id}
+                        aria-busy={downloadingId === n.id}
                       >
                         <DownloadIcon />
                         {downloadingId === n.id ? "Downloading…" : "Download"}

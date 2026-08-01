@@ -151,6 +151,7 @@ export default function SignupPage() {
           type="submit"
           className="btn btn-primary btn-block press"
           disabled={loading}
+          aria-busy={loading}
         >
           {loading ? "Creating account…" : "Create account"}
         </button>
