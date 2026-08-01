@@ -75,6 +75,7 @@ export default function LoginPage() {
           type="submit"
           className="btn btn-primary btn-block press"
           disabled={loading}
+          aria-busy={loading}
         >
           {loading ? "Signing in…" : "Sign in"}
         </button>
