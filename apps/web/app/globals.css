@@ -4073,7 +4073,9 @@ a.ik-prog-row:hover {
 --------------------------------------------------------------------------- */
 .toast-stack {
   position: fixed;
-  z-index: 60;
+  /* Above .modal-overlay (100): a toast usually reports on the very action the
+     open modal started, so it must not be trapped behind it. */
+  z-index: 120;
   left: 50%;
   bottom: 24px;
   transform: translateX(-50%);
