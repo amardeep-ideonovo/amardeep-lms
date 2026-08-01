@@ -103,6 +103,9 @@ export default function MembersPage() {
       await api.addMemberLevel(grantFor.id, grantLevelId);
       setGrantFor(null);
       setGrantLevelId("");
+      // Refetch: POST /members/:id/levels returns {ok:true} — it carries neither
+      // the member row nor the grant's derived `source`/`lifetime` flags this
+      // table renders.
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to add class");
@@ -116,6 +119,9 @@ export default function MembersPage() {
     setError(null);
     try {
       await api.removeMemberLevel(memberId, levelId);
+      // Refetch: DELETE /members/:id/levels/:levelId returns {ok:true}, and it
+      // only drops the MANUAL grant — a member holding the same class via Stripe
+      // keeps a (differently-sourced) chip the response doesn't describe.
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to remove class");

@@ -106,7 +106,10 @@ function TemplatesTab({
     setRowBusy(t.id);
     try {
       await api.deleteCertificateTemplate(t.id);
-      load();
+      // A plain delete server-side (no other template is promoted to default),
+      // so dropping the card locally matches what a reload would show — the
+      // "no default template" warning included.
+      setRows((prev) => (prev ? prev.filter((r) => r.id !== t.id) : prev));
     } catch (e) {
       onError(e instanceof ApiError ? e.message : "Delete failed");
     } finally {
@@ -227,6 +230,9 @@ function IssuedTab({
     if (!ok) return;
     try {
       await api.deleteCertificate(id);
+      // Refetch: this list is server-paginated (items + page + total). Dropping
+      // the row locally would leave a short page with no backfill from the next
+      // one, and the {ok:true} response carries neither the page nor the total.
       load();
     } catch (e) {
       onError(e instanceof ApiError ? e.message : "Delete failed");

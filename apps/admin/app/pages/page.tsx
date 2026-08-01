@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PageListItem } from "@lms/types";
+import type { PageAdminRow, PageListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
@@ -40,6 +40,28 @@ export default function PagesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
+  // Create/update return the full PageAdminRow, which extends PageListItem with
+  // the (heavy) Puck document — narrow it back to the row the table renders and
+  // apply it to the list instead of refetching. GET /admin/pages is ordered by
+  // updatedAt desc, so a saved page moves to the top; re-sorting on the server's
+  // own updatedAt reproduces that exactly.
+  function applyPage(row: PageAdminRow) {
+    const item: PageListItem = {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      status: row.status,
+      publishedAt: row.publishedAt,
+      updatedAt: row.updatedAt,
+    };
+    setPages((prev) =>
+      (prev.some((p) => p.id === item.id)
+        ? prev.map((p) => (p.id === item.id ? item : p))
+        : [item, ...prev]
+      ).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    );
+  }
+
   function openEditor(id: string) {
     window.open(withBase(`/pages/${id}/edit`), "_blank", "noopener");
   }
@@ -55,7 +77,7 @@ export default function PagesPage() {
       const page = await api.createPage({ title: "Untitled page" });
       if (win) win.location.href = withBase(`/pages/${page.id}/edit`);
       else openEditor(page.id);
-      await load();
+      applyPage(page);
     } catch (err) {
       if (win) win.close();
       setError(err instanceof ApiError ? err.message : "Failed to create page");
@@ -80,11 +102,12 @@ export default function PagesPage() {
     if (slug === null) return;
     setError(null);
     try {
-      await api.updatePage(p.id, {
-        title: title.trim(),
-        slug: slug.trim() || undefined,
-      });
-      await load();
+      applyPage(
+        await api.updatePage(p.id, {
+          title: title.trim(),
+          slug: slug.trim() || undefined,
+        }),
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to rename page");
     }
@@ -94,10 +117,11 @@ export default function PagesPage() {
     setError(null);
     setRowBusy(p.id);
     try {
-      await api.updatePage(p.id, {
-        status: p.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED",
-      });
-      await load();
+      applyPage(
+        await api.updatePage(p.id, {
+          status: p.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED",
+        }),
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to update status");
     } finally {
@@ -117,7 +141,7 @@ export default function PagesPage() {
     setRowBusy(p.id);
     try {
       await api.deletePage(p.id);
-      await load();
+      setPages((prev) => prev.filter((x) => x.id !== p.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete page");
     } finally {

@@ -17,7 +17,7 @@ import {
   classColorClass,
   classIndexMap,
   classPct,
-  fetchClassExtras,
+  fetchMemberDashboard,
   fmtDuration,
   greetingFor,
   overallPct,
@@ -142,7 +142,6 @@ function DashboardInner() {
   const router = useRouter();
   const [classes, setClasses] = useState<ClassTileDTO[] | null>(null);
   const [extras, setExtras] = useState<Map<string, ClassExtras>>(new Map());
-  const [extrasLoaded, setExtrasLoaded] = useState(false);
   const [certs, setCerts] = useState<MyCertificateDTO[] | null>(null);
   const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -154,19 +153,13 @@ function DashboardInner() {
     let mounted = true;
     async function load() {
       try {
-        const cs = await api.myClasses();
+        // Tiles and enrichment arrive together now — one request instead of the
+        // per-class fan-out, so there's nothing left to stage progressively.
+        const { classes: cs, extras: ex } = await fetchMemberDashboard();
         if (!mounted) return;
         setClasses(cs); // update in place — no skeleton flash on a focus refresh
+        setExtras(ex);
         setError(null);
-        // Enrichment (course counts + next lessons) is progressive: cards render
-        // from the tiles immediately and refine when this resolves.
-        fetchClassExtras(cs)
-          .then((m) => {
-            if (!mounted) return;
-            setExtras(m);
-            setExtrasLoaded(true);
-          })
-          .catch(() => mounted && setExtrasLoaded(true));
       } catch (err) {
         if (!mounted) return;
         if (err instanceof ApiError && err.status === 401) {
@@ -369,24 +362,7 @@ function DashboardInner() {
         {/* ---- Continue learning + live session ---- */}
         {enrolled.length > 0 && (
           <div className="ik-cols">
-            {!extrasLoaded ? (
-              <section className="ik-panel" aria-label="Continue learning">
-                <div className="ik-panel-head">
-                  <span className="ik-panel-title">Continue learning</span>
-                </div>
-                <div className="ik-rows">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="ik-row">
-                      <span className="ik-skel" style={{ width: 64, height: 44 }} />
-                      <span className="ik-row-main">
-                        <span className="ik-skel" style={{ width: "55%", height: 13 }} />
-                        <span className="ik-skel" style={{ width: "35%", height: 11, marginTop: 4 }} />
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : queue.length > 0 ? (
+            {queue.length > 0 ? (
               <section className="ik-panel" aria-label="Continue learning">
                 <div className="ik-panel-head">
                   <span className="ik-panel-title">Continue learning</span>
