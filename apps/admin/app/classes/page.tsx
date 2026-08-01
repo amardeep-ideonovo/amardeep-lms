@@ -37,6 +37,8 @@ export default function ClassesPage() {
   const [newCategory, setNewCategory] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Names the class whose archive/delete is mid-flight so its row menu locks.
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
   // Published/Draft chip-bar filter for the management table.
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">(
     "all",
@@ -290,6 +292,7 @@ export default function ClassesPage() {
       }))
     )
       return;
+    setRowBusy(id);
     try {
       await api.deleteLevel(id);
       if (editingId === id) resetForm();
@@ -297,16 +300,21 @@ export default function ClassesPage() {
     } catch (err) {
       // A 409 here carries the "archive instead" guidance from the API.
       setError(err instanceof ApiError ? err.message : "Delete failed");
+    } finally {
+      setRowBusy(null);
     }
   }
 
   async function onArchive(id: string, archived: boolean) {
+    setRowBusy(id);
     try {
       if (archived) await api.unarchiveLevel(id);
       else await api.archiveLevel(id);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Archive failed");
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -910,11 +918,13 @@ export default function ClassesPage() {
                         {
                           label: lvl.archivedAt ? "Unarchive" : "Archive",
                           onClick: () => onArchive(lvl.id, !!lvl.archivedAt),
+                          disabled: rowBusy === lvl.id,
                         },
                         {
                           label: "Delete",
                           danger: true,
                           onClick: () => onDelete(lvl.id),
+                          disabled: rowBusy === lvl.id,
                         },
                       ]}
                     />

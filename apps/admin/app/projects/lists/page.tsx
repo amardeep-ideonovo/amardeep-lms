@@ -269,6 +269,8 @@ function WorkflowsPanel({
   onError: (msg: string) => void;
 }) {
   const [workflows, setWorkflows] = useState<ChatWorkflowDTO[]>([]);
+  // Names the workflow whose enable/delete is mid-flight so its row locks.
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
@@ -334,11 +336,14 @@ function WorkflowsPanel({
   }
 
   async function toggleEnabled(wf: ChatWorkflowDTO) {
+    setRowBusy(wf.id);
     try {
       await api.updateWorkflow(wf.id, { enabled: !wf.enabled });
       await load();
     } catch (err) {
       onError(err instanceof ApiError ? err.message : "Failed to update workflow");
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -349,11 +354,14 @@ function WorkflowsPanel({
       confirmLabel: "Delete",
     });
     if (!ok) return;
+    setRowBusy(wf.id);
     try {
       await api.deleteWorkflow(wf.id);
       await load();
     } catch (err) {
       onError(err instanceof ApiError ? err.message : "Failed to delete workflow");
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -419,8 +427,13 @@ function WorkflowsPanel({
                       <button
                         className="btn btn--ghost btn--sm"
                         onClick={() => toggleEnabled(wf)}
+                        disabled={rowBusy === wf.id}
                       >
-                        {wf.enabled ? "Disable" : "Enable"}
+                        {rowBusy === wf.id
+                          ? "Saving…"
+                          : wf.enabled
+                            ? "Disable"
+                            : "Enable"}
                       </button>
                     )}
                     {canDelete && (
@@ -428,6 +441,7 @@ function WorkflowsPanel({
                         className="pj-tbl-rowdel"
                         title="Delete workflow"
                         onClick={() => remove(wf)}
+                        disabled={rowBusy === wf.id}
                       >
                         ✕
                       </button>

@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LiveSessionBarDTO } from "@lms/types";
@@ -47,6 +53,9 @@ function phaseOf(s: LiveSessionBarDTO, now: number): Phase {
 // skewed client can't false-enable "Join".
 export default function LiveSessionBar() {
   const router = useRouter();
+  // The join target is a client page that fetches on mount, so the push alone
+  // leaves the button looking inert — hold it pending until the route commits.
+  const [navigating, startNav] = useTransition();
   const [sessions, setSessions] = useState<LiveSessionBarDTO[] | null>(null);
   const offsetRef = useRef(0); // serverNow - clientNow (ms)
   const [now, setNow] = useState(() => Date.now());
@@ -118,9 +127,11 @@ export default function LiveSessionBar() {
       <button
         type="button"
         className="ik-cta ik-cta--block"
-        onClick={() => router.push(`/live/${first.id}`)}
+        onClick={() => startNav(() => router.push(`/live/${first.id}`))}
+        disabled={navigating}
+        aria-busy={navigating}
       >
-        {joinable ? "Join now" : "Register"}
+        {navigating ? "Opening…" : joinable ? "Join now" : "Register"}
       </button>
       {rest.length > 0 && (
         <div className="ik-live-more">

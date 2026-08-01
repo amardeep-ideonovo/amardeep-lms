@@ -3485,6 +3485,19 @@ a.card:hover {
 }
 .ik-cta:hover { filter: brightness(0.94); transform: translateY(-1px); box-shadow: 0 12px 28px rgba(53, 179, 162, 0.4); }
 .ik-cta:active { transform: translateY(0); }
+/* Must follow :hover/:active — equal specificity, so the later rule wins and a
+   disabled CTA can't still lift or brighten under the cursor. */
+.ik-cta:disabled,
+.ik-cta:disabled:hover {
+  opacity: 0.62;
+  filter: none;
+  transform: none;
+  cursor: not-allowed;
+  box-shadow: 0 6px 14px rgba(53, 179, 162, 0.2);
+}
+/* Busy reads as "working", not "blocked": keep more presence than a control the
+   member isn't allowed to use. */
+.ik-cta[aria-busy="true"] { opacity: 0.82; cursor: progress; }
 .ik-cta--sm { padding: 10px 17px; font-size: 12.5px; border-radius: 9px; gap: 7px; }
 .ik-cta--block { width: 100%; padding: 11px; border-radius: 9px; font-size: 13px; }
 
