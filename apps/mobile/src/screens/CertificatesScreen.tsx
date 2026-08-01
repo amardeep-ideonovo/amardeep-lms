@@ -41,6 +41,7 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [busyCertId, setBusyCertId] = useState<string | null>(null);
   const loadedOnce = useRef(false);
 
   const load = useCallback(async () => {
@@ -79,16 +80,20 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
   // contract as lesson notes).
   const openPdf = useCallback(async (c: MyCertificateDTO) => {
     setActionError(null);
+    setBusyCertId(c.id);
     try {
       const url = await certificateDownloadUrl(c);
       await Linking.openURL(url);
     } catch {
       setActionError("Could not open the certificate PDF.");
+    } finally {
+      setBusyCertId(null);
     }
   }, []);
 
   const sharePdf = useCallback(async (c: MyCertificateDTO) => {
     setActionError(null);
+    setBusyCertId(c.id);
     try {
       const url = await certificateDownloadUrl(c);
       await Share.share({
@@ -96,6 +101,8 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
       });
     } catch {
       // user dismissed the share sheet — nothing to report
+    } finally {
+      setBusyCertId(null);
     }
   }, []);
 
@@ -154,9 +161,14 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
                 <Ionicons name="download-outline" size={13} color="#ffffff" />
               }
               label="View PDF"
+              busy={busyCertId === hero.id}
               onPress={() => openPdf(hero)}
             />
-            <Press style={styles.ghostBtn} onPress={() => sharePdf(hero)}>
+            <Press
+              style={styles.ghostBtn}
+              onPress={() => sharePdf(hero)}
+              disabled={busyCertId === hero.id}
+            >
               <Ionicons name="share-outline" size={13} color="#ffffff" />
               <Text style={styles.ghostBtnText}>Share</Text>
             </Press>
@@ -187,6 +199,7 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
           style={styles.certRow}
           activeOpacity={0.8}
           onPress={() => openPdf(c)}
+          disabled={busyCertId === c.id}
         >
           <View style={styles.certRowSeal}>
             <Ionicons
@@ -203,7 +216,9 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
               Earned {fmtDate(c.issuedAt)} · {c.serial}
             </Text>
           </View>
-          <Text style={styles.certRowLink}>View →</Text>
+          <Text style={styles.certRowLink}>
+            {busyCertId === c.id ? "…" : "View →"}
+          </Text>
         </TouchableOpacity>
       ))}
 

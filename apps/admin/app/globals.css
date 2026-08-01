@@ -1194,6 +1194,15 @@ select:-webkit-autofill:focus {
 .row-menu-item--danger:hover {
   background: var(--danger-tint);
 }
+/* After the :hover rules — equal specificity, so source order decides whether a
+   disabled item can still light up under the cursor. */
+.row-menu-item:disabled,
+.row-menu-item:disabled:hover,
+.row-menu-item--danger:disabled:hover {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: transparent;
+}
 .checkbox-list {
   display: flex;
   flex-direction: column;
@@ -3493,6 +3502,14 @@ h1,
   padding: 4px 8px;
   vertical-align: middle;
   max-width: 260px;
+}
+/* A cell mid-save. pointer-events is the load-bearing part: these cells are
+   controlled by the server value, so until the round trip lands the control
+   hasn't visibly moved and every extra click fires another PATCH. */
+.pj-tbl-td--saving {
+  opacity: 0.55;
+  pointer-events: none;
+  cursor: progress;
 }
 .pj-tbl-td--title {
   position: sticky;

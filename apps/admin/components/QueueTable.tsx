@@ -266,6 +266,8 @@ function ListTable({
   onOpenItem: (id: string) => void;
   onError: (msg: string) => void;
 }) {
+  // "<itemId>:<fieldId>" of the cell whose value is mid-save.
+  const [savingCell, setSavingCell] = useState<string | null>(null);
   const fields = useMemo(
     () => [...list.fields].sort((a, b) => a.position - b.position),
     [list.fields],
@@ -309,11 +311,14 @@ function ListTable({
 
   // ---- mutations ----
   async function persistValue(item: ChatListItemDTO, fieldId: string, value: unknown) {
+    setSavingCell(`${item.id}:${fieldId}`);
     try {
       await api.updateItemValues(item.id, { [fieldId]: value });
       await onChanged();
     } catch (err) {
       onError(err instanceof ApiError ? err.message : "Failed to save");
+    } finally {
+      setSavingCell(null);
     }
   }
   async function persistTitle(item: ChatListItemDTO, title: string) {
@@ -440,7 +445,15 @@ function ListTable({
                     </div>
                   </td>
                   {fields.map((f) => (
-                    <td key={f.id} className="pj-tbl-td">
+                    <td
+                      key={f.id}
+                      className={
+                        savingCell === `${it.id}:${f.id}`
+                          ? "pj-tbl-td pj-tbl-td--saving"
+                          : "pj-tbl-td"
+                      }
+                      aria-busy={savingCell === `${it.id}:${f.id}`}
+                    >
                       <Cell
                         field={f}
                         value={it.values[f.id]}

@@ -81,6 +81,8 @@ function TemplatesTab({
   onError: (m: string | null) => void;
 }) {
   const [rows, setRows] = useState<CertificateTemplateDTO[] | null>(null);
+  // Names the template whose delete is mid-flight so its row control locks.
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
 
   const load = useCallback(() => {
     api
@@ -101,11 +103,14 @@ function TemplatesTab({
       danger: true,
     });
     if (!ok) return;
+    setRowBusy(t.id);
     try {
       await api.deleteCertificateTemplate(t.id);
       load();
     } catch (e) {
       onError(e instanceof ApiError ? e.message : "Delete failed");
+    } finally {
+      setRowBusy(null);
     }
   };
 
@@ -173,8 +178,12 @@ function TemplatesTab({
                   Edit
                 </Link>
                 {canDelete && (
-                  <button className="btn btn--danger btn--sm" onClick={() => remove(t)}>
-                    Delete
+                  <button
+                    className="btn btn--danger btn--sm"
+                    onClick={() => remove(t)}
+                    disabled={rowBusy === t.id}
+                  >
+                    {rowBusy === t.id ? "Deleting…" : "Delete"}
                   </button>
                 )}
               </div>
