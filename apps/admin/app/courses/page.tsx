@@ -193,16 +193,25 @@ export default function CoursesPage() {
     setSaving(true);
     setFormError(null);
     try {
-      if (editingId) await api.updateCourse(editingId, buildPayload());
-      else await api.createCourse(buildPayload());
-      setModalOpen(false);
-      resetForm();
-      // Refetch: POST/PATCH /courses return a PARTIAL CourseCard — `lessonCount`
-      // is hardcoded to 0 (wrong for any course that has lessons) and
-      // `archivedAt` is omitted entirely, unlike the list mapper. The list is
-      // also ordered by `order` asc, which every course shares (0), so a new
-      // course's slot isn't reproducible client-side either.
-      await load();
+      if (editingId) {
+        // Both writes now return the full CourseCard the list builds, so the
+        // response IS the row. An edit also can't move it: the list is ordered
+        // by `order`, and buildPayload never sends `order`.
+        const saved = await api.updateCourse(editingId, buildPayload());
+        setCourses((prev) =>
+          prev.map((c) => (c.id === saved.id ? { ...c, ...saved } : c)),
+        );
+        setModalOpen(false);
+        resetForm();
+      } else {
+        await api.createCourse(buildPayload());
+        setModalOpen(false);
+        resetForm();
+        // Refetch on create only: placement needs `order`, which the list sorts
+        // by but CourseCard doesn't expose, so the client can't tell where a new
+        // course lands among any rows carrying a non-default order.
+        await load();
+      }
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Failed to save course"

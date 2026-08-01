@@ -46,6 +46,64 @@ export class LmsService {
    * List courses. When `userId` is given (member context), compute `locked`
    * from the user's active levels; admins (no userId) see everything unlocked.
    */
+  // Everything a CourseCard needs beyond the row's own columns. Shared so the
+  // write paths select exactly what the list does.
+  private static readonly COURSE_CARD_INCLUDE = {
+    courseLevels: { select: { levelId: true } },
+    _count: { select: { lessons: true } },
+  } as const;
+
+  // The ONE place a Course row becomes a CourseCard. The write paths used to
+  // hand-build this and drifted from the list: they reported `lessonCount: 0`
+  // for courses that had lessons, and omitted `archivedAt` entirely.
+  //
+  // `ctx` is the viewer's access context; null means an admin/no-viewer context,
+  // where nothing is locked, nothing is completed and nothing is purchasable.
+  private toCourseCard(
+    c: {
+      id: string;
+      title: string;
+      description: string | null;
+      thumbnailUrl: string | null;
+      coverImageUrl: string | null;
+      priceAmount: number | null;
+      priceCurrency: string;
+      priceActive: boolean;
+      archivedAt: Date | null;
+      courseLevels: { levelId: string }[];
+      _count: { lessons: number };
+    },
+    ctx: {
+      activeLevels: Set<string>;
+      purchased: Set<string>;
+      completedByCourse: Map<string, number>;
+    } | null,
+  ): CourseCard {
+    const assigned = c.courseLevels.map((cl) => cl.levelId);
+    const owns = ctx?.purchased.has(c.id) ?? false;
+    const locked = ctx ? isCourseLocked(assigned, ctx.activeLevels, owns) : false;
+    // "Buy this course" is offered only to a member for whom the course is
+    // LOCKED and a one-off price is configured + active. Admin view (no ctx →
+    // locked false) never flags purchasable.
+    const hasOneOffPrice = c.priceActive && (c.priceAmount ?? 0) > 0;
+    return {
+      id: c.id,
+      title: c.title,
+      description: c.description,
+      thumbnailUrl: c.thumbnailUrl,
+      coverImageUrl: c.coverImageUrl,
+      levelIds: assigned,
+      locked,
+      lessonCount: c._count.lessons,
+      completedCount: ctx?.completedByCourse.get(c.id) ?? 0,
+      purchasable: locked && hasOneOffPrice,
+      priceAmount: c.priceAmount,
+      priceCurrency: c.priceCurrency,
+      priceActive: c.priceActive,
+      archivedAt: c.archivedAt ? c.archivedAt.toISOString() : null,
+    };
+  }
+
   async listCourses(
     userId?: string,
     includeArchived = false,
@@ -54,11 +112,12 @@ export class LmsService {
       // Members never see archived courses; admins (includeArchived) see all so
       // they can badge + unarchive them.
       where: includeArchived ? {} : { archivedAt: null },
-      orderBy: { order: 'asc' },
-      include: {
-        courseLevels: { select: { levelId: true } },
-        _count: { select: { lessons: true } },
-      },
+      // createdAt breaks the tie: every course is created with order 0, so
+      // `order` alone left the list free to reshuffle equal-order courses
+      // between reads. With a total order the sequence is stable, which also
+      // lets a client place a newly created row without refetching.
+      orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+      include: LmsService.COURSE_CARD_INCLUDE,
     });
 
     // Resolve the three per-request access inputs together (mirrors
@@ -71,33 +130,11 @@ export class LmsService {
         ])
       : [null, null, null];
 
-    return courses.map((c) => {
-      const assigned = c.courseLevels.map((cl) => cl.levelId);
-      const owns = purchased?.has(c.id) ?? false;
-      const locked = activeLevels
-        ? isCourseLocked(assigned, activeLevels, owns)
-        : false; // admin view
-      // "Buy this course" is offered only to a member for whom the course is
-      // LOCKED and a one-off price is configured + active. Admin view (no
-      // userId → locked false) never flags purchasable.
-      const hasOneOffPrice = c.priceActive && (c.priceAmount ?? 0) > 0;
-      return {
-        id: c.id,
-        title: c.title,
-        description: c.description,
-        thumbnailUrl: c.thumbnailUrl,
-        coverImageUrl: c.coverImageUrl,
-        levelIds: assigned,
-        locked,
-        lessonCount: c._count.lessons,
-        completedCount: completedByCourse?.get(c.id) ?? 0,
-        purchasable: locked && hasOneOffPrice,
-        priceAmount: c.priceAmount,
-        priceCurrency: c.priceCurrency,
-        priceActive: c.priceActive,
-        archivedAt: c.archivedAt ? c.archivedAt.toISOString() : null,
-      };
-    });
+    const ctx =
+      activeLevels && purchased && completedByCourse
+        ? { activeLevels, purchased, completedByCourse }
+        : null;
+    return courses.map((c) => this.toCourseCard(c, ctx));
   }
 
   async createCourse(dto: CreateCourseDto): Promise<CourseCard> {
@@ -116,22 +153,9 @@ export class LmsService {
         // levelIds is required + non-empty (DTO-validated): always link ≥1 class.
         courseLevels: { create: dto.levelIds.map((levelId) => ({ levelId })) },
       },
+      include: LmsService.COURSE_CARD_INCLUDE,
     });
-    return {
-      id: course.id,
-      title: course.title,
-      description: course.description,
-      thumbnailUrl: course.thumbnailUrl,
-      coverImageUrl: course.coverImageUrl,
-      levelIds: dto.levelIds,
-      locked: false,
-      lessonCount: 0,
-      completedCount: 0,
-      purchasable: false,
-      priceAmount: course.priceAmount,
-      priceCurrency: course.priceCurrency,
-      priceActive: course.priceActive,
-    };
+    return this.toCourseCard(course, null);
   }
 
   async updateCourse(id: string, dto: UpdateCourseDto): Promise<CourseCard> {
@@ -170,26 +194,14 @@ export class LmsService {
       return updated;
     });
 
-    const levels = await this.prisma.courseLevel.findMany({
-      where: { courseId: id },
-      select: { levelId: true },
+    // Re-read through the same include the list uses: the transaction's return
+    // carries neither the (possibly just-replaced) level links nor the lesson
+    // count, and hand-building those here is what drifted before.
+    const fresh = await this.prisma.course.findUniqueOrThrow({
+      where: { id: course.id },
+      include: LmsService.COURSE_CARD_INCLUDE,
     });
-
-    return {
-      id: course.id,
-      title: course.title,
-      description: course.description,
-      thumbnailUrl: course.thumbnailUrl,
-      coverImageUrl: course.coverImageUrl,
-      levelIds: levels.map((l) => l.levelId),
-      locked: false,
-      lessonCount: 0,
-      completedCount: 0,
-      purchasable: false,
-      priceAmount: course.priceAmount,
-      priceCurrency: course.priceCurrency,
-      priceActive: course.priceActive,
-    };
+    return this.toCourseCard(fresh, null);
   }
 
   async deleteCourse(id: string): Promise<{ ok: true }> {
