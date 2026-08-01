@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { FlatList, Image, StyleSheet, Text, View } from "react-native";
+import {
+  FlatList,
+  Image,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import type { PostListItem } from "@lms/types";
 
@@ -22,8 +29,9 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // `silent` keeps the rendered posts on screen while refetching.
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       setPosts(await api.posts());
@@ -36,6 +44,13 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load(true);
+    setRefreshing(false);
   }, [load]);
 
   if (loading) return <Loading />;
@@ -52,6 +67,9 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
     <FlatList
       style={styles.list}
       contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
       data={rest}
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
