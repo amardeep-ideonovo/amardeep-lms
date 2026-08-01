@@ -80,7 +80,7 @@ function CertCard({ cert }: { cert: MyCertificateDTO }) {
       <div className="ik-cert-foot">
         <span className="ik-cert-serial">Credential ID {cert.serial}</span>
         <div className="ik-grow" />
-        <button type="button" className="ik-cta ik-cta--sm" onClick={download} disabled={busy}>
+        <button type="button" className="ik-cta ik-cta--sm" onClick={download} disabled={busy} aria-busy={busy}>
           <DownloadIcon />
           {busy ? "Preparing…" : "Download PDF"}
         </button>

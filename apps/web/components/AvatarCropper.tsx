@@ -188,6 +188,7 @@ export default function AvatarCropper({
             aria-label="Close"
             onClick={onCancel}
             disabled={busy}
+            aria-busy={busy}
           >
             ×
           </button>
@@ -234,6 +235,7 @@ export default function AvatarCropper({
                   onChange={(e) => applyZoom(Number(e.target.value))}
                   aria-label="Zoom"
                   disabled={busy}
+                  aria-busy={busy}
                 />
                 <span className="cropper-zoom-ic" aria-hidden="true">
                   +
@@ -256,6 +258,7 @@ export default function AvatarCropper({
             className="btn btn-secondary"
             onClick={onCancel}
             disabled={busy}
+            aria-busy={busy}
           >
             Cancel
           </button>

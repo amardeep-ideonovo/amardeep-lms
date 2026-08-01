@@ -478,6 +478,7 @@ function AccountInner() {
                 type="submit"
                 className="btn btn-primary"
                 disabled={saving}
+                aria-busy={saving}
               >
                 {saving ? "Saving…" : "Save changes"}
               </button>
@@ -486,6 +487,7 @@ function AccountInner() {
                 className="btn btn-secondary"
                 onClick={() => setEditing(false)}
                 disabled={saving}
+                aria-busy={saving}
               >
                 Cancel
               </button>
@@ -548,6 +550,7 @@ function AccountInner() {
                 type="submit"
                 className="btn btn-primary"
                 disabled={pwSaving}
+                aria-busy={pwSaving}
               >
                 {pwSaving ? "Saving…" : "Update password"}
               </button>
@@ -556,6 +559,7 @@ function AccountInner() {
                 className="btn btn-secondary"
                 onClick={() => setPwEditing(false)}
                 disabled={pwSaving}
+                aria-busy={pwSaving}
               >
                 Cancel
               </button>
@@ -711,6 +715,7 @@ function AccountInner() {
             className="btn btn-primary"
             onClick={openPortal}
             disabled={busy}
+            aria-busy={busy}
           >
             {busy ? "Redirecting…" : "Update Card Details"}
           </button>
@@ -743,6 +748,7 @@ function AccountInner() {
                 className="modal-close"
                 aria-label="Close"
                 disabled={cancelBusy}
+                aria-busy={cancelBusy}
                 onClick={() => setCancelFor(null)}
               >
                 ×
@@ -761,6 +767,7 @@ function AccountInner() {
                   type="button"
                   className="btn btn-danger"
                   disabled={cancelBusy}
+                  aria-busy={cancelBusy}
                   onClick={doCancelMembership}
                 >
                   {cancelBusy ? "Canceling…" : "Cancel membership"}
@@ -769,6 +776,7 @@ function AccountInner() {
                   type="button"
                   className="btn btn-secondary"
                   disabled={cancelBusy}
+                  aria-busy={cancelBusy}
                   onClick={() => setCancelFor(null)}
                 >
                   Keep membership

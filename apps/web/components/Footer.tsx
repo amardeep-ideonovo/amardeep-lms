@@ -164,7 +164,7 @@ function FooterSubscribe({
         aria-label="Email address"
         required
       />
-      <button type="submit" disabled={busy}>
+      <button type="submit" disabled={busy} aria-busy={busy}>
         {busy ? "…" : buttonText}
       </button>
       {err && <span className="footer-subscribe-err">{err}</span>}
