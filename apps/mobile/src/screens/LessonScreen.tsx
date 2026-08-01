@@ -35,6 +35,7 @@ import { VideoPlayerView } from "../components/VideoPlayerView";
 import { vimeoEmbed } from "../format";
 import { lessonSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
+import { optimistic } from "../optimistic";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -122,12 +123,25 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   }, [load]);
 
   async function onComplete() {
-    setCompleting(true);
     setCompleteError(null);
+    // Optimistic. /complete does a lesson+course join, two access queries, a
+    // progress lookup, an upsert and a certificate-status query — the app's
+    // core emotional beat shouldn't sit under a spinner for all of that. The
+    // ✓ COMPLETED banner, the status pill and the meta line flip NOW, before
+    // the request. Only `completed` is touched: `certificates` is a GRANT and
+    // is left strictly as the server last reported it (see the render below).
+    const revert = optimistic(setLesson, (prev) =>
+      prev ? { ...prev, completed: true } : prev,
+    );
+    // The button is already gone (replaced by the banner), so `completing` no
+    // longer gates it — it now marks the in-flight window for the neutral
+    // "Checking certificate…" row.
+    setCompleting(true);
     try {
       const res = await api.completeLesson(lessonId);
       // Completing the final lesson of a class returns fresh certificate
-      // state — surface the "Get certificate" button without a refetch.
+      // state — surface the "Get certificate" button without a refetch. This
+      // is the ONLY place certificate state is written: never optimistically.
       setLesson((prev) =>
         prev
           ? {
@@ -138,6 +152,10 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
           : prev,
       );
     } catch (e) {
+      // Put the exact pre-tap lesson back before anything else, so a 403 can't
+      // leave a phantom "completed" behind: `load()` clears `locked` on a
+      // later successful refetch, and the reverted slice is what it lands on.
+      revert();
       if (e instanceof ApiError && e.status === 403) {
         setCompleteError("You no longer have access to this lesson.");
         setLocked(true);
@@ -392,11 +410,28 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
           />
         )}
 
+        {/* A certificate is a GRANT, not a toggle, so nothing here is ever
+            optimistic: the completion flip above deliberately leaves
+            `lesson.certificates` alone, which makes this list server truth at
+            all times (including mid-flight). Any certificate already earned
+            keeps rendering while the request runs. */}
         {(lesson.certificates ?? [])
           .filter((c) => c.eligible || c.claimed)
           .map((c) => (
             <CertificateClaim key={c.levelId} status={c} />
           ))}
+
+        {/* The server only sends `certificates` for a class's TERMINAL lesson
+            (see LessonDTO), so a non-empty array is the exact signal that this
+            completion may earn one. While the request is in flight we show a
+            neutral "checking" row rather than pre-rendering a CTA we have no
+            right to promise — the real state arrives with the response. */}
+        {completing && (lesson.certificates ?? []).length > 0 ? (
+          <View style={styles.certChecking}>
+            <ActivityIndicator size="small" color={colors.textMuted} />
+            <Text style={styles.certCheckingText}>Checking certificate…</Text>
+          </View>
+        ) : null}
 
         {lesson.content ? (
           <Text style={[styles.body, styles.bodyBelow]}>{lesson.content}</Text>
@@ -530,6 +565,23 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
     fontSize: 12.5,
     fontFamily: fonts.bold,
     letterSpacing: 0.6,
+  },
+  // Neutral in-flight row for a terminal lesson's certificate — deliberately
+  // NOT the teal CTA, so it can't read as "your certificate is ready".
+  certChecking: {
+    marginTop: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingVertical: 13,
+    borderRadius: 11,
+    backgroundColor: colors.surfaceMuted,
+  },
+  certCheckingText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontFamily: fonts.medium,
   },
   doneBanner: {
     marginTop: spacing.lg,
