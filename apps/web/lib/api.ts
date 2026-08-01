@@ -11,6 +11,7 @@ import type {
   CheckoutLevelDTO,
   ClassPublicDTO,
   ClassTileDTO,
+  MemberDashboardDTO,
   CourseCard,
   MyCertificateDTO,
   InvoiceDTO,
@@ -236,6 +237,9 @@ export const api = {
   // classes (member): published class tiles for the dashboard, and a class's
   // courses (only returned when the member owns the class).
   myClasses: () => request<ClassTileDTO[]>("/levels/my-classes"),
+  // Tiles + per-class progress + the next lesson to resume, in ONE call. The
+  // member screens use this instead of my-classes plus a per-class fan-out.
+  myDashboard: () => request<MemberDashboardDTO>("/levels/my-dashboard"),
 
   // live sessions
   liveCurrent: () => request<LiveSessionBarDTO[]>("/live/current"),
