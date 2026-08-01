@@ -7,11 +7,13 @@ import {
 } from '@nestjs/common';
 import type {
   CheckoutLevelDTO,
+  ClassExtrasDTO,
   ClassPublicDTO,
   ClassTileDTO,
   CourseCard,
   LevelCategoryDTO,
   LevelDTO,
+  MemberDashboardDTO,
   MyClassCoursesDTO,
   PublicClassListItem,
   SkillDTO,
@@ -309,6 +311,135 @@ export class LevelsService {
       })),
       progress: owned.has(l.id) ? progressByLevel.get(l.id) ?? null : null,
     }));
+  }
+
+  // The whole member dashboard in ONE request: the class tiles plus, for the
+  // classes the member owns, how much is left and which lesson to resume.
+  //
+  // This replaces a client fan-out that issued up to 17 requests per visit
+  // (my-classes, then my-courses per owned class, then course-lessons for each)
+  // and re-issued them on every tab focus. The work is the same; it just happens
+  // in a fixed number of queries on one round trip instead of N round trips.
+  //
+  // `extras` covers OWNED classes only, so it grants nothing the tile list
+  // doesn't already carry.
+  async myDashboard(userId: string): Promise<MemberDashboardDTO> {
+    const classes = await this.myClasses(userId);
+    const ownedIds = classes.filter((c) => c.owned).map((c) => c.id);
+    return { classes, extras: await this.classExtras(userId, ownedIds) };
+  }
+
+  // Per-class counts + next-incomplete-lesson for the given OWNED classes.
+  // Fixed query count regardless of how many classes the member owns.
+  private async classExtras(
+    userId: string,
+    levelIds: string[],
+  ): Promise<Record<string, ClassExtrasDTO>> {
+    if (levelIds.length === 0) return {};
+
+    const [courses, completedByCourse] = await Promise.all([
+      this.prisma.course.findMany({
+        where: { courseLevels: { some: { levelId: { in: levelIds } } } },
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          title: true,
+          thumbnailUrl: true,
+          coverImageUrl: true,
+          courseLevels: { select: { levelId: true } },
+          _count: { select: { lessons: true } },
+        },
+      }),
+      this.access.completedCountByCourse(userId),
+    ]);
+
+    // A course can belong to several classes, so fan it out to each one it's in
+    // (and only to classes in scope). Order is preserved from the query.
+    const byLevel = new Map<string, typeof courses>();
+    for (const id of levelIds) byLevel.set(id, []);
+    for (const c of courses) {
+      for (const cl of c.courseLevels) byLevel.get(cl.levelId)?.push(c);
+    }
+
+    // Resume target per class = its first course (by order) with lessons left.
+    const targetByLevel = new Map<string, (typeof courses)[number]>();
+    for (const [levelId, list] of byLevel) {
+      const target = list.find(
+        (c) =>
+          c._count.lessons > 0 &&
+          (completedByCourse.get(c.id) ?? 0) < c._count.lessons,
+      );
+      if (target) targetByLevel.set(levelId, target);
+    }
+
+    // One lessons query + one progress query for every resume target at once —
+    // this is what the client was paying a round trip per class for.
+    const targetIds = [...new Set([...targetByLevel.values()].map((c) => c.id))];
+    const lessonsByCourse = new Map<
+      string,
+      { id: string; courseId: string; title: string; thumbnailUrl: string | null; durationSeconds: number | null }[]
+    >();
+    const completedLessonIds = new Set<string>();
+    if (targetIds.length > 0) {
+      const [lessons, progress] = await Promise.all([
+        this.prisma.lesson.findMany({
+          where: { courseId: { in: targetIds } },
+          orderBy: { order: 'asc' },
+          select: {
+            id: true,
+            courseId: true,
+            title: true,
+            thumbnailUrl: true,
+            durationSeconds: true,
+          },
+        }),
+        this.prisma.lessonProgress.findMany({
+          where: { userId, lesson: { courseId: { in: targetIds } } },
+          select: { lessonId: true },
+        }),
+      ]);
+      for (const p of progress) completedLessonIds.add(p.lessonId);
+      for (const l of lessons) {
+        const arr = lessonsByCourse.get(l.courseId);
+        if (arr) arr.push(l);
+        else lessonsByCourse.set(l.courseId, [l]);
+      }
+    }
+
+    const out: Record<string, ClassExtrasDTO> = {};
+    for (const [levelId, list] of byLevel) {
+      const lessonTotal = list.reduce((n, c) => n + c._count.lessons, 0);
+      const lessonsDone = list.reduce(
+        (n, c) =>
+          n + Math.min(completedByCourse.get(c.id) ?? 0, c._count.lessons),
+        0,
+      );
+      const target = targetByLevel.get(levelId);
+      const lessons = target ? lessonsByCourse.get(target.id) ?? [] : [];
+      // Same rule the client used: first incomplete, else the first lesson.
+      const lesson =
+        lessons.find((l) => !completedLessonIds.has(l.id)) ?? lessons[0] ?? null;
+
+      out[levelId] = {
+        courseCount: list.length,
+        lessonTotal,
+        coursesLeft: list.filter(
+          (c) =>
+            c._count.lessons === 0 ||
+            (completedByCourse.get(c.id) ?? 0) < c._count.lessons,
+        ).length,
+        lessonsLeft: Math.max(0, lessonTotal - lessonsDone),
+        next:
+          target && lesson
+            ? {
+                lesson,
+                courseTitle: target.title,
+                courseThumb: target.thumbnailUrl ?? target.coverImageUrl ?? null,
+              }
+            : null,
+      };
+    }
+    return out;
   }
 
   // A class's courses for the class page — returned ONLY when the member owns the

@@ -574,6 +574,45 @@ export interface ClassTileDTO {
   progress?: { completed: number; total: number } | null;
 }
 
+// The "resume here" lesson on a dashboard tile. Deliberately NOT a LessonDTO:
+// the dashboard renders only these four fields, and a LessonDTO would ship every
+// lesson body and note attachment for every enrolled class on one screen.
+export interface NextLessonDTO {
+  id: string;
+  courseId: string;
+  title: string;
+  thumbnailUrl: string | null;
+  durationSeconds: number | null;
+}
+
+// Per-class enrichment for the member screens: how much is left, and where to
+// pick up. Computed for OWNED classes only.
+export interface ClassExtrasDTO {
+  courseCount: number;
+  lessonTotal: number;
+  /** courses that still have incomplete lessons */
+  coursesLeft: number;
+  /** lessons not yet completed (from the course counters) */
+  lessonsLeft: number;
+  /** the next incomplete lesson to resume (null when the class is done/empty) */
+  next: {
+    lesson: NextLessonDTO;
+    courseTitle: string;
+    courseThumb: string | null;
+  } | null;
+}
+
+// GET /levels/my-dashboard (member, auth). The whole member dashboard in ONE
+// request. It replaces a client-side fan-out that issued up to 17 calls —
+// my-classes, then my-courses per owned class, then course-lessons for each —
+// and re-issued them on every tab focus. `extras` is keyed by class id and
+// contains ONLY owned classes, so it carries no entitlement the tile list
+// doesn't already grant.
+export interface MemberDashboardDTO {
+  classes: ClassTileDTO[];
+  extras: Record<string, ClassExtrasDTO>;
+}
+
 // GET /levels/:slugOrId/my-courses (member, auth). A class's courses — returned
 // ONLY when the member owns the class (active membership); otherwise owned:false
 // and an empty list, so the public class page shows just its marketing + CTA.
