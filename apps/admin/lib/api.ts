@@ -348,11 +348,17 @@ export const api = {
       password,
     }),
   me: () => request<AuthAdmin>("GET", "/auth/me"),
-  changeOwnPassword: (currentPassword: string, newPassword: string) =>
-    request<{ ok: true }>("POST", "/auth/admin/change-password", {
-      currentPassword,
-      newPassword,
-    }),
+  // The API bumps tokenVersion (revoking other sessions) and returns a fresh
+  // token for THIS session — store it so the current session survives.
+  changeOwnPassword: async (currentPassword: string, newPassword: string) => {
+    const res = await request<{ ok: true; token: string }>(
+      "POST",
+      "/auth/admin/change-password",
+      { currentPassword, newPassword },
+    );
+    setToken(res.token);
+    return res;
+  },
   // Admin self-service UI prefs (e.g. custom sidebar order). Returns the
   // refreshed AuthAdmin so the caller can update its cached `me` in place.
   updateMyPrefs: (input: UpdateAdminPrefsInput) =>
@@ -431,6 +437,12 @@ export const api = {
   updateLevel: (id: string, input: Partial<CreateLevelInput>) =>
     request<LevelDTO>("PATCH", `/levels/${id}`, input),
   deleteLevel: (id: string) => request<void>("DELETE", `/levels/${id}`),
+  // Soft-archive: hide from members but keep grants/subs/certs (the non-
+  // destructive alternative when a class still has members).
+  archiveLevel: (id: string) =>
+    request<{ ok: true }>("PATCH", `/levels/${id}/archive`),
+  unarchiveLevel: (id: string) =>
+    request<{ ok: true }>("PATCH", `/levels/${id}/unarchive`),
   listLevelCategories: () =>
     request<LevelCategoryDTO[]>("GET", "/levels/categories"),
   createLevelCategory: (name: string, order?: number) =>
@@ -588,6 +600,10 @@ export const api = {
   updateCourse: (id: string, input: UpdateCourseInput) =>
     request<CourseCard>("PATCH", `/courses/${id}`, input),
   deleteCourse: (id: string) => request<void>("DELETE", `/courses/${id}`),
+  archiveCourse: (id: string) =>
+    request<{ ok: true }>("PATCH", `/courses/${id}/archive`),
+  unarchiveCourse: (id: string) =>
+    request<{ ok: true }>("PATCH", `/courses/${id}/unarchive`),
   listCourseLessons: (courseId: string) =>
     request<LessonDTO[]>("GET", `/courses/${courseId}/lessons`),
   createLesson: (courseId: string, input: CreateLessonInput) =>
@@ -626,6 +642,24 @@ export const api = {
     request<EmailSettingsMasked>("PUT", "/admin/settings/email", input),
   deleteEmailSettings: () =>
     request<EmailSettingsMasked>("DELETE", "/admin/settings/email"),
+  // Shared secret that authenticates the public bounce/complaint webhook.
+  // Write-only: GET returns only whether one is stored (never the value).
+  getEmailWebhookSecret: () =>
+    request<{ secretSet: boolean }>(
+      "GET",
+      "/admin/settings/email/webhook-secret",
+    ),
+  putEmailWebhookSecret: (secret: string) =>
+    request<{ secretSet: boolean }>(
+      "PUT",
+      "/admin/settings/email/webhook-secret",
+      { secret },
+    ),
+  deleteEmailWebhookSecret: () =>
+    request<{ secretSet: boolean }>(
+      "DELETE",
+      "/admin/settings/email/webhook-secret",
+    ),
   getPayPalSettings: () =>
     request<PayPalSettingsMasked>("GET", "/admin/settings/paypal"),
   putPayPalSettings: (input: PayPalSettings) =>
@@ -778,6 +812,14 @@ export const api = {
     request<SegmentDTO>("PATCH", `/admin/segments/${id}`, input),
   deleteSegment: (id: string) =>
     request<{ ok: true }>("DELETE", `/admin/segments/${id}`),
+
+  // deliverability health: is the active provider's From domain sendable?
+  // resendDomainVerified === false → Resend will silently drop sends.
+  getEmailHealth: () =>
+    request<{ provider: "smtp" | "resend"; resendDomainVerified: boolean | null }>(
+      "GET",
+      "/admin/email/health",
+    ),
 
   // email templates (MJML + Handlebars)
   listEmailTemplates: () =>

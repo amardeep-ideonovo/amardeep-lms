@@ -4,13 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ClassTileDTO } from "@lms/types";
-import { ApiError, api, clearToken } from "@/lib/api";
+import { ApiError, clearToken } from "@/lib/api";
 import {
   type ClassExtras,
   classColorClass,
   classIndexMap,
   classPct,
-  fetchClassExtras,
+  fetchMemberDashboard,
 } from "@/lib/memberData";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
@@ -88,13 +88,11 @@ function ClassesInner() {
     let mounted = true;
     async function load() {
       try {
-        const cs = await api.myClasses();
+        const { classes: cs, extras: ex } = await fetchMemberDashboard();
         if (!mounted) return;
         setClasses(cs);
+        setExtras(ex);
         setError(null);
-        fetchClassExtras(cs)
-          .then((m) => mounted && setExtras(m))
-          .catch(() => {});
       } catch (err) {
         if (!mounted) return;
         if (err instanceof ApiError && err.status === 401) {

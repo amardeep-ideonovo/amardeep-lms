@@ -14,6 +14,7 @@ import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 import RowMenu from "@/components/RowMenu";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 
 type PriceForm = {
   interval: "month" | "year";
@@ -29,6 +30,7 @@ function emptyPrice(): PriceForm {
 
 export default function ClassesPage() {
   const { can, loading: authLoading } = useAdminAuth();
+  const optimistic = useOptimisticAction();
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [categories, setCategories] = useState<LevelCategoryDTO[]>([]);
   // Courses power the per-class COURSES/LESSONS columns (CourseCard.levelIds);
@@ -37,6 +39,8 @@ export default function ClassesPage() {
   const [newCategory, setNewCategory] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Names the class whose archive/delete is mid-flight so its row menu locks.
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
   // Published/Draft chip-bar filter for the management table.
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">(
     "all",
@@ -269,11 +273,20 @@ export default function ClassesPage() {
         certificateTemplateId, // '' = clear back to the default template
         prices: type === "PAID" ? cleanedPrices : [],
       };
-      if (editingId) await api.updateLevel(editingId, input);
-      else await api.createLevel(input);
+      // Both writes now return the same fully-populated LevelDTO the list does,
+      // member count included, so the response IS the new row. The list is
+      // ordered by createdAt asc — unique and immutable — so an edit keeps its
+      // slot and a new class belongs at the end.
+      const saved = editingId
+        ? await api.updateLevel(editingId, input)
+        : await api.createLevel(input);
+      setLevels((prev) =>
+        editingId
+          ? prev.map((l) => (l.id === saved.id ? saved : l))
+          : [...prev, saved],
+      );
       setModalOpen(false);
       resetForm();
-      await load();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Save failed");
     } finally {
@@ -282,14 +295,70 @@ export default function ClassesPage() {
   }
 
   async function onDelete(id: string) {
-    if (!(await dialog.confirm({ message: "Delete this class?", danger: true })))
+    if (
+      !(await dialog.confirm({
+        message:
+          "Delete this class permanently? If any member still has access, deletion is blocked — archive it instead to keep their grants and issued certificates.",
+        danger: true,
+      }))
+    )
       return;
+    setRowBusy(id);
     try {
       await api.deleteLevel(id);
       if (editingId === id) resetForm();
-      await load();
+      // Hard delete (the API 409s instead when members still hold the class).
+      // Categories and the other classes' counts are unaffected.
+      setLevels((prev) => prev.filter((l) => l.id !== id));
     } catch (err) {
+      // A 409 here carries the "archive instead" guidance from the API.
       setError(err instanceof ApiError ? err.message : "Delete failed");
+    } finally {
+      setRowBusy(null);
+    }
+  }
+
+  // Archive/unarchive is reversible (grants, subscriptions and issued
+  // certificates all survive), so the row flips immediately. DELETE stays
+  // pessimistic — it isn't.
+  async function onArchive(id: string, archived: boolean) {
+    setRowBusy(id);
+    const current = levels.find((l) => l.id === id);
+    // Mirrors the service: archiving stamps archivedAt AND unpublishes;
+    // unarchiving only clears archivedAt.
+    const optimisticPatch: Partial<LevelDTO> = archived
+      ? { archivedAt: null }
+      : { archivedAt: new Date().toISOString(), published: false };
+    try {
+      await optimistic.run({
+        key: `level:${id}`,
+        snapshot: () => ({
+          archivedAt: current?.archivedAt ?? null,
+          published: current?.published ?? false,
+        }),
+        apply: () =>
+          setLevels((prev) =>
+            prev.map((l) => (l.id === id ? { ...l, ...optimisticPatch } : l)),
+          ),
+        request: () =>
+          archived ? api.unarchiveLevel(id) : api.archiveLevel(id),
+        // Both endpoints answer {ok:true} only, so there's nothing to commit —
+        // the authoritative row comes from the quiet refetch below.
+        revert: (previous) =>
+          setLevels((prev) =>
+            prev.map((l) => (l.id === id ? { ...l, ...previous } : l)),
+          ),
+        errorMessage: "Archive failed",
+      });
+      // Heal from the server WITHOUT load()'s loading flag: the table already
+      // shows the new state, and blanking it to "Loading…" would undo the point
+      // of flipping the row on click.
+      api
+        .listLevels()
+        .then(setLevels)
+        .catch(() => {});
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -325,9 +394,12 @@ export default function ClassesPage() {
     if (!newCategory.trim()) return;
     setError(null);
     try {
-      await api.createLevelCategory(newCategory.trim());
+      // The response is the full LevelCategoryDTO and the list is ordered by
+      // `order` asc; the API assigns `order = count`, so it lands last. No class
+      // changes, so the levels list needs no refresh.
+      const cat = await api.createLevelCategory(newCategory.trim());
       setNewCategory("");
-      await load();
+      setCategories((prev) => [...prev, cat].sort((a, b) => a.order - b.order));
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Failed to create category"
@@ -347,6 +419,9 @@ export default function ClassesPage() {
     try {
       await api.deleteLevelCategory(c.id);
       setCategoryIds((prev) => prev.filter((id) => id !== c.id));
+      // Refetch: deleting a category also detaches it from every class (the
+      // implicit M2M join rows go with it), and the {ok:true} response carries
+      // none of those class rows.
       await load();
     } catch (err) {
       setError(
@@ -891,9 +966,15 @@ export default function ClassesPage() {
                       items={[
                         { label: "Edit", onClick: () => startEdit(lvl) },
                         {
+                          label: lvl.archivedAt ? "Unarchive" : "Archive",
+                          onClick: () => onArchive(lvl.id, !!lvl.archivedAt),
+                          disabled: rowBusy === lvl.id,
+                        },
+                        {
                           label: "Delete",
                           danger: true,
                           onClick: () => onDelete(lvl.id),
+                          disabled: rowBusy === lvl.id,
                         },
                       ]}
                     />

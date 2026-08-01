@@ -20,6 +20,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get admin() {
     return this.client.admin;
   }
+  get auditLog() {
+    return this.client.auditLog;
+  }
   get level() {
     return this.client.level;
   }

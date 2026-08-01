@@ -81,6 +81,8 @@ function TemplatesTab({
   onError: (m: string | null) => void;
 }) {
   const [rows, setRows] = useState<CertificateTemplateDTO[] | null>(null);
+  // Names the template whose delete is mid-flight so its row control locks.
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
 
   const load = useCallback(() => {
     api
@@ -101,11 +103,17 @@ function TemplatesTab({
       danger: true,
     });
     if (!ok) return;
+    setRowBusy(t.id);
     try {
       await api.deleteCertificateTemplate(t.id);
-      load();
+      // A plain delete server-side (no other template is promoted to default),
+      // so dropping the card locally matches what a reload would show — the
+      // "no default template" warning included.
+      setRows((prev) => (prev ? prev.filter((r) => r.id !== t.id) : prev));
     } catch (e) {
       onError(e instanceof ApiError ? e.message : "Delete failed");
+    } finally {
+      setRowBusy(null);
     }
   };
 
@@ -173,8 +181,12 @@ function TemplatesTab({
                   Edit
                 </Link>
                 {canDelete && (
-                  <button className="btn btn--danger btn--sm" onClick={() => remove(t)}>
-                    Delete
+                  <button
+                    className="btn btn--danger btn--sm"
+                    onClick={() => remove(t)}
+                    disabled={rowBusy === t.id}
+                  >
+                    {rowBusy === t.id ? "Deleting…" : "Delete"}
                   </button>
                 )}
               </div>
@@ -218,6 +230,9 @@ function IssuedTab({
     if (!ok) return;
     try {
       await api.deleteCertificate(id);
+      // Refetch: this list is server-paginated (items + page + total). Dropping
+      // the row locally would leave a short page with no backfill from the next
+      // one, and the {ok:true} response carries neither the page nor the total.
       load();
     } catch (e) {
       onError(e instanceof ApiError ? e.message : "Delete failed");

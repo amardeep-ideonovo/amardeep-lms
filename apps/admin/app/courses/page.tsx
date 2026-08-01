@@ -52,6 +52,8 @@ export default function CoursesPage() {
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Names the course whose delete is mid-flight so its row control locks.
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
 
   // course modal (create/edit)
   const [modalOpen, setModalOpen] = useState(false);
@@ -191,11 +193,25 @@ export default function CoursesPage() {
     setSaving(true);
     setFormError(null);
     try {
-      if (editingId) await api.updateCourse(editingId, buildPayload());
-      else await api.createCourse(buildPayload());
-      setModalOpen(false);
-      resetForm();
-      await load();
+      if (editingId) {
+        // Both writes now return the full CourseCard the list builds, so the
+        // response IS the row. An edit also can't move it: the list is ordered
+        // by `order`, and buildPayload never sends `order`.
+        const saved = await api.updateCourse(editingId, buildPayload());
+        setCourses((prev) =>
+          prev.map((c) => (c.id === saved.id ? { ...c, ...saved } : c)),
+        );
+        setModalOpen(false);
+        resetForm();
+      } else {
+        await api.createCourse(buildPayload());
+        setModalOpen(false);
+        resetForm();
+        // Refetch on create only: placement needs `order`, which the list sorts
+        // by but CourseCard doesn't expose, so the client can't tell where a new
+        // course lands among any rows carrying a non-default order.
+        await load();
+      }
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Failed to save course"
@@ -214,13 +230,18 @@ export default function CoursesPage() {
     )
       return;
     setError(null);
+    setRowBusy(course.id);
     try {
       await api.deleteCourse(course.id);
       if (openCourse === course.id) setOpenCourse(null);
       if (editingId === course.id) closeModal();
-      await load();
+      // Hard delete (the API 409s instead when members own the course), and the
+      // classes list this page also holds is unaffected by it.
+      setCourses((prev) => prev.filter((c) => c.id !== course.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete course");
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -331,8 +352,9 @@ export default function CoursesPage() {
                         <button
                           className="btn btn--danger btn--sm"
                           onClick={() => removeCourse(course)}
+                          disabled={rowBusy === course.id}
                         >
-                          Delete
+                          {rowBusy === course.id ? "Deleting…" : "Delete"}
                         </button>
                       </div>
                     </td>

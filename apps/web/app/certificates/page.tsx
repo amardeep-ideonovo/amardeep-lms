@@ -10,7 +10,7 @@ import {
   classColorClass,
   classIndexMap,
   classPct,
-  fetchClassExtras,
+  fetchMemberDashboard,
 } from "@/lib/memberData";
 import AuthGate from "@/components/AuthGate";
 import SpotlightLogo from "@/components/SpotlightLogo";
@@ -80,7 +80,7 @@ function CertCard({ cert }: { cert: MyCertificateDTO }) {
       <div className="ik-cert-foot">
         <span className="ik-cert-serial">Credential ID {cert.serial}</span>
         <div className="ik-grow" />
-        <button type="button" className="ik-cta ik-cta--sm" onClick={download} disabled={busy}>
+        <button type="button" className="ik-cta ik-cta--sm" onClick={download} disabled={busy} aria-busy={busy}>
           <DownloadIcon />
           {busy ? "Preparing…" : "Download PDF"}
         </button>
@@ -108,17 +108,18 @@ function CertificatesInner() {
     let mounted = true;
     async function load() {
       try {
-        const [rows, cs] = await Promise.all([
+        const [rows, dash] = await Promise.all([
           api.myCertificates(),
-          api.myClasses().catch(() => [] as ClassTileDTO[]),
+          fetchMemberDashboard().catch(() => ({
+            classes: [] as ClassTileDTO[],
+            extras: new Map<string, ClassExtras>(),
+          })),
         ]);
         if (!mounted) return;
         setCerts(rows);
-        setClasses(cs);
+        setClasses(dash.classes);
+        setExtras(dash.extras);
         setError(null);
-        fetchClassExtras(cs)
-          .then((m) => mounted && setExtras(m))
-          .catch(() => {});
       } catch (err) {
         if (!mounted) return;
         if (err instanceof ApiError && err.status === 401) {

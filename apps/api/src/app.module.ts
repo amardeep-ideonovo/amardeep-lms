@@ -1,7 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { SentryModule } from '@sentry/nestjs/setup';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
+import { AuditModule } from './audit/audit.module';
+import { GlobalThrottlerGuard } from './common/global-throttler.guard';
 import { QueueModule } from './queue/queue.module';
 import { SettingsModule } from './settings/settings.module';
 import { ContactsModule } from './contacts/contacts.module';
@@ -38,8 +42,19 @@ import { HealthModule } from './health/health.module';
     // attaches HTTP request context. No-op if SENTRY_DSN is unset (see
     // ./instrument.ts).
     SentryModule.forRoot(),
+    // App-wide rate limit (generous — only catches egregious abuse; the tight
+    // per-route caps on auth/forms/live still apply on top). Keyed on the real
+    // client IP by GlobalThrottlerGuard below. Marked global so feature modules'
+    // own ThrottlerGuards (e.g. LiveThrottlerGuard) resolve without re-importing.
+    {
+      ...ThrottlerModule.forRoot([
+        { name: 'default', ttl: 60_000, limit: 1000 },
+      ]),
+      global: true,
+    },
     // Global infrastructure modules.
     PrismaModule,
+    AuditModule,
     QueueModule,
     SettingsModule,
     ContactsModule,
@@ -70,5 +85,6 @@ import { HealthModule } from './health/health.module';
     LiveModule,
     SupportModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: GlobalThrottlerGuard }],
 })
 export class AppModule {}

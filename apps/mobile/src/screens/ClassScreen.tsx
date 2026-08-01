@@ -32,6 +32,7 @@ import { Badge, Chip } from "../components/Chip";
 import { Skeleton } from "../components/Skeleton";
 import { VideoPlayerView } from "../components/VideoPlayerView";
 import CertificateClaim from "../components/CertificateClaim";
+import { courseSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
 import { letterGradient } from "../theme";
 import type { Theme } from "../theme";
@@ -46,30 +47,36 @@ type Ownership = {
 export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
   const styles = useStyles(makeStyles);
   const { width } = useWindowDimensions();
-  const { slugOrId } = route.params;
+  // `seed` is the class card the member tapped (see navigation.ts): name +
+  // artwork only. Ownership, prices and courses are never seeded — they decide
+  // access, so they always come from the fetch below.
+  const { slugOrId, seed } = route.params;
 
   const [cls, setCls] = useState<ClassPublicDTO | null>(null);
   const [ownership, setOwnership] = useState<Ownership | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const trailerY = useRef(0);
+  const loadedOnce = useRef(false);
 
   const load = useCallback(async () => {
     setError(null);
-    setCls(null);
-    setOwnership(null);
+    // Keep the rendered class on screen while refetching (house pattern — see
+    // DashboardScreen): dropping cls/ownership here re-flashed the skeleton
+    // over content we already had, and a failed retry wiped it entirely. Both
+    // still land together, so an owner never flashes the marketing branch
+    // (same rule as the web's ClassMemberArea).
     try {
-      // Both must resolve before first paint so an owner never flashes the
-      // marketing branch (same rule as the web's ClassMemberArea).
       const [page, own] = await Promise.all([
         api.classPage(slugOrId),
         api.myClassCourses(slugOrId).catch(() => ({ owned: false, courses: [] })),
       ]);
       setCls(page);
       setOwnership(own);
+      loadedOnce.current = true;
       navigation.setOptions({ title: page.name });
     } catch {
-      setError("Class not found.");
+      if (!loadedOnce.current) setError("Class not found.");
     }
   }, [slugOrId, navigation]);
 
@@ -81,14 +88,39 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
 
   if (!cls || !ownership) {
     return (
-      <View style={styles.skeletonWrap}>
-        <Skeleton height={300} radius={20} />
+      // Scrollable: the seeded hero uses the real hero's tall 5:7 frame, which
+      // on its own is most of the viewport.
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.skeletonWrap}>
+        {seed ? (
+          // Carry the tapped card's cover + title straight through, so the
+          // hero is continuous instead of flashing an empty block. Everything
+          // ownership-dependent (buy card, badge, course list) stays a
+          // skeleton until the server answers.
+          <View style={styles.seedHero}>
+            {seed.imageUrl ? (
+              <Image
+                source={{ uri: seed.imageUrl }}
+                style={StyleSheet.absoluteFill}
+                resizeMode="cover"
+              />
+            ) : null}
+            <LinearGradient
+              colors={["transparent", "rgba(8,8,10,0.9)"]}
+              style={styles.heroImageScrim}
+            />
+            <View style={styles.heroImageContent}>
+              <Text style={styles.heroTitle}>{seed.name}</Text>
+            </View>
+          </View>
+        ) : (
+          <Skeleton height={300} radius={20} />
+        )}
         <Skeleton height={22} width="55%" />
         <View style={styles.skeletonRow}>
           <Skeleton height={160} width="48%" radius={14} />
           <Skeleton height={160} width="48%" radius={14} />
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -283,6 +315,7 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
                       navigation.navigate("Course", {
                         courseId: c.id,
                         title: c.title,
+                        seed: courseSeed(c),
                       })
                     }
                   />
@@ -347,13 +380,19 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
   StyleSheet.create({
     scroll: { flex: 1, backgroundColor: colors.bg },
     content: { padding: spacing.md, gap: spacing.lg },
-    skeletonWrap: {
-      flex: 1,
-      backgroundColor: colors.bg,
-      padding: spacing.md,
-      gap: spacing.md,
-    },
+    // Used as a scroll content container (flex/background live on styles.scroll).
+    skeletonWrap: { padding: spacing.md, gap: spacing.md },
     skeletonRow: { flexDirection: "row", justifyContent: "space-between" },
+    // Same frame as the real hero image so the seeded cover doesn't jump when
+    // the fetched class replaces it.
+    seedHero: {
+      width: "100%",
+      aspectRatio: 5 / 7,
+      borderRadius: 20,
+      overflow: "hidden",
+      justifyContent: "flex-end",
+      backgroundColor: colors.surfaceMuted,
+    },
     ownedBadge: { flexDirection: "row" },
     // Image-prominent class hero: a clear cover on top with the category + title
     // overlaid at its base (per request, ~70% image), then a details panel below.

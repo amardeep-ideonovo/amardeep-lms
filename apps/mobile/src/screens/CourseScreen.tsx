@@ -1,7 +1,8 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   FlatList,
   Image,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,6 +16,8 @@ import { api } from "../api";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { ProgressBar } from "../components/ProgressBar";
 import { PopupHost } from "../components/PopupHost";
+import { Skeleton } from "../components/Skeleton";
+import { lessonSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -23,22 +26,29 @@ import { useStyles, useTheme } from "../theme-provider";
 export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
-  const { courseId } = route.params;
-  const [lessons, setLessons] = useState<LessonDTO[]>([]);
+  // `seed` is the row the member tapped (see navigation.ts) — cover + title +
+  // progress counts, used ONLY to paint the header before the fetch lands. It
+  // never enters `lessons`/`course`, so it can't stand in for real data.
+  const { courseId, seed } = route.params;
+  const [lessons, setLessons] = useState<LessonDTO[] | null>(null);
   const [course, setCourse] = useState<CourseCard | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedOnce = useRef(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
     setError(null);
+    // Keep the rendered lessons on screen while refetching (house pattern — see
+    // DashboardScreen): backing out of a lesson used to drop the whole list to
+    // a spinner, and a failed refresh must not wipe good content either.
     try {
       const data = await api.courseLessons(courseId);
       setLessons([...data].sort((a, b) => a.order - b.order));
+      loadedOnce.current = true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load lessons.");
-    } finally {
-      setLoading(false);
+      if (!loadedOnce.current) {
+        setError(e instanceof Error ? e.message : "Could not load lessons.");
+        return;
+      }
     }
     // Cover image / title are decorative — best effort, never blocks lessons.
     api
@@ -54,13 +64,60 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
     }, [load])
   );
 
-  if (loading) return <Loading />;
+  // Server data wins the moment it arrives; the seed only fills the gap.
+  const coverImageUrl = course?.coverImageUrl ?? seed?.coverImageUrl ?? null;
+  const heroTitle = course?.title ?? seed?.title ?? "";
+  const completed = lessons
+    ? lessons.filter((l) => l.completed).length
+    : (seed?.completedCount ?? 0);
+  const total = lessons ? lessons.length : (seed?.lessonCount ?? 0);
+
+  const header = (
+    <View>
+      {coverImageUrl ? (
+        // Cinematic hero: cover + bottom scrim + overlaid title. Without a
+        // cover the nav header title carries the screen alone.
+        <View style={styles.hero}>
+          <Image
+            source={{ uri: coverImageUrl }}
+            style={styles.cover}
+            resizeMode="cover"
+          />
+          <LinearGradient
+            colors={[colors.overlayFaint, colors.overlayStrong]}
+            style={StyleSheet.absoluteFill}
+          />
+          <Text style={styles.heroTitle} numberOfLines={2}>
+            {heroTitle}
+          </Text>
+        </View>
+      ) : null}
+      <View style={styles.progressHeader}>
+        <Text style={styles.progressTitle}>Course progress</Text>
+        <ProgressBar completed={completed} total={total} />
+      </View>
+    </View>
+  );
+
   if (error) return <ErrorState message={error} onRetry={load} />;
+
+  // Nothing fetched yet. With a seed the member keeps looking at the cover and
+  // progress they just tapped while the lesson rows fill in.
+  if (!lessons) {
+    if (!seed) return <Loading />;
+    return (
+      <ScrollView style={styles.list} contentContainerStyle={styles.content}>
+        {header}
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} height={76} radius={12} style={styles.skeletonRow} />
+        ))}
+      </ScrollView>
+    );
+  }
+
   if (lessons.length === 0) {
     return <EmptyState message="This course has no lessons yet." />;
   }
-
-  const completed = lessons.filter((l) => l.completed).length;
 
   return (
     <>
@@ -70,32 +127,7 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
         contentContainerStyle={styles.content}
         data={lessons}
         keyExtractor={(item) => item.id}
-        ListHeaderComponent={
-          <View>
-            {course?.coverImageUrl ? (
-              // Cinematic hero: cover + bottom scrim + overlaid title. Without a
-              // cover the nav header title carries the screen alone.
-              <View style={styles.hero}>
-                <Image
-                  source={{ uri: course.coverImageUrl }}
-                  style={styles.cover}
-                  resizeMode="cover"
-                />
-                <LinearGradient
-                  colors={[colors.overlayFaint, colors.overlayStrong]}
-                  style={StyleSheet.absoluteFill}
-                />
-                <Text style={styles.heroTitle} numberOfLines={2}>
-                  {course.title}
-                </Text>
-              </View>
-            ) : null}
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressTitle}>Course progress</Text>
-              <ProgressBar completed={completed} total={lessons.length} />
-            </View>
-          </View>
-        }
+        ListHeaderComponent={header}
         renderItem={({ item, index }) => (
           <TouchableOpacity
             style={styles.row}
@@ -104,6 +136,7 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
               navigation.navigate("Lesson", {
                 lessonId: item.id,
                 title: item.title,
+                seed: lessonSeed(item),
               })
             }
           >
@@ -131,6 +164,7 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
 const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
   content: { padding: spacing.md },
+  skeletonRow: { marginBottom: spacing.sm },
   hero: {
     borderRadius: 12,
     overflow: "hidden",

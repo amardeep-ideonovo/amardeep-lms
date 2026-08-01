@@ -116,9 +116,12 @@ export default function CouponsPage() {
         expiresAt: expiresAt || undefined,
         levelId: levelId || undefined,
       };
-      await api.createCoupon(input);
+      // The response is the full CouponDTO the list renders (same toDTO mapper).
+      // Stripe lists promotion codes newest-first, so the new code goes on top.
+      // Levels are untouched by a coupon create, so they need no refresh.
+      const created = await api.createCoupon(input);
       resetForm();
-      await load();
+      setCoupons((prev) => [created, ...prev]);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn’t create coupon");
     } finally {
@@ -133,9 +136,14 @@ export default function CouponsPage() {
     setBusyId(c.id);
     setError(null);
     try {
-      if (turningOff) await api.deactivateCoupon(c.id);
-      else await api.activateCoupon(c.id);
-      await load();
+      // Both return the updated CouponDTO; the list order is Stripe's creation
+      // order, which a status flip doesn't change.
+      const updated = turningOff
+        ? await api.deactivateCoupon(c.id)
+        : await api.activateCoupon(c.id);
+      setCoupons((prev) =>
+        prev.map((row) => (row.id === updated.id ? updated : row)),
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Update failed");
     } finally {
@@ -155,7 +163,9 @@ export default function CouponsPage() {
     setError(null);
     try {
       await api.deleteCoupon(c.id);
-      await load();
+      // Soft-delete in Stripe (metadata flag + deactivate), but list() filters
+      // those out — so the row is gone from the server's list either way.
+      setCoupons((prev) => prev.filter((row) => row.id !== c.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Delete failed");
     } finally {

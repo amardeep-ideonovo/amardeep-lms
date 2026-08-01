@@ -141,7 +141,10 @@ function toEmbed(url?: string): { kind: "iframe" | "video"; src: string } | null
   const vimeo = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
   if (vimeo) return { kind: "iframe", src: `https://player.vimeo.com/video/${vimeo[1]}` };
   if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(u)) return { kind: "video", src: u };
-  return { kind: "iframe", src: u };
+  // No fallthrough: only KNOWN embed hosts (YouTube/Vimeo) or a direct video
+  // file are rendered. An arbitrary CMS-authored URL must NOT load in a
+  // JS-enabled WebView (it could serve an in-app phishing/exfil page).
+  return null;
 }
 
 // ---------- leaf components ----------
@@ -344,6 +347,11 @@ function VideoBlock(p: Props) {
             allowsInlineMediaPlayback
             javaScriptEnabled
             domStorageEnabled
+            // toEmbed only yields youtube.com/embed or player.vimeo.com URLs;
+            // restrict navigation to those families and block popup windows as
+            // defense-in-depth (kept lenient enough not to break the players).
+            originWhitelist={["https://*.youtube.com", "https://*.vimeo.com"]}
+            setSupportMultipleWindows={false}
           />
         ) : null}
       </View>

@@ -70,10 +70,7 @@ export class CertificatesController {
     await this.certificates.getDownloadableFile(id, principal);
     const payload: DownloadTokenPayload = {
       sub: principal.sub,
-      email: principal.email,
-      username: principal.username,
       isAdmin: principal.isAdmin,
-      role: principal.role,
       typ: 'dl',
       scope: certDownloadScope(id),
     };

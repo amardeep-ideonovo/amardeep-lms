@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PageListItem } from "@lms/types";
+import type { PageAdminRow, PageListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import { withBase } from "@/lib/base-path";
 
 // Where to open the public "View" link. Set NEXT_PUBLIC_WEB_URL in prod;
@@ -14,10 +15,14 @@ const WEB_URL =
 
 export default function PagesPage() {
   const { can, loading: authLoading } = useAdminAuth();
+  const optimistic = useOptimisticAction();
   const [pages, setPages] = useState<PageListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Per-row guard for publish/delete so a row's own control can disable while
+  // its mutation + reload run (separate from `busy`, which owns "New page").
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -37,6 +42,28 @@ export default function PagesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
+  // Create/update return the full PageAdminRow, which extends PageListItem with
+  // the (heavy) Puck document — narrow it back to the row the table renders and
+  // apply it to the list instead of refetching. GET /admin/pages is ordered by
+  // updatedAt desc, so a saved page moves to the top; re-sorting on the server's
+  // own updatedAt reproduces that exactly.
+  function applyPage(row: PageAdminRow) {
+    const item: PageListItem = {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      status: row.status,
+      publishedAt: row.publishedAt,
+      updatedAt: row.updatedAt,
+    };
+    setPages((prev) =>
+      (prev.some((p) => p.id === item.id)
+        ? prev.map((p) => (p.id === item.id ? item : p))
+        : [item, ...prev]
+      ).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    );
+  }
+
   function openEditor(id: string) {
     window.open(withBase(`/pages/${id}/edit`), "_blank", "noopener");
   }
@@ -52,7 +79,7 @@ export default function PagesPage() {
       const page = await api.createPage({ title: "Untitled page" });
       if (win) win.location.href = withBase(`/pages/${page.id}/edit`);
       else openEditor(page.id);
-      await load();
+      applyPage(page);
     } catch (err) {
       if (win) win.close();
       setError(err instanceof ApiError ? err.message : "Failed to create page");
@@ -77,25 +104,42 @@ export default function PagesPage() {
     if (slug === null) return;
     setError(null);
     try {
-      await api.updatePage(p.id, {
-        title: title.trim(),
-        slug: slug.trim() || undefined,
-      });
-      await load();
+      applyPage(
+        await api.updatePage(p.id, {
+          title: title.trim(),
+          slug: slug.trim() || undefined,
+        }),
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to rename page");
     }
   }
 
+  // The badge flips on click. Only `status` is painted optimistically — the
+  // list is sorted by `updatedAt`, and faking that would slide the row out from
+  // under the cursor; the server's own response does the move on commit.
   async function togglePublish(p: PageListItem) {
     setError(null);
+    const next = p.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED";
+    setRowBusy(p.id);
     try {
-      await api.updatePage(p.id, {
-        status: p.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED",
+      await optimistic.run({
+        key: `page:${p.id}`,
+        snapshot: () => p.status,
+        apply: () =>
+          setPages((prev) =>
+            prev.map((x) => (x.id === p.id ? { ...x, status: next } : x)),
+          ),
+        request: () => api.updatePage(p.id, { status: next }),
+        commit: (row) => applyPage(row),
+        revert: (status) =>
+          setPages((prev) =>
+            prev.map((x) => (x.id === p.id ? { ...x, status } : x)),
+          ),
+        errorMessage: "Failed to update status",
       });
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to update status");
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -108,11 +152,14 @@ export default function PagesPage() {
     )
       return;
     setError(null);
+    setRowBusy(p.id);
     try {
       await api.deletePage(p.id);
-      await load();
+      setPages((prev) => prev.filter((x) => x.id !== p.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete page");
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -214,12 +261,18 @@ export default function PagesPage() {
                       <button
                         className="btn btn--ghost btn--sm"
                         onClick={() => togglePublish(p)}
+                        disabled={rowBusy === p.id}
                       >
-                        {p.status === "PUBLISHED" ? "Unpublish" : "Publish"}
+                        {rowBusy === p.id
+                          ? "Saving…"
+                          : p.status === "PUBLISHED"
+                            ? "Unpublish"
+                            : "Publish"}
                       </button>
                       <button
                         className="btn btn--danger btn--sm"
                         onClick={() => remove(p)}
+                        disabled={rowBusy === p.id}
                       >
                         Delete
                       </button>

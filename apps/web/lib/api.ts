@@ -11,6 +11,7 @@ import type {
   CheckoutLevelDTO,
   ClassPublicDTO,
   ClassTileDTO,
+  MemberDashboardDTO,
   CourseCard,
   MyCertificateDTO,
   InvoiceDTO,
@@ -205,11 +206,16 @@ export const api = {
     }
     return res.json();
   },
-  changePassword: (input: ChangePasswordInput) =>
-    request<{ ok: true }>("/auth/change-password", {
-      method: "POST",
-      body: input,
-    }),
+  // The API bumps tokenVersion (revoking other sessions) and returns a fresh
+  // token for THIS session — store it so the current session isn't logged out.
+  changePassword: async (input: ChangePasswordInput) => {
+    const res = await request<{ ok: true; token: string }>(
+      "/auth/change-password",
+      { method: "POST", body: input },
+    );
+    setToken(res.token);
+    return res;
+  },
   // Self-serve password reset (both public). forgotPassword always resolves
   // { ok: true } — the API never reveals whether the email has an account.
   forgotPassword: (email: string) =>
@@ -231,6 +237,9 @@ export const api = {
   // classes (member): published class tiles for the dashboard, and a class's
   // courses (only returned when the member owns the class).
   myClasses: () => request<ClassTileDTO[]>("/levels/my-classes"),
+  // Tiles + per-class progress + the next lesson to resume, in ONE call. The
+  // member screens use this instead of my-classes plus a per-class fan-out.
+  myDashboard: () => request<MemberDashboardDTO>("/levels/my-dashboard"),
 
   // live sessions
   liveCurrent: () => request<LiveSessionBarDTO[]>("/live/current"),

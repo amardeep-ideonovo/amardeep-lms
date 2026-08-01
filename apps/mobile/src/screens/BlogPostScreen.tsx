@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Image,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -38,14 +39,22 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
   const [post, setPost] = useState<PostDetailDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedOnce = useRef(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // `silent` keeps the rendered article on screen while refetching;
+  // `loadedOnce` extends that to every other path (house pattern — see
+  // DashboardScreen), so a refetch that FAILS leaves the article on screen
+  // instead of swapping it for an error page.
+  const load = useCallback(async (silent = false) => {
+    if (!silent && !loadedOnce.current) setLoading(true);
     setError(null);
     try {
       setPost(await api.post(slug));
+      loadedOnce.current = true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load this post.");
+      if (!loadedOnce.current) {
+        setError(e instanceof Error ? e.message : "Could not load this post.");
+      }
     } finally {
       setLoading(false);
     }
@@ -55,12 +64,25 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
     load();
   }, [load]);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load(true);
+    setRefreshing(false);
+  }, [load]);
+
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!post) return <ErrorState message="Post not found." onRetry={load} />;
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       {post.coverImageUrl ? (
         <Image
           source={{ uri: post.coverImageUrl }}

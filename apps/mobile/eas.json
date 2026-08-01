@@ -17,6 +17,10 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_DIRECTORY_URL": "https://thewebpaanda.com",
+        "EXPO_PUBLIC_FLEET_DOMAIN": "thewebpaanda.com"
+      },
       "android": {
         "buildType": "apk"
       },
@@ -24,6 +28,10 @@
     },
     "production": {
       "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_DIRECTORY_URL": "https://thewebpaanda.com",
+        "EXPO_PUBLIC_FLEET_DOMAIN": "thewebpaanda.com"
+      },
       "android": {
         "buildType": "app-bundle"
       },

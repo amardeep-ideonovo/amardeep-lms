@@ -31,9 +31,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // so permission/role edits take effect on the very next request.
       const admin = await this.prisma.admin.findUnique({
         where: { id: payload.sub },
-        select: { id: true, role: true, permissions: true },
+        select: { id: true, role: true, permissions: true, tokenVersion: true },
       });
       if (!admin) {
+        throw new UnauthorizedException(
+          'Your session is no longer valid — please sign in again',
+        );
+      }
+      // Revocation check: a password change/reset bumps tokenVersion, so any
+      // JWT minted before it (missing tv ⇒ 0) is now stale and rejected.
+      if (admin.tokenVersion !== (payload.tv ?? 0)) {
         throw new UnauthorizedException(
           'Your session is no longer valid — please sign in again',
         );
@@ -48,9 +55,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true },
+      select: { id: true, tokenVersion: true },
     });
     if (!user) {
+      throw new UnauthorizedException(
+        'Your session is no longer valid — please sign in again',
+      );
+    }
+    // Revocation check (see admin branch above): a stale tv ⇒ 401.
+    if (user.tokenVersion !== (payload.tv ?? 0)) {
       throw new UnauthorizedException(
         'Your session is no longer valid — please sign in again',
       );

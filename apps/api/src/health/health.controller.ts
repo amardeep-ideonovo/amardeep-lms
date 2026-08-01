@@ -1,4 +1,5 @@
 import { Controller, Get, Inject } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Redis } from 'ioredis';
 import { PrismaService } from '../prisma/prisma.service';
 import { REDIS_CONNECTION } from '../queue/redis.provider';
@@ -10,6 +11,7 @@ import { REDIS_CONNECTION } from '../queue/redis.provider';
 // restart on process death, not on a dependency hiccup. The `status` and
 // `checks` fields surface the real state for clients and synthetic smoke
 // tests (they can assert `checks.db === 'ok'` etc).
+@SkipThrottle() // uptime probes hit this frequently — never rate-limit it.
 @Controller('health')
 export class HealthController {
   constructor(

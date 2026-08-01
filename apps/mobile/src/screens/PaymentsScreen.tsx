@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   FlatList,
   Linking,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -62,19 +63,37 @@ export function PaymentsScreen(_props: ScreenProps<"Payments">) {
   // null = still loading (skeleton rows instead of a spinner).
   const [invoices, setInvoices] = useState<InvoiceDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const loadedOnce = useRef(false);
 
-  const load = useCallback(async () => {
-    setInvoices(null);
+  // `silent` keeps the rendered rows on screen while refetching, so a
+  // pull-to-refresh doesn't drop the list back to skeletons. `loadedOnce`
+  // extends that to every other path (house pattern — see DashboardScreen):
+  // once rows are on screen they're never blanked, and a refetch that FAILS
+  // leaves them alone instead of swapping in an error page.
+  const load = useCallback(async (silent = false) => {
+    if (!silent && !loadedOnce.current) setInvoices(null);
     setError(null);
     try {
       setInvoices(await api.myInvoices());
+      loadedOnce.current = true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load your payments.");
+      if (!loadedOnce.current) {
+        setError(
+          e instanceof Error ? e.message : "Could not load your payments.",
+        );
+      }
     }
   }, []);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load(true);
+    setRefreshing(false);
   }, [load]);
 
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -96,6 +115,9 @@ export function PaymentsScreen(_props: ScreenProps<"Payments">) {
       data={invoices}
       keyExtractor={(inv) => inv.id}
       renderItem={({ item }) => <InvoiceRow inv={item} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     />
   );
 }

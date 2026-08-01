@@ -39,6 +39,22 @@ const config = (): ExpoConfig => ({
   updates: {
     url: `https://u.expo.dev/${easProjectId}`,
     fallbackToCacheTimeout: 0,
+    // Code signing: with a per-project certificate, the client verifies each OTA
+    // bundle's signature, so a compromised Expo/EAS account alone can't push
+    // malicious JS to the fleet. Generate per project via
+    //   npx expo-updates codesigning:generate --key-output-directory keys \
+    //     --certificate-output-directory certs --certificate-validity-duration-years 10 \
+    //     --certificate-common-name "<app>"
+    //   npx expo-updates codesigning:configure ...
+    // then set EXPO_PUBLIC_CODE_SIGNING_CERT to the certificate path. Left
+    // optional so a build without the cert still works (unsigned) — activate per
+    // white-label project before the next OTA wave (see SHIPPING.md).
+    ...(process.env.EXPO_PUBLIC_CODE_SIGNING_CERT
+      ? {
+          codeSigningCertificate: process.env.EXPO_PUBLIC_CODE_SIGNING_CERT,
+          codeSigningMetadata: { keyid: "main", alg: "rsa-v1_5-sha256" },
+        }
+      : {}),
   },
   plugins: [
     [

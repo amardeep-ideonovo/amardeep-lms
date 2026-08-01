@@ -56,10 +56,13 @@ export class JwtDownloadStrategy extends PassportStrategy(
         throw new UnauthorizedException('Invalid or expired download token.');
       }
     }
+    // A `dl` token no longer carries email/username (it omits PII), so default
+    // them here — the download services only read `sub` + `isAdmin`. A header
+    // (session-JWT) token still supplies the real values.
     return {
       sub: payload.sub,
-      email: payload.email,
-      username: payload.username,
+      email: (payload as JwtPayload).email ?? '',
+      username: (payload as JwtPayload).username,
       isAdmin: payload.isAdmin,
       role: payload.role,
     };

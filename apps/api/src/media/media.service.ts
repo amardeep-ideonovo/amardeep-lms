@@ -141,13 +141,22 @@ export class MediaService {
       width = d.width;
       height = d.height;
     } else if (mediaKind(file.mimetype, ext) === 'image') {
+      // Magic-byte check: a declared raster image MUST actually parse as one.
+      // image-size reads the header, so a mislabeled file (e.g. HTML/script sent
+      // as image/png) fails here and is REJECTED rather than stored + served.
+      let d: { width?: number; height?: number } | null = null;
       try {
-        const d = imageSize(buffer);
-        width = d.width ?? null;
-        height = d.height ?? null;
+        d = imageSize(buffer);
       } catch {
-        /* not a decodable raster — leave dimensions null */
+        d = null;
       }
+      if (!d?.width || !d?.height) {
+        throw new BadRequestException(
+          "That image couldn't be read — it may be corrupt or not a real image file.",
+        );
+      }
+      width = d.width;
+      height = d.height;
     }
 
     const key = timestampName(ext);

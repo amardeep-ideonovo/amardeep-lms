@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PopupListItem } from "@lms/types";
+import type { PopupAdminRow, PopupListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { withBase } from "@/lib/base-path";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 
 // Human summary of WHERE a popup shows, from its visibility flags.
 function visibilitySummary(p: PopupListItem): string {
@@ -49,10 +50,14 @@ const POSITION_LABEL: Record<PopupListItem["position"], string> = {
 
 export default function PopupsPage() {
   const { can, loading: authLoading } = useAdminAuth();
+  const optimistic = useOptimisticAction();
   const [popups, setPopups] = useState<PopupListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Per-row guard for activate/delete so a row's own control can disable while
+  // its mutation + reload run (separate from `busy`, which owns "New popup").
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -72,6 +77,35 @@ export default function PopupsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
+  // Create/update return the full PopupAdminRow. It carries every list column,
+  // with `pageCount` derived the same way the API's list mapper derives it
+  // (pageIds.length), so we can apply it locally instead of refetching. GET
+  // /admin/popups is ordered by updatedAt desc — a saved popup moves to the top.
+  function applyPopup(row: PopupAdminRow) {
+    const item: PopupListItem = {
+      id: row.id,
+      name: row.name,
+      status: row.status,
+      position: row.position,
+      showOnDashboard: row.showOnDashboard,
+      showOnClasses: row.showOnClasses,
+      showOnCourses: row.showOnCourses,
+      showOnLessons: row.showOnLessons,
+      pageMode: row.pageMode,
+      pageCount: row.pageIds.length,
+      views: row.views,
+      clicks: row.clicks,
+      dismissals: row.dismissals,
+      updatedAt: row.updatedAt,
+    };
+    setPopups((prev) =>
+      (prev.some((p) => p.id === item.id)
+        ? prev.map((p) => (p.id === item.id ? item : p))
+        : [item, ...prev]
+      ).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    );
+  }
+
   function openEditor(id: string) {
     window.open(withBase(`/popups/${id}/edit`), "_blank", "noopener");
   }
@@ -87,7 +121,7 @@ export default function PopupsPage() {
       const popup = await api.createPopup({ name: "Untitled popup" });
       if (win) win.location.href = withBase(`/popups/${popup.id}/edit`);
       else openEditor(popup.id);
-      await load();
+      applyPopup(popup);
     } catch (err) {
       if (win) win.close();
       setError(err instanceof ApiError ? err.message : "Failed to create popup");
@@ -105,22 +139,36 @@ export default function PopupsPage() {
     if (name === null || !name.trim()) return;
     setError(null);
     try {
-      await api.updatePopup(p.id, { name: name.trim() });
-      await load();
+      applyPopup(await api.updatePopup(p.id, { name: name.trim() }));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to rename popup");
     }
   }
 
+  // The status chip flips on click. Only `status` is painted optimistically —
+  // the list is sorted by `updatedAt` and the server's response does that move.
   async function toggleActive(p: PopupListItem) {
     setError(null);
+    const next = p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    setRowBusy(p.id);
     try {
-      await api.updatePopup(p.id, {
-        status: p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+      await optimistic.run({
+        key: `popup:${p.id}`,
+        snapshot: () => p.status,
+        apply: () =>
+          setPopups((prev) =>
+            prev.map((x) => (x.id === p.id ? { ...x, status: next } : x)),
+          ),
+        request: () => api.updatePopup(p.id, { status: next }),
+        commit: (row) => applyPopup(row),
+        revert: (status) =>
+          setPopups((prev) =>
+            prev.map((x) => (x.id === p.id ? { ...x, status } : x)),
+          ),
+        errorMessage: "Failed to update status",
       });
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to update status");
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -133,11 +181,14 @@ export default function PopupsPage() {
     )
       return;
     setError(null);
+    setRowBusy(p.id);
     try {
       await api.deletePopup(p.id);
-      await load();
+      setPopups((prev) => prev.filter((x) => x.id !== p.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete popup");
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -234,12 +285,18 @@ export default function PopupsPage() {
                       <button
                         className="btn btn--ghost btn--sm"
                         onClick={() => toggleActive(p)}
+                        disabled={rowBusy === p.id}
                       >
-                        {p.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                        {rowBusy === p.id
+                          ? "Saving…"
+                          : p.status === "ACTIVE"
+                            ? "Deactivate"
+                            : "Activate"}
                       </button>
                       <button
                         className="btn btn--danger btn--sm"
                         onClick={() => remove(p)}
+                        disabled={rowBusy === p.id}
                       >
                         Delete
                       </button>

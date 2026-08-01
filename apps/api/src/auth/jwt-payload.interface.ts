@@ -9,6 +9,10 @@ export interface JwtPayload {
   username?: string; // members only
   isAdmin: boolean;
   role?: AdminRole; // admins only
+  // Session-revocation counter, compared against the DB row on every request.
+  // Optional so tokens minted before this shipped are treated as tv=0 (no mass
+  // logout on deploy) — see JwtStrategy.validate. Download tokens omit it.
+  tv?: number;
 }
 
 // What gets attached to req.user after JwtStrategy validates the token. For

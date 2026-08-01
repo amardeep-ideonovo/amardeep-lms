@@ -7,11 +7,13 @@ import {
 } from '@nestjs/common';
 import type {
   CheckoutLevelDTO,
+  ClassExtrasDTO,
   ClassPublicDTO,
   ClassTileDTO,
   CourseCard,
   LevelCategoryDTO,
   LevelDTO,
+  MemberDashboardDTO,
   MyClassCoursesDTO,
   PublicClassListItem,
   SkillDTO,
@@ -33,6 +35,7 @@ type LevelWithPrices = {
   name: string;
   slug: string | null;
   published: boolean;
+  archivedAt: Date | null;
   type: any;
   audienceTags: string[];
   audienceId: string | null;
@@ -74,6 +77,7 @@ export class LevelsService {
       name: level.name,
       slug: level.slug,
       published: level.published,
+      archivedAt: level.archivedAt ? level.archivedAt.toISOString() : null,
       type: level.type,
       audienceTags: level.audienceTags,
       audienceId: level.audienceId,
@@ -117,6 +121,18 @@ export class LevelsService {
       byLevel.set(r.levelId, set);
     }
     return new Map([...byLevel].map(([levelId, users]) => [levelId, users.size]));
+  }
+
+  // Same rule as activeMemberCounts (dedupe on userId — a member can hold one
+  // level via STRIPE *and* MANUAL) but scoped to a single row, so a write can
+  // report the real count without scanning every grant in the system.
+  private async activeMemberCount(levelId: string): Promise<number> {
+    const rows = await this.prisma.userLevel.findMany({
+      where: { levelId, status: 'ACTIVE' },
+      select: { userId: true },
+      distinct: ['userId'],
+    });
+    return rows.length;
   }
 
   // includeCounts is set only for admin requests (member-facing calls get 0).
@@ -309,6 +325,135 @@ export class LevelsService {
     }));
   }
 
+  // The whole member dashboard in ONE request: the class tiles plus, for the
+  // classes the member owns, how much is left and which lesson to resume.
+  //
+  // This replaces a client fan-out that issued up to 17 requests per visit
+  // (my-classes, then my-courses per owned class, then course-lessons for each)
+  // and re-issued them on every tab focus. The work is the same; it just happens
+  // in a fixed number of queries on one round trip instead of N round trips.
+  //
+  // `extras` covers OWNED classes only, so it grants nothing the tile list
+  // doesn't already carry.
+  async myDashboard(userId: string): Promise<MemberDashboardDTO> {
+    const classes = await this.myClasses(userId);
+    const ownedIds = classes.filter((c) => c.owned).map((c) => c.id);
+    return { classes, extras: await this.classExtras(userId, ownedIds) };
+  }
+
+  // Per-class counts + next-incomplete-lesson for the given OWNED classes.
+  // Fixed query count regardless of how many classes the member owns.
+  private async classExtras(
+    userId: string,
+    levelIds: string[],
+  ): Promise<Record<string, ClassExtrasDTO>> {
+    if (levelIds.length === 0) return {};
+
+    const [courses, completedByCourse] = await Promise.all([
+      this.prisma.course.findMany({
+        where: { courseLevels: { some: { levelId: { in: levelIds } } } },
+        orderBy: { order: 'asc' },
+        select: {
+          id: true,
+          title: true,
+          thumbnailUrl: true,
+          coverImageUrl: true,
+          courseLevels: { select: { levelId: true } },
+          _count: { select: { lessons: true } },
+        },
+      }),
+      this.access.completedCountByCourse(userId),
+    ]);
+
+    // A course can belong to several classes, so fan it out to each one it's in
+    // (and only to classes in scope). Order is preserved from the query.
+    const byLevel = new Map<string, typeof courses>();
+    for (const id of levelIds) byLevel.set(id, []);
+    for (const c of courses) {
+      for (const cl of c.courseLevels) byLevel.get(cl.levelId)?.push(c);
+    }
+
+    // Resume target per class = its first course (by order) with lessons left.
+    const targetByLevel = new Map<string, (typeof courses)[number]>();
+    for (const [levelId, list] of byLevel) {
+      const target = list.find(
+        (c) =>
+          c._count.lessons > 0 &&
+          (completedByCourse.get(c.id) ?? 0) < c._count.lessons,
+      );
+      if (target) targetByLevel.set(levelId, target);
+    }
+
+    // One lessons query + one progress query for every resume target at once —
+    // this is what the client was paying a round trip per class for.
+    const targetIds = [...new Set([...targetByLevel.values()].map((c) => c.id))];
+    const lessonsByCourse = new Map<
+      string,
+      { id: string; courseId: string; title: string; thumbnailUrl: string | null; durationSeconds: number | null }[]
+    >();
+    const completedLessonIds = new Set<string>();
+    if (targetIds.length > 0) {
+      const [lessons, progress] = await Promise.all([
+        this.prisma.lesson.findMany({
+          where: { courseId: { in: targetIds } },
+          orderBy: { order: 'asc' },
+          select: {
+            id: true,
+            courseId: true,
+            title: true,
+            thumbnailUrl: true,
+            durationSeconds: true,
+          },
+        }),
+        this.prisma.lessonProgress.findMany({
+          where: { userId, lesson: { courseId: { in: targetIds } } },
+          select: { lessonId: true },
+        }),
+      ]);
+      for (const p of progress) completedLessonIds.add(p.lessonId);
+      for (const l of lessons) {
+        const arr = lessonsByCourse.get(l.courseId);
+        if (arr) arr.push(l);
+        else lessonsByCourse.set(l.courseId, [l]);
+      }
+    }
+
+    const out: Record<string, ClassExtrasDTO> = {};
+    for (const [levelId, list] of byLevel) {
+      const lessonTotal = list.reduce((n, c) => n + c._count.lessons, 0);
+      const lessonsDone = list.reduce(
+        (n, c) =>
+          n + Math.min(completedByCourse.get(c.id) ?? 0, c._count.lessons),
+        0,
+      );
+      const target = targetByLevel.get(levelId);
+      const lessons = target ? lessonsByCourse.get(target.id) ?? [] : [];
+      // Same rule the client used: first incomplete, else the first lesson.
+      const lesson =
+        lessons.find((l) => !completedLessonIds.has(l.id)) ?? lessons[0] ?? null;
+
+      out[levelId] = {
+        courseCount: list.length,
+        lessonTotal,
+        coursesLeft: list.filter(
+          (c) =>
+            c._count.lessons === 0 ||
+            (completedByCourse.get(c.id) ?? 0) < c._count.lessons,
+        ).length,
+        lessonsLeft: Math.max(0, lessonTotal - lessonsDone),
+        next:
+          target && lesson
+            ? {
+                lesson,
+                courseTitle: target.title,
+                courseThumb: target.thumbnailUrl ?? target.coverImageUrl ?? null,
+              }
+            : null,
+      };
+    }
+    return out;
+  }
+
   // A class's courses for the class page — returned ONLY when the member owns the
   // class. Not owned (or logged-out) => owned:false + []. The course player is
   // independently access-gated, so this is a UX convenience, not the security
@@ -481,7 +626,9 @@ export class LevelsService {
     if (dto.featuredCourseId) {
       await this.ensureCourseAssigned(dto.featuredCourseId, level.id);
     }
-    return this.toDTO(level as LevelWithPrices);
+    // 0 is the true count here, not a placeholder: the class was created moments
+    // ago, so no grant can reference it yet.
+    return this.toDTO(level as LevelWithPrices, 0);
   }
 
   async update(id: string, dto: UpdateLevelDto): Promise<LevelDTO> {
@@ -602,7 +749,9 @@ export class LevelsService {
         audience: { select: { name: true } },
       },
     });
-    return this.toDTO(fresh as LevelWithPrices);
+    // An existing class can hold members, and the admin list renders this
+    // number — defaulting it to 0 reported every edited class as empty.
+    return this.toDTO(fresh as LevelWithPrices, await this.activeMemberCount(id));
   }
 
   /**
@@ -785,10 +934,48 @@ export class LevelsService {
   async remove(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.level.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Level not found');
-    // Issued-certificate rows cascade with the level; their rendered PDFs
-    // don't, so unlink them first (best-effort).
-    await this.certificates.unlinkFilesForLevel(id).catch(() => undefined);
+    // Guard: refuse to hard-delete a class that still has paying/paused members.
+    // Deleting cascade-revokes their UserLevel access WITHOUT canceling their
+    // subscription (they'd keep being billed with no access). Cancel their subs
+    // or archive the class instead.
+    const active = await this.prisma.userLevel.count({
+      where: { levelId: id, status: { in: ['ACTIVE', 'PAST_DUE', 'PAUSED'] } },
+    });
+    if (active > 0) {
+      throw new ConflictException(
+        `Cannot delete: ${active} member grant(s) are still active. Cancel their subscriptions or archive this class instead.`,
+      );
+    }
+    // NOTE: we deliberately do NOT unlink certificate files here. Certificate.level
+    // is SetNull, so issued certificates (and their PDFs) survive a class deletion
+    // — they stay publicly verifiable and downloadable.
     await this.prisma.level.delete({ where: { id } });
+    return { ok: true };
+  }
+
+  /**
+   * Soft-archive a class: hide it from members (published:false makes the
+   * existing member-facing `published:true` filters skip it) while KEEPING every
+   * grant, subscription, and issued certificate intact. The ergonomic
+   * alternative to a hard delete when a class still has members.
+   */
+  async archive(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.level.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Level not found');
+    await this.prisma.level.update({
+      where: { id },
+      data: { archivedAt: new Date(), published: false },
+    });
+    return { ok: true };
+  }
+
+  async unarchive(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.level.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException('Level not found');
+    await this.prisma.level.update({
+      where: { id },
+      data: { archivedAt: null },
+    });
     return { ok: true };
   }
 

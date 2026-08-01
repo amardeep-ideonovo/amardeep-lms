@@ -100,6 +100,7 @@ export default function FormEmbed({ formId }: { formId: string }) {
       <button
         type="submit"
         disabled={submitting}
+        aria-busy={submitting}
         className="form-embed-submit"
       >
         {submitting ? "Submitting…" : "Submit"}

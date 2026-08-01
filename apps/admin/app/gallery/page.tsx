@@ -113,7 +113,11 @@ export default function MediaPage() {
       await api.updateMedia(created.id, meta).catch(() => undefined); // details (best-effort)
       const rest = pending.slice(1);
       setPending(rest);
-      if (rest.length === 0) await load(1, q, kind); // refresh once the batch is done
+      // Refetch once the batch is done: this list is server-paginated AND
+      // server-filtered (q + kind), so whether an upload belongs on the current
+      // page — and what it displaces — is the server's call. Editing and
+      // deleting an asset already apply in place (see onSaved/onDeleted below).
+      if (rest.length === 0) await load(1, q, kind);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Upload failed");
     } finally {

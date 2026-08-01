@@ -1,8 +1,19 @@
 // Realtime client for the Projects page (Phase 3). A small singleton wrapper
 // around a Socket.IO connection to the API's `/projects` namespace. The page
-// keeps using REST for its own send/edit/react/thread actions; this socket only
-// DELIVERS other admins' updates live (and a typing/presence nicety), replacing
-// the fast append-poll.
+// keeps using REST for its own send/edit/react/thread actions; this socket
+// delivers everyone's updates live, replacing the fast append-poll.
+//
+// ⚠ It delivers YOUR OWN messages back to you as well. `chat:message` and
+// `chat:message:update` are emitted with `server.to(room)` — the whole channel
+// room, sender included (projects.gateway.ts:147,152). Only `chat:typing` uses
+// the sender-excluding `client.to(room)`. So anything that echoes a message
+// locally must expect the same message to ALSO arrive over the socket, usually
+// before the POST resolves — see reconcilePending() in lib/projects.ts, which
+// retires the echo on whichever path lands first.
+//
+// (This header previously said the socket carried only OTHER admins' updates.
+// It never did for messages, and taking that at face value produces duplicated
+// messages on every send.)
 //
 // Auth: the handshake carries the stored admin bearer token (same getToken the
 // REST client uses). The server verifies it and rejects non-admin sockets.

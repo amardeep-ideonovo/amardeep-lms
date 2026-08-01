@@ -11,6 +11,7 @@ import type {
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import AvatarCropper from "@/components/AvatarCropper";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 
 // Avatar fallback initials from the member's name, else username/email.
 function avatarInitials(u: AuthUser): string {
@@ -56,6 +57,7 @@ function planStatus(sub: SubscriptionDetailDTO): { label: string; cls: string } 
 function CertificatesSection() {
   const [certs, setCerts] = useState<MyCertificateDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -67,6 +69,18 @@ function CertificatesSection() {
       active = false;
     };
   }, []);
+
+  async function download(c: MyCertificateDTO) {
+    setDownloadingId(c.id);
+    setError(null);
+    try {
+      await api.downloadCertificate(c);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Download failed");
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   if (certs === null || certs.length === 0) return null; // nothing earned yet
 
@@ -91,15 +105,11 @@ function CertificatesSection() {
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={() =>
-                  api
-                    .downloadCertificate(c)
-                    .catch((e) =>
-                      setError(e instanceof Error ? e.message : "Download failed"),
-                    )
-                }
+                onClick={() => download(c)}
+                disabled={downloadingId === c.id}
+                aria-busy={downloadingId === c.id}
               >
-                Download
+                {downloadingId === c.id ? "Preparing…" : "Download"}
               </button>
             </div>
           </div>
@@ -133,6 +143,7 @@ function CheckoutBanner() {
 
 function AccountInner() {
   const router = useRouter();
+  const runOptimistic = useOptimisticAction();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -157,7 +168,9 @@ function AccountInner() {
   const [pwOk, setPwOk] = useState(false);
   // Profile photo: cropper file + upload state.
   const [cropFile, setCropFile] = useState<File | null>(null);
-  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState<null | "upload" | "remove">(null);
+  // Object URL for the just-cropped bytes, shown while the upload is in flight.
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarErr, setAvatarErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -286,42 +299,59 @@ function AccountInner() {
   }
 
   async function uploadCroppedAvatar(blob: Blob) {
-    setAvatarBusy(true);
+    // The cropped bytes are already in the browser, so there is no reason to
+    // leave the OLD photo on screen for the whole upload. Show them now; the
+    // server URL replaces this the moment it lands.
+    const preview = URL.createObjectURL(blob);
+    setAvatarBusy("upload");
     setAvatarErr(null);
-    try {
-      const updated = await api.uploadAvatar(blob);
-      setUser(updated);
-      setCropFile(null);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        fail(err);
-        return;
-      }
-      setAvatarErr(
-        err instanceof ApiError ? err.message : "Couldn’t upload the photo.",
-      );
-    } finally {
-      setAvatarBusy(false);
-    }
+    await runOptimistic("avatar", {
+      snapshot: () => null,
+      apply: () => setAvatarPreview(preview),
+      commit: async () => {
+        const updated = await api.uploadAvatar(blob);
+        setUser(updated);
+        setCropFile(null);
+      },
+      // Nothing to put back but the preview: `user` is only ever written from
+      // the server response, so a failure just uncovers the previous photo.
+      revert: () => setAvatarPreview(null),
+      onError: (err) => {
+        if (err instanceof ApiError && err.status === 401) {
+          fail(err);
+          return;
+        }
+        setAvatarErr(
+          err instanceof ApiError ? err.message : "Couldn’t upload the photo.",
+        );
+      },
+    });
+    setAvatarPreview(null);
+    URL.revokeObjectURL(preview);
+    setAvatarBusy(null);
   }
 
   async function removeAvatar() {
-    setAvatarBusy(true);
+    setAvatarBusy("remove");
     setAvatarErr(null);
-    try {
-      const updated = await api.updateMe({ removeAvatar: true });
-      setUser(updated);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        fail(err);
-        return;
-      }
-      setAvatarErr(
-        err instanceof ApiError ? err.message : "Couldn’t remove the photo.",
-      );
-    } finally {
-      setAvatarBusy(false);
-    }
+    await runOptimistic("avatar", {
+      // The whole user, so a failure restores the exact photo that was there
+      // rather than a re-derived guess at it.
+      snapshot: () => user,
+      apply: () => setUser((u) => (u ? { ...u, avatarUrl: null } : u)),
+      commit: async () => setUser(await api.updateMe({ removeAvatar: true })),
+      revert: (snap) => setUser(snap),
+      onError: (err) => {
+        if (err instanceof ApiError && err.status === 401) {
+          fail(err);
+          return;
+        }
+        setAvatarErr(
+          err instanceof ApiError ? err.message : "Couldn’t remove the photo.",
+        );
+      },
+    });
+    setAvatarBusy(null);
   }
 
   function startPwEdit() {
@@ -469,6 +499,7 @@ function AccountInner() {
                 type="submit"
                 className="btn btn-primary"
                 disabled={saving}
+                aria-busy={saving}
               >
                 {saving ? "Saving…" : "Save changes"}
               </button>
@@ -477,6 +508,7 @@ function AccountInner() {
                 className="btn btn-secondary"
                 onClick={() => setEditing(false)}
                 disabled={saving}
+                aria-busy={saving}
               >
                 Cancel
               </button>
@@ -539,6 +571,7 @@ function AccountInner() {
                 type="submit"
                 className="btn btn-primary"
                 disabled={pwSaving}
+                aria-busy={pwSaving}
               >
                 {pwSaving ? "Saving…" : "Update password"}
               </button>
@@ -547,6 +580,7 @@ function AccountInner() {
                 className="btn btn-secondary"
                 onClick={() => setPwEditing(false)}
                 disabled={pwSaving}
+                aria-busy={pwSaving}
               >
                 Cancel
               </button>
@@ -556,10 +590,12 @@ function AccountInner() {
           <>
             <div className="account-avatar-row">
               <div className="account-avatar">
-                {user.avatarUrl ? (
+                {avatarPreview ?? user.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={user.avatarUrl}
+                    // The local crop wins while it exists, so the new photo is
+                    // on screen before the upload finishes.
+                    src={avatarPreview ?? user.avatarUrl ?? undefined}
                     alt=""
                     className="account-avatar-img"
                   />
@@ -581,11 +617,11 @@ function AccountInner() {
                   <button
                     type="button"
                     className="btn btn-secondary"
-                    disabled={avatarBusy}
+                    disabled={!!avatarBusy}
                     onClick={() => fileRef.current?.click()}
                   >
-                    {avatarBusy
-                      ? "Working…"
+                    {avatarBusy === "upload"
+                      ? "Uploading…"
                       : user.avatarUrl
                         ? "Change photo"
                         : "Upload photo"}
@@ -594,10 +630,11 @@ function AccountInner() {
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      disabled={avatarBusy}
+                      disabled={!!avatarBusy}
+                      aria-busy={avatarBusy === "remove"}
                       onClick={removeAvatar}
                     >
-                      Remove
+                      {avatarBusy === "remove" ? "Removing…" : "Remove"}
                     </button>
                   )}
                 </div>
@@ -701,6 +738,7 @@ function AccountInner() {
             className="btn btn-primary"
             onClick={openPortal}
             disabled={busy}
+            aria-busy={busy}
           >
             {busy ? "Redirecting…" : "Update Card Details"}
           </button>
@@ -733,6 +771,7 @@ function AccountInner() {
                 className="modal-close"
                 aria-label="Close"
                 disabled={cancelBusy}
+                aria-busy={cancelBusy}
                 onClick={() => setCancelFor(null)}
               >
                 ×
@@ -751,6 +790,7 @@ function AccountInner() {
                   type="button"
                   className="btn btn-danger"
                   disabled={cancelBusy}
+                  aria-busy={cancelBusy}
                   onClick={doCancelMembership}
                 >
                   {cancelBusy ? "Canceling…" : "Cancel membership"}
@@ -759,6 +799,7 @@ function AccountInner() {
                   type="button"
                   className="btn btn-secondary"
                   disabled={cancelBusy}
+                  aria-busy={cancelBusy}
                   onClick={() => setCancelFor(null)}
                 >
                   Keep membership
@@ -772,7 +813,7 @@ function AccountInner() {
       {cropFile && (
         <AvatarCropper
           file={cropFile}
-          busy={avatarBusy}
+          busy={avatarBusy === "upload"}
           error={avatarErr}
           onCancel={() => {
             if (!avatarBusy) setCropFile(null);

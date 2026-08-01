@@ -6,6 +6,7 @@ export type RowMenuItem = {
   label: string;
   onClick: () => void;
   danger?: boolean;
+  disabled?: boolean;
 };
 
 // A compact "⋯" overflow menu for table rows: keeps secondary/destructive
@@ -64,6 +65,7 @@ export default function RowMenu({
               className={
                 it.danger ? "row-menu-item row-menu-item--danger" : "row-menu-item"
               }
+              disabled={it.disabled}
               onClick={() => {
                 setOpen(false);
                 it.onClick();

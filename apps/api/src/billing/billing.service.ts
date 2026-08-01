@@ -585,6 +585,9 @@ export class BillingService implements OnModuleInit {
   private async handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
     // Only a FULL refund revokes; Stripe sets `refunded` true once fully refunded.
     if (!charge.refunded) return;
+    // Subscription-backed (class/level) access — resolve charge->invoice->sub.
+    await this.revokeSubscriptionByCharge(charge, 'refund');
+    // One-off course access tied to the PaymentIntent.
     const pi =
       typeof charge.payment_intent === 'string'
         ? charge.payment_intent
@@ -597,12 +600,86 @@ export class BillingService implements OnModuleInit {
     dispute: Stripe.Dispute,
   ): Promise<void> {
     // A chargeback pulls the funds immediately — revoke access on dispute open.
+    // The Dispute object carries `charge` as a string id (not expanded), so
+    // fetch it to read its invoice/subscription for the class-access revoke.
+    const chargeId =
+      typeof dispute.charge === 'string'
+        ? dispute.charge
+        : (dispute.charge?.id ?? null);
+    if (chargeId) {
+      const charge = await this.stripe.retrieveCharge(chargeId);
+      await this.revokeSubscriptionByCharge(charge, 'chargeback');
+    }
+    // One-off course access tied to the PaymentIntent.
     const pi =
       typeof dispute.payment_intent === 'string'
         ? dispute.payment_intent
         : (dispute.payment_intent?.id ?? null);
     if (!pi) return;
     await this.revokeCoursePurchaseByPaymentIntent(pi, 'chargeback');
+  }
+
+  // Revoke SUBSCRIPTION-backed (class/level) access when a subscription charge
+  // is reversed. The course path only covers one-off UserCourse grants; a
+  // subscription invoice charge has no UserCourse row, so without this a member
+  // keeps class access after a chargeback/refund. Resolve charge->invoice->
+  // subscription, cancel it, and reconcile (flips the member's UserLevel to
+  // CANCELED + drops audience tags).
+  //
+  // Idempotent: skips the cancel when the sub is already canceled, so a
+  // duplicate/retried event — or dispute-then-refund on the same charge, or a
+  // charge on an installment plan already canceled by fulfillInstallmentsIfComplete
+  // — cannot hit Stripe's "cannot cancel a canceled subscription" 400 and loop
+  // the webhook forever.
+  //
+  // KNOWN LIMITATION: reconcileSubscription never downgrades a UserLevel with
+  // lifetime=true, so a chargeback on a paid-in-full installment plan does NOT
+  // claw back the lifetime class grant. That needs explicit handling and is out
+  // of scope for this fix.
+  private async revokeSubscriptionByCharge(
+    charge: Stripe.Charge,
+    reason: 'refund' | 'chargeback',
+  ): Promise<void> {
+    const invoiceRef = charge.invoice;
+    if (!invoiceRef) return; // not a subscription charge — course path handles one-offs
+    const invoiceId =
+      typeof invoiceRef === 'string' ? invoiceRef : (invoiceRef.id ?? null);
+    if (!invoiceId) return;
+    const invoice =
+      typeof invoiceRef === 'string'
+        ? await this.stripe.retrieveInvoice(invoiceId)
+        : invoiceRef;
+    const subRef = invoice.subscription;
+    const subId =
+      typeof subRef === 'string' ? subRef : (subRef?.id ?? null);
+    if (!subId) return;
+
+    let sub = await this.stripe.retrieveSubscription(subId);
+    if (sub.status !== 'canceled') {
+      try {
+        sub = await this.stripe.cancelSubscription(subId);
+      } catch (err) {
+        // A concurrent event may have canceled it between retrieve and cancel.
+        // Re-read: if it's canceled now, treat as a no-op; else rethrow so
+        // Stripe retries.
+        sub = await this.stripe.retrieveSubscription(subId);
+        if (sub.status !== 'canceled') throw err;
+      }
+    }
+    await this.reconcileSubscription(sub, `revoke:${reason}:${subId}`);
+    await this.notify({
+      type: 'PAYMENT_FAILED',
+      severity: 'CRITICAL',
+      title:
+        reason === 'chargeback'
+          ? 'Subscription access revoked (chargeback)'
+          : 'Subscription access revoked (refund)',
+      body: `Subscription ${subId} canceled and class access revoked after a ${reason}.`,
+      dedupeKey: `sub:revoke:${reason}:${subId}`,
+    });
+    this.logger.log(
+      `[subscription] revoked access for sub=${subId} after ${reason}`,
+    );
   }
 
   // Flip any ACTIVE course grant tied to this PaymentIntent to REFUNDED (access

@@ -26,6 +26,7 @@ import {
   loadAdminRoster,
   makeNameResolver,
 } from "@/lib/projects";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import {
   getProjectsSocket,
   onChatListUpdate,
@@ -269,6 +270,9 @@ function WorkflowsPanel({
   onError: (msg: string) => void;
 }) {
   const [workflows, setWorkflows] = useState<ChatWorkflowDTO[]>([]);
+  const optimistic = useOptimisticAction();
+  // Names the workflow whose enable/delete is mid-flight so its row locks.
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
 
@@ -333,12 +337,32 @@ function WorkflowsPanel({
     }
   }
 
+  // The Enabled/Disabled chip flips on click; PATCH returns the whole workflow,
+  // so the response replaces the row and no refetch is needed.
   async function toggleEnabled(wf: ChatWorkflowDTO) {
+    setRowBusy(wf.id);
+    const next = !wf.enabled;
     try {
-      await api.updateWorkflow(wf.id, { enabled: !wf.enabled });
-      await load();
-    } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Failed to update workflow");
+      await optimistic.run({
+        key: `workflow:${wf.id}`,
+        snapshot: () => wf.enabled,
+        apply: () =>
+          setWorkflows((prev) =>
+            prev.map((x) => (x.id === wf.id ? { ...x, enabled: next } : x)),
+          ),
+        request: () => api.updateWorkflow(wf.id, { enabled: next }),
+        commit: (updated) =>
+          setWorkflows((prev) =>
+            prev.map((x) => (x.id === updated.id ? updated : x)),
+          ),
+        revert: (enabled) =>
+          setWorkflows((prev) =>
+            prev.map((x) => (x.id === wf.id ? { ...x, enabled } : x)),
+          ),
+        errorMessage: "Failed to update workflow",
+      });
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -349,11 +373,14 @@ function WorkflowsPanel({
       confirmLabel: "Delete",
     });
     if (!ok) return;
+    setRowBusy(wf.id);
     try {
       await api.deleteWorkflow(wf.id);
       await load();
     } catch (err) {
       onError(err instanceof ApiError ? err.message : "Failed to delete workflow");
+    } finally {
+      setRowBusy(null);
     }
   }
 
@@ -419,8 +446,13 @@ function WorkflowsPanel({
                       <button
                         className="btn btn--ghost btn--sm"
                         onClick={() => toggleEnabled(wf)}
+                        disabled={rowBusy === wf.id}
                       >
-                        {wf.enabled ? "Disable" : "Enable"}
+                        {rowBusy === wf.id
+                          ? "Saving…"
+                          : wf.enabled
+                            ? "Disable"
+                            : "Enable"}
                       </button>
                     )}
                     {canDelete && (
@@ -428,6 +460,7 @@ function WorkflowsPanel({
                         className="pj-tbl-rowdel"
                         title="Delete workflow"
                         onClick={() => remove(wf)}
+                        disabled={rowBusy === wf.id}
                       >
                         ✕
                       </button>

@@ -3,12 +3,13 @@
 // COMPLETE gradient button, certificate claim, and an "Up next" list built
 // from the lesson's course (best-effort fetch). All completion/certificate
 // logic is unchanged.
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
   Linking,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,6 +25,7 @@ import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 import { api, ApiError, getToken, noteDownloadUrl } from "../api";
 import { API_BASE_URL, WEB_ACCOUNT_URL, scopedKey } from "../config";
 import { Loading, ErrorState, Centered } from "../components/Screen";
+import { Skeleton } from "../components/Skeleton";
 import { Press } from "../components/Press";
 import { CtaButton } from "../components/CtaButton";
 import { LockedPanel } from "../components/LockedPanel";
@@ -31,7 +33,9 @@ import { PopupHost } from "../components/PopupHost";
 import CertificateClaim from "../components/CertificateClaim";
 import { VideoPlayerView } from "../components/VideoPlayerView";
 import { vimeoEmbed } from "../format";
+import { lessonSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
+import { optimistic } from "../optimistic";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -52,12 +56,16 @@ function fmtClock(seconds: number): string {
 export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
-  const { lessonId } = route.params;
+  // `seed` is the row the member tapped (see navigation.ts): title, thumbnail
+  // and duration — never the video URL, body, notes or certificate state, and
+  // never anything that implies access. It paints the loading frame only.
+  const { lessonId, seed } = route.params;
   const [lesson, setLesson] = useState<LessonDTO | null>(null);
   const [siblings, setSiblings] = useState<LessonDTO[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
+  const loadedOnce = useRef(false);
 
   const [completing, setCompleting] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
@@ -65,14 +73,25 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // `silent` keeps the rendered lesson on screen while refetching — a
+  // pull-to-refresh must never swap the player for the full-screen spinner.
+  // `loadedOnce` extends that to every other path (house pattern — see
+  // DashboardScreen): once the lesson is on screen nothing blanks it, and a
+  // refetch that FAILS keeps the player instead of replacing it with an error.
+  const load = useCallback(async (silent = false) => {
+    const first = !loadedOnce.current;
+    if (!silent && first) {
+      setLoading(true);
+      setSiblings(null);
+    }
     setError(null);
-    setLocked(false);
-    setSiblings(null);
     try {
       const data = await api.lesson(lessonId);
       setLesson(data);
+      // Access is the server's call, so `locked` is only cleared by a response
+      // that actually granted the lesson — never optimistically up front.
+      setLocked(false);
+      loadedOnce.current = true;
       // Course siblings drive the "Lesson x of y" line and the Up-next rows —
       // decorative, so a failure never blocks the player.
       api
@@ -81,8 +100,10 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
         .catch(() => {});
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
+        // Entitlement can be revoked mid-session — a 403 always wins, whether
+        // or not we already had content rendered.
         setLocked(true);
-      } else {
+      } else if (first) {
         setError(e instanceof Error ? e.message : "Could not load this lesson.");
       }
     } finally {
@@ -94,13 +115,33 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
     load();
   }, [load]);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load(true);
+    setRefreshing(false);
+  }, [load]);
+
   async function onComplete() {
-    setCompleting(true);
     setCompleteError(null);
+    // Optimistic. /complete does a lesson+course join, two access queries, a
+    // progress lookup, an upsert and a certificate-status query — the app's
+    // core emotional beat shouldn't sit under a spinner for all of that. The
+    // ✓ COMPLETED banner, the status pill and the meta line flip NOW, before
+    // the request. Only `completed` is touched: `certificates` is a GRANT and
+    // is left strictly as the server last reported it (see the render below).
+    const revert = optimistic(setLesson, (prev) =>
+      prev ? { ...prev, completed: true } : prev,
+    );
+    // The button is already gone (replaced by the banner), so `completing` no
+    // longer gates it — it now marks the in-flight window for the neutral
+    // "Checking certificate…" row.
+    setCompleting(true);
     try {
       const res = await api.completeLesson(lessonId);
       // Completing the final lesson of a class returns fresh certificate
-      // state — surface the "Get certificate" button without a refetch.
+      // state — surface the "Get certificate" button without a refetch. This
+      // is the ONLY place certificate state is written: never optimistically.
       setLesson((prev) =>
         prev
           ? {
@@ -111,6 +152,10 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
           : prev,
       );
     } catch (e) {
+      // Put the exact pre-tap lesson back before anything else, so a 403 can't
+      // leave a phantom "completed" behind: `load()` clears `locked` on a
+      // later successful refetch, and the reverted slice is what it lands on.
+      revert();
       if (e instanceof ApiError && e.status === 403) {
         setCompleteError("You no longer have access to this lesson.");
         setLocked(true);
@@ -131,18 +176,22 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   async function saveNote(note: LessonNoteDTO) {
     setNoteError(null);
     setSavedMsg(null);
+    // Must be stamped before the platform branch — the non-Android path returns
+    // early, so setting it further down left that row's `disabled` guard inert.
+    setSavingNoteId(note.id);
 
     if (Platform.OS !== "android") {
       try {
         await Linking.openURL(await noteDownloadUrl(note));
       } catch (e) {
         setNoteError(e instanceof Error ? e.message : "Could not open the file.");
+      } finally {
+        setSavingNoteId(null);
       }
       return;
     }
 
     const SAF_DIR_KEY = scopedKey("lms.saf.dir");
-    setSavingNoteId(note.id);
     try {
       const token = await getToken();
       const dot = note.originalName.lastIndexOf(".");
@@ -200,7 +249,36 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
     }
   }
 
-  if (loading) return <Loading />;
+  // First paint. With a seed we keep showing the row the member just tapped —
+  // its still thumbnail, title and duration — instead of a cold spinner. The
+  // player, completion button, notes and certificates stay out until the
+  // server has granted the lesson.
+  if (loading) {
+    if (!seed) return <Loading />;
+    return (
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        {seed.thumbnailUrl ? (
+          <Image
+            style={styles.video}
+            source={{ uri: seed.thumbnailUrl }}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.video} />
+        )}
+        <Text style={styles.title}>{seed.title}</Text>
+        {seed.durationSeconds ? (
+          <View style={styles.metaRow}>
+            <Text style={styles.meta} numberOfLines={1}>
+              Duration {fmtClock(seed.durationSeconds)}
+            </Text>
+          </View>
+        ) : null}
+        <Skeleton height={46} radius={12} style={styles.seedSkeleton} />
+        <Skeleton height={96} radius={12} style={styles.seedSkeleton} />
+      </ScrollView>
+    );
+  }
 
   if (locked) {
     return (
@@ -240,7 +318,13 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   return (
     <>
       <PopupHost context={{ type: "lessons" }} />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {vimeo ? (
           <WebView
             style={styles.video}
@@ -326,11 +410,28 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
           />
         )}
 
+        {/* A certificate is a GRANT, not a toggle, so nothing here is ever
+            optimistic: the completion flip above deliberately leaves
+            `lesson.certificates` alone, which makes this list server truth at
+            all times (including mid-flight). Any certificate already earned
+            keeps rendering while the request runs. */}
         {(lesson.certificates ?? [])
           .filter((c) => c.eligible || c.claimed)
           .map((c) => (
             <CertificateClaim key={c.levelId} status={c} />
           ))}
+
+        {/* The server only sends `certificates` for a class's TERMINAL lesson
+            (see LessonDTO), so a non-empty array is the exact signal that this
+            completion may earn one. While the request is in flight we show a
+            neutral "checking" row rather than pre-rendering a CTA we have no
+            right to promise — the real state arrives with the response. */}
+        {completing && (lesson.certificates ?? []).length > 0 ? (
+          <View style={styles.certChecking}>
+            <ActivityIndicator size="small" color={colors.textMuted} />
+            <Text style={styles.certCheckingText}>Checking certificate…</Text>
+          </View>
+        ) : null}
 
         {lesson.content ? (
           <Text style={[styles.body, styles.bodyBelow]}>{lesson.content}</Text>
@@ -348,7 +449,11 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
                 key={l.id}
                 style={styles.upNextRow}
                 onPress={() =>
-                  navigation.push("Lesson", { lessonId: l.id, title: l.title })
+                  navigation.push("Lesson", {
+                    lessonId: l.id,
+                    title: l.title,
+                    seed: lessonSeed(l),
+                  })
                 }
               >
                 {l.thumbnailUrl ? (
@@ -424,6 +529,7 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
     fontSize: 11.5,
     fontFamily: fonts.semibold,
   },
+  seedSkeleton: { marginTop: spacing.lg },
   body: { color: colors.text, fontSize: 15, lineHeight: 23, fontFamily: fonts.regular },
   bodyMuted: { color: colors.textMuted, fontSize: 14, fontStyle: "italic", fontFamily: fonts.regular },
   bodyBelow: { marginTop: spacing.lg },
@@ -459,6 +565,23 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
     fontSize: 12.5,
     fontFamily: fonts.bold,
     letterSpacing: 0.6,
+  },
+  // Neutral in-flight row for a terminal lesson's certificate — deliberately
+  // NOT the teal CTA, so it can't read as "your certificate is ready".
+  certChecking: {
+    marginTop: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingVertical: 13,
+    borderRadius: 11,
+    backgroundColor: colors.surfaceMuted,
+  },
+  certCheckingText: {
+    color: colors.textMuted,
+    fontSize: 14,
+    fontFamily: fonts.medium,
   },
   doneBanner: {
     marginTop: spacing.lg,

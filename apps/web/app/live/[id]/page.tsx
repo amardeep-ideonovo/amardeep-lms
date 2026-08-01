@@ -186,7 +186,10 @@ function LiveInner() {
         </div>
       ) : wantZoom ? (
         zoomEmbed ? (
-          <ZoomEmbed embed={zoomEmbed} />
+          <ZoomEmbed
+            embed={zoomEmbed}
+            onUnavailable={() => setZoomUnavailable(true)}
+          />
         ) : (
           <div className="live-panel">
             <div className="spinner" aria-label="Preparing the meeting" />

@@ -31,6 +31,7 @@ model User {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   emailOptOut      Boolean  @default(false) // set by the email unsubscribe webhook
+  tokenVersion     Int      @default(0) // bumped on password change/reset; invalidates live JWTs (see JwtStrategy)
 
   levels       UserLevel[]
   progress     LessonProgress[]
@@ -61,6 +62,7 @@ model Admin {
   // { menuOrder?: string[] } — the admin's custom sidebar ordering by nav key.
   // Self-service via PATCH /auth/admin/prefs; every admin manages their own.
   prefs        Json      @default("{}")
+  tokenVersion Int       @default(0) // bumped on password change/reset; invalidates live JWTs (see JwtStrategy)
   createdAt    DateTime  @default(now())
 
   posts             Post[]
@@ -68,6 +70,23 @@ model Admin {
   media             MediaAsset[]
   notificationReads AdminNotificationRead[]
   liveSessions      LiveSession[]           @relation("AdminLiveSessions")
+}
+
+// Append-only trace of privileged admin actions (password resets, manual level
+// grants, payment-key rotations, …). Kept deliberately generic (action string +
+// target + JSON metadata) so new actions don't need a schema change.
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorAdminId String? // the admin who did it (null = system/unknown)
+  action       String // e.g. "member.password_reset", "member.level_grant", "settings.secret_rotate"
+  targetType   String? // "user" | "level" | "setting" | …
+  targetId     String?
+  metadata     Json     @default("{}")
+  ip           String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorAdminId])
 }
 
 // ---------- Membership levels ----------
@@ -97,6 +116,7 @@ model Level {
   // Completion-certificate template override; null = use the default template.
   certificateTemplateId String?
   createdAt             DateTime  @default(now())
+  archivedAt            DateTime? // soft-archive: hidden from members, grants/certs kept (vs hard delete)
 
   prices              Price[]
   userLevels          UserLevel[]
@@ -201,6 +221,7 @@ model Course {
   priceCurrency String   @default("usd")
   priceActive   Boolean  @default(true)
   createdAt     DateTime @default(now())
+  archivedAt    DateTime? // soft-archive: hidden from members, purchases kept (vs hard delete)
 
   lessons          Lesson[]
   courseLevels     CourseLevel[]
@@ -773,8 +794,11 @@ model Certificate {
   serial     String               @unique // CERT-<year>-<6 chars>, printed on the PDF + publicly verifiable
   userId     String
   user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  levelId    String
-  level      Level                @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  // Nullable + SetNull: an issued certificate is a permanent, independently
+  // verifiable record (serial/memberName/className/fileKey are snapshots), so
+  // deleting its class must NOT destroy it — the levelId just goes null.
+  levelId    String?
+  level      Level?               @relation(fields: [levelId], references: [id], onDelete: SetNull)
   templateId String?
   template   CertificateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   memberName String

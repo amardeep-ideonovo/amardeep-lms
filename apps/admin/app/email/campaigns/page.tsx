@@ -192,6 +192,20 @@ export default function CampaignsPage() {
     };
   }, [draft.audienceId]);
 
+  // Create/update/schedule/pause/resume all return the full CampaignDTO through
+  // the same toDTO mapper the list uses, so apply the response instead of
+  // refetching. GET /admin/email/campaigns is ordered by createdAt desc: a new
+  // campaign goes first, an edited one keeps its slot. Templates and audiences
+  // are untouched by a campaign mutation, so they need no refresh either.
+  function applyCampaign(row: CampaignDTO) {
+    setCampaigns((prev) =>
+      (prev.some((c) => c.id === row.id)
+        ? prev.map((c) => (c.id === row.id ? row : c))
+        : [row, ...prev]
+      ).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    );
+  }
+
   function openEdit(c: CampaignDTO) {
     setCreating(false);
     setSelectedId(c.id);
@@ -252,11 +266,11 @@ export default function CampaignsPage() {
     try {
       if (creating) {
         const created = await api.createCampaign(draftToInput());
-        await load();
+        applyCampaign(created);
         openEdit(created);
       } else if (selected) {
         const updated = await api.updateCampaign(selected.id, draftToInput());
-        await load();
+        applyCampaign(updated);
         setDraft(draftFromCampaign(updated));
       }
     } catch (err) {
@@ -278,7 +292,7 @@ export default function CampaignsPage() {
     setError(null);
     try {
       const updated = await fn();
-      await load();
+      applyCampaign(updated);
       if (selectedId === c.id) setDraft(draftFromCampaign(updated));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Action failed");
@@ -294,12 +308,15 @@ export default function CampaignsPage() {
       confirmLabel: "Delete",
     });
     if (!ok) return;
+    setBusyId(c.id);
     try {
       await api.deleteCampaign(c.id);
       if (selectedId === c.id) closeEditor();
-      await load();
+      setCampaigns((prev) => prev.filter((row) => row.id !== c.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -451,8 +468,9 @@ export default function CampaignsPage() {
                               className="btn btn--danger btn--sm"
                               style={{ marginLeft: 6 }}
                               onClick={() => remove(c)}
+                              disabled={busy}
                             >
-                              Delete
+                              {busy ? "…" : "Delete"}
                             </button>
                           )}
                         </td>
@@ -680,7 +698,7 @@ export default function CampaignsPage() {
                       )
                     }
                   >
-                    Schedule
+                    {busyId === selected.id ? "Scheduling…" : "Schedule"}
                   </button>
                 )}
               {!creating &&
@@ -695,7 +713,7 @@ export default function CampaignsPage() {
                       runAction(selected, () => api.pauseCampaign(selected.id))
                     }
                   >
-                    Pause
+                    {busyId === selected.id ? "Pausing…" : "Pause"}
                   </button>
                 )}
               {!creating &&
@@ -712,7 +730,7 @@ export default function CampaignsPage() {
                       )
                     }
                   >
-                    Resume
+                    {busyId === selected.id ? "Resuming…" : "Resume"}
                   </button>
                 )}
             </div>

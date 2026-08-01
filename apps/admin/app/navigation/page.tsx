@@ -17,6 +17,7 @@ import type {
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 
 const LOCATION_LABELS: Record<MenuLocation, string> = {
   HEADER: "Header",
@@ -94,6 +95,7 @@ function flatten(
 
 export default function MenusPage() {
   const { can, loading: authLoading } = useAdminAuth();
+  const optimistic = useOptimisticAction();
 
   const [menus, setMenus] = useState<MenuListItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -312,20 +314,40 @@ export default function MenusPage() {
     }
   }
 
+  // Move/indent/outdent all reshape the same tree, so they share one write:
+  // clone the tree, let the caller mutate the clone, paint it, and persist the
+  // flattened order. The snapshot is the menu's item tree only — the menu list,
+  // the pickers and the header form are untouched by a reorder.
   async function applyStructural(mutate: (tree: MenuItemDTO[]) => void) {
     if (!menu) return;
+    const menuId = menu.id;
     const tree = cloneTree(menu.items);
     mutate(tree);
-    setMenu({ ...menu, items: tree }); // optimistic
-    try {
-      const updated = await api.reorderMenuItems(menu.id, {
-        items: buildOrder(tree),
-      });
-      setMenu(updated);
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn’t reorder.");
-      if (selectedId) api.getMenu(selectedId).then(setMenu).catch(() => {});
-    }
+    const setItems = (items: MenuItemDTO[]) =>
+      setMenu((prev) => (prev && prev.id === menuId ? { ...prev, items } : prev));
+    await optimistic.run({
+      // One reorder per menu in flight: a second drag while the first is still
+      // saving would otherwise be able to revert on top of it.
+      key: `menu:${menuId}`,
+      snapshot: () => menu.items,
+      apply: () => setItems(tree),
+      request: () => api.reorderMenuItems(menuId, { items: buildOrder(tree) }),
+      commit: (updated) =>
+        setMenu((prev) => (prev && prev.id === updated.id ? updated : prev)),
+      revert: (items) => setItems(items),
+      // Re-pull the authoritative tree behind the revert; the server wins.
+      onError: () => {
+        api
+          .getMenu(menuId)
+          .then((m) =>
+            setMenu((prev) => (prev && prev.id === m.id ? m : prev)),
+          )
+          .catch(() => {});
+      },
+      // Toast rather than the page-top error strip: the item list is long and
+      // the strip renders above it, off screen for the rows being reordered.
+      errorMessage: "Couldn’t reorder.",
+    });
   }
 
   const moveUp = (id: string) =>

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { ChatCanvas } from '@prisma/client';
 import sanitizeHtml from 'sanitize-html';
+import { ALLOWED_STYLES } from '../common/sanitize-styles';
 import type {
   ChatCanvasDTO,
   CreateCanvasInput,
@@ -32,6 +33,7 @@ const SANITIZE_OPTS: sanitizeHtml.IOptions = {
     img: ['src', 'alt', 'title', 'width', 'height'],
     '*': ['style'],
   },
+  allowedStyles: ALLOWED_STYLES,
   allowedSchemes: ['http', 'https', 'mailto'],
   allowedSchemesByTag: { img: ['http', 'https', 'data'] },
   transformTags: {

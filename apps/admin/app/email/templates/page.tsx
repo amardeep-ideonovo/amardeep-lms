@@ -125,6 +125,7 @@ export default function EmailTemplatesPage() {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
 
   // preview: the rendered HTML shown in the iframe, plus the resolved subject.
@@ -203,6 +204,10 @@ export default function EmailTemplatesPage() {
     setEditorError(null);
     const variables = csvToList(draft.variablesCsv);
     try {
+      // Refetch on save (both branches): GET /admin/email/templates is ordered
+      // [category asc, name asc] in the database, and a save can change either.
+      // A client-side re-sort would have to reproduce Postgres' collation and
+      // NULLS-last ordering for uncategorised rows, so we let the server say.
       if (creating) {
         const created = await api.createEmailTemplate({
           name: draft.name.trim(),
@@ -246,12 +251,17 @@ export default function EmailTemplatesPage() {
       confirmLabel: "Delete",
     });
     if (!ok) return;
+    setRemoving(true);
     try {
       await api.deleteEmailTemplate(t.id);
       if (selectedId === t.id) closeEditor();
-      await load();
+      // A hard delete (the API 400s on system templates before deleting), so
+      // dropping the row locally matches the list the server would return.
+      setTemplates((prev) => prev.filter((row) => row.id !== t.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete");
+    } finally {
+      setRemoving(false);
     }
   }
 
@@ -594,8 +604,9 @@ export default function EmailTemplatesPage() {
                     className="btn btn--danger"
                     style={{ marginLeft: "auto" }}
                     onClick={() => remove(selected)}
+                    disabled={removing}
                   >
-                    Delete
+                    {removing ? "Deleting…" : "Delete"}
                   </button>
                 )}
               </div>

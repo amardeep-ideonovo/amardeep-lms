@@ -99,7 +99,42 @@ export function isAllowedInstanceUrl(url: string): boolean {
   }
 }
 
+// Optional fleet-domain allowlist for MANUALLY-typed instance URLs. Set
+// EXPO_PUBLIC_FLEET_DOMAIN (e.g. "thewebpaanda.com") to require a hand-entered
+// server address to be the fleet domain or a subdomain of it. The connect-code
+// / directory path is trusted (the control-plane resolver vetted the URL) and is
+// exempt. Unset = no host restriction (https-only, unchanged behavior).
+const FLEET_DOMAIN = (process.env.EXPO_PUBLIC_FLEET_DOMAIN ?? "")
+  .trim()
+  .toLowerCase();
+
+export function isFleetHost(url: string): boolean {
+  if (!FLEET_DOMAIN) return true; // no allowlist configured → don't restrict
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === FLEET_DOMAIN || host.endsWith(`.${FLEET_DOMAIN}`);
+  } catch {
+    return false;
+  }
+}
+
+// ---------- binding epoch ----------
+// Bumped on EVERY bind/unbind. Anything holding per-instance state in memory
+// (api.ts caches the auth token) records the epoch it was populated at and
+// treats a bump as a hard invalidation, so a member can never carry a token
+// from one academy into another — not even when the app rebinds to the SAME
+// instance after a "Switch academy" wiped its stored token.
+//
+// Deliberately a pulled value rather than a registered listener: there is no
+// subscription to forget, so a new consumer cannot silently opt out of it.
+let bindingGeneration = 0;
+
+export function bindingEpoch(): number {
+  return bindingGeneration;
+}
+
 function applyBinding(b: InstanceBinding): void {
+  bindingGeneration++;
   API_BASE_URL = b.apiUrl.replace(/\/$/, "");
   WEB_ACCOUNT_URL = accountUrlFrom(b.webUrl);
   WEB_BASE_URL = originOf(b.webUrl);
@@ -130,9 +165,23 @@ export async function loadInstanceBinding(): Promise<InstanceBinding | null> {
   }
 }
 
-export async function bindInstance(b: InstanceBinding): Promise<void> {
+export async function bindInstance(
+  b: InstanceBinding,
+  source: "directory" | "manual" = "directory",
+): Promise<void> {
   if (!isAllowedInstanceUrl(b.apiUrl) || !isAllowedInstanceUrl(b.webUrl)) {
     throw new Error("This academy must use a secure (https) address.");
+  }
+  // A hand-typed server URL must be on the fleet domain (when configured); the
+  // trusted connect-code/directory path is exempt. Stops a social-engineered
+  // manual address from receiving the login + bearer token.
+  if (
+    source === "manual" &&
+    (!isFleetHost(b.apiUrl) || !isFleetHost(b.webUrl))
+  ) {
+    throw new Error(
+      "That address isn't a recognized academy — use your connect code instead.",
+    );
   }
   applyBinding(b);
   const raw = JSON.stringify(b);
@@ -151,6 +200,10 @@ export function setUnbindListener(fn: (() => void) | null): void {
 }
 
 export async function unbindInstance(): Promise<void> {
+  // The binding is changing — invalidate every in-memory per-instance cache
+  // before anything else, so nothing can serve the outgoing instance's token
+  // once this returns (see bindingEpoch above).
+  bindingGeneration++;
   // Clear the current instance's auth token FIRST, while API_BASE_URL still
   // resolves the scoped key — otherwise "Switch academy" would leave the
   // previous member's session token at rest in the Keychain and silently

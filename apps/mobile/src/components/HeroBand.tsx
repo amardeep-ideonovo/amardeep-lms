@@ -180,7 +180,7 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       shadowRadius: 12,
     },
     buttonText: {
-      color: "#ffffff",
+      color: colors.onCta,
       fontSize: 13,
       fontWeight: "700",
       fontFamily: fonts.bold,
