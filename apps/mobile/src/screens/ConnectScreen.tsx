@@ -17,6 +17,11 @@ import {
 } from "../config";
 import { DEFAULT_APP_CONFIG, paletteFrom, fonts, spacing } from "../theme";
 
+const STEP_LABELS = {
+  resolving: "Finding your academy…",
+  verifying: "Verifying…",
+} as const;
+
 // First-run screen of the SHARED app: turns a client's connect code (their
 // instance subdomain or id, shown on their license portal) into an instance
 // binding via the licensing control plane's public resolver. White-label /
@@ -37,6 +42,10 @@ export function ConnectScreen({
   const [serverUrl, setServerUrl] = useState("");
   const [advanced, setAdvanced] = useState(!DIRECTORY_URL);
   const [busy, setBusy] = useState(false);
+  // Connecting by code makes TWO network hops, each with its own 8s timeout, so
+  // a single spinner can sit unchanged for 16 seconds on a bad network. Naming
+  // the hop tells the member it's still moving.
+  const [step, setStep] = useState<null | "resolving" | "verifying">(null);
   const [error, setError] = useState<string | null>(null);
 
   // Validate a binding by fetching the instance's public branding config —
@@ -46,6 +55,7 @@ export function ConnectScreen({
     b: InstanceBinding,
     source: "directory" | "manual",
   ) => {
+    setStep("verifying");
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
     let res: Response;
@@ -69,6 +79,7 @@ export function ConnectScreen({
     const trimmed = code.trim().toLowerCase();
     if (!trimmed) return;
     setBusy(true);
+    setStep("resolving");
     setError(null);
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
@@ -95,6 +106,7 @@ export function ConnectScreen({
     } finally {
       clearTimeout(t);
       setBusy(false);
+      setStep(null);
     }
   };
 
@@ -102,6 +114,7 @@ export function ConnectScreen({
     const trimmed = serverUrl.trim().replace(/\/$/, "");
     if (!trimmed) return;
     setBusy(true);
+    setStep("verifying");
     setError(null);
     try {
       const apiUrl = /^https?:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`;
@@ -112,6 +125,7 @@ export function ConnectScreen({
       setError(e instanceof Error ? e.message : "Could not connect.");
     } finally {
       setBusy(false);
+      setStep(null);
     }
   };
 
@@ -148,7 +162,10 @@ export function ConnectScreen({
               style={[styles.button, (busy || !code.trim()) && styles.buttonDisabled]}
             >
               {busy ? (
-                <ActivityIndicator color={colors.onPrimary} />
+                <View style={styles.busyRow}>
+                  <ActivityIndicator color={colors.onPrimary} />
+                  <Text style={styles.buttonText}>{STEP_LABELS[step ?? "resolving"]}</Text>
+                </View>
               ) : (
                 <Text style={styles.buttonText}>Connect</Text>
               )}
@@ -175,7 +192,10 @@ export function ConnectScreen({
               style={[styles.button, (busy || !serverUrl.trim()) && styles.buttonDisabled]}
             >
               {busy ? (
-                <ActivityIndicator color={colors.onPrimary} />
+                <View style={styles.busyRow}>
+                  <ActivityIndicator color={colors.onPrimary} />
+                  <Text style={styles.buttonText}>{STEP_LABELS[step ?? "resolving"]}</Text>
+                </View>
               ) : (
                 <Text style={styles.buttonText}>Connect to server</Text>
               )}
@@ -243,6 +263,7 @@ const makeStyles = (colors: Colors) =>
       alignItems: "center",
     },
     buttonDisabled: { opacity: 0.5 },
+    busyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
     buttonText: {
       color: colors.onPrimary,
       fontSize: 16,
