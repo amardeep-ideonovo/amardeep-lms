@@ -1118,6 +1118,116 @@ async function retireStaleSeedRows() {
   );
 }
 
+// ---------- baseline purge: no demo debris on real client instances ----------
+// A baseline boot (SEED_DEMO_CONTENT=false) used to stop at the first admin,
+// which quietly grandfathered in any demo content the database already carried
+// — an instance seeded with the demo once and later flipped to baseline kept
+// the whole catalog forever. That is not hypothetical: a live client instance
+// spent days publicly serving the retired demo (competitor-hotlinked art and
+// all) plus the well-known member@example.com/member123 login, because nothing
+// on the baseline path was allowed to delete anything.
+//
+// So the baseline path now removes everything the demo seed authors. Same
+// safety boundary as retireStaleSeedRows(): only "seed-"-prefixed ids (client
+// content gets cuids), plus three targeted extras —
+//   - the Stripe Test fixture (known cuids from seedFixtureCluster),
+//   - the demo member (example.com is reserved; no real member can own it),
+//   - the Footer/AppConfig singletons ONLY on an exact fingerprint match with
+//     the seeded copy. The singletons aren't seed-prefixed, and a client may
+//     have customized them — an edited row breaks the fingerprint and is left
+//     alone. The API default-merges neutral config when the row is absent.
+async function purgeDemoDebris() {
+  let removed = 0;
+  const purge = async (n: Promise<{ count: number }>) => {
+    removed += (await n).count;
+  };
+
+  // Explicit child→parent order, independent of cascade settings (the same
+  // philosophy as wipeDatabase above).
+  await purge(prisma.formSubmission.deleteMany({ where: { formId: { startsWith: "seed-form-" } } }));
+  await purge(prisma.lesson.deleteMany({ where: { id: { startsWith: "seed-lesson-" } } }));
+  await purge(prisma.course.deleteMany({ where: { id: { startsWith: "seed-course-" } } }));
+  await purge(
+    prisma.price.deleteMany({
+      where: {
+        OR: [
+          { id: { startsWith: "seed-price-" } },
+          { id: { in: ["cmpshpddz0003mtv6j4e4i1lz", "cmputofx10005kzsobri0mddw"] } },
+        ],
+      },
+    }),
+  );
+  await purge(
+    prisma.level.deleteMany({
+      where: {
+        OR: [
+          { id: { startsWith: "seed-class-" } },
+          { id: { startsWith: "seed-level-" } },
+          { id: "cmpshpddy0002mtv65lh9p50c" }, // Stripe Test fixture
+        ],
+      },
+    }),
+  );
+  await purge(prisma.levelCategory.deleteMany({ where: { id: { startsWith: "seed-lvlcat-" } } }));
+  await purge(prisma.post.deleteMany({ where: { id: { startsWith: "seed-post-" } } }));
+  await purge(prisma.postCategory.deleteMany({ where: { id: { startsWith: "seed-postcat-" } } }));
+  await purge(prisma.page.deleteMany({ where: { id: { startsWith: "seed-page-" } } }));
+  await purge(prisma.popup.deleteMany({ where: { id: { startsWith: "seed-popup-" } } }));
+  await purge(prisma.form.deleteMany({ where: { id: { startsWith: "seed-form-" } } }));
+  await purge(prisma.menuItem.deleteMany({ where: { menuId: { startsWith: "seed-menu-" } } }));
+  await purge(prisma.menu.deleteMany({ where: { id: { startsWith: "seed-menu-" } } }));
+  await purge(prisma.header.deleteMany({ where: { id: { startsWith: "seed-header-" } } }));
+  await purge(prisma.certificateTemplate.deleteMany({ where: { id: { startsWith: "seed-cert-template-" } } }));
+
+  // Seeded media: remove the copied files (key = filename in MEDIA_DIR), then
+  // the gallery rows. Best-effort on disk — a missing file is already gone.
+  const seedMedia = await prisma.mediaAsset.findMany({
+    where: { id: { startsWith: "seed-media-" } },
+    select: { key: true },
+  });
+  if (seedMedia.length) {
+    const apiSrc = path.resolve(__dirname, "../../../apps/api/src");
+    const mediaRoot = process.env.MEDIA_DIR || path.join(apiSrc, "media-uploads");
+    for (const { key } of seedMedia) {
+      try {
+        fs.unlinkSync(path.join(mediaRoot, key));
+      } catch {
+        /* not on disk — nothing to remove */
+      }
+    }
+    await purge(prisma.mediaAsset.deleteMany({ where: { id: { startsWith: "seed-media-" } } }));
+  }
+
+  await purge(prisma.user.deleteMany({ where: { email: "member@example.com" } }));
+
+  // Singletons, by exact seeded fingerprint only.
+  const footer = await prisma.footer.findUnique({ where: { id: "singleton" } });
+  if (
+    footer &&
+    JSON.stringify(footer.config).includes(
+      "© {year} Spotlight Academy. All rights reserved.",
+    )
+  ) {
+    await purge(prisma.footer.deleteMany({ where: { id: "singleton" } }));
+  }
+  const appCfg = await prisma.appConfig.findUnique({ where: { id: "singleton" } });
+  if (appCfg) {
+    const cfg = appCfg.config as { title?: string; tagline?: string } | null;
+    if (
+      cfg?.title === "Spotlight Academy" &&
+      cfg?.tagline === "Learn from the best. Love what you make."
+    ) {
+      await purge(prisma.appConfig.deleteMany({ where: { id: "singleton" } }));
+    }
+  }
+
+  if (removed) {
+    console.log(
+      `  healed: removed ${removed} leftover demo-content row(s) — this instance runs without demo content.`,
+    );
+  }
+}
+
 // Member demo state: enrolled in two classes with visible progress, so the
 // dashboard opens on "Welcome back" with a non-zero continue-learning hero.
 async function seedMemberState(memberId: string) {
@@ -2372,7 +2482,10 @@ async function main() {
   // Real client instances stop here: first admin only, no demo content. The
   // app is fully functional empty — signup's "Free" auto-grant tolerates the
   // missing level and the AppConfig singleton is default-merged on first read.
+  // "No demo content" is enforced, not assumed: a database that carries demo
+  // rows from an earlier demo-seeded life is cleaned on every baseline boot.
   if (!SEED_DEMO) {
+    await purgeDemoDebris();
     console.log("Seed complete — baseline only (no demo content).");
     console.log(
       OWNER_EMAIL

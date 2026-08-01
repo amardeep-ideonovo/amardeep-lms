@@ -55,6 +55,17 @@ function withDb(url: string, db: string): string {
 const BASE = baseUrl();
 const CHECK_URL = withDb(BASE, CHECK_DB);
 
+// The check's own media dir, like its own database. The seed doesn't just
+// write rows — it copies artwork into MEDIA_DIR (and the baseline purge
+// unlinks it), and in production every instance owns that directory. Without
+// this, the scenarios share the REAL apps/api/src/media-uploads with whatever
+// else is running: in CI, scenario 7's purge deleted the certificate artwork
+// out from under the BDD suite's API, and three certificate scenarios failed
+// on render. Scratch database + shared filesystem was an isolation lie.
+const CHECK_MEDIA_DIR = fs.mkdtempSync(
+  path.join(require("os").tmpdir(), "lms-seed-check-media-"),
+);
+
 // Child env: inherit, but scrub every seed knob so the dev shell can't leak
 // one into a case, then apply the case's own.
 function childEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
@@ -67,7 +78,12 @@ function childEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
   ]) {
     delete env[k];
   }
-  return { ...env, DATABASE_URL: CHECK_URL, ...extra };
+  return {
+    ...env,
+    DATABASE_URL: CHECK_URL,
+    MEDIA_DIR: CHECK_MEDIA_DIR,
+    ...extra,
+  };
 }
 
 function runSeed(extra: Record<string, string>, label: string): void {
@@ -289,10 +305,79 @@ async function main() {
     }
     console.log("PASS  fresh demo instance: owner is the only admin");
 
+    // ----- 7. Demo instance CONVERTED to baseline (SEED_DEMO_CONTENT flipped
+    // to false on a database that already carries the demo). This happened in
+    // production: a client instance seeded with the demo in an earlier life
+    // kept serving the retired catalog — and accepting the well-known
+    // member@example.com/member123 login — because the baseline path deleted
+    // nothing. The purge must remove every seed-authored row and NOTHING the
+    // client made themselves.
+    {
+      const owner = await db.admin.findFirstOrThrow();
+      await db.page.create({
+        data: {
+          // A cuid-shaped id, like every admin-created row — the purge's
+          // "seed-" boundary must leave it alone.
+          slug: "client-made-page",
+          title: "The client's own page",
+          status: "DRAFT",
+          authorId: owner.id,
+          data: { root: { props: {} }, content: [], zones: {} },
+        },
+      });
+    }
+    runSeed(
+      {
+        SEED_ADMIN_EMAIL: OWNER_ENV_EMAIL,
+        SEED_ADMIN_PASSWORD: OWNER.password,
+        SEED_DEMO_CONTENT: "false",
+      },
+      "same instance, converted to baseline (demo=false)",
+    );
+    {
+      for (const [name, count] of Object.entries({
+        level: await db.level.count(),
+        course: await db.course.count(),
+        lesson: await db.lesson.count(),
+        post: await db.post.count(),
+        popup: await db.popup.count(),
+        form: await db.form.count(),
+        menu: await db.menu.count(),
+        header: await db.header.count(),
+        certificateTemplate: await db.certificateTemplate.count(),
+        footer: await db.footer.count(),
+        appConfig: await db.appConfig.count(),
+        seedMedia: await db.mediaAsset.count({
+          where: { id: { startsWith: "seed-media-" } },
+        }),
+      })) {
+        assert.equal(count, 0, `baseline conversion must purge demo ${name} rows`);
+      }
+      assert.equal(
+        await db.user.findUnique({ where: { email: "member@example.com" } }),
+        null,
+        "the demo member (a public repo password) must not survive conversion",
+      );
+      const pages = await db.page.findMany();
+      assert.equal(pages.length, 1, "client-authored content must survive");
+      assert.equal(pages[0].slug, "client-made-page");
+      const admins = await db.admin.findMany();
+      assert.equal(admins.length, 1, "the owner admin must survive");
+      assert.ok(await bcrypt.compare(OWNER.password, admins[0].passwordHash));
+      // The rows' backing files must go with them — this is the check's own
+      // media dir, so anything left is the purge forgetting to unlink.
+      const leftover = fs
+        .readdirSync(CHECK_MEDIA_DIR)
+        .filter((f) => f.startsWith("seed-") || f.startsWith("demo-"));
+      assert.deepEqual(leftover, [], "purged media rows must take their files");
+    }
+    console.log("PASS  demo→baseline conversion purges demo content only");
+
     console.log("\nSeed provisioning check: ALL PASS");
   } finally {
     await db.$disconnect();
     await dropDb();
+    fs.rmSync(CHECK_MEDIA_DIR, { recursive: true, force: true });
   }
 }
 
