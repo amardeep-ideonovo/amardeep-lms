@@ -271,15 +271,20 @@ export default function ClassesPage() {
         certificateTemplateId, // '' = clear back to the default template
         prices: type === "PAID" ? cleanedPrices : [],
       };
-      if (editingId) await api.updateLevel(editingId, input);
-      else await api.createLevel(input);
+      // Both writes now return the same fully-populated LevelDTO the list does,
+      // member count included, so the response IS the new row. The list is
+      // ordered by createdAt asc — unique and immutable — so an edit keeps its
+      // slot and a new class belongs at the end.
+      const saved = editingId
+        ? await api.updateLevel(editingId, input)
+        : await api.createLevel(input);
+      setLevels((prev) =>
+        editingId
+          ? prev.map((l) => (l.id === saved.id ? saved : l))
+          : [...prev, saved],
+      );
       setModalOpen(false);
       resetForm();
-      // Refetch: POST/PATCH /levels return a PARTIAL LevelDTO — the admin list
-      // asks for member counts (`includeCounts`), but the mutation responses go
-      // through toDTO() with its `memberCount = 0` default, and this table
-      // renders that number.
-      await load();
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Save failed");
     } finally {

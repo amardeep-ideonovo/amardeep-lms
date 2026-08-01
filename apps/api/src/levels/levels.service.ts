@@ -123,6 +123,18 @@ export class LevelsService {
     return new Map([...byLevel].map(([levelId, users]) => [levelId, users.size]));
   }
 
+  // Same rule as activeMemberCounts (dedupe on userId — a member can hold one
+  // level via STRIPE *and* MANUAL) but scoped to a single row, so a write can
+  // report the real count without scanning every grant in the system.
+  private async activeMemberCount(levelId: string): Promise<number> {
+    const rows = await this.prisma.userLevel.findMany({
+      where: { levelId, status: 'ACTIVE' },
+      select: { userId: true },
+      distinct: ['userId'],
+    });
+    return rows.length;
+  }
+
   // includeCounts is set only for admin requests (member-facing calls get 0).
   async list(includeCounts = false): Promise<LevelDTO[]> {
     const levels = await this.prisma.level.findMany({
@@ -614,7 +626,9 @@ export class LevelsService {
     if (dto.featuredCourseId) {
       await this.ensureCourseAssigned(dto.featuredCourseId, level.id);
     }
-    return this.toDTO(level as LevelWithPrices);
+    // 0 is the true count here, not a placeholder: the class was created moments
+    // ago, so no grant can reference it yet.
+    return this.toDTO(level as LevelWithPrices, 0);
   }
 
   async update(id: string, dto: UpdateLevelDto): Promise<LevelDTO> {
@@ -735,7 +749,9 @@ export class LevelsService {
         audience: { select: { name: true } },
       },
     });
-    return this.toDTO(fresh as LevelWithPrices);
+    // An existing class can hold members, and the admin list renders this
+    // number — defaulting it to 0 reported every edited class as empty.
+    return this.toDTO(fresh as LevelWithPrices, await this.activeMemberCount(id));
   }
 
   /**
