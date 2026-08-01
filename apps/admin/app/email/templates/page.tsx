@@ -125,6 +125,7 @@ export default function EmailTemplatesPage() {
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
 
   // preview: the rendered HTML shown in the iframe, plus the resolved subject.
@@ -246,12 +247,15 @@ export default function EmailTemplatesPage() {
       confirmLabel: "Delete",
     });
     if (!ok) return;
+    setRemoving(true);
     try {
       await api.deleteEmailTemplate(t.id);
       if (selectedId === t.id) closeEditor();
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete");
+    } finally {
+      setRemoving(false);
     }
   }
 
@@ -594,8 +598,9 @@ export default function EmailTemplatesPage() {
                     className="btn btn--danger"
                     style={{ marginLeft: "auto" }}
                     onClick={() => remove(selected)}
+                    disabled={removing}
                   >
-                    Delete
+                    {removing ? "Deleting…" : "Delete"}
                   </button>
                 )}
               </div>

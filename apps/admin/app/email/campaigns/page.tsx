@@ -294,12 +294,15 @@ export default function CampaignsPage() {
       confirmLabel: "Delete",
     });
     if (!ok) return;
+    setBusyId(c.id);
     try {
       await api.deleteCampaign(c.id);
       if (selectedId === c.id) closeEditor();
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete");
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -451,8 +454,9 @@ export default function CampaignsPage() {
                               className="btn btn--danger btn--sm"
                               style={{ marginLeft: 6 }}
                               onClick={() => remove(c)}
+                              disabled={busy}
                             >
-                              Delete
+                              {busy ? "…" : "Delete"}
                             </button>
                           )}
                         </td>
@@ -680,7 +684,7 @@ export default function CampaignsPage() {
                       )
                     }
                   >
-                    Schedule
+                    {busyId === selected.id ? "Scheduling…" : "Schedule"}
                   </button>
                 )}
               {!creating &&
@@ -695,7 +699,7 @@ export default function CampaignsPage() {
                       runAction(selected, () => api.pauseCampaign(selected.id))
                     }
                   >
-                    Pause
+                    {busyId === selected.id ? "Pausing…" : "Pause"}
                   </button>
                 )}
               {!creating &&
@@ -712,7 +716,7 @@ export default function CampaignsPage() {
                       )
                     }
                   >
-                    Resume
+                    {busyId === selected.id ? "Resuming…" : "Resume"}
                   </button>
                 )}
             </div>
