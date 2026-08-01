@@ -5,11 +5,13 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { usePathname } from "next/navigation";
 import type { AdminAction, AdminSection, AuthAdmin } from "@lms/types";
 import { api, getToken } from "@/lib/api";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 
 interface AdminAuthValue {
   me: AuthAdmin | null;
@@ -47,6 +49,11 @@ export function AdminAuthProvider({
   const pathname = usePathname();
   const [me, setMe] = useState<AuthAdmin | null>(null);
   const [loading, setLoading] = useState(true);
+  const optimistic = useOptimisticAction();
+  // The saved order, readable at run time — the optimistic snapshot has to be
+  // the order as it is when the write actually starts, not when the callback
+  // was created.
+  const savedOrderRef = useRef<string[]>([]);
 
   const refresh = useCallback(() => {
     if (!getToken()) {
@@ -82,23 +89,33 @@ export function AdminAuthProvider({
   );
 
   const menuOrder = me?.prefs?.menuOrder ?? [];
+  savedOrderRef.current = menuOrder;
 
-  // Optimistically apply the new order, then persist. On failure, re-fetch the
-  // authoritative state so the UI never drifts from the server.
+  // Optimistically apply the new order, then persist. On failure, put the
+  // previous order back, tell the admin, and re-fetch the authoritative state
+  // so the UI never drifts from the server. Still rejects, so a caller that
+  // wants to react to the failure itself can.
+  const applyMenuOrder = useCallback((order: string[]) => {
+    setMe((prev) =>
+      prev ? { ...prev, prefs: { ...prev.prefs, menuOrder: order } } : prev,
+    );
+  }, []);
+
   const saveMenuOrder = useCallback(
     async (order: string[]) => {
-      setMe((prev) =>
-        prev ? { ...prev, prefs: { ...prev.prefs, menuOrder: order } } : prev,
-      );
-      try {
-        const updated = await api.updateMyPrefs({ menuOrder: order });
-        setMe(updated);
-      } catch (err) {
-        refresh();
-        throw err;
-      }
+      const outcome = await optimistic.run({
+        key: "admin:menu-order",
+        snapshot: () => savedOrderRef.current,
+        apply: () => applyMenuOrder(order),
+        request: () => api.updateMyPrefs({ menuOrder: order }),
+        commit: (updated) => setMe(updated),
+        revert: (previous) => applyMenuOrder(previous),
+        onError: () => refresh(),
+        errorMessage: "Couldn’t save your sidebar order.",
+      });
+      if (outcome.status === "failed") throw outcome.error;
     },
-    [refresh],
+    [applyMenuOrder, optimistic, refresh],
   );
 
   const applyAdmin = useCallback((admin: AuthAdmin) => setMe(admin), []);

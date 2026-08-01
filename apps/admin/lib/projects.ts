@@ -3,7 +3,11 @@
 // them to display names via the admin roster. That roster (GET /admin/admins) is
 // SuperAdminGuard-protected, so it 403s for permission-scoped admins — every
 // caller must tolerate an empty roster and fall back to a short id.
-import type { AdminDTO } from "@lms/types";
+import type {
+  AdminDTO,
+  ChatMessageDTO,
+  ChatReactionGroupDTO,
+} from "@lms/types";
 import { api } from "./api";
 
 export type AdminLite = { id: string; name: string; email: string };
@@ -69,6 +73,119 @@ export function resolveMentions(body: string, roster: AdminLite[]): string[] {
     }
   }
   return Array.from(ids);
+}
+
+// ---------------------------------------------------------------------------
+// Local echo: a message the admin has sent but the server hasn't answered for.
+// ---------------------------------------------------------------------------
+// The socket carries other admins' messages; our own send goes over REST, so
+// without an echo the admin's own message is the slowest one in the room. A
+// pending message is a real ChatMessageDTO with a client id and a `pending`
+// flag, held in the SAME list the pane renders from, so nothing downstream
+// needs to know it isn't real yet.
+export type PendingState = "sending" | "failed";
+export type LocalChatMessage = ChatMessageDTO & { pending?: PendingState };
+
+// Pending messages sort after everything the server has numbered. Their `seq`
+// is never fed back into the catch-up cursor (see chatHighWaterSeq).
+export const PENDING_SEQ = Number.MAX_SAFE_INTEGER;
+const TEMP_PREFIX = "temp:";
+
+let tempCounter = 0;
+
+export function isPendingMessage(m: LocalChatMessage): boolean {
+  return m.pending !== undefined;
+}
+
+// Build the echo shown while the POST is in flight. `createdAt` is a local
+// clock reading purely so the row can render a time; the server's own
+// timestamp + seq replace the whole row when the response lands.
+export function makePendingMessage(args: {
+  channelId: string;
+  authorAdminId: string;
+  body: string;
+  parentMessageId?: string;
+}): LocalChatMessage {
+  tempCounter += 1;
+  return {
+    id: `${TEMP_PREFIX}${tempCounter}`,
+    seq: PENDING_SEQ,
+    channelId: args.channelId,
+    authorAdminId: args.authorAdminId,
+    body: args.body,
+    parentMessageId: args.parentMessageId ?? null,
+    createdAt: new Date().toISOString(),
+    editedAt: null,
+    deletedAt: null,
+    reactions: [],
+    replyCount: 0,
+    pending: "sending",
+  };
+}
+
+// Server order. `seq` is the API's own monotonic counter, assigned when the
+// message is persisted, so sorting by it IS sorting by server arrival —
+// unlike createdAt it can't tie or go backwards across clock skew. Pending
+// echoes have no server order yet and sit at the end, oldest first.
+export function sortChatMessages<T extends LocalChatMessage>(list: T[]): T[] {
+  return [...list].sort((a, b) => {
+    if (a.seq !== b.seq) return a.seq - b.seq;
+    return a.createdAt.localeCompare(b.createdAt);
+  });
+}
+
+// The catch-up cursor must ignore pending echoes — their placeholder seq would
+// otherwise jump the high-water mark past every real message.
+export function chatHighWaterSeq(list: LocalChatMessage[]): number {
+  return list.reduce(
+    (max, m) => (isPendingMessage(m) ? max : Math.max(max, m.seq)),
+    0,
+  );
+}
+
+// Drop the echo a real message supersedes. The REST response is matched by the
+// temp id the sender remembers; this is the OTHER path — the gateway emits new
+// messages to the whole channel room, sender included, so our own message can
+// arrive over the socket BEFORE the POST resolves. Matching on author + parent
+// + exact body clears the echo instead of showing the text twice.
+//
+// A FAILED echo is matched too: a POST can fail on the client (timeout, dropped
+// connection) after the server persisted the message, and when the real thing
+// turns up the failed copy is a duplicate, not a lost message — leaving it
+// there would invite a Retry that posts the text twice. Oldest match first, so
+// a stale failure is cleared before an echo that is still in flight.
+export function reconcilePending<T extends LocalChatMessage>(
+  list: T[],
+  incoming: ChatMessageDTO,
+  myAdminId: string,
+): T[] {
+  if (!myAdminId || incoming.authorAdminId !== myAdminId) return list;
+  const parent = incoming.parentMessageId ?? null;
+  const match = list.find(
+    (m) =>
+      isPendingMessage(m) &&
+      m.body === incoming.body &&
+      (m.parentMessageId ?? null) === parent &&
+      m.channelId === incoming.channelId,
+  );
+  return match ? list.filter((m) => m.id !== match.id) : list;
+}
+
+// Toggle MY reaction on a message's grouped chips, the way the server does:
+// add the emoji group if it's new, drop it when the last admin leaves.
+export function toggleReactionGroups(
+  groups: ChatReactionGroupDTO[],
+  emoji: string,
+  myAdminId: string,
+): ChatReactionGroupDTO[] {
+  const group = groups.find((g) => g.emoji === emoji);
+  if (!group) return [...groups, { emoji, adminIds: [myAdminId] }];
+  const mine = group.adminIds.includes(myAdminId);
+  const adminIds = mine
+    ? group.adminIds.filter((id) => id !== myAdminId)
+    : [...group.adminIds, myAdminId];
+  if (adminIds.length === 0) return groups.filter((g) => g.emoji !== emoji);
+  return groups.map((g) => (g.emoji === emoji ? { ...g, adminIds } : g));
 }
 
 // A short, friendly relative/absolute timestamp for message rows.

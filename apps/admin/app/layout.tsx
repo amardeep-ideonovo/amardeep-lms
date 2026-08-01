@@ -49,9 +49,13 @@ export default function RootLayout({
             withBase() honors NEXT_PUBLIC_ADMIN_BASE_PATH when the admin is
             served under a path prefix (e.g. /admin). */}
         <script src={withBase("/env.js")} />
-        <AdminAuthProvider>
-          <DialogProvider>
-            <ToastProvider>
+        {/* ToastProvider is outermost: AdminAuthProvider rolls back optimistic
+            writes (the sidebar order) and needs the toast channel to say so.
+            The stack is position:fixed at z-index 90 — above the dialog layer
+            (max 60) — so nesting order doesn't change what paints on top. */}
+        <ToastProvider>
+          <AdminAuthProvider>
+            <DialogProvider>
               <div className="app-shell">
                 <Sidebar />
                 <main className="app-main">
@@ -68,9 +72,9 @@ export default function RootLayout({
                   </div>
                 </main>
               </div>
-            </ToastProvider>
-          </DialogProvider>
-        </AdminAuthProvider>
+            </DialogProvider>
+          </AdminAuthProvider>
+        </ToastProvider>
       </body>
     </html>
   );

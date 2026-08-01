@@ -5,6 +5,7 @@ import type { PageAdminRow, PageListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import { withBase } from "@/lib/base-path";
 
 // Where to open the public "View" link. Set NEXT_PUBLIC_WEB_URL in prod;
@@ -14,6 +15,7 @@ const WEB_URL =
 
 export default function PagesPage() {
   const { can, loading: authLoading } = useAdminAuth();
+  const optimistic = useOptimisticAction();
   const [pages, setPages] = useState<PageListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,17 +115,29 @@ export default function PagesPage() {
     }
   }
 
+  // The badge flips on click. Only `status` is painted optimistically — the
+  // list is sorted by `updatedAt`, and faking that would slide the row out from
+  // under the cursor; the server's own response does the move on commit.
   async function togglePublish(p: PageListItem) {
     setError(null);
+    const next = p.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED";
     setRowBusy(p.id);
     try {
-      applyPage(
-        await api.updatePage(p.id, {
-          status: p.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED",
-        }),
-      );
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to update status");
+      await optimistic.run({
+        key: `page:${p.id}`,
+        snapshot: () => p.status,
+        apply: () =>
+          setPages((prev) =>
+            prev.map((x) => (x.id === p.id ? { ...x, status: next } : x)),
+          ),
+        request: () => api.updatePage(p.id, { status: next }),
+        commit: (row) => applyPage(row),
+        revert: (status) =>
+          setPages((prev) =>
+            prev.map((x) => (x.id === p.id ? { ...x, status } : x)),
+          ),
+        errorMessage: "Failed to update status",
+      });
     } finally {
       setRowBusy(null);
     }
