@@ -35,6 +35,7 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { dialog } from "@/components/DialogProvider";
+import { useToast } from "@/components/ToastProvider";
 import {
   AdminLite,
   NameResolver,
@@ -266,6 +267,7 @@ function ListTable({
   onOpenItem: (id: string) => void;
   onError: (msg: string) => void;
 }) {
+  const toast = useToast();
   // "<itemId>:<fieldId>" of the cell whose value is mid-save.
   const [savingCell, setSavingCell] = useState<string | null>(null);
   const fields = useMemo(
@@ -316,7 +318,13 @@ function ListTable({
       await api.updateItemValues(item.id, { [fieldId]: value });
       await onChanged();
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Failed to save");
+      // Toast rather than the page-top error strip: the board scrolls both
+      // ways, so a failure on a cell far down the table would otherwise report
+      // itself somewhere the admin isn't looking, and the cell would silently
+      // snap back to its old value.
+      toast(err instanceof ApiError ? err.message : "Failed to save", {
+        action: { label: "Retry", onAction: () => persistValue(item, fieldId, value) },
+      });
     } finally {
       setSavingCell(null);
     }
