@@ -197,6 +197,11 @@ export default function CoursesPage() {
       else await api.createCourse(buildPayload());
       setModalOpen(false);
       resetForm();
+      // Refetch: POST/PATCH /courses return a PARTIAL CourseCard — `lessonCount`
+      // is hardcoded to 0 (wrong for any course that has lessons) and
+      // `archivedAt` is omitted entirely, unlike the list mapper. The list is
+      // also ordered by `order` asc, which every course shares (0), so a new
+      // course's slot isn't reproducible client-side either.
       await load();
     } catch (err) {
       setFormError(
@@ -221,7 +226,9 @@ export default function CoursesPage() {
       await api.deleteCourse(course.id);
       if (openCourse === course.id) setOpenCourse(null);
       if (editingId === course.id) closeModal();
-      await load();
+      // Hard delete (the API 409s instead when members own the course), and the
+      // classes list this page also holds is unaffected by it.
+      setCourses((prev) => prev.filter((c) => c.id !== course.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete course");
     } finally {

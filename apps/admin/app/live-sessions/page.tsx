@@ -256,6 +256,20 @@ export default function LiveSessionsPage() {
     load();
   }
 
+  // Create/update/publish all return the full AdminLiveSessionDTO through the
+  // same toAdminDTO mapper the list uses (targets included, so `audienceLabel`
+  // and `levelIds` are right), so apply the response instead of refetching.
+  // GET /admin/live-sessions is ordered by startsAt desc, and an edit can move
+  // startsAt — re-sorting on the server's own value reproduces that.
+  function applySession(row: AdminLiveSessionDTO) {
+    setSessions((prev) =>
+      (prev.some((s) => s.id === row.id)
+        ? prev.map((s) => (s.id === row.id ? row : s))
+        : [row, ...prev]
+      ).sort((a, b) => b.startsAt.localeCompare(a.startsAt)),
+    );
+  }
+
   function toggleLevel(id: string) {
     setForm((f) => ({
       ...f,
@@ -332,7 +346,7 @@ export default function LiveSessionsPage() {
           else if (form.replacePassword && form.password)
             payload.password = form.password;
         }
-        await api.updateLiveSession(editingId, payload);
+        applySession(await api.updateLiveSession(editingId, payload));
       } else {
         const payload: LiveSessionInput = {
           title: form.title.trim(),
@@ -347,9 +361,10 @@ export default function LiveSessionsPage() {
           durationMin: form.durationMin,
           joinLeadMin: form.joinLeadMin,
         };
-        await api.createLiveSession(payload);
+        applySession(await api.createLiveSession(payload));
       }
-      backToList();
+      setMode("list");
+      setEditingId(null);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Failed to save session");
     } finally {
@@ -368,8 +383,7 @@ export default function LiveSessionsPage() {
       return;
     setError(null);
     try {
-      await api.publishLiveSession(s.id);
-      await load();
+      applySession(await api.publishLiveSession(s.id));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to publish");
     }
@@ -388,6 +402,10 @@ export default function LiveSessionsPage() {
     setRowBusy(s.id);
     try {
       await api.deleteLiveSession(s.id);
+      // Refetch: DELETE is not always a delete here. The API soft-cancels a
+      // SCHEDULED session (status -> CANCELED, row KEPT so entitled members get
+      // a "canceled" notice) and only purges DRAFT/CANCELED ones — and the
+      // {ok:true} response doesn't say which happened.
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete");
