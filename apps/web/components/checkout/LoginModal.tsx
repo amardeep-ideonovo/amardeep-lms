@@ -86,6 +86,7 @@ export default function LoginModal({
             type="submit"
             className="co-btn co-btn--navy co-btn--block press"
             disabled={busy || !email || !password}
+            aria-busy={busy}
           >
             {busy ? "Signing in…" : "Log in"}
           </button>

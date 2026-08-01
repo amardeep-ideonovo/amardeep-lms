@@ -170,6 +170,7 @@ function CourseInner() {
                 className="btn btn-primary"
                 onClick={buyCourse}
                 disabled={buying}
+                aria-busy={buying}
               >
                 {buying ? "Starting checkout…" : `Buy this course · ${price}`}
               </button>

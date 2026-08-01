@@ -128,6 +128,7 @@ export default function CertificateClaimButton({
               type="submit"
               className="btn btn-primary press"
               disabled={claiming || !name.trim()}
+              aria-busy={claiming}
             >
               {claiming ? "Issuing…" : "Issue certificate"}
             </button>
@@ -145,6 +146,7 @@ export default function CertificateClaimButton({
           type="button"
           className="btn btn-primary press"
           disabled={claiming}
+          aria-busy={claiming}
           onClick={() => (status.needsName ? setAskName(true) : void claim())}
         >
           {claiming ? "Issuing…" : "Get certificate"}

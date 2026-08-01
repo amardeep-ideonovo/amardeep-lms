@@ -123,6 +123,7 @@ function ResetPasswordForm() {
           type="submit"
           className="btn btn-primary btn-block press"
           disabled={loading}
+          aria-busy={loading}
         >
           {loading ? "Saving…" : "Set new password"}
         </button>

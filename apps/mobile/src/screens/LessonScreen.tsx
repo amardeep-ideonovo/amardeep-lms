@@ -9,6 +9,7 @@ import {
   Image,
   Linking,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -65,11 +66,15 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // `silent` keeps the rendered lesson on screen while refetching — a
+  // pull-to-refresh must never swap the player for the full-screen spinner.
+  const load = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setSiblings(null);
+    }
     setError(null);
     setLocked(false);
-    setSiblings(null);
     try {
       const data = await api.lesson(lessonId);
       setLesson(data);
@@ -92,6 +97,13 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load(true);
+    setRefreshing(false);
   }, [load]);
 
   async function onComplete() {
@@ -244,7 +256,13 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   return (
     <>
       <PopupHost context={{ type: "lessons" }} />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {vimeo ? (
           <WebView
             style={styles.video}

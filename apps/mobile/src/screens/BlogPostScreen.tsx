@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Image,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -39,8 +40,9 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // `silent` keeps the rendered article on screen while refetching.
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       setPost(await api.post(slug));
@@ -55,12 +57,25 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
     load();
   }, [load]);
 
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load(true);
+    setRefreshing(false);
+  }, [load]);
+
   if (loading) return <Loading />;
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!post) return <ErrorState message="Post not found." onRetry={load} />;
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       {post.coverImageUrl ? (
         <Image
           source={{ uri: post.coverImageUrl }}

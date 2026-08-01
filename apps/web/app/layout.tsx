@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import { ToastProvider } from "@/components/Toast";
 import {
   fetchAppConfig,
   fetchFooter,
@@ -79,13 +80,15 @@ export default async function RootLayout({
             window.__ENV__ (API/web origins) is set when lib/api.ts runs. */}
         <script src="/env.js" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <Nav
-          initialHeader={header}
-          initialMenu={headerMenu}
-          brandTitle={appConfig?.title ?? null}
-        />
-        <main className="container">{children}</main>
-        <Footer config={footer} brandTitle={appConfig?.title ?? null} />
+        <ToastProvider>
+          <Nav
+            initialHeader={header}
+            initialMenu={headerMenu}
+            brandTitle={appConfig?.title ?? null}
+          />
+          <main className="container">{children}</main>
+          <Footer config={footer} brandTitle={appConfig?.title ?? null} />
+        </ToastProvider>
       </body>
     </html>
   );

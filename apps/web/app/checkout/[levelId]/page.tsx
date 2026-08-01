@@ -47,6 +47,14 @@ const FALLBACK_BILLING: BillingConfigDTO = {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;
 
+// Submit runs up to four calls in sequence; name the one in flight so the
+// slowest moment in the product doesn't sit under a frozen label.
+const SUBMIT_STAGE_LABELS = {
+  account: "Setting up your account…",
+  paying: "Confirming payment…",
+  activating: "Activating your access…",
+} as const;
+
 function SectionHead({ children }: { children: React.ReactNode }) {
   return (
     <div className="co-section-head">
@@ -89,6 +97,12 @@ export default function CheckoutPage() {
 
   // submit
   const [submitting, setSubmitting] = useState(false);
+  // Which leg of the submit chain is running. Checkout makes up to four
+  // sequential calls, so one static "Processing…" leaves the member watching a
+  // frozen label through the slowest moment in the product.
+  const [stage, setStage] = useState<
+    null | "account" | "paying" | "activating"
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
@@ -241,6 +255,7 @@ export default function CheckoutPage() {
   async function completePayPal(subscriptionId: string) {
     submittingRef.current = true;
     setSubmitting(true);
+    setStage("activating");
     setError(null);
     try {
       await paypalActivate(subscriptionId);
@@ -254,6 +269,7 @@ export default function CheckoutPage() {
           : "We couldn’t confirm your PayPal subscription. Please contact support.",
       );
       setSubmitting(false);
+      setStage(null);
       submittingRef.current = false;
     }
   }
@@ -289,6 +305,7 @@ export default function CheckoutPage() {
             : "Something went wrong. Please try again.",
       );
       setSubmitting(false);
+      setStage(null);
       submittingRef.current = false;
     }
   }
@@ -333,14 +350,17 @@ export default function CheckoutPage() {
     if (submittingRef.current) return; // ignore a double submit (see ref above)
     submittingRef.current = true;
     setSubmitting(true);
+    setStage("account");
     try {
       // 1) Ensure an authenticated member (State A signs up inline).
       const current = await ensureAccount();
       if (!current) {
         setSubmitting(false);
+        setStage(null);
         submittingRef.current = false;
         return;
       }
+      setStage("paying");
 
       // 2) Pay. Recurring + real Stripe → server PaymentIntent then confirm.
       //    One-time ("Pay in Full") and any mock environment → simulated confirm.
@@ -351,6 +371,7 @@ export default function CheckoutPage() {
         if (!wireId) {
           setError("This plan isn’t configured for checkout yet.");
           setSubmitting(false);
+          setStage(null);
           submittingRef.current = false;
           return;
         }
@@ -360,6 +381,7 @@ export default function CheckoutPage() {
         });
         if (res.status === "active") {
           // Already paid (e.g. a 100%-off coupon) — reconcile inline, then go.
+          setStage("activating");
           try {
             await syncSubscriptions();
           } catch {
@@ -377,12 +399,14 @@ export default function CheckoutPage() {
       if (payErr) {
         setError(payErr);
         setSubmitting(false);
+        setStage(null);
         submittingRef.current = false;
         return;
       }
 
       // 3) Enrolled. Reconcile the grant inline so access + the admin
       //    notification reflect immediately (the webhook also does this in prod).
+      setStage("activating");
       try {
         await syncSubscriptions();
       } catch {
@@ -400,6 +424,7 @@ export default function CheckoutPage() {
             : "Something went wrong. Please try again.",
       );
       setSubmitting(false);
+      setStage(null);
       submittingRef.current = false;
     }
   }
@@ -589,6 +614,7 @@ export default function CheckoutPage() {
                 className="co-btn co-btn--ghost"
                 onClick={applyCoupon}
                 disabled={couponBusy || !coupon.trim()}
+                aria-busy={couponBusy}
               >
                 {couponBusy ? "Applying…" : "Apply"}
               </button>
@@ -661,8 +687,9 @@ export default function CheckoutPage() {
             type="submit"
             className="co-btn co-btn--navy co-btn--block co-submit press"
             disabled={submitting}
+            aria-busy={submitting}
           >
-            {submitting ? "Processing…" : "Submit"}
+            {submitting ? SUBMIT_STAGE_LABELS[stage ?? "account"] : "Submit"}
           </button>
         )}
         <p className="co-footer-note">

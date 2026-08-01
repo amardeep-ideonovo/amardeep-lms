@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   FlatList,
   Linking,
+  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -63,8 +64,10 @@ export function PaymentsScreen(_props: ScreenProps<"Payments">) {
   const [invoices, setInvoices] = useState<InvoiceDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setInvoices(null);
+  // `silent` keeps the rendered rows on screen while refetching, so a
+  // pull-to-refresh doesn't drop the list back to skeletons.
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setInvoices(null);
     setError(null);
     try {
       setInvoices(await api.myInvoices());
@@ -75,6 +78,13 @@ export function PaymentsScreen(_props: ScreenProps<"Payments">) {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load(true);
+    setRefreshing(false);
   }, [load]);
 
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -96,6 +106,9 @@ export function PaymentsScreen(_props: ScreenProps<"Payments">) {
       data={invoices}
       keyExtractor={(inv) => inv.id}
       renderItem={({ item }) => <InvoiceRow inv={item} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     />
   );
 }
