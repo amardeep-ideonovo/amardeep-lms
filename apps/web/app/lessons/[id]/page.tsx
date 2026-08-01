@@ -11,6 +11,7 @@ import type {
 } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import { fmtDuration } from "@/lib/memberData";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
 import CertificateClaimButton from "@/components/CertificateClaimButton";
@@ -63,6 +64,7 @@ function LessonInner() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const lessonId = params.id;
+  const runOptimistic = useOptimisticAction();
 
   const [lesson, setLesson] = useState<LessonDTO | null>(null);
   const [siblings, setSiblings] = useState<LessonDTO[] | null>(null);
@@ -115,27 +117,45 @@ function LessonInner() {
     };
   }, [lessonId, router]);
 
+  // The tick, the status pill and the rail flip before the request: the endpoint
+  // behind this joins lesson+course, runs two access queries, a progress lookup,
+  // an upsert and a certificate check, and this is the most repeated action in
+  // the product. Completion is a member-owned toggle, so it is safe to paint and
+  // reverse. The CERTIFICATE is not — see `commit`.
   async function markComplete() {
     setCompleting(true);
     setError(null);
-    try {
-      const res = await api.completeLesson(lessonId);
-      setCompleted(true);
-      // Reflect in the rail without a refetch.
-      setSiblings((ls) =>
-        ls ? ls.map((l) => (l.id === lessonId ? { ...l, completed: true } : l)) : ls,
-      );
-      // Completing the final lesson unlocks the claim instantly (no refetch).
-      if (res?.certificates) setCertificates(res.certificates);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 403) {
-        setLocked(true);
-        return;
-      }
-      setError(err instanceof Error ? err.message : "Could not mark complete.");
-    } finally {
-      setCompleting(false);
-    }
+    await runOptimistic(`lesson:${lessonId}`, {
+      snapshot: () => ({ completed, siblings }),
+      apply: () => {
+        setCompleted(true);
+        setSiblings((ls) =>
+          ls
+            ? ls.map((l) => (l.id === lessonId ? { ...l, completed: true } : l))
+            : ls,
+        );
+      },
+      commit: async () => {
+        const res = await api.completeLesson(lessonId);
+        // A certificate is a GRANT, not a toggle — it is only ever rendered from
+        // what the server returned, never inferred from the flip above.
+        if (res?.certificates) setCertificates(res.certificates);
+      },
+      revert: (snap) => {
+        setCompleted(snap.completed);
+        setSiblings(snap.siblings);
+      },
+      onError: (err) => {
+        // Access revoked mid-session: the flip is already reverted, and the
+        // lesson locks as it did before.
+        if (err instanceof ApiError && err.status === 403) {
+          setLocked(true);
+          return;
+        }
+        setError(err instanceof Error ? err.message : "Could not mark complete.");
+      },
+    });
+    setCompleting(false);
   }
 
   async function download(note: LessonNoteDTO) {
@@ -338,6 +358,21 @@ function LessonInner() {
                         )}
                         {c.eligible || c.claimed ? (
                           <CertificateClaimButton status={c} />
+                        ) : completing ? (
+                          // The optimistic tick has already landed but the grant
+                          // hasn't come back yet. Saying "finish every lesson"
+                          // here would contradict the ✓ the member just saw, and
+                          // showing the claim button would promise a credential
+                          // the server hasn't issued.
+                          //
+                          // No extra "is this the last lesson?" guard is needed:
+                          // the API returns certificate status ONLY for a class's
+                          // terminal lesson (certificates.service statusForLesson
+                          // returns [] otherwise), so this block rendering at all
+                          // is already the server saying so.
+                          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                            Checking your certificate…
+                          </span>
                         ) : (
                           <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
                             Finish every lesson in “{c.levelName}” to earn your certificate.
