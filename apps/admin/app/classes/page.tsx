@@ -14,6 +14,7 @@ import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 import RowMenu from "@/components/RowMenu";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 
 type PriceForm = {
   interval: "month" | "year";
@@ -29,6 +30,7 @@ function emptyPrice(): PriceForm {
 
 export default function ClassesPage() {
   const { can, loading: authLoading } = useAdminAuth();
+  const optimistic = useOptimisticAction();
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [categories, setCategories] = useState<LevelCategoryDTO[]>([]);
   // Courses power the per-class COURSES/LESSONS columns (CourseCard.levelIds);
@@ -316,16 +318,45 @@ export default function ClassesPage() {
     }
   }
 
+  // Archive/unarchive is reversible (grants, subscriptions and issued
+  // certificates all survive), so the row flips immediately. DELETE stays
+  // pessimistic — it isn't.
   async function onArchive(id: string, archived: boolean) {
     setRowBusy(id);
+    const current = levels.find((l) => l.id === id);
+    // Mirrors the service: archiving stamps archivedAt AND unpublishes;
+    // unarchiving only clears archivedAt.
+    const optimisticPatch: Partial<LevelDTO> = archived
+      ? { archivedAt: null }
+      : { archivedAt: new Date().toISOString(), published: false };
     try {
-      if (archived) await api.unarchiveLevel(id);
-      else await api.archiveLevel(id);
-      // Refetch: both endpoints return {ok:true} only, and archiving also flips
-      // `published` server-side — nothing in the response says so.
-      await load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Archive failed");
+      await optimistic.run({
+        key: `level:${id}`,
+        snapshot: () => ({
+          archivedAt: current?.archivedAt ?? null,
+          published: current?.published ?? false,
+        }),
+        apply: () =>
+          setLevels((prev) =>
+            prev.map((l) => (l.id === id ? { ...l, ...optimisticPatch } : l)),
+          ),
+        request: () =>
+          archived ? api.unarchiveLevel(id) : api.archiveLevel(id),
+        // Both endpoints answer {ok:true} only, so there's nothing to commit —
+        // the authoritative row comes from the quiet refetch below.
+        revert: (previous) =>
+          setLevels((prev) =>
+            prev.map((l) => (l.id === id ? { ...l, ...previous } : l)),
+          ),
+        errorMessage: "Archive failed",
+      });
+      // Heal from the server WITHOUT load()'s loading flag: the table already
+      // shows the new state, and blanking it to "Loading…" would undo the point
+      // of flipping the row on click.
+      api
+        .listLevels()
+        .then(setLevels)
+        .catch(() => {});
     } finally {
       setRowBusy(null);
     }

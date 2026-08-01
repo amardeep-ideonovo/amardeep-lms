@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, getToken } from "@/lib/api";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import type { AdminNotificationDTO } from "@lms/types";
 
 // Low-urgency feed → poll the unread badge every 30s (the app's only poll).
@@ -29,6 +30,13 @@ export default function NotificationBell() {
   const [items, setItems] = useState<AdminNotificationDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const optimistic = useOptimisticAction();
+  // Mirrors of the two pieces an optimistic mark touches, so a revert restores
+  // what was on screen when the write started (a queued run re-reads them).
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const unreadRef = useRef(unread);
+  unreadRef.current = unread;
 
   const fetchUnread = useCallback(async () => {
     if (!getToken()) return;
@@ -109,24 +117,52 @@ export default function NotificationBell() {
     if (next) loadList();
   };
 
-  const markAll = async () => {
-    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-    setUnread(0);
-    try {
-      await api.markAllNotificationsRead();
-    } catch {
-      fetchUnread();
-    }
+  // The touched slice for both marks is the same pair: which rows show as read,
+  // and the badge count. Snapshots read it through the setters so they capture
+  // the state at run time, not at render time.
+  const snapshotRead = () =>
+    ({ items: itemsRef.current, unread: unreadRef.current });
+  const restoreRead = (snap: { items: AdminNotificationDTO[]; unread: number }) => {
+    setItems(snap.items);
+    setUnread(snap.unread);
+  };
+
+  const markAll = () => {
+    void optimistic.run({
+      key: "notifications:mark-all",
+      snapshot: snapshotRead,
+      apply: () => {
+        setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+        setUnread(0);
+      },
+      request: () => api.markAllNotificationsRead(),
+      revert: restoreRead,
+      onError: () => fetchUnread(),
+      errorMessage: "Couldn’t mark your notifications read.",
+    });
   };
 
   const onItem = (n: AdminNotificationDTO) => {
     if (!n.read) {
-      setItems((prev) =>
-        prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)),
-      );
-      setUnread((u) => Math.max(0, u - 1));
-      api.markNotificationRead(n.id).catch(() => fetchUnread());
+      void optimistic.run({
+        // Per-notification: marking one read never races another row.
+        key: `notification:${n.id}`,
+        snapshot: snapshotRead,
+        apply: () => {
+          setItems((prev) =>
+            prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)),
+          );
+          setUnread((u) => Math.max(0, u - 1));
+        },
+        request: () => api.markNotificationRead(n.id),
+        revert: restoreRead,
+        onError: () => fetchUnread(),
+        errorMessage: "Couldn’t mark that notification read.",
+      });
     }
+    // The navigation below is deliberately NOT part of the optimistic write:
+    // the bell lives in the persistent shell, so it stays mounted across the
+    // route change and can still revert its own badge if the mark fails.
     setOpen(false);
     if (n.userId) router.push(`/members/${n.userId}`);
   };

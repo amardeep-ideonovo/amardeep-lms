@@ -6,6 +6,7 @@ import { ApiError, api } from "@/lib/api";
 import { withBase } from "@/lib/base-path";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 
 // Human summary of WHERE a popup shows, from its visibility flags.
 function visibilitySummary(p: PopupListItem): string {
@@ -49,6 +50,7 @@ const POSITION_LABEL: Record<PopupListItem["position"], string> = {
 
 export default function PopupsPage() {
   const { can, loading: authLoading } = useAdminAuth();
+  const optimistic = useOptimisticAction();
   const [popups, setPopups] = useState<PopupListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -143,17 +145,28 @@ export default function PopupsPage() {
     }
   }
 
+  // The status chip flips on click. Only `status` is painted optimistically —
+  // the list is sorted by `updatedAt` and the server's response does that move.
   async function toggleActive(p: PopupListItem) {
     setError(null);
+    const next = p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
     setRowBusy(p.id);
     try {
-      applyPopup(
-        await api.updatePopup(p.id, {
-          status: p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
-        }),
-      );
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to update status");
+      await optimistic.run({
+        key: `popup:${p.id}`,
+        snapshot: () => p.status,
+        apply: () =>
+          setPopups((prev) =>
+            prev.map((x) => (x.id === p.id ? { ...x, status: next } : x)),
+          ),
+        request: () => api.updatePopup(p.id, { status: next }),
+        commit: (row) => applyPopup(row),
+        revert: (status) =>
+          setPopups((prev) =>
+            prev.map((x) => (x.id === p.id ? { ...x, status } : x)),
+          ),
+        errorMessage: "Failed to update status",
+      });
     } finally {
       setRowBusy(null);
     }

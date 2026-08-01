@@ -35,7 +35,7 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { dialog } from "@/components/DialogProvider";
-import { useToast } from "@/components/ToastProvider";
+import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import {
   AdminLite,
   NameResolver,
@@ -142,11 +142,16 @@ export default function QueueTable({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [openItemId, setOpenItemId] = useState<string | null>(null);
+  const optimistic = useOptimisticAction();
 
   // Keep the loaded-callback in a ref so the loader isn't re-created when the
   // parent passes a fresh closure each render.
   const onLoadedRef = useRef(onListLoaded);
   onLoadedRef.current = onListLoaded;
+  // The loaded list, readable at write time: an optimistic cell save snapshots
+  // the row's values as they are when the PATCH starts.
+  const listRef = useRef<ChatListDTO | null>(null);
+  listRef.current = list;
 
   // There is no single-list GET endpoint — listLists returns every list (with
   // full items + fields), so we fetch and pick ours by id. Cheap for the team
@@ -165,6 +170,16 @@ export default function QueueTable({
     }
   }, [listId, onError]);
 
+  // A background refresh that yields to a write still in the air. The server is
+  // always the winner, but a refetch that lands between an optimistic paint and
+  // its PATCH response would flicker the cell back to its old value and then
+  // forward again; skipping a tick costs nothing, since the write's own
+  // response is the fresher answer anyway.
+  const refreshIfIdle = useCallback(() => {
+    if (optimistic.hasPending()) return;
+    load();
+  }, [load, optimistic]);
+
   // Reset + reload when the target list changes.
   useEffect(() => {
     setLoading(true);
@@ -177,10 +192,10 @@ export default function QueueTable({
   useEffect(() => {
     getProjectsSocket();
     const off = onChatListUpdate((evt) => {
-      if (evt.listId === listId) load();
+      if (evt.listId === listId) refreshIfIdle();
     });
     return off;
-  }, [listId, load]);
+  }, [listId, refreshIfIdle]);
 
   // Join the list's channel room (if channel-scoped) so the socket delivers
   // `chat:list:update` for it.
@@ -193,9 +208,52 @@ export default function QueueTable({
 
   // Slow catch-all poll (covers stand-alone lists + missed socket events).
   useEffect(() => {
-    const t = setInterval(() => load(), LIST_POLL_MS);
+    const t = setInterval(refreshIfIdle, LIST_POLL_MS);
     return () => clearInterval(t);
-  }, [load]);
+  }, [refreshIfIdle]);
+
+  // ---- optimistic cell writes -------------------------------------------
+  // The table renders from `list`, so an optimistic value has to be written
+  // there — not into a second copy inside the cell — or the two sources drift.
+  const applyItemValues = useCallback(
+    (itemId: string, values: Record<string, unknown>, replace = false) => {
+      setList((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((it) =>
+                it.id === itemId
+                  ? { ...it, values: replace ? values : { ...it.values, ...values } }
+                  : it,
+              ),
+            }
+          : prev,
+      );
+    },
+    [],
+  );
+
+  // Paint the change, PATCH it, and let the returned item be the final word.
+  // Keyed by ITEM, not by cell: the endpoint answers with the whole item, so
+  // two cells of one row saving at once could commit each other's stale copy.
+  const saveItemValues = useCallback(
+    async (itemId: string, values: Record<string, unknown>) => {
+      await optimistic.run({
+        key: `list-item:${itemId}`,
+        snapshot: () =>
+          listRef.current?.items.find((it) => it.id === itemId)?.values ?? {},
+        apply: () => applyItemValues(itemId, values),
+        request: () => api.updateItemValues(itemId, values),
+        commit: (updated) => applyItemValues(updated.id, updated.values, true),
+        revert: (previous) => applyItemValues(itemId, previous, true),
+        // Toast rather than the page-top error strip: the board scrolls both
+        // ways, so a failure on a cell far down the table would otherwise
+        // report itself somewhere the admin isn't looking.
+        errorMessage: "Failed to save",
+      });
+    },
+    [applyItemValues, optimistic],
+  );
 
   if (loading && !list) return <p className="muted">Loading…</p>;
   if (!list)
@@ -219,6 +277,7 @@ export default function QueueTable({
         canEdit={canEdit}
         canDelete={canDelete}
         onChanged={load}
+        onSaveValues={saveItemValues}
         onOpenItem={setOpenItemId}
         onError={onError}
       />
@@ -232,6 +291,7 @@ export default function QueueTable({
           canEdit={canEdit}
           onClose={() => setOpenItemId(null)}
           onChanged={load}
+          onSaveValues={saveItemValues}
           onError={onError}
         />
       )}
@@ -252,6 +312,7 @@ function ListTable({
   canEdit,
   canDelete,
   onChanged,
+  onSaveValues,
   onOpenItem,
   onError,
 }: {
@@ -264,10 +325,11 @@ function ListTable({
   canEdit: boolean;
   canDelete: boolean;
   onChanged: () => Promise<void>;
+  // Optimistic single-cell write, owned by the component that holds the list.
+  onSaveValues: (itemId: string, values: Record<string, unknown>) => Promise<void>;
   onOpenItem: (id: string) => void;
   onError: (msg: string) => void;
 }) {
-  const toast = useToast();
   // "<itemId>:<fieldId>" of the cell whose value is mid-save.
   const [savingCell, setSavingCell] = useState<string | null>(null);
   const fields = useMemo(
@@ -312,19 +374,14 @@ function ListTable({
   }, [items, fields, search, resolveName]);
 
   // ---- mutations ----
+  // The cell moves on click: the new value is written to the list the table
+  // renders from before the PATCH goes out, and put back if it fails (with a
+  // Retry toast). The saving tint + pointer-events lock stay — they're what
+  // stops a second click landing on a control that has already moved.
   async function persistValue(item: ChatListItemDTO, fieldId: string, value: unknown) {
     setSavingCell(`${item.id}:${fieldId}`);
     try {
-      await api.updateItemValues(item.id, { [fieldId]: value });
-      await onChanged();
-    } catch (err) {
-      // Toast rather than the page-top error strip: the board scrolls both
-      // ways, so a failure on a cell far down the table would otherwise report
-      // itself somewhere the admin isn't looking, and the cell would silently
-      // snap back to its old value.
-      toast(err instanceof ApiError ? err.message : "Failed to save", {
-        action: { label: "Retry", onAction: () => persistValue(item, fieldId, value) },
-      });
+      await onSaveValues(item.id, { [fieldId]: value });
     } finally {
       setSavingCell(null);
     }
@@ -1576,6 +1633,7 @@ function ItemDetailCard({
   canEdit,
   onClose,
   onChanged,
+  onSaveValues,
   onError,
 }: {
   item: ChatListItemDTO;
@@ -1586,6 +1644,7 @@ function ItemDetailCard({
   canEdit: boolean;
   onClose: () => void;
   onChanged: () => Promise<void>;
+  onSaveValues: (itemId: string, values: Record<string, unknown>) => Promise<void>;
   onError: (msg: string) => void;
 }) {
   const fields = useMemo(
@@ -1616,13 +1675,10 @@ function ItemDetailCard({
     loadComments();
   }, [loadComments]);
 
+  // Same optimistic write as the table's cells — the card renders the same item
+  // out of the same list state, so both move together.
   async function persistValue(fieldId: string, value: unknown) {
-    try {
-      await api.updateItemValues(item.id, { [fieldId]: value });
-      await onChanged();
-    } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Failed to save");
-    }
+    await onSaveValues(item.id, { [fieldId]: value });
   }
   async function persistTitle(title: string) {
     const t = title.trim();

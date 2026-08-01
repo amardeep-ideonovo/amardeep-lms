@@ -2760,6 +2760,29 @@ h1,
 .pj-msg:hover .pj-msg-actions {
   opacity: 1;
 }
+/* Our own message, echoed into the transcript while its POST is in the air.
+   Dimmed, not skeletal: the text is real and readable, it just isn't
+   acknowledged yet. */
+.pj-msg--pending {
+  opacity: 0.55;
+}
+/* The send failed. Full opacity again — this row now needs attention, and the
+   text it holds is the only copy left. */
+.pj-msg--failed {
+  opacity: 1;
+  background: var(--danger-tint);
+}
+.pj-msg-failed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+.pj-msg-failed-text {
+  color: var(--danger);
+  font-weight: 600;
+}
 .pj-avatar {
   flex-shrink: 0;
   width: 34px;
