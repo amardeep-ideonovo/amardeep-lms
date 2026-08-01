@@ -2,25 +2,12 @@
 // /classes, /certificates): per-class enrichment (course/lesson counts + the
 // next incomplete lesson) computed from the existing member endpoints, plus
 // small formatting utilities. No new API surface.
-import type { ClassTileDTO, LessonDTO } from "@lms/types";
+import type { ClassExtrasDTO, ClassTileDTO } from "@lms/types";
 import { api } from "./api";
 
-export interface NextLessonInfo {
-  lesson: LessonDTO;
-  courseTitle: string;
-  courseThumb: string | null;
-}
-
-export interface ClassExtras {
-  courseCount: number;
-  lessonTotal: number;
-  /** courses that still have incomplete lessons */
-  coursesLeft: number;
-  /** lessons not yet completed (from the course counters) */
-  lessonsLeft: number;
-  /** the next incomplete lesson to resume (null when class is done/empty) */
-  next: NextLessonInfo | null;
-}
+// The server now computes these; the local aliases keep the call sites stable.
+export type NextLessonInfo = NonNullable<ClassExtrasDTO["next"]>;
+export type ClassExtras = ClassExtrasDTO;
 
 /** Percent complete for an owned class tile (0 when no progress data). */
 export function classPct(cls: ClassTileDTO): number {
@@ -62,67 +49,23 @@ export function greetingFor(date = new Date()): string {
   return "Good evening";
 }
 
-async function loadExtras(cls: ClassTileDTO): Promise<ClassExtras | null> {
-  try {
-    const res = await api.myClassCourses(cls.slug ?? cls.id);
-    const courses = res.courses;
-    const courseCount = courses.length;
-    const lessonTotal = courses.reduce((n, c) => n + c.lessonCount, 0);
-    const lessonsDone = courses.reduce((n, c) => n + c.completedCount, 0);
-    const coursesLeft = courses.filter(
-      (c) => c.lessonCount === 0 || c.completedCount < c.lessonCount,
-    ).length;
-
-    let next: NextLessonInfo | null = null;
-    const target = courses.find(
-      (c) => c.lessonCount > 0 && c.completedCount < c.lessonCount,
-    );
-    if (target) {
-      try {
-        const lessons = await api.courseLessons(target.id);
-        const sorted = [...lessons].sort((a, b) => a.order - b.order);
-        const lesson = sorted.find((l) => !l.completed) ?? sorted[0];
-        if (lesson) {
-          next = {
-            lesson,
-            courseTitle: target.title,
-            courseThumb: target.thumbnailUrl ?? target.coverImageUrl ?? null,
-          };
-        }
-      } catch {
-        /* lesson detail is progressive enhancement — counts still render */
-      }
-    }
-    return {
-      courseCount,
-      lessonTotal,
-      coursesLeft,
-      lessonsLeft: Math.max(0, lessonTotal - lessonsDone),
-      next,
-    };
-  } catch {
-    return null;
-  }
-}
-
 /**
- * Enrich OWNED classes with course/lesson counts + the next lesson to resume.
- * Parallel, capped, best-effort: a failed class simply has no extras and the
- * caller falls back to the tile's own progress numbers. Not cached — the
- * member screens refetch on focus and progress changes often.
+ * Tiles + per-class enrichment in ONE request.
+ *
+ * This replaces a client-side fan-out that issued up to 17 calls per visit —
+ * my-classes, then my-courses for each owned class, then course-lessons for
+ * each of those — and re-ran the whole thing on every tab focus. The server
+ * computes the same numbers in a fixed number of queries.
  */
-export async function fetchClassExtras(
-  classes: ClassTileDTO[],
-  cap = 8,
-): Promise<Map<string, ClassExtras>> {
-  const owned = classes.filter((c) => c.owned).slice(0, cap);
-  const results = await Promise.all(owned.map((c) => loadExtras(c)));
-  const map = new Map<string, ClassExtras>();
-  owned.forEach((c, i) => {
-    const r = results[i];
-    if (r) map.set(c.id, r);
-  });
-  return map;
+export async function fetchMemberDashboard(): Promise<{
+  classes: ClassTileDTO[];
+  extras: Map<string, ClassExtras>;
+}> {
+  const res = await api.myDashboard();
+  return {
+    classes: res.classes,
+    extras: new Map(Object.entries(res.extras ?? {})),
+  };
 }
 
 /** Stable class-color cycle: accent slot → class-c{0..5}. */

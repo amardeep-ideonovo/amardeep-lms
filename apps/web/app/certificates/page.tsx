@@ -10,7 +10,7 @@ import {
   classColorClass,
   classIndexMap,
   classPct,
-  fetchClassExtras,
+  fetchMemberDashboard,
 } from "@/lib/memberData";
 import AuthGate from "@/components/AuthGate";
 import SpotlightLogo from "@/components/SpotlightLogo";
@@ -108,17 +108,18 @@ function CertificatesInner() {
     let mounted = true;
     async function load() {
       try {
-        const [rows, cs] = await Promise.all([
+        const [rows, dash] = await Promise.all([
           api.myCertificates(),
-          api.myClasses().catch(() => [] as ClassTileDTO[]),
+          fetchMemberDashboard().catch(() => ({
+            classes: [] as ClassTileDTO[],
+            extras: new Map<string, ClassExtras>(),
+          })),
         ]);
         if (!mounted) return;
         setCerts(rows);
-        setClasses(cs);
+        setClasses(dash.classes);
+        setExtras(dash.extras);
         setError(null);
-        fetchClassExtras(cs)
-          .then((m) => mounted && setExtras(m))
-          .catch(() => {});
       } catch (err) {
         if (!mounted) return;
         if (err instanceof ApiError && err.status === 401) {

@@ -50,6 +50,16 @@ export class LevelsController {
     return this.levels.myClasses(principal.sub);
   }
 
+  // Member: the whole dashboard in one call — tiles plus per-class progress and
+  // the next lesson to resume. Same data the client used to assemble from up to
+  // 17 requests. Must be declared before ':slugOrId/...' so the literal path
+  // isn't captured as a slug.
+  @UseGuards(JwtAuthGuard)
+  @Get('my-dashboard')
+  myDashboard(@CurrentUser() principal: AuthenticatedPrincipal) {
+    return this.levels.myDashboard(principal.sub);
+  }
+
   // Member: a class's courses — only returned when the member owns the class.
   @UseGuards(JwtAuthGuard)
   @Get(':slugOrId/my-courses')
