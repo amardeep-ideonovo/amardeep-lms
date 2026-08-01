@@ -37,6 +37,7 @@ import { ProgressRing } from "../components/ProgressRing";
 import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { Press } from "../components/Press";
+import { classSeed } from "../navigation";
 import type { TabScreenProps } from "../navigation";
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -178,8 +179,14 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
   const inProgress = owned.filter((c) => incomplete(c.progress));
   const tileWidth = (width - spacing.md * 2 - spacing.sm) / 2;
 
+  // The tile already shows this class's artwork and name — hand them to the
+  // Class screen so it paints the same hero instead of a cold skeleton.
   const openClass = (c: ClassTileDTO) =>
-    navigation.navigate("Class", { slugOrId: c.slug ?? c.id, title: c.name });
+    navigation.navigate("Class", {
+      slugOrId: c.slug ?? c.id,
+      title: c.name,
+      seed: classSeed(c),
+    });
 
   const streakLine =
     owned.length > 0

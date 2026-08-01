@@ -118,7 +118,23 @@ export function isFleetHost(url: string): boolean {
   }
 }
 
+// ---------- binding epoch ----------
+// Bumped on EVERY bind/unbind. Anything holding per-instance state in memory
+// (api.ts caches the auth token) records the epoch it was populated at and
+// treats a bump as a hard invalidation, so a member can never carry a token
+// from one academy into another — not even when the app rebinds to the SAME
+// instance after a "Switch academy" wiped its stored token.
+//
+// Deliberately a pulled value rather than a registered listener: there is no
+// subscription to forget, so a new consumer cannot silently opt out of it.
+let bindingGeneration = 0;
+
+export function bindingEpoch(): number {
+  return bindingGeneration;
+}
+
 function applyBinding(b: InstanceBinding): void {
+  bindingGeneration++;
   API_BASE_URL = b.apiUrl.replace(/\/$/, "");
   WEB_ACCOUNT_URL = accountUrlFrom(b.webUrl);
   WEB_BASE_URL = originOf(b.webUrl);
@@ -184,6 +200,10 @@ export function setUnbindListener(fn: (() => void) | null): void {
 }
 
 export async function unbindInstance(): Promise<void> {
+  // The binding is changing — invalidate every in-memory per-instance cache
+  // before anything else, so nothing can serve the outgoing instance's token
+  // once this returns (see bindingEpoch above).
+  bindingGeneration++;
   // Clear the current instance's auth token FIRST, while API_BASE_URL still
   // resolves the scoped key — otherwise "Switch academy" would leave the
   // previous member's session token at rest in the Keychain and silently

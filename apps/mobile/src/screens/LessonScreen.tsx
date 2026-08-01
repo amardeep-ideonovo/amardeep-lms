@@ -3,7 +3,7 @@
 // COMPLETE gradient button, certificate claim, and an "Up next" list built
 // from the lesson's course (best-effort fetch). All completion/certificate
 // logic is unchanged.
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -25,6 +25,7 @@ import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 import { api, ApiError, getToken, noteDownloadUrl } from "../api";
 import { API_BASE_URL, WEB_ACCOUNT_URL, scopedKey } from "../config";
 import { Loading, ErrorState, Centered } from "../components/Screen";
+import { Skeleton } from "../components/Skeleton";
 import { Press } from "../components/Press";
 import { CtaButton } from "../components/CtaButton";
 import { LockedPanel } from "../components/LockedPanel";
@@ -32,6 +33,7 @@ import { PopupHost } from "../components/PopupHost";
 import CertificateClaim from "../components/CertificateClaim";
 import { VideoPlayerView } from "../components/VideoPlayerView";
 import { vimeoEmbed } from "../format";
+import { lessonSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -53,12 +55,16 @@ function fmtClock(seconds: number): string {
 export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
-  const { lessonId } = route.params;
+  // `seed` is the row the member tapped (see navigation.ts): title, thumbnail
+  // and duration — never the video URL, body, notes or certificate state, and
+  // never anything that implies access. It paints the loading frame only.
+  const { lessonId, seed } = route.params;
   const [lesson, setLesson] = useState<LessonDTO | null>(null);
   const [siblings, setSiblings] = useState<LessonDTO[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
+  const loadedOnce = useRef(false);
 
   const [completing, setCompleting] = useState(false);
   const [completeError, setCompleteError] = useState<string | null>(null);
@@ -68,16 +74,23 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
 
   // `silent` keeps the rendered lesson on screen while refetching — a
   // pull-to-refresh must never swap the player for the full-screen spinner.
+  // `loadedOnce` extends that to every other path (house pattern — see
+  // DashboardScreen): once the lesson is on screen nothing blanks it, and a
+  // refetch that FAILS keeps the player instead of replacing it with an error.
   const load = useCallback(async (silent = false) => {
-    if (!silent) {
+    const first = !loadedOnce.current;
+    if (!silent && first) {
       setLoading(true);
       setSiblings(null);
     }
     setError(null);
-    setLocked(false);
     try {
       const data = await api.lesson(lessonId);
       setLesson(data);
+      // Access is the server's call, so `locked` is only cleared by a response
+      // that actually granted the lesson — never optimistically up front.
+      setLocked(false);
+      loadedOnce.current = true;
       // Course siblings drive the "Lesson x of y" line and the Up-next rows —
       // decorative, so a failure never blocks the player.
       api
@@ -86,8 +99,10 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
         .catch(() => {});
     } catch (e) {
       if (e instanceof ApiError && e.status === 403) {
+        // Entitlement can be revoked mid-session — a 403 always wins, whether
+        // or not we already had content rendered.
         setLocked(true);
-      } else {
+      } else if (first) {
         setError(e instanceof Error ? e.message : "Could not load this lesson.");
       }
     } finally {
@@ -216,7 +231,36 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
     }
   }
 
-  if (loading) return <Loading />;
+  // First paint. With a seed we keep showing the row the member just tapped —
+  // its still thumbnail, title and duration — instead of a cold spinner. The
+  // player, completion button, notes and certificates stay out until the
+  // server has granted the lesson.
+  if (loading) {
+    if (!seed) return <Loading />;
+    return (
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        {seed.thumbnailUrl ? (
+          <Image
+            style={styles.video}
+            source={{ uri: seed.thumbnailUrl }}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.video} />
+        )}
+        <Text style={styles.title}>{seed.title}</Text>
+        {seed.durationSeconds ? (
+          <View style={styles.metaRow}>
+            <Text style={styles.meta} numberOfLines={1}>
+              Duration {fmtClock(seed.durationSeconds)}
+            </Text>
+          </View>
+        ) : null}
+        <Skeleton height={46} radius={12} style={styles.seedSkeleton} />
+        <Skeleton height={96} radius={12} style={styles.seedSkeleton} />
+      </ScrollView>
+    );
+  }
 
   if (locked) {
     return (
@@ -370,7 +414,11 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
                 key={l.id}
                 style={styles.upNextRow}
                 onPress={() =>
-                  navigation.push("Lesson", { lessonId: l.id, title: l.title })
+                  navigation.push("Lesson", {
+                    lessonId: l.id,
+                    title: l.title,
+                    seed: lessonSeed(l),
+                  })
                 }
               >
                 {l.thumbnailUrl ? (
@@ -446,6 +494,7 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
     fontSize: 11.5,
     fontFamily: fonts.semibold,
   },
+  seedSkeleton: { marginTop: spacing.lg },
   body: { color: colors.text, fontSize: 15, lineHeight: 23, fontFamily: fonts.regular },
   bodyMuted: { color: colors.textMuted, fontSize: 14, fontStyle: "italic", fontFamily: fonts.regular },
   bodyBelow: { marginTop: spacing.lg },

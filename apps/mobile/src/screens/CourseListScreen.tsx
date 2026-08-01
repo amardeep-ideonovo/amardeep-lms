@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { CourseCard } from "@lms/types";
@@ -6,6 +6,7 @@ import type { CourseCard } from "@lms/types";
 import { api } from "../api";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { CourseRow } from "../components/CourseRow";
+import { courseSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -20,14 +21,18 @@ export function CourseListScreen({
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
   const { categoryId, all } = route.params;
-  const [courses, setCourses] = useState<CourseCard[]>([]);
-  const [loading, setLoading] = useState(true);
+  // null = nothing fetched yet (spinner); a loaded list is never dropped back
+  // to null, so a refetch can't blank the screen.
+  const [courses, setCourses] = useState<CourseCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const loadedOnce = useRef(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
     setError(null);
+    // Keep the rendered rows on screen while refetching (house pattern — see
+    // DashboardScreen): only the very first load shows the spinner, and a
+    // failed refocus refetch leaves the good list alone.
     try {
       const data = await api.dashboard();
       const sections = data.categories;
@@ -36,10 +41,11 @@ export function CourseListScreen({
         : sections.find((s) => s.category.id === (categoryId ?? ""))?.courses ??
           [];
       setCourses(picked);
+      loadedOnce.current = true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load courses.");
-    } finally {
-      setLoading(false);
+      if (!loadedOnce.current) {
+        setError(e instanceof Error ? e.message : "Could not load courses.");
+      }
     }
   }, [categoryId, all]);
 
@@ -50,8 +56,8 @@ export function CourseListScreen({
     }, [load])
   );
 
-  if (loading) return <Loading />;
   if (error) return <ErrorState message={error} onRetry={load} />;
+  if (!courses) return <Loading />;
   if (courses.length === 0) {
     return <EmptyState message="No courses here yet." />;
   }
@@ -80,7 +86,11 @@ export function CourseListScreen({
             key={c.id}
             course={c}
             onPress={() =>
-              navigation.navigate("Course", { courseId: c.id, title: c.title })
+              navigation.navigate("Course", {
+                courseId: c.id,
+                title: c.title,
+                seed: courseSeed(c),
+              })
             }
           />
         ))
