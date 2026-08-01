@@ -6,6 +6,7 @@ import Topbar from "@/components/Topbar";
 import AuthGuard from "@/components/AuthGuard";
 import { AdminAuthProvider } from "@/components/AdminAuthProvider";
 import { DialogProvider } from "@/components/DialogProvider";
+import { ToastProvider } from "@/components/ToastProvider";
 import { withBase } from "@/lib/base-path";
 
 // Ink Hero UI type — Plus Jakarta Sans everywhere (display + body), exposed as
@@ -50,21 +51,24 @@ export default function RootLayout({
         <script src={withBase("/env.js")} />
         <AdminAuthProvider>
           <DialogProvider>
-            <div className="app-shell">
-              <Sidebar />
-              <main className="app-main">
-                <Topbar />
-                {/* .app-content is the scrolling light panel (the signature
-                    22px top-left radius against the ink chrome holds while
-                    scrolling because the radius lives on the scroll container).
-                    .app-content-inner caps the line length on wide screens. */}
-                <div className="app-content">
-                  <div className="app-content-inner">
-                    <AuthGuard>{children}</AuthGuard>
+            <ToastProvider>
+              <div className="app-shell">
+                <Sidebar />
+                <main className="app-main">
+                  <Topbar />
+                  {/* .app-content is the scrolling light panel (the signature
+                      22px top-left radius against the ink chrome holds while
+                      scrolling because the radius lives on the scroll
+                      container). .app-content-inner caps the line length on
+                      wide screens. */}
+                  <div className="app-content">
+                    <div className="app-content-inner">
+                      <AuthGuard>{children}</AuthGuard>
+                    </div>
                   </div>
-                </div>
-              </main>
-            </div>
+                </main>
+              </div>
+            </ToastProvider>
           </DialogProvider>
         </AdminAuthProvider>
       </body>
