@@ -21,6 +21,7 @@ import { AuthProvider, useAuth } from "./src/auth";
 import { IS_LOCKED_BUILD, WEB_BASE_URL, unbindInstance } from "./src/config";
 import { ConfigProvider, useAppConfig } from "./src/config-provider";
 import { InstanceGate } from "./src/instance-gate";
+import { QueryProvider, QueryAuthReset } from "./src/query";
 import { navigationRef } from "./src/nav-ref";
 import { ThemeProvider, useTheme } from "./src/theme-provider";
 import { fonts } from "./src/theme";
@@ -427,13 +428,22 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <InstanceGate>
-        <ConfigProvider>
-          <ThemeProvider>
-            <AuthProvider>
-              <ThemedApp />
-            </AuthProvider>
-          </ThemeProvider>
-        </ConfigProvider>
+        {/* QueryProvider is INSIDE InstanceGate on purpose: an academy switch
+            remounts this subtree (key=API_BASE_URL) and the new QueryClient
+            starts empty, so one instance's cache never bleeds into another.
+            QueryAuthReset (under AuthProvider) covers the other boundary —
+            a member switch on the SAME instance. See src/query.tsx. */}
+        <QueryProvider>
+          <ConfigProvider>
+            <ThemeProvider>
+              <AuthProvider>
+                <QueryAuthReset>
+                  <ThemedApp />
+                </QueryAuthReset>
+              </AuthProvider>
+            </ThemeProvider>
+          </ConfigProvider>
+        </QueryProvider>
       </InstanceGate>
     </SafeAreaProvider>
   );

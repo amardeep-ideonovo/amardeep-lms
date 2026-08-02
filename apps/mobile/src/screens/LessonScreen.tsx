@@ -19,6 +19,7 @@ import {
 import { WebView } from "react-native-webview";
 import { Directory, File, Paths } from "expo-file-system";
 import * as SecureStore from "expo-secure-store";
+import { useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 
@@ -36,6 +37,7 @@ import { vimeoEmbed } from "../format";
 import { lessonSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
 import { optimistic } from "../optimistic";
+import { propagateLessonComplete } from "../queries";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -56,6 +58,7 @@ function fmtClock(seconds: number): string {
 export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
+  const queryClient = useQueryClient();
   // `seed` is the row the member tapped (see navigation.ts): title, thumbnail
   // and duration — never the video URL, body, notes or certificate state, and
   // never anything that implies access. It paints the loading frame only.
@@ -151,6 +154,12 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
             }
           : prev,
       );
+      // Reflect the confirmed completion across the shared query cache so the
+      // Course / Class / Home screens the member navigates back to are already
+      // right: the course's lesson list ticks THIS lesson instantly, and
+      // progress counts + certificate grants revalidate server-truthed in the
+      // background. Only on the 200 — never on the optimistic tap above.
+      if (lesson) propagateLessonComplete(queryClient, lesson.courseId, lessonId);
     } catch (e) {
       // Put the exact pre-tap lesson back before anything else, so a 403 can't
       // leave a phantom "completed" behind: `load()` clears `locked` on a

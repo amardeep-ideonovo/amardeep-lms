@@ -3,7 +3,7 @@
 // certificate row that leads to the Certificates screen, then the member's
 // other classes and a neutral Explore section (no prices on mobile — store
 // rules). Real data: /levels/my-classes + /levels/:id/my-courses.
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Image,
   RefreshControl,
@@ -13,12 +13,15 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import type { ClassTileDTO, CourseCard, MyClassCoursesDTO } from "@lms/types";
+import type { ClassTileDTO, CourseCard } from "@lms/types";
 
-import { api } from "../api";
+import {
+  useMyClasses,
+  useMyClassCourses,
+  useRefreshOnFocus,
+} from "../queries";
 import { accentIndexMap, classAccent } from "../class-colors";
 import { ClassTile } from "../components/ClassTile";
 import { Press } from "../components/Press";
@@ -41,52 +44,47 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
   const styles = useStyles(makeStyles);
   const { width } = useWindowDimensions();
 
-  const [classes, setClasses] = useState<ClassTileDTO[] | null>(null);
-  const [activeCourses, setActiveCourses] = useState<MyClassCoursesDTO | null>(
-    null
-  );
-  const [error, setError] = useState<string | null>(null);
+  const classesQuery = useMyClasses();
+  const classes = classesQuery.data ?? null;
+
+  // The active class (first in-progress, else first owned) drives the dependent
+  // course fetch. Its key is derived HERE — before the early returns — so the
+  // hook is called unconditionally; it stays disabled until a class is known.
+  const activeKey = useMemo(() => {
+    if (!classes) return undefined;
+    const owned = classes.filter((c) => c.owned);
+    const incomplete = (p: ClassTileDTO["progress"]) =>
+      !!p && p.total > 0 && p.completed < p.total;
+    const a = owned.find((c) => incomplete(c.progress)) ?? owned[0];
+    return a ? (a.slug ?? a.id) : undefined;
+  }, [classes]);
+  // Best-effort: the active class card stands alone if its courses fail to load.
+  const coursesQuery = useMyClassCourses(activeKey);
+  const activeCourses = coursesQuery.data ?? null;
+
   const [refreshing, setRefreshing] = useState(false);
-  const loadedOnce = useRef(false);
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const cls = await api.myClasses();
-      setClasses(cls);
-      const owned = cls.filter((c) => c.owned);
-      const incomplete = (p: ClassTileDTO["progress"]) =>
-        !!p && p.total > 0 && p.completed < p.total;
-      const active = owned.find((c) => incomplete(c.progress)) ?? owned[0];
-      if (active) {
-        // Course list for the active class — best effort, the class card
-        // stands alone if it fails.
-        const courses = await api
-          .myClassCourses(active.slug ?? active.id)
-          .catch(() => null);
-        setActiveCourses(courses);
-      } else {
-        setActiveCourses(null);
-      }
-      loadedOnce.current = true;
-    } catch {
-      if (!loadedOnce.current) setError("Could not load your classes.");
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  useRefreshOnFocus(() => {
+    void classesQuery.refetch();
+    void coursesQuery.refetch();
+  });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }, [load]);
+    try {
+      await Promise.all([classesQuery.refetch(), coursesQuery.refetch()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [classesQuery, coursesQuery]);
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  if (classesQuery.isError && !classes)
+    return (
+      <ErrorState
+        message="Could not load your classes."
+        onRetry={() => classesQuery.refetch()}
+      />
+    );
 
   if (!classes) {
     return (
