@@ -26,8 +26,16 @@ if (dsn) {
     environment: process.env.ENV_NAME ?? 'production',
     // 10% transaction sampling — adjust via Sentry dashboard, not code.
     tracesSampleRate: 0.1,
-    // SENTRY_RELEASE env var (set at deploy time, e.g. the git SHA)
-    // tags events with a release; left to the deploy script to populate.
+    // Stable per-instance identity, injected by the control plane (the
+    // instance's subdomain). Without it the SDK falls back to the container
+    // hostname — which changes on every upgrade — so a single instance's errors
+    // would scatter across meaningless names in Sentry. `|| undefined` keeps the
+    // SDK default when unset, so a bare/dev run behaves exactly as before.
+    serverName: process.env.SENTRY_SERVER_NAME || undefined,
+    // Which build an error came from. APP_VERSION is the sha-<tag> baked into
+    // the image (same value /health reports), so Sentry gets release tagging and
+    // regression detection with no extra plumbing.
+    release: process.env.APP_VERSION || undefined,
     beforeSend(event) {
       if (event.request?.url) event.request.url = redactTokens(event.request.url);
       if (typeof event.request?.query_string === 'string') {
