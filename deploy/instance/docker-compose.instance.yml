@@ -138,6 +138,32 @@ services:
       API_URL_INTERNAL: http://api:3000
     ports:
       - "${PORT_BIND_IP:-127.0.0.1}:${WEB_PORT}:3002"
+    # LIVENESS, deliberately not readiness. Without this, `Up` on a Next.js
+    # container only means the process hasn't exited — a wedged event loop still
+    # reads as healthy while every request times out.
+    #
+    # Two deliberate choices:
+    #  - It hits a STATIC path, so Next answers without running SSR. Probing `/`
+    #    would render the page (which fetches the API), so a slow or hung API
+    #    would mark web+admin unhealthy on every instance at once — a dependency
+    #    outage must not masquerade as a web outage.
+    #  - ANY HTTP response counts as alive (404 included). Requiring a 200 from
+    #    some health route would break the moment an instance sets
+    #    NEXT_PUBLIC_ADMIN_BASE_PATH and the path moves. Only a refused
+    #    connection or a timeout — i.e. the server is genuinely not answering —
+    #    fails the check.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3002/_next/static/healthz').then(()=>process.exit(0)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
   admin:
     image: ${ADMIN_IMAGE:-lms-admin:local}
@@ -150,6 +176,21 @@ services:
       API_URL_INTERNAL: http://api:3000
     ports:
       - "${PORT_BIND_IP:-127.0.0.1}:${ADMIN_PORT}:3001"
+    # Same liveness probe as `web` — see the reasoning there. The base-path point
+    # matters most here: admin is the surface that can be mounted under
+    # NEXT_PUBLIC_ADMIN_BASE_PATH.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3001/_next/static/healthz').then(()=>process.exit(0)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
 # Named per-instance because `-p lms_<id>` prefixes them. Each tenant gets its
 # own database files, redis data, and uploaded media — full isolation.
