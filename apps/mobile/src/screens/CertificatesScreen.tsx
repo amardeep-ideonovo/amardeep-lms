@@ -3,7 +3,7 @@
 // actions; older certificates as light rows; then an "In progress" list of
 // owned classes with class-colored bars. PDF opening reuses the ?token=
 // download contract from the Profile screen (moved here).
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Image,
   Linking,
@@ -15,12 +15,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import type { ClassTileDTO, MyCertificateDTO } from "@lms/types";
+import type { MyCertificateDTO } from "@lms/types";
 
-import { api, certificateDownloadUrl } from "../api";
+import { certificateDownloadUrl } from "../api";
+import {
+  useMyCertificates,
+  useMyClasses,
+  useRefreshOnFocus,
+} from "../queries";
 import { accentIndexMap, classAccent } from "../class-colors";
 import { CtaButton } from "../components/CtaButton";
 import { Press } from "../components/Press";
@@ -36,45 +40,38 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
 
-  const [certs, setCerts] = useState<MyCertificateDTO[] | null>(null);
-  const [classes, setClasses] = useState<ClassTileDTO[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const certsQuery = useMyCertificates();
+  const classesQuery = useMyClasses();
+  // Newest first — the hero card is the latest achievement.
+  const certs = useMemo(
+    () =>
+      certsQuery.data
+        ? [...certsQuery.data].sort(
+            (a, b) => Date.parse(b.issuedAt) - Date.parse(a.issuedAt),
+          )
+        : undefined,
+    [certsQuery.data],
+  );
+  // In-progress list is best-effort — a classes hiccup never blanks the certs.
+  const classes = classesQuery.data ?? [];
+
   const [refreshing, setRefreshing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyCertId, setBusyCertId] = useState<string | null>(null);
-  const loadedOnce = useRef(false);
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const [certRes, clsRes] = await Promise.all([
-        api.myCertificates(),
-        api.myClasses().catch(() => [] as ClassTileDTO[]),
-      ]);
-      // Newest first — the hero card is the latest achievement.
-      setCerts(
-        [...certRes].sort(
-          (a, b) => Date.parse(b.issuedAt) - Date.parse(a.issuedAt)
-        )
-      );
-      setClasses(clsRes);
-      loadedOnce.current = true;
-    } catch {
-      if (!loadedOnce.current) setError("Could not load your certificates.");
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  useRefreshOnFocus(() => {
+    void certsQuery.refetch();
+    void classesQuery.refetch();
+  });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }, [load]);
+    try {
+      await Promise.all([certsQuery.refetch(), classesQuery.refetch()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [certsQuery, classesQuery]);
 
   // Opens the access-checked PDF in the device browser (?token= URL — same
   // contract as lesson notes).
@@ -106,7 +103,13 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
     }
   }, []);
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  if (certsQuery.isError && !certs)
+    return (
+      <ErrorState
+        message="Could not load your certificates."
+        onRetry={() => certsQuery.refetch()}
+      />
+    );
 
   if (!certs) {
     return (

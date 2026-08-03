@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useMemo } from "react";
 import {
   FlatList,
   Image,
@@ -8,11 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
-import type { CourseCard, LessonDTO } from "@lms/types";
 
-import { api } from "../api";
+import { useCourseLessons, useCourses, useRefreshOnFocus } from "../queries";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { ProgressBar } from "../components/ProgressBar";
 import { PopupHost } from "../components/PopupHost";
@@ -30,39 +28,29 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
   // progress counts, used ONLY to paint the header before the fetch lands. It
   // never enters `lessons`/`course`, so it can't stand in for real data.
   const { courseId, seed } = route.params;
-  const [lessons, setLessons] = useState<LessonDTO[] | null>(null);
-  const [course, setCourse] = useState<CourseCard | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const loadedOnce = useRef(false);
 
-  const load = useCallback(async () => {
-    setError(null);
-    // Keep the rendered lessons on screen while refetching (house pattern — see
-    // DashboardScreen): backing out of a lesson used to drop the whole list to
-    // a spinner, and a failed refresh must not wipe good content either.
-    try {
-      const data = await api.courseLessons(courseId);
-      setLessons([...data].sort((a, b) => a.order - b.order));
-      loadedOnce.current = true;
-    } catch (e) {
-      if (!loadedOnce.current) {
-        setError(e instanceof Error ? e.message : "Could not load lessons.");
-        return;
-      }
-    }
-    // Cover image / title are decorative — best effort, never blocks lessons.
-    api
-      .courses()
-      .then((cs) => setCourse(cs.find((c) => c.id === courseId) ?? null))
-      .catch(() => {});
-  }, [courseId]);
-
-  // Reload on focus so completing a lesson and returning updates progress.
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
+  const lessonsQuery = useCourseLessons(courseId);
+  // react-query keeps the last list across refetches, so backing out of a lesson
+  // never drops it to a spinner and a failed refresh keeps good content. Sorted
+  // for display; the shared cache holds it unsorted.
+  const lessons = useMemo(
+    () =>
+      lessonsQuery.data
+        ? [...lessonsQuery.data].sort((a, b) => a.order - b.order)
+        : null,
+    [lessonsQuery.data],
   );
+  // Cover image / title are decorative — best-effort, never blocks lessons.
+  const coursesQuery = useCourses();
+  const course = coursesQuery.data?.find((c) => c.id === courseId) ?? null;
+
+  // Refetch on focus so completing a lesson and returning updates progress. The
+  // completion also writes this lesson's ✓ straight into the course-lessons
+  // cache, so the row is already ticked on return — this reconciles counts.
+  useRefreshOnFocus(() => {
+    void lessonsQuery.refetch();
+    void coursesQuery.refetch();
+  });
 
   // Server data wins the moment it arrives; the seed only fills the gap.
   const coverImageUrl = course?.coverImageUrl ?? seed?.coverImageUrl ?? null;
@@ -99,7 +87,17 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
     </View>
   );
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  if (lessonsQuery.isError && !lessons)
+    return (
+      <ErrorState
+        message={
+          lessonsQuery.error instanceof Error
+            ? lessonsQuery.error.message
+            : "Could not load lessons."
+        }
+        onRetry={() => lessonsQuery.refetch()}
+      />
+    );
 
   // Nothing fetched yet. With a seed the member keeps looking at the cover and
   // progress they just tapped while the lesson rows fill in.

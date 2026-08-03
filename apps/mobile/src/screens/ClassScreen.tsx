@@ -3,7 +3,7 @@
 // Web parity by request: unowned classes show "Get Class" with the starting
 // price exactly like the website; the button hands off to the WEB checkout in
 // the browser — no purchase ever happens in-app.
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Image,
   Linking,
@@ -15,13 +15,9 @@ import {
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { LinearGradient } from "expo-linear-gradient";
-import type {
-  ClassCertificateStatusDTO,
-  ClassPublicDTO,
-  CourseCard,
-} from "@lms/types";
+import type { ClassCertificateStatusDTO, CourseCard } from "@lms/types";
 
-import { api } from "../api";
+import { useClassPage, useMyClassCourses } from "../queries";
 import { WEB_BASE_URL } from "../config";
 import { fmtTotalDuration, money, vimeoEmbed } from "../format";
 import { CourseRow } from "../components/CourseRow";
@@ -52,39 +48,32 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
   // access, so they always come from the fetch below.
   const { slugOrId, seed } = route.params;
 
-  const [cls, setCls] = useState<ClassPublicDTO | null>(null);
-  const [ownership, setOwnership] = useState<Ownership | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const pageQuery = useClassPage(slugOrId);
+  const ownQuery = useMyClassCourses(slugOrId);
+  const cls = pageQuery.data ?? null;
+  // Ownership is best-effort: a failure reads as "not owned" (marketing view),
+  // but it stays NULL while still loading so the skeleton holds — the owner
+  // branch must never flash the buy card before we know (same rule as the web's
+  // ClassMemberArea). react-query keeps both across refetches, so a refocus or a
+  // failed refresh never wipes rendered content either.
+  const ownership: Ownership | null =
+    ownQuery.data ?? (ownQuery.isError ? { owned: false, courses: [] } : null);
+
   const scrollRef = useRef<ScrollView>(null);
   const trailerY = useRef(0);
-  const loadedOnce = useRef(false);
 
-  const load = useCallback(async () => {
-    setError(null);
-    // Keep the rendered class on screen while refetching (house pattern — see
-    // DashboardScreen): dropping cls/ownership here re-flashed the skeleton
-    // over content we already had, and a failed retry wiped it entirely. Both
-    // still land together, so an owner never flashes the marketing branch
-    // (same rule as the web's ClassMemberArea).
-    try {
-      const [page, own] = await Promise.all([
-        api.classPage(slugOrId),
-        api.myClassCourses(slugOrId).catch(() => ({ owned: false, courses: [] })),
-      ]);
-      setCls(page);
-      setOwnership(own);
-      loadedOnce.current = true;
-      navigation.setOptions({ title: page.name });
-    } catch {
-      if (!loadedOnce.current) setError("Class not found.");
-    }
-  }, [slugOrId, navigation]);
-
+  // Set the header title once the class name is known.
   useEffect(() => {
-    load();
-  }, [load]);
+    if (pageQuery.data) navigation.setOptions({ title: pageQuery.data.name });
+  }, [pageQuery.data, navigation]);
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  if (pageQuery.isError && !cls)
+    return (
+      <ErrorState
+        message="Class not found."
+        onRetry={() => pageQuery.refetch()}
+      />
+    );
 
   if (!cls || !ownership) {
     return (

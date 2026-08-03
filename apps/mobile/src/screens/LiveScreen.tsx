@@ -10,11 +10,10 @@ import {
   Text,
   View,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import type { LiveSessionBarDTO } from "@lms/types";
 
-import { api } from "../api";
+import { useLiveCurrent, useRefreshOnFocus } from "../queries";
 import { CtaButton } from "../components/CtaButton";
 import { fmtSessionWhen, phaseOf } from "../components/LiveSessionBar";
 import { Press } from "../components/Press";
@@ -47,32 +46,25 @@ export function LiveScreen({ navigation }: TabScreenProps<"Live">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
 
-  const [sessions, setSessions] = useState<LiveSessionBarDTO[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const liveQuery = useLiveCurrent();
+  const sessions = liveQuery.data ?? null;
+
   const [refreshing, setRefreshing] = useState(false);
   const offsetRef = useRef(0);
   const [now, setNow] = useState(() => Date.now());
-  const loadedOnce = useRef(false);
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const list = await api.liveCurrent();
-      if (list.length) {
-        offsetRef.current = Date.parse(list[0].serverNow) - Date.now();
-      }
-      setSessions(list);
-      loadedOnce.current = true;
-    } catch {
-      if (!loadedOnce.current) setError("Could not load live sessions.");
+  // Track the server-clock offset from the freshest response, so LIVE flips and
+  // countdowns are computed against server time, not a skewed device clock.
+  useEffect(() => {
+    const list = liveQuery.data;
+    if (list && list.length) {
+      offsetRef.current = Date.parse(list[0].serverNow) - Date.now();
     }
-  }, []);
+  }, [liveQuery.data]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  useRefreshOnFocus(() => {
+    void liveQuery.refetch();
+  });
 
   // Tick the server-offset clock so LIVE flips and countdowns run.
   useEffect(() => {
@@ -82,11 +74,20 @@ export function LiveScreen({ navigation }: TabScreenProps<"Live">) {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }, [load]);
+    try {
+      await liveQuery.refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [liveQuery]);
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  if (liveQuery.isError && !sessions)
+    return (
+      <ErrorState
+        message="Could not load live sessions."
+        onRetry={() => liveQuery.refetch()}
+      />
+    );
 
   if (!sessions) {
     return (

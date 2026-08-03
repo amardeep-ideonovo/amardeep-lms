@@ -4,7 +4,7 @@
 // dots), the live-session ink strip, continue-learning rows, and the My
 // Classes photo-tint carousel, with a neutral Explore grid below. All numbers
 // come from the real API (my-classes progress, certificates, live/current).
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Image,
   RefreshControl,
@@ -15,18 +15,19 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { useFocusEffect, useIsFocused } from "@react-navigation/native";
+import { useIsFocused } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
-import type {
-  AuthUser,
-  ClassTileDTO,
-  LiveSessionBarDTO,
-  MyCertificateDTO,
-} from "@lms/types";
+import type { AuthUser, ClassTileDTO } from "@lms/types";
 
-import { api } from "../api";
+import {
+  useMyClasses,
+  useMe,
+  useLiveCurrent,
+  useMyCertificates,
+  useRefreshOnFocus,
+} from "../queries";
 import { ACCENT_TINT_LOCATIONS, accentIndexMap, accentTint, classAccent } from "../class-colors";
 import { BrandHeaderTitle } from "../components/BrandHeaderTitle";
 import { ClassTile } from "../components/ClassTile";
@@ -79,49 +80,51 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
 
-  const [classes, setClasses] = useState<ClassTileDTO[] | null>(null);
-  const [me, setMe] = useState<AuthUser | null>(null);
-  const [live, setLive] = useState<LiveSessionBarDTO[]>([]);
-  const [certs, setCerts] = useState<MyCertificateDTO[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // my-classes gates the screen (skeleton until it lands); me / live /
+  // certificates are best-effort and render as they arrive. react-query keeps
+  // the last value across a refetch, so a refocus never flashes the skeleton and
+  // a failed background refetch keeps the content — the old loadedOnce guard,
+  // now for free. All four are SHARED cache entries other screens read too.
+  const classesQuery = useMyClasses();
+  const meQuery = useMe();
+  const liveQuery = useLiveCurrent();
+  const certsQuery = useMyCertificates();
+
+  const classes = classesQuery.data ?? null;
+  const me = meQuery.data ?? null;
+  const live = liveQuery.data ?? [];
+  const certs = certsQuery.data ?? null;
+
   const [refreshing, setRefreshing] = useState(false);
-  const loadedOnce = useRef(false);
 
-  const load = useCallback(async () => {
-    setError(null);
-    // Keep previous data on refocus (no spinner flash) — only the very first
-    // load shows skeletons.
-    const [cls, meRes, liveRes, certRes] = await Promise.allSettled([
-      api.myClasses(),
-      api.me(),
-      api.liveCurrent(),
-      api.myCertificates(),
-    ]);
-    if (cls.status === "fulfilled") {
-      setClasses(cls.value);
-    } else if (!loadedOnce.current) {
-      setError("Could not load your dashboard.");
-      return;
-    }
-    if (meRes.status === "fulfilled") setMe(meRes.value);
-    if (liveRes.status === "fulfilled") setLive(liveRes.value);
-    if (certRes.status === "fulfilled") setCerts(certRes.value);
-    loadedOnce.current = true;
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  useRefreshOnFocus(() => {
+    void classesQuery.refetch();
+    void meQuery.refetch();
+    void liveQuery.refetch();
+    void certsQuery.refetch();
+  });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }, [load]);
+    try {
+      await Promise.all([
+        classesQuery.refetch(),
+        meQuery.refetch(),
+        liveQuery.refetch(),
+        certsQuery.refetch(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [classesQuery, meQuery, liveQuery, certsQuery]);
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  if (classesQuery.isError && !classes)
+    return (
+      <ErrorState
+        message="Could not load your dashboard."
+        onRetry={() => classesQuery.refetch()}
+      />
+    );
 
   if (!classes) {
     return (
