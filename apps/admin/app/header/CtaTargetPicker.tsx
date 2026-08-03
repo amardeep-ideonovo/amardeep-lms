@@ -6,7 +6,7 @@ import type {
   LevelDTO,
   MenuItemType,
   PageListItem,
-  PostAdminRow,
+  PostAdminListRow,
 } from "@lms/types";
 
 // Controlled link/target picker — the same target options as the menu "Add item"
@@ -43,7 +43,7 @@ export function CtaTargetPicker({
   pages: PageListItem[];
   levels: LevelDTO[];
   courses: CourseCard[];
-  posts: PostAdminRow[];
+  posts: PostAdminListRow[];
   disabled?: boolean;
 }) {
   // Switching type clears the other target ids (keep openNewTab).

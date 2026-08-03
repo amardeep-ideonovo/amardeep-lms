@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import type {
   CreatePostInput,
+  PostAdminListRow,
   PostAdminRow,
   PostCategoryDTO,
   PostStatus,
@@ -25,7 +26,7 @@ const EMPTY = {
 
 export default function BlogPage() {
   const { can, loading: authLoading } = useAdminAuth();
-  const [posts, setPosts] = useState<PostAdminRow[]>([]);
+  const [posts, setPosts] = useState<PostAdminListRow[]>([]);
   const [categories, setCategories] = useState<PostCategoryDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null); // page-level errors
@@ -36,6 +37,15 @@ export default function BlogPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [formError, setFormError] = useState<string | null>(null); // modal errors
   const [saving, setSaving] = useState(false);
+  // The list carries no post body, so editing loads it from the detail endpoint.
+  // Saving is blocked until that resolves: an empty editor saved over a loaded
+  // post would replace its whole body (blog.service PATCHes content wholesale).
+  const [detailState, setDetailState] = useState<"ready" | "loading" | "error">(
+    "ready"
+  );
+  // Guards against a late detail response landing in the form after the admin
+  // has closed the modal or opened a different post.
+  const editingIdRef = useRef<string | null>(null);
 
   const [newCategory, setNewCategory] = useState("");
 
@@ -90,8 +100,10 @@ export default function BlogPage() {
 
   function resetForm() {
     setEditingId(null);
+    editingIdRef.current = null;
     setForm({ ...EMPTY });
     setFormError(null);
+    setDetailState("ready"); // a new post has no body to fetch
   }
 
   function openCreate() {
@@ -104,19 +116,44 @@ export default function BlogPage() {
     resetForm();
   }
 
-  function startEdit(post: PostAdminRow) {
+  async function startEdit(post: PostAdminListRow) {
     setEditingId(post.id);
+    editingIdRef.current = post.id;
+    // Seed from what the list already knows so the modal isn't blank, then fill
+    // the body from the detail endpoint (the list deliberately omits it).
     setForm({
       title: post.title,
-      excerpt: post.excerpt ?? "",
-      content: post.content ?? "",
-      coverImageUrl: post.coverImageUrl ?? "",
+      excerpt: "",
+      content: "",
+      coverImageUrl: "",
       categoryIds: post.categoryIds,
       tags: post.tags.join(", "),
       status: post.status,
     });
     setFormError(null);
+    setDetailState("loading");
     setModalOpen(true);
+    try {
+      const full = await api.getPost(post.id);
+      if (editingIdRef.current !== full.id) return; // stale response
+      setForm({
+        title: full.title,
+        excerpt: full.excerpt ?? "",
+        content: full.content ?? "",
+        coverImageUrl: full.coverImageUrl ?? "",
+        categoryIds: full.categoryIds,
+        tags: full.tags.join(", "),
+        status: full.status,
+      });
+      setDetailState("ready");
+    } catch (err) {
+      if (editingIdRef.current !== post.id) return;
+      setFormError(
+        err instanceof ApiError ? err.message : "Failed to load this post"
+      );
+      // Stay in "error": saving now would wipe the body we failed to load.
+      setDetailState("error");
+    }
   }
 
   function buildPayload(): CreatePostInput {
@@ -168,7 +205,7 @@ export default function BlogPage() {
     }
   }
 
-  async function togglePublish(post: PostAdminRow) {
+  async function togglePublish(post: PostAdminListRow) {
     setError(null);
     try {
       applyPost(
@@ -183,7 +220,7 @@ export default function BlogPage() {
     }
   }
 
-  async function remove(post: PostAdminRow) {
+  async function remove(post: PostAdminListRow) {
     if (
       !(await dialog.confirm({
         message: `Delete "${post.title}"? This cannot be undone.`,
@@ -514,8 +551,16 @@ export default function BlogPage() {
                 </div>
 
                 <div className="row-actions">
-                  <button className="btn" type="submit" disabled={saving}>
-                    {saving
+                  <button
+                    className="btn"
+                    type="submit"
+                    // Blocked until the body has loaded — saving a blank editor
+                    // over a loaded post would replace its entire content.
+                    disabled={saving || detailState !== "ready"}
+                  >
+                    {detailState === "loading"
+                      ? "Loading…"
+                      : saving
                       ? "Saving…"
                       : editingId
                       ? "Save changes"
