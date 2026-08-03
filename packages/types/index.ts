@@ -2633,6 +2633,7 @@ export const ROUTES = {
   adminProjectUnread: "GET /admin/projects/unread", // -> UnreadSummaryDTO (per-channel unread + mention counts + totals)
   // lists (task boards)
   adminListProjectLists: "GET /admin/projects/lists", // ?channelId -> ChatListDTO[] (with items)
+  adminGetProjectList: "GET /admin/projects/lists/:id", // -> ChatListDTO (one list with items + fields; same projects:read gate as the list route)
   adminCreateProjectList: "POST /admin/projects/lists", // body CreateChatListInput -> ChatListDTO
   adminAddProjectListItem: "POST /admin/projects/lists/:id/items", // body CreateChatListItemInput -> ChatListItemDTO
   adminUpdateProjectListItem: "PATCH /admin/projects/list-items/:id", // body UpdateChatListItemInput -> ChatListItemDTO

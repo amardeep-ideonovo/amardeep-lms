@@ -43,6 +43,14 @@ export class ListsController {
     return this.lists.listLists(principal.sub, query.channelId);
   }
 
+  // Single list by id — same `projects:read` gate as the list route above (the
+  // PermissionsGuard enforces it whether or not the handler reads the principal).
+  @Get('admin/projects/lists/:id')
+  @RequirePermission('projects', 'read')
+  get(@Param('id') id: string) {
+    return this.lists.getList(id);
+  }
+
   @Post('admin/projects/lists')
   @RequirePermission('projects', 'create')
   create(

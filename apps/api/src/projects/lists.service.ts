@@ -144,6 +144,27 @@ export class ListsService {
     ).map((l) => this.toListDTO(l));
   }
 
+  // Single-list read — lets QueueTable load ONE list's detail instead of
+  // scanning every list. Its access model MIRRORS listLists' exactly: the
+  // `projects` read permission (enforced at the controller) is the whole gate,
+  // with deliberately NO per-list channel check — same as the no-channel
+  // listLists path, which already returns every list's full detail to any
+  // projects-reader. So this exposes nothing listLists doesn't; it just returns
+  // far less of it. (Adding assertVisible here would 404 channel-scoped lists
+  // that listLists still surfaces in the standalone Lists picker — a surprising
+  // divergence; the channel-visibility tightening, if wanted, belongs on the
+  // whole read path, not this one endpoint.) 404 on an unknown id.
+  async getList(listId: string): Promise<ChatListDTO> {
+    const list = await this.prisma.chatList.findUnique({
+      where: { id: listId },
+      include: this.listInclude,
+    });
+    if (!list) throw new NotFoundException('List not found');
+    return this.toListDTO(
+      list as ChatList & { items: ItemWithCount[]; fields: ChatListField[] },
+    );
+  }
+
   async createList(
     adminId: string,
     input: CreateChatListInput,
