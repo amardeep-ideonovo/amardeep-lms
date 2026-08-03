@@ -7,6 +7,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import * as express from 'express';
+import compression from 'compression';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { isProduction } from './common/env.util';
@@ -69,6 +70,16 @@ async function bootstrap() {
       crossOriginEmbedderPolicy: false,
     }),
   );
+
+  // gzip responses at the app layer. In the fleet, the Caddy ingress already
+  // compresses at the edge, so this is defense-in-depth — it also covers the
+  // single-domain flagship deploy and local dev, where nothing else does, and
+  // any future path that reaches the API without the edge encoder. Registered
+  // before the routes and static mounts so every response is eligible; the
+  // `compression` middleware self-skips small bodies (<1KB), responses that
+  // already set Content-Encoding, and incompressible content types (images,
+  // PDFs), and no-ops entirely when the client sends no Accept-Encoding.
+  app.use(compression());
 
   app.use(
     '/forms',
