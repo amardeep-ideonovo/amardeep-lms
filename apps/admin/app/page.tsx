@@ -10,6 +10,7 @@ import type {
   CourseCard,
   LevelDTO,
   MemberRow,
+  MemberStatsDTO,
 } from "@lms/types";
 
 // NOTE (Ink Hero): the frame's "Weekly revenue" bar chart is intentionally
@@ -96,7 +97,11 @@ function sessionWhen(s: AdminLiveSessionDTO): string {
 
 export default function DashboardPage() {
   const { can, loading: authLoading } = useAdminAuth();
-  const [members, setMembers] = useState<MemberRow[]>([]);
+  // KPIs come from /members/stats (whole-table counts); the Recent card shows a
+  // 5-row page. Counting a page would silently turn "total members" into
+  // "members on this page".
+  const [stats, setStats] = useState<MemberStatsDTO | null>(null);
+  const [recentMembers, setRecentMembers] = useState<MemberRow[]>([]);
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [courses, setCourses] = useState<CourseCard[]>([]);
   const [sessions, setSessions] = useState<AdminLiveSessionDTO[]>([]);
@@ -109,7 +114,14 @@ export default function DashboardPage() {
     (async () => {
       // Fetch only what this admin may read; tolerate per-call failures.
       const [m, l, c, s, n] = await Promise.allSettled([
-        can("members", "read") ? api.listMembers() : Promise.resolve([]),
+        can("members", "read")
+          ? Promise.all([
+              api.memberStats(),
+              // Just the newest five for the Recent-members card — the KPIs
+              // above come from the stats endpoint, not from counting a page.
+              api.listMembers({ pageSize: 5 }),
+            ])
+          : Promise.resolve(null),
         can("classes", "read") ? api.listLevels() : Promise.resolve([]),
         can("courses", "read") ? api.listCourses() : Promise.resolve([]),
         can("liveSessions", "read")
@@ -118,7 +130,10 @@ export default function DashboardPage() {
         api.listNotifications({ pageSize: 6 }),
       ]);
       if (!alive) return;
-      if (m.status === "fulfilled") setMembers(m.value);
+      if (m.status === "fulfilled" && m.value) {
+        setStats(m.value[0]);
+        setRecentMembers(m.value[1].items);
+      }
       if (l.status === "fulfilled") setLevels(l.value);
       if (c.status === "fulfilled") setCourses(c.value);
       if (s.status === "fulfilled") setSessions(s.value);
@@ -130,14 +145,10 @@ export default function DashboardPage() {
     };
   }, [authLoading, can]);
 
-  const totalMembers = members.length;
-  const activeSubs = members.filter((m) => m.subscription?.active).length;
-  const pastDue = members.filter(
-    (m) => m.subscription?.status === "PAST_DUE",
-  ).length;
-  const newThisWeek = members.filter(
-    (m) => Date.now() - new Date(m.registeredAt).getTime() < 7 * 86_400_000,
-  ).length;
+  const totalMembers = stats?.total ?? 0;
+  const activeSubs = stats?.activeSubs ?? 0;
+  const pastDue = stats?.pastDue ?? 0;
+  const newThisWeek = stats?.newThisWeek ?? 0;
   const paidPlans = levels.filter((l) => l.type === "PAID").length;
 
   // Next upcoming (or currently running) published live session — real data.
@@ -147,13 +158,8 @@ export default function DashboardPage() {
     )
     .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))[0];
 
-  // Newest five members for the "Recent members" card.
-  const recent = [...members]
-    .sort(
-      (a, b) =>
-        new Date(b.registeredAt).getTime() - new Date(a.registeredAt).getTime(),
-    )
-    .slice(0, 5);
+  // Newest five members — already ordered createdAt desc by the server.
+  const recent = recentMembers;
 
   // Getting-started checklist, completion derived from live data.
   const tasks = [

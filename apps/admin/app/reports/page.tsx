@@ -10,7 +10,7 @@
 //     GET /admin/reports/enrollments-daily (JSON buckets) would unlock them.
 
 import { useEffect, useState, type CSSProperties } from "react";
-import type { LevelDTO, MemberRow, SubscriptionRowDTO } from "@lms/types";
+import type { LevelDTO, MemberStatsDTO, SubscriptionRowDTO } from "@lms/types";
 import { ApiError, api, type ReportFilter } from "@/lib/api";
 import { classAccentIndex } from "@/lib/class-accent";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
@@ -69,7 +69,8 @@ function isActiveSub(s: SubscriptionRowDTO): boolean {
 export default function ReportsPage() {
   const { can, loading: authLoading } = useAdminAuth();
   const [levels, setLevels] = useState<LevelDTO[]>([]);
-  const [members, setMembers] = useState<MemberRow[] | null>(null);
+  // Two integers only — this page used to pull the entire user table for them.
+  const [stats, setStats] = useState<MemberStatsDTO | null>(null);
   const [subs, setSubs] = useState<SubscriptionRowDTO[] | null>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -85,9 +86,9 @@ export default function ReportsPage() {
       .catch(() => setLevels([]));
     if (can("members", "read"))
       api
-        .listMembers()
-        .then(setMembers)
-        .catch(() => setMembers(null));
+        .memberStats()
+        .then(setStats)
+        .catch(() => setStats(null));
     if (can("subscriptions", "read"))
       api
         .listSubscriptions()
@@ -152,15 +153,15 @@ export default function ReportsPage() {
   });
 
   const kpis: { label: string; value: string; sub?: string }[] = [];
-  if (members)
+  if (stats)
     kpis.push({
       label: "Total members",
-      value: members.length.toLocaleString(),
+      value: stats.total.toLocaleString(),
     });
-  if (members)
+  if (stats)
     kpis.push({
       label: "Active subscriptions",
-      value: members.filter((m) => m.subscription?.active).length.toLocaleString(),
+      value: stats.activeSubs.toLocaleString(),
     });
   if (subs)
     kpis.push({

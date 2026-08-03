@@ -7,6 +7,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -16,6 +17,7 @@ import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { MembersService } from './members.service';
 import {
   AddMemberLevelDto,
+  ListMembersQueryDto,
   SetMemberPasswordDto,
   UpdateMemberDto,
 } from './dto/member.dto';
@@ -25,10 +27,18 @@ import {
 export class MembersController {
   constructor(private readonly members: MembersService) {}
 
+  // Declared BEFORE @Get(':id') — Nest matches in declaration order, so the
+  // literal route would otherwise be swallowed and 404 as a member id.
+  @Get('stats')
+  @RequirePermission('members', 'read')
+  stats() {
+    return this.members.stats();
+  }
+
   @Get()
   @RequirePermission('members', 'read')
-  list() {
-    return this.members.list();
+  list(@Query() query: ListMembersQueryDto) {
+    return this.members.list(query);
   }
 
   @Get(':id')

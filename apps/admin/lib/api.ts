@@ -77,7 +77,10 @@ import type {
   MediaDTO,
   MediaListDTO,
   MemberBillingDTO,
+  MemberListDTO,
   MemberRow,
+  MemberStatsDTO,
+  MemberStatusFilter,
   PageAdminRow,
   PageListItem,
   PopupAdminRow,
@@ -454,7 +457,28 @@ export const api = {
     request<void>("DELETE", `/levels/categories/${id}`),
 
   // members
-  listMembers: () => request<MemberRow[]>("GET", "/members"),
+  // Server-paged + server-filtered. Filtering client-side over a page would
+  // only filter that page and report wrong counts — use these params instead.
+  listMembers: (
+    params: {
+      q?: string;
+      levelId?: string; // a level id, or "__none__" = holds no class
+      status?: MemberStatusFilter;
+      page?: number; // 1-based
+      pageSize?: number;
+    } = {}
+  ) => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set("q", params.q);
+    if (params.levelId) qs.set("levelId", params.levelId);
+    if (params.status) qs.set("status", params.status);
+    if (params.page != null) qs.set("page", String(params.page));
+    if (params.pageSize != null) qs.set("pageSize", String(params.pageSize));
+    const s = qs.toString();
+    return request<MemberListDTO>("GET", `/members${s ? `?${s}` : ""}`);
+  },
+  // Whole-table KPIs — never a page (see MemberStatsDTO).
+  memberStats: () => request<MemberStatsDTO>("GET", "/members/stats"),
   getMember: (memberId: string) =>
     request<MemberRow>("GET", `/members/${memberId}`),
   updateMember: (memberId: string, input: UpdateMemberInput) =>

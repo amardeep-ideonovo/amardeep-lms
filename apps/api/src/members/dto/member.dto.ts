@@ -1,10 +1,52 @@
 import {
   IsEmail,
+  IsIn,
+  IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   MinLength,
 } from 'class-validator';
+import type { MemberStatusFilter } from '@lms/types';
+
+const MEMBER_STATUS_FILTERS = [
+  'active',
+  'past_due',
+  'paused',
+  'canceled',
+  'expired',
+] as const;
+
+// Query params for the server-paged member list. The global ValidationPipe runs
+// with enableImplicitConversion, so page/pageSize arrive as numbers.
+export class ListMembersQueryDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  q?: string;
+
+  // A real level id, or the sentinel "__none__" = holds no class.
+  @IsOptional()
+  @IsString()
+  levelId?: string;
+
+  @IsOptional()
+  @IsIn(MEMBER_STATUS_FILTERS)
+  status?: MemberStatusFilter;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number;
+}
 
 export class AddMemberLevelDto {
   @IsString()
