@@ -172,7 +172,60 @@ function hslToHex(h: number, s: number, l: number): string {
 // Add the derived tokens to an admin palette to form the full ThemePalette.
 // Derivations are clamped so extreme admin primaries (gray, near-black, neon)
 // still produce visible eyebrows and sane gradients.
-export function paletteFrom(p: AppThemePalette, mode: "light" | "dark"): ThemePalette {
+// The eight #rrggbb keys every AppThemePalette must define.
+const PALETTE_KEYS = [
+  "bg",
+  "surface",
+  "surfaceMuted",
+  "border",
+  "text",
+  "textMuted",
+  "primary",
+  "danger",
+] as const;
+
+// A palette is COMPLETE only if all eight color keys are non-empty strings. Used
+// to reject a malformed cached config before it ever reaches the theme (see
+// config-provider.readCache): a partial palette would crash hexToHsl below and
+// hard-brick the app on launch (unrecoverable without clearing app data).
+export function isCompletePalette(p: unknown): p is AppThemePalette {
+  if (!p || typeof p !== "object") return false;
+  return PALETTE_KEYS.every((k) => {
+    const v = (p as Record<string, unknown>)[k];
+    return typeof v === "string" && v.length > 0;
+  });
+}
+
+// A config is safe to theme from only when BOTH palettes are complete.
+export function isCompleteAppConfig(c: unknown): c is AppConfig {
+  if (!c || typeof c !== "object") return false;
+  const cc = c as { light?: unknown; dark?: unknown };
+  return isCompletePalette(cc.light) && isCompletePalette(cc.dark);
+}
+
+// Merge an untrusted (possibly partial/empty) palette over the stock palette for
+// the mode, keeping only valid string values — so every derived color below has
+// a defined input and the theme can NEVER crash on a partial palette, wherever
+// it came from (a cached config written by an older schema, or a partial API
+// response). This is the last-line guard; readCache also rejects bad caches.
+function safePalette(
+  input: AppThemePalette | Partial<AppThemePalette> | null | undefined,
+  mode: "light" | "dark",
+): AppThemePalette {
+  const base = mode === "dark" ? APP_DARK : APP_LIGHT;
+  if (!input || typeof input !== "object") return base;
+  const out: AppThemePalette = { ...base };
+  for (const k of PALETTE_KEYS) {
+    const v = (input as Record<string, unknown>)[k];
+    if (typeof v === "string" && v.length > 0) out[k] = v;
+  }
+  return out;
+}
+
+export function paletteFrom(input: AppThemePalette, mode: "light" | "dark"): ThemePalette {
+  // `input` is typed AppThemePalette, but it can be partial/empty at runtime
+  // (untrusted cached branding) — normalize it so nothing below sees undefined.
+  const p = safePalette(input, mode);
   const { h, s, l } = hexToHsl(p.primary);
   const t = hexToHsl(p.text);
 

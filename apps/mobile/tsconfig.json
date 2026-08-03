@@ -6,5 +6,6 @@
       "@lms/types": ["../../packages/types/index.ts"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["**/*.spec.ts"]
 }
