@@ -1320,7 +1320,12 @@ model ChatListItem {
   assigneeAdminId      String?
   dueDate              DateTime?
   position             Int                @default(0)
-  values               Json               @default("{}") // custom-field values keyed by ChatListField.id
+  // Custom-field values keyed by ChatListField.id. SECRET-typed values are
+  // encrypted at rest and stored with an "enc:v1:" envelope (see
+  // apps/api/src/projects/secret-value.util.ts). A SECRET value WITHOUT that
+  // prefix is legacy plaintext and is still valid — never treat it as corrupt
+  // or null it out; flipping a TEXT column to SECRET also produces one.
+  values               Json               @default("{}")
   createdFromMessageId String? // "turn a message into a task" provenance
   createdFromMessage   ChatMessage?       @relation(fields: [createdFromMessageId], references: [id], onDelete: SetNull)
   createdAt            DateTime           @default(now())
