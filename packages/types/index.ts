@@ -2198,7 +2198,14 @@ export interface ChatListItemDTO {
   assigneeAdminId?: string | null;
   dueDate?: string | null; // ISO
   position: number;
-  values: Record<string, unknown>; // custom-field values keyed by ChatListField.id
+  // Custom-field values keyed by ChatListField.id. SECRET fields are OMITTED
+  // here (their plaintext never rides in list/item responses) — see
+  // secretFieldIds, and fetch the value via the audited reveal endpoint.
+  values: Record<string, unknown>;
+  // Ids of SECRET fields that HAVE a value set on this item (masked). The UI
+  // shows a placeholder + reveal control; the plaintext comes only from
+  // GET /admin/projects/list-items/:id/reveal?fieldId=… (projects:edit, audited).
+  secretFieldIds: string[];
   commentCount: number; // non-deleted comments on this item
   createdFromMessageId?: string | null; // "turn a message into a task" provenance
   createdAt: string; // ISO

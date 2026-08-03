@@ -1092,6 +1092,15 @@ export const api = {
       `/admin/projects/list-items/${itemId}/values`,
       { values } satisfies UpdateListItemValuesInput
     ),
+  // Fetch ONE SECRET field's plaintext (masked out of the item payload). Gated
+  // at projects:edit and audited server-side; call only on an explicit reveal.
+  revealListItemSecret: (itemId: string, fieldId: string) =>
+    request<{ value: string | null }>(
+      "GET",
+      `/admin/projects/list-items/${itemId}/reveal?fieldId=${encodeURIComponent(
+        fieldId
+      )}`
+    ),
 
   // ---- lists: per-item comment thread (the 💬) ----
   listItemComments: (itemId: string) =>

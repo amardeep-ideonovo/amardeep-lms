@@ -526,6 +526,8 @@ function ListTable({
                       <Cell
                         field={f}
                         value={it.values[f.id]}
+                        itemId={it.id}
+                        secretSet={it.secretFieldIds?.includes(f.id) ?? false}
                         roster={roster}
                         resolveName={resolveName}
                         canEdit={canEdit}
@@ -923,6 +925,8 @@ function TitleCell({
 function Cell({
   field,
   value,
+  itemId,
+  secretSet,
   roster,
   resolveName,
   canEdit,
@@ -930,6 +934,8 @@ function Cell({
 }: {
   field: ChatListFieldDTO;
   value: unknown;
+  itemId: string;
+  secretSet: boolean; // this item has a SECRET value set for this field
   roster: AdminLite[];
   resolveName: NameResolver;
   canEdit: boolean;
@@ -948,7 +954,15 @@ function Cell({
     case "CHECKBOX":
       return <CheckboxCell value={value === true} canEdit={canEdit} onSave={onSave} />;
     case "SECRET":
-      return <SecretCell value={asText(value)} canEdit={canEdit} onSave={onSave} />;
+      return (
+        <SecretCell
+          itemId={itemId}
+          fieldId={field.id}
+          isSet={secretSet}
+          canEdit={canEdit}
+          onSave={onSave}
+        />
+      );
     case "SELECT":
       return <SelectCell field={field} value={asText(value)} canEdit={canEdit} onSave={onSave} />;
     case "MULTI_SELECT":
@@ -1238,39 +1252,62 @@ function CheckboxCell({
   );
 }
 
-// ---- SECRET (masked + reveal + edit) ----
+// ---- SECRET (masked; plaintext fetched only on explicit reveal) ----
+// The item payload never carries a SECRET's plaintext — `isSet` says a value
+// exists; revealing fetches it through the audited server reveal endpoint.
 function SecretCell({
-  value,
+  itemId,
+  fieldId,
+  isSet,
   canEdit,
   onSave,
 }: {
-  value: string;
+  itemId: string;
+  fieldId: string;
+  isSet: boolean;
   canEdit: boolean;
   onSave: (v: unknown) => void | Promise<void>;
 }) {
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
-  useEffect(() => setDraft(value), [value]);
+  const [draft, setDraft] = useState("");
+
+  async function toggleReveal() {
+    if (revealed !== null) {
+      setRevealed(null); // hide again
+      return;
+    }
+    setLoading(true);
+    try {
+      const { value } = await api.revealListItemSecret(itemId, fieldId);
+      setRevealed(value ?? "");
+    } catch {
+      // leave masked on failure
+    } finally {
+      setLoading(false);
+    }
+  }
 
   if (editing && canEdit) {
+    const commit = () => {
+      setEditing(false);
+      if (draft) onSave(draft); // empty draft = no change (don't clear silently)
+      setDraft("");
+    };
     return (
       <input
         className="pj-tbl-inline"
         type="text"
         value={draft}
         autoFocus
+        placeholder="Enter new secret…"
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => {
-          setEditing(false);
-          if (draft !== value) onSave(draft);
-        }}
+        onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            setEditing(false);
-            if (draft !== value) onSave(draft);
-          } else if (e.key === "Escape") {
-            setDraft(value);
+          if (e.key === "Enter") commit();
+          else if (e.key === "Escape") {
+            setDraft("");
             setEditing(false);
           }
         }}
@@ -1280,21 +1317,31 @@ function SecretCell({
   return (
     <span className="pj-tbl-secretcell">
       <span className="pj-tbl-secret">
-        {value ? (revealed ? value : "••••••••") : canEdit ? "—" : ""}
+        {isSet
+          ? revealed !== null
+            ? revealed
+            : "••••••••"
+          : canEdit
+            ? "—"
+            : ""}
       </span>
-      {value && (
+      {isSet && (
         <button
           className="pj-tbl-editmini"
-          onClick={() => setRevealed((v) => !v)}
-          title={revealed ? "Hide" : "Reveal"}
+          onClick={toggleReveal}
+          disabled={loading}
+          title={revealed !== null ? "Hide" : "Reveal"}
         >
-          {revealed ? "🙈" : "👁"}
+          {revealed !== null ? "🙈" : "👁"}
         </button>
       )}
       {canEdit && (
         <button
           className="pj-tbl-editmini"
-          onClick={() => setEditing(true)}
+          onClick={() => {
+            setDraft(revealed ?? "");
+            setEditing(true);
+          }}
           title="Edit secret"
         >
           ✎
@@ -1767,6 +1814,8 @@ function ItemDetailCard({
                   <Cell
                     field={f}
                     value={item.values[f.id]}
+                    itemId={item.id}
+                    secretSet={item.secretFieldIds?.includes(f.id) ?? false}
                     roster={roster}
                     resolveName={resolveName}
                     canEdit={canEdit}
