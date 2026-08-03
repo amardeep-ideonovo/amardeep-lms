@@ -60,14 +60,20 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [header, footer, appConfig] = await Promise.all([
-    fetchSiteHeader(),
+  // The header menu depends on the header (which menu it points at), but the
+  // footer and app config do NOT — so chain the menu directly onto the header
+  // fetch rather than awaiting all three first. This takes the menu request off
+  // the critical path behind whichever of footer/appConfig is slowest: it now
+  // fires the instant the header resolves, in parallel with the rest. The menu
+  // is still resolved before render, so the first paint shows the real nav (no
+  // fallback flash on refresh).
+  const headerPromise = fetchSiteHeader();
+  const [header, footer, appConfig, headerMenu] = await Promise.all([
+    headerPromise,
     fetchFooter(),
     fetchAppConfig(),
+    headerPromise.then((h) => fetchHeaderMenu(h?.menuId)),
   ]);
-  // Resolve the header menu using whichever menu the header points at, so the
-  // first paint shows the real nav (no fallback flash on refresh).
-  const headerMenu = await fetchHeaderMenu(header?.menuId);
   return (
     <html
       lang="en"
