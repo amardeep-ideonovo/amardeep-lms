@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
@@ -33,6 +34,12 @@ import { ChannelsService } from './channels.service';
 import { ProjectsGateway } from './projects.gateway';
 import { WorkflowsService } from './workflows.service';
 import { AuditService } from '../audit/audit.service';
+import {
+  SECRET_MAX_LENGTH,
+  isSealed,
+  openSecretValue,
+  sealSecretValue,
+} from './secret-value.util';
 
 // Item shape with the comment count + (optionally loaded) comments eagerly
 // included for serialization.
@@ -62,6 +69,25 @@ export class ListsService {
     // AuditModule is @Global, so no import is needed in ProjectsModule.
     private readonly audit: AuditService,
   ) {}
+
+  // Wraps a seal/open call so a crypto failure surfaces as a 503 config error
+  // rather than a raw 500 — and, critically, never as a null or an empty
+  // result. A stored credential we cannot decrypt is RECOVERABLE (fix the key);
+  // reporting it as "no secret set" would invite an admin to overwrite it and
+  // destroy the only copy. Broader than LiveService's equivalent, which maps
+  // only the missing-key message and lets a wrong key fall through as a 500.
+  private crypto<T>(fn: () => T): T {
+    try {
+      return fn();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '';
+      throw new ServiceUnavailableException(
+        msg.includes('SETTINGS_ENC_KEY')
+          ? 'Projects secrets need encryption configured (set SETTINGS_ENC_KEY).'
+          : 'This secret could not be decrypted — SETTINGS_ENC_KEY may have changed.',
+      );
+    }
+  }
 
   // ----- Serializers -----
 
@@ -99,6 +125,11 @@ export class ListsService {
         if (typeof v === 'string' && v.length > 0) secretFieldIds.push(f.id);
         continue; // never emit the plaintext
       }
+      // Defense in depth: flipping a column SECRET -> TEXT does not rewrite the
+      // stored values, so a sealed blob can sit under a now-plain field. Never
+      // surface it (it would be useless ciphertext at best, and re-saving it
+      // would overwrite the real secret).
+      if (isSealed(raw[f.id])) continue;
       values[f.id] = raw[f.id];
     }
     return {
@@ -425,7 +456,9 @@ export class ListsService {
     if (!field || field.type !== 'SECRET') {
       throw new NotFoundException('Secret field not found');
     }
-    const value = this.readObject(item.values)[fieldId];
+    const stored = this.readObject(item.values)[fieldId];
+    // Audit BEFORE decrypting: an attempt that fails on a missing/rotated key
+    // is still an attempt to read a credential and must leave a trail.
     await this.audit.write({
       actorAdminId: adminId,
       action: 'projects.secret.reveal',
@@ -434,7 +467,9 @@ export class ListsService {
       metadata: { fieldId, listId: item.listId },
       ip,
     });
-    return { value: typeof value === 'string' ? value : null };
+    // Sealed values decrypt; values stored before at-rest encryption shipped
+    // come back as-is (see openSecretValue).
+    return { value: this.crypto(() => openSecretValue(stored)) };
   }
 
   // ----- List fields (custom columns) -----
@@ -693,12 +728,24 @@ export class ListsService {
       if (!field) {
         throw new BadRequestException(`Unknown field id: ${fieldId}`);
       }
-      out[fieldId] = this.validateValue(
+      const normalized = this.validateValue(
         field.type as ChatFieldType,
         this.readOptions(field.options),
         field.name,
         value,
       );
+      if (field.type === 'SECRET' && typeof normalized === 'string') {
+        // THE single encrypt site: both writers (addItem, updateItemValues)
+        // funnel through here, so plaintext never reaches the database.
+        // '' means "clear the cell" — sealing it would yield a non-empty
+        // ciphertext that toItemDTO would then report as a secret being set.
+        out[fieldId] =
+          normalized === ''
+            ? null
+            : this.crypto(() => sealSecretValue(normalized));
+      } else {
+        out[fieldId] = normalized;
+      }
     }
     return out;
   }
@@ -721,9 +768,21 @@ export class ListsService {
       case 'TEXT':
       case 'LONG_TEXT':
       case 'URL':
-      case 'SECRET':
         if (typeof value !== 'string') bad('a string');
         return value;
+      case 'SECRET': {
+        if (typeof value !== 'string') bad('a string');
+        const s = value as string;
+        // Capped because sealing inflates the stored value. Deliberately NOT
+        // trimmed — leading/trailing whitespace can be meaningful in a
+        // credential. Sealing happens in validateValues, not here: this method
+        // is a pure sync validator and an unwrapped crypto throw would surface
+        // as a raw 500 instead of the mapped 503.
+        if (s.length > SECRET_MAX_LENGTH) {
+          bad(`at most ${SECRET_MAX_LENGTH} characters`);
+        }
+        return s;
+      }
       case 'PERSON':
         // An admin id is an opaque string; existence is the caller's concern.
         if (typeof value !== 'string') bad('an admin id string');

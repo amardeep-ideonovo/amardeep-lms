@@ -15,9 +15,26 @@
 | Uploads | `uploads` Docker volume (`/data/images`, `/data/files`) | Daily 02:30 server time | 30 days |
 | Settings encryption key | Plain env var `SETTINGS_ENC_KEY` in `deploy/.env` | One-time, kept offline | Forever |
 
-> The Settings encryption key is **not** a regular backup target. If you
-> lose it, all admin-set Stripe keys in the Settings table become
-> unreadable (you can re-enter them). Store it in your password manager.
+> The Settings encryption key is **not** a regular backup target. Store it in
+> your password manager.
+>
+> ⚠️ Losing it is no longer merely inconvenient. It encrypts two different
+> classes of data:
+>
+> - **Re-enterable** — admin-set Stripe/SMTP/Zoom credentials in the Settings
+>   table and Live Session join URLs. Lose the key and you re-enter them from
+>   the source system.
+> - **NOT re-enterable** — SECRET-typed custom-field values on Projects boards
+>   (`ChatListItem.values`, encrypted at rest with an `enc:v1:` envelope). These
+>   are credentials a client typed into their own board; this database is the
+>   only copy. Lose the key and they are gone.
+>
+> On the **fleet**, an instance's `SETTINGS_ENC_KEY` is not hand-managed — the
+> control plane stores it inside `Instance.secretsEnc` and injects it at
+> container start, so it is captured by the nightly control-plane DB backup.
+> The one key that must survive offline is therefore the *control plane's* own
+> `SETTINGS_ENC_KEY` (in `/opt/licensing-dashboard/deploy/host/.env`), which is
+> the root of that chain and is NOT in any database backup.
 
 ---
 
@@ -215,7 +232,10 @@ Things that silently break backups:
   NOT in the DB backup. If you restore on a new server with a fresh key,
   encrypted settings (Stripe keys) won't decode. Either
   copy the key from the old server or re-enter the secrets via admin UI
-  after restore.
+  after restore. **Copying the key is now the only safe option if the
+  instance uses Projects boards**: SECRET custom-field values are encrypted
+  with the same key and cannot be re-entered from anywhere else (§1).
+  Restoring a DB onto a box with a different key turns them into dead bytes.
 
 ---
 
