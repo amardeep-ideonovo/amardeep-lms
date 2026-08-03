@@ -123,29 +123,57 @@ export class ApiError extends Error {
   }
 }
 
+// Default TTL (seconds) for PUBLIC, token-independent responses that opt into
+// caching. Applied to the site header/footer/menu/app-config fetches the root
+// layout makes on EVERY route, so a burst of renders shares one API round-trip
+// per resource instead of one each. Kept short so an admin's branding/nav edit
+// still shows within ~30s (matches the mobile config-poll cadence). This is
+// NEVER applied to a request that carries a member token (see request()).
+export const PUBLIC_TTL_SECONDS = 30;
+
 type Options = {
   method?: string;
   body?: unknown;
   auth?: boolean; // attach Bearer token (default true)
+  // Seconds to cache a PUBLIC response in Next's shared Data Cache. Honored only
+  // when NO member token is attached — otherwise request() forces no-store, so a
+  // per-member response can never be served to another visitor from the cache.
+  revalidate?: number;
 };
 
 async function request<T>(path: string, opts: Options = {}): Promise<T> {
-  const { method = "GET", body, auth = true } = opts;
+  const { method = "GET", body, auth = true, revalidate } = opts;
   const headers: Record<string, string> = {};
 
   if (body !== undefined) headers["Content-Type"] = "application/json";
 
+  let tokenAttached = false;
   if (auth) {
     const token = getToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+      tokenAttached = true;
+    }
   }
 
-  const res = await fetch(`${apiBase()}${path}`, {
+  // TTL-cache ONLY public responses. If a member token is attached, force
+  // no-store — a member's response must never land in the shared Data Cache
+  // where another visitor could be served it. This invariant holds regardless
+  // of what the caller passes for `revalidate`. Otherwise, an explicit
+  // `revalidate` caches the (public) response for that many seconds; without it
+  // we keep the previous no-store (always-fresh) default.
+  const init: RequestInit & { next?: { revalidate?: number } } = {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
+  };
+  if (revalidate !== undefined && !tokenAttached) {
+    init.next = { revalidate };
+  } else {
+    init.cache = "no-store";
+  }
+
+  const res = await fetch(`${apiBase()}${path}`, init);
 
   if (!res.ok) {
     let message = res.statusText;
@@ -408,10 +436,12 @@ export async function fetchSiteHeader(
 ): Promise<ResolvedHeader | null> {
   try {
     const qs = path ? `?path=${encodeURIComponent(path)}` : "";
-    // SSR (no path) -> guest default, no token. Client (with path) -> attach
-    // the member token so audience/level rules resolve for this visitor.
+    // SSR (no path) -> guest default, no token; TTL-cache that public response.
+    // Client (with path) -> attach the member token so audience/level rules
+    // resolve for this visitor, and never cache it (per-visitor, token-bearing).
     return await request<ResolvedHeader>(`/site/header${qs}`, {
       auth: !!path,
+      ...(path ? {} : { revalidate: PUBLIC_TTL_SECONDS }),
     });
   } catch {
     return null;
@@ -427,7 +457,10 @@ export async function fetchHeaderMenu(
 ): Promise<ResolvedMenu | null> {
   try {
     const path = menuId ? `/menus/${menuId}/resolved` : `/menus/location/HEADER`;
-    return await request<ResolvedMenu>(path, { auth: false });
+    return await request<ResolvedMenu>(path, {
+      auth: false,
+      revalidate: PUBLIC_TTL_SECONDS,
+    });
   } catch {
     return null;
   }
@@ -439,7 +472,10 @@ export async function fetchHeaderMenu(
 // Academy") instead of the built-in "LMS" fallback. null on failure.
 export async function fetchAppConfig(): Promise<AppConfig | null> {
   try {
-    return await request<AppConfig>("/app/config", { auth: false });
+    return await request<AppConfig>("/app/config", {
+      auth: false,
+      revalidate: PUBLIC_TTL_SECONDS,
+    });
   } catch {
     return null;
   }
@@ -449,7 +485,10 @@ export async function fetchAppConfig(): Promise<AppConfig | null> {
 // SSR'd in the root layout; null on failure so the layout never 500s.
 export async function fetchFooter(): Promise<FooterConfig | null> {
   try {
-    return await request<FooterConfig>("/site/footer", { auth: false });
+    return await request<FooterConfig>("/site/footer", {
+      auth: false,
+      revalidate: PUBLIC_TTL_SECONDS,
+    });
   } catch {
     return null;
   }
