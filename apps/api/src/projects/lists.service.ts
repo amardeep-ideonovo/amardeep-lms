@@ -14,6 +14,7 @@ import type {
 import type {
   ChatFieldType,
   ChatListDTO,
+  ChatListSummaryDTO,
   ChatListFieldDTO,
   ChatListFieldOption,
   ChatListFieldOptionInput,
@@ -105,6 +106,20 @@ export class ListsService {
     };
   }
 
+  private toListSummaryDTO(
+    list: ChatList & { _count: { items: number } },
+  ): ChatListSummaryDTO {
+    return {
+      id: list.id,
+      channelId: list.channelId,
+      name: list.name,
+      createdByAdminId: list.createdByAdminId,
+      createdAt: list.createdAt.toISOString(),
+      updatedAt: list.updatedAt.toISOString(),
+      itemCount: list._count.items,
+    };
+  }
+
   private toCommentDTO(comment: ChatListItemComment): ChatListItemCommentDTO {
     return {
       id: comment.id,
@@ -128,20 +143,21 @@ export class ListsService {
     },
   } satisfies Prisma.ChatListInclude;
 
-  async listLists(adminId: string, channelId?: string): Promise<ChatListDTO[]> {
+  async listLists(
+    adminId: string,
+    channelId?: string,
+  ): Promise<ChatListSummaryDTO[]> {
     // Scoping to a channel enforces that channel's visibility.
     if (channelId) await this.channels.assertVisible(adminId, channelId);
+    // Picker rows only — id/name/channel/count. The full items[]+fields[]
+    // firehose (incl. each item's `values`) belongs to getList(:id); this
+    // endpoint is polled and refetched on socket updates, so keep it a count.
     const lists = await this.prisma.chatList.findMany({
       where: channelId ? { channelId } : {},
       orderBy: { createdAt: 'asc' },
-      include: this.listInclude,
+      include: { _count: { select: { items: true } } },
     });
-    return (
-      lists as (ChatList & {
-        items: ItemWithCount[];
-        fields: ChatListField[];
-      })[]
-    ).map((l) => this.toListDTO(l));
+    return lists.map((l) => this.toListSummaryDTO(l));
   }
 
   // Single-list read — lets QueueTable load ONE list's detail instead of

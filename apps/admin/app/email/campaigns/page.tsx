@@ -12,7 +12,7 @@ import type {
   CampaignCadence,
   CampaignDTO,
   CampaignStatus,
-  EmailTemplateDTO,
+  EmailTemplateSummaryDTO,
   SegmentDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
@@ -111,7 +111,7 @@ export default function CampaignsPage() {
   const { can, loading: authLoading } = useAdminAuth();
 
   const [campaigns, setCampaigns] = useState<CampaignDTO[]>([]);
-  const [templates, setTemplates] = useState<EmailTemplateDTO[]>([]);
+  const [templates, setTemplates] = useState<EmailTemplateSummaryDTO[]>([]);
   const [audiences, setAudiences] = useState<AudienceDTO[]>([]);
   const [segments, setSegments] = useState<SegmentDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,7 +140,7 @@ export default function CampaignsPage() {
     try {
       const [c, t, a] = await Promise.all([
         api.listCampaigns(),
-        api.listEmailTemplates(),
+        api.listEmailTemplateSummaries(),
         api.listAudiences(),
       ]);
       setCampaigns(c);

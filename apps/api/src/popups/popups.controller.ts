@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   Patch,
   Post,
@@ -29,7 +30,12 @@ export class PopupsController {
   // ----- Public (no auth) -----
 
   // ?context=dashboard|classes|courses|lessons | ?context=page&pageId=<id>
+  // Short public cache: the response has zero per-user data (identical for every
+  // visitor in a given context) and is refetched on every client-side
+  // navigation, so a brief shared cache spares repeated full-Puck-doc fetches.
+  // Trade-off: activating/deactivating a popup takes up to max-age to show.
   @Get('popups/active')
+  @Header('Cache-Control', 'public, max-age=60, stale-while-revalidate=300')
   listActive(
     @Query('context') context?: string,
     @Query('pageId') pageId?: string,

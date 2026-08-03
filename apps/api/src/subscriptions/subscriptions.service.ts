@@ -20,6 +20,19 @@ import {
 export class SubscriptionsService {
   private readonly logger = new Logger(SubscriptionsService.name);
 
+  // The Stripe sweep (all subs + all invoices, auto-paged) is ~10-30 sequential
+  // upstream round-trips — the dominant cost of this read-only admin tab. Memoize
+  // the assembled rows briefly so rapid re-renders / multiple admins viewing the
+  // tab don't each re-sweep Stripe. Staleness is bounded to the TTL; call
+  // invalidate() after a subscription mutation to reflect it immediately.
+  private stripeCache?: { at: number; rows: SubscriptionRowDTO[] };
+  private static readonly STRIPE_TTL_MS = 30_000;
+
+  /** Drop the cached Stripe sweep so the next read re-fetches live. */
+  invalidate(): void {
+    this.stripeCache = undefined;
+  }
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly stripe: StripeService,
@@ -42,6 +55,16 @@ export class SubscriptionsService {
   }
 
   private async stripeRows(): Promise<SubscriptionRowDTO[]> {
+    const cached = this.stripeCache;
+    if (cached && Date.now() - cached.at < SubscriptionsService.STRIPE_TTL_MS) {
+      return cached.rows;
+    }
+    const rows = await this.computeStripeRows();
+    this.stripeCache = { at: Date.now(), rows };
+    return rows;
+  }
+
+  private async computeStripeRows(): Promise<SubscriptionRowDTO[]> {
     // A PayPal-only site has no Stripe key — that's an empty list, not an error.
     if (!(await this.stripe.isConfigured())) return [];
     const [subs, invoices] = await Promise.all([

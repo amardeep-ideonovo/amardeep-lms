@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ChatChannelDTO,
   ChatListDTO,
+  ChatListSummaryDTO,
   ChatWorkflowDTO,
   ChatWorkflowTrigger,
 } from "@lms/types";
@@ -38,7 +39,7 @@ import {
 export default function ProjectListsPage() {
   const { me, can, loading: authLoading } = useAdminAuth();
 
-  const [lists, setLists] = useState<ChatListDTO[]>([]);
+  const [lists, setLists] = useState<ChatListSummaryDTO[]>([]);
   const [channels, setChannels] = useState<ChatChannelDTO[]>([]);
   const [roster, setRoster] = useState<AdminLite[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -199,7 +200,7 @@ export default function ProjectListsPage() {
                     #{channelName(l.channelId)}
                   </span>
                 )}
-                <span className="pj-tbl-tab-count">{l.items.length}</span>
+                <span className="pj-tbl-tab-count">{l.itemCount}</span>
               </button>
             ))}
           </div>
@@ -218,7 +219,19 @@ export default function ProjectListsPage() {
               // Keep the picker's tab counts fresh when the table mutates.
               onListLoaded={(updated) =>
                 setLists((prev) =>
-                  prev.map((l) => (l.id === updated.id ? updated : l)),
+                  prev.map((l) =>
+                    l.id === updated.id
+                      ? {
+                          id: updated.id,
+                          channelId: updated.channelId,
+                          name: updated.name,
+                          createdByAdminId: updated.createdByAdminId,
+                          createdAt: updated.createdAt,
+                          updatedAt: updated.updatedAt,
+                          itemCount: updated.items.length,
+                        }
+                      : l,
+                  ),
                 )
               }
             />
@@ -261,7 +274,7 @@ function WorkflowsPanel({
   onClose,
   onError,
 }: {
-  list: ChatListDTO;
+  list: ChatListSummaryDTO;
   channels: ChatChannelDTO[];
   canCreate: boolean;
   canEdit: boolean;
