@@ -12,7 +12,7 @@ import type {
   MenuLocation,
   MenuReorderNode,
   PageListItem,
-  PostAdminRow,
+  PostAdminListRow,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
@@ -107,7 +107,7 @@ export default function MenusPage() {
   const [pages, setPages] = useState<PageListItem[]>([]);
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [courses, setCourses] = useState<CourseCard[]>([]);
-  const [posts, setPosts] = useState<PostAdminRow[]>([]);
+  const [posts, setPosts] = useState<PostAdminListRow[]>([]);
 
   // create-menu + header edit
   const [newName, setNewName] = useState("");
@@ -134,7 +134,7 @@ export default function MenusPage() {
       api.listPages().catch(() => [] as PageListItem[]),
       api.listLevels().catch(() => [] as LevelDTO[]),
       api.listCourses().catch(() => [] as CourseCard[]),
-      api.listPosts().catch(() => [] as PostAdminRow[]),
+      api.listPosts().catch(() => [] as PostAdminListRow[]),
     ])
       .then(([m, pg, lv, cs, ps]) => {
         setMenus(m);

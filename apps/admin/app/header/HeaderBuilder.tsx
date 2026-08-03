@@ -13,7 +13,7 @@ import type {
   MenuDTO,
   MenuListItem,
   PageListItem,
-  PostAdminRow,
+  PostAdminListRow,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { dialog } from "@/components/DialogProvider";
@@ -82,7 +82,7 @@ export default function HeaderBuilder({
   pages: PageListItem[];
   levels: LevelDTO[];
   courses: CourseCard[];
-  posts: PostAdminRow[];
+  posts: PostAdminListRow[];
   canEdit: boolean;
   canCreate: boolean;
   canDelete: boolean;
@@ -306,7 +306,7 @@ function HeaderEditor({
   pages: PageListItem[];
   levels: LevelDTO[];
   courses: CourseCard[];
-  posts: PostAdminRow[];
+  posts: PostAdminListRow[];
   canEdit: boolean;
   canDelete: boolean;
   index: number;

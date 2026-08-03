@@ -82,6 +82,7 @@ import type {
   PageListItem,
   PopupAdminRow,
   PopupListItem,
+  PostAdminListRow,
   PostAdminRow,
   PostCategoryDTO,
   SubscriptionRowDTO,
@@ -676,7 +677,10 @@ export const api = {
     }),
 
   // blog
-  listPosts: () => request<PostAdminRow[]>("GET", "/admin/blog/posts"),
+  // Table rows only — no post body. Use getPost for the editor.
+  listPosts: () => request<PostAdminListRow[]>("GET", "/admin/blog/posts"),
+  getPost: (id: string) =>
+    request<PostAdminRow>("GET", `/admin/blog/posts/${id}`),
   createPost: (input: CreatePostInput) =>
     request<PostAdminRow>("POST", "/admin/blog/posts", input),
   updatePost: (id: string, input: UpdatePostInput) =>

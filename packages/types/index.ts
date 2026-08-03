@@ -795,21 +795,30 @@ export interface PostDetailDTO extends PostListItem {
   updatedAt: string; // ISO — surfaced for Article schema `dateModified`
 }
 // Admin row: includes drafts, raw status, and timestamps.
-export interface PostAdminRow {
+// Admin table row. The body fields (content/excerpt/coverImageUrl) are
+// deliberately NOT sent: a blog list of N posts otherwise ships N full
+// sanitized-HTML bodies to render six columns. The edit modal loads them from
+// GET /admin/blog/posts/:id.
+export interface PostAdminListRow {
   id: string;
   slug: string;
   title: string;
-  excerpt: string | null;
-  content: string;
-  coverImageUrl: string | null;
   status: PostStatus;
   categoryIds: string[];
   categories: PostCategoryDTO[];
   tags: string[];
   author: PostAuthorDTO | null;
-  publishedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
+  publishedAt: string | null; // ISO
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
+// Full admin row: the list row plus the editable body. Returned by the detail
+// endpoint and by create/update, so a mutation response can be applied straight
+// into the list without a refetch.
+export interface PostAdminRow extends PostAdminListRow {
+  excerpt: string | null;
+  content: string;
+  coverImageUrl: string | null;
 }
 export interface CreatePostInput {
   title: string;
@@ -2499,7 +2508,8 @@ export const ROUTES = {
   listPostCategories: "GET /blog/categories", // -> PostCategoryDTO[]
 
   // blog — ADMIN (full CRUD, includes drafts)
-  adminListPosts: "GET /admin/blog/posts", // -> PostAdminRow[]
+  adminListPosts: "GET /admin/blog/posts", // -> PostAdminListRow[] (no body — see adminGetPost)
+  adminGetPost: "GET /admin/blog/posts/:id", // -> PostAdminRow (full body, drafts included; 404 if missing)
   adminCreatePost: "POST /admin/blog/posts", // body CreatePostInput -> PostAdminRow
   adminUpdatePost: "PATCH /admin/blog/posts/:id", // body UpdatePostInput -> PostAdminRow
   adminDeletePost: "DELETE /admin/blog/posts/:id",

@@ -78,6 +78,15 @@ export class BlogController {
     return this.blog.adminList();
   }
 
+  // Full post (body included) for the editor. Unlike the public slug read this
+  // serves DRAFTS, which is why the list can drop the body entirely.
+  @UseGuards(PermissionsGuard)
+  @RequirePermission('blog', 'read')
+  @Get('admin/blog/posts/:id')
+  adminGet(@Param('id') id: string) {
+    return this.blog.adminGet(id);
+  }
+
   @UseGuards(PermissionsGuard)
   @RequirePermission('blog', 'create')
   @Post('admin/blog/posts')
