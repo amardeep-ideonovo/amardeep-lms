@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
@@ -60,6 +61,18 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Force DYNAMIC rendering. This web app ships as ONE prebuilt image to many
+  // instances, with the API origin resolved at RUNTIME — so the public fetches
+  // below MUST run per-request against the real instance API, never be baked
+  // into static HTML at build time (when no API is reachable they'd bake the
+  // "LMS" fallback brand + an empty footer, shown until ISR warms each fresh
+  // container). Reading a request API opts every route out of static prerender
+  // while leaving the fetch-level Data Cache (revalidate, see lib/api.ts) intact
+  // — unlike `export const dynamic = "force-dynamic"`, which would ALSO force
+  // those fetches to no-store and defeat the cache. (Previously the fetches'
+  // cache:"no-store" was the implicit dynamic signal; the TTL cache removed it.)
+  headers();
+
   // The header menu depends on the header (which menu it points at), but the
   // footer and app config do NOT — so chain the menu directly onto the header
   // fetch rather than awaiting all three first. This takes the menu request off
