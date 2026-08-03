@@ -6,8 +6,13 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import type { MemberRow } from '@lms/types';
-import { Prisma } from '@prisma/client';
+import type {
+  MemberListDTO,
+  MemberRow,
+  MemberStatsDTO,
+  MemberStatusFilter,
+} from '@lms/types';
+import { Prisma, type UserLevelStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -15,7 +20,7 @@ import { AuditService } from '../audit/audit.service';
 type ActorContext = { adminId?: string | null; ip?: string | null };
 import { ContactsService } from '../contacts/contacts.service';
 import { StripeService } from '../billing/stripe.service';
-import { UpdateMemberDto } from './dto/member.dto';
+import { ListMembersQueryDto, UpdateMemberDto } from './dto/member.dto';
 
 // A member row with its levels joined — the shape both list() and update() map.
 type MemberWithLevels = Prisma.UserGetPayload<{
@@ -35,18 +40,34 @@ export class MembersService {
 
   // toRow only reads level.id + level.name, so select just those two instead of
   // the full Level row (description, skills JSON, image URLs, …) per grant.
+  // The relation order is pinned so the chip order — and the summary tie-break
+  // below — are stable rather than whatever Postgres happened to return.
+  // `satisfies`, not `as const`: a readonly orderBy tuple does not assign to
+  // Prisma's mutable arg types.
   private static readonly WITH_LEVELS = {
-    levels: { include: { level: { select: { id: true, name: true } } } },
-  } as const;
+    levels: {
+      include: { level: { select: { id: true, name: true } } },
+      orderBy: [{ grantedAt: 'desc' }, { id: 'desc' }],
+    },
+  } satisfies Prisma.UserInclude;
 
   private toRow(u: MemberWithLevels): MemberRow {
     // Paid-subscription summary for the admin list, derived from STRIPE grants
     // (manual grants are not paid subscriptions). null = never subscribed.
+    //
+    // The pick is by explicit PRECEDENCE, not by relation order: it used to be
+    // find()/[0] over an unordered include, so a member holding several STRIPE
+    // grants got a non-deterministic answer. That is also what makes the status
+    // filter in list() expressible as a WHERE — you cannot filter on a
+    // non-deterministic function.
     const stripeLevels = u.levels.filter((ul) => ul.source === 'STRIPE');
-    const activePaid = stripeLevels.find(
-      (ul) => ul.status === 'ACTIVE' || ul.status === 'PAST_DUE',
-    );
-    const summary = activePaid ?? stripeLevels[0];
+    const summary = MembersService.SUB_STATUS_ORDER.map((s) =>
+      stripeLevels.find((ul) => ul.status === s),
+    ).find(Boolean);
+    const activePaid =
+      summary && (summary.status === 'ACTIVE' || summary.status === 'PAST_DUE')
+        ? summary
+        : undefined;
     return {
       id: u.id,
       username: u.username,
@@ -76,12 +97,120 @@ export class MembersService {
     };
   }
 
-  async list(): Promise<MemberRow[]> {
-    const users = await this.prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: MembersService.WITH_LEVELS,
+  // Precedence used to pick the ONE grant that represents a member's paid
+  // status. Highest first; ties inside a status fall back to the pinned
+  // grantedAt-desc relation order.
+  private static readonly SUB_STATUS_ORDER = [
+    'ACTIVE',
+    'PAST_DUE',
+    'PAUSED',
+    'CANCELED',
+    'EXPIRED',
+  ] as const;
+
+  // Translate a rendered status pill into a WHERE over STRIPE grants, using the
+  // same precedence toRow applies: "this status wins" == has one AND has none
+  // that outrank it.
+  private statusWhere(status: MemberStatusFilter): Prisma.UserWhereInput {
+    const has = (s: string): Prisma.UserWhereInput => ({
+      levels: { some: { source: 'STRIPE', status: s as UserLevelStatus } },
     });
-    return users.map((u) => this.toRow(u));
+    const hasNoneOf = (ss: readonly string[]): Prisma.UserWhereInput => ({
+      levels: {
+        none: { source: 'STRIPE', status: { in: ss as UserLevelStatus[] } },
+      },
+    });
+    const outranking = (s: string) =>
+      MembersService.SUB_STATUS_ORDER.slice(
+        0,
+        MembersService.SUB_STATUS_ORDER.indexOf(
+          s as (typeof MembersService.SUB_STATUS_ORDER)[number],
+        ),
+      );
+    switch (status) {
+      case 'active':
+        // A member with NO paid grant renders as "Active" too — they
+        // registered. Missing this would drop most of the table.
+        return {
+          OR: [
+            { levels: { none: { source: 'STRIPE' } } },
+            has('ACTIVE'),
+          ],
+        };
+      case 'past_due':
+        return { AND: [has('PAST_DUE'), hasNoneOf(outranking('PAST_DUE'))] };
+      case 'paused':
+        return { AND: [has('PAUSED'), hasNoneOf(outranking('PAUSED'))] };
+      case 'canceled':
+        return { AND: [has('CANCELED'), hasNoneOf(outranking('CANCELED'))] };
+      case 'expired':
+        return { AND: [has('EXPIRED'), hasNoneOf(outranking('EXPIRED'))] };
+    }
+  }
+
+  async list(query: ListMembersQueryDto = {}): Promise<MemberListDTO> {
+    const page = Math.max(query.page ?? 1, 1);
+    const pageSize = Math.min(Math.max(query.pageSize ?? 25, 1), 100);
+    const and: Prisma.UserWhereInput[] = [];
+
+    const q = query.q?.trim();
+    if (q) {
+      and.push({
+        OR: [
+          { email: { contains: q, mode: 'insensitive' } },
+          { firstName: { contains: q, mode: 'insensitive' } },
+          { lastName: { contains: q, mode: 'insensitive' } },
+          { username: { contains: q, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (query.levelId) {
+      // Scoped to ACTIVE grants to match MemberRow.levels (and the chips the
+      // admin sees) — a canceled grant must not make a member match a class.
+      and.push(
+        query.levelId === '__none__'
+          ? { levels: { none: { status: 'ACTIVE' } } }
+          : { levels: { some: { levelId: query.levelId, status: 'ACTIVE' } } },
+      );
+    }
+    if (query.status) and.push(this.statusWhere(query.status));
+
+    const where: Prisma.UserWhereInput = and.length ? { AND: and } : {};
+    const [total, users] = await Promise.all([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        // id is the tiebreaker: createdAt is neither unique nor indexed, so on
+        // its own rows could repeat or vanish between pages.
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: MembersService.WITH_LEVELS,
+      }),
+    ]);
+    return { items: users.map((u) => this.toRow(u)), total, page, pageSize };
+  }
+
+  /**
+   * Whole-table KPIs for the dashboard and reports. These are counts, never a
+   * page: paginating the list would otherwise silently turn "total members"
+   * into "members on this page".
+   */
+  async stats(): Promise<MemberStatsDTO> {
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [total, activeSubs, pastDue, newThisWeek] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.user.count({
+        where: {
+          levels: {
+            some: { source: 'STRIPE', status: { in: ['ACTIVE', 'PAST_DUE'] } },
+          },
+        },
+      }),
+      this.prisma.user.count({ where: this.statusWhere('past_due') }),
+      this.prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
+    ]);
+    return { total, activeSubs, pastDue, newThisWeek };
   }
 
   async get(id: string): Promise<MemberRow> {

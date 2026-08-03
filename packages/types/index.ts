@@ -490,6 +490,30 @@ export interface MemberRow {
 }
 // Admin-editable member profile fields (Members tab). Changing `email` also
 // re-points the member's login, Stripe receipts, and in-house contact.
+// Derived membership-status filter for GET /members, mirroring the pill the
+// admin list renders. NOTE "active" also matches members with NO paid grant at
+// all — they registered, so the UI shows them as Active.
+export type MemberStatusFilter =
+  | "active"
+  | "past_due"
+  | "paused"
+  | "canceled"
+  | "expired";
+// Server-paged member list. total/page describe the FILTERED set — use
+// MemberStatsDTO.total for the unfiltered headline count.
+export interface MemberListDTO {
+  items: MemberRow[];
+  total: number;
+  page: number; // 1-based
+  pageSize: number;
+}
+// Whole-table member KPIs (dashboard + reports). Never filtered.
+export interface MemberStatsDTO {
+  total: number;
+  activeSubs: number; // holds a STRIPE grant in ACTIVE or PAST_DUE
+  pastDue: number; // has a STRIPE PAST_DUE grant and no ACTIVE one
+  newThisWeek: number; // registered in the last 7 days
+}
 export interface UpdateMemberInput {
   email?: string;
   firstName?: string;
@@ -2377,7 +2401,8 @@ export const ROUTES = {
   deleteLevelCategory: "DELETE /levels/categories/:id",
 
   // admin: members
-  listMembers: "GET /members", // -> MemberRow[]
+  listMembers: "GET /members", // ?q&levelId&status&page&pageSize -> MemberListDTO
+  memberStats: "GET /members/stats", // -> MemberStatsDTO (whole-table KPIs, never filtered)
   getMember: "GET /members/:id", // -> MemberRow (admin detail view)
   updateMember: "PATCH /members/:id", // body UpdateMemberInput -> MemberRow
   addMemberLevel: "POST /members/:id/levels", // body {levelId}

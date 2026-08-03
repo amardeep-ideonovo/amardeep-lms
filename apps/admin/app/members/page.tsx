@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { LevelDTO, MemberRow } from "@lms/types";
+import type {
+  LevelDTO,
+  MemberListDTO,
+  MemberRow,
+  MemberStatsDTO,
+  MemberStatusFilter,
+} from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import RowMenu from "@/components/RowMenu";
@@ -53,7 +59,10 @@ const GRID = "2fr .9fr 1.5fr .6fr .8fr .3fr";
 export default function MembersPage() {
   const router = useRouter();
   const { can, loading: authLoading } = useAdminAuth();
-  const [members, setMembers] = useState<MemberRow[]>([]);
+  // The API pages + filters server-side; `data.total` is the FILTERED count and
+  // `stats.total` the unfiltered one (a paginated list can't answer either).
+  const [data, setData] = useState<MemberListDTO | null>(null);
+  const [stats, setStats] = useState<MemberStatsDTO | null>(null);
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,28 +76,49 @@ export default function MembersPage() {
   const [filterStatus, setFilterStatus] = useState("");
   // free-text search by name/email (case-insensitive substring)
   const [search, setSearch] = useState("");
-  // client-side pagination (the API returns the full list)
-  const [page, setPage] = useState(0);
+  // server-side pagination (1-based, matching MemberListDTO.page)
+  const [page, setPage] = useState(1);
+  // Debounced copy of `search` so typing doesn't fire a request per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  async function load() {
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1); // a new query starts at page 1
+    }, 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [m, l] = await Promise.all([api.listMembers(), api.listLevels()]);
-      setMembers(m);
+      const [d, l, s] = await Promise.all([
+        api.listMembers({
+          q: debouncedSearch || undefined,
+          levelId: filterLevel || undefined,
+          status: (filterStatus as MemberStatusFilter) || undefined,
+          page,
+          pageSize: PAGE_SIZE,
+        }),
+        api.listLevels(),
+        api.memberStats(),
+      ]);
+      setData(d);
       setLevels(l);
+      setStats(s);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load members");
     } finally {
       setLoading(false);
     }
-  }
+  }, [debouncedSearch, filterLevel, filterStatus, page]);
 
   useEffect(() => {
     if (authLoading || !can("members", "read")) return;
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading]);
+  }, [authLoading, load]);
 
   function openGrant(m: MemberRow) {
     setGrantFor(m);
@@ -130,28 +160,15 @@ export default function MembersPage() {
     }
   }
 
-  const q = search.trim().toLowerCase();
-  const filtered = members.filter((m) => {
-    if (q) {
-      const name = [m.firstName, m.lastName].filter(Boolean).join(" ");
-      const hay = `${m.email} ${name} ${m.username}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    if (filterStatus && memberStatus(m).label !== filterStatus) return false;
-    if (filterLevel === "") return true;
-    if (filterLevel === "__none__") return m.levels.length === 0;
-    return m.levels.some((l) => l.id === filterLevel);
-  });
-
-  // Keep the page in range as filters change.
-  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const pageRows = filtered.slice(
-    safePage * PAGE_SIZE,
-    safePage * PAGE_SIZE + PAGE_SIZE,
-  );
-  const from = filtered.length === 0 ? 0 : safePage * PAGE_SIZE + 1;
-  const to = Math.min(filtered.length, (safePage + 1) * PAGE_SIZE);
+  // All filtering + slicing now happens server-side — doing any of it here
+  // would only filter the current page and report wrong counts.
+  const members = data?.items ?? [];
+  const pageRows = members;
+  const filteredTotal = data?.total ?? 0;
+  const totalMembers = stats?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(filteredTotal / PAGE_SIZE));
+  const from = filteredTotal === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const to = Math.min(filteredTotal, page * PAGE_SIZE);
 
   if (authLoading) return <p className="muted">Loading…</p>;
   if (!can("members", "read"))
@@ -180,9 +197,9 @@ export default function MembersPage() {
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
-              setPage(0);
+              setPage(1);
             }}
-            placeholder={`Search ${members.length.toLocaleString()} members…`}
+            placeholder={`Search ${totalMembers.toLocaleString()} members…`}
             aria-label="Search members"
           />
         </div>
@@ -192,15 +209,15 @@ export default function MembersPage() {
           value={filterStatus}
           onChange={(e) => {
             setFilterStatus(e.target.value);
-            setPage(0);
+            setPage(1);
           }}
         >
           <option value="">Status: All</option>
-          <option value="Active">Active</option>
-          <option value="Past due">Past due</option>
-          <option value="Paused">Paused</option>
-          <option value="Canceled">Canceled</option>
-          <option value="Expired">Expired</option>
+          <option value="active">Active</option>
+          <option value="past_due">Past due</option>
+          <option value="paused">Paused</option>
+          <option value="canceled">Canceled</option>
+          <option value="expired">Expired</option>
         </select>
         <select
           className="filter-select"
@@ -208,7 +225,7 @@ export default function MembersPage() {
           value={filterLevel}
           onChange={(e) => {
             setFilterLevel(e.target.value);
-            setPage(0);
+            setPage(1);
           }}
         >
           <option value="">Class: All</option>
@@ -221,7 +238,7 @@ export default function MembersPage() {
         </select>
         <div className="filter-spacer" />
         <span className="filter-count">
-          {members.length.toLocaleString()} members
+          {totalMembers.toLocaleString()} members
         </span>
       </div>
 
@@ -229,9 +246,9 @@ export default function MembersPage() {
       <div className="card">
         {loading ? (
           <p className="muted">Loading…</p>
-        ) : members.length === 0 ? (
+        ) : totalMembers === 0 ? (
           <p className="muted">No members yet.</p>
-        ) : filtered.length === 0 ? (
+        ) : filteredTotal === 0 ? (
           <p className="muted">No members match this filter.</p>
         ) : (
           <>
@@ -338,22 +355,22 @@ export default function MembersPage() {
             })}
             <div className="table-foot">
               <span>
-                Showing {from}–{to} of {filtered.length.toLocaleString()}
+                Showing {from}–{to} of {filteredTotal.toLocaleString()}
               </span>
               <div className="spacer" />
               <button
                 type="button"
                 className="page-btn"
-                disabled={safePage === 0}
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
                 ← Prev
               </button>
               <button
                 type="button"
                 className="page-btn"
-                disabled={safePage >= pageCount - 1}
-                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                disabled={page >= pageCount}
+                onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
               >
                 Next →
               </button>
