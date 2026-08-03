@@ -68,9 +68,11 @@ export class EmailController {
 
   @UseGuards(PermissionsGuard)
   @RequirePermission('email', 'read')
+  // ?summary=1 returns the lightweight dropdown shape (no mjml/subject); the
+  // editor calls without the param for the full templates.
   @Get('admin/email/templates')
-  list() {
-    return this.templates.list();
+  list(@Query('summary') summary?: string) {
+    return summary ? this.templates.listSummary() : this.templates.list();
   }
 
   @UseGuards(PermissionsGuard)

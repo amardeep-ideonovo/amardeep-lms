@@ -1033,6 +1033,15 @@ export interface EmailTemplateDTO {
   createdAt: string; // ISO
   updatedAt: string; // ISO
 }
+// Lightweight variant for dropdown/picker consumers (?summary=1) — omits the
+// heavy mjml/subject/variables. The editor keeps the full EmailTemplateDTO.
+export interface EmailTemplateSummaryDTO {
+  id: string;
+  name: string;
+  key: string | null;
+  category: string | null;
+  isSystem: boolean;
+}
 export interface CreateEmailTemplateInput {
   name: string;
   subject: string;
@@ -2205,6 +2214,17 @@ export interface ChatListDTO {
   fields: ChatListFieldDTO[]; // custom columns, ordered by position
   items: ChatListItemDTO[];
 }
+// Picker/summary row for the list-collection endpoint: identity + item count,
+// WITHOUT the fields[]/items[] firehose. Full detail comes from GET /lists/:id.
+export interface ChatListSummaryDTO {
+  id: string;
+  channelId?: string | null; // null = stand-alone list
+  name: string;
+  createdByAdminId: string;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+  itemCount: number;
+}
 export interface CreateChatListInput {
   name: string;
   channelId?: string;
@@ -2519,7 +2539,7 @@ export const ROUTES = {
   confirmContact: "GET/POST /contacts/confirm?token=...",
 
   // email templates (MJML + Handlebars) — ADMIN (RBAC `email`)
-  adminListEmailTemplates: "GET /admin/email/templates", // -> EmailTemplateDTO[]
+  adminListEmailTemplates: "GET /admin/email/templates", // -> EmailTemplateDTO[]; ?summary=1 -> EmailTemplateSummaryDTO[]
   adminCreateEmailTemplate: "POST /admin/email/templates", // body CreateEmailTemplateInput -> EmailTemplateDTO
   adminGetEmailTemplate: "GET /admin/email/templates/:id", // -> EmailTemplateDTO
   adminUpdateEmailTemplate: "PATCH /admin/email/templates/:id", // body UpdateEmailTemplateInput -> EmailTemplateDTO
@@ -2632,7 +2652,7 @@ export const ROUTES = {
   // unread (single batch endpoint)
   adminProjectUnread: "GET /admin/projects/unread", // -> UnreadSummaryDTO (per-channel unread + mention counts + totals)
   // lists (task boards)
-  adminListProjectLists: "GET /admin/projects/lists", // ?channelId -> ChatListDTO[] (with items)
+  adminListProjectLists: "GET /admin/projects/lists", // ?channelId -> ChatListSummaryDTO[] (picker rows: id/name/channelId/itemCount; use :id for full detail)
   adminGetProjectList: "GET /admin/projects/lists/:id", // -> ChatListDTO (one list with items + fields; same projects:read gate as the list route)
   adminCreateProjectList: "POST /admin/projects/lists", // body CreateChatListInput -> ChatListDTO
   adminAddProjectListItem: "POST /admin/projects/lists/:id/items", // body CreateChatListItemInput -> ChatListItemDTO

@@ -19,7 +19,7 @@ import { UpdateMemberDto } from './dto/member.dto';
 
 // A member row with its levels joined — the shape both list() and update() map.
 type MemberWithLevels = Prisma.UserGetPayload<{
-  include: { levels: { include: { level: true } } };
+  include: { levels: { include: { level: { select: { id: true; name: true } } } } };
 }>;
 
 @Injectable()
@@ -33,8 +33,10 @@ export class MembersService {
     private readonly audit: AuditService,
   ) {}
 
+  // toRow only reads level.id + level.name, so select just those two instead of
+  // the full Level row (description, skills JSON, image URLs, …) per grant.
   private static readonly WITH_LEVELS = {
-    levels: { include: { level: true } },
+    levels: { include: { level: { select: { id: true, name: true } } } },
   } as const;
 
   private toRow(u: MemberWithLevels): MemberRow {

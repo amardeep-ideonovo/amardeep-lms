@@ -45,6 +45,7 @@ import type {
   EmailSettingsInput,
   EmailSettingsMasked,
   EmailTemplateDTO,
+  EmailTemplateSummaryDTO,
   CreateEmailTemplateInput,
   UpdateEmailTemplateInput,
   RenderPreviewResult,
@@ -105,6 +106,7 @@ import type {
   ChatReactionToggleInput,
   UnreadSummaryDTO,
   ChatListDTO,
+  ChatListSummaryDTO,
   ChatListItemDTO,
   CreateChatListInput,
   CreateChatListItemInput,
@@ -824,6 +826,12 @@ export const api = {
   // email templates (MJML + Handlebars)
   listEmailTemplates: () =>
     request<EmailTemplateDTO[]>("GET", "/admin/email/templates"),
+  // Lightweight variant for the automations/campaigns dropdowns (no mjml).
+  listEmailTemplateSummaries: () =>
+    request<EmailTemplateSummaryDTO[]>(
+      "GET",
+      "/admin/email/templates?summary=1"
+    ),
   getEmailTemplate: (id: string) =>
     request<EmailTemplateDTO>("GET", `/admin/email/templates/${id}`),
   createEmailTemplate: (input: CreateEmailTemplateInput) =>
@@ -1012,7 +1020,7 @@ export const api = {
 
   // ---- lists (task boards) ----
   listLists: (channelId?: string) =>
-    request<ChatListDTO[]>(
+    request<ChatListSummaryDTO[]>(
       "GET",
       `/admin/projects/lists${
         channelId ? `?channelId=${encodeURIComponent(channelId)}` : ""

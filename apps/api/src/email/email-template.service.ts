@@ -10,6 +10,7 @@ import mjml2html from 'mjml';
 import type {
   CreateEmailTemplateInput,
   EmailTemplateDTO,
+  EmailTemplateSummaryDTO,
   UpdateEmailTemplateInput,
 } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -101,6 +102,22 @@ export class EmailTemplateService {
       orderBy: [{ category: 'asc' }, { name: 'asc' }],
     });
     return rows.map((t) => this.toDTO(t));
+  }
+
+  // Lightweight list for dropdown/picker consumers — drops the heavy
+  // mjml/subject/variables. The editor keeps list() (full shape).
+  async listSummary(): Promise<EmailTemplateSummaryDTO[]> {
+    const rows = await this.prisma.emailTemplate.findMany({
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+      select: { id: true, key: true, name: true, category: true },
+    });
+    return rows.map((t) => ({
+      id: t.id,
+      name: t.name,
+      key: t.key,
+      category: t.category,
+      isSystem: t.key != null,
+    }));
   }
 
   async get(id: string): Promise<EmailTemplateDTO> {

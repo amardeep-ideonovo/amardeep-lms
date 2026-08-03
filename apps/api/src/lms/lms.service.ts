@@ -302,7 +302,12 @@ export class LmsService {
       id: l.id,
       courseId: l.courseId,
       title: l.title,
-      content: l.content,
+      // Member list rows omit the (heavy) lesson body — every member surface
+      // (web + mobile) refetches the single lesson via GET /lessons/:id on open,
+      // so the body is dead weight in the list. Admins (userId undefined) keep
+      // it: the admin course editor edits content straight from the list row.
+      // Mirrors how `completed` below is member-only.
+      content: userId ? null : l.content,
       thumbnailUrl: l.thumbnailUrl,
       videoUrl: l.videoUrl,
       durationSeconds: l.durationSeconds,
