@@ -2,10 +2,16 @@
 // more than one screen reads, so the shared cache dedupes the request and every
 // reader paints from — and revalidates against — the same entry.
 //
-// What is NOT here: purely-public leaf screens (Blog, Page, Plans, Payments,
-// LiveSession) still fetch locally — they share nothing and gain nothing from the
-// cache. And the Account screen keeps its own `me` fetch (its forms/mutations are
-// intricate); Home revalidates `me` on focus, so profile edits still propagate.
+// What is NOT here — these screens fetch locally because they share no data with
+// any other screen, so the cache would buy them nothing:
+//   • public / unauthenticated: Blog, Page
+//   • AUTHED but single-reader: Plans, Payments, LiveSession, CourseList
+//   • Account keeps its own `me` fetch (its forms/mutations are intricate);
+//     Home revalidates `me` on focus, so profile edits still propagate.
+// NOTE the authed ones are outside this module and therefore outside the cache's
+// two auth-isolation invariants (see query.tsx) — they read the member token per
+// request instead, so they are safe, but anything MIGRATED here later inherits
+// those invariants and must be checked against them.
 import { useCallback, useRef } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { useQuery, type QueryClient } from "@tanstack/react-query";
@@ -63,6 +69,11 @@ export function useCourses() {
 
 // A class's owned course list + certificate status. Dependent: disabled until the
 // caller knows which class (Classes derives the active one from useMyClasses).
+//
+// ⚠ CALLERS: `enabled` only gates the AUTOMATIC fetch — `refetch()` bypasses it
+// in react-query v5. Never call this query's refetch() without first checking
+// that you passed a real `slugOrId`, or the queryFn builds
+// `/levels/undefined/my-courses` and fires a guaranteed 404.
 export function useMyClassCourses(slugOrId: string | undefined) {
   return useQuery({
     queryKey: qk.myClassCourses(slugOrId ?? ""),

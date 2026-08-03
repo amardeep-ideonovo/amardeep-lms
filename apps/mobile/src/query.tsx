@@ -129,11 +129,22 @@ export function QueryAuthReset({ children }: { children: React.ReactNode }) {
   // `undefined` = not yet observed; token itself is `string | null`. Skipping the
   // first observation avoids clearing an (already empty) cache on boot.
   const prev = useRef<string | null | undefined>(undefined);
-  useEffect(() => {
-    if (prev.current !== undefined && prev.current !== token) {
-      queryClient.clear();
-    }
-    prev.current = token;
-  }, [token, queryClient]);
+
+  // Cleared DURING RENDER, deliberately NOT in an effect. This component is an
+  // ANCESTOR of the authed screens, and React flushes passive effects
+  // child-first: signing in flips the token and mounts the screens in ONE
+  // commit, so an effect here would run only AFTER those screens had already
+  // created and started their queries — and clearing then destroys those
+  // in-flight fetches (query-core's remove() cancels silently, so the observer
+  // is left pending with no replacement request until some incidental
+  // re-render). A parent renders before its children, so doing it here
+  // guarantees the cache is empty *before* any screen of the new session can
+  // read from or populate it. `clear()` is idempotent, so a double-invoked or
+  // discarded render is harmless.
+  if (prev.current !== undefined && prev.current !== token) {
+    queryClient.clear();
+  }
+  prev.current = token;
+
   return <>{children}</>;
 }
