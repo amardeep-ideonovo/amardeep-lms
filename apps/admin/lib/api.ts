@@ -1018,6 +1018,13 @@ export const api = {
         channelId ? `?channelId=${encodeURIComponent(channelId)}` : ""
       }`
     ),
+  // Single list by id (items + fields) — lets QueueTable load just its own list
+  // instead of fetching every list and picking one.
+  getList: (id: string) =>
+    request<ChatListDTO>(
+      "GET",
+      `/admin/projects/lists/${encodeURIComponent(id)}`
+    ),
   createList: (input: CreateChatListInput) =>
     request<ChatListDTO>("POST", "/admin/projects/lists", input),
   createListItem: (listId: string, input: CreateChatListItemInput) =>

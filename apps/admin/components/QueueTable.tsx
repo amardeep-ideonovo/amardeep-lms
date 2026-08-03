@@ -11,7 +11,7 @@
 // the resolved `projects` RBAC capabilities.
 //
 // The component is SELF-LOADING: give it a `listId` and it fetches the list
-// detail (via api.listLists), keeps it fresh over the realtime socket + a slow
+// detail (via api.getList), keeps it fresh over the realtime socket + a slow
 // poll, and owns the item-detail card. The parent only supplies the roster, the
 // name resolver, the capability flags, and an onError sink — plus an optional
 // onListLoaded callback (so a parent that wants the loaded list, e.g. for tab
@@ -153,18 +153,22 @@ export default function QueueTable({
   const listRef = useRef<ChatListDTO | null>(null);
   listRef.current = list;
 
-  // There is no single-list GET endpoint — listLists returns every list (with
-  // full items + fields), so we fetch and pick ours by id. Cheap for the team
-  // tool's scale and keeps the API surface unchanged.
+  // Load just THIS list's detail (items + fields) via the single-list GET, so a
+  // board with N lists open no longer fetches all N on every refresh/socket
+  // tick. A 404 means the list was deleted out from under us — surface the same
+  // "gone" message the old scan-and-find produced.
   const load = useCallback(async () => {
     try {
-      const rows = await api.listLists();
-      const found = rows.find((l) => l.id === listId) ?? null;
+      const found = await api.getList(listId);
       setList(found);
-      if (found) onLoadedRef.current?.(found);
-      if (!found) onError("This list no longer exists.");
+      onLoadedRef.current?.(found);
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Failed to load list");
+      if (err instanceof ApiError && err.status === 404) {
+        setList(null);
+        onError("This list no longer exists.");
+      } else {
+        onError(err instanceof ApiError ? err.message : "Failed to load list");
+      }
     } finally {
       setLoading(false);
     }
