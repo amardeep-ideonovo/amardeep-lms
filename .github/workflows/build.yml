@@ -47,6 +47,14 @@ jobs:
           esac
           npx tsc --noEmit -p "$PROJECT"
 
+      # apps/mobile carries unit tests (theme.spec.ts — the regression guard for
+      # the malformed-cached-config launch crash). tsconfig.json excludes
+      # *.spec.ts (the RN project has no node types), so the tsc step above can
+      # neither compile nor run them — without this step the guard is dead weight.
+      - name: Unit tests (mobile)
+        if: matrix.workspace == 'mobile'
+        run: npm run -w @lms/mobile test
+
   build-admin:
     name: Next build (admin)
     runs-on: ubuntu-latest

@@ -64,19 +64,27 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
 
   const [refreshing, setRefreshing] = useState(false);
 
+  // `refetch()` deliberately BYPASSES `enabled` in react-query v5, so the
+  // dependent courses query must only be refetched when it actually has a
+  // target class. Without this guard a member who owns nothing (activeKey
+  // undefined) fires GET /levels/undefined/my-courses — a guaranteed 404 — on
+  // every screen focus and every pull-to-refresh.
   useRefreshOnFocus(() => {
     void classesQuery.refetch();
-    void coursesQuery.refetch();
+    if (activeKey) void coursesQuery.refetch();
   });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([classesQuery.refetch(), coursesQuery.refetch()]);
+      await Promise.all([
+        classesQuery.refetch(),
+        ...(activeKey ? [coursesQuery.refetch()] : []),
+      ]);
     } finally {
       setRefreshing(false);
     }
-  }, [classesQuery, coursesQuery]);
+  }, [activeKey, classesQuery, coursesQuery]);
 
   if (classesQuery.isError && !classes)
     return (
