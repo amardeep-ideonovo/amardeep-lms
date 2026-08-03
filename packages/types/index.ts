@@ -1354,6 +1354,14 @@ export interface FormSubmissionDTO {
   subscribeStatus: string | null; // subscribed | pending | existing | skipped
   createdAt: string; // ISO
 }
+// Opt-in keyset paging for the admin entries viewer. Omit both to get the newest
+// page. `cursor` is the id of the last row you already hold; a full page
+// (rows.length === limit) means there may be more. The response stays a bare
+// array — export the complete set via the .csv route, never by paging.
+export interface ListFormSubmissionsQuery {
+  limit?: number; // 1..1000, default 200
+  cursor?: string; // id of the last row held
+}
 
 // ---------- Popups (Puck overlay) ----------
 // Popups reuse the SAME visual editor (Puck) as Pages — `data` is a PuckDocument
@@ -2527,7 +2535,8 @@ export const ROUTES = {
   adminCreateForm: "POST /admin/forms", // body CreateFormInput -> FormAdminRow
   adminUpdateForm: "PATCH /admin/forms/:id", // body UpdateFormInput -> FormAdminRow
   adminDeleteForm: "DELETE /admin/forms/:id",
-  adminListFormSubmissions: "GET /admin/forms/:id/submissions", // -> FormSubmissionDTO[]
+  adminListFormSubmissions: "GET /admin/forms/:id/submissions", // ?limit&cursor -> FormSubmissionDTO[] (bare array, newest first)
+  adminExportFormSubmissionsCsv: "GET /admin/forms/:id/submissions.csv", // -> text/csv, streams EVERY submission
 
   // forms — PUBLIC (no auth): only ACTIVE forms
   getPublicForm: "GET /forms/:id", // -> FormPublicDTO (404 if inactive/missing)
