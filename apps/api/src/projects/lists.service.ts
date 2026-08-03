@@ -32,6 +32,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ChannelsService } from './channels.service';
 import { ProjectsGateway } from './projects.gateway';
 import { WorkflowsService } from './workflows.service';
+import { AuditService } from '../audit/audit.service';
 
 // Item shape with the comment count + (optionally loaded) comments eagerly
 // included for serialization.
@@ -57,6 +58,9 @@ export class ListsService {
     // no DI cycle. All trigger fires are best-effort (try/catch) so a workflow
     // failure can never break the list write that fired it.
     private readonly workflows: WorkflowsService,
+    // Append-only audit trail — the SECRET reveal endpoint records every call.
+    // AuditModule is @Global, so no import is needed in ProjectsModule.
+    private readonly audit: AuditService,
   ) {}
 
   // ----- Serializers -----
@@ -74,7 +78,29 @@ export class ListsService {
     };
   }
 
-  private toItemDTO(item: ItemWithCount): ChatListItemDTO {
+  // Serialize an item. `fields` is the item's list's CURRENT field set. Values
+  // are WHITELISTED against it: a value keyed by a since-deleted field is
+  // dropped (so an orphaned SECRET credential can never leak through a dangling
+  // key), and SECRET fields are MASKED — their plaintext is omitted from
+  // `values` and the field id surfaced in `secretFieldIds` instead, so the
+  // cleartext is reachable only through the audited reveal endpoint.
+  private toItemDTO(
+    item: ItemWithCount,
+    fields: { id: string; type: string }[],
+  ): ChatListItemDTO {
+    const raw = this.readObject(item.values);
+    const values: Record<string, unknown> = {};
+    const secretFieldIds: string[] = [];
+    for (const f of fields) {
+      if (!(f.id in raw)) continue;
+      if (f.type === 'SECRET') {
+        const v = raw[f.id];
+        // Only advertise the field as set when it actually holds a secret.
+        if (typeof v === 'string' && v.length > 0) secretFieldIds.push(f.id);
+        continue; // never emit the plaintext
+      }
+      values[f.id] = raw[f.id];
+    }
     return {
       id: item.id,
       listId: item.listId,
@@ -83,7 +109,8 @@ export class ListsService {
       assigneeAdminId: item.assigneeAdminId,
       dueDate: item.dueDate ? item.dueDate.toISOString() : null,
       position: item.position,
-      values: this.readObject(item.values),
+      values,
+      secretFieldIds,
       commentCount: item._count?.comments ?? 0,
       createdFromMessageId: item.createdFromMessageId,
       createdAt: item.createdAt.toISOString(),
@@ -102,7 +129,7 @@ export class ListsService {
       createdAt: list.createdAt.toISOString(),
       updatedAt: list.updatedAt.toISOString(),
       fields: list.fields.map((f) => this.toFieldDTO(f)),
-      items: list.items.map((i) => this.toItemDTO(i)),
+      items: list.items.map((i) => this.toItemDTO(i, list.fields)),
     };
   }
 
@@ -211,7 +238,11 @@ export class ListsService {
   ): Promise<ChatListItemDTO> {
     const list = await this.prisma.chatList.findUnique({
       where: { id: listId },
-      select: { id: true, channelId: true },
+      select: {
+        id: true,
+        channelId: true,
+        fields: { select: { id: true, type: true } },
+      },
     });
     if (!list) throw new NotFoundException('List not found');
     if (list.channelId) await this.channels.assertVisible(adminId, list.channelId);
@@ -246,7 +277,7 @@ export class ListsService {
     // Best-effort: fire ITEM_CREATED workflows (auto-post into the channel). A
     // workflow failure must never fail the create, so swallow everything.
     await this.fireWorkflow('ITEM_CREATED', item.id, adminId);
-    return this.toItemDTO(item);
+    return this.toItemDTO(item, list.fields);
   }
 
   // Run the workflows engine for an item without ever throwing back into the
@@ -270,7 +301,14 @@ export class ListsService {
   ): Promise<ChatListItemDTO> {
     const item = await this.prisma.chatListItem.findUnique({
       where: { id: itemId },
-      include: { list: { select: { channelId: true } } },
+      include: {
+        list: {
+          select: {
+            channelId: true,
+            fields: { select: { id: true, type: true } },
+          },
+        },
+      },
     });
     if (!item) throw new NotFoundException('List item not found');
     if (item.list.channelId) {
@@ -292,7 +330,7 @@ export class ListsService {
       include: { _count: { select: { comments: { where: { deletedAt: null } } } } },
     });
     this.gateway.emitListUpdate(item.list.channelId, item.listId);
-    return this.toItemDTO(updated);
+    return this.toItemDTO(updated, item.list.fields);
   }
 
   async deleteItem(adminId: string, itemId: string): Promise<{ ok: true }> {
@@ -355,7 +393,48 @@ export class ListsService {
         await this.fireWorkflow('ITEM_ASSIGNED', itemId, adminId);
       }
     }
-    return this.toItemDTO(updated);
+    return this.toItemDTO(updated, item.list.fields);
+  }
+
+  // Reveal a single SECRET custom-field value in plaintext. This is the ONLY
+  // path that returns an unmasked secret, so the controller gates it at edit
+  // level (stricter than the read that lists items) and it is audited on every
+  // call. Scoped to exactly one field of one item.
+  async revealSecret(
+    adminId: string,
+    itemId: string,
+    fieldId: string,
+    ip?: string | null,
+  ): Promise<{ value: string | null }> {
+    const item = await this.prisma.chatListItem.findUnique({
+      where: { id: itemId },
+      include: {
+        list: {
+          select: {
+            channelId: true,
+            fields: { select: { id: true, type: true } },
+          },
+        },
+      },
+    });
+    if (!item) throw new NotFoundException('List item not found');
+    if (item.list.channelId) {
+      await this.channels.assertVisible(adminId, item.list.channelId);
+    }
+    const field = item.list.fields.find((f) => f.id === fieldId);
+    if (!field || field.type !== 'SECRET') {
+      throw new NotFoundException('Secret field not found');
+    }
+    const value = this.readObject(item.values)[fieldId];
+    await this.audit.write({
+      actorAdminId: adminId,
+      action: 'projects.secret.reveal',
+      targetType: 'chat_list_item',
+      targetId: itemId,
+      metadata: { fieldId, listId: item.listId },
+      ip,
+    });
+    return { value: typeof value === 'string' ? value : null };
   }
 
   // ----- List fields (custom columns) -----

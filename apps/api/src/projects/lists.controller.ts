@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Ip,
   Param,
   Patch,
   Post,
@@ -140,6 +141,20 @@ export class ListsController {
     @Body() dto: UpdateListItemValuesDto,
   ) {
     return this.lists.updateItemValues(principal.sub, id, dto.values);
+  }
+
+  // Reveal ONE SECRET field's plaintext for ONE item. Gated at edit level
+  // (stricter than the projects:read that lists items) and audited on every
+  // call — this is the only endpoint that returns an unmasked secret.
+  @Get('admin/projects/list-items/:id/reveal')
+  @RequirePermission('projects', 'edit')
+  revealSecret(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Param('id') id: string,
+    @Query('fieldId') fieldId: string,
+    @Ip() ip: string,
+  ) {
+    return this.lists.revealSecret(principal.sub, id, fieldId, ip);
   }
 
   // ----- Per-item comments (the 💬 thread) -----
