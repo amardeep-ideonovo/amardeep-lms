@@ -9,6 +9,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "test": "TS_NODE_SKIP_PROJECT=true TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"target\":\"es2019\",\"esModuleInterop\":true,\"ignoreDeprecations\":\"6.0\"}' node --require ts-node/register/transpile-only --test $(find src -name '*.spec.ts' -print)",
     "eas-build-pre-install": "node scripts/sync-brand-assets.js"
   },
   "dependencies": {
@@ -43,6 +44,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "ts-node": "^10.9.2",
     "typescript": "~6.0.3"
   }
 }
