@@ -21,12 +21,6 @@ import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 
-// Escape one CSV cell (quote if it contains a comma/quote/newline).
-function csvCell(v: unknown): string {
-  const s = v === undefined || v === null ? "" : String(v);
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
 // Human-readable cell value for the on-screen table (booleans → Yes/No).
 function cellText(v: unknown): string {
   if (v === true) return "Yes";
@@ -34,36 +28,10 @@ function cellText(v: unknown): string {
   return v === undefined || v === null ? "" : String(v);
 }
 
-// Build + download a CSV of a form's submissions. Columns come from the form's
-// own field definitions (stable order) plus the email + subscribe status + date.
-function exportSubmissionsCsv(form: FormAdminRow, rows: FormSubmissionDTO[]) {
-  const fieldNames = form.fields.map((f) => f.name);
-  const header = [
-    "Submitted at",
-    "Email",
-    ...form.fields.map((f) => f.label || f.name),
-    "Subscribe status",
-  ];
-  const lines = [
-    header,
-    ...rows.map((r) => [
-      r.createdAt,
-      r.email ?? "",
-      ...fieldNames.map((n) => r.data?.[n] ?? ""),
-      r.subscribeStatus ?? "",
-    ]),
-  ];
-  const csv = lines.map((cols) => cols.map(csvCell).join(",")).join("\r\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${form.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-submissions.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+// The entries viewer loads one page at a time; the CSV export is built and
+// streamed by the server over the FULL set (see api.exportFormSubmissionsCsv),
+// so what the modal has loaded no longer determines what gets exported.
+const ENTRIES_PAGE = 200; // matches the API default
 
 const FIELD_TYPES: FormFieldType[] = [
   "text",
@@ -198,14 +166,19 @@ export default function FormsPage() {
   const [entries, setEntries] = useState<FormSubmissionDTO[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [entriesError, setEntriesError] = useState<string | null>(null);
+  const [entriesHasMore, setEntriesHasMore] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   async function openEntries(f: FormAdminRow) {
     setEntriesForm(f);
     setEntries([]);
+    setEntriesHasMore(false);
     setEntriesError(null);
     setEntriesLoading(true);
     try {
-      setEntries(await api.listFormSubmissions(f.id));
+      const rows = await api.listFormSubmissions(f.id, { limit: ENTRIES_PAGE });
+      setEntries(rows);
+      setEntriesHasMore(rows.length === ENTRIES_PAGE);
     } catch (err) {
       setEntriesError(
         err instanceof ApiError ? err.message : "Failed to load submissions"
@@ -214,9 +187,46 @@ export default function FormsPage() {
       setEntriesLoading(false);
     }
   }
+
+  async function loadMoreEntries() {
+    if (!entriesForm || entries.length === 0) return;
+    setEntriesLoading(true);
+    try {
+      const rows = await api.listFormSubmissions(entriesForm.id, {
+        limit: ENTRIES_PAGE,
+        cursor: entries[entries.length - 1].id,
+      });
+      setEntries((prev) => [...prev, ...rows]);
+      setEntriesHasMore(rows.length === ENTRIES_PAGE);
+    } catch (err) {
+      setEntriesError(
+        err instanceof ApiError ? err.message : "Failed to load submissions"
+      );
+    } finally {
+      setEntriesLoading(false);
+    }
+  }
+
+  async function exportEntriesCsv(f: FormAdminRow) {
+    setExporting(true);
+    try {
+      await api.exportFormSubmissionsCsv(
+        f.id,
+        `${f.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-submissions.csv`
+      );
+    } catch (err) {
+      setEntriesError(
+        err instanceof ApiError ? err.message : "Export failed"
+      );
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function closeEntries() {
     setEntriesForm(null);
     setEntries([]);
+    setEntriesHasMore(false);
   }
 
   async function load() {
@@ -587,17 +597,23 @@ export default function FormsPage() {
                 <div>
                   <strong>{entriesForm.name}</strong>{" "}
                   <span className="muted">
-                    — {entries.length} submission
-                    {entries.length === 1 ? "" : "s"}
+                    {/* The form's true total — `entries` is only the pages
+                        loaded so far, and would contradict the count on the
+                        Entries button that opened this modal. */}
+                    — {entriesForm.submissionCount} submission
+                    {entriesForm.submissionCount === 1 ? "" : "s"}
+                    {entries.length < entriesForm.submissionCount
+                      ? ` (showing ${entries.length})`
+                      : ""}
                   </span>
                 </div>
                 <div className="row-actions">
                   <button
                     className="btn btn--ghost btn--sm"
-                    disabled={entries.length === 0}
-                    onClick={() => exportSubmissionsCsv(entriesForm, entries)}
+                    disabled={entriesForm.submissionCount === 0 || exporting}
+                    onClick={() => exportEntriesCsv(entriesForm)}
                   >
-                    Export CSV
+                    {exporting ? "Exporting…" : "Export CSV"}
                   </button>
                   <button
                     className="btn btn--ghost btn--sm"
@@ -641,6 +657,17 @@ export default function FormsPage() {
                       ))}
                     </tbody>
                   </table></div>
+                )}
+                {entriesHasMore && (
+                  <div style={{ padding: "12px 0", textAlign: "center" }}>
+                    <button
+                      className="btn btn--ghost btn--sm"
+                      disabled={entriesLoading}
+                      onClick={loadMoreEntries}
+                    >
+                      {entriesLoading ? "Loading…" : "Load more"}
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

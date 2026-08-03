@@ -36,6 +36,22 @@ type FormRow = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Entries viewer: one page at a time. The export streams the FULL set instead,
+// so nothing is unreachable the way the old flat take:1000 made row 1001.
+const DEFAULT_SUBMISSION_PAGE = 200;
+const MAX_SUBMISSION_PAGE = 1000;
+const CSV_BATCH = 500; // rows per keyset hop while streaming the export
+
+// Escape one CSV cell (quote if it contains a comma/quote/newline).
+function csvCell(v: unknown): string {
+  const s = v === undefined || v === null ? '' : String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function csvLine(cols: unknown[]): string {
+  return cols.map(csvCell).join(',') + '\r\n';
+}
+
 @Injectable()
 export class FormsService {
   private readonly logger = new Logger(FormsService.name);
@@ -183,24 +199,110 @@ mount.appendChild(f);
     return { ok: true };
   }
 
-  // Stored submissions for the admin entries viewer (latest first, capped).
-  async listSubmissions(formId: string): Promise<FormSubmissionDTO[]> {
+  // Stored submissions for the admin entries viewer (newest first), keyset-paged.
+  // Deliberately still a BARE ARRAY: the BDD suite asserts Array.isArray on this
+  // body, and an envelope would buy nothing — completeness belongs to the .csv
+  // export, not to paging this viewer.
+  async listSubmissions(
+    formId: string,
+    q: { limit?: number; cursor?: string } = {},
+  ): Promise<FormSubmissionDTO[]> {
     const form = await this.prisma.form.findUnique({ where: { id: formId } });
     if (!form) throw new NotFoundException('Form not found');
+    const take = Math.min(
+      Math.max(q.limit ?? DEFAULT_SUBMISSION_PAGE, 1),
+      MAX_SUBMISSION_PAGE,
+    );
+    let where: Prisma.FormSubmissionWhereInput = { formId };
+    if (q.cursor) {
+      // Resolve the cursor to its sort values. Comparing on (createdAt, id)
+      // rather than passing Prisma a row cursor keeps the walk correct even if
+      // that row is deleted between pages.
+      const anchor = await this.prisma.formSubmission.findFirst({
+        where: { id: q.cursor, formId },
+        select: { id: true, createdAt: true },
+      });
+      if (!anchor) throw new BadRequestException('Invalid cursor');
+      where = { AND: [{ formId }, this.olderThan(anchor)] };
+    }
     const subs = await this.prisma.formSubmission.findMany({
-      where: { formId },
-      orderBy: { createdAt: 'desc' },
-      take: 1000,
+      where,
+      // Composite order: createdAt alone is neither unique nor a stable
+      // tiebreaker, so rows could repeat or vanish across pages.
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take,
     });
     return subs.map((s) => ({
       id: s.id,
       email: s.email,
-      data: (s.data && typeof s.data === 'object' && !Array.isArray(s.data)
-        ? s.data
-        : {}) as Record<string, string | number | boolean>,
+      data: this.asData(s.data),
       subscribeStatus: s.subscribeStatus,
       createdAt: s.createdAt.toISOString(),
     }));
+  }
+
+  // Keyset predicate for "strictly older than this (createdAt, id)".
+  private olderThan(anchor: {
+    createdAt: Date;
+    id: string;
+  }): Prisma.FormSubmissionWhereInput {
+    return {
+      OR: [
+        { createdAt: { lt: anchor.createdAt } },
+        { createdAt: anchor.createdAt, id: { lt: anchor.id } },
+      ],
+    };
+  }
+
+  private asData(
+    value: Prisma.JsonValue,
+  ): Record<string, string | number | boolean> {
+    return (
+      value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+    ) as Record<string, string | number | boolean>;
+  }
+
+  /**
+   * Stream EVERY submission for a form as CSV lines (header first).
+   *
+   * Walks the whole set in deterministic (createdAt, id) order in batches, so
+   * there is no cap — this fixes the old export, which was built client-side
+   * over whatever the viewer had loaded and silently stopped at 1000 rows.
+   * Throws NotFoundException on the FIRST next() call, i.e. before the caller
+   * has written any bytes.
+   */
+  async *csvRows(formId: string): AsyncGenerator<string> {
+    const form = await this.prisma.form.findUnique({ where: { id: formId } });
+    if (!form) throw new NotFoundException('Form not found');
+    const fields = this.asFields(form.fields);
+    yield csvLine([
+      'Submitted at',
+      'Email',
+      ...fields.map((f) => f.label || f.name),
+      'Subscribe status',
+    ]);
+
+    let cursor: { createdAt: Date; id: string } | null = null;
+    for (;;) {
+      const rows = await this.prisma.formSubmission.findMany({
+        where: cursor ? { AND: [{ formId }, this.olderThan(cursor)] } : { formId },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: CSV_BATCH,
+      });
+      if (rows.length === 0) break;
+      for (const r of rows) {
+        const data = this.asData(r.data);
+        yield csvLine([
+          r.createdAt.toISOString(),
+          r.email ?? '',
+          ...fields.map((f) => data[f.name] ?? ''),
+          r.subscribeStatus ?? '',
+        ]);
+      }
+      if (rows.length < CSV_BATCH) break;
+      const last = rows[rows.length - 1];
+      cursor = { createdAt: last.createdAt, id: last.id };
+    }
   }
 
   // ---------- public ----------
