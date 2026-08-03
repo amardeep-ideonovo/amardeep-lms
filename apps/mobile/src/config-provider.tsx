@@ -14,7 +14,7 @@ import type { AppConfig } from "@lms/types";
 
 import { api } from "./api";
 import { scopedKey } from "./config";
-import { DEFAULT_APP_CONFIG } from "./theme";
+import { DEFAULT_APP_CONFIG, isCompleteAppConfig } from "./theme";
 
 // Namespaced per instance (see config.ts) so a shared binary never paints one
 // instance with another instance's cached branding.
@@ -105,7 +105,14 @@ async function readCache(): Promise<AppConfig | null> {
         ? localStorage.getItem(configKey())
         : null
       : await SecureStore.getItemAsync(configKey());
-    return raw ? (JSON.parse(raw) as AppConfig) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    // Reject a cached config whose palettes aren't complete — an older app
+    // version's palette schema, or a truncated write. Seeding a partial palette
+    // into the theme crashes the app on launch (see theme.ts hexToHsl), and the
+    // only recovery would be clearing app data. Dropping the cache falls back to
+    // DEFAULT_APP_CONFIG; the live fetch then repopulates the real branding.
+    return isCompleteAppConfig(parsed) ? parsed : null;
   } catch {
     return null;
   }
