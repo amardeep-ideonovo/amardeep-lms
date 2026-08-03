@@ -2,9 +2,12 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
   IsObject,
   IsOptional,
   IsString,
+  Max,
+  Min,
   MinLength,
   ValidateNested,
 } from 'class-validator';
@@ -129,6 +132,22 @@ export class UpdateFormDto {
   @IsOptional()
   @IsIn(STATUSES)
   status?: FormStatus;
+}
+
+// Opt-in keyset paging for the admin entries viewer. Both omittable — omitting
+// them yields the newest page. The global ValidationPipe runs with
+// enableImplicitConversion, so `limit` arrives as a number.
+export class ListFormSubmissionsQueryDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(1000)
+  limit?: number;
+
+  // Id of the last row the caller already holds (opaque to the client).
+  @IsOptional()
+  @IsString()
+  cursor?: string;
 }
 
 export class FormSubmitDto {
