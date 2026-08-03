@@ -819,21 +819,30 @@ export interface PostDetailDTO extends PostListItem {
   updatedAt: string; // ISO — surfaced for Article schema `dateModified`
 }
 // Admin row: includes drafts, raw status, and timestamps.
-export interface PostAdminRow {
+// Admin table row. The body fields (content/excerpt/coverImageUrl) are
+// deliberately NOT sent: a blog list of N posts otherwise ships N full
+// sanitized-HTML bodies to render six columns. The edit modal loads them from
+// GET /admin/blog/posts/:id.
+export interface PostAdminListRow {
   id: string;
   slug: string;
   title: string;
-  excerpt: string | null;
-  content: string;
-  coverImageUrl: string | null;
   status: PostStatus;
   categoryIds: string[];
   categories: PostCategoryDTO[];
   tags: string[];
   author: PostAuthorDTO | null;
-  publishedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
+  publishedAt: string | null; // ISO
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+}
+// Full admin row: the list row plus the editable body. Returned by the detail
+// endpoint and by create/update, so a mutation response can be applied straight
+// into the list without a refetch.
+export interface PostAdminRow extends PostAdminListRow {
+  excerpt: string | null;
+  content: string;
+  coverImageUrl: string | null;
 }
 export interface CreatePostInput {
   title: string;
@@ -1368,6 +1377,14 @@ export interface FormSubmissionDTO {
   data: Record<string, string | number | boolean>;
   subscribeStatus: string | null; // subscribed | pending | existing | skipped
   createdAt: string; // ISO
+}
+// Opt-in keyset paging for the admin entries viewer. Omit both to get the newest
+// page. `cursor` is the id of the last row you already hold; a full page
+// (rows.length === limit) means there may be more. The response stays a bare
+// array — export the complete set via the .csv route, never by paging.
+export interface ListFormSubmissionsQuery {
+  limit?: number; // 1..1000, default 200
+  cursor?: string; // id of the last row held
 }
 
 // ---------- Popups (Puck overlay) ----------
@@ -2516,7 +2533,8 @@ export const ROUTES = {
   listPostCategories: "GET /blog/categories", // -> PostCategoryDTO[]
 
   // blog — ADMIN (full CRUD, includes drafts)
-  adminListPosts: "GET /admin/blog/posts", // -> PostAdminRow[]
+  adminListPosts: "GET /admin/blog/posts", // -> PostAdminListRow[] (no body — see adminGetPost)
+  adminGetPost: "GET /admin/blog/posts/:id", // -> PostAdminRow (full body, drafts included; 404 if missing)
   adminCreatePost: "POST /admin/blog/posts", // body CreatePostInput -> PostAdminRow
   adminUpdatePost: "PATCH /admin/blog/posts/:id", // body UpdatePostInput -> PostAdminRow
   adminDeletePost: "DELETE /admin/blog/posts/:id",
@@ -2542,7 +2560,8 @@ export const ROUTES = {
   adminCreateForm: "POST /admin/forms", // body CreateFormInput -> FormAdminRow
   adminUpdateForm: "PATCH /admin/forms/:id", // body UpdateFormInput -> FormAdminRow
   adminDeleteForm: "DELETE /admin/forms/:id",
-  adminListFormSubmissions: "GET /admin/forms/:id/submissions", // -> FormSubmissionDTO[]
+  adminListFormSubmissions: "GET /admin/forms/:id/submissions", // ?limit&cursor -> FormSubmissionDTO[] (bare array, newest first)
+  adminExportFormSubmissionsCsv: "GET /admin/forms/:id/submissions.csv", // -> text/csv, streams EVERY submission
 
   // forms — PUBLIC (no auth): only ACTIVE forms
   getPublicForm: "GET /forms/:id", // -> FormPublicDTO (404 if inactive/missing)

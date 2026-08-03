@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
+  PostAdminListRow,
   PostAdminRow,
   PostAuthorDTO,
   PostCategoryDTO,
@@ -61,6 +62,9 @@ type PostRow = {
   categories: { id: string; name: string; slug: string; order: number }[];
 };
 
+// Same row minus the body columns — what the admin LIST projection reads.
+type PostListDbRow = Omit<PostRow, 'excerpt' | 'content' | 'coverImageUrl'>;
+
 @Injectable()
 export class BlogService {
   constructor(private readonly prisma: PrismaService) {}
@@ -108,12 +112,36 @@ export class BlogService {
 
   // ---------- admin ----------
 
-  async adminList(): Promise<PostAdminRow[]> {
+  // Table rows only. `select` (not `include`) so the heavy body columns are
+  // never read out of Postgres either — the edit modal fetches them per post
+  // via adminGet.
+  async adminList(): Promise<PostAdminListRow[]> {
     const posts = await this.prisma.post.findMany({
       orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        status: true,
+        publishedAt: true,
+        tags: true,
+        createdAt: true,
+        updatedAt: true,
+        author: { select: { id: true, email: true } },
+        categories: true,
+      },
+    });
+    return posts.map((p) => this.toAdminListRow(p as PostListDbRow));
+  }
+
+  // Full post for the admin editor — unlike the public read this serves DRAFTS.
+  async adminGet(id: string): Promise<PostAdminRow> {
+    const post = await this.prisma.post.findUnique({
+      where: { id },
       include: BlogService.REL,
     });
-    return posts.map((p: PostRow) => this.toAdminRow(p));
+    if (!post) throw new NotFoundException('Post not found');
+    return this.toAdminRow(post as PostRow);
   }
 
   async adminCreate(dto: CreatePostDto, authorId: string): Promise<PostAdminRow> {
@@ -250,14 +278,11 @@ export class BlogService {
     };
   }
 
-  private toAdminRow(p: PostRow): PostAdminRow {
+  private toAdminListRow(p: PostListDbRow): PostAdminListRow {
     return {
       id: p.id,
       slug: p.slug,
       title: p.title,
-      excerpt: p.excerpt,
-      content: p.content,
-      coverImageUrl: p.coverImageUrl,
       status: p.status,
       categoryIds: p.categories.map((c) => c.id),
       categories: this.toCategories(p.categories),
@@ -266,6 +291,15 @@ export class BlogService {
       publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
+    };
+  }
+
+  private toAdminRow(p: PostRow): PostAdminRow {
+    return {
+      ...this.toAdminListRow(p),
+      excerpt: p.excerpt,
+      content: p.content,
+      coverImageUrl: p.coverImageUrl,
     };
   }
 

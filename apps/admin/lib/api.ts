@@ -85,6 +85,7 @@ import type {
   PageListItem,
   PopupAdminRow,
   PopupListItem,
+  PostAdminListRow,
   PostAdminRow,
   PostCategoryDTO,
   SubscriptionRowDTO,
@@ -700,7 +701,10 @@ export const api = {
     }),
 
   // blog
-  listPosts: () => request<PostAdminRow[]>("GET", "/admin/blog/posts"),
+  // Table rows only — no post body. Use getPost for the editor.
+  listPosts: () => request<PostAdminListRow[]>("GET", "/admin/blog/posts"),
+  getPost: (id: string) =>
+    request<PostAdminRow>("GET", `/admin/blog/posts/${id}`),
   createPost: (input: CreatePostInput) =>
     request<PostAdminRow>("POST", "/admin/blog/posts", input),
   updatePost: (id: string, input: UpdatePostInput) =>
@@ -757,8 +761,25 @@ export const api = {
     request<AdminLiveSessionDTO>("POST", `/admin/live-sessions/${id}/publish`),
   deleteLiveSession: (id: string) =>
     request<{ ok: true }>("DELETE", `/admin/live-sessions/${id}`),
-  listFormSubmissions: (id: string) =>
-    request<FormSubmissionDTO[]>("GET", `/admin/forms/${id}/submissions`),
+  // Bare array, newest first. Opt-in keyset paging: pass the id of the last row
+  // you hold as `cursor`; a full page (rows.length === limit) means ask again.
+  listFormSubmissions: (
+    id: string,
+    q: { limit?: number; cursor?: string } = {}
+  ) => {
+    const qs = new URLSearchParams();
+    if (q.limit != null) qs.set("limit", String(q.limit));
+    if (q.cursor) qs.set("cursor", q.cursor);
+    const s = qs.toString();
+    return request<FormSubmissionDTO[]>(
+      "GET",
+      `/admin/forms/${id}/submissions${s ? `?${s}` : ""}`
+    );
+  },
+  // Server-streamed CSV of EVERY submission — independent of what the viewer
+  // has paged in, so the export can never silently drop rows.
+  exportFormSubmissionsCsv: (id: string, filename: string) =>
+    downloadBlob(`/admin/forms/${id}/submissions.csv`, filename),
   // Merge tags for the form field-mapping editor come from the chosen audience's
   // in-house fields (GET /admin/audiences/:id/fields). EMAIL is implicit and not
   // returned by that list, so callers prepend it (see forms/page.tsx).
