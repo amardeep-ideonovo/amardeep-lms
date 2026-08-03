@@ -10,7 +10,7 @@ import {
 import type {
   AutomationDTO,
   AutomationTrigger,
-  EmailTemplateDTO,
+  EmailTemplateSummaryDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
@@ -65,7 +65,7 @@ export default function AutomationsPage() {
   const { can, loading: authLoading } = useAdminAuth();
 
   const [automations, setAutomations] = useState<AutomationDTO[]>([]);
-  const [templates, setTemplates] = useState<EmailTemplateDTO[]>([]);
+  const [templates, setTemplates] = useState<EmailTemplateSummaryDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,7 +92,7 @@ export default function AutomationsPage() {
     try {
       const [a, t] = await Promise.all([
         api.listAutomations(),
-        api.listEmailTemplates(),
+        api.listEmailTemplateSummaries(),
       ]);
       setAutomations(a);
       setTemplates(t);

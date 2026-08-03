@@ -611,8 +611,13 @@ export async function fetchActivePopups(
       ? `context=page&pageId=${encodeURIComponent(ctx.pageId)}`
       : `context=${ctx.type}`;
   try {
+    // Opt into caching (drops request()'s default no-store) so the browser
+    // honors the endpoint's Cache-Control and reuses one response across the
+    // client-side navigations that refetch popups — instead of a fresh
+    // full-Puck-doc fetch per navigation. Public, token-independent data.
     return await request<PopupPublicDTO[]>(`/popups/active?${qs}`, {
       auth: false,
+      revalidate: 60,
     });
   } catch {
     return [];

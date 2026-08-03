@@ -15,6 +15,7 @@ import type {
   ChatChannelDetailDTO,
   ChatDmDTO,
   ChatListDTO,
+  ChatListSummaryDTO,
   ChatMessageDTO,
   UnreadSummaryDTO,
 } from "@lms/types";
@@ -688,7 +689,7 @@ export default function ProjectsPage() {
   async function turnIntoTask(m: ChatMessageDTO) {
     if (!selectedId) return;
     try {
-      let lists: ChatListDTO[] = await api.listLists(selectedId);
+      let lists: ChatListSummaryDTO[] = await api.listLists(selectedId);
       let listId: string | undefined = lists[0]?.id;
       if (lists.length === 0) {
         const name = await dialog.prompt({
