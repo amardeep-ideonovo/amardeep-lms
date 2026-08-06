@@ -1,7 +1,9 @@
 // Dev/demo seed — "Spotlight Academy", a four-class online-learning catalog
 // (music, food, technology, sports). Idempotent (fixed ids + upserts with FULL
 // update payloads, so a plain re-run restores every seeded row to spec; admin
-// edits to seeded rows are intentionally reverted).
+// edits to seeded rows are intentionally reverted). That refresh-every-run
+// behavior is for DEV/CI only — provisioned instances set SEED_DEMO_ONCE=true,
+// which turns the demo into a one-shot starting template (see below).
 //
 // ORIGINAL CONTENT ONLY. This catalog is what prospective clients are shown
 // when they evaluate the product, so nothing in it may reference — or depend on
@@ -32,6 +34,15 @@
 //   SEED_DEMO_CONTENT=true|false — whether the Spotlight catalog ships too.
 //     Unset it defaults to ON for local dev/CI and OFF once SEED_ADMIN_EMAIL
 //     is present (a provisioned client must never get demo content by accident).
+//   SEED_DEMO_ONCE=true — demo content is a ONE-SHOT starting template: seeded
+//     the first time only, then recorded in the SeedState row and never
+//     re-imposed. Without this (dev/CI), every run refreshes seeded rows to
+//     spec. The instance compose sets it, because on a real instance "sample
+//     content" belongs to the client the moment it lands: a container restart
+//     must never resurrect a class they deleted or revert an image they
+//     changed. Instances demo-seeded before SeedState existed carry no marker,
+//     so a demo footprint (any seed- row / the demo member) counts as "already
+//     seeded" and is stamped without re-imposing anything.
 // With SEED_ADMIN_* set the well-known demo admin is NOT created, and a
 // leftover admin@example.com/admin123 from a pre-fix image is neutralized
 // (password rotated to a random throwaway).
@@ -40,6 +51,9 @@
 // retireStaleSeedRows() deletes the ones the current definitions no longer
 // produce. That is what makes a catalog change safe on an already-seeded box
 // without SEED_WIPE=1 — drop a class here and its rows disappear on next boot.
+// (Refresh mode only: under SEED_DEMO_ONCE the demo block — retire pass
+// included — never runs again after the first seed, because by then the rows
+// are the client's.)
 //
 // QA fixtures: the BDD suite (packages/bdd/features/*.feature) hard-codes the
 // ids/slugs/titles in seedFixtureCluster() — see the comment there before
@@ -61,6 +75,10 @@ const OWNER_EMAIL =
 const OWNER_PASSWORD = process.env.SEED_ADMIN_PASSWORD || null;
 const demoRaw = (process.env.SEED_DEMO_CONTENT || "").trim();
 const SEED_DEMO = demoRaw ? demoRaw !== "false" : !OWNER_EMAIL;
+// One-shot mode (see header). Deliberately an exact "true": only the instance
+// compose sets it, and a typo must fall back to the safe dev default (refresh)
+// rather than silently freezing a dev database.
+const DEMO_ONCE = (process.env.SEED_DEMO_ONCE || "").trim() === "true";
 
 // ---------- shared helpers ----------
 
@@ -92,8 +110,10 @@ const TRAILER = DEMO_VIDEO; // class trailers render in the web Vimeo embed
 // The stored URL must be ABSOLUTE: the media gallery hands the admin absolute
 // URLs (media.controller.ts builds them from PUBLIC_API_URL), and web/mobile
 // render Level.imageUrl verbatim into url()/<img src>, so a bare "/media/…"
-// path would resolve against the WEB origin and 404. The seed re-runs on every
-// container start, so a changed origin self-heals on the next boot.
+// path would resolve against the WEB origin and 404. In dev the seed re-runs
+// every start, so a changed origin self-heals; on instances (SEED_DEMO_ONCE)
+// the URLs keep their provision-time origin — safe, because the fleet -api
+// subdomain stays routed for the instance's lifetime, custom domain or not.
 const MEDIA_BASE = (process.env.PUBLIC_API_URL || "http://localhost:3000").replace(
   /\/$/,
   "",
@@ -152,6 +172,9 @@ async function wipeDatabase() {
     prisma.adminNotification.deleteMany(),
     prisma.user.deleteMany(),
     prisma.mediaAsset.deleteMany(),
+    // The demo-seeded marker goes with the content it describes — a wipe +
+    // reseed must restore the demo even under SEED_DEMO_ONCE.
+    prisma.seedState.deleteMany(),
   ]);
   console.log("  …database content wiped (Admin + Setting preserved).");
 }
@@ -1226,6 +1249,56 @@ async function purgeDemoDebris() {
       `  healed: removed ${removed} leftover demo-content row(s) — this instance runs without demo content.`,
     );
   }
+
+  // With the demo gone, "demo seeded" is no longer true: clear the marker so
+  // an instance later flipped back to SEED_DEMO_CONTENT=true seeds the demo
+  // fresh instead of skipping it.
+  await prisma.seedState.deleteMany();
+}
+
+// ---------- one-shot demo (SEED_DEMO_ONCE) ----------
+// On provisioned instances the demo is a starting template, not an enforced
+// state: the moment it lands it belongs to the client, and no later boot may
+// resurrect a class they deleted or revert an image they changed. The SeedState
+// row records that the demo has landed; its absence on a database that clearly
+// carries demo content means the content predates the marker (seeded by an
+// older image), so it is stamped as-is — never re-imposed.
+
+const SEED_STATE_ID = "singleton";
+
+async function demoAlreadySeeded(): Promise<boolean> {
+  if (await prisma.seedState.findUnique({ where: { id: SEED_STATE_ID } })) {
+    return true;
+  }
+  // Legacy footprint: any surviving demo row counts. Checked across several
+  // tables (not just levels) so a client who deleted every demo class isn't
+  // mistaken for a never-seeded instance and re-seeded over their work.
+  const [levels, posts, pages, certs, member] = await Promise.all([
+    prisma.level.count({
+      where: {
+        OR: [
+          { id: { startsWith: "seed-class-" } },
+          { id: { startsWith: "seed-level-" } },
+        ],
+      },
+    }),
+    prisma.post.count({ where: { id: { startsWith: "seed-post-" } } }),
+    prisma.page.count({ where: { id: { startsWith: "seed-page-" } } }),
+    prisma.certificateTemplate.count({
+      where: { id: { startsWith: "seed-cert-template-" } },
+    }),
+    prisma.user.count({ where: { email: "member@example.com" } }),
+  ]);
+  return levels + posts + pages + certs + member > 0;
+}
+
+async function markDemoSeeded(): Promise<void> {
+  // Create-only: the timestamp records the FIRST landing.
+  await prisma.seedState.upsert({
+    where: { id: SEED_STATE_ID },
+    update: {},
+    create: { id: SEED_STATE_ID, demoSeededAt: new Date() },
+  });
 }
 
 // Member demo state: enrolled in two classes with visible progress, so the
@@ -2495,6 +2568,23 @@ async function main() {
     return;
   }
 
+  // One-shot mode: once the demo has landed (marker, or a legacy footprint
+  // from an image that predates the marker), a restart runs migrations and the
+  // first-admin healing above and stops HERE — the seeded rows are the
+  // client's now, and re-imposing the catalog would revert their edits.
+  if (DEMO_ONCE && (await demoAlreadySeeded())) {
+    await markDemoSeeded(); // stamp legacy databases on their first post-fix boot
+    console.log(
+      "Seed complete — demo already seeded once (SEED_DEMO_ONCE); client content left untouched.",
+    );
+    console.log(
+      OWNER_EMAIL
+        ? `  Admin: ${admin.email} (SEED_ADMIN_* credentials)`
+        : `  Admin: ${DEMO_ADMIN.email} / ${DEMO_ADMIN.password}`,
+    );
+    return;
+  }
+
   await seedDemoMedia(); // before the catalog — every image URL points at it
   const { memberId } = await seedFixtureCluster();
   await seedCatalog();
@@ -2508,6 +2598,9 @@ async function main() {
   await seedMemberState(memberId);
   // Last: the keep-sets are derived from what the functions above just wrote.
   await retireStaleSeedRows();
+  // Record the landing in every mode (harmless in dev): under SEED_DEMO_ONCE
+  // this is what makes the run above the one and only.
+  await markDemoSeeded();
 
   const counts = {
     classes: CLASSES.length,
