@@ -34,6 +34,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { LiveModule } from './live/live.module';
 import { SupportModule } from './support/support.module';
 import { HealthModule } from './health/health.module';
+import { ControlPlaneModule } from './control-plane/control-plane.module';
 
 @Module({
   imports: [
@@ -54,6 +55,10 @@ import { HealthModule } from './health/health.module';
     },
     // Global infrastructure modules.
     PrismaModule,
+    // @Global — lets any service emit best-effort signals up to the control
+    // plane (e.g. "the admin changed their own password") without importing the
+    // support module that owns the ticket half of the same channel.
+    ControlPlaneModule,
     AuditModule,
     QueueModule,
     SettingsModule,
