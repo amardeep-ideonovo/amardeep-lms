@@ -590,17 +590,17 @@ export default function ClassesPage() {
 
           <div className="field">
             <label>
-              Checkout URL slug <span className="muted">(optional)</span>
+              URL slug <span className="muted">(optional)</span>
             </label>
             <input
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
-              placeholder="e.g. pro"
+              placeholder="e.g. class-1"
             />
             <span className="muted" style={{ fontSize: 12 }}>
               {slug.trim()
-                ? `Checkout URL: /checkout/${slug.trim()}`
-                : "Leave blank to use the raw class id in the checkout URL."}
+                ? `Class URL: /classes/${slug.trim()}`
+                : "Leave blank to auto-generate from the class name."}
             </span>
           </div>
 
@@ -794,16 +794,21 @@ export default function ClassesPage() {
             ) : (
               skills.map((s, i) => (
                 <div
-                  className="form-row"
                   key={i}
-                  style={{ marginBottom: 12, alignItems: "flex-start" }}
+                  style={{
+                    display: "flex",
+                    gap: 12,
+                    alignItems: "flex-start",
+                    marginBottom: 12,
+                  }}
                 >
                   <input
                     placeholder="Skill title"
                     value={s.title}
                     onChange={(e) => updateSkill(i, { title: e.target.value })}
+                    style={{ flex: "0 0 200px" }}
                   />
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <MediaPicker
                       value={s.imageUrl}
                       onChange={(url) => updateSkill(i, { imageUrl: url })}
@@ -811,18 +816,22 @@ export default function ClassesPage() {
                   </div>
                   <button
                     type="button"
-                    className="btn btn--ghost btn--sm"
+                    className="chip-x"
+                    aria-label={`Remove skill ${i + 1}`}
+                    title="Remove skill"
                     onClick={() => removeSkill(i)}
+                    style={{ flex: "none", fontSize: 20, marginTop: 8 }}
                   >
-                    Remove
+                    ×
                   </button>
                 </div>
               ))
             )}
             <button
               type="button"
-              className="btn btn--ghost btn--sm"
+              className="btn btn--add btn--sm"
               onClick={addSkill}
+              style={{ width: "100%", marginTop: 4 }}
             >
               + Add skill
             </button>

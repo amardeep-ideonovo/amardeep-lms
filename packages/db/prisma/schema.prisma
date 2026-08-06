@@ -207,6 +207,7 @@ model LevelCategory {
 
 model Course {
   id            String   @id @default(cuid())
+  slug          String?  @unique // readable URL key: /courses/<slug> (auto-derived from title)
   title         String
   description   String?
   thumbnailUrl  String? // squared thumbnail shown on course cards

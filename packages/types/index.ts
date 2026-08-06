@@ -529,6 +529,7 @@ export interface CategoryDTO {
 }
 export interface CourseCard {
   id: string;
+  slug?: string | null; // readable URL key: /courses/<slug> (falls back to id)
   title: string;
   description: string | null;
   thumbnailUrl: string | null; // squared thumbnail (cards)

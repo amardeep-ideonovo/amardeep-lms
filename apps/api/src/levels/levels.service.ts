@@ -579,7 +579,7 @@ export class LevelsService {
   }
 
   async create(dto: CreateLevelDto): Promise<LevelDTO> {
-    const slug = await this.resolveLevelSlug(dto.slug);
+    const slug = await this.resolveLevelSlug(dto.slug, undefined, dto.name);
     let stripeProductId: string | null = null;
     const priceRows: {
       stripePriceId: string | null;
@@ -686,7 +686,7 @@ export class LevelsService {
     // Resolve the checkout slug only when the caller sends one ('' clears it).
     const slug =
       dto.slug !== undefined
-        ? await this.resolveLevelSlug(dto.slug, id)
+        ? await this.resolveLevelSlug(dto.slug, id, dto.name)
         : undefined;
 
     const level = await this.prisma.level.update({
@@ -1089,23 +1089,45 @@ export class LevelsService {
       .replace(/^-+|-+$/g, '');
   }
 
-  // Normalize a requested checkout slug; blank/whitespace -> null (clears it).
-  // Rejects a slug already used by another level. `ignoreId` lets a level keep
-  // its own slug on update.
+  // Resolve a class's URL slug. An explicit admin-typed slug must be unique
+  // (else 409). When none is given, auto-derive a stable, unique slug from the
+  // class name ("Class 1" -> "class-1", then "-2", "-3"… on collision) so the
+  // class gets a readable /classes/<slug> URL with no manual entry. `ignoreId`
+  // lets a level keep its own slug on update.
   private async resolveLevelSlug(
     raw: string | undefined,
     ignoreId?: string,
+    fallbackName?: string,
   ): Promise<string | null> {
-    if (raw === undefined) return null;
-    const slug = this.slugify(raw);
-    if (!slug) return null;
-    const clash = await this.prisma.level.findFirst({
-      where: { slug, NOT: ignoreId ? { id: ignoreId } : undefined },
-      select: { id: true },
-    });
-    if (clash) {
-      throw new ConflictException('That checkout slug is already in use');
+    const explicit = raw !== undefined ? this.slugify(raw) : '';
+    if (explicit) {
+      const clash = await this.prisma.level.findFirst({
+        where: { slug: explicit, NOT: ignoreId ? { id: ignoreId } : undefined },
+        select: { id: true },
+      });
+      if (clash) {
+        throw new ConflictException('That URL slug is already in use');
+      }
+      return explicit;
     }
-    return slug;
+    // No explicit slug — derive one from the name (auto, uniqueness-suffixed).
+    const base = fallbackName ? this.slugify(fallbackName) : '';
+    if (!base) return null;
+    return this.ensureUniqueLevelSlug(base, ignoreId);
+  }
+
+  // First free slug of the form base, base-2, base-3, … among other levels.
+  private async ensureUniqueLevelSlug(
+    base: string,
+    ignoreId?: string,
+  ): Promise<string> {
+    for (let n = 1; ; n += 1) {
+      const candidate = n === 1 ? base : `${base}-${n}`;
+      const clash = await this.prisma.level.findFirst({
+        where: { slug: candidate, NOT: ignoreId ? { id: ignoreId } : undefined },
+        select: { id: true },
+      });
+      if (!clash) return candidate;
+    }
   }
 }
