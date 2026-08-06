@@ -8,6 +8,7 @@ import * as bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import type { AdminDTO, AdminPermissions } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
+import { ControlPlaneNotifier } from '../control-plane/control-plane.notifier';
 import { CreateAdminDto, UpdateAdminDto } from './dto/admins.dto';
 
 const ADMIN_SELECT = {
@@ -24,7 +25,10 @@ type AdminRow = Prisma.AdminGetPayload<{ select: typeof ADMIN_SELECT }>;
 
 @Injectable()
 export class AdminsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cp: ControlPlaneNotifier,
+  ) {}
 
   private toDTO(a: AdminRow): AdminDTO {
     return {
@@ -120,7 +124,7 @@ export class AdminsService {
   async resetPassword(id: string, password: string): Promise<{ ok: true }> {
     const target = await this.prisma.admin.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, email: true },
     });
     if (!target) throw new NotFoundException('Admin not found');
     // Bump tokenVersion so the target admin's existing sessions are revoked —
@@ -132,7 +136,48 @@ export class AdminsService {
         tokenVersion: { increment: 1 },
       },
     });
+    // Best-effort: if this reset targeted the owner-admin whose credential the
+    // control-plane dashboards display, they'll stop showing the stale one. The
+    // control plane matches on email, so a reset of any other admin is ignored.
+    void this.cp.adminCredentialsChanged(target.email);
     return { ok: true };
+  }
+
+  /**
+   * Control-plane recovery path (POST /instance-admin/reset-password, service-
+   * token-guarded). The control plane generates a new password and asks us to
+   * set it on the OWNER admin — the account whose credentials it displays — so a
+   * client who changed and forgot their admin password can get back in. Resolves
+   * the target by the control plane's displayed email, else falls back to the
+   * earliest SUPER_ADMIN (the one seeded at provisioning) so an email drift never
+   * dead-ends recovery. Bumps tokenVersion to revoke the target's live sessions.
+   *
+   * Unlike changeAdminPassword / resetPassword above, this does NOT signal the
+   * control plane back: it is the caller, and it clears its own stale-password
+   * flag right after we return. Returns the email actually reset so the control
+   * plane can reconcile its displayed adminEmail.
+   */
+  async setOwnerPasswordFromControlPlane(
+    email: string | null,
+    password: string,
+  ): Promise<{ email: string }> {
+    const target =
+      (email
+        ? await this.prisma.admin.findFirst({ where: { email } })
+        : null) ??
+      (await this.prisma.admin.findFirst({
+        where: { role: 'SUPER_ADMIN' },
+        orderBy: { createdAt: 'asc' },
+      }));
+    if (!target) throw new NotFoundException('No admin account to reset');
+    await this.prisma.admin.update({
+      where: { id: target.id },
+      data: {
+        passwordHash: await bcrypt.hash(password, 10),
+        tokenVersion: { increment: 1 },
+      },
+    });
+    return { email: target.email };
   }
 
   async remove(actingAdminId: string, id: string): Promise<{ ok: true }> {

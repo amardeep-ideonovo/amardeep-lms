@@ -25,6 +25,7 @@ import { EmailService } from '../email/email.service';
 import { AppConfigService } from '../site/app-config.service';
 import { MediaStorage } from '../media/media.storage';
 import { MEDIA_ROUTE } from '../media/media.config';
+import { ControlPlaneNotifier } from '../control-plane/control-plane.notifier';
 import {
   RESET_TOKEN_TTL_MINUTES,
   fingerprintMatches,
@@ -64,6 +65,7 @@ export class AuthService {
     private readonly appConfig: AppConfigService,
     private readonly config: ConfigService,
     private readonly storage: MediaStorage,
+    private readonly cp: ControlPlaneNotifier,
   ) {}
 
   // Build the AuthAdmin DTO from a full Admin row — used by login, /me, and the
@@ -556,6 +558,10 @@ export class AuthService {
         tokenVersion: { increment: 1 },
       },
     });
+    // Best-effort: let the control plane know this admin no longer uses the
+    // provisioning password, so its dashboards stop showing that stale value.
+    // NOT awaited — never delay or fail the password change on a CP hiccup.
+    void this.cp.adminCredentialsChanged(updated.email);
     const payload: JwtPayload = {
       sub: updated.id,
       email: updated.email,
