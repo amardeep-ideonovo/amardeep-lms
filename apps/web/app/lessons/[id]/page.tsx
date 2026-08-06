@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type {
@@ -185,6 +192,80 @@ function LessonInner() {
     return i >= 0 && i + 1 < siblings.length ? siblings[i + 1] : null;
   }, [siblings, lessonId]);
 
+  // ---- playback progress: mark started on open + save the resume point ----
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const lastSaveRef = useRef(0);
+
+  const saveProgress = useCallback(
+    (pos: number) => {
+      if (!Number.isFinite(pos) || pos < 0) return;
+      api.recordLessonProgress(lessonId, Math.floor(pos)).catch(() => {});
+    },
+    [lessonId],
+  );
+  // Throttle the position heartbeat to at most once every 10s.
+  const throttledSave = useCallback(
+    (pos: number) => {
+      const now = Date.now();
+      if (now - lastSaveRef.current < 10000) return;
+      lastSaveRef.current = now;
+      saveProgress(pos);
+    },
+    [saveProgress],
+  );
+
+  // Opening a lesson marks it "started" (creates the progress row) so the class
+  // flips to "In progress" immediately — even before any playback.
+  useEffect(() => {
+    if (!lesson) return;
+    saveProgress(lesson.lastPositionSeconds ?? 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson?.id]);
+
+  // Vimeo resume + position tracking via the iframe postMessage API (best-
+  // effort: the player just starts from zero if a command is dropped).
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    const resumeTo = lesson?.lastPositionSeconds ?? 0;
+    if (!iframe || !lesson || !vimeoEmbed(lesson.videoUrl)) return;
+    const post = (method: string, value?: unknown) =>
+      iframe.contentWindow?.postMessage(
+        JSON.stringify(value === undefined ? { method } : { method, value }),
+        "https://player.vimeo.com",
+      );
+    const onMessage = (e: MessageEvent) => {
+      if (typeof e.origin === "string" && !e.origin.includes("player.vimeo.com"))
+        return;
+      let data: { event?: string; data?: { seconds?: number } };
+      try {
+        data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+      } catch {
+        return;
+      }
+      if (data?.event === "ready") {
+        post("addEventListener", "timeupdate");
+        if (resumeTo > 0) post("setCurrentTime", resumeTo);
+      } else if (data?.event === "timeupdate") {
+        const s = data.data?.seconds;
+        if (typeof s === "number") throttledSave(s);
+      }
+    };
+    window.addEventListener("message", onMessage);
+    // Nudge, in case the player was ready before this listener attached.
+    post("addEventListener", "ready");
+    post("addEventListener", "timeupdate");
+    const t =
+      resumeTo > 0
+        ? window.setTimeout(() => post("setCurrentTime", resumeTo), 1500)
+        : undefined;
+    return () => {
+      window.removeEventListener("message", onMessage);
+      if (t) clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson?.id, throttledSave]);
+
   const railDone = siblings?.filter((l) => l.completed || l.id === (completed ? lessonId : "")).length ?? 0;
 
   /* ---------- locked / error / loading states on the light canvas ---------- */
@@ -248,6 +329,7 @@ function LessonInner() {
   if (vimeo) {
     media = (
       <iframe
+        ref={iframeRef}
         src={vimeo}
         title={lesson.title}
         allow="autoplay; fullscreen; picture-in-picture"
@@ -255,8 +337,23 @@ function LessonInner() {
       />
     );
   } else if (lesson.videoUrl) {
-    // eslint-disable-next-line jsx-a11y/media-has-caption
-    media = <video controls playsInline src={lesson.videoUrl} />;
+    media = (
+      // eslint-disable-next-line jsx-a11y/media-has-caption
+      <video
+        ref={videoRef}
+        controls
+        playsInline
+        src={lesson.videoUrl}
+        onLoadedMetadata={(e) => {
+          const pos = lesson.lastPositionSeconds ?? 0;
+          if (pos > 0 && pos < (e.currentTarget.duration || Infinity)) {
+            e.currentTarget.currentTime = pos;
+          }
+        }}
+        onTimeUpdate={(e) => throttledSave(e.currentTarget.currentTime)}
+        onPause={(e) => saveProgress(e.currentTarget.currentTime)}
+      />
+    );
   } else if (lesson.thumbnailUrl) {
     media = (
       <>

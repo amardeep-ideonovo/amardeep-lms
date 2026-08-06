@@ -295,6 +295,13 @@ export const api = {
     request<CompleteLessonResponse>(`/lessons/${lessonId}/complete`, {
       method: "POST",
     }),
+  // Playback heartbeat: marks the lesson "started" on the first call and saves
+  // the resume position. Fire-and-forget from the player.
+  recordLessonProgress: (lessonId: string, positionSeconds: number) =>
+    request<{ ok: true }>(`/lessons/${lessonId}/progress`, {
+      method: "POST",
+      body: { positionSeconds },
+    }),
 
   // certificates (class completion)
   claimCertificate: (input: ClaimCertificateInput) =>

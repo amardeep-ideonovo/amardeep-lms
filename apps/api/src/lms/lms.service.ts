@@ -289,13 +289,21 @@ export class LmsService {
       }
     }
 
-    let completedIds = new Set<string>();
+    const progressByLesson = new Map<
+      string,
+      { completed: boolean; lastPositionSeconds: number }
+    >();
     if (userId) {
       const progress = await this.prisma.lessonProgress.findMany({
         where: { userId, lesson: { courseId } },
-        select: { lessonId: true },
+        select: { lessonId: true, completedAt: true, lastPositionSeconds: true },
       });
-      completedIds = new Set(progress.map((p) => p.lessonId));
+      for (const p of progress) {
+        progressByLesson.set(p.lessonId, {
+          completed: p.completedAt != null,
+          lastPositionSeconds: p.lastPositionSeconds,
+        });
+      }
     }
 
     return course.lessons.map((l) => ({
@@ -312,7 +320,11 @@ export class LmsService {
       videoUrl: l.videoUrl,
       durationSeconds: l.durationSeconds,
       order: l.order,
-      completed: userId ? completedIds.has(l.id) : undefined,
+      completed: userId ? (progressByLesson.get(l.id)?.completed ?? false) : undefined,
+      started: userId ? progressByLesson.has(l.id) : undefined,
+      lastPositionSeconds: userId
+        ? (progressByLesson.get(l.id)?.lastPositionSeconds ?? 0)
+        : undefined,
       notes: l.notes.map((n) => this.toNoteDTO(n)),
     }));
   }
@@ -412,9 +424,10 @@ export class LmsService {
       throw new ForbiddenException('You do not have access to this lesson');
     }
 
-    const [completed, certificates] = await Promise.all([
+    const [progressRow, certificates] = await Promise.all([
       this.prisma.lessonProgress.findUnique({
         where: { userId_lessonId: { userId, lessonId } },
+        select: { completedAt: true, lastPositionSeconds: true },
       }),
       // Present only when this lesson is the terminal lesson of an actively
       // held class with certificates configured — drives "Get certificate".
@@ -430,7 +443,9 @@ export class LmsService {
       videoUrl: lesson.videoUrl,
       durationSeconds: lesson.durationSeconds,
       order: lesson.order,
-      completed: !!completed,
+      completed: progressRow?.completedAt != null,
+      started: progressRow != null,
+      lastPositionSeconds: progressRow?.lastPositionSeconds ?? 0,
       notes: lesson.notes.map((n) => this.toNoteDTO(n)),
       ...(certificates.length ? { certificates } : {}),
     };
@@ -461,17 +476,19 @@ export class LmsService {
     }
 
     // Detect a GENUINE first completion: only fire the LESSON_COMPLETED
-    // automation when no progress row existed before this write. A re-POST (the
-    // upsert just bumps completedAt) is not a new completion and must NOT
-    // re-trigger the mail — fire()'s per-recipient dedupeKey is a backstop, but
-    // this keeps us off the send path entirely on repeats.
-    const alreadyCompleted = await this.prisma.lessonProgress.findUnique({
+    // automation when the lesson wasn't already completed. A row may already
+    // exist as started-but-not-completed (completedAt null) or be a re-POST;
+    // neither is a new completion and must NOT re-trigger the mail — fire()'s
+    // per-recipient dedupeKey is a backstop, but this keeps us off the send
+    // path entirely on repeats.
+    const existing = await this.prisma.lessonProgress.findUnique({
       where: { userId_lessonId: { userId, lessonId } },
-      select: { id: true },
+      select: { completedAt: true },
     });
+    const alreadyCompleted = existing?.completedAt != null;
     await this.prisma.lessonProgress.upsert({
       where: { userId_lessonId: { userId, lessonId } },
-      create: { userId, lessonId },
+      create: { userId, lessonId, completedAt: new Date() },
       update: { completedAt: new Date() },
     });
     if (!alreadyCompleted) {
@@ -549,7 +566,46 @@ export class LmsService {
   ): Promise<{ ok: true }> {
     const lesson = await this.prisma.lesson.findUnique({ where: { id: lessonId } });
     if (!lesson) throw new NotFoundException('Lesson not found');
-    await this.prisma.lessonProgress.deleteMany({ where: { userId, lessonId } });
+    // Clear the completion but KEEP the row's started + position state, so the
+    // lesson stays "in progress" and resumable after an un-complete.
+    await this.prisma.lessonProgress.updateMany({
+      where: { userId, lessonId },
+      data: { completedAt: null },
+    });
+    return { ok: true };
+  }
+
+  /**
+   * Record playback progress: stamps the lesson "started" on the first call
+   * (creates the row) and saves the resume position. Never touches completedAt.
+   * Same access gate as viewing/completing.
+   */
+  async recordLessonProgress(
+    lessonId: string,
+    userId: string,
+    positionSeconds: number,
+  ): Promise<{ ok: true }> {
+    const lesson = await this.prisma.lesson.findUnique({
+      where: { id: lessonId },
+      include: {
+        course: { include: { courseLevels: { select: { levelId: true } } } },
+      },
+    });
+    if (!lesson) throw new NotFoundException('Lesson not found');
+    const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
+    const [activeLevels, owns] = await Promise.all([
+      this.access.activeLevelIds(userId),
+      this.access.ownsCourse(userId, lesson.courseId),
+    ]);
+    if (isCourseLocked(assigned, activeLevels, owns)) {
+      throw new ForbiddenException('You do not have access to this lesson');
+    }
+    const pos = Math.max(0, Math.floor(positionSeconds));
+    await this.prisma.lessonProgress.upsert({
+      where: { userId_lessonId: { userId, lessonId } },
+      create: { userId, lessonId, lastPositionSeconds: pos },
+      update: { lastPositionSeconds: pos },
+    });
     return { ok: true };
   }
 

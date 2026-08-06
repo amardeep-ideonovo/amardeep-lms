@@ -156,7 +156,9 @@ function CourseAccordion({
     ? Math.round((course.completedCount / course.lessonCount) * 100)
     : 0;
   const done = course.lessonCount > 0 && course.completedCount >= course.lessonCount;
-  const started = course.completedCount > 0;
+  // "In progress" the moment ANY lesson is opened — startedCount counts started
+  // lessons (completed included), so this no longer waits for a completion.
+  const started = (course.startedCount ?? 0) > 0 || course.completedCount > 0;
   const mins =
     lessons && lessons.length > 0
       ? fmtTotalMinutes(lessons.reduce((n, l) => n + (l.durationSeconds ?? 0), 0))
@@ -185,7 +187,9 @@ function CourseAccordion({
         {done ? (
           <span className="ik-pill ik-pill--done">Completed</span>
         ) : started ? (
-          <span className="ik-pill ik-pill--pct">{pct}%</span>
+          <span className="ik-pill ik-pill--pct">
+            {pct > 0 ? `${pct}%` : "In progress"}
+          </span>
         ) : (
           <span className="ik-pill ik-pill--todo">Not started</span>
         )}
@@ -221,12 +225,14 @@ function CourseAccordion({
                 <span className="ik-lesson-title">{l.title}</span>
                 {dur && <span className="ik-lesson-dur">{dur}</span>}
               </span>
-              {isCurrent ? (
-                <span className="ik-resume-pill">RESUME</span>
-              ) : l.completed ? (
+              {l.completed ? (
                 <span className="ik-lesson-state ik-lesson-state--done">
                   <CheckIcon />
                 </span>
+              ) : l.started ? (
+                <span className="ik-resume-pill">RESUME</span>
+              ) : isCurrent ? (
+                <span className="ik-start-pill">START</span>
               ) : (
                 <span className="ik-lesson-state ik-lesson-state--todo">
                   <PlayGlyph />

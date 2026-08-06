@@ -33,6 +33,7 @@ import { LmsService } from './lms.service';
 import {
   CreateCourseDto,
   CreateLessonDto,
+  RecordProgressDto,
   UpdateCourseDto,
   UpdateLessonDto,
   UpdateLessonNoteDto,
@@ -266,6 +267,18 @@ export class LmsController {
     @CurrentUser() principal: AuthenticatedPrincipal,
   ) {
     return this.lms.uncompleteLesson(id, principal.sub);
+  }
+
+  // Playback heartbeat: marks the lesson "started" on first call and saves the
+  // resume position. Member-only; same access gate as viewing.
+  @UseGuards(JwtAuthGuard)
+  @Post('lessons/:id/progress')
+  recordProgress(
+    @Param('id') id: string,
+    @Body() dto: RecordProgressDto,
+    @CurrentUser() principal: AuthenticatedPrincipal,
+  ) {
+    return this.lms.recordLessonProgress(id, principal.sub, dto.positionSeconds);
   }
 
   // ----- Lesson notes (downloadable attachments) -----

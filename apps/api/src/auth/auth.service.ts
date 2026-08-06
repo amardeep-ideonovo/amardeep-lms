@@ -248,48 +248,43 @@ export class AuthService {
     return candidate;
   }
 
+  // Auto-enrol a new member into EVERY published FREE class. Free classes are
+  // owned by everyone with no checkout, so they simply appear in the member's
+  // classes. Idempotent (upsert); audience capture per class is best-effort.
   private async maybeGrantFreeLevel(
     userId: string,
     email: string,
   ): Promise<void> {
-    const free = await this.prisma.level.findFirst({
-      where: { name: { equals: 'Free', mode: 'insensitive' }, type: 'FREE' },
+    const freeLevels = await this.prisma.level.findMany({
+      where: { type: 'FREE', published: true },
     });
-    if (!free) return;
-    await this.prisma.userLevel.upsert({
-      where: {
-        userId_levelId_source: {
-          userId,
-          levelId: free.id,
-          source: 'MANUAL',
+    for (const free of freeLevels) {
+      await this.prisma.userLevel.upsert({
+        where: {
+          userId_levelId_source: { userId, levelId: free.id, source: 'MANUAL' },
         },
-      },
-      create: {
-        userId,
-        levelId: free.id,
-        source: 'MANUAL',
-        status: 'ACTIVE',
-      },
-      update: { status: 'ACTIVE' },
-    });
-    // ALWAYS capture the signed-up member into the Free class's in-house
-    // audience (null audienceId → default "Members"). syncTags upserts the
-    // contact first, so it lands the member even when audienceTags is empty.
-    // Best-effort: never block the signup response on a contacts blip.
-    try {
-      await this.contacts.syncTags(
-        'add',
-        email,
-        free.audienceTags,
-        free.audienceId ?? undefined,
-        { userId, source: 'SIGNUP' },
-      );
-    } catch (err) {
-      this.logger.warn(
-        `[signup] contacts sync failed for ${email}: ${
-          err instanceof Error ? err.message : err
-        }`,
-      );
+        create: { userId, levelId: free.id, source: 'MANUAL', status: 'ACTIVE' },
+        update: { status: 'ACTIVE' },
+      });
+      // Capture the member into the class's in-house audience (null audienceId
+      // → default "Members"). syncTags upserts the contact first, so it lands
+      // the member even when audienceTags is empty. Best-effort: never block
+      // the signup response on a contacts blip.
+      try {
+        await this.contacts.syncTags(
+          'add',
+          email,
+          free.audienceTags,
+          free.audienceId ?? undefined,
+          { userId, source: 'SIGNUP' },
+        );
+      } catch (err) {
+        this.logger.warn(
+          `[signup] contacts sync failed for ${email}: ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      }
     }
   }
 

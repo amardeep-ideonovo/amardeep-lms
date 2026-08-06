@@ -3779,6 +3779,18 @@ a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: n
   flex: none;
   letter-spacing: 0.02em;
 }
+/* "START" — a not-yet-begun lesson. Muted (outlined) so it reads as an
+   available next step, not the active teal "RESUME" state. */
+.ik-start-pill {
+  background: #f1eff7;
+  border-radius: 999px;
+  padding: 6px 13px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  flex: none;
+  letter-spacing: 0.02em;
+}
 
 /* ---- ink side cards (class certificate / up-next) ---- */
 .ik-ink-card {

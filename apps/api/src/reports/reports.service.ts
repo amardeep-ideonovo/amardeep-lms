@@ -222,15 +222,15 @@ export class ReportsService {
     // class filter restricts to members holding that class and scopes the metric to
     // that class's courses.
     const r = this.range(filter);
-    const progressWhere: Prisma.LessonProgressWhereInput =
-      r.gte || r.lte
-        ? {
-            completedAt: {
-              ...(r.gte ? { gte: r.gte } : {}),
-              ...(r.lte ? { lte: r.lte } : {}),
-            },
-          }
-        : {};
+    // Only genuine completions count — a LessonProgress row can now be
+    // started-but-not-completed (completedAt null), so filter those out.
+    const progressWhere: Prisma.LessonProgressWhereInput = {
+      completedAt: {
+        not: null,
+        ...(r.gte ? { gte: r.gte } : {}),
+        ...(r.lte ? { lte: r.lte } : {}),
+      },
+    };
     // Bulk aggregation — 5 queries assembled in memory (NO per-user N+1; the
     // per-user AccessService helpers would be a query-per-member here).
     const [users, memberships, courseLevels, courses, progress] =
@@ -287,7 +287,11 @@ export class ReportsService {
       if (!byCourse) progByUser.set(p.userId, (byCourse = new Map()));
       const cur = byCourse.get(cid) ?? { completed: 0, last: null };
       cur.completed += 1;
-      if (!cur.last || p.completedAt > cur.last) cur.last = p.completedAt;
+      // completedAt is non-null here (the query filters completedAt: not null),
+      // but TS only sees Date | null — guard so it narrows.
+      if (p.completedAt && (!cur.last || p.completedAt > cur.last)) {
+        cur.last = p.completedAt;
+      }
       byCourse.set(cid, cur);
     }
 

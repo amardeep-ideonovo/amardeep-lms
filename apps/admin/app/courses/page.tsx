@@ -27,14 +27,18 @@ const EMPTY_COURSE = {
   priceActive: true,
 };
 
-// Parse an admin-entered duration ("12:30", "1:02:03", or plain seconds) into
-// seconds. Returns undefined for blank/invalid input.
+// Parse an admin-entered duration into WHOLE seconds. Accepts "mm:ss",
+// "h:mm:ss", "mm.ss" (a dot is a common stand-in for the mm/ss separator), or
+// plain seconds ("150"). Every part must be whole digits, so the result is
+// always an integer — the API stores durationSeconds as an Int and rejects a
+// fractional value (e.g. the old code turned "02.30" into the float 2.3).
+// Returns undefined for blank/invalid input so the optional field is omitted.
 function parseDuration(input: string): number | undefined {
   const s = input.trim();
   if (!s) return undefined;
-  const parts = s.split(":").map((p) => Number(p));
-  if (parts.some((n) => Number.isNaN(n) || n < 0)) return undefined;
-  return parts.reduce((acc, n) => acc * 60 + n, 0);
+  const parts = s.split(/[:.]/).map((p) => p.trim());
+  if (parts.some((p) => !/^\d+$/.test(p))) return undefined;
+  return parts.reduce((acc, p) => acc * 60 + parseInt(p, 10), 0);
 }
 // Seconds -> "mm:ss" (or "h:mm:ss"); "" when null.
 function formatDuration(sec?: number | null): string {

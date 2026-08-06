@@ -287,12 +287,18 @@ model Lesson {
 }
 
 model LessonProgress {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lessonId    String
-  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  completedAt DateTime @default(now())
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId String
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  // A row now means "the member has engaged with this lesson". startedAt is
+  // stamped on first open; lastPositionSeconds is the video resume point;
+  // completedAt stays null until the lesson is marked complete (so one row can
+  // represent started-but-not-completed).
+  startedAt           DateTime  @default(now())
+  lastPositionSeconds Int       @default(0)
+  completedAt         DateTime?
 
   @@unique([userId, lessonId])
 }

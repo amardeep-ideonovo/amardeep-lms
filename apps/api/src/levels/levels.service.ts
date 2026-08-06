@@ -471,7 +471,7 @@ export class LevelsService {
     const owned = (await this.access.activeLevelIds(userId)).has(level.id);
     if (!owned) return { owned: false, courses: [] };
 
-    const [courses, completedByCourse] = await Promise.all([
+    const [courses, completedByCourse, startedByCourse] = await Promise.all([
       this.prisma.course.findMany({
         where: { courseLevels: { some: { levelId: level.id } } },
         orderBy: { order: 'asc' },
@@ -481,6 +481,7 @@ export class LevelsService {
         },
       }),
       this.access.completedCountByCourse(userId),
+      this.access.startedCountByCourse(userId),
     ]);
 
     const courseCards: CourseCard[] = courses.map((c) => ({
@@ -493,6 +494,7 @@ export class LevelsService {
       locked: false, // owned => unlocked
       lessonCount: c._count.lessons,
       completedCount: completedByCourse.get(c.id) ?? 0,
+      startedCount: startedByCourse.get(c.id) ?? 0,
     }));
 
     // Class-page certificate state (omitted while no template resolves). The
@@ -539,6 +541,41 @@ export class LevelsService {
         imageUrl: typeof s.imageUrl === 'string' ? s.imageUrl : null,
       }))
       .filter((s) => s.title.length > 0);
+  }
+
+  // Free classes are owned by everyone: grant an ACTIVE UserLevel to every
+  // member for a published FREE class, so it appears in their classes with no
+  // checkout. No-op unless the class is currently FREE + published. Idempotent
+  // (skipDuplicates); audience capture per member is best-effort.
+  private async grantFreeLevelToAllMembers(levelId: string): Promise<void> {
+    const level = await this.prisma.level.findUnique({ where: { id: levelId } });
+    if (!level || level.type !== 'FREE' || !level.published) return;
+    const users = await this.prisma.user.findMany({
+      select: { id: true, email: true },
+    });
+    if (!users.length) return;
+    await this.prisma.userLevel.createMany({
+      data: users.map((u) => ({
+        userId: u.id,
+        levelId,
+        source: 'MANUAL' as const,
+        status: 'ACTIVE' as const,
+      })),
+      skipDuplicates: true,
+    });
+    for (const u of users) {
+      try {
+        await this.contacts.syncTags(
+          'add',
+          u.email,
+          level.audienceTags,
+          level.audienceId ?? undefined,
+          { userId: u.id, source: 'SIGNUP' },
+        );
+      } catch {
+        // best-effort audience capture; never block the class save
+      }
+    }
   }
 
   async create(dto: CreateLevelDto): Promise<LevelDTO> {
@@ -624,6 +661,15 @@ export class LevelsService {
     });
     if (dto.featuredCourseId) {
       await this.ensureCourseAssigned(dto.featuredCourseId, level.id);
+    }
+    // A published FREE class is owned by everyone — enrol all members now, and
+    // report the resulting count instead of a hard 0.
+    if (level.type === 'FREE' && level.published) {
+      await this.grantFreeLevelToAllMembers(level.id);
+      return this.toDTO(
+        level as LevelWithPrices,
+        await this.activeMemberCount(level.id),
+      );
     }
     // 0 is the true count here, not a placeholder: the class was created moments
     // ago, so no grant can reference it yet.
@@ -736,6 +782,19 @@ export class LevelsService {
           removed,
         );
       }
+    }
+
+    // When a class BECOMES a published FREE class (publishing a FREE draft or
+    // flipping PAID → FREE while published), enrol every member — free classes
+    // are owned by everyone with no checkout. Transition-only, so unrelated
+    // edits don't re-run the grant + audience sync. We never revoke on a later
+    // FREE → PAID flip (existing free members are grandfathered).
+    const wasFreePublished = existing.type === 'FREE' && existing.published;
+    const nowFreePublished =
+      (dto.type ?? existing.type) === 'FREE' &&
+      (dto.published ?? existing.published);
+    if (nowFreePublished && !wasFreePublished) {
+      await this.grantFreeLevelToAllMembers(id);
     }
 
     // Re-read so the response reflects the post-reconcile (active) price set and

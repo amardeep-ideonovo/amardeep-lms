@@ -537,6 +537,7 @@ export interface CourseCard {
   locked: boolean; // computed from the viewer's active levels + course purchases
   lessonCount: number; // total lessons in the course
   completedCount: number; // lessons the viewer has completed (0 for admin/no context)
+  startedCount?: number; // lessons the viewer has opened at least once (drives "In progress")
   // One-off course purchase (Stripe mode=payment). `purchasable` is the
   // member-facing flag: true only when the course is LOCKED for this viewer and a
   // one-time price is configured + active — i.e. show a "Buy this course" button.
@@ -571,6 +572,8 @@ export interface LessonDTO {
   durationSeconds?: number | null; // lesson length (admin-entered); drives curriculum totals
   order: number;
   completed?: boolean;
+  started?: boolean; // member has opened this lesson at least once
+  lastPositionSeconds?: number; // video resume point for this member (0 = start)
   notes?: LessonNoteDTO[]; // downloadable attachments (present on detail views)
   // Present on member detail views ONLY when this lesson is the terminal lesson
   // (last by order) of a class whose certificate feature is active — one entry
