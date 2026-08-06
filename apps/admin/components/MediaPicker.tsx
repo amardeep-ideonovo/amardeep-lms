@@ -7,11 +7,11 @@ import { ApiError, api } from "@/lib/api";
 type MediaKindPick = "image" | "video";
 
 // Reusable media picker: choose from the Media Library OR upload a new file
-// (cataloged in the library), with a preview and a paste-a-URL escape hatch.
-// `value`/`onChange` make it a drop-in for any media-URL field — used by the
-// blog/course/lesson/class forms and injected into the Puck builder. `kind`
-// switches between image and video (the class trailer uses "video"; a pasted
-// Vimeo/MP4 link works for either).
+// (cataloged in the library), with a preview. `value`/`onChange` make it a
+// drop-in for any media-URL field — used by the blog/course/lesson/class forms
+// and injected into the Puck builder. `kind` switches between image and video:
+// images are chosen via Gallery/Upload only, while video also offers a
+// paste-a-URL escape hatch for a Vimeo/MP4 link (the class trailer uses it).
 export default function MediaPicker({
   value,
   onChange,
@@ -118,16 +118,18 @@ export default function MediaPicker({
         hidden
         onChange={(e) => onFile(e.target.files)}
       />
-      <input
-        type="text"
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={
-          kind === "video" ? "…or paste a Vimeo/MP4 URL" : "…or paste a URL"
-        }
-        style={{ marginTop: 6 }}
-      />
+      {/* Images are picked via Gallery/Upload only — no raw URL box. Video
+          keeps the paste-a-link escape hatch for a Vimeo/MP4 URL. */}
+      {kind === "video" && (
+        <input
+          type="text"
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="…or paste a Vimeo/MP4 URL"
+          style={{ marginTop: 6 }}
+        />
+      )}
       {err && <p className="error">{err}</p>}
       {libOpen && (
         <MediaLibraryModal

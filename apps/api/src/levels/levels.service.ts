@@ -556,14 +556,13 @@ export class LevelsService {
     // Stripe is configured. Under a PayPal-only setup the rows are created
     // without a stripePriceId — PayPal plans provision lazily at checkout
     // (billing/paypal/prepare), and ensureStripePrice backfills if Stripe is
-    // connected later.
+    // connected later. A payment gateway is NOT required to author paid
+    // content: with no provider connected the prices are still stored locally
+    // (provider ids null) and get backfilled once the client connects
+    // Stripe/PayPal. The checkout endpoints themselves fail closed until a
+    // gateway exists, so nothing can be sold before it's set up.
     if (dto.type === 'PAID' && dto.prices?.length) {
       const stripeOk = await this.stripe.isConfigured();
-      if (!stripeOk && !(await this.paypal.isConfigured())) {
-        throw new BadRequestException(
-          'Connect Stripe or PayPal in Settings before adding prices to a paid class.',
-        );
-      }
       if (stripeOk) {
         const product = await this.stripe.createProduct(dto.name);
         stripeProductId = product.id;
@@ -807,15 +806,13 @@ export class LevelsService {
     const toArchive = existingActive.filter((e) => !desiredKeys.has(key(e)));
     if (toAdd.length === 0 && toArchive.length === 0) return; // nothing changed
 
-    // New prices need at least one configured provider. Stripe provisions
-    // eagerly here; PayPal plans provision lazily at checkout (paypal/prepare).
+    // A payment gateway is NOT required to author paid content. Stripe
+    // provisions eagerly here when connected; PayPal plans provision lazily at
+    // checkout (paypal/prepare). With no provider connected the new price rows
+    // are still stored locally (provider ids null) and backfill once a gateway
+    // is added.
     const stripeOk =
       toAdd.length > 0 ? await this.stripe.isConfigured() : false;
-    if (toAdd.length > 0 && !stripeOk && !(await this.paypal.isConfigured())) {
-      throw new BadRequestException(
-        'Connect Stripe or PayPal in Settings before adding prices to a paid class.',
-      );
-    }
 
     // A Product must exist before Stripe Prices can be created against it.
     let pid = productId;
