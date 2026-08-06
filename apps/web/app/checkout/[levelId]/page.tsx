@@ -114,6 +114,14 @@ export default function CheckoutPage() {
   const provider = billing.provider;
   const mockMode =
     provider === "paypal" ? !billing.paypalClientId : !billing.publishableKey;
+  // A deployed instance with no configured gateway (or an unreachable billing
+  // config) would otherwise fall into the mock flow, which fakes a success
+  // without charging or granting anything — misleading to a real member. In a
+  // production build we block the purchase and say so plainly. Local dev keeps
+  // mock mode so the flow stays testable without real keys (NODE_ENV is
+  // "development" under `next dev`).
+  const paymentsUnavailable =
+    mockMode && process.env.NODE_ENV === "production";
 
   // Prefill identity from the signed-in profile (State B). Kept editable.
   function applyUser(u: AuthUser | null) {
@@ -277,6 +285,7 @@ export default function CheckoutPage() {
   // Mock PayPal path (no client id configured): validate + account, simulate.
   async function mockPayPalPay() {
     setError(null);
+    if (paymentsUnavailable) return;
     const v = validate();
     if (v) {
       setError(v);
@@ -341,6 +350,7 @@ export default function CheckoutPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (paymentsUnavailable) return; // no gateway on a live instance — see below
     const v = validate();
     if (v) {
       setError(v);
@@ -590,13 +600,20 @@ export default function CheckoutPage() {
 
         {/* PAYMENT INFORMATION */}
         <SectionHead>PAYMENT INFORMATION</SectionHead>
-        <PaymentSection
-          ref={payRef}
-          provider={provider}
-          publishableKey={billing.publishableKey}
-          paypalClientId={billing.paypalClientId}
-          paypal={provider === "paypal" ? paypalDriver : undefined}
-        />
+        {paymentsUnavailable ? (
+          <div className="co-alert" role="status">
+            Online payments aren’t available for this class yet — the site owner
+            hasn’t finished setting up a payment method. Please check back soon.
+          </div>
+        ) : (
+          <PaymentSection
+            ref={payRef}
+            provider={provider}
+            publishableKey={billing.publishableKey}
+            paypalClientId={billing.paypalClientId}
+            paypal={provider === "paypal" ? paypalDriver : undefined}
+          />
+        )}
 
         {/* Coupon — Stripe promotion codes only; PayPal has no coupon engine. */}
         {provider !== "paypal" && (
@@ -673,7 +690,17 @@ export default function CheckoutPage() {
 
         {error && <div className="co-alert co-alert-error">{error}</div>}
 
-        {provider === "paypal" ? (
+        {paymentsUnavailable ? (
+          <button
+            type="button"
+            className="co-btn co-btn--navy co-btn--block co-submit"
+            disabled
+            aria-disabled="true"
+            title="Online payments aren’t available for this class yet."
+          >
+            Payments unavailable
+          </button>
+        ) : provider === "paypal" ? (
           <>
             {submitting && (
               <div className="co-alert">Confirming your subscription…</div>
