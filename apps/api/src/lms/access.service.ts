@@ -63,9 +63,25 @@ export class AccessService {
     return session.levelIds.some((id) => activeLevelIds.has(id));
   }
 
-  // Map of courseId -> number of lessons the user has completed, for progress
-  // bars. One query, aggregated in memory.
+  // Map of courseId -> number of lessons the user has COMPLETED, for progress
+  // bars. One query, aggregated in memory. A LessonProgress row can now be
+  // started-but-not-completed, so completion requires a non-null completedAt.
   async completedCountByCourse(userId: string): Promise<Map<string, number>> {
+    const rows = await this.prisma.lessonProgress.findMany({
+      where: { userId, completedAt: { not: null } },
+      select: { lesson: { select: { courseId: true } } },
+    });
+    const map = new Map<string, number>();
+    for (const r of rows) {
+      const cid = r.lesson.courseId;
+      map.set(cid, (map.get(cid) ?? 0) + 1);
+    }
+    return map;
+  }
+
+  // Map of courseId -> number of lessons the user has STARTED (any progress
+  // row exists — opened at least once). Drives the "In progress" course badge.
+  async startedCountByCourse(userId: string): Promise<Map<string, number>> {
     const rows = await this.prisma.lessonProgress.findMany({
       where: { userId },
       select: { lesson: { select: { courseId: true } } },

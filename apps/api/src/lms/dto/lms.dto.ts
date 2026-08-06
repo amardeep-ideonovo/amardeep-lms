@@ -150,6 +150,13 @@ export class CreateLessonDto {
   order?: number;
 }
 
+// Playback progress heartbeat: the member's current resume position (seconds).
+export class RecordProgressDto {
+  @IsInt()
+  @Min(0)
+  positionSeconds!: number;
+}
+
 export class UpdateLessonDto {
   @IsOptional()
   @IsString()

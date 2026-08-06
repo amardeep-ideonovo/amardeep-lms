@@ -113,7 +113,7 @@ export class CertificatesService {
     const out = new Map<string, number>();
     if (!allIds.length) return out;
     const rows = await this.prisma.lessonProgress.findMany({
-      where: { userId, lessonId: { in: allIds } },
+      where: { userId, lessonId: { in: allIds }, completedAt: { not: null } },
       select: { lessonId: true },
     });
     const done = new Set(rows.map((r) => r.lessonId));
