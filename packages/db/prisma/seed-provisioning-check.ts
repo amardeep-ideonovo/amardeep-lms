@@ -5,6 +5,13 @@
 // them work, in BOTH demo modes, and must keep working across container
 // restarts (the instance compose re-runs the seed on every boot).
 //
+// Second contract, same stakes: with SEED_DEMO_ONCE=true (a literal in the
+// instance compose) demo content is a ONE-SHOT template. It seeds on the first
+// boot, is recorded in SeedState, and is never re-imposed — a restart must not
+// resurrect a class the client deleted or revert an image/branding they
+// changed (scenarios 8–10; this shipped broken once — live instances lost
+// client edits on every deploy).
+//
 // Regression history: the env-driven first admin from 66b75a2 was lost in the
 // d5502c8 seed rewrite, shipping every provisioned instance with only
 // admin@example.com/admin123 (verified live 2026-07-08). This check exists so
@@ -75,6 +82,7 @@ function childEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
     "SEED_ADMIN_EMAIL",
     "SEED_ADMIN_PASSWORD",
     "SEED_DEMO_CONTENT",
+    "SEED_DEMO_ONCE",
   ]) {
     delete env[k];
   }
@@ -364,6 +372,11 @@ async function main() {
       const admins = await db.admin.findMany();
       assert.equal(admins.length, 1, "the owner admin must survive");
       assert.ok(await bcrypt.compare(OWNER.password, admins[0].passwordHash));
+      assert.equal(
+        await db.seedState.count(),
+        0,
+        "the purge must clear the demo-seeded marker with the demo",
+      );
       // The rows' backing files must go with them — this is the check's own
       // media dir, so anything left is the purge forgetting to unlink.
       const leftover = fs
@@ -372,6 +385,110 @@ async function main() {
       assert.deepEqual(leftover, [], "purged media rows must take their files");
     }
     console.log("PASS  demo→baseline conversion purges demo content only");
+
+    // ----- 8. ONE-SHOT mode, first boot (what every provisioned instance now
+    // runs — SEED_DEMO_ONCE=true is a literal in the instance compose): demo
+    // must land in full and the SeedState marker must record it.
+    await db.$disconnect();
+    await recreateDb();
+    migrate();
+    db = new PrismaClient({ datasourceUrl: CHECK_URL });
+    const ONCE_ENV = {
+      SEED_ADMIN_EMAIL: OWNER_ENV_EMAIL,
+      SEED_ADMIN_PASSWORD: OWNER.password,
+      SEED_DEMO_CONTENT: "true",
+      SEED_DEMO_ONCE: "true",
+    };
+    runSeed(ONCE_ENV, "one-shot demo instance, first boot");
+    {
+      assert.ok((await db.level.count()) > 0, "first boot must seed the demo");
+      const state = await db.seedState.findUnique({
+        where: { id: "singleton" },
+      });
+      assert.ok(state, "first demo landing must write the SeedState marker");
+    }
+    console.log("PASS  one-shot first boot seeds the demo and stamps SeedState");
+
+    // ----- 9. THE BUG REPORT (Test Academy): the client deletes a seeded
+    // class, changes another's cover image, rebrands the app, prunes the demo
+    // blog — then the container restarts (deploy, pause/resume, crash). Every
+    // one of those edits must survive the seed re-run.
+    {
+      await db.level.delete({ where: { id: "seed-class-tech" } });
+      await db.level.update({
+        where: { id: "seed-class-music" },
+        data: {
+          name: "My Music Academy",
+          imageUrl: "https://client.example/custom-cover.png",
+        },
+      });
+      await db.appConfig.update({
+        where: { id: "singleton" },
+        data: { config: { title: "Client Academy", tagline: "Ours now." } },
+      });
+      await db.post.deleteMany({ where: { id: { startsWith: "seed-post-" } } });
+    }
+    runSeed(ONCE_ENV, "one-shot demo instance, container restart");
+    {
+      assert.equal(
+        await db.level.findUnique({ where: { id: "seed-class-tech" } }),
+        null,
+        "a class the client deleted must NOT be resurrected by a restart",
+      );
+      const music = await db.level.findUniqueOrThrow({
+        where: { id: "seed-class-music" },
+      });
+      assert.equal(music.name, "My Music Academy");
+      assert.equal(
+        music.imageUrl,
+        "https://client.example/custom-cover.png",
+        "a cover image the client changed must NOT be reverted by a restart",
+      );
+      const cfg = (await db.appConfig.findUniqueOrThrow({
+        where: { id: "singleton" },
+      })).config as { title?: string };
+      assert.equal(
+        cfg.title,
+        "Client Academy",
+        "app branding the client changed must NOT be reverted by a restart",
+      );
+      assert.equal(
+        await db.post.count({ where: { id: { startsWith: "seed-post-" } } }),
+        0,
+        "demo posts the client deleted must NOT be re-seeded by a restart",
+      );
+    }
+    console.log("PASS  one-shot restart leaves client edits untouched");
+
+    // ----- 10. LEGACY instance (demo-seeded by an image that predates the
+    // marker, so no SeedState row — the exact state of live instances at
+    // rollout): the demo footprint must count as already-seeded. The first
+    // post-fix boot stamps the marker and re-imposes NOTHING.
+    {
+      await db.seedState.deleteMany();
+      await db.level.delete({ where: { id: "seed-class-sports" } });
+    }
+    runSeed(ONCE_ENV, "legacy demo instance, first post-fix boot");
+    {
+      assert.equal(
+        await db.level.findUnique({ where: { id: "seed-class-sports" } }),
+        null,
+        "legacy footprint must be treated as seeded — nothing re-imposed",
+      );
+      const music = await db.level.findUniqueOrThrow({
+        where: { id: "seed-class-music" },
+      });
+      assert.equal(
+        music.imageUrl,
+        "https://client.example/custom-cover.png",
+        "legacy stamping must not touch existing rows",
+      );
+      assert.ok(
+        await db.seedState.findUnique({ where: { id: "singleton" } }),
+        "the first post-fix boot must stamp the marker",
+      );
+    }
+    console.log("PASS  legacy demo instance stamped without re-imposing");
 
     console.log("\nSeed provisioning check: ALL PASS");
   } finally {

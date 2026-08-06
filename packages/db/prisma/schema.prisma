@@ -1534,3 +1534,14 @@ model SupportSyncState {
   id           Int      @id @default(1)
   lastPulledAt DateTime @default("1970-01-01T00:00:00Z")
 }
+
+// Single-row marker written by prisma/seed.ts the first time demo content is
+// seeded. On provisioned instances (SEED_DEMO_ONCE=true in the instance
+// compose) its presence makes every later boot SKIP the demo block, so client
+// edits to seeded rows survive restarts. Row existence is the signal; the
+// timestamp is diagnostic. Cleared by the baseline purge and SEED_WIPE.
+model SeedState {
+  id           String   @id
+  demoSeededAt DateTime
+  createdAt    DateTime @default(now())
+}

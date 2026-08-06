@@ -53,7 +53,9 @@ services:
       redis:
         condition: service_healthy
     # Apply migrations, run the (parameterized) seed to create the first admin,
-    # then start. Idempotent on restart: migrate deploy + upsert-only seed.
+    # then start. Idempotent on restart: migrate deploy always; demo content is
+    # ONE-SHOT (SEED_DEMO_ONCE below) — after its first landing the seed stops
+    # touching content, so client edits survive every restart/upgrade.
     command:
       - sh
       - -c
@@ -88,6 +90,13 @@ services:
       CERT_FILES_DIR: /data/files/certificates
       # First-admin + content seeding (see packages/db/prisma/seed.ts).
       SEED_DEMO_CONTENT: ${SEED_DEMO_CONTENT:-false}
+      # On a real instance, sample content is a starting template the client
+      # then OWNS: seed it once, record it (SeedState row), and never re-impose
+      # it — a restart or upgrade must not resurrect deleted classes or revert
+      # changed images/branding. A literal (not host-interpolated) on purpose:
+      # every provisioned instance behaves this way; only dev/CI, which run the
+      # seed outside this compose file, keep refresh-every-run semantics.
+      SEED_DEMO_ONCE: "true"
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:?set SEED_ADMIN_EMAIL}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?set SEED_ADMIN_PASSWORD}
       # The demo catalog's lesson video, read only when SEED_DEMO_CONTENT=true.
