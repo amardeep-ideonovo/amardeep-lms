@@ -3721,7 +3721,18 @@ a.ik-row:hover, .ik-row--hover:hover {
 
 /* ---- course accordion (frame 2c) ---- */
 .ik-stack { display: flex; flex-direction: column; gap: 16px; }
-.ik-course-head { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+/* Deep-teal header band: a full-bleed strip across the top of the course card.
+   The card is always .ik-panel--snug (18px/22px padding), so the negative
+   margins reach its edges; top corners rounded to match the 16px card radius. */
+.ik-course-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: -18px -22px 14px;
+  padding: 15px 22px;
+  border-radius: 16px 16px 0 0;
+  background: linear-gradient(120deg, #d2efe8, #bce6dc);
+}
 .ik-course-thumb { width: 64px; height: 44px; border-radius: 10px; object-fit: cover; flex: none; background: var(--surface-inset); }
 .ik-course-name { font-size: 15px; font-weight: 700; color: var(--text); }
 .ik-course-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
@@ -3736,6 +3747,9 @@ a.ik-row:hover, .ik-row--hover:hover {
 .ik-pill--done { background: var(--teal-tint); color: var(--teal-text); }
 .ik-pill--pct { background: #f1eff7; color: var(--text); }
 .ik-pill--todo { background: #f1eff7; color: var(--text-muted); }
+/* On the teal header band the status pill reads as a clean white chip
+   (keeps each state's text colour: teal done / dark %, muted not-started). */
+.ik-course-head .ik-pill { background: #fff; }
 
 .ik-lesson {
   display: flex;
