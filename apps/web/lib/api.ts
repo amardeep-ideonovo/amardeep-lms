@@ -441,14 +441,19 @@ export const api = {
 export async function fetchSiteHeader(
   path?: string,
 ): Promise<ResolvedHeader | null> {
+  const isServer = typeof window === "undefined";
   try {
     const qs = path ? `?path=${encodeURIComponent(path)}` : "";
-    // SSR (no path) -> guest default, no token; TTL-cache that public response.
-    // Client (with path) -> attach the member token so audience/level rules
-    // resolve for this visitor, and never cache it (per-visitor, token-bearing).
+    // Pass the path so the API runs matchHeader() (honors "hide on section/page")
+    // instead of the exclude-blind guest default — the SSR paint then already
+    // reflects the hide, so a hidden header never flashes on refresh.
+    // Server (SSR): no member token exists (getToken is localStorage-only), so it
+    //   resolves as guest; the path-keyed public response is TTL-cached.
+    // Client: attach the member token so audience/level rules resolve for THIS
+    //   visitor, and never cache it (per-visitor, token-bearing).
     return await request<ResolvedHeader>(`/site/header${qs}`, {
-      auth: !!path,
-      ...(path ? {} : { revalidate: PUBLIC_TTL_SECONDS }),
+      auth: !isServer && !!path,
+      ...(!isServer && path ? {} : { revalidate: PUBLIC_TTL_SECONDS }),
     });
   } catch {
     return null;
