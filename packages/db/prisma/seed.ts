@@ -2544,6 +2544,67 @@ async function seedFirstAdmin(): Promise<Admin> {
 
 // ---------- main ----------
 
+// Slugify matching the app's create-path (levels.service / lms.service).
+function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// Slug fidelity for seeded content. The raw upserts set Level.slug only on the 4
+// demo classes and NEVER set Course.slug, so seeded courses (and the QA-fixture
+// levels) would keep slug=NULL and fall back to the raw-id URL — unlike
+// admin-created classes/courses, which the service always slugs. A MIGRATION
+// can't fix this: the instance boots `migrate deploy && seed`, so migrations run
+// before these rows exist. So we derive slugs here for any NULL-slug Level or
+// Course, using the same base + "-2"/"-3" uniqueness rule the app uses. Runs on
+// every seed and only touches NULL-slug rows (idempotent), so it also heals
+// pre-fix admin-created rows on an existing instance's next boot.
+async function backfillSlugs(): Promise<void> {
+  const firstFree = async (
+    kind: "level" | "course",
+    base: string,
+  ): Promise<string> => {
+    for (let n = 1; ; n++) {
+      const cand = n === 1 ? base : `${base}-${n}`;
+      const clash =
+        kind === "level"
+          ? await prisma.level.findFirst({ where: { slug: cand }, select: { id: true } })
+          : await prisma.course.findFirst({ where: { slug: cand }, select: { id: true } });
+      if (!clash) return cand;
+    }
+  };
+  for (const l of await prisma.level.findMany({
+    where: { slug: null },
+    select: { id: true, name: true },
+  })) {
+    const base = slugify(l.name);
+    if (base) {
+      await prisma.level.update({
+        where: { id: l.id },
+        data: { slug: await firstFree("level", base) },
+      });
+    }
+  }
+  for (const c of await prisma.course.findMany({
+    where: { slug: null },
+    select: { id: true, title: true },
+  })) {
+    const base = slugify(c.title);
+    if (base) {
+      await prisma.course.update({
+        where: { id: c.id },
+        data: { slug: await firstFree("course", base) },
+      });
+    }
+  }
+}
+
 async function main() {
   if (WIPE) {
     await wipeDatabase();
@@ -2551,6 +2612,11 @@ async function main() {
   }
 
   const admin = await seedFirstAdmin();
+
+  // Heal any pre-existing NULL-slug class/course (e.g. admin-created before the
+  // auto-slug feature, or a demo already seeded by a pre-fix image) — runs in
+  // EVERY mode, including the baseline / already-seeded early returns below.
+  await backfillSlugs();
 
   // Real client instances stop here: first admin only, no demo content. The
   // app is fully functional empty — signup's "Free" auto-grant tolerates the
@@ -2598,6 +2664,9 @@ async function main() {
   await seedMemberState(memberId);
   // Last: the keep-sets are derived from what the functions above just wrote.
   await retireStaleSeedRows();
+  // Slug the just-seeded demo courses + QA-fixture levels (raw upserts don't set
+  // slug), so a demo-seeded instance's URLs match an admin-created one.
+  await backfillSlugs();
   // Record the landing in every mode (harmless in dev): under SEED_DEMO_ONCE
   // this is what makes the run above the one and only.
   await markDemoSeeded();
