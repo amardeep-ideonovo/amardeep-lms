@@ -376,7 +376,7 @@ function LessonInner() {
           <nav className="ik-crumbs" aria-label="Breadcrumb">
             <Link href="/dashboard">Dashboard</Link>
             <span aria-hidden="true">›</span>
-            <Link href={`/courses/${lesson.courseId}`}>{course?.title ?? "Course"}</Link>
+            <Link href={`/courses/${course?.slug ?? lesson.courseId}`}>{course?.title ?? "Course"}</Link>
             <span aria-hidden="true">›</span>
             <span className="on">{lessonPos ? `Lesson ${lessonPos.n}` : "Lesson"}</span>
           </nav>

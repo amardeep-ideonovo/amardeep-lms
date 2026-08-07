@@ -68,7 +68,10 @@ function CourseInner() {
       // on failure so we fall back to the generic panel rather than hanging.
       try {
         const cs = await api.courses();
-        if (active) setCourse(cs.find((c) => c.id === courseId) ?? null);
+        if (active)
+          setCourse(
+            cs.find((c) => c.slug === courseId || c.id === courseId) ?? null,
+          );
       } catch {
         /* price/cover are best-effort; generic locked panel is the fallback */
       } finally {

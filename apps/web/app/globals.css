@@ -3791,6 +3791,20 @@ a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: n
   flex: none;
   letter-spacing: 0.02em;
 }
+/* Nest a course's lessons under its header: indent the lesson list and draw a
+   connector rail so they read as children of the course, not a flat list. */
+.ik-lesson-group {
+  margin-left: 8px;
+  padding-left: 22px;
+  border-left: 2px solid var(--row-divider);
+}
+/* Keep the current-lesson highlight aligned with its indented siblings (a
+   self-contained rounded row) instead of the old full-panel bleed. */
+.ik-lesson-group .ik-lesson--current {
+  margin: 0 -10px;
+  padding: 10px 10px;
+  border-radius: 8px;
+}
 
 /* ---- ink side cards (class certificate / up-next) ---- */
 .ik-ink-card {

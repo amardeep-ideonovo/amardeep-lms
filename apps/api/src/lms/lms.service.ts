@@ -62,6 +62,7 @@ export class LmsService {
   private toCourseCard(
     c: {
       id: string;
+      slug: string | null;
       title: string;
       description: string | null;
       thumbnailUrl: string | null;
@@ -88,6 +89,7 @@ export class LmsService {
     const hasOneOffPrice = c.priceActive && (c.priceAmount ?? 0) > 0;
     return {
       id: c.id,
+      slug: c.slug,
       title: c.title,
       description: c.description,
       thumbnailUrl: c.thumbnailUrl,
@@ -137,10 +139,41 @@ export class LmsService {
     return courses.map((c) => this.toCourseCard(c, ctx));
   }
 
+  // Readable URL slug from a course title ("Course 1" -> "course-1"), unique
+  // among courses (suffix -2, -3 on collision). null when the title has no
+  // slug-able characters.
+  private slugify(input: string): string {
+    return input
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[̀-ͯ]/g, '') // strip diacritics
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  private async courseSlugFor(
+    title: string,
+    ignoreId?: string,
+  ): Promise<string | null> {
+    const base = this.slugify(title);
+    if (!base) return null;
+    for (let n = 1; ; n += 1) {
+      const candidate = n === 1 ? base : `${base}-${n}`;
+      const clash = await this.prisma.course.findFirst({
+        where: { slug: candidate, NOT: ignoreId ? { id: ignoreId } : undefined },
+        select: { id: true },
+      });
+      if (!clash) return candidate;
+    }
+  }
+
   async createCourse(dto: CreateCourseDto): Promise<CourseCard> {
     const course = await this.prisma.course.create({
       data: {
         title: dto.title,
+        slug: await this.courseSlugFor(dto.title),
         description: dto.description ?? null,
         thumbnailUrl: dto.thumbnailUrl ?? null,
         coverImageUrl: dto.coverImageUrl ?? null,
@@ -162,11 +195,18 @@ export class LmsService {
     const existing = await this.prisma.course.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Course not found');
 
+    // Backfill a URL slug for courses created before slugs existed; keep an
+    // existing slug stable across title edits so bookmarked URLs don't break.
+    const slug =
+      existing.slug ??
+      (await this.courseSlugFor(dto.title ?? existing.title, id));
+
     const course = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.course.update({
         where: { id },
         data: {
           title: dto.title ?? undefined,
+          slug: slug ?? undefined,
           description: dto.description ?? undefined,
           thumbnailUrl: dto.thumbnailUrl ?? undefined,
           coverImageUrl: dto.coverImageUrl ?? undefined,
@@ -264,8 +304,10 @@ export class LmsService {
     courseId: string,
     userId?: string,
   ): Promise<LessonDTO[]> {
-    const course = await this.prisma.course.findUnique({
-      where: { id: courseId },
+    // Accept a slug or a raw id, so /courses/<slug>/lessons and the legacy
+    // /courses/<id>/lessons both resolve.
+    const course = await this.prisma.course.findFirst({
+      where: { OR: [{ slug: courseId }, { id: courseId }] },
       include: {
         courseLevels: { select: { levelId: true } },
         lessons: {
@@ -282,7 +324,7 @@ export class LmsService {
       const assigned = course.courseLevels.map((cl) => cl.levelId);
       const [activeLevels, owns] = await Promise.all([
         this.access.activeLevelIds(userId),
-        this.access.ownsCourse(userId, courseId),
+        this.access.ownsCourse(userId, course.id),
       ]);
       if (isCourseLocked(assigned, activeLevels, owns)) {
         throw new ForbiddenException('You do not have access to this course');
@@ -295,7 +337,7 @@ export class LmsService {
     >();
     if (userId) {
       const progress = await this.prisma.lessonProgress.findMany({
-        where: { userId, lesson: { courseId } },
+        where: { userId, lesson: { courseId: course.id } },
         select: { lessonId: true, completedAt: true, lastPositionSeconds: true },
       });
       for (const p of progress) {

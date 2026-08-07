@@ -195,7 +195,7 @@ function CourseAccordion({
         )}
       </div>
       {lessons === null ? (
-        <div>
+        <div className="ik-lesson-group">
           {[0, 1].map((i) => (
             <div key={i} className="ik-lesson">
               <span className="ik-skel" style={{ width: 56, height: 38 }} />
@@ -206,7 +206,8 @@ function CourseAccordion({
           ))}
         </div>
       ) : (
-        lessons.map((l) => {
+        <div className="ik-lesson-group">
+          {lessons.map((l) => {
           const isCurrent = l.id === currentLessonId;
           const dur = fmtDuration(l.durationSeconds);
           return (
@@ -240,7 +241,8 @@ function CourseAccordion({
               )}
             </Link>
           );
-        })
+          })}
+        </div>
       )}
     </section>
   );

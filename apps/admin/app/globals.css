@@ -1038,6 +1038,20 @@ select:-webkit-autofill:focus {
   font-size: 12px;
   box-shadow: none;
 }
+/* Highlighted "add another" action — a distinct blue so it stands out from the
+   teal primary submit button and is easy to spot. */
+.btn--add {
+  background: #eef4ff;
+  color: #2563eb;
+  border: 1px dashed #93b4f7;
+  box-shadow: none;
+}
+.btn--add:hover {
+  background: #e0ebff;
+  border-color: #2563eb;
+  color: #1d4ed8;
+  filter: none;
+}
 
 /* ---------- tables ---------- */
 /* Wide tables scroll horizontally inside their card instead of spilling past
