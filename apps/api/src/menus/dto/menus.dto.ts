@@ -25,9 +25,10 @@ export class CreateMenuDto {
   @MaxLength(120)
   name!: string;
 
+  // Render locations to occupy; each element validated/deduped in the service.
   @IsOptional()
-  @IsString()
-  location?: MenuLocation | null;
+  @IsArray()
+  locations?: MenuLocation[];
 }
 
 export class UpdateMenuDto {
@@ -36,9 +37,10 @@ export class UpdateMenuDto {
   @MaxLength(120)
   name?: string;
 
-  // null clears the assignment; a value is validated against known locations.
+  // Omit to leave assignments unchanged; an array (incl. []) sets them exactly.
   @IsOptional()
-  location?: MenuLocation | null;
+  @IsArray()
+  locations?: MenuLocation[];
 }
 
 export class CreateMenuItemDto {

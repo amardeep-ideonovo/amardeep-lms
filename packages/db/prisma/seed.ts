@@ -2119,13 +2119,25 @@ async function seedPopups() {
 async function seedNav() {
   await prisma.menu.upsert({
     where: { id: "seed-menu-header" },
-    update: { name: "Main navigation", location: "HEADER" },
-    create: { id: "seed-menu-header", name: "Main navigation", location: "HEADER" },
+    update: { name: "Main navigation" },
+    create: { id: "seed-menu-header", name: "Main navigation" },
   });
   await prisma.menu.upsert({
     where: { id: "seed-menu-footer" },
-    update: { name: "Footer links", location: "FOOTER" },
-    create: { id: "seed-menu-footer", name: "Footer links", location: "FOOTER" },
+    update: { name: "Footer links" },
+    create: { id: "seed-menu-footer", name: "Footer links" },
+  });
+  // Render-location slots live in their own table (location is the PK, so each
+  // location shows one menu). Upsert on the location to claim/keep the slot.
+  await prisma.menuLocationAssignment.upsert({
+    where: { location: "HEADER" },
+    update: { menuId: "seed-menu-header" },
+    create: { location: "HEADER", menuId: "seed-menu-header" },
+  });
+  await prisma.menuLocationAssignment.upsert({
+    where: { location: "FOOTER" },
+    update: { menuId: "seed-menu-footer" },
+    create: { location: "FOOTER", menuId: "seed-menu-footer" },
   });
 
   type ItemSeed = {

@@ -3681,6 +3681,47 @@ h1,
   cursor: pointer;
 }
 
+/* Multi-select checkbox pills (e.g. Navigation → Locations). A row of toggle
+   chips; the checked chip is tinted with the teal accent. */
+.check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.check-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--surface);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.check-pill:hover {
+  border-color: var(--accent);
+}
+.check-pill input {
+  accent-color: var(--accent);
+  cursor: pointer;
+  margin: 0;
+}
+.check-pill:has(input:checked) {
+  border-color: var(--accent);
+  background: rgba(60, 196, 178, 0.12);
+  color: var(--accent-2);
+  font-weight: 600;
+}
+.check-pill:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* URL + secret + edit-mini */
 .pj-tbl-urlcell,
 .pj-tbl-secretcell {

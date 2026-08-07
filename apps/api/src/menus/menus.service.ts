@@ -48,6 +48,22 @@ export class MenusService {
       ? (loc as MenuLocation)
       : null;
   }
+  // Stable display order (HEADER, FOOTER, MOBILE) for a set of locations.
+  private sortLocations(locs: MenuLocation[]): MenuLocation[] {
+    return [...locs].sort(
+      (a, b) => LOCATIONS.indexOf(a) - LOCATIONS.indexOf(b),
+    );
+  }
+  // Sanitize a requested locations array: keep only valid values, dedupe, sort.
+  private normalizeLocations(input: unknown): MenuLocation[] {
+    if (!Array.isArray(input)) return [];
+    const seen = new Set<MenuLocation>();
+    for (const v of input) {
+      const loc = this.validLocation(v);
+      if (loc) seen.add(loc);
+    }
+    return this.sortLocations([...seen]);
+  }
   private validType(t: unknown): MenuItemType | null {
     return typeof t === 'string' && (ITEM_TYPES as readonly string[]).includes(t)
       ? (t as MenuItemType)
@@ -104,7 +120,10 @@ export class MenusService {
   }
 
   private async buildMenuDTO(menuId: string): Promise<MenuDTO> {
-    const menu = await this.prisma.menu.findUnique({ where: { id: menuId } });
+    const menu = await this.prisma.menu.findUnique({
+      where: { id: menuId },
+      include: { locationAssignments: true },
+    });
     if (!menu) throw new NotFoundException('Menu not found');
     const items = await this.prisma.menuItem.findMany({
       where: { menuId },
@@ -120,7 +139,9 @@ export class MenusService {
     return {
       id: menu.id,
       name: menu.name,
-      location: menu.location as MenuLocation | null,
+      locations: this.sortLocations(
+        menu.locationAssignments.map((a) => a.location as MenuLocation),
+      ),
       items: roots.map((r) => this.toItemDTO(r, byParent)),
       createdAt: menu.createdAt.toISOString(),
     };
@@ -130,12 +151,17 @@ export class MenusService {
   async list(): Promise<MenuListItem[]> {
     const menus = await this.prisma.menu.findMany({
       orderBy: { createdAt: 'asc' },
-      include: { _count: { select: { items: true } } },
+      include: {
+        _count: { select: { items: true } },
+        locationAssignments: true,
+      },
     });
     return menus.map((m) => ({
       id: m.id,
       name: m.name,
-      location: m.location as MenuLocation | null,
+      locations: this.sortLocations(
+        m.locationAssignments.map((a) => a.location as MenuLocation),
+      ),
       itemCount: m._count.items,
     }));
   }
@@ -147,11 +173,19 @@ export class MenusService {
   async create(dto: CreateMenuInput): Promise<MenuDTO> {
     const name = (dto.name ?? '').trim();
     if (!name) throw new BadRequestException('Name is required');
-    const location = this.validLocation(dto.location);
+    const locations = this.normalizeLocations(dto.locations);
     const menu = await this.prisma.$transaction(async (tx) => {
-      if (location)
-        await tx.menu.updateMany({ where: { location }, data: { location: null } });
-      return tx.menu.create({ data: { name: name.slice(0, 120), location } });
+      const m = await tx.menu.create({ data: { name: name.slice(0, 120) } });
+      // Each upsert on the location PK atomically steals that slot from any
+      // menu that previously held it.
+      for (const location of locations) {
+        await tx.menuLocationAssignment.upsert({
+          where: { location },
+          create: { location, menuId: m.id },
+          update: { menuId: m.id },
+        });
+      }
+      return m;
     });
     return this.buildMenuDTO(menu.id);
   }
@@ -166,22 +200,34 @@ export class MenusService {
       if (!n) throw new BadRequestException('Name is required');
       data.name = n.slice(0, 120);
     }
-    const setLocation =
-      dto.location === undefined
-        ? undefined
-        : dto.location === null
-          ? null
-          : this.validLocation(dto.location);
+    // Only an actual array reconciles assignments; anything else (omitted, or a
+    // stray null) leaves them untouched — matches the `locations?: MenuLocation[]`
+    // contract, so a malformed null can't silently wipe every location. Send []
+    // to explicitly clear.
+    const desired = Array.isArray(dto.locations)
+      ? this.normalizeLocations(dto.locations)
+      : undefined;
 
     await this.prisma.$transaction(async (tx) => {
-      if (setLocation)
-        await tx.menu.updateMany({
-          where: { location: setLocation, id: { not: id } },
-          data: { location: null },
-        });
-      if (setLocation !== undefined) data.location = setLocation;
       if (Object.keys(data).length)
         await tx.menu.update({ where: { id }, data });
+      if (desired !== undefined) {
+        // Drop this menu's assignments that are no longer selected...
+        await tx.menuLocationAssignment.deleteMany(
+          desired.length
+            ? { where: { menuId: id, location: { notIn: desired } } }
+            : { where: { menuId: id } },
+        );
+        // ...then (re)claim each selected location, stealing it from any other
+        // menu that held it (upsert on the location PK).
+        for (const location of desired) {
+          await tx.menuLocationAssignment.upsert({
+            where: { location },
+            create: { location, menuId: id },
+            update: { menuId: id },
+          });
+        }
+      }
     });
     return this.buildMenuDTO(id);
   }
@@ -341,18 +387,23 @@ export class MenusService {
   ): Promise<ResolvedMenu | null> {
     const loc = this.validLocation(location);
     if (!loc) return null;
-    const menu = await this.prisma.menu.findUnique({ where: { location: loc } });
-    return menu ? this.resolveMenu(menu.id, userId) : null;
+    const assignment = await this.prisma.menuLocationAssignment.findUnique({
+      where: { location: loc },
+    });
+    return assignment
+      ? this.resolveMenu(assignment.menuId, userId, loc)
+      : null;
   }
 
   async resolveById(id: string, userId?: string): Promise<ResolvedMenu | null> {
     const menu = await this.prisma.menu.findUnique({ where: { id } });
-    return menu ? this.resolveMenu(menu.id, userId) : null;
+    return menu ? this.resolveMenu(menu.id, userId, null) : null;
   }
 
   private async resolveMenu(
     menuId: string,
     userId?: string,
+    location: MenuLocation | null = null,
   ): Promise<ResolvedMenu> {
     const menu = await this.prisma.menu.findUniqueOrThrow({
       where: { id: menuId },
@@ -416,7 +467,7 @@ export class MenusService {
     return {
       id: menu.id,
       name: menu.name,
-      location: menu.location as MenuLocation | null,
+      location,
       items: build(null),
     };
   }

@@ -698,9 +698,10 @@ model AdminNotificationRead {
 
 // ---------- Navigation menus (WordPress-style) ----------
 
-// Where a menu renders on the web site. A location holds at most one menu
-// (@unique). A menu with no location is "embed-only" (placed inside a CMS page
-// via the Puck Menu block, referenced by id).
+// Where a menu renders on the web site. Each location shows AT MOST ONE menu
+// (MenuLocationAssignment.location is the PK), but a menu may occupy SEVERAL
+// locations. A menu with no assignment row is "embed-only" (placed inside a CMS
+// page via the Puck Menu block, referenced by id).
 enum MenuLocation {
   HEADER
   FOOTER
@@ -732,12 +733,25 @@ enum MenuItemVisibility {
 }
 
 model Menu {
-  id        String        @id @default(cuid())
-  name      String
-  location  MenuLocation? @unique
-  items     MenuItem[]
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id                  String                   @id @default(cuid())
+  name                String
+  items               MenuItem[]
+  // A menu may occupy several render locations (each still shows one menu).
+  locationAssignments MenuLocationAssignment[]
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+}
+
+// One render slot (site header / footer / mobile). `location` is the primary
+// key, so a location maps to AT MOST ONE menu; `menuId` is non-unique, so one
+// menu can hold several rows (occupy several locations). Assigning a location
+// is an upsert on this PK — it atomically steals the slot from any prior menu.
+model MenuLocationAssignment {
+  location MenuLocation @id
+  menuId   String
+  menu     Menu         @relation(fields: [menuId], references: [id], onDelete: Cascade)
+
+  @@index([menuId])
 }
 
 model MenuItem {

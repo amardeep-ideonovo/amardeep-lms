@@ -14,6 +14,7 @@ import type {
   PageListItem,
   PostAdminListRow,
 } from "@lms/types";
+import { MENU_LOCATIONS } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
@@ -112,7 +113,9 @@ export default function MenusPage() {
   // create-menu + header edit
   const [newName, setNewName] = useState("");
   const [headerName, setHeaderName] = useState("");
-  const [headerLoc, setHeaderLoc] = useState<MenuLocation | "">("");
+  // Render locations this menu occupies (multi-select; each location still
+  // shows one menu, so checking one steals it from whatever menu had it).
+  const [headerLocs, setHeaderLocs] = useState<MenuLocation[]>([]);
 
   // add-item form
   const [addType, setAddType] = useState<MenuItemType>("PAGE");
@@ -161,7 +164,7 @@ export default function MenusPage() {
       .then((m) => {
         setMenu(m);
         setHeaderName(m.name);
-        setHeaderLoc(m.location ?? "");
+        setHeaderLocs(m.locations ?? []);
         setEditId(null);
       })
       .catch((e) =>
@@ -214,7 +217,7 @@ export default function MenusPage() {
     try {
       const updated = await api.updateMenu(menu.id, {
         name: headerName.trim() || menu.name,
-        location: headerLoc === "" ? null : headerLoc,
+        locations: headerLocs,
       });
       setMenu(updated);
       await reloadMenus();
@@ -437,11 +440,11 @@ export default function MenusPage() {
                   >
                     <span className="menu-list-name">{m.name}</span>
                     <span className="menu-list-meta">
-                      {m.location && (
-                        <span className="badge badge--info">
-                          {LOCATION_LABELS[m.location]}
+                      {m.locations.map((loc) => (
+                        <span key={loc} className="badge badge--info">
+                          {LOCATION_LABELS[loc]}
                         </span>
-                      )}
+                      ))}
                       <span className="muted">{m.itemCount}</span>
                     </span>
                   </button>
@@ -482,24 +485,32 @@ export default function MenusPage() {
                   />
                 </div>
                 <div className="field" style={{ flex: 1 }}>
-                  <label>Location</label>
-                  <select
-                    value={headerLoc}
-                    disabled={!canEdit}
-                    onChange={(e) =>
-                      setHeaderLoc(e.target.value as MenuLocation | "")
-                    }
-                  >
-                    <option value="">— Not assigned —</option>
-                    <option value="HEADER">Header</option>
-                    <option value="FOOTER">Footer</option>
-                    <option value="MOBILE">Mobile</option>
-                  </select>
+                  <label>Locations</label>
+                  <div className="check-row" role="group" aria-label="Locations">
+                    {MENU_LOCATIONS.map((loc) => (
+                      <label key={loc} className="check-pill">
+                        <input
+                          type="checkbox"
+                          disabled={!canEdit}
+                          checked={headerLocs.includes(loc)}
+                          onChange={(e) =>
+                            setHeaderLocs((prev) =>
+                              e.target.checked
+                                ? [...prev, loc]
+                                : prev.filter((l) => l !== loc),
+                            )
+                          }
+                        />
+                        {LOCATION_LABELS[loc]}
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
               <span className="muted profile-hint">
-                A location holds one menu — assigning here moves it off any other
-                menu. Unassigned menus can still be embedded in a page.
+                A location shows one menu, but a menu can occupy several. Checking
+                a location here moves it off whatever menu had it. Leave all
+                unchecked to keep this menu embed-only (placed inside a page).
               </span>
               <div className="row-actions" style={{ marginTop: 14 }}>
                 {canEdit && (

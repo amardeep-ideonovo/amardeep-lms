@@ -63,7 +63,9 @@ export default function MenuPickerField({
       {menus.map((m) => (
         <option key={m.id} value={m.id}>
           {m.name}
-          {m.location ? ` (${m.location.toLowerCase()})` : ""}
+          {m.locations.length
+            ? ` (${m.locations.map((l) => l.toLowerCase()).join("/")})`
+            : ""}
         </option>
       ))}
       {!known ? <option value={value}>{value} (not found)</option> : null}
