@@ -3,8 +3,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MediaDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import MediaCropper from "./MediaCropper";
 
 type MediaKindPick = "image" | "video";
+
+// Formats we can't (or shouldn't) redraw through a canvas cropper: animated
+// GIFs would lose their animation, SVGs are vector. These upload as-is.
+function isCroppable(f: File) {
+  return f.type.startsWith("image/") && f.type !== "image/gif" && f.type !== "image/svg+xml";
+}
+
+// Give the cropped blob a sensible filename + extension for the upload.
+function croppedFileName(original: string, blobType: string) {
+  const ext = blobType === "image/png" ? "png" : "jpg";
+  const base = original.replace(/\.[^./\\]+$/, "") || "image";
+  return `${base}.${ext}`;
+}
 
 // Reusable media picker: choose from the Media Library OR upload a new file
 // (cataloged in the library), with a preview. `value`/`onChange` make it a
@@ -17,12 +31,18 @@ export default function MediaPicker({
   onChange,
   accept,
   kind = "image",
+  aspect,
   disabled,
 }: {
   value: string;
   onChange: (url: string) => void;
   accept?: string;
   kind?: MediaKindPick;
+  // When set (and the picked file is a croppable raster image), an Upload opens
+  // a reposition/zoom dialog locked to this width/height ratio before the file
+  // is sent — so the crop matches how the image renders on the member site.
+  // Omit to upload the original untouched (logos, cert art, generic Puck image).
+  aspect?: number;
   // Read-only mode (e.g. an admin without edit permission): no gallery modal,
   // no upload, no remove, no URL edits — the preview still shows.
   disabled?: boolean;
@@ -31,22 +51,54 @@ export default function MediaPicker({
   const [libOpen, setLibOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // The file awaiting crop-and-upload (null unless the cropper is open).
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Upload a File and thread the resulting URL back; shared by the direct path
+  // and the post-crop path. Clears the <input> so re-picking the same file
+  // re-fires onChange.
+  const uploadFile = useCallback(
+    async (f: File) => {
+      setUploading(true);
+      setErr(null);
+      try {
+        const m = await api.uploadMedia(f);
+        onChange(m.url);
+        return true;
+      } catch (e) {
+        setErr(e instanceof ApiError ? e.message : "Upload failed");
+        return false;
+      } finally {
+        setUploading(false);
+        if (fileRef.current) fileRef.current.value = "";
+      }
+    },
+    [onChange],
+  );
 
   async function onFile(files: FileList | null) {
     const f = files?.[0];
     if (!f) return;
-    setUploading(true);
-    setErr(null);
-    try {
-      const m = await api.uploadMedia(f);
-      onChange(m.url);
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Upload failed");
-    } finally {
-      setUploading(false);
+    // Image fields with a target ratio open the cropper first; everything else
+    // (video, GIF/SVG, or ratio-less pickers) uploads the original directly.
+    if (kind === "image" && aspect != null && isCroppable(f)) {
+      setErr(null);
+      setCropFile(f);
       if (fileRef.current) fileRef.current.value = "";
+      return;
     }
+    await uploadFile(f);
+  }
+
+  async function onCropApply(blob: Blob) {
+    const src = cropFile;
+    if (!src) return;
+    const file = new File([blob], croppedFileName(src.name, blob.type), {
+      type: blob.type,
+    });
+    const ok = await uploadFile(file);
+    if (ok) setCropFile(null);
   }
 
   return (
@@ -130,7 +182,21 @@ export default function MediaPicker({
           style={{ marginTop: 6 }}
         />
       )}
-      {err && <p className="error">{err}</p>}
+      {err && !cropFile && <p className="error">{err}</p>}
+      {cropFile && aspect != null && (
+        <MediaCropper
+          file={cropFile}
+          aspect={aspect}
+          busy={uploading}
+          error={err}
+          onCancel={() => {
+            if (uploading) return;
+            setErr(null);
+            setCropFile(null);
+          }}
+          onApply={onCropApply}
+        />
+      )}
       {libOpen && (
         <MediaLibraryModal
           kind={kind}

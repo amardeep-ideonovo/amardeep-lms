@@ -730,7 +730,7 @@ export default function ClassesPage() {
             <label>
               Class image <span className="muted">(landing-page hero)</span>
             </label>
-            <MediaPicker value={imageUrl} onChange={setImageUrl} />
+            <MediaPicker value={imageUrl} onChange={setImageUrl} aspect={16 / 9} />
           </div>
 
           <div className="field">
@@ -812,6 +812,7 @@ export default function ClassesPage() {
                     <MediaPicker
                       value={s.imageUrl}
                       onChange={(url) => updateSkill(i, { imageUrl: url })}
+                      aspect={3 / 4}
                     />
                   </div>
                   <button
