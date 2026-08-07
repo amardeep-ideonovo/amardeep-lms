@@ -1787,14 +1787,16 @@ export interface MenuItemDTO {
 export interface MenuDTO {
   id: string;
   name: string;
-  location: MenuLocation | null;
+  // Render locations this menu occupies (each location shows one menu; a menu
+  // may occupy several). Empty = unassigned / embed-only.
+  locations: MenuLocation[];
   items: MenuItemDTO[]; // top-level items, each with nested children
   createdAt: string; // ISO
 }
 export interface MenuListItem {
   id: string;
   name: string;
-  location: MenuLocation | null;
+  locations: MenuLocation[];
   itemCount: number;
 }
 
@@ -1809,17 +1811,21 @@ export interface ResolvedMenuItem {
 export interface ResolvedMenu {
   id: string;
   name: string;
+  // The location this menu was resolved for (null when resolved by id). A menu
+  // can occupy several locations, so this reflects the request, not the menu.
   location: MenuLocation | null;
   items: ResolvedMenuItem[];
 }
 
 export interface CreateMenuInput {
   name: string;
-  location?: MenuLocation | null;
+  locations?: MenuLocation[];
 }
 export interface UpdateMenuInput {
   name?: string;
-  location?: MenuLocation | null;
+  // Omit to leave assignments unchanged; an array (incl. []) sets them exactly.
+  // Each listed location is moved off whatever menu previously held it.
+  locations?: MenuLocation[];
 }
 export interface MenuItemInput {
   label: string;

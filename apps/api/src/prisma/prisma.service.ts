@@ -98,6 +98,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get menuItem() {
     return this.client.menuItem;
   }
+  get menuLocationAssignment() {
+    return this.client.menuLocationAssignment;
+  }
   get header() {
     return this.client.header;
   }
