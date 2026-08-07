@@ -1496,6 +1496,14 @@ select:-webkit-autofill:focus {
     inset 0 0 0 2px rgba(255, 255, 255, 0.85);
   pointer-events: none;
 }
+/* Rectangular (non-avatar) media crop: square-ish corners, wider dialog to
+   fit a landscape framing window. */
+.modal--crop-rect {
+  max-width: 520px;
+}
+.cropper-mask--rect {
+  border-radius: var(--radius);
+}
 .cropper-controls {
   display: flex;
   align-items: center;

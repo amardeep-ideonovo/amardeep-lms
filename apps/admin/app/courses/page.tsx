@@ -433,6 +433,7 @@ export default function CoursesPage() {
                       onChange={(url) =>
                         setForm({ ...form, thumbnailUrl: url })
                       }
+                      aspect={1}
                     />
                   </div>
                   <div className="field">
@@ -445,6 +446,7 @@ export default function CoursesPage() {
                       onChange={(url) =>
                         setForm({ ...form, coverImageUrl: url })
                       }
+                      aspect={16 / 9}
                     />
                   </div>
                 </div>
@@ -730,7 +732,7 @@ function CourseLessons({
                   </div>
                   <div className="field">
                     <label>Thumbnail</label>
-                    <MediaPicker value={thumbnailUrl} onChange={setThumbnailUrl} />
+                    <MediaPicker value={thumbnailUrl} onChange={setThumbnailUrl} aspect={16 / 9} />
                   </div>
                 </div>
                 <div className="field">

@@ -497,6 +497,7 @@ export default function BlogPage() {
                     onChange={(url) =>
                       setForm((f) => ({ ...f, coverImageUrl: url }))
                     }
+                    aspect={16 / 9}
                   />
                 </div>
 
