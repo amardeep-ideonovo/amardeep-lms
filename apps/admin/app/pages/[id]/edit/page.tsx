@@ -14,6 +14,7 @@ import { createPuckConfig } from "@lms/puck";
 import type { PageProps, RootProps } from "@lms/puck";
 import type { PageStatus, PuckDocument } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -25,8 +26,9 @@ import PuckColorField from "@/components/PuckColorField";
 type PageData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-const WEB_URL =
-  process.env.NEXT_PUBLIC_WEB_URL?.replace(/\/$/, "") || "http://localhost:3002";
+// The "View" link's member-site origin comes from webUrl() at render time
+// (runtime per-instance value; NEXT_PUBLIC_* would bake localhost into the
+// prebuilt fleet image).
 
 // Editor-side preview for the Puck "Form" block (the real form renders on the site).
 function FormPreview({ formId }: { formId: string }) {
@@ -332,7 +334,7 @@ export default function PageEditor() {
           <>
             <a
               className="btn btn--ghost btn--sm"
-              href={`${WEB_URL}/${slug}`}
+              href={`${webUrl()}/${slug}`}
               target="_blank"
               rel="noopener noreferrer"
             >

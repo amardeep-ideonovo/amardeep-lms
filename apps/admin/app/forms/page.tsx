@@ -18,6 +18,7 @@ import type {
   CreateFormInput,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { apiUrl, webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 
@@ -65,10 +66,10 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 const slugifyKey = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "field";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://localhost:3000";
-const WEB_URL =
-  process.env.NEXT_PUBLIC_WEB_URL?.replace(/\/$/, "") || "http://localhost:3002";
+// Instance origins resolved at RUNTIME (window.__ENV__ / container env via
+// lib/runtime-env) — NEXT_PUBLIC_* is baked at image build time, so on the
+// prebuilt fleet image it would freeze the localhost dev fallback into the
+// embed snippets shown to every client. Called at render, not module scope.
 
 // Read-only render of one field for the live preview canvas.
 function previewField(fld: FormFieldDef) {
@@ -1071,14 +1072,14 @@ export default function FormsPage() {
                   {[
                     {
                       label: "Paste anywhere (script)",
-                      code: `<script src="${API_URL}/forms/${editingId}/embed.js"></script>`,
+                      code: `<script src="${apiUrl()}/forms/${editingId}/embed.js"></script>`,
                     },
                     { label: "Page builder — Form block id", code: editingId },
                     {
                       label: "React component",
                       code: `<FormEmbed formId="${editingId}" />`,
                     },
-                    { label: "Direct link", code: `${WEB_URL}/forms/${editingId}` },
+                    { label: "Direct link", code: `${webUrl()}/forms/${editingId}` },
                   ].map((row) => (
                     <div key={row.label}>
                       <div className="card-head" style={{ marginBottom: 4 }}>

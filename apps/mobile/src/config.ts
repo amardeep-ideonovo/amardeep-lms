@@ -48,8 +48,10 @@ function originOf(url: string): string {
 }
 
 export let API_BASE_URL = BAKED_API_URL ?? "";
-export let WEB_ACCOUNT_URL =
-  BAKED_WEB_ACCOUNT_URL ?? (BAKED_API_URL ? "http://localhost:3002/account" : "");
+// No localhost fallback: a locked build missing EXPO_PUBLIC_WEB_ACCOUNT_URL is
+// a misbuild — empty means "no account link" (call-sites guard on it), which
+// beats sending a real member to a localhost URL.
+export let WEB_ACCOUNT_URL = BAKED_WEB_ACCOUNT_URL ?? "";
 export let WEB_BASE_URL = WEB_ACCOUNT_URL ? originOf(WEB_ACCOUNT_URL) : "";
 
 export function isBound(): boolean {

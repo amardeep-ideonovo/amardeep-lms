@@ -4,12 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { AdminCertificateListDTO, CertificateTemplateDTO } from "@lms/types";
 import { api, API_BASE_URL, ApiError } from "@/lib/api";
+import { webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 
-// Where the member site lives — for "copy verify link".
-const WEB_URL =
-  process.env.NEXT_PUBLIC_WEB_URL?.replace(/\/$/, "") || "http://localhost:3002";
+// Member-site origin for "copy verify link" comes from webUrl() at call time
+// (runtime per-instance value) — NEXT_PUBLIC_* would bake localhost into the
+// prebuilt fleet image.
 
 const PAGE_SIZE = 20;
 
@@ -241,7 +242,7 @@ function IssuedTab({
 
   const copyVerify = async (serial: string) => {
     try {
-      await navigator.clipboard.writeText(`${WEB_URL}/verify/${serial}`);
+      await navigator.clipboard.writeText(`${webUrl()}/verify/${serial}`);
     } catch {
       /* clipboard denied — non-fatal */
     }
