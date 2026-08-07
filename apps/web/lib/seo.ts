@@ -9,10 +9,18 @@ import type { Metadata } from "next";
 export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "LMS";
 
 // Public origin of THIS web app (no trailing slash). Used for canonical URLs,
-// the sitemap, and resolving relative OG images. Falls back to the local dev
-// port (next dev -p 3002).
+// the sitemap, and resolving relative OG images.
+//
+// RUNTIME_WEB_URL comes first: it is the per-instance origin the cloud driver
+// injects into the container (same var /env.js exposes to the browser), and —
+// unlike NEXT_PUBLIC_* — it is NOT inlined at build time, so ONE prebuilt
+// image emits each instance's real domain. NEXT_PUBLIC_SITE_URL stays as a
+// build-time override for single-tenant builds; localhost is the dev fallback.
+// (Consumers are all server-side: metadata, sitemap, robots, JSON-LD.)
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3002"
+  process.env.RUNTIME_WEB_URL ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "http://localhost:3002"
 ).replace(/\/$/, "");
 
 export const SITE_DESCRIPTION =

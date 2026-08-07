@@ -298,7 +298,11 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
             message="Your current membership doesn't include this lesson."
             note="Manage your plan on the web."
             ctaLabel="Open my account"
-            onPress={() => Linking.openURL(WEB_ACCOUNT_URL)}
+            onPress={() => {
+              // Empty when the build/bind carries no account URL — no-op
+              // beats throwing (or sending a member to localhost).
+              if (WEB_ACCOUNT_URL) void Linking.openURL(WEB_ACCOUNT_URL).catch(() => {});
+            }}
           />
         </View>
       </Centered>

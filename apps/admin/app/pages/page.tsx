@@ -3,15 +3,15 @@
 import { useEffect, useState } from "react";
 import type { PageAdminRow, PageListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import { withBase } from "@/lib/base-path";
 
-// Where to open the public "View" link. Set NEXT_PUBLIC_WEB_URL in prod;
-// defaults to the dev member site.
-const WEB_URL =
-  process.env.NEXT_PUBLIC_WEB_URL?.replace(/\/$/, "") || "http://localhost:3002";
+// The public "View" link opens on the member site — origin from webUrl() at
+// render time (runtime per-instance value; NEXT_PUBLIC_* would bake the
+// localhost dev fallback into the prebuilt fleet image).
 
 export default function PagesPage() {
   const { can, loading: authLoading } = useAdminAuth();
@@ -252,7 +252,7 @@ export default function PagesPage() {
                       </button>
                       <a
                         className="btn btn--ghost btn--sm"
-                        href={`${WEB_URL}/${p.slug}`}
+                        href={`${webUrl()}/${p.slug}`}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

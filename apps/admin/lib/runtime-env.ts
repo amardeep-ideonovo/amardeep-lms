@@ -6,7 +6,15 @@
 type RuntimeEnv = { apiUrl?: string; webUrl?: string };
 
 function read(): RuntimeEnv {
-  if (typeof window === "undefined") return {};
+  if (typeof window === "undefined") {
+    // SSR: read the same container vars /__env.js serves, so server-rendered
+    // HTML already carries the instance's real origins (no localhost flash
+    // and no hydration mismatch against the __ENV__-driven client value).
+    return {
+      apiUrl: process.env.RUNTIME_API_URL,
+      webUrl: process.env.RUNTIME_WEB_URL,
+    };
+  }
   return (window as unknown as { __ENV__?: RuntimeEnv }).__ENV__ ?? {};
 }
 
