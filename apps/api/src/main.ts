@@ -143,6 +143,10 @@ async function bootstrap() {
   app.use(
     IMAGES_ROUTE,
     express.static(IMAGES_ROOT, {
+      // Filenames are unique per upload and never mutated, so a long immutable
+      // cache is safe and eliminates re-downloads on repeat visits.
+      immutable: true,
+      maxAge: '365d',
       setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
     }),
   );
@@ -153,6 +157,9 @@ async function bootstrap() {
   app.use(
     MEDIA_ROUTE,
     express.static(MEDIA_ROOT, {
+      // Unique-per-upload filenames → safe to cache immutably for a year.
+      immutable: true,
+      maxAge: '365d',
       setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
     }),
   );

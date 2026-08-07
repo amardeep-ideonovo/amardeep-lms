@@ -24,6 +24,7 @@ import { AutomationService } from '../email/automation.service';
 import { EmailService } from '../email/email.service';
 import { AppConfigService } from '../site/app-config.service';
 import { MediaStorage } from '../media/media.storage';
+import { isOptimizableImage, optimizeImage } from '../media/image-transform';
 import { MEDIA_ROUTE } from '../media/media.config';
 import { ControlPlaneNotifier } from '../control-plane/control-plane.notifier';
 import {
@@ -644,7 +645,7 @@ export class AuthService {
     baseUrl: string,
   ): Promise<AuthAdmin> {
     if (!file) throw new BadRequestException('No file provided');
-    const ext = AVATAR_EXT[file.mimetype];
+    let ext = AVATAR_EXT[file.mimetype];
     if (!ext) {
       throw new BadRequestException(
         'Please choose a JPG, PNG, WebP or GIF image.',
@@ -659,8 +660,23 @@ export class AuthService {
     });
     if (!admin) throw new UnauthorizedException();
 
+    let buffer = file.buffer;
+    let mimeType = file.mimetype;
+    if (isOptimizableImage(file.mimetype)) {
+      // Downscale + WebP so a large phone-camera avatar becomes a few KB.
+      try {
+        const opt = await optimizeImage(buffer);
+        buffer = opt.buffer;
+        ext = opt.ext;
+        mimeType = opt.mimeType;
+      } catch {
+        throw new BadRequestException(
+          "That image couldn't be read — it may be corrupt or not a real image file.",
+        );
+      }
+    }
     const key = `avatar-${adminId}-${Date.now()}${ext}`;
-    await this.storage.put(key, file.buffer, file.mimetype);
+    await this.storage.put(key, buffer, mimeType);
     await this.deleteAvatarFile(admin.avatarUrl); // best-effort cleanup of the old file
 
     const updated = await this.prisma.admin.update({
@@ -681,7 +697,7 @@ export class AuthService {
     baseUrl: string,
   ): Promise<AuthUser> {
     if (!file) throw new BadRequestException('No file provided');
-    const ext = AVATAR_EXT[file.mimetype];
+    let ext = AVATAR_EXT[file.mimetype];
     if (!ext) {
       throw new BadRequestException(
         'Please choose a JPG, PNG, WebP or GIF image.',
@@ -696,8 +712,23 @@ export class AuthService {
     });
     if (!user) throw new UnauthorizedException();
 
+    let buffer = file.buffer;
+    let mimeType = file.mimetype;
+    if (isOptimizableImage(file.mimetype)) {
+      // Downscale + WebP so a large phone-camera avatar becomes a few KB.
+      try {
+        const opt = await optimizeImage(buffer);
+        buffer = opt.buffer;
+        ext = opt.ext;
+        mimeType = opt.mimeType;
+      } catch {
+        throw new BadRequestException(
+          "That image couldn't be read — it may be corrupt or not a real image file.",
+        );
+      }
+    }
     const key = `avatar-${userId}-${Date.now()}${ext}`;
-    await this.storage.put(key, file.buffer, file.mimetype);
+    await this.storage.put(key, buffer, mimeType);
     await this.deleteAvatarFile(user.avatarUrl); // best-effort cleanup of the old file
 
     const updated = await this.prisma.user.update({
