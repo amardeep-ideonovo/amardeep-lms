@@ -18,6 +18,7 @@ import {
   svgDimensions,
   timestampName,
 } from './media.config';
+import { isOptimizableImage, optimizeImage } from './image-transform';
 import { UpdateMediaDto } from './dto/media.dto';
 
 type AssetRow = Prisma.MediaAssetGetPayload<{
@@ -118,7 +119,7 @@ export class MediaService {
     uploadedById: string | null,
   ): Promise<MediaDTO> {
     if (!file) throw new BadRequestException('No file provided');
-    const ext = resolveMediaExt(file.originalname, file.mimetype);
+    let ext = resolveMediaExt(file.originalname, file.mimetype);
     if (!ext) {
       throw new BadRequestException(
         'That file type is not allowed (scripts, markup and executables are blocked).',
@@ -141,22 +142,39 @@ export class MediaService {
       width = d.width;
       height = d.height;
     } else if (mediaKind(file.mimetype, ext) === 'image') {
-      // Magic-byte check: a declared raster image MUST actually parse as one.
-      // image-size reads the header, so a mislabeled file (e.g. HTML/script sent
-      // as image/png) fails here and is REJECTED rather than stored + served.
-      let d: { width?: number; height?: number } | null = null;
-      try {
-        d = imageSize(buffer);
-      } catch {
-        d = null;
+      if (isOptimizableImage(file.mimetype)) {
+        // Downscale + re-encode to WebP: a multi-MB camera photo becomes
+        // ~100–200 KB. sharp throws on a non-image buffer, so this also does the
+        // magic-byte validation (a mislabeled upload is rejected, not stored).
+        try {
+          const opt = await optimizeImage(buffer);
+          buffer = opt.buffer;
+          ext = opt.ext;
+          mimeType = opt.mimeType;
+          width = opt.width;
+          height = opt.height;
+        } catch {
+          throw new BadRequestException(
+            "That image couldn't be read — it may be corrupt or not a real image file.",
+          );
+        }
+      } else {
+        // Non-optimizable raster (e.g. animated GIF): keep as-is, but still
+        // require it to parse as a real image (magic-byte check via image-size).
+        let d: { width?: number; height?: number } | null = null;
+        try {
+          d = imageSize(buffer);
+        } catch {
+          d = null;
+        }
+        if (!d?.width || !d?.height) {
+          throw new BadRequestException(
+            "That image couldn't be read — it may be corrupt or not a real image file.",
+          );
+        }
+        width = d.width;
+        height = d.height;
       }
-      if (!d?.width || !d?.height) {
-        throw new BadRequestException(
-          "That image couldn't be read — it may be corrupt or not a real image file.",
-        );
-      }
-      width = d.width;
-      height = d.height;
     }
 
     const key = timestampName(ext);
