@@ -71,7 +71,11 @@ export default async function RootLayout({
   // — unlike `export const dynamic = "force-dynamic"`, which would ALSO force
   // those fetches to no-store and defeat the cache. (Previously the fetches'
   // cache:"no-store" was the implicit dynamic signal; the TTL cache removed it.)
-  headers();
+  //
+  // The request path (set by middleware.ts as `x-pathname`) also lets us resolve
+  // the site header for THIS route at SSR, so a header hidden on this
+  // section/page never paints on first load — no flash-then-hide on refresh.
+  const path = headers().get("x-pathname") || undefined;
 
   // The header menu depends on the header (which menu it points at), but the
   // footer and app config do NOT — so chain the menu directly onto the header
@@ -80,7 +84,7 @@ export default async function RootLayout({
   // fires the instant the header resolves, in parallel with the rest. The menu
   // is still resolved before render, so the first paint shows the real nav (no
   // fallback flash on refresh).
-  const headerPromise = fetchSiteHeader();
+  const headerPromise = fetchSiteHeader(path);
   const [header, footer, appConfig, headerMenu] = await Promise.all([
     headerPromise,
     fetchFooter(),
