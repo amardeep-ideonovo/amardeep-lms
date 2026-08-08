@@ -36,8 +36,18 @@ const TYPE_BADGE: Record<MenuItemType, string> = {
   ROUTE: "Link",
   CUSTOM: "Link",
 };
-// Add-item types the picker offers (ROUTE is handled by Custom link).
-const ADD_TYPES: { value: MenuItemType; label: string }[] = [
+// Built-in member pages offered directly in the picker. Stored as plain ROUTE
+// items (type ROUTE + fixed internal url) — picker-only sugar, no schema/API
+// change. Keys are picker values, distinct from real MenuItemType values.
+const BUILTIN_ROUTES = {
+  ROUTE_DASHBOARD: { url: "/dashboard", label: "Dashboard" },
+  ROUTE_ACCOUNT: { url: "/account", label: "Account" },
+} as const;
+type BuiltinRouteKey = keyof typeof BUILTIN_ROUTES;
+type AddTypeChoice = MenuItemType | BuiltinRouteKey;
+
+// Add-item types the picker offers (a free-form ROUTE is handled by Custom link).
+const ADD_TYPES: { value: AddTypeChoice; label: string }[] = [
   { value: "PAGE", label: "CMS Page" },
   { value: "CLASS", label: "Class" },
   { value: "CLASS_INDEX", label: "Classes index" },
@@ -45,6 +55,8 @@ const ADD_TYPES: { value: MenuItemType; label: string }[] = [
   { value: "COURSE_INDEX", label: "Courses index" },
   { value: "BLOG_INDEX", label: "Blog index" },
   { value: "BLOG_POST", label: "Blog post" },
+  { value: "ROUTE_DASHBOARD", label: "Dashboard" },
+  { value: "ROUTE_ACCOUNT", label: "Account" },
   { value: "CUSTOM", label: "Custom link" },
 ];
 const VIS_OPTIONS: { value: MenuItemVisibility; label: string }[] = [
@@ -118,7 +130,7 @@ export default function MenusPage() {
   const [headerLocs, setHeaderLocs] = useState<MenuLocation[]>([]);
 
   // add-item form
-  const [addType, setAddType] = useState<MenuItemType>("PAGE");
+  const [addType, setAddType] = useState<AddTypeChoice>("PAGE");
   const [addTarget, setAddTarget] = useState("");
   const [addUrl, setAddUrl] = useState("");
   const [addLabel, setAddLabel] = useState("");
@@ -261,7 +273,13 @@ export default function MenusPage() {
 
   async function addItem() {
     if (!menu) return;
-    const type = addType;
+    // Built-in picks (Dashboard/Account) store as a ROUTE item with a fixed
+    // internal path — same shape a Custom link would produce, just curated.
+    const builtin =
+      addType in BUILTIN_ROUTES
+        ? BUILTIN_ROUTES[addType as BuiltinRouteKey]
+        : null;
+    const type: MenuItemType = builtin ? "ROUTE" : (addType as MenuItemType);
     let label = addLabel.trim();
     const payload: {
       label: string;
@@ -272,7 +290,8 @@ export default function MenusPage() {
       postId?: string;
       url?: string;
     } = { label: "", type };
-    if (type === "PAGE") payload.pageId = addTarget;
+    if (builtin) payload.url = builtin.url;
+    else if (type === "PAGE") payload.pageId = addTarget;
     else if (type === "CLASS") payload.levelId = addTarget;
     else if (type === "COURSE") payload.courseId = addTarget;
     else if (type === "BLOG_POST") payload.postId = addTarget;
@@ -293,7 +312,8 @@ export default function MenusPage() {
       return;
     }
     if (!label) {
-      if (type === "BLOG_INDEX") label = "Blog";
+      if (builtin) label = builtin.label;
+      else if (type === "BLOG_INDEX") label = "Blog";
       else if (type === "CLASS_INDEX") label = "Classes";
       else if (type === "COURSE_INDEX") label = "Courses";
       else if (type === "CUSTOM") label = addUrl.trim();
@@ -540,7 +560,7 @@ export default function MenusPage() {
                     <select
                       value={addType}
                       onChange={(e) => {
-                        setAddType(e.target.value as MenuItemType);
+                        setAddType(e.target.value as AddTypeChoice);
                         setAddTarget("");
                         setAddUrl("");
                       }}
@@ -637,6 +657,12 @@ export default function MenusPage() {
                     )}
                     {addType === "COURSE_INDEX" && (
                       <input value="/dashboard" disabled />
+                    )}
+                    {addType === "ROUTE_DASHBOARD" && (
+                      <input value={BUILTIN_ROUTES.ROUTE_DASHBOARD.url} disabled />
+                    )}
+                    {addType === "ROUTE_ACCOUNT" && (
+                      <input value={BUILTIN_ROUTES.ROUTE_ACCOUNT.url} disabled />
                     )}
                   </div>
                 </div>
