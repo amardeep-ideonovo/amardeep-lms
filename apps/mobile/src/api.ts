@@ -41,6 +41,7 @@ import {
   scopedKey,
   AUTH_TOKEN_BASE,
 } from "./config";
+import { createTokenStore } from "./token-store";
 
 // Namespaced per instance (see config.ts): a shared binary switching between
 // instances must never reuse another instance's session token.
@@ -48,83 +49,49 @@ const tokenKey = () => scopedKey(AUTH_TOKEN_BASE);
 
 // ---------- token storage ----------
 // SecureStore is native-only; on web (incl. the Expo-web preview) fall back to
-// localStorage so the same auth flow runs across platforms.
+// localStorage so the same auth flow runs across platforms. The cache + epoch
+// invariants live in token-store.ts (pure, spec-covered); this wires it to the
+// platform primitives and the live binding key/epoch.
 const isWeb = Platform.OS === "web";
 
-// Takes the resolved key rather than re-deriving it, so the value a cache entry
-// holds is always the value of the exact key that entry is stamped with — even
-// if the binding moves while the read is in flight.
-async function readTokenFromStore(key: string): Promise<string | null> {
-  if (isWeb) {
-    return typeof localStorage !== "undefined" ? localStorage.getItem(key) : null;
-  }
-  return SecureStore.getItemAsync(key);
-}
-
-// ---------- in-memory token cache ----------
-// Every authed request used to await a keychain read (the dashboard's four
-// parallel calls = four of them). The cache is stamped with BOTH the scoped
-// storage key and the binding epoch, and a hit requires both to still match:
-//
-//   * key   — the shared build namespaces the token per instance, so switching
-//             academies changes the key and misses the cache.
-//   * epoch — config.ts bumps it on every bind/unbind. This is the part the key
-//             alone cannot cover: "Switch academy" DELETES the stored token
-//             while its key is still current, so rebinding to that same
-//             academy would otherwise hit a cache entry for a token that no
-//             longer exists and silently resurrect the previous member's
-//             session on a shared device.
-//
-// The entry holds the in-flight promise, so concurrent callers share one read
-// instead of racing separate ones. A rejected read evicts itself and is never
-// cached — the failure still propagates to the caller as before.
-type TokenCache = { key: string; epoch: number; value: Promise<string | null> };
-let tokenCache: TokenCache | null = null;
+const tokenStore = createTokenStore({
+  currentKey: tokenKey,
+  currentEpoch: bindingEpoch,
+  // Takes the resolved key rather than re-deriving it, so the value a cache
+  // entry holds is always the value of the exact key that entry is stamped
+  // with — even if the binding moves while the read is in flight.
+  readItem: async (key) => {
+    if (isWeb) {
+      return typeof localStorage !== "undefined"
+        ? localStorage.getItem(key)
+        : null;
+    }
+    return SecureStore.getItemAsync(key);
+  },
+  writeItem: async (key, value) => {
+    if (isWeb) {
+      if (typeof localStorage !== "undefined") localStorage.setItem(key, value);
+      return;
+    }
+    await SecureStore.setItemAsync(key, value);
+  },
+  deleteItem: async (key) => {
+    if (isWeb) {
+      if (typeof localStorage !== "undefined") localStorage.removeItem(key);
+      return;
+    }
+    await SecureStore.deleteItemAsync(key);
+  },
+});
 
 export function getToken(): Promise<string | null> {
-  const key = tokenKey();
-  const epoch = bindingEpoch();
-  if (tokenCache && tokenCache.key === key && tokenCache.epoch === epoch) {
-    return tokenCache.value;
-  }
-  const entry: TokenCache = {
-    key,
-    epoch,
-    value: readTokenFromStore(key).catch((e: unknown) => {
-      if (tokenCache === entry) tokenCache = null;
-      throw e;
-    }),
-  };
-  tokenCache = entry;
-  return entry.value;
+  return tokenStore.getToken();
 }
-
-// Writers keep the cache authoritative rather than dropping it: the value they
-// just persisted IS the current token for the key/epoch they wrote it under.
-// Both are captured BEFORE the awaited write — if the app rebinds mid-write the
-// value belongs to the previous binding, so it is discarded instead of being
-// filed under the new one.
-async function writeToken(token: string | null): Promise<void> {
-  const key = tokenKey();
-  const epoch = bindingEpoch();
-  if (isWeb) {
-    if (token === null) localStorage.removeItem(key);
-    else localStorage.setItem(key, token);
-  } else if (token === null) {
-    await SecureStore.deleteItemAsync(key);
-  } else {
-    await SecureStore.setItemAsync(key, token);
-  }
-  if (bindingEpoch() === epoch) {
-    tokenCache = { key, epoch, value: Promise.resolve(token) };
-  }
-}
-
 export function setToken(token: string): Promise<void> {
-  return writeToken(token);
+  return tokenStore.setToken(token);
 }
 export function clearToken(): Promise<void> {
-  return writeToken(null);
+  return tokenStore.clearToken();
 }
 
 // ---------- error type so screens can branch on status (e.g. 403 locked) ----------
