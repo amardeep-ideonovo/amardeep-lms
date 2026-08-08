@@ -28,6 +28,7 @@ import type {
   FooterConfig,
   UpdateFooterInput,
   AppConfig,
+  AppWhiteLabelStatus,
   UpdateAppConfigInput,
   AudienceDTO,
   AudienceFieldDTO,
@@ -424,6 +425,9 @@ export const api = {
   getAppConfig: () => request<AppConfig>("GET", "/admin/app/config"),
   updateAppConfig: (input: UpdateAppConfigInput) =>
     request<AppConfig>("PUT", "/admin/app/config", input),
+  // this instance's app track (gates the icon/splash card; null = unknown)
+  getAppWhiteLabelStatus: () =>
+    request<AppWhiteLabelStatus>("GET", "/admin/app/white-label"),
 
   // admin accounts + RBAC (super admin only)
   listAdmins: () => request<AdminDTO[]>("GET", "/admin/admins"),
