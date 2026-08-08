@@ -614,6 +614,97 @@ a {
   color: var(--danger);
 }
 
+/* ---------- responsive shell: sidebar → off-canvas drawer (≤900px) ----------
+   On desktop the sidebar is a fixed-width sticky column. Below 900px it becomes
+   an off-canvas drawer opened by the topbar hamburger, over a tap-to-close
+   scrim, so every admin page gets the full viewport width on phones/tablets. */
+.topbar-burger {
+  display: none;
+} /* desktop: no hamburger */
+.sidebar-scrim {
+  display: none;
+} /* desktop: no backdrop */
+
+@media (max-width: 900px) {
+  /* Sidebar leaves the flex flow (fixed) → .app-main fills the width. */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100dvh;
+    z-index: 80;
+    width: min(84vw, var(--sidebar-w));
+    transform: translateX(-100%);
+    transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+  }
+  .sidebar--open {
+    transform: translateX(0);
+    box-shadow: 24px 0 60px -18px rgba(0, 0, 0, 0.55);
+  }
+
+  .sidebar-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    background: rgba(12, 9, 28, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.24s ease;
+  }
+  .sidebar-scrim--open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Hamburger in the topbar; drop the redundant page title so the search box
+     (pages carry their own H1). */
+  .topbar-burger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    flex: none;
+    margin-left: -6px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+  }
+  .topbar-burger:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .topbar {
+    padding: 0 12px;
+    gap: 8px;
+  }
+  .topbar-title,
+  .topbar-spacer {
+    display: none;
+  }
+  .topbar-search {
+    width: auto;
+    flex: 1;
+    min-width: 0;
+  }
+  .topbar-search .kbd {
+    display: none;
+  }
+
+  /* Full-bleed content on small screens. */
+  .app-content {
+    padding: 16px 14px 24px;
+    border-radius: 0;
+  }
+  .app-content-inner {
+    max-width: none;
+  }
+}
+
 /* ---------- profile page ---------- */
 .profile-avatar-row {
   display: flex;
