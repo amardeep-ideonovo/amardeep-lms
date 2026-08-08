@@ -2056,6 +2056,17 @@ export interface AppConfig {
 export interface UpdateAppConfigInput {
   appConfig: AppConfig;
 }
+// Which mobile-app track this instance is on, pulled by the API from the
+// licensing control plane (per-instance service token). The admin UI gates the
+// "App icon & splash" card on it: those uploads are consumed only by
+// WHITE_LABEL builds. appMode null = UNKNOWN (no control plane configured or
+// unreachable) — consumers must FAIL OPEN (show the card with a clarifying
+// note), never lock a paying white-label client out on a blip.
+export type AppMode = "SHARED" | "WHITE_LABEL";
+export interface AppWhiteLabelStatus {
+  appMode: AppMode | null;
+  whiteLabelRequestedAt: string | null; // ISO; set while an add-on request is pending
+}
 
 // ---------- Projects: internal team chat + task lists (admin-only) ----------
 // A lightweight in-house Slack for back-office staff. Participants are Admins;

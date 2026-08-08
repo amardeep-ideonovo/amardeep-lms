@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { AppColorScheme, AppConfig, AppThemePalette } from "@lms/types";
+import type {
+  AppColorScheme,
+  AppConfig,
+  AppThemePalette,
+  AppWhiteLabelStatus,
+} from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import ColorField from "@/components/ColorField";
 import MediaPicker from "@/components/MediaPicker";
@@ -31,6 +36,10 @@ export default function AppCustomizationBuilder({
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [previewMode, setPreviewMode] = useState<"light" | "dark">("dark");
+  // null = unknown (still loading, no control plane, or unreachable) — the
+  // icon/splash card FAILS OPEN on unknown and only locks on a definitive
+  // "SHARED, nothing requested" answer.
+  const [wl, setWl] = useState<AppWhiteLabelStatus | null>(null);
 
   useEffect(() => {
     api
@@ -40,11 +49,18 @@ export default function AppCustomizationBuilder({
         if (c.colorScheme === "light") setPreviewMode("light");
       })
       .catch((e) => onError(msg(e, "Failed to load app config.")));
+    // Non-fatal by design: a failure just keeps the fail-open unknown state.
+    api
+      .getAppWhiteLabelStatus()
+      .then(setWl)
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!cfg) return <p className="muted">Loading…</p>;
   const ro = !canEdit;
+  const wlRequested = !!wl?.whiteLabelRequestedAt;
+  const wlLocked = wl?.appMode === "SHARED" && !wlRequested;
 
   const upd = (patch: Partial<AppConfig>) => {
     setCfg((c) => (c ? { ...c, ...patch } : c));
@@ -208,7 +224,9 @@ export default function AppCustomizationBuilder({
         {renderPalette("light")}
         {renderPalette("dark")}
 
-        {/* app icon & splash */}
+        {/* app icon & splash — consumed by WHITE-LABEL builds only, so the
+            card is gated on the control-plane app mode. Locked ONLY on a
+            definitive "SHARED, nothing requested"; unknown fails open. */}
         <div className="card">
           <h2>App icon &amp; splash</h2>
           <p
@@ -217,21 +235,54 @@ export default function AppCustomizationBuilder({
               fontSize: 13,
               marginTop: -4,
               marginBottom: 12,
-              borderLeft: "3px solid var(--amber, #f59e0b)",
+              borderLeft: `3px solid ${
+                wlLocked ? "#8b87a3" : "var(--amber, #f59e0b)"
+              }`,
               paddingLeft: 10,
             }}
           >
-            ⚠ The installed app icon and launch splash are part of the app build:
-            they don’t update live like the colors above. Upload{" "}
-            <strong>PNG</strong>s (icon 1024×1024 opaque, splash ≥1242×2436) —
-            the next app build bakes them in automatically; a store submission
-            is still required.
+            {wl?.appMode === "WHITE_LABEL" ? (
+              <>
+                These brand <strong>your white-label app</strong>. The installed
+                icon and launch splash are baked in at build time — they don’t
+                update live like the colors above. Upload <strong>PNG</strong>s
+                (icon 1024×1024 opaque, splash ≥1242×2436); the next app build
+                picks them up automatically, and a store submission is still
+                required.
+              </>
+            ) : wlRequested ? (
+              <>
+                Your <strong>white-label app</strong> request is pending. Upload
+                these now so your first branded build ships fully branded —
+                they’re baked in at build time (<strong>PNG</strong>, icon
+                1024×1024 opaque, splash ≥1242×2436). They never affect the
+                shared LMS app.
+              </>
+            ) : wlLocked ? (
+              <>
+                Available with the <strong>white-label app</strong> add-on:
+                these become the installed icon and launch splash of your own
+                branded app. The shared LMS app always keeps its standard icon,
+                name, and splash, so they’re disabled on your current plan.
+                Request your branded app from your license portal to unlock
+                them.
+              </>
+            ) : (
+              <>
+                ⚠ Used only when a <strong>white-label</strong> (branded) app is
+                built for your academy — the shared LMS app keeps its standard
+                icon and splash. These are baked in at build time, not live like
+                the colors above. Upload <strong>PNG</strong>s (icon 1024×1024
+                opaque, splash ≥1242×2436) — the next app build bakes them in
+                automatically; a store submission is still required.
+              </>
+            )}
           </p>
           <div className="field">
             <label>App icon</label>
             <MediaPicker
               value={cfg.iconUrl ?? ""}
-              disabled={ro}
+              disabled={ro || wlLocked}
               onChange={(url) => upd({ iconUrl: url || null })}
             />
           </div>
@@ -239,7 +290,7 @@ export default function AppCustomizationBuilder({
             <label>Launch splash</label>
             <MediaPicker
               value={cfg.splashUrl ?? ""}
-              disabled={ro}
+              disabled={ro || wlLocked}
               onChange={(url) => upd({ splashUrl: url || null })}
             />
           </div>
