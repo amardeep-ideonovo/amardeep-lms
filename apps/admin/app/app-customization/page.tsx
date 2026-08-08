@@ -29,7 +29,8 @@ export default function AppCustomizationPage() {
         <h1>App Customization</h1>
         <p className="subtitle">
           Brand the mobile app — title, logo, theme colors, and light/dark mode.
-          Changes apply the next time the app launches.
+          Changes go live in members’ apps within about 30 seconds — no app
+          update needed.
         </p>
       </div>
       {error && <p className="error">{error}</p>}
