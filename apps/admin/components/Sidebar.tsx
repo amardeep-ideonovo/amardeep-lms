@@ -7,6 +7,7 @@ import type { AdminSection } from "@lms/types";
 import { getToken, api } from "@/lib/api";
 import { useAppBrand } from "@/lib/app-brand";
 import { useAdminAuth } from "./AdminAuthProvider";
+import { mobileNav, useMobileNavOpen } from "./mobile-nav";
 
 type NavItem = {
   href: string;
@@ -277,6 +278,19 @@ export default function Sidebar() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // Off-canvas drawer state (mobile ≤900px). Close it on navigation and on Esc.
+  const drawerOpen = useMobileNavOpen();
+  useEffect(() => {
+    mobileNav.close();
+  }, [pathname]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") mobileNav.close();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   // Live unread-support badge: poll the mirror's unread count every 30s (no
   // websocket for this surface). Only runs while authenticated.
   const [supportUnread, setSupportUnread] = useState(0);
@@ -335,8 +349,17 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-brand sidebar-brand--row">
+    <>
+      {/* Tap-to-close backdrop for the mobile drawer (hidden ≥900px via CSS). */}
+      <div
+        className={
+          drawerOpen ? "sidebar-scrim sidebar-scrim--open" : "sidebar-scrim"
+        }
+        onClick={() => mobileNav.close()}
+        aria-hidden="true"
+      />
+      <aside className={drawerOpen ? "sidebar sidebar--open" : "sidebar"}>
+        <div className="sidebar-brand sidebar-brand--row">
         {/* Spotlight mark: teal beam + light pool (from the Ink Hero frames) */}
         <span className="brand-mark" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -386,6 +409,7 @@ export default function Sidebar() {
           </span>
         </span>
       </Link>
-    </aside>
+      </aside>
+    </>
   );
 }

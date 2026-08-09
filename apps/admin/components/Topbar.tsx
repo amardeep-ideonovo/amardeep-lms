@@ -12,6 +12,7 @@ import type {
 import { api, clearToken, getToken } from "@/lib/api";
 import { useAdminAuth } from "./AdminAuthProvider";
 import NotificationBell from "./NotificationBell";
+import { mobileNav, useMobileNavOpen } from "./mobile-nav";
 
 // Client-side command / navigation entries. Permission-gated exactly like the
 // sidebar, so the search only offers sections this admin may open.
@@ -163,6 +164,7 @@ export default function Topbar() {
 
   const [avatarOpen, setAvatarOpen] = useState(false);
   const avatarRef = useRef<HTMLDivElement>(null);
+  const navOpen = useMobileNavOpen(); // drawer state (mobile only)
 
   // Debounced server search for entities. Commands are matched client-side.
   useEffect(() => {
@@ -307,6 +309,23 @@ export default function Topbar() {
 
   return (
     <header className="topbar">
+      {/* Opens the off-canvas sidebar drawer (shown only ≤900px). */}
+      <button
+        type="button"
+        className="topbar-burger"
+        aria-label={navOpen ? "Close menu" : "Open menu"}
+        aria-expanded={navOpen}
+        onClick={() => mobileNav.toggle()}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M4 7h16M4 12h16M4 17h16"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
       <span className="topbar-title">{titleForPath(pathname)}</span>
       <div className="topbar-spacer" />
       <div className="topbar-search" ref={boxRef}>
