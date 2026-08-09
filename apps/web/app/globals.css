@@ -1666,6 +1666,27 @@ a.card:hover {
   flex-wrap: wrap;
 }
 
+/* Account page — mobile polish (P3). The header + its action buttons and the
+   avatar edit buttons otherwise staircase awkwardly on a phone. */
+@media (max-width: 560px) {
+  /* Heading stacks above its buttons; buttons then sit in a clean row. */
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .section-actions {
+    width: 100%;
+  }
+  /* Avatar edit controls drop to their own full-width row under the avatar so
+     "Change photo" + "Remove" sit side by side instead of wrapping. */
+  .account-avatar-row {
+    flex-wrap: wrap;
+  }
+  .account-avatar-actions {
+    flex: 1 1 100%;
+  }
+}
+
 .modal--crop {
   max-width: 380px;
 }
