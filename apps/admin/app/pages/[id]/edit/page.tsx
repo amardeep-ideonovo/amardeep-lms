@@ -22,6 +22,10 @@ import FormPickerField from "@/components/FormPickerField";
 import MediaPicker from "@/components/MediaPicker";
 import MenuPickerField from "@/components/MenuPickerField";
 import PuckColorField from "@/components/PuckColorField";
+import {
+  EditorDesktopNotice,
+  useIsNarrow,
+} from "@/components/EditorDesktopNotice";
 
 type PageData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -167,6 +171,9 @@ export default function PageEditor() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, authLoading]);
 
+  // Puck is a drag-and-drop builder — unusable on a phone. Show a gate instead.
+  const narrow = useIsNarrow();
+
   function persist(extra?: { status?: PageStatus }) {
     return api.updatePage(id, {
       data: (latest.current ?? undefined) as unknown as PuckDocument | undefined,
@@ -218,6 +225,16 @@ export default function PageEditor() {
       );
     }
   }
+
+  if (narrow)
+    return (
+      <EditorDesktopNotice
+        fixed
+        backHref="/pages"
+        backLabel="Pages"
+        what="The page builder"
+      />
+    );
 
   if (authLoading)
     return (

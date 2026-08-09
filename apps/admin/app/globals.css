@@ -720,6 +720,45 @@ a {
   }
 }
 
+/* ---------- editor "best on desktop" gate (P2) ---------- */
+.editor-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 40px 22px;
+}
+/* Full-screen for the Puck page/popup editors (their shell chrome is hidden). */
+.editor-gate--fixed {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  min-height: 0;
+  background: var(--bg);
+}
+.editor-gate-card {
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  color: var(--muted);
+}
+.editor-gate-card h2 {
+  font-size: 18px;
+  color: var(--text);
+  margin: 4px 0 0;
+}
+.editor-gate-card p {
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0;
+}
+.editor-gate-card .btn {
+  margin-top: 8px;
+}
+
 /* ---------- profile page ---------- */
 .profile-avatar-row {
   display: flex;
