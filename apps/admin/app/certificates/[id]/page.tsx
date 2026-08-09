@@ -14,6 +14,10 @@ import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 import ColorField from "@/components/ColorField";
+import {
+  EditorDesktopNotice,
+  useIsNarrow,
+} from "@/components/EditorDesktopNotice";
 
 // Visual certificate-template editor. The right side renders the uploaded
 // artwork with the dynamic text fields as draggable boxes; everything is
@@ -234,6 +238,18 @@ export default function CertificateTemplateEditorPage() {
       setError(e instanceof ApiError ? e.message : "Delete failed");
     }
   };
+
+  // The template designer drags text boxes over the artwork — needs a real
+  // screen. Gate it on narrow viewports (renders inside the admin shell).
+  const narrow = useIsNarrow();
+  if (narrow)
+    return (
+      <EditorDesktopNotice
+        backHref="/certificates"
+        backLabel="Certificates"
+        what="The certificate designer"
+      />
+    );
 
   if (authLoading) return <p className="muted">Loading…</p>;
   if (!can("certificates", "read"))
