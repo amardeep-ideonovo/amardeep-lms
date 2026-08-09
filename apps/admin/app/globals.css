@@ -705,6 +705,21 @@ a {
   }
 }
 
+/* ---------- responsive: data tables + stat grid (P1) ---------- */
+@media (max-width: 680px) {
+  /* Wide data tables scroll horizontally (keeping readable column widths)
+     rather than crushing every cell into the viewport — .table-wrap already
+     supplies the x-scroll + momentum. SCOPED to wrapped tables/grids so
+     un-wrapped ones (e.g. the dashboard "recent members" widget) are left as
+     flexible full-width. */
+  .table-wrap .table {
+    min-width: 640px;
+  }
+  .table-wrap .mini-grid {
+    min-width: 600px;
+  }
+}
+
 /* ---------- profile page ---------- */
 .profile-avatar-row {
   display: flex;

@@ -252,6 +252,10 @@ export default function MembersPage() {
           <p className="muted">No members match this filter.</p>
         ) : (
           <>
+            {/* Horizontal-scroll wrapper so the grid keeps readable column
+                widths on narrow screens instead of crushing names/emails
+                (min-width kicks in ≤680px; see globals.css). */}
+            <div className="table-wrap">
             <div
               className="mini-grid mini-grid--head"
               style={{ gridTemplateColumns: GRID }}
@@ -353,6 +357,7 @@ export default function MembersPage() {
                 </div>
               );
             })}
+            </div>
             <div className="table-foot">
               <span>
                 Showing {from}–{to} of {filteredTotal.toLocaleString()}
