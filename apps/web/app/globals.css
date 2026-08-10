@@ -3724,18 +3724,6 @@ a.ik-row:hover, .ik-row--hover:hover {
 }
 .ik-live-more a:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
 
-/* ---- dashboard footer line ---- */
-.ik-foot {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin-top: 30px;
-  color: var(--text-muted);
-  font-size: 12px;
-  flex-wrap: wrap;
-}
-.ik-foot a:hover { color: var(--text-soft); }
-
 /* ---- progress ring (SVG label sizing helpers) ---- */
 .ik-ring { flex: none; }
 .ik-ring text { font-family: var(--font-sans); }

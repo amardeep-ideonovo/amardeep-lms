@@ -3,12 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { AppConfig, AuthUser, ClassTileDTO, MyCertificateDTO } from "@lms/types";
+import type { AuthUser, ClassTileDTO, MyCertificateDTO } from "@lms/types";
 import {
   ApiError,
   api,
   clearToken,
-  fetchAppConfig,
   getCachedMe,
   setCachedMe,
 } from "@/lib/api";
@@ -144,7 +143,6 @@ function DashboardInner() {
   const [classes, setClasses] = useState<ClassTileDTO[] | null>(null);
   const [extras, setExtras] = useState<Map<string, ClassExtras>>(new Map());
   const [certs, setCerts] = useState<MyCertificateDTO[] | null>(null);
-  const [appConfig, setAppConfig] = useState<AppConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Member identity for the personalized greeting. Seeded from the localStorage
   // cache so the name paints immediately (no flash), then refreshed by /auth/me.
@@ -176,9 +174,6 @@ function DashboardInner() {
       .myCertificates()
       .then((rows) => mounted && setCerts(rows))
       .catch(() => mounted && setCerts([]));
-    fetchAppConfig()
-      .then((cfg) => mounted && setAppConfig(cfg))
-      .catch(() => {});
     // Refresh when the member returns to this tab so a class purchased elsewhere
     // (or an admin grant) flips to "Enrolled" without a manual reload.
     const refresh = () => {
@@ -255,9 +250,6 @@ function DashboardInner() {
   const queue = enrolled
     .map((c) => ({ cls: c, next: extras.get(c.id)?.next ?? null }))
     .filter((q): q is { cls: ClassTileDTO; next: NonNullable<typeof q.next> } => !!q.next);
-
-  const brand = appConfig?.title?.trim() || "LMS";
-  const year = new Date().getFullYear();
 
   return (
     <div className="ink-page">
@@ -409,14 +401,6 @@ function DashboardInner() {
         )}
 
         {classes.length === 0 && <p className="empty">No classes are available yet.</p>}
-
-        {/* ---- footer line ---- */}
-        <div className="ik-foot">
-          <span>
-            © {year} {brand}
-          </span>
-          <span>Help · Terms</span>
-        </div>
       </div>
     </div>
   );
