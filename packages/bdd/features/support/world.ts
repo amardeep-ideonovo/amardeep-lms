@@ -37,6 +37,27 @@ export class LmsWorld extends World {
   resetMemberEmail: string | null = null; // fresh member created by the scenario
   resetMemberPassword: string | null = null; // that member's original password
   resetToken: string | null = null; // token extracted from the captured email
+  // account-deletion.feature state — always a FRESH disposable member, NEVER the
+  // seed member@example.com (deleting the shared fixture would break every other
+  // scenario on this long-lived dev DB). The @account-deletion After hook purges
+  // anything left alive.
+  delEmail: string | null = null; // disposable member's email
+  delPassword: string | null = null; // its password
+  delToken: string | null = null; // its session token
+  delId: string | null = null; // its user id
+  delSerial: string | null = null; // a claimed certificate serial (cascade check)
+  restrictedAdminId: string | null = null; // admin lacking members:delete
+  restrictedAdminToken: string | null = null; // that admin's session token
+  disposableMemberIds: string[] = []; // every member id the scenario created
+  private delSeq = 0;
+
+  // A never-seen member email. The suite runs against a long-lived dev DB, so a
+  // fixed address 409s on rerun; the counter also keeps two signups in the same
+  // scenario (e.g. re-registering a freed email) from colliding on the same ms.
+  freshDeleteEmail(): string {
+    this.delSeq += 1;
+    return `bdd-del-${Date.now()}-${process.pid}-${this.delSeq}@example.com`;
+  }
 
   async request(
     method: string,

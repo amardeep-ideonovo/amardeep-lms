@@ -106,6 +106,28 @@ After({ tags: "@cert-default" }, async function (this: LmsWorld) {
   }
 });
 
+// account-deletion.feature creates throwaway members (and sometimes a
+// restricted admin). Purge whatever a scenario left alive — a self-deleted
+// member 404s harmlessly, the others are hard-deleted via the same admin path
+// the feature exercises — so the shared dev DB keeps no throwaway rows.
+After({ tags: "@account-deletion" }, async function (this: LmsWorld) {
+  try {
+    const token = await this.adminToken();
+    for (const id of this.disposableMemberIds) {
+      await this.request("DELETE", `/members/${id}`, { token }).catch(
+        () => undefined,
+      );
+    }
+    if (this.restrictedAdminId) {
+      await this.request("DELETE", `/admin/admins/${this.restrictedAdminId}`, {
+        token,
+      }).catch(() => undefined);
+    }
+  } catch {
+    /* cleanup is best-effort — a failed delete must not fail the scenario */
+  }
+});
+
 // Content created by scenarios lands as real rows in the shared dev database —
 // ACTIVE popups and PUBLISHED posts/pages immediately surface on the live
 // member site. Delete whatever the scenario created so a test run leaves no
