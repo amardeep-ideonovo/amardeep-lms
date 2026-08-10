@@ -99,9 +99,12 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body>
-        {/* Per-instance runtime config — loads before the app bundle so
-            window.__ENV__ (API/web origins) is set when lib/api.ts runs. */}
-        <script src="/env.js" />
+        {/* Per-instance runtime config. `defer` keeps HTML parsing (and the
+            SSR'd first paint) from blocking on this request while still
+            executing before Next's own deferred bundles in document order —
+            window.__ENV__ (API/web origins) is set when lib/api.ts runs; its
+            only reader looks it up at call time, never at module eval. */}
+        <script src="/env.js" defer />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <ToastProvider>
           <Nav
