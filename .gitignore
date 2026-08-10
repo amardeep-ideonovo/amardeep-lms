@@ -31,4 +31,8 @@ apps/mobile/ios/
 
 # mobile store credentials (never commit)
 apps/mobile/play-service-account.json
+# expo-updates OTA code-signing PRIVATE key (the certificate in certs/ IS
+# committed; the private key signs updates and must never be in git — back it
+# up to an EAS secret / secure store)
+apps/mobile/keys/
 apps/control-plane/out/

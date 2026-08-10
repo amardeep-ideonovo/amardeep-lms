@@ -23,7 +23,7 @@ const easProjectId =
 const config = (): ExpoConfig => ({
   name: process.env.INSTANCE_APP_NAME ?? "LMS",
   slug: process.env.INSTANCE_SLUG ?? "lms-mobile",
-  version: "0.1.0",
+  version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "automatic",
