@@ -28,6 +28,7 @@
     },
     "production": {
       "channel": "production",
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_DIRECTORY_URL": "https://thewebpaanda.com",
         "EXPO_PUBLIC_FLEET_DOMAIN": "thewebpaanda.com"
