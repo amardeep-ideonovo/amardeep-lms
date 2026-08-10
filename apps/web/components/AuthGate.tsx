@@ -6,7 +6,20 @@ import { getToken } from "@/lib/api";
 
 // Client-side auth wrapper: redirects to /login when no member token is present.
 // Wrap protected pages with this so unauthenticated users never see content.
-export default function AuthGate({ children }: { children: React.ReactNode }) {
+//
+// The gate resolves in a post-hydration effect (the token lives in
+// localStorage, invisible to SSR), so `fallback` is what the visitor stares at
+// from first paint until the JS bundle lands — pass the page's skeleton to show
+// real perceived progress on a hard reload instead of a bare spinner. It must
+// not contain member data (it renders for logged-out visitors too, briefly,
+// before the /login redirect).
+export default function AuthGate({
+  children,
+  fallback,
+}: {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
 
@@ -20,9 +33,13 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="centered-state">
-        <div className="spinner" aria-label="Loading" />
-      </div>
+      <>
+        {fallback ?? (
+          <div className="centered-state">
+            <div className="spinner" aria-label="Loading" />
+          </div>
+        )}
+      </>
     );
   }
 

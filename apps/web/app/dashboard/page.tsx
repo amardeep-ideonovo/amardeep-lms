@@ -23,6 +23,7 @@ import {
   overallPct,
 } from "@/lib/memberData";
 import AuthGate from "@/components/AuthGate";
+import DashboardSkeleton from "@/components/DashboardSkeleton";
 import PopupHost from "@/components/PopupHost";
 import LiveSessionBar from "@/components/LiveSessionBar";
 
@@ -222,25 +223,9 @@ function DashboardInner() {
     );
   }
   if (!classes) {
-    // Skeleton: band + overview card + card grid shimmer.
-    return (
-      <div className="ink-page">
-        <div className="ik-band">
-          <div className="ik-band-inner">
-            <div className="ik-skel ik-skel--ink" style={{ width: 320, height: 34 }} />
-            <div className="ik-skel ik-skel--ink" style={{ width: 420, height: 16, marginTop: 12 }} />
-          </div>
-        </div>
-        <div className="ik-main">
-          <div className="ik-skel" style={{ height: 144, borderRadius: 18, background: "#fff" }} />
-          <div className="ik-class-grid" style={{ marginTop: 30 }}>
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="ik-skel" style={{ height: 218, borderRadius: 18 }} />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    // Same shimmer the AuthGate fallback + route loading state show, so the
+    // hand-off from first paint to data is seamless (no layout jump).
+    return <DashboardSkeleton />;
   }
 
   // Enrolled first, then the rest to explore (backend name ordering preserved).
@@ -439,7 +424,10 @@ function DashboardInner() {
 
 export default function DashboardPage() {
   return (
-    <AuthGate>
+    // Skeleton (not a spinner) as the gate fallback: it is what SSR emits, so a
+    // hard reload paints the dashboard's shape immediately while the JS bundle
+    // downloads/hydrates — the slow-feeling part of a cold load.
+    <AuthGate fallback={<DashboardSkeleton />}>
       <DashboardInner />
       {/* Active popups targeted at the dashboard (shown on every visit). */}
       <PopupHost context={{ type: "dashboard" }} />
