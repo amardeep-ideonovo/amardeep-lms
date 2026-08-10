@@ -31,14 +31,14 @@ The app currently points at placeholder URLs. In `eas.json`, under
 (Or set them as EAS environment variables / secrets in the Expo dashboard.)
 
 ## 3. Apple (App Store)
-- Apple Developer account; register the bundle id `com.lms.mobile`.
+- Apple Developer account; register the bundle id `com.thewebpaanda.lms`.
 - Create the app record in App Store Connect.
 - In `eas.json` → `submit.production.ios`, set `appleId`, `ascAppId`,
   `appleTeamId`.
 - `eas build` will create/manage signing credentials (or supply your own).
 
 ## 4. Google (Play)
-- Create the app in Google Play Console under `com.lms.mobile`.
+- Create the app in Google Play Console under `com.thewebpaanda.lms`.
 - Create a Play **service-account JSON** and save it as
   `apps/mobile/play-service-account.json` (already gitignored). It is referenced
   by `eas.json` → `submit.production.android.serviceAccountKeyPath`.
