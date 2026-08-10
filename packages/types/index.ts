@@ -732,6 +732,34 @@ export interface MyCertificateDTO {
   issuedAt: string; // ISO
   downloadUrl: string; // "/certificates/:id/download" (Bearer header or ?token=)
 }
+
+// A lifetime course entitlement the member paid for once and keeps forever.
+// Surfaced in the pre-deletion "what you'll lose" summary because deleting the
+// account destroys it (re-obtaining means buying the course again).
+export interface DeleteAccountSummaryCourse {
+  id: string;
+  title: string;
+  amount: number | null; // minor units paid (null for a manual/free grant)
+  currency: string | null;
+  grantedAt: string; // ISO
+}
+
+// Everything a member irrecoverably loses by deleting their account, assembled
+// live from their real data so the confirmation shows true stakes rather than
+// boilerplate (store review + honest consent). Empty arrays / zero counts are
+// the norm — the UI renders only the categories the member actually has.
+export interface DeleteAccountSummaryDTO {
+  email: string;
+  // Active/live subscriptions that will be CANCELED IMMEDIATELY on deletion
+  // (access ends now; no refund of the remaining paid period).
+  subscriptions: SubscriptionDetailDTO[];
+  certificates: MyCertificateDTO[]; // public verify links die permanently
+  lifetimeCourses: DeleteAccountSummaryCourse[];
+  lifetimeLevels: { levelId: string; levelName: string }[]; // paid-in-full plans
+  completedLessons: number;
+  hasPaymentHistory: boolean; // in-app receipts/invoices access is lost
+}
+
 export interface AdminCertificateRow {
   id: string;
   serial: string;
@@ -1618,6 +1646,7 @@ export type AdminNotificationType =
   | "PAYMENT_SUCCEEDED"
   | "INSTALLMENT_PLAN_COMPLETED"
   | "CERTIFICATE_ISSUED"
+  | "MEMBER_DELETED"
   | "SUPPORT_REPLY"
   | "SUPPORT_STATUS"
   | "SUPPORT_INVITED_OPS";
@@ -2678,6 +2707,11 @@ export const ROUTES = {
   mySubscriptionDetails: "GET /billing/subscription-details", // -> SubscriptionDetailDTO[]
   myInvoices: "GET /billing/invoices", // -> InvoiceDTO[] (member's own payment history)
   cancelMyMembership: "POST /billing/subscriptions/:subId/cancel", // member: cancel own sub at period end -> SubscriptionDetailDTO[]
+
+  // account deletion (member self-service + admin)
+  deleteAccountSummary: "GET /auth/me/delete-summary", // -> DeleteAccountSummaryDTO (what erasure destroys)
+  deleteMyAccount: "POST /auth/me/delete", // body { password } -> { ok: true }; cancels subs then purges
+  adminDeleteMember: "DELETE /members/:id", // admin: same purge (members:delete) -> { ok: true }
 
   // billing — PayPal (member; active when admin selects the paypal provider)
   paypalPrepare: "POST /billing/paypal/prepare", // body PayPalPrepareInput -> PayPalPrepareResult (lazy-provisions the plan)

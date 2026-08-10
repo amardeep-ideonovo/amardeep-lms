@@ -380,12 +380,13 @@ export class StripeService {
     customerId: string,
   ): Promise<Stripe.Subscription[]> {
     const stripe = await this.getClient();
-    const res = await stripe.subscriptions.list({
-      customer: customerId,
-      status: 'all',
-      limit: 20,
-    });
-    return res.data;
+    // Auto-paginate: a member can accumulate many (mostly terminal) rows over
+    // time, and account deletion must see EVERY live subscription — a single
+    // page of 20 could push an active sub out of view and leave it billing.
+    // Capped at 100 as a sane backstop against a pathological customer.
+    return stripe.subscriptions
+      .list({ customer: customerId, status: 'all', limit: 100 })
+      .autoPagingToArray({ limit: 100 });
   }
 
   async listInvoices(customerId: string, limit = 24): Promise<Stripe.Invoice[]> {

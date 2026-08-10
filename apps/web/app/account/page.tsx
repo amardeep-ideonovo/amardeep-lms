@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type {
   AuthUser,
+  DeleteAccountSummaryDTO,
   MyCertificateDTO,
   SubscriptionDetailDTO,
 } from "@lms/types";
@@ -117,6 +118,273 @@ function CertificatesSection() {
       </div>
       {error && <p className="alert-error" style={{ marginTop: 10 }}>{error}</p>}
     </section>
+  );
+}
+
+// Danger Zone: permanent, self-service account deletion. Two-step so a member
+// sees their REAL stakes (live subscriptions, certificates, lifetime purchases,
+// progress) — fetched live when the modal opens — before the irreversible
+// confirm. Self-contained: own state, own fetch, own modal.
+function DangerZoneSection() {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [summary, setSummary] = useState<DeleteAccountSummaryDTO | null>(null);
+  const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [dlErr, setDlErr] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function openModal() {
+    setPassword("");
+    setError(null);
+    setLoadErr(null);
+    setDlErr(null);
+    setSummary(null);
+    setOpen(true);
+    api
+      .deleteAccountSummary()
+      .then(setSummary)
+      .catch((e) =>
+        setLoadErr(
+          e instanceof Error ? e.message : "Couldn’t load your account details.",
+        ),
+      );
+  }
+
+  async function confirmDelete(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.deleteMyAccount(password);
+      clearToken();
+      router.replace("/login?deleted=1");
+      // Leave `busy` true through the redirect so the form stays disabled.
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 400) {
+        setError("Password is incorrect");
+      } else if (err instanceof ApiError && err.status === 409) {
+        // Subscription cancel failed — the account still exists. Keep the modal
+        // (and the token) and show the server's message verbatim.
+        setError(err.message);
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Couldn’t delete your account.",
+        );
+      }
+      setBusy(false);
+    }
+  }
+
+  const hasSubs = (summary?.subscriptions.length ?? 0) > 0;
+
+  return (
+    <>
+      <section className="account-section">
+        <h2>Delete account</h2>
+        <p>
+          Permanently delete your account and everything tied to it. This can’t
+          be undone.
+        </p>
+        <button type="button" className="btn btn-danger" onClick={openModal}>
+          Delete my account
+        </button>
+      </section>
+
+      {open && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            if (!busy) setOpen(false);
+          }}
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Delete your account?</h2>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close"
+                disabled={busy}
+                onClick={() => setOpen(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              {loadErr ? (
+                <div className="alert alert-error">{loadErr}</div>
+              ) : !summary ? (
+                <p>Loading your account details…</p>
+              ) : (
+                <div
+                  style={{
+                    maxHeight: "48vh",
+                    overflowY: "auto",
+                    marginBottom: 16,
+                  }}
+                >
+                  <p>
+                    Deleting your account is <strong>permanent</strong>. Here’s
+                    what you’ll lose:
+                  </p>
+
+                  {summary.certificates.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                      <strong>Certificates</strong>
+                      <p style={{ margin: "4px 0 8px" }}>
+                        Public verification links will stop working permanently.
+                        Download any you want to keep first.
+                      </p>
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {summary.certificates.map((c) => (
+                          <li key={c.id} style={{ marginBottom: 8 }}>
+                            {c.className} · {c.serial}{" "}
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              onClick={() =>
+                                api
+                                  .downloadCertificate(c)
+                                  .catch((err) =>
+                                    setDlErr(
+                                      err instanceof Error
+                                        ? err.message
+                                        : "Download failed",
+                                    ),
+                                  )
+                              }
+                            >
+                              Download
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      {dlErr && (
+                        <p className="alert-error" style={{ marginTop: 8 }}>
+                          {dlErr}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {summary.subscriptions.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                      <strong>Subscriptions</strong>
+                      <p style={{ margin: "4px 0 8px" }}>
+                        Canceled immediately — no refund of the remaining period.
+                      </p>
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {summary.subscriptions.map((s) => (
+                          <li key={s.stripeSubId} style={{ marginBottom: 6 }}>
+                            {s.levelName} — {money(s.amount, s.currency)}/
+                            {s.interval}
+                            {s.currentPeriodEnd
+                              ? ` · renews ${fmtDate(s.currentPeriodEnd)}`
+                              : ""}
+                            {s.installmentsTotal != null
+                              ? ` · payment ${s.installmentsPaid ?? 0} of ${s.installmentsTotal} — payments made are forfeited`
+                              : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {summary.lifetimeCourses.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                      <strong>Lifetime courses</strong>
+                      <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                        {summary.lifetimeCourses.map((c) => (
+                          <li key={c.id} style={{ marginBottom: 6 }}>
+                            {c.title}{" "}
+                            {c.amount != null
+                              ? `(${money(c.amount, c.currency ?? "usd")} — lifetime access, destroyed)`
+                              : "(lifetime access, destroyed)"}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {summary.lifetimeLevels.length > 0 && (
+                    <div style={{ marginBottom: 14 }}>
+                      <strong>Lifetime plans</strong>
+                      <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                        {summary.lifetimeLevels.map((l) => (
+                          <li key={l.levelId} style={{ marginBottom: 6 }}>
+                            {l.levelName} — permanent access, destroyed
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {summary.completedLessons > 0 && (
+                    <p style={{ marginBottom: 14 }}>
+                      <strong>Progress:</strong> All progress (
+                      {summary.completedLessons} completed lessons).
+                    </p>
+                  )}
+
+                  {summary.hasPaymentHistory && (
+                    <p style={{ marginBottom: 14 }}>
+                      Your in-app payment history and receipts will no longer be
+                      available.
+                    </p>
+                  )}
+
+                  <p style={{ marginBottom: 0 }}>
+                    Free classes can be re-joined with a new account. Paid
+                    purchases, certificates, and progress cannot.
+                  </p>
+                </div>
+              )}
+
+              <form onSubmit={confirmDelete}>
+                {error && <div className="alert alert-error">{error}</div>}
+                <div className="field">
+                  <label htmlFor="delpw">Confirm your password</label>
+                  <input
+                    id="delpw"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="modal-actions">
+                  <button
+                    type="submit"
+                    className="btn btn-danger"
+                    disabled={busy || !summary}
+                  >
+                    {busy
+                      ? "Deleting…"
+                      : hasSubs
+                        ? "Cancel subscription & delete account"
+                        : "Delete my account"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={busy}
+                    onClick={() => setOpen(false)}
+                  >
+                    Keep my account
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -752,6 +1020,8 @@ function AccountInner() {
           </p>
         </section>
       ) : null}
+
+      <DangerZoneSection />
       </div>
 
       {cancelFor && (

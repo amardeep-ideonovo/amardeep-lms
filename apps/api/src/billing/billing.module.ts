@@ -9,6 +9,6 @@ import { PayPalService } from './paypal.service';
 @Module({
   providers: [BillingService, StripeService, PayPalService],
   controllers: [BillingController],
-  exports: [StripeService, PayPalService],
+  exports: [BillingService, StripeService, PayPalService],
 })
 export class BillingModule {}

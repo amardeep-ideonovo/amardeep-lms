@@ -16,6 +16,7 @@ import { AdminsModule } from './admins/admins.module';
 import { LevelsModule } from './levels/levels.module';
 import { CouponsModule } from './coupons/coupons.module';
 import { MembersModule } from './members/members.module';
+import { AccountModule } from './account/account.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { MediaModule } from './media/media.module';
 import { BillingModule } from './billing/billing.module';
@@ -73,6 +74,7 @@ import { ControlPlaneModule } from './control-plane/control-plane.module';
     LevelsModule,
     CouponsModule,
     MembersModule,
+    AccountModule,
     SubscriptionsModule,
     MediaModule,
     LmsModule,

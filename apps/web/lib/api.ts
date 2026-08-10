@@ -13,6 +13,7 @@ import type {
   ClassTileDTO,
   MemberDashboardDTO,
   CourseCard,
+  DeleteAccountSummaryDTO,
   MyCertificateDTO,
   InvoiceDTO,
   PayPalActivateInput,
@@ -244,6 +245,17 @@ export const api = {
     setToken(res.token);
     return res;
   },
+  // Member self-service account deletion. `deleteAccountSummary` returns the
+  // real stakes (subscriptions/certificates/purchases/progress) to show before
+  // the irreversible confirm; `deleteMyAccount` performs the erasure (409 if a
+  // subscription cancel fails — the account still exists, keep the token).
+  deleteAccountSummary: (): Promise<DeleteAccountSummaryDTO> =>
+    request<DeleteAccountSummaryDTO>("/auth/me/delete-summary"),
+  deleteMyAccount: (password: string): Promise<{ ok: true }> =>
+    request<{ ok: true }>("/auth/me/delete", {
+      method: "POST",
+      body: { password },
+    }),
   // Self-serve password reset (both public). forgotPassword always resolves
   // { ok: true } — the API never reveals whether the email has an account.
   forgotPassword: (email: string) =>

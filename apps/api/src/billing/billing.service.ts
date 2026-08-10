@@ -1263,6 +1263,58 @@ export class BillingService implements OnModuleInit {
     return this.getMySubscriptionDetails(userId);
   }
 
+  /**
+   * Cancel EVERY live subscription for a member IMMEDIATELY, as a hard
+   * precondition of account deletion. Runs while the User row still exists —
+   * after deletion the indexes are gone (UserLevel, the only PayPal index,
+   * cascades; User.stripeCustomerId, the only Stripe link, disappears), and the
+   * lifecycle webhooks silently no-op on a missing user, so an orphaned
+   * subscription would keep billing forever with no way to find or stop it.
+   *
+   * Drives off each provider's own source of truth (Stripe: the customer's live
+   * subscriptions; PayPal: the per-sub status) rather than our mirror, and
+   * reconciles each mirror to CANCELED so the row that survives deletion is
+   * already correct. THROWS on any provider error (or provider outage) — the
+   * caller MUST abort deletion rather than delete a still-billing member.
+   * Returns the provider subscription ids it cancelled (for the audit trail).
+   */
+  async cancelAllSubscriptionsForDeletion(
+    userId: string,
+  ): Promise<{ canceledSubIds: string[] }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Member not found');
+    const canceledSubIds: string[] = [];
+
+    // Stripe: cancel every non-terminal subscription on the customer.
+    if (user.stripeCustomerId) {
+      const subs = await this.stripe.listSubscriptionsForCustomer(
+        user.stripeCustomerId,
+      );
+      for (const sub of subs) {
+        if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
+          continue;
+        }
+        const canceled = await this.stripe.cancelSubscription(sub.id);
+        await this.reconcileSubscription(canceled, `delete:${sub.id}`);
+        canceledSubIds.push(sub.id);
+      }
+    }
+
+    // PayPal: cancel every known sub that isn't already terminal. getSubscription
+    // throws on a PayPal outage, which propagates and aborts the deletion.
+    const paypalSubIds = await this.paypalSubIdsForUser(userId);
+    for (const subId of paypalSubIds) {
+      const live = await this.paypal.getSubscription(subId);
+      if (live.status === 'CANCELLED' || live.status === 'EXPIRED') continue;
+      await this.paypal.cancelSubscription(subId, 'Account deleted by member');
+      const after = await this.paypal.getSubscription(subId);
+      await this.reconcilePayPalSubscription(after, `delete:${subId}`);
+      canceledSubIds.push(subId);
+    }
+
+    return { canceledSubIds };
+  }
+
   // ---------- Webhook ----------
 
   /**

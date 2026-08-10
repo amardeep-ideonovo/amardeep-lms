@@ -16,6 +16,7 @@ const RESERVED = new Set([
   "lessons",
   "blog",
   "account",
+  "delete-account",
   "pricing",
   "checkout",
   "login",
