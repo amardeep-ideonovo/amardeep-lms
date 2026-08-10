@@ -24,7 +24,7 @@ import { Ionicons } from "@expo/vector-icons";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 
 import { api, ApiError, getToken, noteDownloadUrl } from "../api";
-import { API_BASE_URL, WEB_ACCOUNT_URL, scopedKey } from "../config";
+import { API_BASE_URL, scopedKey } from "../config";
 import { Loading, ErrorState, Centered } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { Press } from "../components/Press";
@@ -293,16 +293,14 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
     return (
       <Centered>
         <View style={styles.lockedWrap}>
+          {/* No purchase/account link here: steering members to buy or manage
+              a plan outside the app violates Google Play payments policy and
+              Apple 3.1.1 (outside the US). The note stays as neutral guidance
+              (plain text, no link/price) — the LockedPanel pattern. */}
           <LockedPanel
             title="This lesson is locked"
             message="Your current membership doesn't include this lesson."
-            note="Manage your plan on the web."
-            ctaLabel="Open my account"
-            onPress={() => {
-              // Empty when the build/bind carries no account URL — no-op
-              // beats throwing (or sending a member to localhost).
-              if (WEB_ACCOUNT_URL) void Linking.openURL(WEB_ACCOUNT_URL).catch(() => {});
-            }}
+            note="You can manage your plan from your account on the web."
           />
         </View>
       </Centered>
