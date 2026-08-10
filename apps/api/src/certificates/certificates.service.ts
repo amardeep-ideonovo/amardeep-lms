@@ -526,6 +526,20 @@ export class CertificatesService {
     return { ok: true };
   }
 
+  // Best-effort PDF cleanup for a set of certificate file keys. Used by account
+  // deletion, which collects the keys BEFORE the user delete cascades the rows
+  // (so it can't query by userId afterward). A leaked file is better than a
+  // failed erasure, so every unlink is swallowed.
+  async unlinkCertificateFiles(fileKeys: string[]): Promise<void> {
+    await Promise.all(
+      fileKeys.map((key) =>
+        fs.promises
+          .unlink(path.join(CERT_FILES_DIR, key))
+          .catch(() => undefined),
+      ),
+    );
+  }
+
   // Best-effort PDF cleanup before a Level delete cascades its certificates.
   async unlinkFilesForLevel(levelId: string): Promise<void> {
     const rows = await this.prisma.certificate.findMany({

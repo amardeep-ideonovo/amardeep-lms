@@ -491,6 +491,10 @@ export const api = {
     request<void>("POST", `/members/${memberId}/levels`, { levelId }),
   removeMemberLevel: (memberId: string, levelId: string) =>
     request<void>("DELETE", `/members/${memberId}/levels/${levelId}`),
+  // Hard, irreversible purge (members:delete): cancels the member's
+  // subscriptions first, then erases them. 409 w/ a message if a cancel fails.
+  deleteMember: (memberId: string) =>
+    request<{ ok: true }>("DELETE", `/members/${memberId}`),
   // Admin override: set a member's password without their current one.
   setMemberPassword: (memberId: string, newPassword: string) =>
     request<{ ok: true }>("POST", `/members/${memberId}/password`, {

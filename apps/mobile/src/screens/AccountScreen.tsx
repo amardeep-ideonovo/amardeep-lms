@@ -14,7 +14,11 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
-import type { AuthUser, SubscriptionDetailDTO } from "@lms/types";
+import type {
+  AuthUser,
+  DeleteAccountSummaryDTO,
+  SubscriptionDetailDTO,
+} from "@lms/types";
 
 import { api } from "../api";
 import { useAuth } from "../auth";
@@ -22,7 +26,7 @@ import { Chip } from "../components/Chip";
 import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { useAppConfig } from "../config-provider";
-import { WEB_BASE_URL } from "../config";
+import { IS_LOCKED_BUILD, unbindInstance, WEB_BASE_URL } from "../config";
 import { fmtDate, money } from "../format";
 import type { TabScreenProps } from "../navigation";
 import { optimistic } from "../optimistic";
@@ -100,6 +104,18 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
 
   const [portalBusy, setPortalBusy] = useState(false);
   const [portalError, setPortalError] = useState<string | null>(null);
+
+  // Member self-service account deletion (irreversible). Two-step modal: review
+  // the member's real stakes, then confirm with the account password.
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<"review" | "confirm">("review");
+  const [deleteSummary, setDeleteSummary] =
+    useState<DeleteAccountSummaryDTO | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteLoadError, setDeleteLoadError] = useState<string | null>(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Profile photo upload/remove state.
   const [avatarBusy, setAvatarBusy] = useState<null | "pick" | "remove">(null);
@@ -304,6 +320,69 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
     } finally {
       setPortalBusy(false);
     }
+  }
+
+  // Fetch the "what you'll lose" summary from the live API so the confirm shows
+  // true stakes rather than boilerplate. Kept separate so the review step can
+  // offer a retry when the fetch itself fails.
+  const loadDeleteSummary = useCallback(async () => {
+    setDeleteLoading(true);
+    setDeleteLoadError(null);
+    try {
+      setDeleteSummary(await api.deleteAccountSummary());
+    } catch (e) {
+      setDeleteLoadError(
+        e instanceof Error ? e.message : "Couldn't load your account details."
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  }, []);
+
+  function openDelete() {
+    setDeleteStep("review");
+    setDeleteSummary(null);
+    setDeleteLoadError(null);
+    setDeletePassword("");
+    setDeleteError(null);
+    setDeleteBusy(false);
+    setDeleteOpen(true);
+    void loadDeleteSummary();
+  }
+
+  function closeDelete() {
+    if (deleteBusy) return; // never dismiss mid-request
+    setDeleteOpen(false);
+  }
+
+  async function doDeleteAccount() {
+    if (!deletePassword) {
+      setDeleteError("Enter your password to confirm.");
+      return;
+    }
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      // The DELETE must fire and fully RESOLVE against the CURRENTLY bound API
+      // (the api client reads the live API_BASE_URL per call) before anything
+      // clears the token or instance binding.
+      await api.deleteMyAccount(deletePassword);
+    } catch (e) {
+      // 400 wrong password / 409 subscription-cancel-failed: the account still
+      // exists — surface the server message inline and keep the modal open
+      // (do NOT sign out).
+      setDeleteError(
+        e instanceof Error ? e.message : "Couldn't delete your account."
+      );
+      setDeleteBusy(false);
+      return;
+    }
+    // Deletion succeeded. Sign out first (clears the token; App.tsx swaps to
+    // the auth stack), THEN — for a shared build only — unbind so the app
+    // returns to the Connect screen; a locked/white-label build stops at
+    // sign-out (it serves a single instance for the life of the binary).
+    await signOut();
+    if (!IS_LOCKED_BUILD) await unbindInstance();
   }
 
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -680,6 +759,23 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
               </View>
             ) : null}
 
+            {/* Account deletion lives directly above Sign out, where store
+                reviewers expect it. Opens a two-step confirm modal. */}
+            <View style={styles.card}>
+              <Text style={styles.heading}>Delete account</Text>
+              <Text style={styles.note}>
+                Permanently delete your account and all your data. This can't be
+                undone.
+              </Text>
+              <TouchableOpacity
+                style={styles.btnDanger}
+                onPress={openDelete}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.btnDangerText}>Delete account</Text>
+              </TouchableOpacity>
+            </View>
+
             <Text style={styles.storeNote}>
               Plan upgrades and payments are completed on our website.
             </Text>
@@ -736,6 +832,195 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
             >
               <Text style={styles.btnSecondaryText}>Keep membership</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={deleteOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDelete}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Delete your account?</Text>
+
+            {deleteStep === "review" ? (
+              <>
+                {deleteLoading ? (
+                  <Text style={styles.modalBody}>Loading your details…</Text>
+                ) : deleteLoadError ? (
+                  <>
+                    <Text style={styles.formError}>{deleteLoadError}</Text>
+                    <TouchableOpacity
+                      style={styles.btnSecondary}
+                      onPress={loadDeleteSummary}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.btnSecondaryText}>Try again</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : deleteSummary ? (
+                  <>
+                    <Text style={styles.modalBody}>
+                      This permanently erases your account. Deleting removes:
+                    </Text>
+                    <ScrollView
+                      style={styles.deleteScroll}
+                      keyboardShouldPersistTaps="handled"
+                    >
+                      {deleteSummary.certificates.length > 0 ? (
+                        <View style={styles.deleteGroup}>
+                          <Text style={styles.deleteGroupLabel}>
+                            Certificates
+                          </Text>
+                          {deleteSummary.certificates.map((c) => (
+                            <Text key={c.id} style={styles.deleteItem}>
+                              {c.className} ({c.serial}) — verification link stops
+                              working
+                            </Text>
+                          ))}
+                          <Text style={styles.deleteHint}>
+                            Download any certificates you want to keep first from
+                            "My certificates" in the More section above.
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      {deleteSummary.subscriptions.length > 0 ? (
+                        <View style={styles.deleteGroup}>
+                          <Text style={styles.deleteGroupLabel}>Memberships</Text>
+                          {deleteSummary.subscriptions.map((sub) => (
+                            <View
+                              key={sub.stripeSubId}
+                              style={styles.deleteItemBlock}
+                            >
+                              <Text style={styles.deleteItem}>
+                                {sub.levelName} — {money(sub.amount, sub.currency)}
+                                /{sub.interval}
+                              </Text>
+                              <Text style={styles.deleteDanger}>
+                                Canceled immediately, no refund
+                              </Text>
+                              {sub.installmentsTotal != null ? (
+                                <Text style={styles.deleteDanger}>
+                                  Payment {sub.installmentsPaid ?? 0} of{" "}
+                                  {sub.installmentsTotal} — forfeited
+                                </Text>
+                              ) : null}
+                            </View>
+                          ))}
+                        </View>
+                      ) : null}
+
+                      {deleteSummary.lifetimeCourses.length > 0 ? (
+                        <View style={styles.deleteGroup}>
+                          <Text style={styles.deleteGroupLabel}>Courses</Text>
+                          {deleteSummary.lifetimeCourses.map((c) => (
+                            <Text key={c.id} style={styles.deleteItem}>
+                              {c.title} — lifetime access lost
+                            </Text>
+                          ))}
+                        </View>
+                      ) : null}
+
+                      {deleteSummary.lifetimeLevels.length > 0 ? (
+                        <View style={styles.deleteGroup}>
+                          <Text style={styles.deleteGroupLabel}>
+                            Lifetime plans
+                          </Text>
+                          {deleteSummary.lifetimeLevels.map((l) => (
+                            <Text key={l.levelId} style={styles.deleteItem}>
+                              {l.levelName} — permanent access lost
+                            </Text>
+                          ))}
+                        </View>
+                      ) : null}
+
+                      {deleteSummary.completedLessons > 0 ? (
+                        <View style={styles.deleteGroup}>
+                          <Text style={styles.deleteGroupLabel}>Progress</Text>
+                          <Text style={styles.deleteItem}>
+                            All progress ({deleteSummary.completedLessons} lessons)
+                          </Text>
+                        </View>
+                      ) : null}
+
+                      <Text style={styles.deleteClosing}>
+                        Free classes can be re-joined with a new account. Paid
+                        purchases, certificates and progress cannot.
+                      </Text>
+                    </ScrollView>
+
+                    <TouchableOpacity
+                      style={styles.btnDanger}
+                      onPress={() => {
+                        setDeleteError(null);
+                        setDeleteStep("confirm");
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.btnDangerText}>Continue</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : null}
+
+                <TouchableOpacity
+                  style={[styles.btnSecondary, styles.modalKeep]}
+                  onPress={closeDelete}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.btnSecondaryText}>Keep my account</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.modalBody}>
+                  Enter your password to permanently delete your account. This
+                  can't be undone.
+                </Text>
+                {deleteError ? (
+                  <Text style={styles.formError}>{deleteError}</Text>
+                ) : null}
+                <Text style={styles.inputLabel}>Password</Text>
+                <TextInput
+                  style={styles.input}
+                  value={deletePassword}
+                  onChangeText={setDeletePassword}
+                  secureTextEntry
+                  maxLength={72}
+                  autoCapitalize="none"
+                  editable={!deleteBusy}
+                />
+                <TouchableOpacity
+                  style={[styles.btnDanger, deleteBusy && styles.btnDisabled]}
+                  onPress={doDeleteAccount}
+                  disabled={deleteBusy}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.btnDangerText}>
+                    {deleteBusy
+                      ? "Deleting…"
+                      : deleteSummary && deleteSummary.subscriptions.length > 0
+                        ? "Cancel subscription & delete account"
+                        : "Delete account"}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.btnSecondary, styles.modalKeep]}
+                  onPress={() => {
+                    if (deleteBusy) return;
+                    setDeleteError(null);
+                    setDeleteStep("review");
+                  }}
+                  disabled={deleteBusy}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.btnSecondaryText}>Back</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -975,4 +1260,43 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   },
   btnDangerText: { color: "#ffffff", fontSize: 15, fontWeight: "700", fontFamily: fonts.bold },
   modalKeep: { marginTop: spacing.sm },
+  deleteScroll: { maxHeight: 300, marginBottom: spacing.md },
+  deleteGroup: { marginBottom: spacing.md },
+  deleteGroupLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: spacing.xs,
+    fontFamily: fonts.bold,
+  },
+  deleteItemBlock: { marginBottom: spacing.sm },
+  deleteItem: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 2,
+    fontFamily: fonts.regular,
+  },
+  deleteDanger: {
+    color: colors.danger,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: fonts.semibold,
+  },
+  deleteHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: spacing.xs,
+    fontFamily: fonts.regular,
+  },
+  deleteClosing: {
+    color: colors.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: spacing.xs,
+    fontFamily: fonts.regular,
+  },
 });

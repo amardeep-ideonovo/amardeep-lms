@@ -648,6 +648,7 @@ enum AdminNotificationType {
   PAYMENT_SUCCEEDED // invoice.paid renewal (first invoice suppressed in favor of CREATED)
   INSTALLMENT_PLAN_COMPLETED // paid-in-full installment plan converted to lifetime
   CERTIFICATE_ISSUED // member claimed a class-completion certificate
+  MEMBER_DELETED // a member erased their account (or an admin deleted them)
   // ---- Support ticketing (deep-links to /support/<entityId>) ----
   SUPPORT_REPLY // the client or operator replied on a support ticket
   SUPPORT_STATUS // a support ticket was resolved / reopened / status-changed

@@ -10,6 +10,7 @@ import type {
   MemberStatusFilter,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { dialog } from "@/components/DialogProvider";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import RowMenu from "@/components/RowMenu";
 
@@ -155,6 +156,28 @@ export default function MembersPage() {
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to remove class");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // Hard, irreversible purge. The API cancels any subscription first and can
+  // return a 409 (with a message) if that cancel fails — surface it.
+  async function onDeleteMember(m: MemberRow) {
+    if (
+      !(await dialog.confirm({
+        message: `Permanently delete ${m.email}? This cancels any active subscription immediately and erases the member, their certificates, purchases and progress. This cannot be undone.`,
+        danger: true,
+      }))
+    )
+      return;
+    setBusy(m.id);
+    setError(null);
+    try {
+      await api.deleteMember(m.id);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to delete member");
     } finally {
       setBusy(null);
     }
@@ -351,6 +374,11 @@ export default function MembersPage() {
                           onClick: () => router.push(`/members/${m.id}/edit`),
                         },
                         { label: "Add class…", onClick: () => openGrant(m) },
+                        {
+                          label: "Delete member…",
+                          danger: true,
+                          onClick: () => onDeleteMember(m),
+                        },
                       ]}
                     />
                   </span>

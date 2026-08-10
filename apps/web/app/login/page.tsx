@@ -1,10 +1,21 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api, setToken } from "@/lib/api";
 import SpotlightLogo from "@/components/SpotlightLogo";
+
+// Shown after a member deletes their own account (redirect adds ?deleted=1).
+// Reads search params → must sit inside a <Suspense> boundary.
+function DeletedBanner() {
+  if (useSearchParams().get("deleted") !== "1") return null;
+  return (
+    <div className="alert alert-info">
+      Your account has been permanently deleted.
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -40,6 +51,10 @@ export default function LoginPage() {
         <div className="form-card">
       <h1>Welcome back</h1>
       <p className="sub">Sign in to access your courses.</p>
+
+      <Suspense fallback={null}>
+        <DeletedBanner />
+      </Suspense>
 
       {error && <div className="alert alert-error">{error}</div>}
 

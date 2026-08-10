@@ -26,6 +26,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.6,
     },
+    {
+      url: absoluteUrl("/delete-account"),
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
   ];
 
   const postEntries: Entry[] = posts.map((p): Entry => ({

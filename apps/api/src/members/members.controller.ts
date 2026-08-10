@@ -15,6 +15,7 @@ import { RequirePermission } from '../auth/require-permission.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
 import { MembersService } from './members.service';
+import { AccountDeletionService } from '../account/account-deletion.service';
 import {
   AddMemberLevelDto,
   ListMembersQueryDto,
@@ -25,7 +26,10 @@ import {
 @UseGuards(PermissionsGuard)
 @Controller('members')
 export class MembersController {
-  constructor(private readonly members: MembersService) {}
+  constructor(
+    private readonly members: MembersService,
+    private readonly deletion: AccountDeletionService,
+  ) {}
 
   // Declared BEFORE @Get(':id') — Nest matches in declaration order, so the
   // literal route would otherwise be swallowed and 404 as a member id.
@@ -86,5 +90,19 @@ export class MembersController {
   @RequirePermission('members', 'edit')
   removeLevel(@Param('id') id: string, @Param('levelId') levelId: string) {
     return this.members.removeLevel(id, levelId);
+  }
+
+  // Permanently delete a member and purge their data (GDPR / support). Same
+  // ordered purge as member self-service — cancels subscriptions first, then
+  // erases. Requires the members:delete permission (not just edit).
+  @Delete(':id')
+  @RequirePermission('members', 'delete')
+  remove(
+    @Param('id') id: string,
+    @CurrentUser() principal: AuthenticatedPrincipal,
+  ) {
+    return this.deletion.deleteMember(id, {
+      actor: { kind: 'admin', adminId: principal.sub },
+    });
   }
 }
