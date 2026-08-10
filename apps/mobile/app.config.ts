@@ -21,13 +21,15 @@ const easProjectId =
   process.env.INSTANCE_EAS_PROJECT_ID ?? "0f8efe5e-4424-495d-b4f3-2fe852ff9e90";
 
 const config = (): ExpoConfig => ({
-  name: process.env.INSTANCE_APP_NAME ?? "LMS",
+  name: process.env.INSTANCE_APP_NAME ?? "thewebpaanda Learning",
+  // slug + owner + eas.projectId identify the ONE shared EAS project — do NOT
+  // rebrand them (they're internal, never shown in a store).
   slug: process.env.INSTANCE_SLUG ?? "lms-mobile",
-  version: "0.1.0",
+  version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "automatic",
-  scheme: process.env.INSTANCE_SCHEME ?? "lms",
+  scheme: process.env.INSTANCE_SCHEME ?? "thewebpaanda",
   // OTA (expo-updates): ship JS-only fixes without a store round-trip. The
   // runtime is pinned to the app version, so an OTA update only reaches builds
   // with a matching native runtime — never a JS bundle that needs newer native
@@ -76,8 +78,10 @@ const config = (): ExpoConfig => ({
   ],
   assetBundlePatterns: ["**/*"],
   ios: {
-    supportsTablet: true,
-    bundleIdentifier: process.env.INSTANCE_IOS_BUNDLE_ID ?? "com.lms.mobile",
+    // iPhone-only for v1: iPad support makes Apple review on iPad and require
+    // 13" iPad screenshots + a QA'd tablet layout. Flip to true once that's done.
+    supportsTablet: false,
+    bundleIdentifier: process.env.INSTANCE_IOS_BUNDLE_ID ?? "com.thewebpaanda.lms",
     config: {
       usesNonExemptEncryption: false,
     },
@@ -85,7 +89,7 @@ const config = (): ExpoConfig => ({
   android: {
     // Its own env — do NOT fall back to the iOS bundle id: iOS identifiers
     // allow characters (e.g. hyphens) that are illegal in an Android package.
-    package: process.env.INSTANCE_ANDROID_PACKAGE ?? "com.lms.mobile",
+    package: process.env.INSTANCE_ANDROID_PACKAGE ?? "com.thewebpaanda.lms",
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#221c3d",

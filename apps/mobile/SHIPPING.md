@@ -31,14 +31,14 @@ The app currently points at placeholder URLs. In `eas.json`, under
 (Or set them as EAS environment variables / secrets in the Expo dashboard.)
 
 ## 3. Apple (App Store)
-- Apple Developer account; register the bundle id `com.lms.mobile`.
+- Apple Developer account; register the bundle id `com.thewebpaanda.lms`.
 - Create the app record in App Store Connect.
 - In `eas.json` → `submit.production.ios`, set `appleId`, `ascAppId`,
   `appleTeamId`.
 - `eas build` will create/manage signing credentials (or supply your own).
 
 ## 4. Google (Play)
-- Create the app in Google Play Console under `com.lms.mobile`.
+- Create the app in Google Play Console under `com.thewebpaanda.lms`.
 - Create a Play **service-account JSON** and save it as
   `apps/mobile/play-service-account.json` (already gitignored). It is referenced
   by `eas.json` → `submit.production.android.serviceAccountKeyPath`.
@@ -58,3 +58,35 @@ Both stores ask about data collection. This app collects: account **email + name
 stored in the device keychain (SecureStore). Declare accordingly. Export compliance
 is pre-answered via `app.json` (`ios.config.usesNonExemptEncryption: false` — HTTPS
 only, no custom crypto).
+
+Account deletion (required by both stores because the app has in-app signup) is
+built: members delete from the in-app Account screen, and the public page is
+`https://<member-web>/delete-account` — use that URL in the Play Data-safety form.
+
+## 7. OTA updates & code signing — ⚠ BACK UP THE PRIVATE KEY
+The app ships expo-updates (OTA) so JS-only fixes go out without a store review.
+The signing **certificate** is committed at `certs/certificate.pem` and baked into
+every build via `EXPO_PUBLIC_CODE_SIGNING_CERT` (set in `eas.json` preview +
+production). The app verifies each OTA bundle's signature against it, so a
+compromised Expo/EAS account alone can't push malicious JS to installed apps.
+
+The matching **private key** was generated at `keys/private-key.pem` and is
+**gitignored — it is NOT in the repo**. You MUST:
+1. **Back it up now** (password manager / secure store) AND upload it as an EAS
+   secret, e.g. `eas env:create --name EXPO_UPDATES_PRIVATE_KEY --type file \
+   --value ./keys/private-key.pem --visibility secret`.
+2. Publish signed OTA updates with it:
+   `eas update --channel production --private-key-path keys/private-key.pem`.
+
+**If this private key is lost after a signed binary has shipped, existing installs
+will REJECT every future OTA update** (signature mismatch) and you'd need a full
+store re-release with a fresh cert. Treat it like the Android upload keystore.
+
+To rotate or regenerate (pre-launch only, before any signed binary ships):
+`npx expo-updates codesigning:generate --key-output-directory keys \
+  --certificate-output-directory certs --certificate-validity-duration-years 10 \
+  --certificate-common-name "thewebpaanda LMS"`
+
+Native changes (new dependencies, config plugins, SDK bumps) still require a new
+store build + submit — OTA only ships JS/asset changes for the SAME runtime
+version (`runtimeVersion.policy: "appVersion"`, currently 1.0.0).

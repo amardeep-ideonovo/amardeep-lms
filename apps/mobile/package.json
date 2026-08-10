@@ -1,6 +1,6 @@
 {
   "name": "@lms/mobile",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Expo RN app for the LMS (content + login only; billing on web).",
   "main": "index.ts",
