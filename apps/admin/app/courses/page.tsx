@@ -12,6 +12,7 @@ import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
+import RichTextEditor from "@/components/RichTextEditor";
 import LessonMediaFields, {
   type LessonMediaState,
   emptyLessonMedia,
@@ -427,10 +428,10 @@ export default function CoursesPage() {
 
                 <div className="field">
                   <label>Description</label>
-                  <textarea
+                  <RichTextEditor
                     value={form.description}
-                    onChange={(e) =>
-                      setForm({ ...form, description: e.target.value })
+                    onChange={(html) =>
+                      setForm({ ...form, description: html })
                     }
                   />
                 </div>
@@ -750,10 +751,7 @@ function CourseLessons({
                     Description{" "}
                     <span className="muted">(shown on the lesson)</span>
                   </label>
-                  <textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                  />
+                  <RichTextEditor value={content} onChange={setContent} />
                 </div>
 
                 {/* Two columns: media on the left, metadata on the right. */}
@@ -1072,10 +1070,7 @@ function LessonRow({
           </div>
           <div className="field">
             <label>Description</label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-            />
+            <RichTextEditor value={content} onChange={setContent} />
           </div>
           <LessonMediaFields
             state={media}

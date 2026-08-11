@@ -640,7 +640,12 @@ function LessonInner() {
               </section>
             )}
 
-            {lesson.content && <div className="ik-lesson-content">{lesson.content}</div>}
+            {lesson.content && (
+              <div
+                className="ik-lesson-content rich-text"
+                dangerouslySetInnerHTML={{ __html: lesson.content }}
+              />
+            )}
           </div>
 
           {/* ---- right rail: course lessons + up-next teaser ---- */}

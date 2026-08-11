@@ -1,6 +1,25 @@
 // Small display formatters shared across screens (ports of the web's helpers
 // so both clients render the same strings).
 
+// Strip rich-text HTML to a single plain-text line — for card/teaser previews
+// where a clamped <Text numberOfLines> can't render HTML (full bodies use
+// HtmlView instead). Mirrors apps/web/lib/stripHtml.ts; the value is already
+// sanitized HTML from the API.
+export function stripHtml(html: string | null | undefined): string {
+  if (!html) return "";
+  return html
+    .replace(/<(?:br|\/p|\/h[1-6]|\/li|\/blockquote)\s*>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // "2hr 52min" / "45min" — total class duration (web classes/[slug] fmtTotal).
 export function fmtTotalDuration(totalSeconds: number | null | undefined): string {
   if (!totalSeconds || totalSeconds <= 0) return "";

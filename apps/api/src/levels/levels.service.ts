@@ -29,6 +29,10 @@ import {
   CreateLevelDto,
   UpdateLevelDto,
 } from './dto/level.dto';
+import {
+  toRichHtml,
+  sanitizeRichTextForStore,
+} from '../common/sanitize-html';
 
 type LevelWithPrices = {
   id: string;
@@ -84,7 +88,7 @@ export class LevelsService {
       audienceName: level.audience?.name ?? null,
       stripeProductId: level.stripeProductId,
       imageUrl: level.imageUrl,
-      description: level.description,
+      description: toRichHtml(level.description),
       trailerUrl: level.trailerUrl,
       featuredCourseId: level.featuredCourseId,
       certificateTemplateId: level.certificateTemplateId,
@@ -230,7 +234,7 @@ export class LevelsService {
       name: level.name,
       slug: level.slug,
       imageUrl: level.imageUrl,
-      description: level.description,
+      description: toRichHtml(level.description),
       trailerUrl: level.trailerUrl,
       categories: level.categories.map((c) => ({
         id: c.id,
@@ -487,7 +491,7 @@ export class LevelsService {
     const courseCards: CourseCard[] = courses.map((c) => ({
       id: c.id,
       title: c.title,
-      description: c.description,
+      description: toRichHtml(c.description),
       thumbnailUrl: c.thumbnailUrl,
       coverImageUrl: c.coverImageUrl,
       levelIds: c.courseLevels.map((cl) => cl.levelId),
@@ -636,7 +640,7 @@ export class LevelsService {
         audienceId: dto.audienceId ?? null,
         stripeProductId,
         imageUrl: dto.imageUrl || null,
-        description: dto.description || null,
+        description: sanitizeRichTextForStore(dto.description),
         trailerUrl: dto.trailerUrl || null,
         featuredCourseId: dto.featuredCourseId || null,
         certificateTemplateId: await this.validCertificateTemplateId(
@@ -704,7 +708,9 @@ export class LevelsService {
         // them (so a partial update can't accidentally blank them).
         imageUrl: dto.imageUrl !== undefined ? dto.imageUrl || null : undefined,
         description:
-          dto.description !== undefined ? dto.description || null : undefined,
+          dto.description !== undefined
+            ? sanitizeRichTextForStore(dto.description)
+            : undefined,
         trailerUrl:
           dto.trailerUrl !== undefined ? dto.trailerUrl || null : undefined,
         featuredCourseId:

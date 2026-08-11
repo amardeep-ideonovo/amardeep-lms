@@ -13,6 +13,7 @@ import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
+import RichTextEditor from "@/components/RichTextEditor";
 import RowMenu from "@/components/RowMenu";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
 
@@ -737,12 +738,7 @@ export default function ClassesPage() {
             <label>
               Description <span className="muted">(landing page)</span>
             </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              style={{ minHeight: 80 }}
-              placeholder="What this class teaches…"
-            />
+            <RichTextEditor value={description} onChange={setDescription} />
           </div>
 
           <div className="field">

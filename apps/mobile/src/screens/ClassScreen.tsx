@@ -19,7 +19,7 @@ import type { ClassCertificateStatusDTO, CourseCard } from "@lms/types";
 
 import { useClassPage, useMyClassCourses } from "../queries";
 import { WEB_BASE_URL } from "../config";
-import { fmtTotalDuration, money, vimeoEmbed } from "../format";
+import { fmtTotalDuration, money, vimeoEmbed, stripHtml } from "../format";
 import { CourseRow } from "../components/CourseRow";
 import { ErrorState } from "../components/Screen";
 import { Press } from "../components/Press";
@@ -235,7 +235,7 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
             ) : null}
             {cls.description ? (
               <Text style={styles.heroDesc} numberOfLines={4}>
-                {cls.description}
+                {stripHtml(cls.description)}
               </Text>
             ) : null}
             {meta ? <Text style={styles.heroMeta}>{meta}</Text> : null}

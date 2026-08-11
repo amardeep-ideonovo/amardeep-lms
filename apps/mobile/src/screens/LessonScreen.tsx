@@ -14,6 +14,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { WebView } from "react-native-webview";
@@ -34,6 +35,7 @@ import { PopupHost } from "../components/PopupHost";
 import CertificateClaim from "../components/CertificateClaim";
 import { VideoPlayerView } from "../components/VideoPlayerView";
 import { AudioPlayerView } from "../components/AudioPlayerView";
+import { HtmlView } from "../components/HtmlView";
 import { vimeoEmbed, youtubeEmbed, isProviderVideoUrl } from "../format";
 import { lessonSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
@@ -59,6 +61,7 @@ function fmtClock(seconds: number): string {
 export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
+  const { width } = useWindowDimensions();
   const queryClient = useQueryClient();
   // `seed` is the row the member tapped (see navigation.ts): title, thumbnail
   // and duration — never the video URL, body, notes or certificate state, and
@@ -485,7 +488,13 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
         ) : null}
 
         {lesson.content ? (
-          <Text style={[styles.body, styles.bodyBelow]}>{lesson.content}</Text>
+          <View style={styles.bodyBelow}>
+            <HtmlView
+              html={lesson.content}
+              contentWidth={width - spacing.md * 2}
+              baseStyle={styles.body}
+            />
+          </View>
         ) : (
           <Text style={[styles.bodyMuted, styles.bodyBelow]}>
             No written content for this lesson.

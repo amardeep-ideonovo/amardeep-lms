@@ -214,7 +214,10 @@ function CourseInner() {
 
         <h1 className="page-title">{course?.title ?? "Lessons"}</h1>
         {course?.description ? (
-          <p className="page-sub">{course.description}</p>
+          <div
+            className="page-sub rich-text"
+            dangerouslySetInnerHTML={{ __html: course.description }}
+          />
         ) : (
           <p className="page-sub">{lessons.length} lesson(s) in this course.</p>
         )}

@@ -28,6 +28,10 @@ import {
   UpdateCourseDto,
   UpdateLessonDto,
 } from './dto/lms.dto';
+import {
+  toRichHtml,
+  sanitizeRichTextForStore,
+} from '../common/sanitize-html';
 
 @Injectable()
 export class LmsService {
@@ -91,7 +95,7 @@ export class LmsService {
       id: c.id,
       slug: c.slug,
       title: c.title,
-      description: c.description,
+      description: toRichHtml(c.description),
       thumbnailUrl: c.thumbnailUrl,
       coverImageUrl: c.coverImageUrl,
       levelIds: assigned,
@@ -174,7 +178,7 @@ export class LmsService {
       data: {
         title: dto.title,
         slug: await this.courseSlugFor(dto.title),
-        description: dto.description ?? null,
+        description: sanitizeRichTextForStore(dto.description),
         thumbnailUrl: dto.thumbnailUrl ?? null,
         coverImageUrl: dto.coverImageUrl ?? null,
         order: dto.order ?? 0,
@@ -207,7 +211,10 @@ export class LmsService {
         data: {
           title: dto.title ?? undefined,
           slug: slug ?? undefined,
-          description: dto.description ?? undefined,
+          description:
+            dto.description === undefined
+              ? undefined
+              : sanitizeRichTextForStore(dto.description),
           thumbnailUrl: dto.thumbnailUrl ?? undefined,
           coverImageUrl: dto.coverImageUrl ?? undefined,
           order: dto.order ?? undefined,
@@ -357,7 +364,7 @@ export class LmsService {
       // so the body is dead weight in the list. Admins (userId undefined) keep
       // it: the admin course editor edits content straight from the list row.
       // Mirrors how `completed` below is member-only.
-      content: userId ? null : l.content,
+      content: userId ? null : toRichHtml(l.content),
       thumbnailUrl: l.thumbnailUrl,
       videoUrl: l.videoUrl,
       audioUrl: l.audioUrl,
@@ -385,7 +392,7 @@ export class LmsService {
       data: {
         courseId,
         title: dto.title,
-        content: dto.content ?? null,
+        content: sanitizeRichTextForStore(dto.content),
         thumbnailUrl: dto.thumbnailUrl?.trim() || null,
         videoUrl: videoUrl ?? null,
         audioUrl: audioUrl ?? null,
@@ -397,7 +404,7 @@ export class LmsService {
       id: lesson.id,
       courseId: lesson.courseId,
       title: lesson.title,
-      content: lesson.content,
+      content: toRichHtml(lesson.content),
       thumbnailUrl: lesson.thumbnailUrl,
       videoUrl: lesson.videoUrl,
       audioUrl: lesson.audioUrl,
@@ -449,7 +456,10 @@ export class LmsService {
       where: { id },
       data: {
         title: dto.title ?? undefined,
-        content: dto.content ?? undefined,
+        content:
+          dto.content === undefined
+            ? undefined
+            : sanitizeRichTextForStore(dto.content),
         // undefined => leave unchanged; "" => clear (Remove); else set.
         thumbnailUrl:
           dto.thumbnailUrl === undefined
@@ -466,7 +476,7 @@ export class LmsService {
       id: lesson.id,
       courseId: lesson.courseId,
       title: lesson.title,
-      content: lesson.content,
+      content: toRichHtml(lesson.content),
       thumbnailUrl: lesson.thumbnailUrl,
       videoUrl: lesson.videoUrl,
       audioUrl: lesson.audioUrl,
@@ -526,7 +536,7 @@ export class LmsService {
       id: lesson.id,
       courseId: lesson.courseId,
       title: lesson.title,
-      content: lesson.content,
+      content: toRichHtml(lesson.content),
       thumbnailUrl: lesson.thumbnailUrl,
       videoUrl: lesson.videoUrl,
       audioUrl: lesson.audioUrl,

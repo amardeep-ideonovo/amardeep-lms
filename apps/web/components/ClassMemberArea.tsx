@@ -485,9 +485,11 @@ export default function ClassMemberArea({
               <span className="ik-panel-title">About this class</span>
             </div>
             {description ? (
-              <p style={{ color: "var(--text-soft)", fontSize: 14, lineHeight: 1.65, margin: "10px 0 0" }}>
-                {description}
-              </p>
+              <div
+                className="rich-text"
+                style={{ color: "var(--text-soft)", fontSize: 14, lineHeight: 1.65, margin: "10px 0 0" }}
+                dangerouslySetInnerHTML={{ __html: description }}
+              />
             ) : (
               <p style={{ color: "var(--text-muted)", fontSize: 13.5, margin: "10px 0 0" }}>
                 {lessonCount > 0
