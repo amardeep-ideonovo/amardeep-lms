@@ -72,6 +72,8 @@ export default function CoursesPage() {
   const [error, setError] = useState<string | null>(null);
   // Names the course whose delete is mid-flight so its row control locks.
   const [rowBusy, setRowBusy] = useState<string | null>(null);
+  // Free-text search over course title + assigned class names.
+  const [search, setSearch] = useState("");
 
   // course modal (create/edit)
   const [modalOpen, setModalOpen] = useState(false);
@@ -270,6 +272,17 @@ export default function CoursesPage() {
       .map((id) => levels.find((l) => l.id === id)?.name)
       .filter((n): n is string => Boolean(n));
 
+  // Client-side search: matches a course by its title or any assigned class name
+  // (the two columns shown), so typing a class filters to its courses too.
+  const q = search.trim().toLowerCase();
+  const visibleCourses = !q
+    ? courses
+    : courses.filter(
+        (c) =>
+          c.title.toLowerCase().includes(q) ||
+          levelNamesFor(c.levelIds).some((n) => n.toLowerCase().includes(q)),
+      );
+
   if (authLoading) return <p className="muted">Loading…</p>;
   if (!can("courses", "read"))
     return (
@@ -299,16 +312,45 @@ export default function CoursesPage() {
       {error && <p className="error">{error}</p>}
 
       <div className="card">
-        <div className="card-head">
+        <div className="card-head" style={{ flexWrap: "wrap", gap: 10 }}>
           <h2>All courses</h2>
-          <button className="btn btn--sm" onClick={openCreate}>
-            + Add new course
-          </button>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <div className="filter-search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                <path
+                  d="m20 20-3.5-3.5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search courses…"
+                aria-label="Search courses"
+              />
+            </div>
+            <button className="btn btn--sm" onClick={openCreate}>
+              + Add new course
+            </button>
+          </div>
         </div>
         {loading ? (
           <p className="muted">Loading…</p>
         ) : courses.length === 0 ? (
           <p className="muted">No courses yet. Click “Add new course” to start.</p>
+        ) : visibleCourses.length === 0 ? (
+          <p className="muted">No courses match your search.</p>
         ) : (
           <div className="table-wrap"><table className="table">
             <thead>
@@ -320,7 +362,7 @@ export default function CoursesPage() {
               </tr>
             </thead>
             <tbody>
-              {courses.map((course) => (
+              {visibleCourses.map((course) => (
                 <Fragment key={course.id}>
                   <tr>
                     <td>
