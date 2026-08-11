@@ -126,37 +126,39 @@ export default function LessonMediaFields({
                 // Drop a retained URL that the new source would immediately
                 // reject (e.g. a Vimeo link left over when switching to
                 // YouTube), so the field starts clean instead of flashing red.
-                // Keep it when it still validates, or for the 'file' source.
-                const keep =
-                  next === "file" || !validateVideoUrl(next, state.videoUrl);
+                const keep = !validateVideoUrl(next, state.videoUrl);
                 set({ videoSource: next, videoUrl: keep ? state.videoUrl : "" });
               }}
             >
               <option value="vimeo">Vimeo link</option>
               <option value="youtube">YouTube link</option>
-              <option value="file">Video file (upload)</option>
+              {/* Uploading videos isn't offered — host on Vimeo/YouTube. This
+                  option only appears for a legacy lesson that already stores a
+                  direct video URL, so it can still be edited or migrated. */}
+              {state.videoSource === "file" && (
+                <option value="file">Video file (existing)</option>
+              )}
             </select>
           </div>
+          <input
+            type="text"
+            value={state.videoUrl}
+            disabled={disabled}
+            onChange={(e) => set({ videoUrl: e.target.value })}
+            placeholder={
+              state.videoSource === "youtube"
+                ? "https://www.youtube.com/watch?v=…"
+                : state.videoSource === "file"
+                ? "Direct video URL"
+                : "https://vimeo.com/123456789"
+            }
+          />
           {state.videoSource === "file" ? (
-            <MediaPicker
-              kind="video"
-              value={state.videoUrl}
-              disabled={disabled}
-              onChange={(url) => set({ videoUrl: url })}
-            />
-          ) : (
-            <input
-              type="text"
-              value={state.videoUrl}
-              disabled={disabled}
-              onChange={(e) => set({ videoUrl: e.target.value })}
-              placeholder={
-                state.videoSource === "youtube"
-                  ? "https://www.youtube.com/watch?v=…"
-                  : "https://vimeo.com/123456789"
-              }
-            />
-          )}
+            <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+              Uploading video files isn’t supported — host on Vimeo or YouTube
+              and paste the link. This existing link still plays.
+            </p>
+          ) : null}
           {warning ? (
             <p className="error" style={{ marginTop: 6 }}>
               {warning}
