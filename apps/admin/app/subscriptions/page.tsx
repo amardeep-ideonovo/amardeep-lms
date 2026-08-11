@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { SubscriptionRowDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
+import { DownloadIcon, SpinnerIcon } from "@/components/ExportIcons";
 
 const money = (a: number | null, c: string) =>
   a == null
@@ -57,6 +58,7 @@ export default function SubscriptionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [exporting, setExporting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -116,9 +118,33 @@ export default function SubscriptionsPage() {
             PayPal. Manage an individual member’s plan from their billing page.
           </p>
         </div>
-        <button className="btn btn--ghost" onClick={load} disabled={loading}>
-          {loading ? "Refreshing…" : "Refresh"}
-        </button>
+        <div className="row-actions">
+          <button
+            type="button"
+            className="btn btn--ghost btn--icon"
+            disabled={exporting || loading}
+            aria-label={
+              exporting ? "Exporting subscriptions…" : "Download subscriptions as Excel"
+            }
+            title={exporting ? "Exporting…" : "Download Excel"}
+            onClick={async () => {
+              setExporting(true);
+              setError(null);
+              try {
+                await api.downloadSubscriptionsExport();
+              } catch (e) {
+                setError(e instanceof ApiError ? e.message : "Export failed");
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            {exporting ? <SpinnerIcon /> : <DownloadIcon />}
+          </button>
+          <button className="btn btn--ghost" onClick={load} disabled={loading}>
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}

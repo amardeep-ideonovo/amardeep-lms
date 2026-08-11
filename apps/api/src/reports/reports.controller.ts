@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermission } from '../auth/require-permission.decorator';
 import { ReportFilterDto } from './dto/report-filter.dto';
+import { ListMembersQueryDto } from '../members/dto/member.dto';
 import { ReportsService } from './reports.service';
 
 const XLSX_TYPE =
@@ -49,6 +50,33 @@ export class ReportsController {
   @RequirePermission('reports', 'read')
   async all(@Res() res: Response, @Query() filter: ReportFilterDto) {
     this.send(res, 'all.xlsx', await this.reports.allWorkbook(filter));
+  }
+
+  // Page-scoped exports surfaced as a "Download Excel" button on the Members /
+  // Subscriptions pages. Gated by those pages' OWN permissions (not `reports`),
+  // so a members-only admin can export without the Reports tab. Reuses the same
+  // workbook builders. The members export honors the page filters for parity.
+  @Get('members-export.xlsx')
+  @RequirePermission('members', 'read')
+  async membersExport(
+    @Res() res: Response,
+    @Query() query: ListMembersQueryDto,
+  ) {
+    this.send(
+      res,
+      'members.xlsx',
+      await this.reports.membersWorkbookFiltered(query),
+    );
+  }
+
+  @Get('subscriptions-export.xlsx')
+  @RequirePermission('subscriptions', 'read')
+  async subscriptionsExport(@Res() res: Response) {
+    this.send(
+      res,
+      'subscriptions.xlsx',
+      await this.reports.subscriptionsWorkbook(),
+    );
   }
 
   private send(res: Response, filename: string, buf: Buffer) {
