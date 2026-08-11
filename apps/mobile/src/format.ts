@@ -51,3 +51,28 @@ export function vimeoEmbed(url: string | null | undefined): string | null {
     .join("&");
   return `https://player.vimeo.com/video/${id}?${params}`;
 }
+
+// YouTube 11-char video id from watch / youtu.be / shorts / embed / v / live
+// links (kept in sync with the web youtubeId and admin parseYouTubeId). null
+// when the URL isn't YouTube.
+export function youtubeId(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return (
+    url.match(
+      /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|v\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/,
+    )?.[1] ?? null
+  );
+}
+
+// Privacy-domain YouTube embed for the in-app WebView, resuming via
+// start=<seconds>. No JS-API bridge on mobile (no position heartbeat here yet),
+// so this is display-only.
+export function youtubeEmbed(
+  url: string | null | undefined,
+  startSeconds = 0,
+): string | null {
+  const id = youtubeId(url);
+  if (!id) return null;
+  const start = startSeconds > 0 ? `&start=${Math.floor(startSeconds)}` : "";
+  return `https://www.youtube-nocookie.com/embed/${id}?playsinline=1&rel=0&modestbranding=1${start}`;
+}

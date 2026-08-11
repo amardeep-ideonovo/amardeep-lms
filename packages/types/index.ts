@@ -569,7 +569,8 @@ export interface LessonDTO {
   title: string;
   content: string | null;
   thumbnailUrl?: string | null; // lesson thumbnail
-  videoUrl?: string | null; // Vimeo link or direct video URL (e.g. MP4)
+  videoUrl?: string | null; // Vimeo / YouTube link or direct video URL (e.g. MP4)
+  audioUrl?: string | null; // audio lesson source (uploaded file); mutually exclusive with videoUrl
   durationSeconds?: number | null; // lesson length (admin-entered); drives curriculum totals
   order: number;
   completed?: boolean;
@@ -813,6 +814,9 @@ export interface CreateLessonInput {
   content?: string;
   thumbnailUrl?: string;
   videoUrl?: string;
+  // Mutually exclusive with videoUrl. On update, an empty string clears the
+  // field (used when switching media type); the server rejects both non-empty.
+  audioUrl?: string;
   durationSeconds?: number; // seconds (parsed from the admin's mm:ss input)
   order?: number;
 }

@@ -360,6 +360,7 @@ export class LmsService {
       content: userId ? null : l.content,
       thumbnailUrl: l.thumbnailUrl,
       videoUrl: l.videoUrl,
+      audioUrl: l.audioUrl,
       durationSeconds: l.durationSeconds,
       order: l.order,
       completed: userId ? (progressByLesson.get(l.id)?.completed ?? false) : undefined,
@@ -379,13 +380,15 @@ export class LmsService {
       where: { id: courseId },
     });
     if (!course) throw new NotFoundException('Course not found');
+    const { videoUrl, audioUrl } = this.resolveMedia(dto.videoUrl, dto.audioUrl);
     const lesson = await this.prisma.lesson.create({
       data: {
         courseId,
         title: dto.title,
         content: dto.content ?? null,
         thumbnailUrl: dto.thumbnailUrl ?? null,
-        videoUrl: dto.videoUrl ?? null,
+        videoUrl: videoUrl ?? null,
+        audioUrl: audioUrl ?? null,
         durationSeconds: dto.durationSeconds ?? null,
         order: dto.order ?? 0,
       },
@@ -397,21 +400,51 @@ export class LmsService {
       content: lesson.content,
       thumbnailUrl: lesson.thumbnailUrl,
       videoUrl: lesson.videoUrl,
+      audioUrl: lesson.audioUrl,
       durationSeconds: lesson.durationSeconds,
       order: lesson.order,
     };
   }
 
+  // A lesson's media is mutually exclusive: at most one of videoUrl / audioUrl
+  // may be non-empty. The admin sends the active field with a value and the
+  // other as "" to clear it on a type switch, so an empty string is a real
+  // "clear", not "leave unchanged". Returns what to write:
+  //   undefined = field absent from the payload -> leave as-is (update only)
+  //   null      = present but empty              -> clear it
+  //   string    = present and non-empty          -> set it
+  private resolveMedia(
+    videoRaw: string | undefined,
+    audioRaw: string | undefined,
+  ): { videoUrl: string | null | undefined; audioUrl: string | null | undefined } {
+    const norm = (v: string | undefined) =>
+      v === undefined ? undefined : v.trim() === '' ? null : v.trim();
+    const video = norm(videoRaw);
+    const audio = norm(audioRaw);
+    if (video && audio) {
+      throw new BadRequestException(
+        'A lesson can have a video or an audio source, not both.',
+      );
+    }
+    return { videoUrl: video, audioUrl: audio };
+  }
+
   async updateLesson(id: string, dto: UpdateLessonDto): Promise<LessonDTO> {
     const existing = await this.prisma.lesson.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Lesson not found');
+    // undefined => field absent => Prisma leaves it unchanged; null => clear.
+    // The admin sends BOTH media fields on a save (active + "" for the other),
+    // so a video<->audio switch clears the counterpart here. A partial update
+    // that omits both (e.g. a thumbnail-only save) touches neither.
+    const { videoUrl, audioUrl } = this.resolveMedia(dto.videoUrl, dto.audioUrl);
     const lesson = await this.prisma.lesson.update({
       where: { id },
       data: {
         title: dto.title ?? undefined,
         content: dto.content ?? undefined,
         thumbnailUrl: dto.thumbnailUrl ?? undefined,
-        videoUrl: dto.videoUrl ?? undefined,
+        videoUrl,
+        audioUrl,
         durationSeconds: dto.durationSeconds ?? undefined,
         order: dto.order ?? undefined,
       },
@@ -424,6 +457,7 @@ export class LmsService {
       content: lesson.content,
       thumbnailUrl: lesson.thumbnailUrl,
       videoUrl: lesson.videoUrl,
+      audioUrl: lesson.audioUrl,
       durationSeconds: lesson.durationSeconds,
       order: lesson.order,
       notes: lesson.notes.map((n) => this.toNoteDTO(n)),
@@ -483,6 +517,7 @@ export class LmsService {
       content: lesson.content,
       thumbnailUrl: lesson.thumbnailUrl,
       videoUrl: lesson.videoUrl,
+      audioUrl: lesson.audioUrl,
       durationSeconds: lesson.durationSeconds,
       order: lesson.order,
       completed: progressRow?.completedAt != null,

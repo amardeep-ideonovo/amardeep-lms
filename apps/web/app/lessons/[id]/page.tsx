@@ -24,7 +24,7 @@ import PopupHost from "@/components/PopupHost";
 import CertificateClaimButton from "@/components/CertificateClaimButton";
 
 // Parse a Vimeo URL into its player embed URL (or null if not a Vimeo link).
-// Production videos are hosted on Vimeo; lesson.videoUrl holds the Vimeo link.
+// lesson.videoUrl holds a Vimeo link, a YouTube link, or a direct file URL.
 function vimeoEmbed(url: string | null | undefined): string | null {
   if (!url) return null;
   const id = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1];
@@ -37,6 +37,26 @@ function vimeoEmbed(url: string | null | undefined): string | null {
     .filter(Boolean)
     .join("&");
   return `https://player.vimeo.com/video/${id}?${params}`;
+}
+
+// YouTube 11-char video id from watch / youtu.be / shorts / embed / v / live
+// links (kept in sync with apps/admin/lib/lessonMedia.ts parseYouTubeId and the
+// mobile youtubeId). null when the URL isn't YouTube.
+function youtubeId(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return (
+    url.match(
+      /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|v\/|live\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/,
+    )?.[1] ?? null
+  );
+}
+
+// Privacy-domain YouTube embed with resume baked in via start=<seconds>, so the
+// player resumes on load with no JS-API round-trip. enablejsapi=1 lets the
+// best-effort heartbeat below read the live position.
+function youtubeEmbedSrc(id: string, startSeconds: number): string {
+  const start = startSeconds > 0 ? `&start=${Math.floor(startSeconds)}` : "";
+  return `https://www.youtube-nocookie.com/embed/${id}?playsinline=1&rel=0&modestbranding=1&enablejsapi=1${start}`;
 }
 
 const CheckIcon = ({ size = 13, color = "#2a9d8d" }: { size?: number; color?: string }) => (
@@ -194,7 +214,9 @@ function LessonInner() {
 
   // ---- playback progress: mark started on open + save the resume point ----
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const ytIframeRef = useRef<HTMLIFrameElement | null>(null);
   const lastSaveRef = useRef(0);
 
   const saveProgress = useCallback(
@@ -266,6 +288,44 @@ function LessonInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson?.id, throttledSave]);
 
+  // YouTube position heartbeat via the iframe API (best-effort, mirrors Vimeo).
+  // start=<resume> in the embed URL already handles resume-on-load, so a dropped
+  // subscription only loses mid-play position updates — never resume.
+  useEffect(() => {
+    const iframe = ytIframeRef.current;
+    if (!iframe || !lesson || !youtubeId(lesson.videoUrl)) return;
+    const post = (msg: unknown) =>
+      iframe.contentWindow?.postMessage(JSON.stringify(msg), "*");
+    const onMessage = (e: MessageEvent) => {
+      if (typeof e.origin === "string" && !e.origin.includes("youtube")) return;
+      let data: { event?: string; info?: { currentTime?: number } };
+      try {
+        data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+      } catch {
+        return;
+      }
+      if (
+        data?.event === "infoDelivery" &&
+        typeof data.info?.currentTime === "number"
+      ) {
+        throttledSave(data.info.currentTime);
+      }
+    };
+    window.addEventListener("message", onMessage);
+    // Subscribe repeatedly for a few seconds in case the player wasn't ready
+    // when the first message was posted, then stop.
+    let tries = 0;
+    const iv = window.setInterval(() => {
+      post({ event: "listening", id: 1 });
+      if (++tries >= 5) window.clearInterval(iv);
+    }, 1000);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      window.clearInterval(iv);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson?.id, throttledSave]);
+
   const railDone = siblings?.filter((l) => l.completed || l.id === (completed ? lessonId : "")).length ?? 0;
 
   /* ---------- locked / error / loading states on the light canvas ---------- */
@@ -316,6 +376,8 @@ function LessonInner() {
   }
 
   const vimeo = vimeoEmbed(lesson.videoUrl);
+  const ytId = youtubeId(lesson.videoUrl);
+  const resumeAt = lesson.lastPositionSeconds ?? 0;
   const notes = lesson.notes ?? [];
   const fmtSize = (n: number) =>
     n < 1024
@@ -326,11 +388,54 @@ function LessonInner() {
   const dur = fmtDuration(lesson.durationSeconds);
 
   let media: ReactNode;
-  if (vimeo) {
+  if (lesson.audioUrl) {
+    // Audio lesson: the thumbnail (or a headphones glyph) is the backdrop and
+    // the controls sit on top. The same three handlers as the <video> branch
+    // give resume + heartbeat, since <audio> is the same HTMLMediaElement API.
+    media = (
+      <>
+        {lesson.thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={lesson.thumbnailUrl} alt="" className="ik-player-hero" />
+        ) : (
+          <span className="ik-player-audio-glyph" aria-hidden="true">
+            🎧
+          </span>
+        )}
+        <span className="ik-player-scrim" aria-hidden="true" />
+        <div className="ik-player-audio">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <audio
+            ref={audioRef}
+            controls
+            src={lesson.audioUrl}
+            onLoadedMetadata={(e) => {
+              const pos = lesson.lastPositionSeconds ?? 0;
+              if (pos > 0 && pos < (e.currentTarget.duration || Infinity)) {
+                e.currentTarget.currentTime = pos;
+              }
+            }}
+            onTimeUpdate={(e) => throttledSave(e.currentTarget.currentTime)}
+            onPause={(e) => saveProgress(e.currentTarget.currentTime)}
+          />
+        </div>
+      </>
+    );
+  } else if (vimeo) {
     media = (
       <iframe
         ref={iframeRef}
         src={vimeo}
+        title={lesson.title}
+        allow="autoplay; fullscreen; picture-in-picture"
+        allowFullScreen
+      />
+    );
+  } else if (ytId) {
+    media = (
+      <iframe
+        ref={ytIframeRef}
+        src={youtubeEmbedSrc(ytId, resumeAt)}
         title={lesson.title}
         allow="autoplay; fullscreen; picture-in-picture"
         allowFullScreen
