@@ -2,10 +2,11 @@
 // video) so audio needs no extra native dependency — just a custom, pure-JS
 // control bar (play/pause, elapsed/total, tap-to-seek track). A tiny hidden
 // VideoView keeps the native player attached to the view tree across platforms.
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { VideoView, useVideoPlayer } from "expo-video";
 
 import { useTheme } from "../theme-provider";
@@ -58,15 +59,39 @@ function PlayerInner({
     return () => clearInterval(iv);
   }, [player]);
 
+  // Stop playback when the lesson screen loses focus (a tab switch or a modal
+  // over it) so audio never keeps playing invisibly. On a real unmount (popping
+  // the screen) useVideoPlayer has usually already released the native player,
+  // so guard the call — pausing a released player throws, and the release has
+  // stopped playback anyway.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        try {
+          player.pause();
+        } catch {
+          // player already released on unmount — playback is stopped, no-op.
+        }
+      };
+    }, [player]),
+  );
+
   const toggle = () => {
-    if (player.playing) player.pause();
-    else player.play();
+    if (player.playing) {
+      player.pause();
+      setPlaying(false); // optimistic — don't wait for the next poll tick
+    } else {
+      player.play();
+      setPlaying(true);
+    }
   };
 
   const seekToRatio = (ratio: number) => {
     const d = player.duration;
     if (Number.isFinite(d) && d > 0) {
-      player.currentTime = Math.max(0, Math.min(1, ratio)) * d;
+      const target = Math.max(0, Math.min(1, ratio)) * d;
+      player.currentTime = target;
+      setCurrent(target); // optimistic — reflect the seek immediately
     }
   };
 
@@ -97,6 +122,9 @@ function PlayerInner({
       <View style={styles.body}>
         <View
           style={[styles.track, { backgroundColor: colors.borderSoft }]}
+          // Enlarge only the vertical touch region (the visible 6pt bar is hard
+          // to hit); locationX stays measured against the bar's real width.
+          hitSlop={{ top: 16, bottom: 16, left: 0, right: 0 }}
           onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
           onStartShouldSetResponder={() => true}
           onResponderRelease={(e) => {

@@ -9,10 +9,11 @@
 export type LessonMediaType = "video" | "audio";
 export type VideoSource = "vimeo" | "youtube" | "file";
 
-// Vimeo numeric id from the common link shapes (kept in sync with the web +
-// mobile `vimeoEmbed` parsers).
+// Vimeo numeric id from any vimeo.com path shape — vimeo.com/<id>, /video/<id>,
+// player.vimeo.com/video/<id>, or /channels|groups|showcase/<id> (kept in step
+// with the web + mobile `vimeoEmbed` parsers).
 export function parseVimeoId(url: string): string | null {
-  return url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1] ?? null;
+  return url.match(/vimeo\.com\/(?:[^/?#]+\/)*(\d+)/)?.[1] ?? null;
 }
 
 // YouTube 11-char video id from watch / youtu.be / shorts / embed / v links
@@ -32,8 +33,10 @@ export function parseYouTubeId(url: string): string | null {
 // most common source — for a fresh form.
 export function detectVideoSource(url: string): VideoSource {
   if (!url.trim()) return "vimeo";
-  if (parseYouTubeId(url)) return "youtube";
+  // Vimeo-first, matching the web + mobile player if-chains, so any single URL
+  // resolves to the same source in the admin and in the players.
   if (parseVimeoId(url)) return "vimeo";
+  if (parseYouTubeId(url)) return "youtube";
   return "file";
 }
 

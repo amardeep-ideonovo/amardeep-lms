@@ -611,14 +611,27 @@ function CourseLessons({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
 
+  // Close + fully reset the add-lesson draft, so a dismissed (Cancel / × /
+  // overlay / Escape) draft never reappears the next time the modal opens.
+  function closeAdd() {
+    setShowAdd(false);
+    setError(null);
+    setTitle("");
+    setContent("");
+    setMedia(emptyLessonMedia());
+    setThumbnailUrl("");
+    setDuration("");
+  }
+
   // Close the add-lesson modal on Escape (mirrors the course modal).
   useEffect(() => {
     if (!showAdd) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setShowAdd(false);
+      if (e.key === "Escape") closeAdd();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAdd]);
 
   async function addLesson(e: FormEvent) {
@@ -638,12 +651,7 @@ function CourseLessons({
         thumbnailUrl: thumbnailUrl.trim() || undefined,
         durationSeconds: parseDuration(duration),
       });
-      setTitle("");
-      setContent("");
-      setMedia(emptyLessonMedia());
-      setThumbnailUrl("");
-      setDuration("");
-      setShowAdd(false); // collapse back to the "+ Add lesson" button
+      closeAdd(); // reset the draft + collapse to the "+ Add lesson" button
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to add lesson");
@@ -690,7 +698,7 @@ function CourseLessons({
       {showAdd && (
         <div
           className="modal-overlay"
-          onClick={() => setShowAdd(false)}
+          onClick={closeAdd}
           role="dialog"
           aria-modal="true"
         >
@@ -700,7 +708,7 @@ function CourseLessons({
               <button
                 type="button"
                 className="modal-close"
-                onClick={() => setShowAdd(false)}
+                onClick={closeAdd}
                 aria-label="Close"
               >
                 ×
@@ -759,7 +767,7 @@ function CourseLessons({
                   <button
                     type="button"
                     className="btn btn--ghost"
-                    onClick={() => setShowAdd(false)}
+                    onClick={closeAdd}
                   >
                     Cancel
                   </button>
@@ -940,6 +948,15 @@ function LessonRow({
           <button
             className="btn btn--ghost btn--sm"
             onClick={() => {
+              // Reseed every field from the CURRENT lesson prop each time the
+              // editor opens. Without this, edits abandoned via Cancel linger
+              // in local state (the row is reconciled, not remounted) and a
+              // later Save would overwrite the stored values with them.
+              setTitle(lesson.title);
+              setContent(lesson.content ?? "");
+              setMedia(lessonMediaFromDTO(lesson));
+              setDuration(formatDuration(lesson.durationSeconds));
+              setErr(null);
               setExpanded(true);
               setEditing(true);
             }}

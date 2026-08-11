@@ -27,7 +27,10 @@ import CertificateClaimButton from "@/components/CertificateClaimButton";
 // lesson.videoUrl holds a Vimeo link, a YouTube link, or a direct file URL.
 function vimeoEmbed(url: string | null | undefined): string | null {
   if (!url) return null;
-  const id = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)?.[1];
+  // Grab the numeric id from any vimeo.com path shape — vimeo.com/<id>,
+  // /video/<id>, player.vimeo.com/video/<id>, or /channels|groups|showcase/<id>
+  // (kept in step with the mobile vimeoEmbed and admin parseVimeoId).
+  const id = url.match(/vimeo\.com\/(?:[^/?#]+\/)*(\d+)/)?.[1];
   if (!id) return null;
   // Optional privacy hash: ?h=xxxx or vimeo.com/<id>/<hash>
   const h =
@@ -57,6 +60,17 @@ function youtubeId(url: string | null | undefined): string | null {
 function youtubeEmbedSrc(id: string, startSeconds: number): string {
   const start = startSeconds > 0 ? `&start=${Math.floor(startSeconds)}` : "";
   return `https://www.youtube-nocookie.com/embed/${id}?playsinline=1&rel=0&modestbranding=1&enablejsapi=1${start}`;
+}
+
+// A Vimeo/YouTube link — even one whose id we FAILED to parse. Such a URL must
+// never be handed to a raw <video src> (it would 404 / show a broken player);
+// it falls back to the thumbnail instead. Direct file URLs (mp4/hls) are not
+// provider links, so they still play in <video>.
+function isProviderVideoUrl(url: string | null | undefined): boolean {
+  return (
+    !!url &&
+    /(?:youtube\.com|youtube-nocookie\.com|youtu\.be|vimeo\.com)/i.test(url)
+  );
 }
 
 const CheckIcon = ({ size = 13, color = "#2a9d8d" }: { size?: number; color?: string }) => (
@@ -297,7 +311,15 @@ function LessonInner() {
     const post = (msg: unknown) =>
       iframe.contentWindow?.postMessage(JSON.stringify(msg), "*");
     const onMessage = (e: MessageEvent) => {
-      if (typeof e.origin === "string" && !e.origin.includes("youtube")) return;
+      // Only trust the YouTube player's own origins (nocookie serves the embed;
+      // the player itself may post from youtube.com). A substring check would
+      // trust e.g. "https://youtube.evil.com" and let it spoof a currentTime
+      // that corrupts the saved resume point.
+      if (
+        e.origin !== "https://www.youtube-nocookie.com" &&
+        e.origin !== "https://www.youtube.com"
+      )
+        return;
       let data: { event?: string; info?: { currentTime?: number } };
       try {
         data = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
@@ -441,7 +463,7 @@ function LessonInner() {
         allowFullScreen
       />
     );
-  } else if (lesson.videoUrl) {
+  } else if (lesson.videoUrl && !isProviderVideoUrl(lesson.videoUrl)) {
     media = (
       // eslint-disable-next-line jsx-a11y/media-has-caption
       <video

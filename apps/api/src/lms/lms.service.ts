@@ -414,18 +414,26 @@ export class LmsService {
   //   null      = present but empty              -> clear it
   //   string    = present and non-empty          -> set it
   private resolveMedia(
-    videoRaw: string | undefined,
-    audioRaw: string | undefined,
+    videoRaw: string | null | undefined,
+    audioRaw: string | null | undefined,
   ): { videoUrl: string | null | undefined; audioUrl: string | null | undefined } {
-    const norm = (v: string | undefined) =>
-      v === undefined ? undefined : v.trim() === '' ? null : v.trim();
-    const video = norm(videoRaw);
-    const audio = norm(audioRaw);
+    // undefined => field absent (leave as-is on update); null or "" => clear;
+    // else set. Null-safe so an explicit JSON `null` clears rather than crashes.
+    const norm = (v: string | null | undefined) =>
+      v === undefined ? undefined : v === null || v.trim() === '' ? null : v.trim();
+    let video = norm(videoRaw);
+    let audio = norm(audioRaw);
     if (video && audio) {
       throw new BadRequestException(
         'A lesson can have a video or an audio source, not both.',
       );
     }
+    // Mutual exclusivity is a DB invariant, not merely a per-payload one:
+    // setting one side CLEARS the other even when the counterpart is absent
+    // from this payload, so a partial update (e.g. {audioUrl} alone on a video
+    // lesson) can never leave both columns populated.
+    if (video) audio = null;
+    else if (audio) video = null;
     return { videoUrl: video, audioUrl: audio };
   }
 

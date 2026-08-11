@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { vimeoEmbed, youtubeId, youtubeEmbed } from "./format";
+import {
+  vimeoEmbed,
+  youtubeId,
+  youtubeEmbed,
+  isProviderVideoUrl,
+} from "./format";
 
 // The lesson-media URL parsers classify what player a videoUrl gets on web AND
 // mobile. A mis-parse silently routes a YouTube link into the native file
@@ -48,9 +53,37 @@ test("youtubeEmbed — privacy domain, playsinline, and start= resume", () => {
   assert.equal(youtubeEmbed("https://vimeo.com/1", 0), null);
 });
 
-test("vimeoEmbed still parses (and rejects YouTube)", () => {
-  assert.ok(vimeoEmbed("https://vimeo.com/123456789")?.includes("/video/123456789"));
+test("vimeoEmbed parses every path shape (and rejects YouTube)", () => {
+  const shapes = [
+    "https://vimeo.com/123456789",
+    "https://vimeo.com/video/123456789",
+    "https://player.vimeo.com/video/123456789",
+    "https://vimeo.com/channels/staffpicks/123456789",
+    "https://vimeo.com/groups/motion/videos/123456789",
+    "https://vimeo.com/showcase/999/video/123456789",
+  ];
+  for (const u of shapes) {
+    assert.ok(
+      vimeoEmbed(u)?.includes("/video/123456789"),
+      `expected id 123456789 from ${u}`,
+    );
+  }
+  // Privacy hash still extracted on the plain shape.
+  assert.ok(vimeoEmbed("https://vimeo.com/123456789/abcdef")?.includes("h=abcdef"));
   assert.equal(vimeoEmbed(`https://youtu.be/${ID}`), null);
+  // A vanity slug with no path-separated numeric id yields no video id: the
+  // regex needs the digits to sit as their own /segment, not embedded in a word.
+  assert.equal(vimeoEmbed("https://vimeo.com/johnsmith"), null);
+});
+
+test("isProviderVideoUrl flags provider links (parseable or not), not direct files", () => {
+  assert.equal(isProviderVideoUrl("https://vimeo.com/123456789"), true);
+  assert.equal(isProviderVideoUrl(`https://www.youtube.com/watch?v=${ID}`), true);
+  assert.equal(isProviderVideoUrl("https://youtu.be/tooShort"), true); // youtube host, unparseable id
+  assert.equal(isProviderVideoUrl("https://cdn.example.com/lesson.mp4"), false);
+  assert.equal(isProviderVideoUrl("https://cdn.example.com/audio.mp3"), false);
+  assert.equal(isProviderVideoUrl(null), false);
+  assert.equal(isProviderVideoUrl(undefined), false);
 });
 
 test("a video URL is never BOTH a Vimeo and a YouTube match", () => {

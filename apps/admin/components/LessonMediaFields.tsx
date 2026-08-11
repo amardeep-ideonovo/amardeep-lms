@@ -121,9 +121,16 @@ export default function LessonMediaFields({
             <select
               value={state.videoSource}
               disabled={disabled}
-              onChange={(e) =>
-                set({ videoSource: e.target.value as VideoSource })
-              }
+              onChange={(e) => {
+                const next = e.target.value as VideoSource;
+                // Drop a retained URL that the new source would immediately
+                // reject (e.g. a Vimeo link left over when switching to
+                // YouTube), so the field starts clean instead of flashing red.
+                // Keep it when it still validates, or for the 'file' source.
+                const keep =
+                  next === "file" || !validateVideoUrl(next, state.videoUrl);
+                set({ videoSource: next, videoUrl: keep ? state.videoUrl : "" });
+              }}
             >
               <option value="vimeo">Vimeo link</option>
               <option value="youtube">YouTube link</option>
