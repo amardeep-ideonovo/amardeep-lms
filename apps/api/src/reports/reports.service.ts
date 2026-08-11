@@ -9,6 +9,8 @@ import ExcelJS from 'exceljs';
 import type { SubscriptionRowDTO } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { MembersService } from '../members/members.service';
+import type { ListMembersQueryDto } from '../members/dto/member.dto';
 
 // Column spec for the shared sheet builder. `numFmt` drives Excel cell formatting
 // (dates, currency, percentages) so values stay sortable/filterable numbers/dates
@@ -36,6 +38,7 @@ export class ReportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly members: MembersService,
   ) {}
 
   // ---------- public: one workbook per report (+ the combined one) ----------
@@ -44,6 +47,15 @@ export class ReportsService {
   async membersWorkbook(filter?: ReportFilter): Promise<Buffer> {
     const wb = this.newWorkbook();
     await this.addMembersSheet(wb, filter);
+    return this.toBuffer(wb);
+  }
+
+  // Members export driven by the Members-page filters (class + status + search),
+  // so the download exactly matches the on-screen list. Reuses MembersService's
+  // list WHERE for parity; pagination is ignored (exports every match).
+  async membersWorkbookFiltered(query: ListMembersQueryDto): Promise<Buffer> {
+    const wb = this.newWorkbook();
+    await this.addMembersSheet(wb, undefined, this.members.buildListWhere(query));
     return this.toBuffer(wb);
   }
 
@@ -100,17 +112,20 @@ export class ReportsService {
   private async addMembersSheet(
     wb: ExcelJS.Workbook,
     filter?: ReportFilter,
+    // When provided (members-page export), this WHERE is used verbatim and the
+    // date/level filter above is skipped — parity with the on-screen list.
+    whereOverride?: Prisma.UserWhereInput,
   ): Promise<void> {
     // Date range -> signup (createdAt); class -> holds an ACTIVE grant for the level.
     const r = this.range(filter);
-    const where: Prisma.UserWhereInput = {};
-    if (r.gte || r.lte) {
+    const where: Prisma.UserWhereInput = whereOverride ?? {};
+    if (!whereOverride && (r.gte || r.lte)) {
       where.createdAt = {
         ...(r.gte ? { gte: r.gte } : {}),
         ...(r.lte ? { lte: r.lte } : {}),
       };
     }
-    if (filter?.levelId) {
+    if (!whereOverride && filter?.levelId) {
       where.levels = { some: { levelId: filter.levelId, status: 'ACTIVE' } };
     }
     const users = await this.prisma.user.findMany({
@@ -129,6 +144,7 @@ export class ReportsService {
       const summary = activePaid ?? stripeLevels[0];
       const activeLevels = u.levels.filter((ul) => ul.status === 'ACTIVE');
       return {
+        memberId: u.id,
         firstName: u.firstName ?? '',
         lastName: u.lastName ?? '',
         email: u.email,
@@ -148,6 +164,7 @@ export class ReportsService {
       wb,
       'Members',
       [
+        { header: 'Member ID', key: 'memberId', width: 26 },
         { header: 'First name', key: 'firstName', width: 16 },
         { header: 'Last name', key: 'lastName', width: 16 },
         { header: 'Email', key: 'email', width: 30 },
@@ -171,6 +188,7 @@ export class ReportsService {
   ): void {
     const d = (iso: string | null) => (iso ? new Date(iso) : null);
     const rows = subs.map((s) => ({
+      provider: s.provider === 'paypal' ? 'PayPal' : 'Stripe',
       memberName: s.memberName,
       memberEmail: s.memberEmail ?? '',
       plan: s.levelName,
@@ -193,6 +211,7 @@ export class ReportsService {
       wb,
       'Subscriptions',
       [
+        { header: 'Provider', key: 'provider', width: 10 },
         { header: 'Member', key: 'memberName', width: 22 },
         { header: 'Email', key: 'memberEmail', width: 30 },
         { header: 'Plan', key: 'plan', width: 24 },

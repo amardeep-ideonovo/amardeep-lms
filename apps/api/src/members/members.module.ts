@@ -11,5 +11,7 @@ import { AccountModule } from '../account/account.module';
   imports: [BillingModule, AccountModule],
   providers: [MembersService],
   controllers: [MembersController],
+  // Exported so ReportsModule can reuse the list filter for the members export.
+  exports: [MembersService],
 })
 export class MembersModule {}

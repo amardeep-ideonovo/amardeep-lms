@@ -57,6 +57,7 @@ export default function SubscriptionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [exporting, setExporting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -116,9 +117,29 @@ export default function SubscriptionsPage() {
             PayPal. Manage an individual member’s plan from their billing page.
           </p>
         </div>
-        <button className="btn btn--ghost" onClick={load} disabled={loading}>
-          {loading ? "Refreshing…" : "Refresh"}
-        </button>
+        <div className="row-actions">
+          <button
+            type="button"
+            className="btn btn--ghost"
+            disabled={exporting || loading}
+            onClick={async () => {
+              setExporting(true);
+              setError(null);
+              try {
+                await api.downloadSubscriptionsExport();
+              } catch (e) {
+                setError(e instanceof ApiError ? e.message : "Export failed");
+              } finally {
+                setExporting(false);
+              }
+            }}
+          >
+            {exporting ? "Exporting…" : "Download Excel"}
+          </button>
+          <button className="btn btn--ghost" onClick={load} disabled={loading}>
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {error && <p className="error">{error}</p>}

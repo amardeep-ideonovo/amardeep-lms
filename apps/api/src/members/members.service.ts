@@ -148,9 +148,10 @@ export class MembersService {
     }
   }
 
-  async list(query: ListMembersQueryDto = {}): Promise<MemberListDTO> {
-    const page = Math.max(query.page ?? 1, 1);
-    const pageSize = Math.min(Math.max(query.pageSize ?? 25, 1), 100);
+  // The WHERE for the members list — extracted so the members Excel export
+  // (ReportsService) applies the EXACT same class/status/search filters as the
+  // on-screen list (ignoring pagination). Kept in one place so parity can't drift.
+  buildListWhere(query: ListMembersQueryDto = {}): Prisma.UserWhereInput {
     const and: Prisma.UserWhereInput[] = [];
 
     const q = query.q?.trim();
@@ -175,7 +176,13 @@ export class MembersService {
     }
     if (query.status) and.push(this.statusWhere(query.status));
 
-    const where: Prisma.UserWhereInput = and.length ? { AND: and } : {};
+    return and.length ? { AND: and } : {};
+  }
+
+  async list(query: ListMembersQueryDto = {}): Promise<MemberListDTO> {
+    const page = Math.max(query.page ?? 1, 1);
+    const pageSize = Math.min(Math.max(query.pageSize ?? 25, 1), 100);
+    const where = this.buildListWhere(query);
     const [total, users] = await Promise.all([
       this.prisma.user.count({ where }),
       this.prisma.user.findMany({

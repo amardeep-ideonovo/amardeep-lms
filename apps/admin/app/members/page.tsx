@@ -71,6 +71,7 @@ export default function MembersPage() {
   const [grantFor, setGrantFor] = useState<MemberRow | null>(null);
   const [grantLevelId, setGrantLevelId] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   // filter the list by held level ("" = all, levelId, or "__none__" = no level)
   const [filterLevel, setFilterLevel] = useState("");
   // filter by derived membership status ("" = all)
@@ -263,6 +264,29 @@ export default function MembersPage() {
         <span className="filter-count">
           {totalMembers.toLocaleString()} members
         </span>
+        <button
+          type="button"
+          className="btn btn--ghost btn--sm"
+          disabled={exporting}
+          onClick={async () => {
+            setExporting(true);
+            setError(null);
+            try {
+              // Honors the on-screen class/status/search filters (parity).
+              await api.downloadMembersExport({
+                levelId: filterLevel || undefined,
+                status: (filterStatus as MemberStatusFilter) || undefined,
+                q: debouncedSearch || undefined,
+              });
+            } catch (e) {
+              setError(e instanceof ApiError ? e.message : "Export failed");
+            } finally {
+              setExporting(false);
+            }
+          }}
+        >
+          {exporting ? "Exporting…" : "Download Excel"}
+        </button>
       </div>
 
       {/* members table */}

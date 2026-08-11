@@ -550,6 +550,30 @@ export const api = {
       `lms-reports-${reportStamp()}.xlsx`,
     ),
 
+  // page-scoped Excel exports surfaced on the Members / Subscriptions pages.
+  // The members export honors the on-screen class/status/search filters; gated
+  // by the page's own permission (not `reports`).
+  downloadMembersExport: (f?: {
+    levelId?: string;
+    status?: MemberStatusFilter;
+    q?: string;
+  }) => {
+    const qs = new URLSearchParams();
+    if (f?.levelId) qs.set("levelId", f.levelId);
+    if (f?.status) qs.set("status", f.status);
+    if (f?.q) qs.set("q", f.q);
+    const s = qs.toString();
+    return downloadBlob(
+      `/admin/reports/members-export.xlsx${s ? `?${s}` : ""}`,
+      `members-${reportStamp()}.xlsx`,
+    );
+  },
+  downloadSubscriptionsExport: () =>
+    downloadBlob(
+      `/admin/reports/subscriptions-export.xlsx`,
+      `subscriptions-${reportStamp()}.xlsx`,
+    ),
+
   // in-app notifications (per-admin read state)
   listNotifications: (params?: { page?: number; pageSize?: number }) => {
     const qs = new URLSearchParams();
