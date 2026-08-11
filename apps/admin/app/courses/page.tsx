@@ -12,6 +12,13 @@ import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
+import LessonMediaFields, {
+  type LessonMediaState,
+  emptyLessonMedia,
+  lessonMediaFromDTO,
+  lessonMediaPayload,
+  validateLessonMedia,
+} from "@/components/LessonMediaFields";
 
 const EMPTY_COURSE = {
   title: "",
@@ -582,7 +589,7 @@ function CourseLessons({
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
+  const [media, setMedia] = useState<LessonMediaState>(emptyLessonMedia());
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [duration, setDuration] = useState("");
   const [saving, setSaving] = useState(false);
@@ -604,34 +611,47 @@ function CourseLessons({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
 
+  // Close + fully reset the add-lesson draft, so a dismissed (Cancel / × /
+  // overlay / Escape) draft never reappears the next time the modal opens.
+  function closeAdd() {
+    setShowAdd(false);
+    setError(null);
+    setTitle("");
+    setContent("");
+    setMedia(emptyLessonMedia());
+    setThumbnailUrl("");
+    setDuration("");
+  }
+
   // Close the add-lesson modal on Escape (mirrors the course modal).
   useEffect(() => {
     if (!showAdd) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setShowAdd(false);
+      if (e.key === "Escape") closeAdd();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAdd]);
 
   async function addLesson(e: FormEvent) {
     e.preventDefault();
+    const mediaError = validateLessonMedia(media);
+    if (mediaError) {
+      setError(mediaError);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
       await api.createLesson(courseId, {
         title: title.trim(),
         content: content.trim() || undefined,
-        videoUrl: videoUrl.trim() || undefined,
+        ...lessonMediaPayload(media),
         thumbnailUrl: thumbnailUrl.trim() || undefined,
         durationSeconds: parseDuration(duration),
       });
-      setTitle("");
-      setContent("");
-      setVideoUrl("");
-      setThumbnailUrl("");
-      setDuration("");
-      setShowAdd(false); // collapse back to the "+ Add lesson" button
+      closeAdd(); // reset the draft + collapse to the "+ Add lesson" button
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to add lesson");
@@ -678,7 +698,7 @@ function CourseLessons({
       {showAdd && (
         <div
           className="modal-overlay"
-          onClick={() => setShowAdd(false)}
+          onClick={closeAdd}
           role="dialog"
           aria-modal="true"
         >
@@ -688,7 +708,7 @@ function CourseLessons({
               <button
                 type="button"
                 className="modal-close"
-                onClick={() => setShowAdd(false)}
+                onClick={closeAdd}
                 aria-label="Close"
               >
                 ×
@@ -717,17 +737,11 @@ function CourseLessons({
                   />
                 </div>
                 <div className="form-row">
-                  <div className="field">
-                    <label>
-                      Video URL{" "}
-                      <span className="muted">
-                        (Vimeo link — or a direct MP4)
-                      </span>
-                    </label>
-                    <input
-                      value={videoUrl}
-                      onChange={(e) => setVideoUrl(e.target.value)}
-                      placeholder="https://vimeo.com/123456789 (optional)"
+                  <div className="field" style={{ flex: 1 }}>
+                    <LessonMediaFields
+                      state={media}
+                      onChange={setMedia}
+                      name="add-lesson-media"
                     />
                   </div>
                   <div className="field">
@@ -753,7 +767,7 @@ function CourseLessons({
                   <button
                     type="button"
                     className="btn btn--ghost"
-                    onClick={() => setShowAdd(false)}
+                    onClick={closeAdd}
                   >
                     Cancel
                   </button>
@@ -784,7 +798,9 @@ function LessonRow({
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(lesson.title);
   const [content, setContent] = useState(lesson.content ?? "");
-  const [videoUrl, setVideoUrl] = useState(lesson.videoUrl ?? "");
+  const [media, setMedia] = useState<LessonMediaState>(
+    lessonMediaFromDTO(lesson)
+  );
   const [duration, setDuration] = useState(
     formatDuration(lesson.durationSeconds)
   );
@@ -798,13 +814,18 @@ function LessonRow({
   const nameFor = (n: LessonNoteDTO) => names[n.id] ?? n.originalName;
 
   async function saveEdits() {
+    const mediaError = validateLessonMedia(media);
+    if (mediaError) {
+      setErr(mediaError);
+      return;
+    }
     setBusy(true);
     setErr(null);
     try {
       await api.updateLesson(lesson.id, {
         title: title.trim(),
         content: content.trim() || undefined,
-        videoUrl: videoUrl.trim() || undefined,
+        ...lessonMediaPayload(media),
         durationSeconds: parseDuration(duration),
       });
       setEditing(false);
@@ -927,6 +948,15 @@ function LessonRow({
           <button
             className="btn btn--ghost btn--sm"
             onClick={() => {
+              // Reseed every field from the CURRENT lesson prop each time the
+              // editor opens. Without this, edits abandoned via Cancel linger
+              // in local state (the row is reconciled, not remounted) and a
+              // later Save would overwrite the stored values with them.
+              setTitle(lesson.title);
+              setContent(lesson.content ?? "");
+              setMedia(lessonMediaFromDTO(lesson));
+              setDuration(formatDuration(lesson.durationSeconds));
+              setErr(null);
               setExpanded(true);
               setEditing(true);
             }}
@@ -969,13 +999,11 @@ function LessonRow({
                   onChange={(e) => setContent(e.target.value)}
                 />
               </div>
-              <div className="field">
-                <label>Video URL</label>
-                <input
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                />
-              </div>
+              <LessonMediaFields
+                state={media}
+                onChange={setMedia}
+                name={`edit-lesson-media-${lesson.id}`}
+              />
               <div className="field">
                 <label>
                   Duration <span className="muted">(mm:ss)</span>

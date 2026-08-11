@@ -33,7 +33,8 @@ import { LockedPanel } from "../components/LockedPanel";
 import { PopupHost } from "../components/PopupHost";
 import CertificateClaim from "../components/CertificateClaim";
 import { VideoPlayerView } from "../components/VideoPlayerView";
-import { vimeoEmbed } from "../format";
+import { AudioPlayerView } from "../components/AudioPlayerView";
+import { vimeoEmbed, youtubeEmbed, isProviderVideoUrl } from "../format";
 import { lessonSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
 import { optimistic } from "../optimistic";
@@ -311,10 +312,18 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   if (!lesson) return <ErrorState message="Lesson not found." onRetry={load} />;
 
   const completed = lesson.completed === true;
-  // Vimeo plays in a WebView; a direct MP4/HLS URL plays in the native
-  // expo-video player.
+  // Media type is derived from the URLs: audioUrl -> audio player; otherwise
+  // Vimeo/YouTube play in a WebView and a direct MP4/HLS URL plays in the
+  // native expo-video player. lastPositionSeconds resumes the YouTube embed.
   const vimeo = vimeoEmbed(lesson.videoUrl);
-  const videoUri = vimeo ? null : lesson.videoUrl ?? null;
+  const youtube = youtubeEmbed(lesson.videoUrl, lesson.lastPositionSeconds ?? 0);
+  const audioUrl = lesson.audioUrl ?? null;
+  // A provider link we couldn't parse must NOT reach the native player (dead
+  // box); only a genuine direct file URL plays there.
+  const videoUri =
+    vimeo || youtube || isProviderVideoUrl(lesson.videoUrl)
+      ? null
+      : lesson.videoUrl ?? null;
   const notes = lesson.notes ?? [];
 
   const idx = siblings?.findIndex((l) => l.id === lesson.id) ?? -1;
@@ -336,10 +345,41 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {vimeo ? (
+        {audioUrl ? (
+          <>
+            {lesson.thumbnailUrl ? (
+              <Image
+                style={styles.video}
+                source={{ uri: lesson.thumbnailUrl }}
+                resizeMode="cover"
+              />
+            ) : null}
+            <AudioPlayerView
+              uri={audioUrl}
+              style={lesson.thumbnailUrl ? styles.audioBelow : undefined}
+            />
+          </>
+        ) : vimeo ? (
           <WebView
             style={styles.video}
             source={{ uri: vimeo }}
+            allowsFullscreenVideo
+            allowsInlineMediaPlayback
+            javaScriptEnabled
+            domStorageEnabled
+          />
+        ) : youtube ? (
+          // YouTube's embed rejects a WebView that loads the embed URL directly
+          // (no page origin) with "Error 153". Wrapping the iframe in an HTML
+          // doc served under a youtube-nocookie baseUrl gives it the same-origin
+          // context the embed requires. (Vimeo, above, has no such requirement.)
+          <WebView
+            style={styles.video}
+            originWhitelist={["*"]}
+            source={{
+              html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></head><body style="margin:0;background:#000;overflow:hidden"><iframe src="${youtube}" width="100%" height="100%" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></body></html>`,
+              baseUrl: "https://www.youtube-nocookie.com",
+            }}
             allowsFullscreenVideo
             allowsInlineMediaPlayback
             javaScriptEnabled
@@ -513,6 +553,9 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
     backgroundColor: colors.inkCard,
     overflow: "hidden",
   },
+  // Audio bar sits under the thumbnail (when present) instead of over the
+  // 16/9 block, so both stay visible.
+  audioBelow: { marginTop: 10 },
   title: {
     color: colors.text,
     fontSize: 16.5,

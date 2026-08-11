@@ -3902,6 +3902,10 @@ a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: n
 .ik-player iframe, .ik-player video { width: 100%; height: 100%; border: 0; display: block; background: var(--ink-900); }
 .ik-player-hero { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .ik-player-scrim { position: absolute; inset: 0; background: rgba(31, 25, 58, 0.35); }
+/* Audio lesson: controls overlaid on the thumbnail (or the ink block). */
+.ik-player-audio { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px; display: flex; justify-content: center; }
+.ik-player-audio audio { width: 100%; max-width: 560px; }
+.ik-player-audio-glyph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 64px; opacity: 0.85; }
 .ik-actions-card { margin-top: 16px; }
 .ik-actions-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .ik-status {

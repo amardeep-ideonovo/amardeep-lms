@@ -141,6 +141,10 @@ export class CreateLessonDto {
   videoUrl?: string;
 
   @IsOptional()
+  @IsString()
+  audioUrl?: string;
+
+  @IsOptional()
   @IsInt()
   @Min(0)
   durationSeconds?: number;
@@ -174,6 +178,10 @@ export class UpdateLessonDto {
   @IsOptional()
   @IsString()
   videoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  audioUrl?: string;
 
   @IsOptional()
   @IsInt()

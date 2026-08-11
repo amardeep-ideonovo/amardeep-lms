@@ -5,7 +5,7 @@ import type { MediaDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import MediaCropper from "./MediaCropper";
 
-type MediaKindPick = "image" | "video";
+type MediaKindPick = "image" | "video" | "audio";
 
 // Formats we can't (or shouldn't) redraw through a canvas cropper: animated
 // GIFs would lose their animation, SVGs are vector. These upload as-is.
@@ -47,7 +47,9 @@ export default function MediaPicker({
   // no upload, no remove, no URL edits — the preview still shows.
   disabled?: boolean;
 }) {
-  const resolvedAccept = accept ?? (kind === "video" ? "video/*" : "image/*");
+  const resolvedAccept =
+    accept ??
+    (kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : "image/*");
   const [libOpen, setLibOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -117,6 +119,12 @@ export default function MediaPicker({
                 border: "1px solid var(--border)",
                 display: "block",
               }}
+            />
+          ) : kind === "audio" ? (
+            <audio
+              src={value}
+              controls
+              style={{ width: 260, display: "block" }}
             />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
@@ -226,7 +234,8 @@ function MediaLibraryModal({
   const [err, setErr] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const noun = kind === "video" ? "videos" : "images";
+  const noun =
+    kind === "video" ? "videos" : kind === "audio" ? "audio files" : "images";
 
   const load = useCallback(
     async (query: string) => {
@@ -315,7 +324,13 @@ function MediaLibraryModal({
             <input
               ref={fileRef}
               type="file"
-              accept={kind === "video" ? "video/*" : "image/*"}
+              accept={
+                kind === "video"
+                  ? "video/*"
+                  : kind === "audio"
+                  ? "audio/*"
+                  : "image/*"
+              }
               hidden
               onChange={(e) => onFile(e.target.files)}
             />
@@ -362,6 +377,36 @@ function MediaLibraryModal({
                         objectFit: "cover",
                       }}
                     />
+                  ) : kind === "audio" ? (
+                    <span
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 4,
+                        width: "100%",
+                        height: "100%",
+                        padding: 6,
+                        fontSize: 11,
+                        color: "var(--text-muted)",
+                        textAlign: "center",
+                      }}
+                    >
+                      <span style={{ fontSize: 22 }} aria-hidden="true">
+                        🎵
+                      </span>
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          maxWidth: "100%",
+                        }}
+                      >
+                        {m.originalName}
+                      </span>
+                    </span>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

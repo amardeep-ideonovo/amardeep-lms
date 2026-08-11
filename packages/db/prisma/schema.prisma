@@ -278,7 +278,8 @@ model Lesson {
   title           String
   content         String? // markdown / rich text — doubles as the lesson description/body
   thumbnailUrl    String? // lesson thumbnail
-  videoUrl        String? // Vimeo link or direct video URL (e.g. MP4)
+  videoUrl        String? // Vimeo / YouTube link or direct video URL (e.g. MP4)
+  audioUrl        String? // audio lesson source (uploaded file). Mutually exclusive with videoUrl.
   durationSeconds Int? // lesson length in seconds (admin enters mm:ss); drives the curriculum total
   order           Int      @default(0)
   createdAt       DateTime @default(now())
