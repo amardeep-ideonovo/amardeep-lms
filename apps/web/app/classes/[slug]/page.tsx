@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { ClassPublicDTO } from "@lms/types";
 import { fetchClassPage } from "@/lib/api";
 import { buildMetadata } from "@/lib/seo";
+import { stripHtml } from "@/lib/stripHtml";
 import ClassMemberArea from "@/components/ClassMemberArea";
 import PopupHost from "@/components/PopupHost";
 
@@ -38,7 +39,8 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   if (!cls) return { title: "Class not found", robots: { index: false } };
   return buildMetadata({
     title: cls.name,
-    description: cls.description ?? undefined,
+    // description is now sanitized HTML — strip to plain text for <meta>.
+    description: cls.description ? stripHtml(cls.description) : undefined,
     path: `/classes/${cls.slug ?? cls.id}`,
     image: cls.imageUrl,
     type: "website",

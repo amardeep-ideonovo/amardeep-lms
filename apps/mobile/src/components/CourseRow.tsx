@@ -5,6 +5,7 @@ import type { CourseCard } from "@lms/types";
 import { Chip } from "./Chip";
 import { Press } from "./Press";
 import { ProgressBar } from "./ProgressBar";
+import { stripHtml } from "../format";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
@@ -39,7 +40,7 @@ export function CourseRow({
           </View>
           {course.description ? (
             <Text style={styles.cardDesc} numberOfLines={2}>
-              {course.description}
+              {stripHtml(course.description)}
             </Text>
           ) : null}
         </View>
