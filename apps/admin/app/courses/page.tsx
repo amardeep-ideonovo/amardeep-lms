@@ -57,6 +57,12 @@ function formatDuration(sec?: number | null): string {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 }
 
+function fmtBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
 export default function CoursesPage() {
   const { can, loading: authLoading } = useAdminAuth();
   const [courses, setCourses] = useState<CourseCard[]>([]);
@@ -592,6 +598,9 @@ function CourseLessons({
   const [media, setMedia] = useState<LessonMediaState>(emptyLessonMedia());
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [duration, setDuration] = useState("");
+  // Notes are staged here and uploaded right after the lesson is created (the
+  // upload endpoint needs the new lesson's id).
+  const [noteFiles, setNoteFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
 
   async function load() {
@@ -621,6 +630,7 @@ function CourseLessons({
     setMedia(emptyLessonMedia());
     setThumbnailUrl("");
     setDuration("");
+    setNoteFiles([]);
   }
 
   // Close the add-lesson modal on Escape (mirrors the course modal).
@@ -644,13 +654,17 @@ function CourseLessons({
     setSaving(true);
     setError(null);
     try {
-      await api.createLesson(courseId, {
+      const created = await api.createLesson(courseId, {
         title: title.trim(),
         content: content.trim() || undefined,
         ...lessonMediaPayload(media),
         thumbnailUrl: thumbnailUrl.trim() || undefined,
         durationSeconds: parseDuration(duration),
       });
+      // Notes need the new lesson's id, so upload them now that it exists.
+      if (noteFiles.length) {
+        await api.uploadLessonNotes(created.id, noteFiles);
+      }
       closeAdd(); // reset the draft + collapse to the "+ Add lesson" button
       await load();
     } catch (err) {
@@ -702,7 +716,11 @@ function CourseLessons({
           role="dialog"
           aria-modal="true"
         >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal"
+            style={{ maxWidth: 860 }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <h2>Add lesson — {courseTitle}</h2>
               <button
@@ -717,6 +735,7 @@ function CourseLessons({
             <div className="modal-body">
               {error && <p className="error">{error}</p>}
               <form onSubmit={addLesson}>
+                {/* Full-width: title + description */}
                 <div className="field">
                   <label>Title</label>
                   <input
@@ -736,31 +755,119 @@ function CourseLessons({
                     onChange={(e) => setContent(e.target.value)}
                   />
                 </div>
-                <div className="form-row">
-                  <div className="field" style={{ flex: 1 }}>
+
+                {/* Two columns: media on the left, metadata on the right. */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                    columnGap: 28,
+                    rowGap: 20,
+                    alignItems: "start",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 18,
+                    }}
+                  >
                     <LessonMediaFields
                       state={media}
                       onChange={setMedia}
                       name="add-lesson-media"
                     />
+                    <div className="field">
+                      <label>
+                        Duration{" "}
+                        <span className="muted">(mm:ss, optional)</span>
+                      </label>
+                      <input
+                        value={duration}
+                        onChange={(e) => setDuration(e.target.value)}
+                        placeholder="e.g. 12:30"
+                        style={{ maxWidth: 160 }}
+                      />
+                    </div>
                   </div>
-                  <div className="field">
-                    <label>Thumbnail</label>
-                    <MediaPicker value={thumbnailUrl} onChange={setThumbnailUrl} aspect={16 / 9} />
+
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 18,
+                    }}
+                  >
+                    <div className="field">
+                      <label>Thumbnail</label>
+                      <MediaPicker
+                        value={thumbnailUrl}
+                        onChange={setThumbnailUrl}
+                        aspect={16 / 9}
+                      />
+                    </div>
+                    <div className="field">
+                      <label>
+                        Notes{" "}
+                        <span className="muted">
+                          (downloadable files, optional)
+                        </span>
+                      </label>
+                      {noteFiles.length > 0 && (
+                        <ul className="notes-list">
+                          {noteFiles.map((f, i) => (
+                            <li key={i} className="note-item">
+                              <span
+                                style={{
+                                  flex: 1,
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {f.name}
+                              </span>
+                              <span className="muted">{fmtBytes(f.size)}</span>
+                              <button
+                                type="button"
+                                className="btn btn--ghost btn--sm"
+                                onClick={() =>
+                                  setNoteFiles((fs) =>
+                                    fs.filter((_, j) => j !== i),
+                                  )
+                                }
+                              >
+                                Remove
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <label
+                        className="btn btn--ghost btn--sm file-btn"
+                        style={{ marginTop: noteFiles.length ? 8 : 0 }}
+                      >
+                        + Add files
+                        <input
+                          type="file"
+                          multiple
+                          hidden
+                          onChange={(e) => {
+                            const picked = e.target.files
+                              ? Array.from(e.target.files)
+                              : [];
+                            if (picked.length)
+                              setNoteFiles((fs) => [...fs, ...picked]);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
-                <div className="field">
-                  <label>
-                    Duration <span className="muted">(mm:ss, optional)</span>
-                  </label>
-                  <input
-                    value={duration}
-                    onChange={(e) => setDuration(e.target.value)}
-                    placeholder="e.g. 12:30"
-                    style={{ maxWidth: 160 }}
-                  />
-                </div>
-                <div className="row-actions">
+
+                <div className="row-actions" style={{ marginTop: 22 }}>
                   <button className="btn" type="submit" disabled={saving}>
                     {saving ? "Adding…" : "Add lesson"}
                   </button>
@@ -772,10 +879,6 @@ function CourseLessons({
                     Cancel
                   </button>
                 </div>
-                <p className="muted" style={{ marginTop: 8 }}>
-                  Add downloadable notes after creating the lesson (use “Manage”
-                  on a lesson).
-                </p>
               </form>
             </div>
           </div>
