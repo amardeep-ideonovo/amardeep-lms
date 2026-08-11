@@ -794,19 +794,18 @@ function LessonRow({
   lesson: LessonDTO;
   onChanged: () => void | Promise<void>;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(lesson.title);
   const [content, setContent] = useState(lesson.content ?? "");
   const [media, setMedia] = useState<LessonMediaState>(
     lessonMediaFromDTO(lesson)
   );
+  const [thumbnailUrl, setThumbnailUrl] = useState(lesson.thumbnailUrl ?? "");
   const [duration, setDuration] = useState(
     formatDuration(lesson.durationSeconds)
   );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [uploadingThumb, setUploadingThumb] = useState(false);
   const [uploadingNotes, setUploadingNotes] = useState(false);
   const [names, setNames] = useState<Record<string, string>>({});
 
@@ -826,33 +825,16 @@ function LessonRow({
         title: title.trim(),
         content: content.trim() || undefined,
         ...lessonMediaPayload(media),
+        // Always sent (a controlled field): "" clears the thumbnail server-side.
+        thumbnailUrl: thumbnailUrl.trim(),
         durationSeconds: parseDuration(duration),
       });
       setEditing(false);
-      setExpanded(false);
       await onChanged();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "Failed to save lesson");
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function onPickThumb(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingThumb(true);
-    setErr(null);
-    try {
-      // Route through the Media Library so the upload is cataloged too.
-      const { url } = await api.uploadMedia(file);
-      await api.updateLesson(lesson.id, { thumbnailUrl: url });
-      await onChanged();
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Thumbnail upload failed");
-    } finally {
-      setUploadingThumb(false);
-      e.target.value = "";
     }
   }
 
@@ -948,6 +930,10 @@ function LessonRow({
           <button
             className="btn btn--ghost btn--sm"
             onClick={() => {
+              if (editing) {
+                setEditing(false);
+                return;
+              }
               // Reseed every field from the CURRENT lesson prop each time the
               // editor opens. Without this, edits abandoned via Cancel linger
               // in local state (the row is reconciled, not remounted) and a
@@ -955,22 +941,13 @@ function LessonRow({
               setTitle(lesson.title);
               setContent(lesson.content ?? "");
               setMedia(lessonMediaFromDTO(lesson));
+              setThumbnailUrl(lesson.thumbnailUrl ?? "");
               setDuration(formatDuration(lesson.durationSeconds));
               setErr(null);
-              setExpanded(true);
               setEditing(true);
             }}
           >
-            Edit details
-          </button>
-          <button
-            className="btn btn--ghost btn--sm"
-            onClick={() => {
-              setEditing(false);
-              setExpanded((v) => !v);
-            }}
-          >
-            {expanded ? "Close" : "Manage"}
+            {editing ? "Close" : "Edit details"}
           </button>
           <button
             className="btn btn--danger btn--sm"
@@ -982,71 +959,49 @@ function LessonRow({
         </div>
       </div>
 
-      {expanded && (
+      {editing && (
         <div className="lesson-item__body">
           {err && <p className="error">{err}</p>}
 
-          {editing ? (
-            <>
-              <div className="field">
-                <label>Title</label>
-                <input value={title} onChange={(e) => setTitle(e.target.value)} />
-              </div>
-              <div className="field">
-                <label>Description</label>
-                <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                />
-              </div>
-              <LessonMediaFields
-                state={media}
-                onChange={setMedia}
-                name={`edit-lesson-media-${lesson.id}`}
-              />
-              <div className="field">
-                <label>
-                  Duration <span className="muted">(mm:ss)</span>
-                </label>
-                <input
-                  value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
-                  placeholder="e.g. 12:30"
-                  style={{ maxWidth: 160 }}
-                />
-              </div>
-              <div className="row-actions">
-                <button className="btn btn--sm" onClick={saveEdits} disabled={busy}>
-                  {busy ? "Saving…" : "Save"}
-                </button>
-                <button
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => {
-                    setEditing(false);
-                    setExpanded(false);
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="row-actions">
-              <label className="btn btn--ghost btn--sm file-btn">
-                {uploadingThumb ? "Uploading…" : "Replace thumbnail"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={onPickThumb}
-                  disabled={uploadingThumb}
-                />
-              </label>
-            </div>
-          )}
+          <div className="field">
+            <label>Title</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>Description</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+            />
+          </div>
+          <LessonMediaFields
+            state={media}
+            onChange={setMedia}
+            name={`edit-lesson-media-${lesson.id}`}
+          />
+          <div className="field">
+            <label>Thumbnail</label>
+            <MediaPicker
+              value={thumbnailUrl}
+              onChange={setThumbnailUrl}
+              aspect={16 / 9}
+            />
+          </div>
+          <div className="field">
+            <label>
+              Duration <span className="muted">(mm:ss)</span>
+            </label>
+            <input
+              value={duration}
+              onChange={(e) => setDuration(e.target.value)}
+              placeholder="e.g. 12:30"
+              style={{ maxWidth: 160 }}
+            />
+          </div>
 
-          {!editing && (
-          <div className="field" style={{ marginTop: 12 }}>
+          {/* Downloadable notes — edited inline here (uploads/removes apply
+              immediately; title/media/duration save with the Save button). */}
+          <div className="field">
             <label>Notes (downloadable files)</label>
             {notes.length === 0 ? (
               <p className="muted">No notes yet.</p>
@@ -1102,7 +1057,18 @@ function LessonRow({
               />
             </label>
           </div>
-          )}
+
+          <div className="row-actions">
+            <button className="btn btn--sm" onClick={saveEdits} disabled={busy}>
+              {busy ? "Saving…" : "Save"}
+            </button>
+            <button
+              className="btn btn--ghost btn--sm"
+              onClick={() => setEditing(false)}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
     </div>

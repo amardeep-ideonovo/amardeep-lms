@@ -130,8 +130,8 @@ export default function LessonMediaFields({
                 set({ videoSource: next, videoUrl: keep ? state.videoUrl : "" });
               }}
             >
-              <option value="vimeo">Vimeo link</option>
-              <option value="youtube">YouTube link</option>
+              <option value="vimeo">Vimeo</option>
+              <option value="youtube">YouTube</option>
               {/* Uploading videos isn't offered — host on Vimeo/YouTube. This
                   option only appears for a legacy lesson that already stores a
                   direct video URL, so it can still be edited or migrated. */}
@@ -166,12 +166,15 @@ export default function LessonMediaFields({
           ) : null}
         </>
       ) : (
-        <MediaPicker
-          kind="audio"
-          value={state.audioUrl}
-          disabled={disabled}
-          onChange={(url) => set({ audioUrl: url })}
-        />
+        <div className="field">
+          <label>Select audio</label>
+          <MediaPicker
+            kind="audio"
+            value={state.audioUrl}
+            disabled={disabled}
+            onChange={(url) => set({ audioUrl: url })}
+          />
+        </div>
       )}
     </div>
   );

@@ -386,7 +386,7 @@ export class LmsService {
         courseId,
         title: dto.title,
         content: dto.content ?? null,
-        thumbnailUrl: dto.thumbnailUrl ?? null,
+        thumbnailUrl: dto.thumbnailUrl?.trim() || null,
         videoUrl: videoUrl ?? null,
         audioUrl: audioUrl ?? null,
         durationSeconds: dto.durationSeconds ?? null,
@@ -450,7 +450,11 @@ export class LmsService {
       data: {
         title: dto.title ?? undefined,
         content: dto.content ?? undefined,
-        thumbnailUrl: dto.thumbnailUrl ?? undefined,
+        // undefined => leave unchanged; "" => clear (Remove); else set.
+        thumbnailUrl:
+          dto.thumbnailUrl === undefined
+            ? undefined
+            : dto.thumbnailUrl.trim() || null,
         videoUrl,
         audioUrl,
         durationSeconds: dto.durationSeconds ?? undefined,
