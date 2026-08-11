@@ -46,6 +46,8 @@ export default function ClassesPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">(
     "all",
   );
+  // Free-text search (name or slug), composed with the status chips.
+  const [search, setSearch] = useState("");
 
   // create/edit form state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -444,12 +446,18 @@ export default function ClassesPage() {
 
   const publishedLevels = levels.filter((l) => l.published);
   const draftLevels = levels.filter((l) => !l.published);
-  const visible =
+  const q = search.trim().toLowerCase();
+  const matchesSearch = (l: LevelDTO) =>
+    !q ||
+    l.name.toLowerCase().includes(q) ||
+    (l.slug ?? "").toLowerCase().includes(q);
+  const statusFiltered =
     statusFilter === "published"
       ? publishedLevels
       : statusFilter === "draft"
         ? draftLevels
         : levels;
+  const visible = statusFiltered.filter(matchesSearch);
 
   // Course/lesson counts per class, from the real course list (levelIds).
   const countsFor = (levelId: string) => {
@@ -890,6 +898,24 @@ export default function ClassesPage() {
           Draft · {draftLevels.length}
         </button>
         <div className="filter-spacer" />
+        <div className="filter-search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+            <path
+              d="m20 20-3.5-3.5"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          </svg>
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search classes…"
+            aria-label="Search classes"
+          />
+        </div>
         {can("classes", "create") && (
           <button className="btn" onClick={openCreate}>
             + New class
@@ -917,6 +943,11 @@ export default function ClassesPage() {
               <span>Status</span>
               <span />
             </div>
+            {visible.length === 0 && (
+              <p className="muted" style={{ padding: "16px 4px" }}>
+                No classes match your search.
+              </p>
+            )}
             {visible.map((lvl) => {
               const counts = countsFor(lvl.id);
               return (
