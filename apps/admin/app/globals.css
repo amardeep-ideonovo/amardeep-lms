@@ -1183,6 +1183,33 @@ select:-webkit-autofill:focus {
   font-size: 12px;
   box-shadow: none;
 }
+/* Square icon-only button — the label lives in aria-label + title (tooltip). */
+.btn--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  /* Square, sized to match the height of a sibling text .btn so the two read
+     as a matched pair in a toolbar (e.g. next to Refresh). */
+  width: 40px;
+  height: 40px;
+  line-height: 0;
+}
+.btn--sm.btn--icon {
+  width: 30px;
+  height: 30px;
+}
+.btn--icon svg {
+  flex: none;
+}
+@keyframes ik-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.icon-spin {
+  animation: ik-spin 0.7s linear infinite;
+}
 /* Highlighted "add another" action — a distinct blue so it stands out from the
    teal primary submit button and is easy to spot. */
 .btn--add {

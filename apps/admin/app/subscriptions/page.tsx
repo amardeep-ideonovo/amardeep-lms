@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { SubscriptionRowDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
+import { DownloadIcon, SpinnerIcon } from "@/components/ExportIcons";
 
 const money = (a: number | null, c: string) =>
   a == null
@@ -120,8 +121,12 @@ export default function SubscriptionsPage() {
         <div className="row-actions">
           <button
             type="button"
-            className="btn btn--ghost"
+            className="btn btn--ghost btn--icon"
             disabled={exporting || loading}
+            aria-label={
+              exporting ? "Exporting subscriptions…" : "Download subscriptions as Excel"
+            }
+            title={exporting ? "Exporting…" : "Download Excel"}
             onClick={async () => {
               setExporting(true);
               setError(null);
@@ -134,7 +139,7 @@ export default function SubscriptionsPage() {
               }
             }}
           >
-            {exporting ? "Exporting…" : "Download Excel"}
+            {exporting ? <SpinnerIcon /> : <DownloadIcon />}
           </button>
           <button className="btn btn--ghost" onClick={load} disabled={loading}>
             {loading ? "Refreshing…" : "Refresh"}

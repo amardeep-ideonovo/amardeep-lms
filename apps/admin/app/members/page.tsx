@@ -13,6 +13,7 @@ import { ApiError, api } from "@/lib/api";
 import { dialog } from "@/components/DialogProvider";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import RowMenu from "@/components/RowMenu";
+import { DownloadIcon, SpinnerIcon } from "@/components/ExportIcons";
 
 const PAGE_SIZE = 8; // rows per page (Ink Hero frame 2h)
 
@@ -266,8 +267,10 @@ export default function MembersPage() {
         </span>
         <button
           type="button"
-          className="btn btn--ghost btn--sm"
+          className="btn btn--ghost btn--sm btn--icon"
           disabled={exporting}
+          aria-label={exporting ? "Exporting members…" : "Download members as Excel"}
+          title={exporting ? "Exporting…" : "Download Excel"}
           onClick={async () => {
             setExporting(true);
             setError(null);
@@ -285,7 +288,7 @@ export default function MembersPage() {
             }
           }}
         >
-          {exporting ? "Exporting…" : "Download Excel"}
+          {exporting ? <SpinnerIcon /> : <DownloadIcon />}
         </button>
       </div>
 
