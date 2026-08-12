@@ -37,7 +37,7 @@ function priceLabel(cls: ClassPublicDTO): string | null {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const cls = await fetchClassPage(params.slug);
   if (!cls) return { title: "Class not found", robots: { index: false } };
-  return buildMetadata({
+  return await buildMetadata({
     title: cls.name,
     // description is now sanitized HTML — strip to plain text for <meta>.
     description: cls.description ? stripHtml(cls.description) : undefined,

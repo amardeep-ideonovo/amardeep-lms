@@ -11,7 +11,7 @@ import {
   fetchHeaderMenu,
   fetchSiteHeader,
 } from "@/lib/api";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/seo";
+import { SITE_DESCRIPTION, SITE_URL, getSiteName } from "@/lib/seo";
 
 // Ink Hero single typeface — exposed as a CSS var consumed by globals.css
 // (BOTH --font-sans and --font-display resolve to it).
@@ -27,30 +27,38 @@ const jakarta = Plus_Jakarta_Sans({
 // preference this resolves to renders the same. The attribute plumbing stays.
 const themeScript = `(function(){try{var p=localStorage.getItem('lms.theme')||'dark';var d=p==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;document.documentElement.setAttribute('data-theme',d);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
 
-export const metadata: Metadata = {
-  // Resolves canonical tags + relative OG images to the public origin.
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: SITE_NAME,
-    template: `%s | ${SITE_NAME}`,
-  },
-  description: SITE_DESCRIPTION,
-  applicationName: SITE_NAME,
-  // Indexable by default; private/utility segments opt out via their own layout.
-  robots: { index: true, follow: true },
-  openGraph: {
-    type: "website",
-    siteName: SITE_NAME,
-    locale: "en_US",
-    title: SITE_NAME,
+// Dynamic so the browser-tab title + " | <brand>" suffix (inherited by every
+// child page), applicationName and OG/Twitter card all carry the PER-INSTANCE
+// brand (AppConfig.title) resolved at runtime — not the shared build-time
+// SITE_NAME baked into the fleet image. getSiteName() never throws and falls
+// back to SITE_NAME, so this can never 500 the whole app.
+export async function generateMetadata(): Promise<Metadata> {
+  const siteName = await getSiteName();
+  return {
+    // Resolves canonical tags + relative OG images to the public origin.
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: siteName,
+      template: `%s | ${siteName}`,
+    },
     description: SITE_DESCRIPTION,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: SITE_NAME,
-    description: SITE_DESCRIPTION,
-  },
-};
+    applicationName: siteName,
+    // Indexable by default; private/utility segments opt out via their own layout.
+    robots: { index: true, follow: true },
+    openGraph: {
+      type: "website",
+      siteName: siteName,
+      locale: "en_US",
+      title: siteName,
+      description: SITE_DESCRIPTION,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: siteName,
+      description: SITE_DESCRIPTION,
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#221c3d",
