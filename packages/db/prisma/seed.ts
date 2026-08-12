@@ -1301,6 +1301,25 @@ async function markDemoSeeded(): Promise<void> {
   });
 }
 
+// A control-plane "demo content pack" has been imported into this instance
+// (see apps/api/src/content-pack). Its marker lives in ContentPackState — a
+// table the seed never writes, kept separate from SeedState precisely so the
+// baseline purge can consult it without racing its own SeedState wipe. When a
+// pack is present, the baseline path must NOT purge: the pack was exported from
+// a demo instance whose catalog still carried the seed's own "seed-" ids, and
+// purgeDemoDebris() keys off exactly that prefix — it would delete the client's
+// imported content on this and every later boot. Tolerant of the table being
+// absent (an older schema) so the seed never crashes on it.
+async function contentPackImported(): Promise<boolean> {
+  try {
+    return !!(await prisma.contentPackState.findUnique({
+      where: { id: "singleton" },
+    }));
+  } catch {
+    return false;
+  }
+}
+
 // Member demo state: enrolled in two classes with visible progress, so the
 // dashboard opens on "Welcome back" with a non-zero continue-learning hero.
 async function seedMemberState(memberId: string) {
@@ -2636,8 +2655,16 @@ async function main() {
   // "No demo content" is enforced, not assumed: a database that carries demo
   // rows from an earlier demo-seeded life is cleaned on every baseline boot.
   if (!SEED_DEMO) {
-    await purgeDemoDebris();
-    console.log("Seed complete — baseline only (no demo content).");
+    // Once a control-plane content pack has landed, its rows ARE the client's
+    // content — even the ones still under the seed's "seed-" ids. Skip the purge
+    // (which targets that prefix) so a restart/upgrade can't wipe the imported
+    // catalog. A never-packed instance still gets the debris clean-up.
+    if (await contentPackImported()) {
+      console.log("Seed complete — baseline; content pack present, purge skipped.");
+    } else {
+      await purgeDemoDebris();
+      console.log("Seed complete — baseline only (no demo content).");
+    }
     console.log(
       OWNER_EMAIL
         ? `  Admin: ${admin.email} (SEED_ADMIN_* credentials)`

@@ -36,6 +36,7 @@ import { LiveModule } from './live/live.module';
 import { SupportModule } from './support/support.module';
 import { HealthModule } from './health/health.module';
 import { ControlPlaneModule } from './control-plane/control-plane.module';
+import { ContentPackModule } from './content-pack/content-pack.module';
 
 @Module({
   imports: [
@@ -91,6 +92,7 @@ import { ControlPlaneModule } from './control-plane/control-plane.module';
     ProjectsModule,
     LiveModule,
     SupportModule,
+    ContentPackModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: GlobalThrottlerGuard }],
 })

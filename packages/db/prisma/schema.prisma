@@ -1568,3 +1568,18 @@ model SeedState {
   demoSeededAt DateTime
   createdAt    DateTime @default(now())
 }
+
+// Records that a control-plane "demo content pack" has been imported into this
+// instance (see apps/api/src/content-pack). Deliberately SEPARATE from SeedState:
+// a pack-seeded instance boots with SEED_DEMO_CONTENT=false, and that baseline
+// path clears SeedState on every start (purgeDemoDebris in prisma/seed.ts). The
+// import marker must survive those boots, so it lives in a table the seed never
+// touches. Single row (id = "singleton").
+model ContentPackState {
+  id           String   @id
+  packVersion  Int      @default(0) // control-plane DemoPack.version that landed (0 = unknown / legacy)
+  packLabel    String?
+  sourceOrigin String? // PUBLIC_API_URL of the demo instance the pack was exported from
+  importedAt   DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
