@@ -21,8 +21,8 @@ const jakarta = Plus_Jakarta_Sans({
 // Per-instance brand for the admin browser-tab title, resolved server-side from
 // the same public GET /app/config the chrome uses (via useAppBrand). Reached over
 // the internal compose network (API_URL_INTERNAL) so ONE prebuilt admin image
-// brands each instance's tab. Never throws; the API default-merges the
-// placeholder "LMS" when unbranded, so that reads as unset -> neutral "Admin".
+// brands each instance's tab. Never throws; a LEGACY stored "LMS" reads as unset
+// -> neutral "Admin" (the product default is now "Spotlight Academy", shown as-is).
 async function fetchBrandTitle(): Promise<string | null> {
   const base =
     process.env.API_URL_INTERNAL ||
