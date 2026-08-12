@@ -32,7 +32,7 @@ const LIGHT: AppThemePalette = {
   danger: '#e04848',
 };
 const DEFAULT_APP_CONFIG: AppConfig = {
-  title: 'LMS',
+  title: 'Spotlight Academy',
   tagline: null,
   description: null,
   logoUrl: null,

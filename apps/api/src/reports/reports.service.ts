@@ -387,7 +387,7 @@ export class ReportsService {
 
   private newWorkbook(): ExcelJS.Workbook {
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'LMS Admin';
+    wb.creator = 'Spotlight Academy';
     return wb;
   }
 

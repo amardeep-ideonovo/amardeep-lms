@@ -173,7 +173,7 @@ export default function Nav({
   ) : (
     <Link href="/dashboard" className="nav-brand">
       <SpotlightLogo size={26} />
-      <span>{brandTitle?.trim() || "LMS"}</span>
+      <span>{brandTitle?.trim() || "Spotlight Academy"}</span>
     </Link>
   );
 

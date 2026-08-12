@@ -11,7 +11,8 @@ import { fetchAppConfig } from "./api";
 // image (NEXT_PUBLIC_* is inlined at build), so it must NOT be the primary brand
 // source — it's only the last resort when the per-instance AppConfig.title is
 // unset or the API is unreachable. Prefer getSiteName() below.
-export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "LMS";
+export const SITE_NAME =
+  process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "Spotlight Academy";
 
 // Per-instance brand, resolved at RUNTIME from AppConfig.title — the SAME source
 // that themes the Nav, Footer, mobile app and emails. One prebuilt fleet image

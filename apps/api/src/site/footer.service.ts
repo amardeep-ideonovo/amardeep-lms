@@ -35,7 +35,7 @@ const DEFAULT_FOOTER: FooterConfig = {
     doubleOptIn: false,
     successMessage: "Thanks! You're subscribed.",
   },
-  copyright: '© {year} LMS. All rights reserved.',
+  copyright: '© {year} Spotlight Academy. All rights reserved.',
   bottomLinks: [],
 };
 

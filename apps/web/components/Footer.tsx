@@ -62,7 +62,7 @@ export default function Footer({
             <img src={f.logoUrl} alt="" className="footer-logo" />
           ) : (
             <Link href="/dashboard" className="footer-brand">
-              {brandTitle?.trim() || "LMS"}
+              {brandTitle?.trim() || "Spotlight Academy"}
             </Link>
           )}
           {f.tagline && <p className="footer-tagline">{f.tagline}</p>}

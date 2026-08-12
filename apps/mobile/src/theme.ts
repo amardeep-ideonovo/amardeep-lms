@@ -356,7 +356,7 @@ export function fontFamily(weight?: string | number): string {
 // default-merge so an unconfigured / disconnected app looks like it does today.
 // Ink Hero ships LIGHT by default (light content under ink chrome).
 export const DEFAULT_APP_CONFIG: AppConfig = {
-  title: "LMS",
+  title: "Spotlight Academy",
   tagline: null,
   description: null,
   logoUrl: null,

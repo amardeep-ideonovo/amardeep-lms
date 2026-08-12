@@ -7,10 +7,10 @@ import { apiUrl } from "./runtime-env";
 // same public GET /app/config that themes the member web + mobile apps — so one
 // prebuilt admin image brands itself per instance at runtime, like runtime-env.
 //
-// Resolves to null when the instance never customized its AppConfig: the API
-// default-merges the placeholder title "LMS" (DEFAULT_APP_CONFIG in
-// apps/api/src/site/app-config.service.ts), and a placeholder must read as
-// "unset" so call sites fall back to something neutral instead of showing it.
+// The product default title is now "Spotlight Academy" (a real brand, shown
+// as-is). This sentinel is the LEGACY default "LMS": if an older instance still
+// stores that literal title, treat it as "unset" so the admin chrome renders a
+// neutral fallback instead of the retired placeholder.
 const PLACEHOLDER_TITLE = "LMS";
 
 // Fetch once per page load, shared by every caller (login card and sidebar can
