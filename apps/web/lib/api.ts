@@ -127,10 +127,16 @@ export class ApiError extends Error {
 // Default TTL (seconds) for PUBLIC, token-independent responses that opt into
 // caching. Applied to the site header/footer/menu/app-config fetches the root
 // layout makes on EVERY route, so a burst of renders shares one API round-trip
-// per resource instead of one each. Kept short so an admin's branding/nav edit
-// still shows within ~30s (matches the mobile config-poll cadence). This is
-// NEVER applied to a request that carries a member token (see request()).
-export const PUBLIC_TTL_SECONDS = 30;
+// per resource instead of one each. Kept SHORT (a few seconds) so an admin's
+// branding/nav/footer edit — e.g. toggling the site footer on or off — shows on
+// the member site almost immediately. Next's time-based revalidate is
+// stale-while-revalidate, so this is roughly the upper bound on how long a saved
+// change stays hidden (worst case ~this many seconds, plus one render cycle).
+// Lower = fresher edits at the cost of more API round-trips, but these are tiny,
+// compressed, singleton reads shared across all visitors, so the extra load is
+// negligible. NEVER applied to a request that carries a member token (see
+// request()).
+export const PUBLIC_TTL_SECONDS = 5;
 
 type Options = {
   method?: string;
