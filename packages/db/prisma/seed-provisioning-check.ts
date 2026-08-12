@@ -414,9 +414,9 @@ async function main() {
     // blog — then the container restarts (deploy, pause/resume, crash). Every
     // one of those edits must survive the seed re-run.
     {
-      await db.level.delete({ where: { id: "seed-class-tech" } });
+      await db.level.delete({ where: { id: "seed-class-cooking" } });
       await db.level.update({
-        where: { id: "seed-class-music" },
+        where: { id: "seed-class-music-production" },
         data: {
           name: "My Music Academy",
           imageUrl: "https://client.example/custom-cover.png",
@@ -431,12 +431,12 @@ async function main() {
     runSeed(ONCE_ENV, "one-shot demo instance, container restart");
     {
       assert.equal(
-        await db.level.findUnique({ where: { id: "seed-class-tech" } }),
+        await db.level.findUnique({ where: { id: "seed-class-cooking" } }),
         null,
         "a class the client deleted must NOT be resurrected by a restart",
       );
       const music = await db.level.findUniqueOrThrow({
-        where: { id: "seed-class-music" },
+        where: { id: "seed-class-music-production" },
       });
       assert.equal(music.name, "My Music Academy");
       assert.equal(
@@ -466,17 +466,17 @@ async function main() {
     // post-fix boot stamps the marker and re-imposes NOTHING.
     {
       await db.seedState.deleteMany();
-      await db.level.delete({ where: { id: "seed-class-sports" } });
+      await db.level.delete({ where: { id: "seed-class-strength-and-conditioning" } });
     }
     runSeed(ONCE_ENV, "legacy demo instance, first post-fix boot");
     {
       assert.equal(
-        await db.level.findUnique({ where: { id: "seed-class-sports" } }),
+        await db.level.findUnique({ where: { id: "seed-class-strength-and-conditioning" } }),
         null,
         "legacy footprint must be treated as seeded — nothing re-imposed",
       );
       const music = await db.level.findUniqueOrThrow({
-        where: { id: "seed-class-music" },
+        where: { id: "seed-class-music-production" },
       });
       assert.equal(
         music.imageUrl,
