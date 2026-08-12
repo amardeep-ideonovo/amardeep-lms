@@ -20,8 +20,7 @@ import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 import ColorField from "@/components/ColorField";
 import { CtaTargetPicker } from "./CtaTargetPicker";
-
-const BRAND = "LMS"; // text-brand fallback (matches the web Nav default)
+import { useAppBrand } from "@/lib/app-brand";
 
 const SECTIONS: { value: HeaderSection; label: string }[] = [
   { value: "HOME", label: "Home" },
@@ -321,6 +320,9 @@ function HeaderEditor({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [previewLabels, setPreviewLabels] = useState<string[]>([]);
+  // Preview the instance's real brand (AppConfig.title), not a hardcoded "LMS";
+  // neutral fallback until the admin sets a title.
+  const previewBrand = useAppBrand() ?? "Your brand";
 
   const config = draft.config;
   const cond = draft.conditions;
@@ -634,7 +636,7 @@ function HeaderEditor({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={config.logoUrl} alt="" />
               ) : (
-                <span className="hb-brand">{BRAND}</span>
+                <span className="hb-brand">{previewBrand}</span>
               )}
             </div>
             <nav className="hb-menu">
@@ -772,7 +774,7 @@ function HeaderEditor({
         <h2>Logo &amp; menu</h2>
         <div className="field">
           <label>
-            Logo image <span className="muted">(blank = “{BRAND}” text)</span>
+            Logo image <span className="muted">(blank = “{previewBrand}” text)</span>
           </label>
           <MediaPicker
             value={config.logoUrl ?? ""}

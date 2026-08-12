@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import type { PostListItem } from "@lms/types";
 import { fetchPublishedPosts } from "@/lib/api";
 import { absoluteUrl, buildMetadata, jsonLdScript } from "@/lib/seo";
@@ -9,11 +10,13 @@ export const dynamic = "force-dynamic";
 
 const BLOG_DESCRIPTION = "News, guides, and stories from our team.";
 
-export const metadata = buildMetadata({
-  title: "Blog",
-  description: BLOG_DESCRIPTION,
-  path: "/blog",
-});
+export async function generateMetadata(): Promise<Metadata> {
+  return buildMetadata({
+    title: "Blog",
+    description: BLOG_DESCRIPTION,
+    path: "/blog",
+  });
+}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "";

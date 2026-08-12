@@ -1,10 +1,17 @@
 import type { MetadataRoute } from "next";
-import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo";
+import { headers } from "next/headers";
+import { SITE_DESCRIPTION, getSiteName } from "@/lib/seo";
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  // Touch headers() to opt OUT of static prerendering (the same technique the
+  // root layout and robots.ts use — `export const dynamic` is NOT honored for
+  // metadata routes). The name must resolve from each instance's live
+  // AppConfig.title at request time, not bake the shared fallback brand at build.
+  headers();
+  const siteName = await getSiteName();
   return {
-    name: SITE_NAME,
-    short_name: SITE_NAME,
+    name: siteName,
+    short_name: siteName,
     description: SITE_DESCRIPTION,
     start_url: "/",
     display: "standalone",

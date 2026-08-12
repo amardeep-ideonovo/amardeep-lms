@@ -43,7 +43,7 @@ export async function generateMetadata({
   const page = await fetchPublishedPage(params.slug);
   if (!page) return { title: "Page not found", robots: { index: false } };
   const seo = pageSeo(page);
-  return buildMetadata({
+  return await buildMetadata({
     title: seo.title,
     description: seo.description,
     path: `/${page.slug}`,

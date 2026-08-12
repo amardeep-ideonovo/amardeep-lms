@@ -134,7 +134,7 @@ export default function AppCustomizationBuilder({
               value={cfg.title}
               disabled={ro}
               maxLength={80}
-              placeholder="LMS"
+              placeholder="Your brand name"
               onChange={(e) => upd({ title: e.target.value })}
             />
           </div>
@@ -256,13 +256,13 @@ export default function AppCustomizationBuilder({
                 these now so your first branded build ships fully branded —
                 they’re baked in at build time (<strong>PNG</strong>, icon
                 1024×1024 opaque, splash ≥1242×2436). They never affect the
-                shared LMS app.
+                shared app.
               </>
             ) : wlLocked ? (
               <>
                 Available with the <strong>white-label app</strong> add-on:
                 these become the installed icon and launch splash of your own
-                branded app. The shared LMS app always keeps its standard icon,
+                branded app. The shared app always keeps its standard icon,
                 name, and splash, so they’re disabled on your current plan.
                 Request your branded app from your license portal to unlock
                 them.
@@ -270,7 +270,7 @@ export default function AppCustomizationBuilder({
             ) : (
               <>
                 ⚠ Used only when a <strong>white-label</strong> (branded) app is
-                built for your academy — the shared LMS app keeps its standard
+                built for your academy — the shared app keeps its standard
                 icon and splash. These are baked in at build time, not live like
                 the colors above. Upload <strong>PNG</strong>s (icon 1024×1024
                 opaque, splash ≥1242×2436) — the next app build bakes them in
@@ -499,7 +499,7 @@ function PhonePreview({
             />
           ) : (
             <span style={{ color: "#ffffff", fontSize: 17, fontWeight: 800 }}>
-              {cfg.title || "LMS"}
+              {cfg.title || "Your app"}
             </span>
           )}
           <span

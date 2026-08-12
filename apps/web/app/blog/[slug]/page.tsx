@@ -2,7 +2,12 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchPublishedPost } from "@/lib/api";
-import { SITE_NAME, absoluteUrl, buildMetadata, jsonLdScript } from "@/lib/seo";
+import {
+  absoluteUrl,
+  buildMetadata,
+  getSiteName,
+  jsonLdScript,
+} from "@/lib/seo";
 
 // Public, server-rendered (no auth) for SEO.
 export const dynamic = "force-dynamic";
@@ -12,7 +17,7 @@ type Params = { params: { slug: string } };
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const post = await fetchPublishedPost(params.slug);
   if (!post) return { title: "Post not found", robots: { index: false } };
-  return buildMetadata({
+  return await buildMetadata({
     title: post.title,
     description: post.excerpt ?? undefined,
     path: `/blog/${post.slug}`,
@@ -39,6 +44,8 @@ export default async function BlogPostPage({ params }: Params) {
 
   const url = absoluteUrl(`/blog/${post.slug}`);
   const image = post.coverImageUrl ? absoluteUrl(post.coverImageUrl) : undefined;
+  // Per-instance brand for the JSON-LD publisher (runtime, not build-time).
+  const siteName = await getSiteName();
 
   // Article rich-result schema. datePublished/dateModified + author + publisher
   // give Google everything it needs for a BlogPosting card.
@@ -53,7 +60,7 @@ export default async function BlogPostPage({ params }: Params) {
     author: post.author
       ? { "@type": "Person", name: post.author.name }
       : undefined,
-    publisher: { "@type": "Organization", name: SITE_NAME },
+    publisher: { "@type": "Organization", name: siteName },
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
     keywords: post.tags.length ? post.tags.join(", ") : undefined,
     articleSection: post.categories.map((c) => c.name),
