@@ -11,8 +11,8 @@ import type {
 import { ApiError, api } from "@/lib/api";
 import MediaPicker from "@/components/MediaPicker";
 import ColorField from "@/components/ColorField";
+import { useAppBrand } from "@/lib/app-brand";
 
-const BRAND = "LMS";
 const msg = (e: unknown, fb: string) =>
   e instanceof ApiError ? e.message : fb;
 
@@ -41,6 +41,9 @@ export default function FooterBuilder({
   const [saved, setSaved] = useState(false);
   const [menuLabels, setMenuLabels] = useState<string[]>([]);
   const year = new Date().getFullYear();
+  // Preview the instance's real brand (AppConfig.title), not a hardcoded "LMS";
+  // neutral fallback until the admin sets a title.
+  const previewBrand = useAppBrand() ?? "Your brand";
 
   useEffect(() => {
     api
@@ -154,7 +157,7 @@ export default function FooterBuilder({
                 <img src={cfg.logoUrl} alt="" className="ftr-logo" />
               ) : (
                 <span className="ftr-brand" style={{ color: cfg.headingColor }}>
-                  {BRAND}
+                  {previewBrand}
                 </span>
               )}
               {cfg.tagline && <p className="ftr-tagline">{cfg.tagline}</p>}
@@ -222,7 +225,7 @@ export default function FooterBuilder({
         <h2>Column 1 — Logo</h2>
         <div className="field">
           <label>
-            Logo image <span className="muted">(blank = “{BRAND}” text)</span>
+            Logo image <span className="muted">(blank = “{previewBrand}” text)</span>
           </label>
           <MediaPicker value={cfg.logoUrl ?? ""} disabled={ro} onChange={(url) => upd({ logoUrl: url || null })} />
         </div>

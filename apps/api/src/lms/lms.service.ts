@@ -652,9 +652,11 @@ export class LmsService {
         where: { id: 'singleton' },
       });
       const title = (row?.config as { title?: unknown } | null)?.title;
-      return typeof title === 'string' && title.trim() ? title : 'LMS';
+      return typeof title === 'string' && title.trim()
+        ? title
+        : 'Spotlight Academy';
     } catch {
-      return 'LMS';
+      return 'Spotlight Academy';
     }
   }
 

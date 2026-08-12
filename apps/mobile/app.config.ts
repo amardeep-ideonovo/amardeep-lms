@@ -64,7 +64,7 @@ const config = (): ExpoConfig => ({
       {
         image: "./assets/splash.png",
         resizeMode: "contain",
-        backgroundColor: "#221c3d",
+        backgroundColor: "#ffffff",
       },
     ],
     "expo-font",
@@ -92,7 +92,7 @@ const config = (): ExpoConfig => ({
     package: process.env.INSTANCE_ANDROID_PACKAGE ?? "com.thewebpaanda.lms",
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
-      backgroundColor: "#221c3d",
+      backgroundColor: "#051533",
     },
   },
   web: {

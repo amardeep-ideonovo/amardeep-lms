@@ -18,10 +18,34 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "LMS Admin",
-  description: "Membership LMS admin panel",
-};
+// Per-instance brand for the admin browser-tab title, resolved server-side from
+// the same public GET /app/config the chrome uses (via useAppBrand). Reached over
+// the internal compose network (API_URL_INTERNAL) so ONE prebuilt admin image
+// brands each instance's tab. Never throws; a LEGACY stored "LMS" reads as unset
+// -> neutral "Admin" (the product default is now "Spotlight Academy", shown as-is).
+async function fetchBrandTitle(): Promise<string | null> {
+  const base =
+    process.env.API_URL_INTERNAL ||
+    process.env.RUNTIME_API_URL ||
+    "http://localhost:3000";
+  try {
+    const res = await fetch(`${base}/app/config`, { next: { revalidate: 30 } });
+    if (!res.ok) return null;
+    const cfg = (await res.json()) as { title?: unknown };
+    const title = typeof cfg.title === "string" ? cfg.title.trim() : "";
+    return title && title !== "LMS" ? title : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await fetchBrandTitle();
+  return {
+    title: brand ? `${brand} · Admin` : "Admin",
+    description: brand ? `${brand} admin panel` : "Admin panel",
+  };
+}
 
 // Resolve the saved theme preference before first paint to avoid a flash.
 // Ink Hero has a SINGLE appearance — :root and [data-theme="light"] carry the

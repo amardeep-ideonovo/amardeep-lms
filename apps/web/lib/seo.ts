@@ -5,8 +5,26 @@
 // origin + brand. Configure via env (see .env.example); sensible localhost
 // defaults keep dev working with zero setup.
 import type { Metadata } from "next";
+import { fetchAppConfig } from "./api";
 
-export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "LMS";
+// Build-time / env fallback brand. Shared by EVERY instance on a prebuilt fleet
+// image (NEXT_PUBLIC_* is inlined at build), so it must NOT be the primary brand
+// source — it's only the last resort when the per-instance AppConfig.title is
+// unset or the API is unreachable. Prefer getSiteName() below.
+export const SITE_NAME =
+  process.env.NEXT_PUBLIC_SITE_NAME?.trim() || "Spotlight Academy";
+
+// Per-instance brand, resolved at RUNTIME from AppConfig.title — the SAME source
+// that themes the Nav, Footer, mobile app and emails. One prebuilt fleet image
+// therefore renders each instance's real name in its <title>, PWA manifest, OG
+// cards and share image, instead of the shared build-time SITE_NAME. Server-side
+// only (metadata/manifest/OG/JSON-LD); TTL-cached + request-deduped via
+// fetchAppConfig. Never throws (fetchAppConfig catches -> null) and falls back to
+// SITE_NAME, so a config outage degrades to the generic brand, never a 500.
+export async function getSiteName(): Promise<string> {
+  const cfg = await fetchAppConfig();
+  return cfg?.title?.trim() || SITE_NAME;
+}
 
 // Public origin of THIS web app (no trailing slash). Used for canonical URLs,
 // the sitemap, and resolving relative OG images.
@@ -78,10 +96,13 @@ type BuildMetadataArgs = {
 // Build a complete, consistent Metadata object: title + description, a
 // self-referencing canonical, a fully-specified OpenGraph object, and a
 // matching Twitter card. Next merges this over the root layout defaults.
-export function buildMetadata(a: BuildMetadataArgs): Metadata {
+export async function buildMetadata(a: BuildMetadataArgs): Promise<Metadata> {
+  // Per-instance brand (runtime), so OG siteName / share text carry the real
+  // instance name rather than the shared build-time SITE_NAME.
+  const siteName = await getSiteName();
   // Always carry an image: the per-page one if given, else the branded default.
   const image = absoluteUrl(a.image || DEFAULT_OG_IMAGE);
-  const ogImages = [{ url: image, alt: a.imageAlt || a.title || SITE_NAME }];
+  const ogImages = [{ url: image, alt: a.imageAlt || a.title || siteName }];
   const isArticle = a.type === "article";
 
   return {
@@ -90,10 +111,10 @@ export function buildMetadata(a: BuildMetadataArgs): Metadata {
     alternates: { canonical: a.path },
     openGraph: {
       type: a.type ?? "website",
-      siteName: SITE_NAME,
+      siteName: siteName,
       locale: "en_US",
       url: a.path,
-      title: a.title ?? SITE_NAME,
+      title: a.title ?? siteName,
       description: a.description,
       images: ogImages,
       ...(isArticle
@@ -106,7 +127,7 @@ export function buildMetadata(a: BuildMetadataArgs): Metadata {
     },
     twitter: {
       card: "summary_large_image",
-      title: a.title ?? SITE_NAME,
+      title: a.title ?? siteName,
       description: a.description,
       images: [image],
     },
