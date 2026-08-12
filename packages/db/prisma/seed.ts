@@ -133,6 +133,12 @@ const generalArt = (i: number) => artUrl(`demo-general-${wrap(i, 2)}`);
 /** Abstract identicon. Deliberately not a photo of a person. */
 const avatarArt = (i = 0) => artUrl(`demo-avatar-${wrap(i, 2)}`);
 
+// Real uploaded images from the admin-authored demo, staged in
+// assets/demo-media/ and copied into MEDIA_DIR by seedUploadedMedia(). Same
+// absolute-URL rule as art(): a bare "/media/…" would resolve against the WEB
+// origin and 404, so build the full URL from the API origin here.
+const media = (file: string) => `${MEDIA_BASE}/media/${file}`;
+
 // Lesson bodies are PLAIN TEXT: the web lesson page renders {lesson.content}
 // with white-space: pre-wrap and mobile uses a bare <Text> — HTML tags would
 // display literally. Join paragraphs with blank lines only.
@@ -419,498 +425,231 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
 
 // ---------- the catalog: 6 published classes ----------
 
-type LessonSeed = { title: string; minutes: number; seconds: number; body: string };
-type CourseSeed = { key: string; title: string; description: string; lessons: LessonSeed[] };
+// The demo catalog was authored in the admin UI (2026-08-12) and codified back
+// here, so — unlike the older generated-art catalog — every image is an explicit
+// uploaded asset (media("…")) and every description/lesson body is HTML (the
+// rich-text editor's output, rendered via dangerouslySetInnerHTML on the web).
+type LessonSeed = {
+  title: string;
+  durationSeconds: number;
+  content: string; // HTML
+  videoUrl: string;
+  thumbnailUrl: string;
+};
+type CourseSeed = {
+  key: string;
+  title: string;
+  slug: string;
+  description: string; // HTML
+  thumbnailUrl: string;
+  coverImageUrl: string;
+  lessons: LessonSeed[];
+};
 type ClassSeed = {
   key: string;
-  theme: ArtTheme; // demo-artwork set
   name: string;
   slug: string;
   type: "FREE" | "PAID";
-  description: string;
+  description: string; // HTML marketing description
+  imageUrl: string; // class hero/cover
+  trailerUrl: string; // Vimeo trailer URL
   categories: string[]; // LevelCategory ids
-  skills: string[];
-  // [interval, amount, installments?][] — stripePriceId stays null (lazily
-  // provisioned by the billing layer at first checkout).
+  skills: Array<{ title: string; imageUrl: string }>; // "Skills You'll Learn"
   prices: Array<{ interval: "month" | "year"; amount: number; installments?: number }>;
   courses: CourseSeed[];
 };
 
-const L = (title: string, minutes: number, seconds: number, body: string): LessonSeed => ({
-  title,
-  minutes,
-  seconds,
-  body,
-});
-
 const CLASSES: ClassSeed[] = [
   {
-    key: "music",
-    theme: "music",
-    name: "Music Production & Songwriting",
-    slug: "music-production-songwriting",
-    type: "FREE",
-    description:
-      "Write songs people remember and produce them from your bedroom. Melody, lyrics, structure and a home-studio workflow that turns ideas into finished tracks — free for every member.",
-    categories: ["seed-lvlcat-music"],
-    skills: [
-      "Turn a hum into a hook",
-      "Write lyrics that say something",
-      "Arrange a song that builds",
-      "Record clean takes at home",
-      "Mix to a release-ready rough",
-    ],
-    prices: [],
-    courses: [
-      {
-        key: "music-1",
-        title: "Songwriting Fundamentals",
-        description:
-          "Hooks, lyrics and song structure — the craft behind every track you can't stop humming.",
-        lessons: [
-          L(
-            "Start with the hook",
-            7,
-            20,
-            paras(
-              "Almost every great song is built around one irresistible moment — a melodic phrase, a lyric, a rhythm that your ear wants again. Professional writers don't wait for that moment; they hunt it deliberately.",
-              "In this lesson you'll capture twenty tiny ideas in twenty minutes: hum into your phone, tap rhythms on the table, sing nonsense syllables over two chords. Quantity is the strategy — taste comes later, at the listening pass.",
-              "Then we pick ONE idea and loop it until it tells us what it wants to be. A hook isn't precious; it's a seed you water with repetition.",
-            ),
-          ),
-          L(
-            "Lyrics: say one true thing",
-            9,
-            10,
-            paras(
-              "Weak lyrics try to say everything; strong lyrics say one true thing from a specific place. 'I miss you' is a greeting card — 'your coffee cup is still in the sink' is a song.",
-              "We'll practice the object exercise: pick a feeling, then write only about physical things — rooms, weather, receipts, shoes. The feeling sneaks in through the details, which is exactly how listeners like to receive it.",
-              "You'll finish with a verse built from your own object list, plus the one-line test: can you say what the song is about in seven words? If not, it's two songs fighting.",
-            ),
-          ),
-          L(
-            "Song structure that builds",
-            10,
-            45,
-            paras(
-              "Verse, pre-chorus, chorus, bridge — structure isn't a formula, it's energy management. Each section's job is to make the next one feel inevitable.",
-              "We'll map three hit songs bar by bar and watch the pattern: every eight bars something changes — a new instrument, a lifted melody, a dropped drum. Boredom is the only real rule violation.",
-              "Then you'll storyboard your own song's energy on paper before recording a note: where it whispers, where it opens up, and what gets saved for the final chorus.",
-            ),
-          ),
-        ],
-      },
-      {
-        key: "music-2",
-        title: "Home Studio Production",
-        description:
-          "From a quiet room to a finished track: recording, arranging and the rough mix.",
-        lessons: [
-          L(
-            "Your room is your first instrument",
-            8,
-            30,
-            paras(
-              "Before you buy gear, treat the room. A duvet behind the mic kills more problems than a thousand-dollar preamp. We'll find your room's quietest corner and build a vocal nook with what you own.",
-              "Gear order for a first studio: a decent USB or budget XLR mic, closed headphones, then — only when something specific hurts — an interface upgrade. Every purchase should fix a problem you can name.",
-              "You'll record the same eight bars three ways tonight and hear exactly what placement changes. Trust your ears over the spec sheet.",
-            ),
-          ),
-          L(
-            "Arranging in the box",
-            11,
-            15,
-            paras(
-              "An arrangement is a conversation: every part either talks, answers, or shuts up. The number-one amateur tell is everything playing all the time.",
-              "We'll build a track in layers — drums and bass agree first, chords sit in the middle, and anything new must either replace something or wait its turn. The mute button is your best arranger.",
-              "Listen in mono while you work. If parts disappear, they were fighting; carve space by octave, rhythm or simply deleting the weakest idea.",
-            ),
-          ),
-          L(
-            "The rough mix that travels",
-            9,
-            40,
-            paras(
-              "A rough mix has one job: sound good everywhere — phone speaker, car, earbuds. We chase balance, not polish: vocals you can always hear, a kick you can always feel, nothing that makes you reach for the volume.",
-              "The workflow: set levels with faders only, pan for width, ONE EQ move per channel (cut, don't boost), a touch of bus compression, and a reference track you A/B every ten minutes.",
-              "Bounce it, play it on three devices, write down what bugs you, fix the top item only. Mixing is a loop, not a destination — and done beats perfect on a demo.",
-            ),
-          ),
-        ],
-      },
-    ],
-  },
-  {
-    key: "food",
-    theme: "food",
-    name: "Cooking with Confidence",
-    slug: "cooking-with-confidence",
+    key: "cooking",
+    name: "Cooking",
+    slug: "cooking",
     type: "PAID",
-    description:
-      "Cook without a recipe open. Knife skills, heat control, seasoning by taste and the flavor instincts that turn whatever's in the fridge into dinner people talk about.",
+    description: "<p>Master the culinary arts in this dynamic cooking course. Develop a diverse range of professional kitchen expertise, from high-heat wok techniques and perfecting pasta to delicate fine-dining plating and precise sushi preparation.</p>",
+    imageUrl: media("1786529778843-lvu8oo.jpg"),
+    trailerUrl: "https://vimeo.com/365588945?fl=pl&fe=sh",
     categories: ["seed-lvlcat-food"],
     skills: [
-      "Knife skills that feel automatic",
-      "Control heat instead of fearing it",
-      "Season by taste, not by teaspoon",
-      "Build flavor in layers",
-      "Plate food people photograph",
-      "Host without losing your evening",
-    ],
-    prices: [
-      { interval: "month", amount: 2900 },
-      { interval: "year", amount: 29000 },
-    ],
-    courses: [
-      {
-        key: "food-1",
-        title: "Kitchen Foundations",
-        description:
-          "The unglamorous skills that make everything else easy: knives, heat and salt.",
-        lessons: [
-          L(
-            "Knife skills: speed comes last",
-            9,
-            25,
-            paras(
-              "Every cooking show makes speed look like the goal. It isn't — consistency is. Same-size pieces cook at the same rate, and that single fact is most of what separates home food from restaurant food.",
-              "We'll set your grip (pinch the blade, not the handle), your guide hand (claw, knuckles forward) and your board setup (damp towel underneath, scraps bowl beside). Then: onions three ways, slowly.",
-              "Ten slow minutes a day for two weeks beats one ambitious Sunday. Speed arrives on its own, as a side effect of repetition — never chase it.",
-            ),
-          ),
-          L(
-            "Heat is a language",
-            10,
-            50,
-            paras(
-              "Most home cooking fails at the dial: too timid to sear, too impatient to sweat. Pans talk — the sizzle pitch, the smell, the way oil moves — and this lesson teaches you to listen.",
-              "We'll cook the same chicken thigh at three heats and taste the difference between steamed-in-its-own-juices, properly seared, and scorched. You'll learn the hand-hover test and when to simply walk away from the pan.",
-              "The rule that changes everything: get the pan ready before the food, and stop cooking things one minute before they look done. Carryover heat finishes the job.",
-            ),
-          ),
-          L(
-            "Seasoning by taste, not by teaspoon",
-            8,
-            35,
-            paras(
-              "Recipes hand you measurements; cooks taste. A teaspoon is a starting guess written by someone who has never met your salt, your tomatoes or your stove — and it cannot tell you when to stop.",
-              "We'll run the carrot-soup drill: one pot, four bowls, one adjustment each. A pinch of salt in the first, a squeeze of lemon in the second, a spoon of butter in the third, nothing in the fourth. Tasting them side by side is how 'it needs something' finally becomes a specific word.",
-              "From today: taste at every stage, adjust in small layers rather than one brave handful, and taste again after each change. Your food will improve before your knife skills do.",
-            ),
-          ),
-        ],
-      },
-      {
-        key: "food-2",
-        title: "Mastering Flavor",
-        description: "Layering, balancing and rescuing — how flavor actually gets built.",
-        lessons: [
-          L(
-            "Build flavor in layers",
-            11,
-            5,
-            paras(
-              "Deep flavor isn't one ingredient — it's a stack of small decisions: brown the aromatics, toast the spices, deglaze the pan, reduce, finish with fresh herbs. Each layer is thirty seconds of intention.",
-              "We'll build the same tomato sauce twice — dump-and-simmer versus layered — and taste them side by side. The difference will feel illegal.",
-              "You'll leave with the universal layering map (aromatics → spice → main → liquid → reduce → finish) that works for curries, ragùs, braises and beans alike.",
-            ),
-          ),
-          L(
-            "Fix it: too salty, too flat, too much",
-            7,
-            55,
-            paras(
-              "Great cooks aren't people who never miss — they're people who can rescue. Too salty wants dilution, starch or dairy. Flat wants acid or salt. Bitter wants fat and a pinch of sugar. Greasy wants acid and heat.",
-              "We'll deliberately break a pan sauce four ways and repair it four ways, so the fixes live in your hands, not your notes.",
-              "The meta-skill: taste, name the problem out loud, change ONE thing, taste again. Panic seasons by the handful; cooks season by the pinch.",
-            ),
-          ),
-          L(
-            "Cook from what you have",
-            9,
-            30,
-            paras(
-              "The most useful kitchen skill isn't following a recipe — it's opening the fridge on a Tuesday and seeing dinner instead of leftovers. That's a pattern-matching skill, and it's teachable.",
-              "We'll learn the template instead of the recipe: something starchy, something green, something salty, something fresh, something with fat. Almost every quick dinner on earth is that shape wearing a different accent.",
-              "Your assignment: cook three dinners this week without looking anything up. They don't have to be good. They have to be yours — and by the third one, they usually are.",
-            ),
-          ),
-        ],
-      },
-      {
-        key: "food-3",
-        title: "Cooking for People You Love",
-        description:
-          "Menus, timing and plating — dinner parties without the meltdown.",
-        lessons: [
-          L(
-            "Menu math for hosts",
-            8,
-            15,
-            paras(
-              "The secret of relaxed hosts: one dish with drama, everything else humble and make-ahead. Three courses where two are done before the doorbell is a dinner party; three à-la-minute dishes is a hostage situation.",
-              "We'll design your house menu — a starter that sits happily, a main with one finishing step, a dessert from the fridge — and write the shopping list backwards from it.",
-              "Cook your house menu three times for family before any guests see it. Familiarity is the actual ingredient people call 'effortless'.",
-            ),
-          ),
-          L(
-            "The timeline is the recipe",
-            9,
-            45,
-            paras(
-              "Food rarely fails at the stove on the night — it fails in the sequencing. We'll write a T-minus timeline: T-1 day (shop, marinate, dessert), T-3 hours (mise en place, table), T-30 (starter out, main staged), T-0 (pour drinks, breathe).",
-              "Every dish gets a parking spot: what can hold warm, what holds cold, what genuinely must be last-minute (almost nothing).",
-              "You'll also plan the host's golden rule: be IN the room. A slightly-too-simple menu served by a present, laughing host beats a tasting menu served by a ghost.",
-            ),
-          ),
-          L(
-            "Plating: the thirty-second upgrade",
-            6,
-            50,
-            paras(
-              "We eat with our eyes first, and plating is cheaper than truffles. Warm plates, odd numbers, height over sprawl, sauce under not over, and one element of contrast — crunch, color or fresh green.",
-              "We'll plate the same stew three ways — straight from the pot, family-style with intention, and restaurant-style — and photograph each. The food never changed; the experience did.",
-              "Steal the home-cook's finishing kit: flaky salt, good olive oil, a lemon, soft herbs. Four touches, every plate, thirty seconds.",
-            ),
-          ),
-        ],
-      },
-    ],
-  },
-  {
-    key: "tech",
-    theme: "technology",
-    name: "Modern Web Development",
-    slug: "modern-web-development",
-    type: "PAID",
-    description:
-      "Build and ship real things for the web. Start with what actually happens when a page loads, learn the three languages every site is made of, then wire up data and put your work online — one small project at a time.",
-    categories: ["seed-lvlcat-tech"],
-    skills: [
-      "Read code before you write it",
-      "Build a page from scratch",
-      "Make it work on every screen",
-      "Talk to an API without fear",
-      "Debug like a detective",
-      "Ship it and keep it running",
-    ],
-    prices: [
-      // 6 monthly installments, then lifetime access — the installments demo.
-      { interval: "month", amount: 9900, installments: 6 },
-      { interval: "month", amount: 4900 },
-    ],
-    courses: [
-      {
-        key: "tech-1",
-        title: "Web Foundations",
-        description:
-          "What actually happens between a click and a page — and the three languages that answer.",
-        lessons: [
-          L(
-            "What happens when you open a page",
-            8,
-            40,
-            paras(
-              "Before you write a line of code, it's worth knowing what you're writing FOR. You type an address, your machine asks a directory for a number, that number answers with a file, and your browser turns the file into pixels. Four steps — and nearly every bug you'll ever chase lives in one of them.",
-              "We'll watch it happen live in your browser's network panel: the request going out, the response coming back, the pile of extra files the first one asks for. Nothing is hidden — the whole web is inspectable, and that's the best news in this course.",
-              "The habit to build today: when something breaks, ask WHICH of the four steps failed before you change any code. Guessing is slow; looking is fast.",
-            ),
-          ),
-          L(
-            "Structure first: markup that means something",
-            10,
-            15,
-            paras(
-              "Markup is not decoration — it's the meaning of your page. A heading says 'this is a heading' to a browser, to a search engine, and to a screen reader reading it aloud to someone who can't see it. Boxes with no meaning say nothing to any of them.",
-              "We'll build a small page out of only the honest elements: headings in order, lists that are actually lists, buttons that are buttons, an image with a real description. Then we'll tab through it with the keyboard alone and watch it work — because it was built right, not because we added anything.",
-              "Your rule of thumb: pick the element that describes what the thing IS. If you can't name it, you don't understand the page yet — and the styling is going to fight you later.",
-            ),
-          ),
-          L(
-            "Styling without the guesswork",
-            11,
-            30,
-            paras(
-              "Most style frustration comes from two ideas nobody explains up front: everything is a box, and boxes are laid out by a system you can choose. Once you can name the box and the layout mode, the mystery moves get replaced with decisions.",
-              "We'll take one card component from 'why is it doing that' to 'that's exactly what I asked for' — sizing the box, choosing the layout, spacing with one consistent scale rather than whatever number stops the twitching.",
-              "Then the part beginners skip: make it small. Shrink the window until it breaks, fix the break, repeat. A layout that survives a narrow phone survives almost everything else.",
-            ),
-          ),
-        ],
-      },
-      {
-        key: "tech-2",
-        title: "Programming the Browser",
-        description:
-          "Variables, functions and events — the smallest amount of language that builds real things.",
-        lessons: [
-          L(
-            "Your first hundred lines",
-            9,
-            50,
-            paras(
-              "You need far less language than you think. Store a value, make a decision, repeat something, wrap it in a name you can reuse — that's the whole toolkit for your first month, and most working code is still mostly that.",
-              "We'll write each one by hand and say out loud what it does. Naming things in plain words as you type them is not a beginner's crutch; it's how experienced people keep programs in their heads.",
-              "Type every example — don't copy it. The muscle you're building is 'I know where the mistake is', and it only grows on mistakes you made yourself.",
-            ),
-          ),
-          L(
-            "Events: making the page respond",
-            10,
-            20,
-            paras(
-              "A static page is a poster. The moment you listen for a click, a keystroke or a scroll, it becomes software — and the mental model is refreshingly simple: something happens, you get told, you run a function.",
-              "We'll wire a real interaction end to end: a button that changes what's on screen, then a form that refuses to submit until it's happy. Along the way we'll meet the two beginner traps — doing work on every single keystroke, and forgetting that the user can always click twice.",
-              "Rule for the day: the page is the source of truth for what's shown, your data is the source of truth for what's real. Keep them in that order and the tangles never start.",
-            ),
-          ),
-          L(
-            "Debug like a detective",
-            8,
-            35,
-            paras(
-              "Debugging isn't a talent, it's a procedure — and the people who look fast at it are just refusing to guess. The procedure: reproduce it reliably, find the smallest case that still breaks, then bisect until the culprit has nowhere to hide.",
-              "We'll break a working page on purpose and hunt the bug three ways: reading the error message properly (they're better than their reputation), printing values at the boundary, and stepping through with a breakpoint.",
-              "The one habit worth more than any tool: change ONE thing, then look. Two changes and a passing test tell you nothing about which one saved you.",
-            ),
-          ),
-        ],
-      },
-      {
-        key: "tech-3",
-        title: "Data, APIs & Shipping",
-        description: "Where the data comes from, and how your work reaches real people.",
-        lessons: [
-          L(
-            "Talking to an API",
-            11,
-            5,
-            paras(
-              "An API is just another program willing to answer questions, usually over the same web you already understand. You ask for an address, it hands back structured data instead of a page. That's genuinely the whole idea.",
-              "We'll fetch some data, render it, and then handle the three states beginners forget: while it's loading, when it fails, and when it comes back empty. A page that only handles success is a demo, not a product.",
-              "And the professional reflex: never trust the shape of what comes back. Check it, or your page will explode in front of the one user whose data is unusual.",
-            ),
-          ),
-          L(
-            "Storing data without losing it",
-            10,
-            40,
-            paras(
-              "Sooner or later something has to be remembered after the tab closes. That's a database — a program whose entire job is to not lose your data, even when the power goes out mid-write.",
-              "We'll model one small thing properly: decide what a record IS, give it an id you didn't invent by hand, and write down the relationships before writing any code. Ten minutes of drawing here saves a migration later.",
-              "Two rules that age well: never store the same fact in two places, and never delete what you could mark as gone. Both are lessons everyone learns the expensive way.",
-            ),
-          ),
-          L(
-            "Ship it: deploy, monitor, sleep",
-            9,
-            25,
-            paras(
-              "Code on your laptop helps nobody. Shipping means a machine that isn't yours runs your work for people you'll never meet — and the gap between those two is smaller than it looks, but it's real.",
-              "We'll walk the checklist: the settings that differ between your machine and the real one, the secrets that must never live in your code, and the one-command deploy you can run without your heart rate changing.",
-              "Then the part that lets you sleep: something that tells you it's broken before your users do. Ship small, ship often, and keep a way back — the goal isn't never breaking, it's noticing fast and recovering calmly.",
-            ),
-          ),
-        ],
-      },
-    ],
-  },
-  {
-    key: "sports",
-    theme: "sports",
-    name: "Strength & Conditioning",
-    slug: "strength-and-conditioning",
-    type: "PAID",
-    description:
-      "Train like an athlete from wherever you're starting. Move well before you move heavy, build a week you'll actually follow, and recover properly so you can do it again tomorrow — for decades, not for six weeks.",
-    categories: ["seed-lvlcat-sports"],
-    skills: [
-      "Move well before you move heavy",
-      "Warm up in five honest minutes",
-      "Own the five basic patterns",
-      "Build a week you'll actually follow",
-      "Get stronger without getting hurt",
-      "Recover on purpose",
+      { title: "High-Heat Cooking & Flambé", imageUrl: media("1786529805566-swee0b.jpg") },
+      { title: "Pasta Mastery & Tossing Techniques", imageUrl: media("1786529821864-ngio1m.jpg") },
+      { title: "Precision Plating & Presentation", imageUrl: media("1786529832875-sy9l1g.jpg") },
+      { title: "Sushi Rolling & Advanced Knife Skills", imageUrl: media("1786529843366-zzxyfl.jpg") },
     ],
     prices: [
       { interval: "month", amount: 1900 },
-      { interval: "year", amount: 19000 },
+      { interval: "year", amount: 19900 },
     ],
     courses: [
       {
-        key: "sports-1",
-        title: "Movement Foundations",
-        description:
-          "Warm-ups, the basic patterns, and the technique that keeps you training for decades.",
+        key: "high-heat-wok-mastery",
+        title: "High-Heat & Wok Mastery",
+        slug: "high-heat-wok-mastery",
+        description: "<p>Dedicated to the intense, fast-paced techniques of stir-frying and open-flame cooking.</p>",
+        thumbnailUrl: media("1786535057364-yo9yb0.jpg"),
+        coverImageUrl: media("1786535049845-owtxjo.jpg"),
         lessons: [
-          L(
-            "Move well before you move heavy",
-            9,
-            15,
-            paras(
-              "The fastest way to stall for a year is to add weight to a movement you can't yet do well. Load magnifies whatever you bring it — good positions get stronger, sloppy ones get painful.",
-              "We'll audit your five patterns with no weight at all: film yourself from the side, watch it once, and find the one thing that moves first when it shouldn't. Everyone has one. Naming it is most of fixing it.",
-              "The standard to train to: could you do this rep again, right now, exactly the same way? If the answer is no, that was your last good rep and the set is over. Stopping there is not caution — it's the whole method.",
-            ),
-          ),
-          L(
-            "The five-minute warm-up that works",
-            7,
-            40,
-            paras(
-              "Long warm-ups get skipped, and skipped warm-ups are why people quit in week three. So we'll build one short enough that you'll actually do it on the bad days: raise your temperature, move every joint you're about to use, then rehearse today's movement light.",
-              "That's it — no elaborate routine, no equipment. The point isn't ceremony, it's arriving at the first working set already moving the way you intend to move.",
-              "The test of a good warm-up: the first real set feels like the fifth one. If it doesn't, you didn't warm up, you just got tired earlier.",
-            ),
-          ),
-          L(
-            "Squat, hinge, push, pull, carry",
-            11,
-            25,
-            paras(
-              "Nearly every useful thing a body does is one of five shapes: sit down and stand up, pick something off the floor, push it away, pull it toward you, carry it somewhere. Train the five and you've trained for life, not just for a gym.",
-              "We'll walk each one at its simplest honest version and find where yours breaks down — usually the same place, usually the middle. You'll leave able to name your own weak link instead of collecting exercises hoping one sticks.",
-              "Pick one variation of each and keep it for eight weeks. Novelty feels like progress and isn't; boring repetition is what actually moves the number.",
-            ),
-          ),
+          {
+            title: "Wok Selection, Seasoning, and Care",
+            durationSeconds: 620,
+            content: "<p>Understand the different types of woks, how to properly season a carbon steel pan, and the maintenance required to build a non-stick patina.</p>",
+            videoUrl: "https://vimeo.com/365588945?fl=pl&fe=sh",
+            thumbnailUrl: media("1786535108094-clcrpd.jpg"),
+          },
+        ],
+      },
+    ],
+  },
+  {
+    key: "dance-and-yoga",
+    name: "Dance and Yoga",
+    slug: "dance-and-yoga",
+    type: "PAID",
+    description: "<h2><strong>Dance and Yoga</strong><br /><br />Experience the perfect synergy of movement and mindfulness in Dance and Yoga. This holistic course blends expressive dance techniques with grounding yoga postures to improve your flexibility, core strength, and overall well-being through solo and group exercises.</h2><p></p>",
+    imageUrl: media("1786530076565-jc9a33.jpg"),
+    trailerUrl: "https://vimeo.com/158767648?fl=pl&fe=sh",
+    categories: ["seed-lvlcat-fitness"],
+    skills: [
+      { title: "Foundational Dance Postures & Alignment", imageUrl: media("1786530095281-o2k6uk.jpg") },
+      { title: "Group Flexibility & Mindfulness", imageUrl: media("1786530103556-mrez9l.jpg") },
+      { title: "Partner Movement & Connection", imageUrl: media("1786530112205-6cysbf.jpg") },
+      { title: "Deep Conditioning & Balance", imageUrl: media("1786530120749-8rnwr6.jpg") },
+    ],
+    prices: [
+      { interval: "month", amount: 2900 },
+      { interval: "year", amount: 29900 },
+    ],
+    courses: [
+      {
+        key: "foundations-of-mindful-movement",
+        title: "Foundations of Mindful Movement",
+        slug: "foundations-of-mindful-movement",
+        description: "<p>Ideal for beginners looking to build a strong base in solo movement, flexibility, and mind-muscle connection.</p>",
+        thumbnailUrl: media("1786534061234-oyir0l.jpg"),
+        coverImageUrl: media("1786534052102-z5qz99.jpg"),
+        lessons: [
+          {
+            title: "Fundamental Yoga Postures & Alignment",
+            durationSeconds: 620,
+            content: "<p>Master the proper form and alignment for essential yoga poses to improve flexibility, balance, and mind-body awareness.</p>",
+            videoUrl: "https://vimeo.com/1435227?fl=pl&fe=sh",
+            thumbnailUrl: media("1786534291606-3td8b4.jpg"),
+          },
+          {
+            title: "Breathwork and Core Activation",
+            durationSeconds: 620,
+            content: "<p> Learn to synchronize your breath with movement, engaging your deep core muscles to build a stable foundation for both dance and yoga practices.</p>",
+            videoUrl: "https://vimeo.com/1435227?fl=pl&fe=sh",
+            thumbnailUrl: media("1786534254330-0ytaj6.jpg"),
+          },
+          {
+            title: "Basic Dance Rhythms & Weight Transfer",
+            durationSeconds: 620,
+            content: "<p>Explore basic rhythmic patterns and practice shifting your body weight smoothly, an essential skill for fluid dance transitions.</p>",
+            videoUrl: "https://vimeo.com/1435227?fl=pl&fe=sh",
+            thumbnailUrl: media("1786534341681-t7ancn.jpg"),
+          },
+          {
+            title: "Solo Flexibility & Deep Tissue Stretching",
+            durationSeconds: 620,
+            content: "<p>Focus on restorative, floor-based stretches designed to release tension, lengthen muscles, and improve overall joint mobility.</p>",
+            videoUrl: "https://vimeo.com/1435227?fl=pl&fe=sh",
+            thumbnailUrl: media("1786534377241-azcvok.jpg"),
+          },
         ],
       },
       {
-        key: "sports-2",
-        title: "Programming & Progress",
-        description:
-          "Turn effort into a plan: how hard, how often, and how to keep getting better.",
+        key: "partner-dynamics-collaborative-flow",
+        title: "Partner Dynamics & Collaborative Flow",
+        slug: "partner-dynamics-collaborative-flow",
+        description: "<p>Focused on the social and collaborative aspects of movement, mirroring the group and partner exercises.</p>",
+        thumbnailUrl: media("1786534919724-xgwvnv.jpg"),
+        coverImageUrl: media("1786534914162-5feq7l.jpg"),
         lessons: [
-          L(
-            "Build a week you'll follow",
-            10,
-            5,
-            paras(
-              "The best program is the one that survives a bad week. Before choosing exercises, choose honestly: how many days can you show up on your worst month, not your best one? Three real days beat five imaginary ones, permanently.",
-              "We'll lay out the week around your actual life — the hard day where you're freshest, the easy day where you're not, and at least one day that stays empty on purpose.",
-              "Write it down and commit for eight weeks. Half of training is a decision you make once instead of renegotiating every evening at the door.",
-            ),
-          ),
-          L(
-            "Progressive overload, honestly",
-            9,
-            30,
-            paras(
-              "Getting stronger requires asking for slightly more than last time — but 'more' has five dials, and beginners only ever turn the weight one. More reps, better positions, less rest and smoother speed at the same weight are all progress, and they're the dials that keep working when weight won't.",
-              "We'll set up the simplest honest log: the movement, what you did, and how hard it felt. Three columns, ten seconds. That log is the difference between training and just exercising.",
-              "And the discipline nobody enjoys: when the numbers stop moving for two weeks, that's data, not failure. Back off, rebuild, come back — the graph goes up in steps, never in a line.",
-            ),
-          ),
-          L(
-            "Recovery is part of the training",
-            8,
-            20,
-            paras(
-              "You don't get stronger in the session — you get stronger recovering from it. Training is the request; sleep and food are whether the body says yes. Skip those and you're just paying the cost without collecting.",
-              "We'll cover the boring things that actually work, in the order they matter: sleep, enough protein and enough total food, walking on off days, and letting an easy week happen every month or so before your body schedules one for you.",
-              "The signal to learn: soreness is normal, but dreading the session, sleeping badly and stalling numbers all at once means you've been asking for more than you're recovering from. Deload — it's a training decision, not a defeat.",
-            ),
-          ),
+          {
+            title: "Trust and Weight Sharing Fundamentals",
+            durationSeconds: 620,
+            content: "<p>Learn safe techniques for supporting a partner and relying on their support, building the trust necessary for collaborative movement.</p>",
+            videoUrl: "https://vimeo.com/1435227?fl=pl&fe=sh",
+            thumbnailUrl: media("1786534997384-pyrtgz.jpg"),
+          },
+        ],
+      },
+    ],
+  },
+  {
+    key: "music-production",
+    name: "Music Production",
+    slug: "music-production",
+    type: "PAID",
+    description: "<p>Immerse yourself in the world of audio engineering and music creation. This comprehensive course covers a wide spectrum of production techniques, taking you from intimate acoustic recording and complex modular synthesis to professional mixing and large-scale orchestral scoring.</p>",
+    imageUrl: media("1786531916168-llykh3.jpg"),
+    trailerUrl: "https://vimeo.com/102457644?fl=pl&fe=sh",
+    categories: ["seed-lvlcat-music"],
+    skills: [
+      { title: "Acoustic Recording & Microphone Placement", imageUrl: media("1786532148864-00y2t9.jpg") },
+      { title: "Modular Synthesis & Sound Design", imageUrl: media("1786532156061-be2poy.jpg") },
+      { title: "Mixing, Mastering & Studio Monitoring", imageUrl: media("1786532164494-mgem14.jpg") },
+      { title: "Orchestral Recording & Film Scoring", imageUrl: media("1786532172970-1fip9e.jpg") },
+    ],
+    prices: [
+      { interval: "month", amount: 1900 },
+      { interval: "year", amount: 19900 },
+    ],
+    courses: [
+      {
+        key: "the-modern-beatmaker-synthesis-design",
+        title: "The Modern Beatmaker: Synthesis & Design",
+        slug: "the-modern-beatmaker-synthesis-design",
+        description: "<p>Geared toward electronic producers focusing on sound creation using modular setups.</p>",
+        thumbnailUrl: media("1786535162914-uirqy7.jpg"),
+        coverImageUrl: media("1786535159022-axa07m.jpg"),
+        lessons: [
+          {
+            title: "Introduction to Oscillators and Waveforms",
+            durationSeconds: 620,
+            content: "<p>Dive into the building blocks of sound synthesis, learning how different wave shapes (sine, square, sawtooth) produce distinct tones.</p>",
+            videoUrl: "https://vimeo.com/926367759?fl=pl&fe=sh",
+            thumbnailUrl: media("1786535219554-5fsuy4.jpg"),
+          },
+        ],
+      },
+    ],
+  },
+  {
+    key: "strength-and-conditioning",
+    name: "Strength and Conditioning",
+    slug: "strength-and-conditioning",
+    type: "PAID",
+    description: "<p>Elevate your fitness with this intensive Strength and Conditioning course. Designed to build explosive power, cardiovascular endurance, and functional muscle, this program guides you through dynamic plyometrics, high-intensity training, and comprehensive full-body resistance exercises to help you achieve peak physical performance.</p>",
+    imageUrl: media("1786533360736-olom2p.jpg"),
+    trailerUrl: "https://vimeo.com/1211662437?fl=pl&fe=sh",
+    categories: ["seed-lvlcat-fitness"],
+    skills: [
+      { title: "Plyometrics & Explosive Power", imageUrl: media("1786533388558-1v1ojb.jpg") },
+      { title: "High-Intensity Endurance Training", imageUrl: media("1786533399748-flrii9.jpg") },
+      { title: "Upper Body Strength & Functional Pulling", imageUrl: media("1786533408180-6nglhi.jpg") },
+      { title: "Lower Body Conditioning & Resistance", imageUrl: media("1786533416000-stf0qd.jpg") },
+    ],
+    prices: [
+      { interval: "month", amount: 1700 },
+      { interval: "year", amount: 17900 },
+    ],
+    courses: [
+      {
+        key: "explosive-power-plyometrics",
+        title: "Explosive Power & Plyometrics",
+        slug: "explosive-power-plyometrics",
+        description: "<p>Designed to increase fast-twitch muscle response and vertical/horizontal power.</p>",
+        thumbnailUrl: media("1786535260009-a5f91x.jpg"),
+        coverImageUrl: media("1786535254320-wym8j2.jpg"),
+        lessons: [
+          {
+            title: "Landing Mechanics and Joint Protection",
+            durationSeconds: 620,
+            content: "<p>Before learning to jump, master the essential skill of absorbing impact safely to protect your knees, ankles, and lower back.</p>",
+            videoUrl: "https://vimeo.com/184409791?fl=pl&fe=sh",
+            thumbnailUrl: media("1786535335988-6qnymd.jpg"),
+          },
         ],
       },
     ],
@@ -923,10 +662,9 @@ const CLASSES: ClassSeed[] = [
 // category here without updating those keyword lists silently re-colors the
 // demo.
 const CATEGORIES: Array<[string, string, number]> = [
-  ["seed-lvlcat-music", "Music", 0],
-  ["seed-lvlcat-food", "Food", 1],
-  ["seed-lvlcat-tech", "Technology", 2],
-  ["seed-lvlcat-sports", "Sports", 3],
+  ["seed-lvlcat-food", "Food", 0],
+  ["seed-lvlcat-fitness", "Fitness", 1],
+  ["seed-lvlcat-music", "Music", 2],
 ];
 
 async function seedCatalog() {
@@ -947,18 +685,12 @@ async function seedCatalog() {
       published: true,
       type: cls.type,
       description: cls.description,
-      imageUrl: art(cls.theme, 0),
-      trailerUrl: TRAILER,
+      imageUrl: cls.imageUrl,
+      trailerUrl: cls.trailerUrl,
       audienceTags: [cls.slug],
-      skills: cls.skills.map((title, i) => ({
-        title,
-        // Offset by 1 so a skill tile never repeats the class cover beside it.
-        imageUrl: art(cls.theme, i + 1),
-      })) as Prisma.InputJsonValue,
+      skills: cls.skills as unknown as Prisma.InputJsonValue,
     };
 
-    // Level first (CourseLevel joins need it), but WITHOUT featuredCourseId —
-    // that FK points at a course that doesn't exist yet; backfilled below.
     await prisma.level.upsert({
       where: { id: levelId },
       update: { ...levelData, categories: { set: cls.categories.map((id) => ({ id })) } },
@@ -972,23 +704,18 @@ async function seedCatalog() {
     for (let c = 0; c < cls.courses.length; c++) {
       const course = cls.courses[c];
       const courseId = `seed-course-${course.key}`;
+      const courseData = {
+        title: course.title,
+        slug: course.slug,
+        description: course.description,
+        order: c,
+        thumbnailUrl: course.thumbnailUrl,
+        coverImageUrl: course.coverImageUrl,
+      };
       await prisma.course.upsert({
         where: { id: courseId },
-        update: {
-          title: course.title,
-          description: course.description,
-          order: c,
-          thumbnailUrl: art(cls.theme, c + 1),
-          coverImageUrl: art(cls.theme, c + 1),
-        },
-        create: {
-          id: courseId,
-          title: course.title,
-          description: course.description,
-          order: c,
-          thumbnailUrl: art(cls.theme, c + 1),
-          coverImageUrl: art(cls.theme, c + 1),
-        },
+        update: courseData,
+        create: { id: courseId, ...courseData },
       });
       await prisma.courseLevel.upsert({
         where: { courseId_levelId: { courseId, levelId } },
@@ -1000,11 +727,11 @@ async function seedCatalog() {
         const lessonId = `seed-lesson-${course.key}-${l + 1}`;
         const payload = {
           title: lesson.title,
-          content: lesson.body,
+          content: lesson.content,
           order: l,
-          videoUrl: DEMO_VIDEO,
-          thumbnailUrl: art(cls.theme, c + l + 1),
-          durationSeconds: lesson.minutes * 60 + lesson.seconds,
+          videoUrl: lesson.videoUrl,
+          thumbnailUrl: lesson.thumbnailUrl,
+          durationSeconds: lesson.durationSeconds,
         };
         await prisma.lesson.upsert({
           where: { id: lessonId },
@@ -1014,14 +741,11 @@ async function seedCatalog() {
       }
     }
 
-    // Backfill the featured course now that it exists.
     await prisma.level.update({
       where: { id: levelId },
       data: { featuredCourseId: firstCourseId },
     });
 
-    // Prices: stripePriceId/paypalPlanId stay untouched on update so ids the
-    // billing layer lazily provisioned at checkout are never orphaned.
     for (let p = 0; p < cls.prices.length; p++) {
       const price = cls.prices[p];
       const priceId = `seed-price-${cls.key}-${p + 1}`;
@@ -1048,7 +772,6 @@ async function seedCatalog() {
     }
   }
 }
-
 // ---------- retiring content the seed no longer defines ----------
 // Upserts alone can only ADD: change the catalog and yesterday's classes stay
 // in the database forever, which is how an already-seeded box would keep
@@ -1323,7 +1046,7 @@ async function contentPackImported(): Promise<boolean> {
 // Member demo state: enrolled in two classes with visible progress, so the
 // dashboard opens on "Welcome back" with a non-zero continue-learning hero.
 async function seedMemberState(memberId: string) {
-  for (const levelId of ["seed-class-music", "seed-class-food"]) {
+  for (const levelId of ["seed-class-cooking", "seed-class-dance-and-yoga"]) {
     await prisma.userLevel.upsert({
       where: {
         userId_levelId_source: { userId: memberId, levelId, source: "MANUAL" },
@@ -1333,9 +1056,9 @@ async function seedMemberState(memberId: string) {
     });
   }
   for (const lessonId of [
-    "seed-lesson-music-1-1",
-    "seed-lesson-music-1-2",
-    "seed-lesson-food-1-1",
+    "seed-lesson-high-heat-wok-mastery-1",
+    "seed-lesson-foundations-of-mindful-movement-1",
+    "seed-lesson-foundations-of-mindful-movement-2",
   ]) {
     await prisma.lessonProgress.upsert({
       where: { userId_lessonId: { userId: memberId, lessonId } },
@@ -1365,6 +1088,8 @@ type PostSeed = {
   publishedAt: string | null;
   categoryIds: string[];
   tags: string[];
+  /** Explicit uploaded cover (admin-authored posts); wins over theme/art below. */
+  coverImageUrl?: string;
   /** Cover art theme; omitted = subject-free panel. */
   theme?: ArtTheme;
   artIndex?: number;
@@ -1398,94 +1123,18 @@ const POSTS: PostSeed[] = [
     categoryIds: ["seed-postcat-featured"],
     tags: ["roadmap"],
   },
-  // ----- catalog content -----
+  // ----- catalog content (admin-authored, codified 2026-08-12) -----
   {
-    id: "seed-post-practice",
-    slug: "practice-habits-that-actually-stick",
-    title: "Practice habits that actually stick",
-    excerpt:
-      "Musicians, cooks, developers, lifters — the skill changes, the practice psychology doesn't. Five rules from people who kept going.",
-    content:
-      "<p>Every class on this platform — music, food, technology, strength — runs on the same hidden engine: practice you actually do. Here's what the people who stuck with it have in common.</p><h2>1. Shrink the session</h2><p>Twenty focused minutes beats the mythical free Saturday. The floor should be so low it's embarrassing to skip: one song section, one knife drill, one function, one set.</p><h2>2. Same time, same trigger</h2><p>Habits attach to existing routines. After coffee, before dinner, when the dishwasher starts — the trigger matters more than the hour.</p><h2>3. Practice the hard 20%</h2><ul><li>Musicians: loop the four bars you fumble, not the whole song</li><li>Cooks: repeat the technique that scares you, not the dish you've nailed</li><li>Developers: rebuild the part you copied without understanding</li><li>Lifters: drill the position that breaks down, not the one that feels good</li></ul><h2>4. Record everything</h2><p>The phone in the corner is the most honest teacher you'll ever have — and proof, three months later, of how far you've come.</p><h2>5. End on a win</h2><p>Finish each session with something you can already do well. Your brain files the session under \"that went great\", and tomorrow's session gets easier to start.</p>",
+    id: "seed-post-kitchen-tools",
+    slug: "essential-kitchen-tools-every-home-chef-needs",
+    title: "Essential Kitchen Tools Every Home Chef Needs",
+    excerpt: "Whether you are just starting to explore the culinary arts or you're looking to upgrade your high-heat wok techniques, having the right equipment is just as important as having the right ingredients. You don't need a kitchen packed with single-use gadgets to create restaurant-quality meals at home. In fact, most professional chefs rely on a core set of durable, high-quality tools.",
+    content: "<p>If you are ready to elevate your cooking, here are the five essential tools you need in your arsenal:</p><h3>1. A High-Quality 8-Inch Chef’s Knife</h3><p>If you only invest in one kitchen tool, make it a chef’s knife. A sharp, well-balanced knife is the workhorse of the kitchen, essential for everything from achieving the perfect brunoise cut to slicing proteins.</p><ul><li><p><strong>Pro Tip:</strong> Look for a knife with a full tang (the metal extends through the handle) for better balance and durability. Keep it honed and sharpened regularly!</p></li></ul><h3>2. A Large, Sturdy Cutting Board</h3><p>A tiny, slippery cutting board is a recipe for frustration and accidents. You need a large surface area to chop ingredients efficiently without them rolling off the edges.</p><ul><li><p><strong>Pro Tip:</strong> Heavy wooden or thick plastic boards are best. To prevent your board from slipping on the counter, place a damp paper towel underneath it before you start chopping.</p></li></ul><h3>3. A Cast Iron Skillet</h3><p>When it comes to heat retention and searing, nothing beats a cast iron skillet. It’s perfect for getting a hard crust on a steak, baking cornbread, or even deep-frying. With proper seasoning and care, a cast iron skillet will last for generations.</p><ul><li><p><strong>Pro Tip:</strong> Never soak your cast iron in soapy water. Simply wipe it out while it's still warm, scrub any stubborn bits with coarse salt, and apply a very light coat of oil before storing.</p></li></ul><h3>4. An Instant-Read Thermometer</h3><p>Guessing when meat is done based on touch or time is a gamble. An instant-read thermometer completely removes the guesswork, ensuring your chicken is safe to eat and your steak is a perfect medium-rare every single time.</p><ul><li><p><strong>Pro Tip:</strong> Always insert the probe into the thickest part of the meat, avoiding any bones, to get the most accurate reading.</p></li></ul><h3>5. A Set of Stainless Steel Mixing Bowls</h3><p>A nested set of stainless steel mixing bowls is incredibly versatile. Use them for tossing salads, marinating meats, mixing fresh pasta dough, or acting as a double boiler for melting chocolate.</p><ul><li><p><strong>Pro Tip:</strong> Stainless steel is lightweight, durable, and won't retain odors or stains like plastic bowls often do.</p></li></ul><p><strong>Ready to put these tools to work?</strong> Mastering your kitchen equipment is the first step toward culinary excellence.</p>",
     status: "PUBLISHED",
-    publishedAt: "2026-05-05T09:00:00Z",
-    categoryIds: ["seed-postcat-habits"],
-    tags: ["practice", "habits"],
-    artIndex: 0,
-  },
-  {
-    id: "seed-post-plating",
-    slug: "plate-like-a-chef-five-rules",
-    title: "Plate like a chef: five rules that change everything",
-    excerpt:
-      "The food is already good — these thirty-second moves make it look like it came from a kitchen with a pass.",
-    content:
-      "<p>Restaurant plates aren't magic; they're habits. Steal these five and tonight's dinner photographs itself.</p><h2>1. Warm plates, always</h2><p>A cold plate kills sauces and shortens the meal's best minutes. Thirty seconds under hot tap water is enough.</p><h2>2. Odd numbers, off center</h2><p>Three things look composed; four look catered. Let the food sit slightly off-center — symmetry reads as cafeteria.</p><h2>3. Height beats sprawl</h2><p>Stack and lean instead of spreading. A plate with a skyline looks intentional; a plate with suburbs looks like leftovers.</p><h2>4. Sauce under, not over</h2><p>A spoonful swept under the protein keeps textures crisp and looks deliberate.</p><h2>5. Finish with contrast</h2><ol><li>Something green (soft herbs, micro anything)</li><li>Something crunchy (toasted seeds, crispy shallots)</li><li>Something glossy (good olive oil, a citrus wedge)</li></ol><p>Four touches, thirty seconds, every plate. Your stew didn't change — dinner did.</p>",
-    status: "PUBLISHED",
-    publishedAt: "2026-05-12T09:00:00Z",
-    categoryIds: ["seed-postcat-tips"],
-    tags: ["food", "plating", "hosting"],
-    theme: "food",
-    artIndex: 2,
-  },
-  {
-    id: "seed-post-song-sitting",
-    slug: "write-a-song-in-one-sitting",
-    title: "Write a song in one sitting (badly, on purpose)",
-    excerpt:
-      "The finished-song muscle is separate from the good-song muscle. Build the first one first.",
-    content:
-      "<p>Most people who \"write music\" have forty half-songs and nothing finished. The problem usually isn't talent — it's that they've never practised <em>finishing</em>, which is its own separate skill.</p><h2>The two-hour rule</h2><p>Pick a night. Two hours, one song, start to end. It will be bad. That's not a risk of the exercise, it's the point of it: you're training the muscle that gets to the last bar, not the one that polishes the first.</p><h2>The shape</h2><ul><li><strong>0:00–0:20</strong> — two chords and a tempo. No deliberating; the first thing that doesn't annoy you wins.</li><li><strong>0:20–0:50</strong> — hum melodies over the loop until one repeats itself back at you. That's the hook.</li><li><strong>0:50–1:30</strong> — words. One true thing, said plainly. Placeholder lyrics count.</li><li><strong>1:30–2:00</strong> — arrange something with a beginning and an end. Bounce it. Done.</li></ul><h2>Then leave it alone</h2><p>Don't fix it tonight. Listen next week and you'll hear exactly two things worth keeping — and knowing which two is the taste you were worried you didn't have.</p><p>Do this four times and something surprising happens: the fourth one isn't bad.</p>",
-    status: "PUBLISHED",
-    publishedAt: "2026-05-19T09:00:00Z",
-    categoryIds: ["seed-postcat-tips", "seed-postcat-featured"],
-    tags: ["music", "songwriting"],
-    theme: "music",
-    artIndex: 3,
-  },
-  {
-    id: "seed-post-first-project",
-    slug: "ship-your-first-project-this-week",
-    title: "Ship your first project this week",
-    excerpt:
-      "Tutorials are comfortable and they don't teach the hard part. Here's the smallest real thing you can put online in a week.",
-    content:
-      "<p>There's a stage every self-taught developer gets stuck in: you understand every line of the tutorial and can't build anything without one. That's not a knowledge gap — it's a practice gap, and the fix is uncomfortable rather than difficult.</p><h2>Pick something insultingly small</h2><p>Not a social network. A page that lists three things and lets you add a fourth. If it sounds too small to be impressive, it's the right size — the goal this week is <em>finished and online</em>, not impressive.</p><h2>Build it wrong first</h2><p>Get it working badly end to end before you improve any part of it. A working ugly thing can be refactored; a beautiful half is worth nothing and teaches nothing about the parts you skipped.</p><h2>The part that actually teaches you</h2><ul><li>Deciding what it should do when there's no data yet</li><li>Deciding what it should do when something fails</li><li>Getting it onto a machine that isn't yours</li><li>Watching a friend use it and misunderstand your one button</li></ul><p>None of that is in the tutorial. All of it is the job.</p><h2>Then tell one person</h2><p>Send the link to exactly one human. That single act converts \"I'm learning to code\" into \"I made this\" — and it's the difference between the people who keep going and the people who keep watching.</p>",
-    status: "PUBLISHED",
-    publishedAt: "2026-05-26T09:00:00Z",
-    categoryIds: ["seed-postcat-tips", "seed-postcat-featured"],
-    tags: ["technology", "beginners", "shipping"],
-    theme: "technology",
-    artIndex: 1,
-  },
-  {
-    id: "seed-post-thirty-minutes",
-    slug: "thirty-minutes-is-enough",
-    title: "Thirty minutes is enough (if you spend it right)",
-    excerpt:
-      "The hour you don't have is why you're not training. Here's what actually fits in half of one.",
-    content:
-      "<p>The most common reason people stop training isn't motivation — it's arithmetic. They believe the session takes ninety minutes, they don't have ninety minutes, so they do nothing. Thirty honest minutes, three times a week, beats that every time.</p><h2>What fits</h2><ol><li><strong>5 minutes</strong> — raise your temperature and move the joints you're about to use.</li><li><strong>20 minutes</strong> — two movements, alternating sets. One push or squat, one pull or hinge. That's it.</li><li><strong>5 minutes</strong> — one carry or one easy finisher, then walk out.</li></ol><h2>What doesn't fit — and doesn't matter</h2><p>Six exercises. Long rests scrolling your phone. The third variation of the same movement. None of those are what made anyone strong; they're what made sessions long.</p><h2>Why it works</h2><p>Progress comes from showing up repeatedly and asking for slightly more than last time. A short session you repeat for a year beats a perfect session you abandon in March — and the year is the only variable that has ever mattered.</p><p>Put three thirty-minute blocks in your calendar this week. Protect them like meetings. That's the whole programme.</p>",
-    status: "PUBLISHED",
-    publishedAt: "2026-06-02T09:00:00Z",
-    categoryIds: ["seed-postcat-habits"],
-    tags: ["sports", "training", "habits"],
-    theme: "sports",
-    artIndex: 2,
-  },
-  {
-    id: "seed-post-learn-faster",
-    slug: "how-to-learn-anything-faster",
-    title: "How to learn anything faster (it's mostly not talent)",
-    excerpt:
-      "Four things every fast learner does — none of which require being naturally gifted at the thing.",
-    content:
-      "<p>Watch someone pick up a skill unusually fast and you'll notice they're not smarter than the room. They're running a better loop.</p><h2>1. Get feedback sooner than feels comfortable</h2><p>The gap between doing something and finding out whether it worked is the single biggest lever in learning. Film the set. Run the code. Taste the sauce. Play the take back. Fast learners shrink that gap to seconds.</p><h2>2. Practise the specific thing, not the general area</h2><p>\"Get better at cooking\" is a wish. \"Dice an onion evenly, ten minutes, every day this week\" is a plan. Name the sub-skill, drill the sub-skill.</p><h2>3. Stay at the edge of your ability</h2><p>Comfortable practice is entertainment. If you're not failing perhaps a third of the time, you've picked something you already know how to do — and it's costing you the hour anyway.</p><h2>4. Sleep on it</h2><p>Skills consolidate overnight; the gains from today's session mostly show up tomorrow. Cramming steals from the one process you can't rush.</p><h2>The uncomfortable summary</h2><p>None of this is a shortcut. It's a promise that the hours you already planned to spend can be worth two or three times what they currently are — which is a much better deal than talent.</p>",
-    status: "PUBLISHED",
-    publishedAt: "2026-06-09T09:00:00Z",
-    categoryIds: ["seed-postcat-habits", "seed-postcat-deep"],
-    tags: ["learning", "practice"],
-    artIndex: 1,
+    publishedAt: "2026-08-12T12:00:00Z",
+    categoryIds: [],
+    tags: ["cooking"],
+    coverImageUrl: media("1786536528401-fel5b2.jpg"),
   },
 ];
 
@@ -1506,9 +1155,9 @@ async function seedBlog(adminId: string) {
       title: p.title,
       excerpt: p.excerpt,
       content: p.content,
-      coverImageUrl: p.theme
-        ? art(p.theme, p.artIndex ?? 0)
-        : generalArt(p.artIndex ?? 0),
+      coverImageUrl:
+        p.coverImageUrl ??
+        (p.theme ? art(p.theme, p.artIndex ?? 0) : generalArt(p.artIndex ?? 0)),
       status: p.status,
       publishedAt: p.publishedAt ? new Date(p.publishedAt) : null,
       authorId: adminId,
@@ -2342,6 +1991,69 @@ async function seedDemoMedia() {
   console.log(`✓ demo artwork (${files.length} generated panels → ${MEDIA_BASE}/media)`);
 }
 
+// Minimal JPEG dimension reader (SOF marker). @lms/db keeps no image library, so
+// the header is parsed by hand — same spirit as the zero-dep PNG encoder.
+function jpegSize(buf: Buffer): { width: number; height: number } {
+  let i = 2; // past the SOI marker (0xFFD8)
+  while (i + 9 < buf.length) {
+    if (buf[i] !== 0xff) {
+      i++;
+      continue;
+    }
+    const marker = buf[i + 1];
+    const isSOF =
+      (marker >= 0xc0 && marker <= 0xc3) ||
+      (marker >= 0xc5 && marker <= 0xc7) ||
+      (marker >= 0xc9 && marker <= 0xcb) ||
+      (marker >= 0xcd && marker <= 0xcf);
+    if (isSOF) return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+    // Standalone markers (SOI/EOI/RSTn) carry no length field; others do.
+    if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7)) i += 2;
+    else i += 2 + buf.readUInt16BE(i + 2);
+  }
+  return { width: 0, height: 0 };
+}
+
+// Uploaded images from the admin-authored demo, optimized to JPEG (assets/demo-
+// media/, ~6 MB total) and copied into MEDIA_DIR under their original filenames
+// so the catalog's media("…") URLs resolve. Mirrors seedDemoMedia. Defensive: if
+// the dir is ever absent, seed a catalog whose images 404 rather than crashing.
+async function seedUploadedMedia() {
+  const apiSrc = path.resolve(__dirname, "../../../apps/api/src");
+  const mediaRoot = process.env.MEDIA_DIR || path.join(apiSrc, "media-uploads");
+  fs.mkdirSync(mediaRoot, { recursive: true });
+
+  const srcDir = path.join(__dirname, "assets", "demo-media");
+  if (!fs.existsSync(srcDir)) {
+    console.log("• demo uploads: assets/demo-media absent — skipped (catalog images will 404)");
+    return;
+  }
+  const files = fs.readdirSync(srcDir).filter((f) => f.endsWith(".jpg")).sort();
+  for (const file of files) {
+    const src = path.join(srcDir, file);
+    fs.copyFileSync(src, path.join(mediaRoot, file));
+    const buf = fs.readFileSync(src);
+    const { width, height } = jpegSize(buf);
+    const data = {
+      key: file,
+      originalName: file,
+      mimeType: "image/jpeg",
+      size: buf.length,
+      width,
+      height,
+      title: `Demo image — ${file}`,
+      altText: "Demo catalog image",
+    };
+    await prisma.mediaAsset.upsert({
+      where: { id: `seed-media-${file.replace(/\.jpg$/, "")}` },
+      update: data,
+      create: { id: `seed-media-${file.replace(/\.jpg$/, "")}`, ...data },
+    });
+  }
+  if (files.length)
+    console.log(`✓ demo uploads (${files.length} admin images → ${MEDIA_BASE}/media)`);
+}
+
 // ---------- certificate templates ----------
 
 // Two demo templates with committed artwork (assets/certificates/*.png). The
@@ -2691,6 +2403,7 @@ async function main() {
   }
 
   await seedDemoMedia(); // before the catalog — every image URL points at it
+  await seedUploadedMedia(); // admin-authored uploads (assets/demo-media/)
   const { memberId } = await seedFixtureCluster();
   await seedCatalog();
   await seedForms();
