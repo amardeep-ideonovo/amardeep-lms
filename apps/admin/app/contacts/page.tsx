@@ -762,10 +762,9 @@ export default function ContactsPage() {
 
       {/* ---------------- Contact editor modal ---------------- */}
       {editorOpen && (
-        <div className="modal-overlay" onClick={closeEditor}>
+        <div className="modal-overlay">
           <div
             className="modal modal--wide"
-            onClick={(e) => e.stopPropagation()}
             style={{ maxWidth: 520 }}
           >
             <div className="modal-header">

@@ -243,16 +243,14 @@ export default function MemberBillingPage() {
         )}
       </div>
 
+      {/* Cancel-subscription modal — not dismissable by accident (backdrop/Escape); use ×/Cancel */}
       {cancelFor && (
         <div
           className="modal-overlay"
           role="dialog"
           aria-modal="true"
-          onClick={() => {
-            if (!busy) setCancelFor(null);
-          }}
         >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal">
             <div className="modal-header">
               <h2>Cancel {cancelFor.levelName}?</h2>
               <button

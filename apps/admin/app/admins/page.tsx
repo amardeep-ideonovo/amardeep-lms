@@ -287,19 +287,16 @@ function AdminModal({
     }
   }
 
+  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
   return (
     <div
       className="modal-overlay"
       role="dialog"
       aria-modal="true"
-      onClick={() => {
-        if (!busy) onClose();
-      }}
     >
       <div
         className="modal"
         style={{ maxWidth: 660 }}
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
           <h2>{mode === "create" ? "Add admin" : `Edit ${admin?.email}`}</h2>

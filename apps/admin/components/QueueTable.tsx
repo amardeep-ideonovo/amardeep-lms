@@ -1784,11 +1784,11 @@ function ItemDetailCard({
     }
   }
 
+  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay">
       <div
         className="modal modal--wide"
-        onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Item details"
       >

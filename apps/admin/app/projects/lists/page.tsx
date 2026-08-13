@@ -403,10 +403,10 @@ function WorkflowsPanel({
     id ? channels.find((c) => c.id === id)?.name ?? "channel" : null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
+    <div className="modal-overlay">
       <div
         className="modal modal--wide"
-        onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="Workflows"
       >

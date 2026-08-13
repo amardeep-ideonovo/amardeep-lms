@@ -89,14 +89,7 @@ export default function AvatarCropper({
     };
   }, [file]);
 
-  // Esc to cancel.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onCancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [busy, onCancel]);
+  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
 
   // Re-zoom around the viewport centre so framing feels stable.
   const applyZoom = useCallback(
@@ -173,13 +166,8 @@ export default function AvatarCropper({
   const h = dims ? dims.h * scale : 0;
 
   return (
-    <div
-      className="modal-overlay modal-overlay--center"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !busy) onCancel();
-      }}
-    >
-      <div className="modal modal--crop" onMouseDown={(e) => e.stopPropagation()}>
+    <div className="modal-overlay modal-overlay--center">
+      <div className="modal modal--crop">
         <div className="modal-header">
           <h2>Position your photo</h2>
           <button

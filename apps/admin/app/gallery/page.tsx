@@ -364,13 +364,7 @@ function NewMediaModal({
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onCancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel, busy]);
+  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
 
   const kind: MediaKind = file.type.startsWith("image/")
     ? "image"
@@ -383,17 +377,8 @@ function NewMediaModal({
           : "other";
 
   return (
-    <div
-      className="modal-overlay"
-      onClick={busy ? undefined : onCancel}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        className="modal"
-        style={{ maxWidth: 760 }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="modal-overlay" role="dialog" aria-modal="true">
+      <div className="modal" style={{ maxWidth: 760 }}>
         <div className="modal-header">
           <h2>Add to Gallery{remaining > 1 ? ` — ${remaining} files` : ""}</h2>
           <button
@@ -545,11 +530,7 @@ function MediaDetails({
     setCopied(false);
   }, [asset.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
 
   function copyUrl() {
     navigator.clipboard?.writeText(asset.url).then(() => {
@@ -590,17 +571,8 @@ function MediaDetails({
   }
 
   return (
-    <div
-      className="modal-overlay"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        className="modal"
-        style={{ maxWidth: 920 }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="modal-overlay" role="dialog" aria-modal="true">
+      <div className="modal" style={{ maxWidth: 920 }}>
         <div className="modal-header">
           <h2>Attachment details</h2>
           <button

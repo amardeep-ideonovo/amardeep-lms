@@ -668,16 +668,7 @@ function CourseLessons({
     setNoteFiles([]);
   }
 
-  // Close the add-lesson modal on Escape (mirrors the course modal).
-  useEffect(() => {
-    if (!showAdd) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeAdd();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAdd]);
+  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
 
   async function addLesson(e: FormEvent) {
     e.preventDefault();
@@ -747,14 +738,12 @@ function CourseLessons({
       {showAdd && (
         <div
           className="modal-overlay"
-          onClick={closeAdd}
           role="dialog"
           aria-modal="true"
         >
           <div
             className="modal"
             style={{ maxWidth: 860 }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
               <h2>Add lesson — {courseTitle}</h2>
