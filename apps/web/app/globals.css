@@ -3434,13 +3434,17 @@ a.card:hover {
 .ik-band--photo {
   position: relative;
   background-size: cover;
-  background-position: center 25%;
+  background-position: center 28%;
+  /* Give the cover photo real height instead of a thin strip. */
+  min-height: 380px;
 }
 .ik-band--photo::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(34, 28, 61, 0.93) 0%, rgba(34, 28, 61, 0.82) 55%, rgba(34, 28, 61, 0.6) 100%);
+  /* Lighter scrim: dark enough at the top for the white title/breadcrumb, then
+     opens up through the middle so the cover image is actually visible. */
+  background: linear-gradient(180deg, rgba(34, 28, 61, 0.80) 0%, rgba(34, 28, 61, 0.46) 42%, rgba(34, 28, 61, 0.36) 68%, rgba(34, 28, 61, 0.66) 100%);
 }
 .ik-band--photo > * { position: relative; }
 .ik-band-inner {
@@ -3620,14 +3624,16 @@ a.card:hover {
 @media (max-width: 1100px) { .ik-class-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 640px) { .ik-class-grid { grid-template-columns: 1fr; } }
 .ik-class-card {
+  /* Keep the category colour + title legible at the top, then fade the scrim
+     right down so the class PHOTO reads through the body of the tile. */
   background:
-    linear-gradient(178deg, rgba(var(--cls-base), 0.93) 0%, rgba(var(--cls-base), 0.55) 46%, rgba(var(--cls-dark), 0.42) 100%),
+    linear-gradient(180deg, rgba(var(--cls-base), 0.82) 0%, rgba(var(--cls-base), 0.30) 30%, rgba(var(--cls-dark), 0.10) 60%, rgba(var(--cls-dark), 0.34) 100%),
     var(--card-img, linear-gradient(150deg, #37315e, #221c3d)) center/cover;
   border-radius: 18px;
   padding: 22px;
   display: flex;
   flex-direction: column;
-  min-height: 218px;
+  min-height: 300px;
   box-shadow: 0 10px 26px rgba(var(--cls-base), 0.3);
   color: #fff;
   transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
@@ -3636,7 +3642,11 @@ a.card:hover {
   transform: translateY(-3px);
   box-shadow: 0 10px 26px rgba(var(--cls-base), 0.4);
 }
-.ik-class-card--tall { min-height: 232px; }
+.ik-class-card--tall { min-height: 320px; }
+/* A subtle shadow behind the top text keeps the title readable now that the
+   scrim is lighter and the photo shows through. */
+.ik-class-title,
+.ik-class-meta { text-shadow: 0 1px 10px rgba(0, 0, 0, 0.35); }
 .ik-class-title { color: #fff; font-size: 18px; font-weight: 700; line-height: 1.3; }
 .ik-class-meta { color: rgba(255, 255, 255, 0.85); font-size: 12.5px; margin-top: 4px; }
 .ik-class-spacer { flex: 1; min-height: 18px; }
@@ -4079,6 +4089,7 @@ a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: n
 /* ---- responsive band ---- */
 @media (max-width: 900px) {
   .ik-band { padding: 0 24px 96px; }
+  .ik-band--photo { min-height: 300px; }
   .ik-main { padding: 0 24px 40px; }
   .ik-band-row { flex-direction: column; align-items: flex-start; gap: 18px; }
   .ik-band-title { font-size: 24px; }
