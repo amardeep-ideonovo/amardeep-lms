@@ -87,16 +87,7 @@ export default function BlogPage() {
     );
   }
 
-  // Close the modal on Escape.
-  useEffect(() => {
-    if (!modalOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeModal();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalOpen]);
+  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
 
   function resetForm() {
     setEditingId(null);
@@ -437,11 +428,10 @@ export default function BlogPage() {
       {modalOpen && (
         <div
           className="modal-overlay"
-          onClick={closeModal}
           role="dialog"
           aria-modal="true"
         >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal">
             <div className="modal-header">
               <h2>{editingId ? "Edit post" : "New post"}</h2>
               <button

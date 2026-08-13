@@ -145,25 +145,18 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     };
   }, [confirm, notify, prompt]);
 
-  // Focus the input (prompt) or the confirm button; wire Esc to cancel.
+  // Focus the input (prompt) or the confirm button.
+  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
   useEffect(() => {
     if (!state) return;
     const t = setTimeout(() => {
       if (state.kind === "prompt") inputRef.current?.focus();
       else okRef.current?.focus();
     }, 0);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        finish(true);
-      }
-    };
-    window.addEventListener("keydown", onKey);
     return () => {
       clearTimeout(t);
-      window.removeEventListener("keydown", onKey);
     };
-  }, [state, finish]);
+  }, [state]);
 
   const o = state?.opts;
 
@@ -173,14 +166,10 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
       {state && o && (
         <div
           className="modal-overlay modal-overlay--center"
-          onMouseDown={() => finish(true)}
           role="dialog"
           aria-modal="true"
         >
-          <div
-            className="modal modal--confirm"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
+          <div className="modal modal--confirm">
             <div className="modal-body">
               <h2 className="dialog-title">{o.title ?? defaultTitle(state.kind)}</h2>
               <p className="dialog-message">{o.message}</p>

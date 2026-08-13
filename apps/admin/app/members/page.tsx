@@ -439,18 +439,14 @@ export default function MembersPage() {
         )}
       </div>
 
-      {/* add-class (manual grant) modal */}
+      {/* add-class (manual grant) modal — not dismissable by accident (backdrop/Escape); use ×/Cancel/Save */}
       {grantFor && (
         <div
           className="modal-overlay modal-overlay--center"
-          onClick={() => setGrantFor(null)}
           role="dialog"
           aria-modal="true"
         >
-          <div
-            className="modal modal--confirm"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="modal modal--confirm">
             <div className="modal-header">
               <h2>Add class</h2>
               <button

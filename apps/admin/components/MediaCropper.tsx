@@ -104,13 +104,7 @@ export default function MediaCropper({
     };
   }, [file, VW, VH]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onCancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [busy, onCancel]);
+  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
 
   // Zoom about the window centre so the framed subject stays put.
   const applyZoom = useCallback(
@@ -193,16 +187,8 @@ export default function MediaCropper({
   const h = dims ? dims.h * scale : 0;
 
   return (
-    <div
-      className="modal-overlay modal-overlay--center"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !busy) onCancel();
-      }}
-    >
-      <div
-        className="modal modal--crop modal--crop-rect"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
+    <div className="modal-overlay modal-overlay--center">
+      <div className="modal modal--crop modal--crop-rect">
         <div className="modal-header">
           <h2>Position the image</h2>
           <button

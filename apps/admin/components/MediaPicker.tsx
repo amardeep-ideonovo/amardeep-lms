@@ -262,11 +262,7 @@ function MediaLibraryModal({
     const t = setTimeout(() => load(q), 250);
     return () => clearTimeout(t);
   }, [q, load]);
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", k);
-    return () => window.removeEventListener("keydown", k);
-  }, [onClose]);
+  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
 
   async function onFile(files: FileList | null) {
     const f = files?.[0];
@@ -282,17 +278,8 @@ function MediaLibraryModal({
   }
 
   return (
-    <div
-      className="modal-overlay"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        className="modal"
-        style={{ maxWidth: 760 }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="modal-overlay" role="dialog" aria-modal="true">
+      <div className="modal" style={{ maxWidth: 760 }}>
         <div className="modal-header">
           <h2>Gallery</h2>
           <button
