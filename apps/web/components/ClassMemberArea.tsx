@@ -164,7 +164,6 @@ function CourseAccordion({
       ? fmtTotalMinutes(lessons.reduce((n, l) => n + (l.durationSeconds ?? 0), 0))
       : null;
   const meta = [
-    `Course ${index + 1}`,
     `${course.lessonCount} lesson${course.lessonCount === 1 ? "" : "s"}`,
     mins,
   ]
@@ -174,6 +173,9 @@ function CourseAccordion({
   return (
     <section className="ik-panel ik-panel--snug">
       <div className="ik-course-head">
+        <span className="ik-course-num" aria-hidden="true">
+          {index + 1}
+        </span>
         {course.thumbnailUrl || course.coverImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={course.thumbnailUrl ?? course.coverImageUrl ?? ""} alt="" className="ik-course-thumb" />
@@ -198,6 +200,7 @@ function CourseAccordion({
         <div className="ik-lesson-group">
           {[0, 1].map((i) => (
             <div key={i} className="ik-lesson">
+              <span className="ik-lesson-num" aria-hidden="true" />
               <span className="ik-skel" style={{ width: 56, height: 38 }} />
               <span className="ik-lesson-main">
                 <span className="ik-skel" style={{ width: "60%", height: 13 }} />
@@ -207,7 +210,7 @@ function CourseAccordion({
         </div>
       ) : (
         <div className="ik-lesson-group">
-          {lessons.map((l) => {
+          {lessons.map((l, i) => {
           const isCurrent = l.id === currentLessonId;
           const dur = fmtDuration(l.durationSeconds);
           return (
@@ -216,6 +219,9 @@ function CourseAccordion({
               href={`/lessons/${l.id}`}
               className={isCurrent ? "ik-lesson ik-lesson--current" : "ik-lesson"}
             >
+              <span className="ik-lesson-num" aria-hidden="true">
+                {i + 1}
+              </span>
               {l.thumbnailUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={l.thumbnailUrl} alt="" className="ik-lesson-thumb" />

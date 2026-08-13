@@ -3785,6 +3785,22 @@ a.ik-row:hover, .ik-row--hover:hover {
   background: linear-gradient(120deg, #d2efe8, #bce6dc);
 }
 .ik-course-thumb { width: 64px; height: 44px; border-radius: 10px; object-fit: cover; flex: none; background: var(--surface-inset); }
+/* Sequence number in front of each course (chapter number on the teal band). */
+.ik-course-num {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--teal-text);
+  background: #fff;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 3px rgba(20, 40, 55, 0.12);
+}
 .ik-course-name { font-size: 15px; font-weight: 700; color: var(--text); }
 .ik-course-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 .ik-pill {
@@ -3811,6 +3827,16 @@ a.ik-row:hover, .ik-row--hover:hover {
   transition: background var(--dur-fast) var(--ease);
 }
 a.ik-lesson:hover { background: var(--surface-hover); box-shadow: 0 0 0 6px var(--surface-hover); border-radius: 4px; }
+/* Sequence number in front of each lesson (1..n within its course). */
+.ik-lesson-num {
+  flex: none;
+  min-width: 18px;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
 .ik-lesson-thumb { width: 56px; height: 38px; border-radius: 8px; object-fit: cover; flex: none; background: var(--surface-inset); }
 .ik-lesson-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .ik-lesson-title { font-size: 13px; font-weight: 600; color: var(--text); }
