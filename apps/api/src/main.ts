@@ -115,6 +115,11 @@ async function bootstrap() {
   // (PayPal's verify-webhook-signature needs the byte-exact original body).
   app.use('/billing/webhook', express.raw({ type: '*/*' }));
   app.use('/billing/paypal/webhook', express.raw({ type: '*/*' }));
+  // The content-pack import is a gzipped binary archive, not JSON — take the raw
+  // bytes regardless of Content-Type (a mislabeled body must not be silently
+  // parsed away, and the JSON parser below would otherwise reject/limit it). The
+  // limit is generous: packs carry the demo's media inline (see content-pack).
+  app.use('/content-pack/import', express.raw({ type: '*/*', limit: '256mb' }));
   // JSON parsing for everything else. The `verify` hook stashes the byte-exact
   // payload on req.rawBody for routes that ALSO need the parsed body — namely the
   // email feedback webhook, whose Svix (Resend) signature is computed over the raw

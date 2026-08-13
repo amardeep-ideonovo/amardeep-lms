@@ -110,6 +110,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get appConfig() {
     return this.client.appConfig;
   }
+  get contentPackState() {
+    return this.client.contentPackState;
+  }
   get audience() {
     return this.client.audience;
   }
