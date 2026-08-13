@@ -3785,7 +3785,8 @@ a.ik-row:hover, .ik-row--hover:hover {
   background: linear-gradient(120deg, #d2efe8, #bce6dc);
 }
 .ik-course-thumb { width: 64px; height: 44px; border-radius: 10px; object-fit: cover; flex: none; background: var(--surface-inset); }
-/* "Course N" label in front of each course (white chip on the teal band). */
+/* "Course N" label in front of each course — navy chip (matches the ink
+   certificate card) on the teal band. */
 .ik-course-num {
   flex: none;
   display: inline-flex;
@@ -3795,11 +3796,11 @@ a.ik-row:hover, .ik-row--hover:hover {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 800;
-  color: var(--teal-text);
-  background: #fff;
+  color: #fff;
+  background: var(--ink-800);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  box-shadow: 0 1px 3px rgba(20, 40, 55, 0.12);
+  box-shadow: 0 1px 3px rgba(20, 40, 55, 0.18);
 }
 .ik-course-name { font-size: 15px; font-weight: 700; color: var(--text); }
 .ik-course-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
