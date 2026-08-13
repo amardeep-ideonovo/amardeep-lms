@@ -1701,13 +1701,16 @@ select:-webkit-autofill:focus {
   text-align: center;
   margin: 0;
 }
-.cropper-actions {
+/* This footer sits OUTSIDE .modal-body, so it has no padding of its own. Give it
+   the same side padding as the body and a generous gap below the buttons, and
+   left-align normal-size buttons — matching the form modals (Save · Cancel),
+   instead of stretching them full-width or cornering them at the right edge.
+   The compound selector overrides .dialog-actions' justify-content: flex-end. */
+.dialog-actions.cropper-actions {
   width: 100%;
-  gap: 10px;
-}
-/* Fill the footer evenly instead of cornering both buttons at the right edge. */
-.cropper-actions .btn {
-  flex: 1;
+  gap: 8px;
+  justify-content: flex-start;
+  padding: 6px 20px 24px;
 }
 .cropper-upload-error {
   margin: 4px 0 0;

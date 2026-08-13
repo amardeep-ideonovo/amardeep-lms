@@ -239,19 +239,19 @@ export default function AvatarCropper({
         <div className="dialog-actions cropper-actions">
           <button
             type="button"
-            className="btn btn--ghost"
-            onClick={onCancel}
-            disabled={busy}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
             className="btn"
             onClick={handleApply}
             disabled={busy || !dims || !!error}
           >
             {busy ? "Uploading…" : "Save photo"}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost"
+            onClick={onCancel}
+            disabled={busy}
+          >
+            Cancel
           </button>
         </div>
       </div>
