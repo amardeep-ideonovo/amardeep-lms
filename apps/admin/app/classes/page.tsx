@@ -117,16 +117,9 @@ export default function ClassesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
-  // Close the modal on Escape (mirrors the courses modal).
-  useEffect(() => {
-    if (!modalOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeModal();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalOpen]);
+  // The create/edit form modal is DELIBERATELY not dismissable by accident:
+  // neither Escape nor a backdrop click closes it, so a stray keypress or misclick
+  // can never discard in-progress input. Dismiss explicitly via Cancel or ×, or Save.
 
   // Fetch the in-house audiences once for the picker. The endpoint needs the
   // 'contacts' read permission; a class-only admin gets a 403, which we treat
@@ -496,11 +489,10 @@ export default function ClassesPage() {
       {modalOpen && (
         <div
           className="modal-overlay"
-          onClick={closeModal}
           role="dialog"
           aria-modal="true"
         >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal">
             <div className="modal-header">
               <h2>{editingId ? "Edit class" : "Create class"}</h2>
               <button
