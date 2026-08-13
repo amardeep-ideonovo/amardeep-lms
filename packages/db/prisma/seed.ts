@@ -2367,12 +2367,34 @@ async function main() {
   // "No demo content" is enforced, not assumed: a database that carries demo
   // rows from an earlier demo-seeded life is cleaned on every baseline boot.
   if (!SEED_DEMO) {
-    // Once a control-plane content pack has landed, its rows ARE the client's
-    // content — even the ones still under the seed's "seed-" ids. Skip the purge
-    // (which targets that prefix) so a restart/upgrade can't wipe the imported
-    // catalog. A never-packed instance still gets the debris clean-up.
+    // Content that has LANDED belongs to the client — a boot whose env merely
+    // says "don't seed" must never destroy it. Two markers make that call:
+    //  • ContentPackState — a control-plane content pack was imported. Its rows
+    //    may still carry the seed's own "seed-" ids (the pack was exported from
+    //    a demo instance), which is exactly what purgeDemoDebris() targets.
+    //  • SeedState under SEED_DEMO_ONCE — the built-in demo landed as a
+    //    one-shot starting template. Every control-plane reconfigure (upgrade,
+    //    custom-domain attach, provision retry) recreates the containers
+    //    WITHOUT the provision-time seedDemo flag, so SEED_DEMO_CONTENT reads
+    //    "false" on instances that were seeded on purpose. That env value
+    //    expresses THIS BOOT's seeding intent — not a decision to delete a
+    //    catalog the client may have spent weeks editing. (Skipping this guard
+    //    is precisely what wiped the operator demo instance's content the day
+    //    its custom domain was attached.)
+    // Removing demo content deliberately remains possible via the explicit
+    // destructive path (SEED_WIPE=1) — never as a side effect of env plumbing.
+    // A database with NO marker still gets the debris clean-up: that heals the
+    // historical incident of retired demo content (and the well-known demo
+    // member login) left behind by pre-marker images.
     if (await contentPackImported()) {
       console.log("Seed complete — baseline; content pack present, purge skipped.");
+    } else if (
+      DEMO_ONCE &&
+      (await prisma.seedState.findUnique({ where: { id: SEED_STATE_ID } }))
+    ) {
+      console.log(
+        "Seed complete — baseline; one-shot demo already landed, purge skipped.",
+      );
     } else {
       await purgeDemoDebris();
       console.log("Seed complete — baseline only (no demo content).");

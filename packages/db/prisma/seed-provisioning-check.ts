@@ -490,6 +490,53 @@ async function main() {
     }
     console.log("PASS  legacy demo instance stamped without re-imposing");
 
+    // ----- 11. RECONFIGURE of a one-shot instance (upgrade, custom-domain
+    // attach, provision retry). Every one of those recreates the containers
+    // WITHOUT the provision-time seedDemo flag, so the boot arrives with
+    // SEED_DEMO_CONTENT=false on a database whose demo content the client
+    // already OWNS. That boot must not purge anything — this exact path wiped
+    // the operator demo instance's whole catalog the day its custom domain was
+    // attached. (Contrast scenario 7: with no SEED_DEMO_ONCE and no marker
+    // semantics, flip-to-baseline still purges — dev refresh behavior.)
+    const beforeReconfigure = {
+      levels: await db.level.count(),
+      courses: await db.course.count(),
+      pages: await db.page.count(),
+    };
+    runSeed(
+      {
+        SEED_ADMIN_EMAIL: OWNER_ENV_EMAIL,
+        SEED_ADMIN_PASSWORD: OWNER.password,
+        SEED_DEMO_CONTENT: "false",
+        SEED_DEMO_ONCE: "true",
+      },
+      "one-shot instance, reconfigure boot (env lost seedDemo)",
+    );
+    {
+      assert.deepEqual(
+        {
+          levels: await db.level.count(),
+          courses: await db.course.count(),
+          pages: await db.page.count(),
+        },
+        beforeReconfigure,
+        "a reconfigure boot (SEED_DEMO_CONTENT=false on a one-shot instance) must not delete content",
+      );
+      const music = await db.level.findUniqueOrThrow({
+        where: { id: "seed-class-music-production" },
+      });
+      assert.equal(
+        music.name,
+        "My Music Academy",
+        "client edits must survive a reconfigure boot untouched",
+      );
+      assert.ok(
+        await db.seedState.findUnique({ where: { id: "singleton" } }),
+        "the one-shot marker must survive a reconfigure boot (purge would have deleted it)",
+      );
+    }
+    console.log("PASS  reconfigure boot leaves one-shot content untouched");
+
     console.log("\nSeed provisioning check: ALL PASS");
   } finally {
     await db.$disconnect();
