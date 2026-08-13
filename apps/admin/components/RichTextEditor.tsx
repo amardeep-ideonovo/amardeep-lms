@@ -61,7 +61,29 @@ export default function RichTextEditor({
     </button>
   );
 
+  // When nothing is selected, expand the selection to the word under the cursor.
+  // Without this, clicking Bold/Italic/Link with only a caret placed sets the
+  // mark for the NEXT typed characters and leaves the visible text unchanged —
+  // which reads as "the button does nothing". Selecting the current word makes
+  // it format what the user is looking at, matching every other editor.
+  const selectWordIfEmpty = () => {
+    const sel = editor.state.selection;
+    if (!sel.empty) return;
+    const $from = sel.$from;
+    const text = $from.parent.textContent;
+    const off = $from.parentOffset;
+    let s = off;
+    let e = off;
+    while (s > 0 && /\S/.test(text[s - 1])) s--;
+    while (e < text.length && /\S/.test(text[e])) e++;
+    if (e > s) {
+      const base = $from.start();
+      editor.commands.setTextSelection({ from: base + s, to: base + e });
+    }
+  };
+
   const setLink = async () => {
+    selectWordIfEmpty();
     const prev = (editor.getAttributes("link").href as string) || "https://";
     const url = await dialog.prompt({
       title: "Insert link",
@@ -84,8 +106,8 @@ export default function RichTextEditor({
   return (
     <div className="editor">
       <div className="editor-toolbar">
-        <Btn label="B" active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} />
-        <Btn label="I" active={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()} />
+        <Btn label="B" active={editor.isActive("bold")} onClick={() => { selectWordIfEmpty(); editor.chain().focus().toggleBold().run(); }} />
+        <Btn label="I" active={editor.isActive("italic")} onClick={() => { selectWordIfEmpty(); editor.chain().focus().toggleItalic().run(); }} />
         <Btn label="H2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
         <Btn label="H3" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} />
         <Btn label="• List" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()} />
