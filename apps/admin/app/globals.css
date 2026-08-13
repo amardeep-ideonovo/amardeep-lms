@@ -1633,7 +1633,7 @@ select:-webkit-autofill:focus {
 
 /* ---------- avatar cropper ---------- */
 .modal--crop {
-  max-width: 380px;
+  max-width: min(380px, calc(100vw - 20px));
 }
 .cropper-body {
   display: flex;
@@ -1671,7 +1671,7 @@ select:-webkit-autofill:focus {
 /* Rectangular (non-avatar) media crop: square-ish corners, wider dialog to
    fit a landscape framing window. */
 .modal--crop-rect {
-  max-width: 520px;
+  max-width: min(520px, calc(100vw - 20px));
 }
 .cropper-mask--rect {
   border-radius: var(--radius);

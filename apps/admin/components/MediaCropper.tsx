@@ -26,11 +26,15 @@ type Props = {
 type Dims = { w: number; h: number };
 
 // The on-screen framing window: the requested aspect, fit inside the max box.
-function stageSize(aspect: number): Dims {
-  let w = STAGE_MAX_W;
+function stageSize(
+  aspect: number,
+  maxW = STAGE_MAX_W,
+  maxH = STAGE_MAX_H,
+): Dims {
+  let w = maxW;
   let h = Math.round(w / aspect);
-  if (h > STAGE_MAX_H) {
-    h = STAGE_MAX_H;
+  if (h > maxH) {
+    h = maxH;
     w = Math.round(h * aspect);
   }
   return { w, h };
@@ -44,13 +48,27 @@ export default function MediaCropper({
   onCancel,
   onApply,
 }: Props) {
-  const { w: VW, h: VH } = stageSize(aspect);
+  // Shrink the framing window to fit narrow / zoomed viewports so the modal
+  // (and its Cancel/Save buttons) never overflow off-screen.
+  const [avail, setAvail] = useState({ w: STAGE_MAX_W, h: STAGE_MAX_H });
+  const { w: VW, h: VH } = stageSize(aspect, avail.w, avail.h);
   const [url, setUrl] = useState<string | null>(null);
   const [dims, setDims] = useState<Dims | null>(null);
   const [minScale, setMinScale] = useState(1);
   const [scale, setScale] = useState(1);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const update = () =>
+      setAvail({
+        w: Math.max(200, Math.min(STAGE_MAX_W, window.innerWidth - 72)),
+        h: Math.max(150, Math.min(STAGE_MAX_H, window.innerHeight - 280)),
+      });
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   const imgRef = useRef<HTMLImageElement | null>(null);
   const drag = useRef<{
