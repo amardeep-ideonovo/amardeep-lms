@@ -108,16 +108,9 @@ export default function CoursesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
-  // Close the modal on Escape.
-  useEffect(() => {
-    if (!modalOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeModal();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modalOpen]);
+  // The create/edit form modal is DELIBERATELY not dismissable by accident:
+  // neither Escape nor a backdrop click closes it, so a stray keypress or misclick
+  // can never discard in-progress input. Dismiss explicitly via Cancel or ×, or Save.
 
   function resetForm() {
     setEditingId(null);
@@ -439,11 +432,10 @@ export default function CoursesPage() {
       {modalOpen && (
         <div
           className="modal-overlay"
-          onClick={closeModal}
           role="dialog"
           aria-modal="true"
         >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal">
             <div className="modal-header">
               <h2>{editingId ? "Edit course" : "New course"}</h2>
               <button
