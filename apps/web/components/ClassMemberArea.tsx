@@ -173,9 +173,7 @@ function CourseAccordion({
   return (
     <section className="ik-panel ik-panel--snug">
       <div className="ik-course-head">
-        <span className="ik-course-num" aria-hidden="true">
-          {index + 1}
-        </span>
+        <span className="ik-course-num">Course {index + 1}</span>
         {course.thumbnailUrl || course.coverImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={course.thumbnailUrl ?? course.coverImageUrl ?? ""} alt="" className="ik-course-thumb" />
