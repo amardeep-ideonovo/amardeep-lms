@@ -3,7 +3,7 @@ name: Smoke (staging)
 # Runs the @smoke-tagged subset of BDD scenarios against any deployed API.
 #
 # Usage:
-#   1. Deploy the latest amardeepLMS to staging
+#   1. Deploy the latest main to staging
 #   2. Trigger this workflow from the Actions tab — "Run workflow"
 #   3. Optionally edit the staging URL input if it changes
 #
