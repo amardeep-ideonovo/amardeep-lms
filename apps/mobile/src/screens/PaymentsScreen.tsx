@@ -16,6 +16,7 @@ import { EmptyState, ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { fmtDate, money } from "../format";
 import type { ScreenProps } from "../navigation";
+import { contentColumn } from "../responsive";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
@@ -124,7 +125,7 @@ export function PaymentsScreen(_props: ScreenProps<"Payments">) {
 
 const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md },
+  content: { padding: spacing.md, ...contentColumn },
   skeletons: { flex: 1, backgroundColor: colors.bg, padding: spacing.md },
   skeletonRow: { marginBottom: spacing.sm },
   row: {

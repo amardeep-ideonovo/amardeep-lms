@@ -37,6 +37,18 @@ The app currently points at placeholder URLs. In `eas.json`, under
   `appleTeamId`.
 - `eas build` will create/manage signing credentials (or supply your own).
 
+## 3b. Tablets (iPad + Android tablets)
+The app is a universal iPhone + iPad app (`supportsTablet: true`) and Android
+tablets rotate freely (phones stay portrait-locked — see `src/responsive.ts`).
+Consequences for store submission:
+- **Apple reviews on iPad** and the listing requires **13" iPad screenshots
+  (2064×2752)** in addition to the iPhone set. Capture on the
+  "iPad Pro 13-inch" simulator.
+- **Play**: upload 7"/10" tablet screenshots so the listing qualifies for
+  tablet surfacing (large-screen quality guidelines).
+- Orientation/tablet settings are **native config** — changing them ships only
+  in a new store binary (`eas build`), never over OTA.
+
 ## 4. Google (Play)
 - Create the app in Google Play Console under `com.thewebpaanda.lms`.
 - Create a Play **service-account JSON** and save it as

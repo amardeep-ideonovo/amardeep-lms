@@ -15,6 +15,7 @@ import {
   bindInstance,
   type InstanceBinding,
 } from "../config";
+import { formColumn } from "../responsive";
 import { DEFAULT_APP_CONFIG, paletteFrom, fonts, spacing } from "../theme";
 
 const STEP_LABELS = {
@@ -229,7 +230,7 @@ type Colors = ReturnType<typeof paletteFrom>;
 const makeStyles = (colors: Colors) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
-    body: { flex: 1, justifyContent: "center", padding: spacing.lg },
+    body: { flex: 1, justifyContent: "center", padding: spacing.lg, ...formColumn },
     title: {
       color: colors.text,
       fontSize: 28,

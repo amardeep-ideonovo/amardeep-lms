@@ -17,6 +17,7 @@ import { Press } from "../components/Press";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { fmtDate } from "../format";
 import type { ScreenProps } from "../navigation";
+import { contentColumn } from "../responsive";
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
@@ -144,7 +145,7 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
 
 const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md },
+  content: { padding: spacing.md, ...contentColumn },
   heroWrap: { marginBottom: spacing.md },
   heroExcerpt: { color: colors.heroTextSoft, fontSize: 14, lineHeight: 20, fontFamily: fonts.regular },
   card: {

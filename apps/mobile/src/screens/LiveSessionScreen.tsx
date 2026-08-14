@@ -10,6 +10,7 @@ import type { LiveJoinCredentialsDTO, LiveSessionBarDTO } from "@lms/types";
 import { ApiError, api } from "../api";
 import { ErrorState, Loading } from "../components/Screen";
 import { Press } from "../components/Press";
+import { contentColumn } from "../responsive";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -168,7 +169,7 @@ export function LiveSessionScreen({ route }: ScreenProps<"LiveSession">) {
 const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
-    content: { padding: spacing.md, gap: spacing.xs },
+    content: { padding: spacing.md, gap: spacing.xs, ...contentColumn },
     eyebrow: {
       color: colors.primarySoft,
       fontSize: 12,

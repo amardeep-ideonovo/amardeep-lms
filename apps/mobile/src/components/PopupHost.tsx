@@ -40,6 +40,7 @@ import { api } from "../api";
 import { scopedKey } from "../config";
 import { PageRenderer } from "./PageRenderer";
 import { PageScope } from "./PageScope";
+import { POPUP_MAX_WIDTH } from "../responsive";
 import { fonts, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useTheme } from "../theme-provider";
@@ -133,7 +134,9 @@ function overlayAlign(pos: PopupPosition): {
 // fits the screen.
 function resolveWidth(width: string, screenW: number): number {
   const w = (width || "").trim();
-  const max = screenW - 32;
+  // Percentage widths resolve against the window, so a big tablet window
+  // needs a hard ceiling — "90%" of a 1024pt iPad is not a popup.
+  const max = Math.min(screenW - 32, POPUP_MAX_WIDTH);
   if (w.endsWith("%")) {
     const pct = parseFloat(w);
     if (!Number.isNaN(pct)) return Math.min(max, (pct / 100) * screenW);

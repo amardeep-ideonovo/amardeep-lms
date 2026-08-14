@@ -14,7 +14,6 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { WebView } from "react-native-webview";
@@ -41,6 +40,7 @@ import { lessonSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
 import { optimistic } from "../optimistic";
 import { propagateLessonComplete } from "../queries";
+import { contentColumn, formColumn, useContentLayout } from "../responsive";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -61,7 +61,7 @@ function fmtClock(seconds: number): string {
 export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
+  const { contentWidth } = useContentLayout();
   const queryClient = useQueryClient();
   // `seed` is the row the member tapped (see navigation.ts): title, thumbnail
   // and duration — never the video URL, body, notes or certificate state, and
@@ -491,7 +491,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
           <View style={styles.bodyBelow}>
             <HtmlView
               html={lesson.content}
-              contentWidth={width - spacing.md * 2}
+              contentWidth={contentWidth - spacing.md * 2}
               baseStyle={styles.body}
             />
           </View>
@@ -554,7 +554,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
 
 const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md },
+  content: { padding: spacing.md, ...contentColumn },
   video: {
     width: "100%",
     aspectRatio: 16 / 9,
@@ -598,7 +598,7 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   bodyBelow: { marginTop: spacing.lg },
   error: { color: colors.danger, marginTop: spacing.md, fontFamily: fonts.regular },
   savedMsg: { color: colors.success, marginBottom: spacing.sm, fontSize: 13.5, fontFamily: fonts.regular },
-  lockedWrap: { alignSelf: "stretch" },
+  lockedWrap: { ...formColumn },
   notes: {
     marginTop: spacing.lg,
     backgroundColor: colors.surface,

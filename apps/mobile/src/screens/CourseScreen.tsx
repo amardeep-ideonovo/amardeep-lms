@@ -17,6 +17,7 @@ import { PopupHost } from "../components/PopupHost";
 import { Skeleton } from "../components/Skeleton";
 import { lessonSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
+import { contentColumn } from "../responsive";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -161,7 +162,7 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
 
 const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md },
+  content: { padding: spacing.md, ...contentColumn },
   skeletonRow: { marginBottom: spacing.sm },
   hero: {
     borderRadius: 12,

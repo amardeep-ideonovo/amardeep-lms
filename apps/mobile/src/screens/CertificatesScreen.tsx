@@ -32,6 +32,7 @@ import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { fmtDate } from "../format";
 import type { ScreenProps } from "../navigation";
+import { contentColumn } from "../responsive";
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -280,7 +281,7 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
 const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
-    content: { padding: spacing.md, gap: 12 },
+    content: { padding: spacing.md, gap: 12, ...contentColumn },
     skeletonWrap: {
       flex: 1,
       backgroundColor: colors.bg,

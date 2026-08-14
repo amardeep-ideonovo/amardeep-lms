@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet } from "react-native";
 import { PageEmbed } from "../components/PageRenderer";
 import { PopupHost } from "../components/PopupHost";
 import type { ScreenProps } from "../navigation";
+import { contentColumn } from "../responsive";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
 
@@ -26,5 +27,5 @@ export function PageScreen({ route }: ScreenProps<"Page">) {
 
 const makeStyles = ({ colors }: Theme) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingBottom: 24 },
+  content: { paddingBottom: 24, ...contentColumn },
 });
