@@ -45,31 +45,31 @@ export type Theme = {
 };
 
 // The 8 admin-configurable colors — the Ink Hero design system (light content
-// with ink #221c3d chrome; teal #3cc4b2 accent), so web, API defaults, and the
+// with ink #101014 chrome; teal #34c9a2 accent), so web, API defaults, and the
 // app agree out of the box. DARK is the all-ink variant for admins who choose
 // a dark scheme.
 const APP_DARK: AppThemePalette = {
-  bg: "#221c3d",
-  surface: "#272144",
-  surfaceMuted: "#322b52",
-  border: "#3a3460",
+  bg: "#101014",
+  surface: "#17171d",
+  surfaceMuted: "#1e1e26",
+  border: "#2a2a33",
   text: "#ffffff",
-  textMuted: "#a7a3bd",
-  primary: "#3cc4b2",
+  textMuted: "#a4a3a9",
+  primary: "#34c9a2",
   danger: "#ea4f4f",
 };
 const APP_LIGHT: AppThemePalette = {
-  bg: "#f4f3f8",
+  bg: "#f5f2ec",
   surface: "#ffffff",
-  surfaceMuted: "#f1eff7",
-  border: "#e4e1ee",
-  text: "#272144",
-  textMuted: "#8b87a3",
-  primary: "#3cc4b2",
+  surfaceMuted: "#f0ede4",
+  border: "#e6e2d7",
+  text: "#17171d",
+  textMuted: "#8b8a87",
+  primary: "#34c9a2",
   danger: "#e04848",
 };
 
-const LOCKED = { dark: "#6f6a8e", light: "#b6b3c9" } as const;
+const LOCKED = { dark: "#6d6d76", light: "#b7b4ac" } as const;
 
 // Mode-keyed semantic constants (success/warning have no admin color to
 // derive from; values are the Ink Hero status tokens — teal set on light,
@@ -77,16 +77,16 @@ const LOCKED = { dark: "#6f6a8e", light: "#b6b3c9" } as const;
 const SEMANTIC = {
   dark: {
     chipBg: "rgba(255,255,255,0.08)",
-    success: "#7ce4d2",
-    successBg: "rgba(60,196,178,0.2)",
+    success: "#79e9c6",
+    successBg: "rgba(52, 201, 162,0.2)",
     warning: "#f6a623",
     warningBg: "rgba(246,166,35,0.16)",
     dangerBg: "rgba(234,79,79,0.16)",
   },
   light: {
-    chipBg: "#f1eff7",
-    success: "#2a9d8d",
-    successBg: "rgba(53,179,162,0.12)",
+    chipBg: "#f0ede4",
+    success: "#299e7f",
+    successBg: "rgba(48, 184, 149,0.12)",
     warning: "#c07f10",
     warningBg: "rgba(246,166,35,0.16)",
     dangerBg: "rgba(224,72,72,0.1)",
@@ -103,12 +103,14 @@ function luminance(hex: string): number {
   return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
 }
 
-// White text on dark/saturated surfaces, near-black on light ones. The admin's
-// live preview mirrors this derivation (AppCustomizationBuilder), so what the
-// admin sees is what the app computes. Note: the Ink Hero teal #3cc4b2 has a
-// luminance of ~0.44, so this correctly resolves to WHITE button text.
+// White text on dark/saturated surfaces, near-black ink on light ones. The
+// admin's live preview mirrors this derivation (AppCustomizationBuilder), so
+// what the admin sees is what the app computes. Note: the Spark teal #34c9a2
+// has a luminance of ~0.451 — just past the threshold — so it resolves to INK
+// button labels, matching the brand pack's ink-on-teal S-monogram icon (and
+// the web CSS --on-primary token).
 function onColor(hex: string): string {
-  return luminance(hex) > 0.45 ? "#101828" : "#ffffff";
+  return luminance(hex) > 0.45 ? "#101014" : "#ffffff";
 }
 
 // WCAG contrast ratio between two #rrggbb colors.
@@ -229,32 +231,39 @@ export function paletteFrom(input: AppThemePalette, mode: "light" | "dark"): The
   const { h, s, l } = hexToHsl(p.primary);
   const t = hexToHsl(p.text);
 
-  // Ink CHROME (bands / hero headers). Derived from the admin TEXT color's hue
-  // so the band always sits in the same ink family as the headings: saturation
-  // pinned to 0.37 and lightness to 0.175 — for the stock Ink Hero text
-  // (#272144) this lands on EXACTLY #221c3d (the design's ink-900). Near-gray
-  // text keeps its own (low) saturation so we never invent a hue. In dark mode
-  // the whole app already sits on an ink bg, so the chrome IS the bg.
+  // Ink CHROME (bands / hero headers). The stock Spark text (#17171d) pins the
+  // design's ink-900 (#101014) exactly — the near-neutral Spark ink is too
+  // desaturated for the hue derivation to land there on its own. Custom text
+  // colors derive from the text hue so the band always sits in the same ink
+  // family as the headings: saturation pinned to 0.37 and lightness to 0.175
+  // (the Ink Hero-era treatment, kept so recolored instances are unchanged).
+  // Near-gray text keeps its own (low) saturation so we never invent a hue.
+  // In dark mode the whole app already sits on an ink bg, so the chrome IS
+  // the bg.
   const chrome =
-    mode === "dark" ? p.bg : hslToHex(t.h, t.s < 0.08 ? t.s : 0.37, 0.175);
+    mode === "dark"
+      ? p.bg
+      : p.text.toLowerCase() === "#17171d"
+        ? "#101014"
+        : hslToHex(t.h, t.s < 0.08 ? t.s : 0.37, 0.175);
 
   // Ink CARDS floated on light content (live strip, active class, certificate
-  // hero). For the stock palettes this is exactly #272144 (ink-800) in both
+  // hero). For the stock palettes this is exactly #17171d (ink-800) in both
   // modes: light re-uses the ink text color, dark re-uses the ink surface.
   const inkCard = mode === "dark" ? p.surface : p.text;
 
-  // Teal CTA gradient + on-dark accent. The stock primary (#3cc4b2) pins the
-  // exact design values (#4fcdb8 → #2f9d8e; on-dark #7ce4d2); custom primaries
+  // Teal CTA gradient + on-dark accent. The stock primary (#34c9a2) pins the
+  // exact design values (#4dd1ae → #2aa283; on-dark #79e9c6); custom primaries
   // derive a same-hue ramp so a recolored app keeps identical treatment.
-  const stockPrimary = p.primary.toLowerCase() === "#3cc4b2";
+  const stockPrimary = p.primary.toLowerCase() === "#34c9a2";
   const ctaStart = stockPrimary
-    ? "#4fcdb8"
+    ? "#4dd1ae"
     : hslToHex(h, Math.max(s, 0.35), Math.min(0.62, l + 0.06));
   const ctaEnd = stockPrimary
-    ? "#2f9d8e"
+    ? "#2aa283"
     : hslToHex(h, Math.max(s, 0.35), Math.max(0.18, l - 0.11));
   const primaryOnDark = stockPrimary
-    ? "#7ce4d2"
+    ? "#79e9c6"
     : hslToHex(h, Math.max(s, 0.4), 0.69);
 
   return {
@@ -272,14 +281,14 @@ export function paletteFrom(input: AppThemePalette, mode: "light" | "dark"): The
     gradientStart: hslToHex(h, 0.36, mode === "dark" ? 0.17 : 0.92),
     gradientEnd: p.bg,
     // Primary as TEXT: on light surfaces the raw teal fails AA, so it darkens
-    // (#2a9d8d for the stock primary — the design's teal-text-on-light); on
+    // (#299e7f for the stock primary — the design's teal-text-on-light); on
     // dark it lifts to the on-dark accent.
     primarySoft:
       mode === "dark"
         ? primaryOnDark
         : darkenUntilAA(
             stockPrimary
-              ? "#2a9d8d"
+              ? "#299e7f"
               : hslToHex(h, Math.max(s, 0.35), Math.min(l, 0.4)),
             p.surface,
           ),
@@ -311,7 +320,7 @@ export function letterGradient(seed: string): [string, string] {
 // `elevation` only renders on views with an opaque backgroundColor — apply to
 // surface cards, never gradient wrappers.
 export const elevatedShadow = (mode: "light" | "dark") => ({
-  shadowColor: "#140f2d",
+  shadowColor: "#0b0b0e",
   shadowOffset: { width: 0, height: 6 },
   shadowOpacity: mode === "dark" ? 0.4 : 0.12,
   shadowRadius: 12,
@@ -325,23 +334,24 @@ export const spacing = {
   lg: 24,
 };
 
-// Plus Jakarta Sans everywhere (Ink Hero), loaded via expo-font in App.tsx.
+// Space Grotesk everywhere (Spark), loaded via expo-font in App.tsx.
 // RN doesn't synthesize custom-font weights, so each weight is its own family
-// — use fontFamily(weight) or theme.fonts.* instead of bare fontWeight. The
-// display aliases remain so existing call sites keep working: headings are
-// simply heavier Jakarta cuts now (700/600/800).
+// — use fontFamily(weight) or theme.fonts.* instead of bare fontWeight. Space
+// Grotesk ships no 800 cut, so the extrabold/displayBlack aliases resolve to
+// the 700 face. The display aliases remain so existing call sites keep
+// working: headings are simply heavier Grotesk cuts (700/600).
 export const fonts = {
-  regular: "PlusJakartaSans_400Regular",
-  medium: "PlusJakartaSans_500Medium",
-  semibold: "PlusJakartaSans_600SemiBold",
-  bold: "PlusJakartaSans_700Bold",
-  extrabold: "PlusJakartaSans_800ExtraBold",
-  display: "PlusJakartaSans_700Bold",
-  displaySemi: "PlusJakartaSans_600SemiBold",
-  displayBlack: "PlusJakartaSans_800ExtraBold",
+  regular: "SpaceGrotesk_400Regular",
+  medium: "SpaceGrotesk_500Medium",
+  semibold: "SpaceGrotesk_600SemiBold",
+  bold: "SpaceGrotesk_700Bold",
+  extrabold: "SpaceGrotesk_700Bold",
+  display: "SpaceGrotesk_700Bold",
+  displaySemi: "SpaceGrotesk_600SemiBold",
+  displayBlack: "SpaceGrotesk_700Bold",
 } as const;
 
-// Map a fontWeight to the matching Jakarta family (so existing `fontWeight`
+// Map a fontWeight to the matching Grotesk family (so existing `fontWeight`
 // values pick the right loaded face rather than synthetic bold).
 export function fontFamily(weight?: string | number): string {
   const w = typeof weight === "string" ? parseInt(weight, 10) || 400 : weight ?? 400;

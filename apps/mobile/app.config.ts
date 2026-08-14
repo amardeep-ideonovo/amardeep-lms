@@ -64,7 +64,9 @@ const config = (): ExpoConfig => ({
       {
         image: "./assets/splash.png",
         resizeMode: "contain",
-        backgroundColor: "#ffffff",
+        // Spark ink — matches the splash art's own field so the contain
+        // letterboxing (and its rounded corners) blend invisibly.
+        backgroundColor: "#101014",
       },
     ],
     "expo-font",
@@ -92,7 +94,7 @@ const config = (): ExpoConfig => ({
     package: process.env.INSTANCE_ANDROID_PACKAGE ?? "com.thewebpaanda.lms",
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
-      backgroundColor: "#051533",
+      backgroundColor: "#101014",
     },
   },
   web: {

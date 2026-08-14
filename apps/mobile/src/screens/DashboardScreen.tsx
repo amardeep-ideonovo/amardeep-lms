@@ -525,7 +525,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 14,
-      shadowColor: "#140f2d",
+      shadowColor: "#0b0b0e",
       shadowOffset: { width: 0, height: 14 },
       shadowOpacity: 0.12,
       shadowRadius: 20,

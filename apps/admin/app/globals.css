@@ -1,7 +1,7 @@
 /* =========================================================================
-   LMS Admin — "Ink Hero" theme (single appearance).
-   Ink #221c3d chrome (sidebar + top bar) around a light #f5f4f9 content panel
-   with the signature 22px top-left radius. Teal accent, Plus Jakarta Sans.
+   LMS Admin — "Spark" theme (single appearance; Ink Hero structure).
+   Ink #101014 chrome (sidebar + top bar) around a cream #f6f4ef content panel
+   with the signature 22px top-left radius. Teal accent, Space Grotesk.
    All original class names are preserved, so every page reskins automatically.
    NOTE: `:root` and `:root[data-theme="light"]` intentionally carry the SAME
    values — any stored theme preference renders identically.
@@ -13,28 +13,28 @@
   color-scheme: light;
 
   /* ---- Ink chrome ---- */
-  --ink-900: #221c3d; /* bands, sidebar, app chrome */
-  --ink-800: #272144; /* ink cards on light, heading text */
+  --ink-900: #101014; /* bands, sidebar, app chrome */
+  --ink-800: #17171d; /* ink cards on light, heading text */
 
   /* ---- surfaces (light content panel) ---- */
-  --bg: #f5f4f9;
-  --sidebar: #221c3d;
+  --bg: #f6f4ef;
+  --sidebar: #101014;
   --surface: #ffffff;
-  --surface-2: #f1eff7; /* neutral pills, recessed fills, track bars */
-  --surface-tint: #f1eff7;
-  --surface-hover: #f8f7fc; /* row hover */
+  --surface-2: #f0ede4; /* neutral pills, recessed fills, track bars */
+  --surface-tint: #f0ede4;
+  --surface-hover: #faf8f3; /* row hover */
 
   /* lines */
-  --border: #e4e1ee;
-  --border-strong: #d9d5e8;
-  --border-soft: #ecebf2;
-  --row-divider: #f3f1f8;
+  --border: #e6e2d7;
+  --border-strong: #ddd7c9;
+  --border-soft: #edeae0;
+  --row-divider: #f2efe7;
 
   /* text on light */
-  --text: #272144;
-  --text-soft: #55506e;
-  --muted: #777394; /* was #8b87a3 (3.45:1) — AA on light */
-  --faint: #77719a; /* was #b6b3c9 (2.04:1) — AA on light */
+  --text: #17171d;
+  --text-soft: #55534d;
+  --muted: #74726C; /* was #8b8a87 (3.45:1) — AA on light */
+  --faint: #706e67; /* was #b7b4ac (2.04:1) — AA on light */
 
   /* text on dark (ink chrome) */
   --dark-text-2: rgba(255, 255, 255, 0.55);
@@ -43,25 +43,27 @@
   --dark-input: rgba(255, 255, 255, 0.1);
 
   /* ---- teal accent ---- */
-  --teal: #3cc4b2;
-  --teal-grad: linear-gradient(100deg, #4fcdb8, #2f9d8e);
-  --teal-text: #238376; /* teal on light — was #2a9d8d (3.33:1), now AA */
-  --teal-on-dark: #7ce4d2;
-  --teal-tint: rgba(53, 179, 162, 0.12);
+  --teal: #34c9a2;
+  --teal-grad: linear-gradient(100deg, #4dd1ae, #2aa283);
+  --teal-text: #22846A; /* teal on light — was #299e7f (3.33:1), now AA */
+  --teal-on-dark: #79e9c6;
+  --teal-tint: rgba(48, 184, 149, 0.12);
   --sidebar-active-bg: linear-gradient(
     100deg,
-    rgba(79, 205, 184, 0.25),
-    rgba(53, 179, 162, 0.12)
+    rgba(77, 209, 174, 0.25),
+    rgba(48, 184, 149, 0.12)
   );
-  --accent: #3cc4b2;
-  --accent-2: #2a9d8d;
-  --accent-grad: linear-gradient(100deg, #4fcdb8, #2f9d8e);
+  --accent: #34c9a2;
+  --accent-2: #299e7f;
+  /* Spark: ink labels on teal fills (matches the S-monogram icon) */
+  --on-cta: #101014;
+  --accent-grad: linear-gradient(100deg, #4dd1ae, #2aa283);
 
   /* ---- status ---- */
-  --green: #35b3a2;
-  --success: #35b3a2;
-  --success-text: #217d70;
-  --success-tint: rgba(53, 179, 162, 0.12);
+  --green: #30b895;
+  --success: #30b895;
+  --success-text: #207e65;
+  --success-tint: rgba(48, 184, 149, 0.12);
   --amber: #c07f10;
   --warning: #f6a623;
   --warning-text: #98650d;
@@ -83,20 +85,20 @@
   --comedy: #27a596;  --comedy-text: #1f8a7c;
 
   /* legacy aliases (kept so inline references keep resolving) */
-  --primary: #3cc4b2;
-  --primary-dark: #2f9d8e;
+  --primary: #34c9a2;
+  --primary-dark: #2aa283;
 
-  /* fonts (next/font var injected on <html>) — Jakarta everywhere */
-  --font-display: var(--font-jakarta), system-ui, -apple-system, "Segoe UI",
+  /* fonts (next/font var injected on <html>) — Space Grotesk everywhere */
+  --font-display: var(--font-grotesk), system-ui, -apple-system, "Segoe UI",
     Roboto, sans-serif;
-  --font-sans: var(--font-jakarta), system-ui, -apple-system, "Segoe UI",
+  --font-sans: var(--font-grotesk), system-ui, -apple-system, "Segoe UI",
     Roboto, sans-serif;
 
   /* gradients */
-  --grad-primary: linear-gradient(100deg, #4fcdb8, #2f9d8e);
-  --grad-accent: linear-gradient(100deg, #4fcdb8, #2f9d8e);
-  --grad-brand: linear-gradient(100deg, #4fcdb8, #2f9d8e);
-  --grad-progress: linear-gradient(90deg, #4fcdb8, #2f9d8e);
+  --grad-primary: linear-gradient(100deg, #4dd1ae, #2aa283);
+  --grad-accent: linear-gradient(100deg, #4dd1ae, #2aa283);
+  --grad-brand: linear-gradient(100deg, #4dd1ae, #2aa283);
+  --grad-progress: linear-gradient(90deg, #4dd1ae, #2aa283);
 
   /* frosted-glass tokens re-based on white (legacy consumers) */
   --glass-bg: rgba(255, 255, 255, 0.72);
@@ -104,14 +106,14 @@
   --glass-blur: blur(28px) saturate(180%);
   --glass-border: 1px solid rgba(228, 225, 238, 0.9);
   --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  --glass-shadow: 0 14px 40px rgba(20, 15, 45, 0.12);
+  --glass-shadow: 0 14px 40px rgba(16, 16, 20, 0.12);
 
   /* shadows + motion */
-  --shadow-card: 0 2px 10px rgba(39, 33, 68, 0.05);
-  --shadow-overlap: 0 14px 40px rgba(20, 15, 45, 0.12);
-  --shadow-pop: 0 14px 40px rgba(20, 15, 45, 0.12);
-  --shadow-cta: 0 10px 24px rgba(53, 179, 162, 0.35);
-  --shadow-primary: 0 10px 24px rgba(53, 179, 162, 0.35);
+  --shadow-card: 0 2px 10px rgba(23, 23, 29, 0.05);
+  --shadow-overlap: 0 14px 40px rgba(16, 16, 20, 0.12);
+  --shadow-pop: 0 14px 40px rgba(16, 16, 20, 0.12);
+  --shadow-cta: 0 10px 24px rgba(48, 184, 149, 0.35);
+  --shadow-primary: 0 10px 24px rgba(48, 184, 149, 0.35);
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
   --ease-spring: cubic-bezier(0.2, 0.7, 0.3, 1);
   --ease-out-back: cubic-bezier(0.2, 0.7, 0.3, 1);
@@ -153,11 +155,11 @@ a {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(39, 33, 68, 0.16);
+  background: rgba(23, 23, 29, 0.16);
   border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(39, 33, 68, 0.28);
+  background: rgba(23, 23, 29, 0.28);
 }
 /* …dark-tint thumbs on the ink chrome. */
 .sidebar::-webkit-scrollbar-thumb {
@@ -323,7 +325,7 @@ a {
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--teal-on-dark);
-  background: rgba(53, 179, 162, 0.22);
+  background: rgba(48, 184, 149, 0.22);
   padding: 2px 7px;
   border-radius: 6px;
 }
@@ -358,7 +360,7 @@ a {
   display: grid;
   place-items: center;
   background: var(--teal-grad);
-  color: #fff;
+  color: var(--on-cta);
   font-size: 11.5px;
   font-weight: 700;
 }
@@ -465,7 +467,7 @@ a {
   background: var(--teal-grad);
   display: grid;
   place-items: center;
-  color: #fff;
+  color: var(--on-cta);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -494,7 +496,7 @@ a {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.18);
+  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.18);
   padding: 6px;
   max-height: 64vh;
   overflow-y: auto;
@@ -576,7 +578,7 @@ a {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.18);
+  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.18);
   padding: 6px;
   z-index: 50;
   color: var(--text);
@@ -774,7 +776,7 @@ a {
   display: grid;
   place-items: center;
   background: var(--teal-grad);
-  color: #fff;
+  color: var(--on-cta);
   overflow: hidden;
 }
 .profile-avatar-img {
@@ -1087,7 +1089,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--teal);
-  box-shadow: 0 0 0 3px rgba(60, 196, 178, 0.18);
+  box-shadow: 0 0 0 3px rgba(52, 201, 162, 0.18);
 }
 /* Browser autofill forces its own background + text color (Chrome/Safari).
    Repaint autofilled fields white with ink text — the huge inset shadow masks
@@ -1108,9 +1110,9 @@ textarea:-webkit-autofill:focus,
 select:-webkit-autofill:focus {
   border-color: var(--teal);
   -webkit-box-shadow: 0 0 0 1000px #fff inset,
-    0 0 0 3px rgba(60, 196, 178, 0.18);
+    0 0 0 3px rgba(52, 201, 162, 0.18);
   box-shadow: 0 0 0 1000px #fff inset,
-    0 0 0 3px rgba(60, 196, 178, 0.18);
+    0 0 0 3px rgba(52, 201, 162, 0.18);
 }
 .form-row {
   display: flex;
@@ -1132,7 +1134,7 @@ select:-webkit-autofill:focus {
   border: 1px solid transparent;
   cursor: pointer;
   background: var(--teal-grad);
-  color: #fff;
+  color: var(--on-cta);
   box-shadow: var(--shadow-cta);
   transition: transform var(--t-fast) var(--ease), filter var(--t-fast) var(--ease),
     box-shadow var(--t-fast) var(--ease);
@@ -1141,7 +1143,7 @@ select:-webkit-autofill:focus {
 .btn:hover {
   filter: brightness(0.94);
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(53, 179, 162, 0.42);
+  box-shadow: 0 12px 28px rgba(48, 184, 149, 0.42);
 }
 .btn:active:not(:disabled) {
   transform: translateY(0);
@@ -1320,7 +1322,7 @@ select:-webkit-autofill:focus {
 .alert-success {
   background: var(--success-tint);
   color: var(--success-text);
-  border: 1px solid rgba(53, 179, 162, 0.3);
+  border: 1px solid rgba(48, 184, 149, 0.3);
 }
 .alert-warning {
   background: var(--warning-tint);
@@ -1356,7 +1358,7 @@ select:-webkit-autofill:focus {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.14);
+  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.14);
 }
 .row-menu-item {
   display: block;
@@ -1466,7 +1468,7 @@ select:-webkit-autofill:focus {
 }
 .editor-toolbar button.active {
   background: var(--accent-grad);
-  color: #fff;
+  color: var(--on-cta);
   border-color: transparent;
 }
 .editor .ProseMirror {
@@ -1579,7 +1581,7 @@ select:-webkit-autofill:focus {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(20, 15, 45, 0.45);
+  background: rgba(16, 16, 20, 0.45);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: flex-start;
@@ -1595,7 +1597,7 @@ select:-webkit-autofill:focus {
   width: 100%;
   max-width: 720px;
   margin: auto;
-  box-shadow: 0 24px 70px rgba(20, 15, 45, 0.3);
+  box-shadow: 0 24px 70px rgba(16, 16, 20, 0.3);
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 80px);
@@ -1955,7 +1957,7 @@ select:-webkit-autofill:focus {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.18);
+  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.18);
   z-index: 60;
   max-height: 70vh;
   display: flex;
@@ -1986,7 +1988,7 @@ select:-webkit-autofill:focus {
   background: var(--surface-hover);
 }
 .notif-item--unread {
-  background: rgba(53, 179, 162, 0.07);
+  background: rgba(48, 184, 149, 0.07);
 }
 .notif-item__dot {
   width: 8px;
@@ -2268,7 +2270,7 @@ select:-webkit-autofill:focus {
   padding: 11px 18px;
   border-radius: 9px;
   background: var(--teal-grad);
-  color: #fff;
+  color: var(--on-cta);
   font-weight: 600;
   font-size: 12.5px;
   border: none;
@@ -2282,7 +2284,7 @@ select:-webkit-autofill:focus {
   border-radius: 50%;
   flex: none;
   background: var(--teal-grad);
-  color: #fff;
+  color: var(--on-cta);
   display: grid;
   place-items: center;
   font-size: 26px;
@@ -2437,7 +2439,7 @@ select:-webkit-autofill:focus {
 .task.done .task-check {
   background: var(--teal);
   border-color: var(--teal);
-  color: #fff;
+  color: var(--on-cta);
 }
 .task-ico {
   width: 36px;
@@ -2589,31 +2591,31 @@ select:-webkit-autofill:focus {
 :root[data-theme="dark"] {
   color-scheme: light;
 
-  --bg: #f5f4f9;
-  --sidebar: #221c3d;
+  --bg: #f6f4ef;
+  --sidebar: #101014;
   --surface: #ffffff;
-  --surface-2: #f1eff7;
-  --surface-hover: #f8f7fc;
+  --surface-2: #f0ede4;
+  --surface-hover: #faf8f3;
 
-  --border: #e4e1ee;
-  --border-strong: #d9d5e8;
+  --border: #e6e2d7;
+  --border-strong: #ddd7c9;
 
-  --text: #272144;
-  --text-soft: #55506e;
-  --muted: #8b87a3;
-  --faint: #b6b3c9;
+  --text: #17171d;
+  --text-soft: #55534d;
+  --muted: #8b8a87;
+  --faint: #b7b4ac;
 
-  --accent: #3cc4b2;
-  --accent-2: #2a9d8d;
+  --accent: #34c9a2;
+  --accent-2: #299e7f;
   --danger: #c03a3a;
 
   --glass-bg: rgba(255, 255, 255, 0.72);
   --glass-bg-strong: rgba(255, 255, 255, 0.88);
   --glass-border: 1px solid rgba(228, 225, 238, 0.9);
   --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  --glass-shadow: 0 14px 40px rgba(20, 15, 45, 0.12);
-  --shadow-card: 0 2px 10px rgba(39, 33, 68, 0.05);
-  --shadow-pop: 0 14px 40px rgba(20, 15, 45, 0.12);
+  --glass-shadow: 0 14px 40px rgba(16, 16, 20, 0.12);
+  --shadow-card: 0 2px 10px rgba(23, 23, 29, 0.05);
+  --shadow-pop: 0 14px 40px rgba(16, 16, 20, 0.12);
 }
 
 /* ---------- navigation page: Menus | Header tabs ---------- */
@@ -2759,7 +2761,7 @@ select:-webkit-autofill:focus {
 }
 
 /* =========================================================================
-   DISPLAY TYPE — Plus Jakarta Sans everywhere (display == sans in Ink Hero).
+   DISPLAY TYPE — Space Grotesk everywhere (display == sans in Spark).
    ========================================================================= */
 h1,
 .dash-hero-title {
@@ -2922,7 +2924,7 @@ h1,
 }
 .pj-badge--mention {
   background: var(--accent-grad);
-  color: #fff;
+  color: var(--on-cta);
 }
 
 /* ---- message pane ---- */
@@ -2995,7 +2997,7 @@ h1,
   justify-content: center;
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
+  color: var(--on-cta);
   background: var(--accent-grad);
 }
 .pj-avatar--sm {
@@ -3064,7 +3066,7 @@ h1,
 
 /* ---- workflow author (auto-posted messages) ---- */
 .pj-avatar--workflow {
-  background: linear-gradient(120deg, #4fcdb8, #4a76d0);
+  background: linear-gradient(120deg, #4dd1ae, #4a76d0);
   font-size: 16px;
 }
 .pj-wf-badge {
@@ -3210,7 +3212,7 @@ h1,
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 10px;
-  box-shadow: 0 10px 26px rgba(20, 15, 45, 0.14);
+  box-shadow: 0 10px 26px rgba(16, 16, 20, 0.14);
   width: max-content;
 }
 .pj-emoji-opt {
@@ -3240,7 +3242,7 @@ h1,
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 10px;
-  box-shadow: 0 12px 30px rgba(20, 15, 45, 0.16);
+  box-shadow: 0 12px 30px rgba(16, 16, 20, 0.16);
 }
 .pj-menu-item {
   text-align: left;
@@ -3295,8 +3297,8 @@ h1,
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #35b3a2;
-  box-shadow: 0 0 0 2px rgba(53, 179, 162, 0.25);
+  background: #30b895;
+  box-shadow: 0 0 0 2px rgba(48, 184, 149, 0.25);
 }
 
 .pj-composer {
@@ -3327,7 +3329,7 @@ h1,
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 12px;
-  box-shadow: 0 14px 34px rgba(20, 15, 45, 0.16);
+  box-shadow: 0 14px 34px rgba(16, 16, 20, 0.16);
 }
 .pj-mention-opt {
   display: flex;
@@ -3551,7 +3553,7 @@ h1,
 }
 .pj-tab--active {
   color: var(--text);
-  border-bottom-color: var(--primary, #3cc4b2);
+  border-bottom-color: var(--primary, #34c9a2);
 }
 .pj-tab--add {
   font-size: 17px;
@@ -3893,7 +3895,7 @@ h1,
 }
 .check-pill:has(input:checked) {
   border-color: var(--accent);
-  background: rgba(60, 196, 178, 0.12);
+  background: rgba(52, 201, 162, 0.12);
   color: var(--accent-2);
   font-weight: 600;
 }
@@ -4308,7 +4310,7 @@ h1,
 }
 .filter-search:focus-within {
   border-color: var(--teal);
-  box-shadow: 0 0 0 3px rgba(60, 196, 178, 0.18);
+  box-shadow: 0 0 0 3px rgba(52, 201, 162, 0.18);
 }
 .filter-search input:focus {
   box-shadow: none;
@@ -4669,7 +4671,7 @@ select.filter-select {
   border-radius: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
-  box-shadow: 0 16px 38px rgba(39, 33, 68, 0.18);
+  box-shadow: 0 16px 38px rgba(23, 23, 29, 0.18);
   color: var(--text);
   font-size: 13.5px;
   animation: toast-in 160ms ease-out;

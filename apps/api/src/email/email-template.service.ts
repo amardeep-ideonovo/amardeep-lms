@@ -314,55 +314,56 @@ export class EmailTemplateService {
   }
 }
 
-// Branded welcome body (MJML + Handlebars). Violet "liquid glass" palette to
-// match the web/admin/mobile design system: greeting, supporting copy and a CTA
-// button to {{url}}. Vars: firstName, brand, url.
+// Branded welcome body (MJML + Handlebars). Spark palette (cream body, ink
+// text, teal CTA with ink label) to match the web/admin/mobile design system:
+// greeting, supporting copy and a CTA button to {{url}}. Vars: firstName,
+// brand, url.
 const WELCOME_MJML = `<mjml>
   <mj-head>
     <mj-attributes>
       <mj-all font-family="Helvetica, Arial, sans-serif" />
     </mj-attributes>
     <mj-style>
-      .cta a { color: #ffffff !important; }
+      .cta a { color: #101014 !important; }
     </mj-style>
   </mj-head>
-  <mj-body background-color="#f5f3fc">
+  <mj-body background-color="#f5f2ec">
     <mj-section padding="32px 0 12px">
       <mj-column>
-        <mj-text align="center" font-size="13px" letter-spacing="2px" color="#7c5cfc" text-transform="uppercase" font-weight="700">
+        <mj-text align="center" font-size="13px" letter-spacing="2px" color="#1f7a62" text-transform="uppercase" font-weight="700">
           {{brand}}
         </mj-text>
       </mj-column>
     </mj-section>
     <mj-section background-color="#ffffff" border-radius="16px" padding="8px" css-class="card">
       <mj-column padding="24px">
-        <mj-text font-size="22px" font-weight="700" color="#251f3d" padding-bottom="12px">
+        <mj-text font-size="22px" font-weight="700" color="#101014" padding-bottom="12px">
           Welcome, {{firstName}}!
         </mj-text>
-        <mj-text font-size="15px" line-height="1.7" color="#5a5470" padding-bottom="24px">
+        <mj-text font-size="15px" line-height="1.7" color="#55534d" padding-bottom="24px">
           Your {{brand}} account is ready. Jump back in any time to pick up right where you left off — your classes, lessons and progress are all waiting.
         </mj-text>
-        <mj-button href="{{url}}" background-color="#7c5cfc" color="#ffffff" border-radius="10px" font-weight="600" font-size="15px" inner-padding="13px 26px" align="left" css-class="cta">
+        <mj-button href="{{url}}" background-color="#34c9a2" color="#101014" border-radius="10px" font-weight="600" font-size="15px" inner-padding="13px 26px" align="left" css-class="cta">
           Go to {{brand}}
         </mj-button>
-        <mj-text font-size="13px" line-height="1.6" color="#8b84a4" padding-top="24px">
+        <mj-text font-size="13px" line-height="1.6" color="#8b8a87" padding-top="24px">
           If the button doesn't work, copy and paste this link into your browser:<br />
-          <a href="{{url}}" style="color:#7c5cfc;">{{url}}</a>
+          <a href="{{url}}" style="color:#1f7a62;">{{url}}</a>
         </mj-text>
       </mj-column>
     </mj-section>
     <mj-section padding="16px 0 32px">
       <mj-column>
-        <mj-text align="center" font-size="12px" color="#a39db8" line-height="1.6">
+        <mj-text align="center" font-size="12px" color="#a3a19c" line-height="1.6">
           You're receiving this because you created an account at {{brand}}.<br />
-          <a href="{{unsubscribeUrl}}" style="color:#a39db8; text-decoration:underline;">Unsubscribe</a> from these emails.
+          <a href="{{unsubscribeUrl}}" style="color:#a3a19c; text-decoration:underline;">Unsubscribe</a> from these emails.
         </mj-text>
       </mj-column>
     </mj-section>
   </mj-body>
 </mjml>`;
 
-// Password-reset body (MJML + Handlebars), same violet "liquid glass" look as
+// Password-reset body (MJML + Handlebars), same Spark look as
 // the welcome mail. Transactional/security copy: who asked, what to do, how
 // long the link lives, and that ignoring it is safe. Deliberately NO
 // unsubscribe footer — this is account mail, not marketing. The raw link is
@@ -378,40 +379,40 @@ const PASSWORD_RESET_MJML = `<mjml>
       <mj-all font-family="Helvetica, Arial, sans-serif" />
     </mj-attributes>
     <mj-style>
-      .cta a { color: #ffffff !important; }
+      .cta a { color: #101014 !important; }
     </mj-style>
   </mj-head>
-  <mj-body background-color="#f5f3fc">
+  <mj-body background-color="#f5f2ec">
     <mj-section padding="32px 0 12px">
       <mj-column>
-        <mj-text align="center" font-size="13px" letter-spacing="2px" color="#7c5cfc" text-transform="uppercase" font-weight="700">
+        <mj-text align="center" font-size="13px" letter-spacing="2px" color="#1f7a62" text-transform="uppercase" font-weight="700">
           {{brand}}
         </mj-text>
       </mj-column>
     </mj-section>
     <mj-section background-color="#ffffff" border-radius="16px" padding="8px" css-class="card">
       <mj-column padding="24px">
-        <mj-text font-size="22px" font-weight="700" color="#251f3d" padding-bottom="12px">
+        <mj-text font-size="22px" font-weight="700" color="#101014" padding-bottom="12px">
           Reset your password
         </mj-text>
-        <mj-text font-size="15px" line-height="1.7" color="#5a5470" padding-bottom="24px">
+        <mj-text font-size="15px" line-height="1.7" color="#55534d" padding-bottom="24px">
           Hi {{firstName}}, we received a request to reset the password for your {{brand}} account. Click the button below to choose a new one. This link expires in {{expiresMinutes}} minutes and can only be used once.
         </mj-text>
-        <mj-button href="{{{resetUrl}}}" background-color="#7c5cfc" color="#ffffff" border-radius="10px" font-weight="600" font-size="15px" inner-padding="13px 26px" align="left" css-class="cta">
+        <mj-button href="{{{resetUrl}}}" background-color="#34c9a2" color="#101014" border-radius="10px" font-weight="600" font-size="15px" inner-padding="13px 26px" align="left" css-class="cta">
           Choose a new password
         </mj-button>
-        <mj-text font-size="13px" line-height="1.6" color="#8b84a4" padding-top="24px">
+        <mj-text font-size="13px" line-height="1.6" color="#8b8a87" padding-top="24px">
           If the button doesn't work, copy and paste this link into your browser:<br />
-          <a href="{{{resetUrl}}}" style="color:#7c5cfc;">{{{resetUrl}}}</a>
+          <a href="{{{resetUrl}}}" style="color:#1f7a62;">{{{resetUrl}}}</a>
         </mj-text>
-        <mj-text font-size="13px" line-height="1.6" color="#8b84a4" padding-top="16px">
+        <mj-text font-size="13px" line-height="1.6" color="#8b8a87" padding-top="16px">
           Didn't request this? You can safely ignore this email — your password won't change until you set a new one.
         </mj-text>
       </mj-column>
     </mj-section>
     <mj-section padding="16px 0 32px">
       <mj-column>
-        <mj-text align="center" font-size="12px" color="#a39db8" line-height="1.6">
+        <mj-text align="center" font-size="12px" color="#a3a19c" line-height="1.6">
           You're receiving this because a password reset was requested for your {{brand}} account.
         </mj-text>
       </mj-column>

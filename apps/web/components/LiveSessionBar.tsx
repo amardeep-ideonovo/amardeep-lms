@@ -45,7 +45,7 @@ function phaseOf(s: LiveSessionBarDTO, now: number): Phase {
   return "upcoming";
 }
 
-// The dashboard live-session card — Ink Hero: an ink #272144 card with the red
+// The dashboard live-session card — Ink Hero: an ink #17171d card with the red
 // LIVE eyebrow, session title, audience line and a teal Register/Join CTA.
 // Shows only when the entitled member has a live or upcoming session; renders
 // nothing otherwise (never reveals existence to anyone not entitled). The

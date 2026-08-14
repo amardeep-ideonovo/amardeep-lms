@@ -1,32 +1,34 @@
 /* ============================================================================
-   SPOTLIGHT LMS "INK HERO" design tokens — light content canvas (#f4f3f8) +
-   ink #221c3d chrome + teal accent system. SINGLE THEME: `:root` and
-   `:root[data-theme="light"]` carry IDENTICAL values so any stored preference
-   renders the same. Legacy token NAMES are kept (re-pointed to Ink Hero
-   values) so the existing component CSS keeps resolving.
+   SPOTLIGHT ACADEMY "SPARK" design tokens (direction 5B: teal + mint on ink,
+   cream canvas, Space Grotesk) — cream content canvas (#f5f2ec) + ink #101014
+   chrome + teal #34c9a2 / mint #79e9c6 accents, layered on the Ink Hero
+   structure. SINGLE THEME: `:root` and `:root[data-theme="light"]` carry
+   IDENTICAL values so any stored preference renders the same. Legacy token
+   NAMES are kept (re-pointed to Spark values) so component CSS keeps
+   resolving.
    ============================================================================ */
 :root {
   /* ---- Ink chrome ramp (bands, sidebars, ink cards) ---- */
-  --ink-950: #1c1734;
-  --ink-900: #221c3d;
-  --ink-850: #251f40;
-  --ink-800: #272144;
-  --ink-750: #2e2850;
-  --ink-700: #37315e;
+  --ink-950: #0b0b0e;
+  --ink-900: #101014;
+  --ink-850: #131318;
+  --ink-800: #17171d;
+  --ink-750: #1d1d24;
+  --ink-700: #26262f;
   /* ---- Legacy violet/pink names → re-based to the teal accent system so any
      leftover reference renders on-theme (never violet). ---- */
-  --violet-50: #e7f7f4;
-  --violet-200: #a8e6dc;
-  --violet-300: #7ce4d2;
-  --violet-400: #4fcdb8;
-  --violet-500: #3cc4b2;
-  --violet-600: #2f9d8e;
-  --violet-700: #28897b;
-  --violet-800: #1f6e63;
-  --pink-300: #7ce4d2;
-  --pink-400: #4fcdb8;
-  --pink-500: #35b3a2;
-  --pink-600: #2a9d8d;
+  --violet-50: #e5f8f3;
+  --violet-200: #a6e8d7;
+  --violet-300: #79e9c6;
+  --violet-400: #4dd1ae;
+  --violet-500: #34c9a2;
+  --violet-600: #2aa283;
+  --violet-700: #248d71;
+  --violet-800: #1d705a;
+  --pink-300: #79e9c6;
+  --pink-400: #4dd1ae;
+  --pink-500: #30b895;
+  --pink-600: #299e7f;
   /* ---- Text on dark (ink bands / ink cards / over-photo scrims) ---- */
   --paper-0: #ffffff;
   --paper-soft: rgba(255, 255, 255, 0.85);
@@ -37,29 +39,29 @@
   --line-soft: rgba(255, 255, 255, 0.12);
   --line-strong: rgba(255, 255, 255, 0.3);
   /* ---- Status raw values ---- */
-  --green-400: #35b3a2;
+  --green-400: #30b895;
   --amber-400: #f6a623;
   --danger-400: #ea4f4f;
   --blue-400: #4a76d0;
 
   /* ---- Ink Hero raw surfaces (light canvas) ---- */
-  --lav-bg: #f4f3f8;
+  --lav-bg: #f5f2ec;
   --lav-surface: #ffffff;
-  --lav-inset: #f1eff7;
-  --lav-hover: #f8f7fc;
-  --lav-border: #e4e1ee;
-  --lav-text: #272144;
-  --lav-soft: #55506e;
-  --lav-muted: #8b87a3;
-  --lav-faint: #b6b3c9;
+  --lav-inset: #f0ede4;
+  --lav-hover: #faf8f3;
+  --lav-border: #e6e2d7;
+  --lav-text: #17171d;
+  --lav-soft: #55534d;
+  --lav-muted: #8b8a87;
+  --lav-faint: #b7b4ac;
 
   /* ---- Teal accent system ---- */
-  --teal: #3cc4b2;
-  --teal-grad: linear-gradient(100deg, #4fcdb8, #2f9d8e);
-  --teal-grad-hover: linear-gradient(100deg, #45bfa9, #28897b);
-  --teal-text: #2a9d8d; /* on light */
-  --teal-on-dark: #7ce4d2;
-  --teal-tint: rgba(53, 179, 162, 0.12);
+  --teal: #34c9a2;
+  --teal-grad: linear-gradient(100deg, #4dd1ae, #2aa283);
+  --teal-grad-hover: linear-gradient(100deg, #38cca5, #248d71);
+  --teal-text: #299e7f; /* on light */
+  --teal-on-dark: #79e9c6;
+  --teal-tint: rgba(48, 184, 149, 0.12);
 
   /* ---- Class palette (photo-tint cards; base/dark are RGB triplets).
      Named by COLOR, not by subject: these slots dress whatever a client's
@@ -73,11 +75,11 @@
   --blue: #4a76d0;   --blue-base: 32, 84, 150;    --blue-dark: 18, 52, 96;    --blue-text: #3a62b4;
   --sea: #27a596;    --sea-base: 14, 116, 105;    --sea-dark: 8, 72, 66;      --sea-text: #1f8a7c;
 
-  /* ---- Fonts (next/font var injected on <html>) — one family, Plus Jakarta
-     Sans; --font-display is kept as a token so existing selectors resolve. ---- */
-  --font-sans: var(--font-jakarta), system-ui, -apple-system, "Segoe UI",
+  /* ---- Fonts (next/font var injected on <html>) — one family, Space
+     Grotesk; --font-display is kept as a token so existing selectors resolve. ---- */
+  --font-sans: var(--font-grotesk), system-ui, -apple-system, "Segoe UI",
     Roboto, sans-serif;
-  --font-display: var(--font-jakarta), system-ui, -apple-system, "Segoe UI",
+  --font-display: var(--font-grotesk), system-ui, -apple-system, "Segoe UI",
     Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
@@ -88,13 +90,13 @@
   --radius-lg: 22px;
   --radius-xl: 22px;
   --radius-pill: 999px;
-  --shadow-xs: 0 1px 2px rgba(39, 33, 68, 0.05);
-  --shadow-card: 0 2px 10px rgba(39, 33, 68, 0.05);
-  --shadow-pop: 0 14px 40px rgba(20, 15, 45, 0.12);
-  --shadow-float: 0 14px 40px rgba(20, 15, 45, 0.12);
-  --shadow-primary: 0 10px 24px rgba(53, 179, 162, 0.35);
-  --shadow-accent: 0 10px 24px rgba(53, 179, 162, 0.35);
-  --ring-primary: 0 0 0 4px rgba(60, 196, 178, 0.25);
+  --shadow-xs: 0 1px 2px rgba(23, 23, 29, 0.05);
+  --shadow-card: 0 2px 10px rgba(23, 23, 29, 0.05);
+  --shadow-pop: 0 14px 40px rgba(16, 16, 20, 0.12);
+  --shadow-float: 0 14px 40px rgba(16, 16, 20, 0.12);
+  --shadow-primary: 0 10px 24px rgba(48, 184, 149, 0.35);
+  --shadow-accent: 0 10px 24px rgba(48, 184, 149, 0.35);
+  --ring-primary: 0 0 0 4px rgba(52, 201, 162, 0.25);
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
   --ease-out-back: cubic-bezier(0.34, 1.4, 0.64, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -106,16 +108,16 @@
   --grad-primary: var(--teal-grad);
   --grad-accent: var(--teal-grad);
   --grad-brand: var(--teal-grad);
-  --grad-progress: linear-gradient(90deg, #4fcdb8, #2f9d8e);
-  --grad-letter: linear-gradient(150deg, #37315e, #221c3d);
+  --grad-progress: linear-gradient(90deg, #4dd1ae, #2aa283);
+  --grad-letter: linear-gradient(150deg, #26262f, #101014);
 
   /* ---- "Glass" tokens re-based to flat Ink Hero surfaces (no blur) ---- */
   --glass-bg: #ffffff;
   --glass-bg-strong: #ffffff;
   --glass-blur: none;
-  --glass-border: 1px solid #e4e1ee;
+  --glass-border: 1px solid #e6e2d7;
   --glass-shine: 0 0 0 0 rgba(0, 0, 0, 0);
-  --glass-shadow: 0 2px 10px rgba(39, 33, 68, 0.05);
+  --glass-shadow: 0 2px 10px rgba(23, 23, 29, 0.05);
 
   /* ====================================================================== */
   /* SEMANTIC ALIASES — Ink Hero (light canvas)                             */
@@ -134,19 +136,19 @@
   --text-link: var(--teal-text);
 
   --border: var(--lav-border);
-  --border-soft: #ecebf2;
-  --border-strong: #d8d4e6;
-  --row-divider: #f3f1f8;
+  --border-soft: #edeae0;
+  --border-strong: #dcd6c8;
+  --row-divider: #f2efe7;
 
-  --primary: #2f9d8e;
-  --primary-hover: #28897b;
-  --on-primary: #ffffff;
-  --accent: #35b3a2;
-  --accent-hover: #2a9d8d;
-  --on-accent: #ffffff;
+  --primary: #2aa283;
+  --primary-hover: #248d71;
+  --on-primary: #101014; /* Spark: ink labels on teal (matches the S-monogram icon) */
+  --accent: #30b895;
+  --accent-hover: #299e7f;
+  --on-accent: #101014;
 
-  --success: #35b3a2;
-  --success-text: #2a9d8d;
+  --success: #30b895;
+  --success-text: #299e7f;
   --warning: #f6a623;
   --warning-text: #c07f10;
   --danger: #ea4f4f;
@@ -154,13 +156,13 @@
   --info: #4a76d0;
   --info-text: #3a62b4;
 
-  --fill-primary: rgba(53, 179, 162, 0.12);
-  --fill-accent: rgba(53, 179, 162, 0.12);
-  --fill-success: rgba(53, 179, 162, 0.12);
+  --fill-primary: rgba(48, 184, 149, 0.12);
+  --fill-accent: rgba(48, 184, 149, 0.12);
+  --fill-success: rgba(48, 184, 149, 0.12);
   --fill-warning: rgba(246, 166, 35, 0.16);
   --fill-danger: rgba(224, 72, 72, 0.1);
   --fill-info: rgba(74, 118, 208, 0.13);
-  --fill-subtle: #f1eff7;
+  --fill-subtle: #f0ede4;
 
   /* Always-light "over media" tokens — hero text on dark scrims */
   --media-text: var(--paper-0);
@@ -194,24 +196,24 @@
   --text-link: var(--teal-text);
 
   --border: var(--lav-border);
-  --border-soft: #ecebf2;
-  --border-strong: #d8d4e6;
+  --border-soft: #edeae0;
+  --border-strong: #dcd6c8;
 
-  --fill-primary: rgba(53, 179, 162, 0.12);
-  --fill-accent: rgba(53, 179, 162, 0.12);
-  --fill-success: rgba(53, 179, 162, 0.12);
+  --fill-primary: rgba(48, 184, 149, 0.12);
+  --fill-accent: rgba(48, 184, 149, 0.12);
+  --fill-success: rgba(48, 184, 149, 0.12);
   --fill-warning: rgba(246, 166, 35, 0.16);
   --fill-danger: rgba(224, 72, 72, 0.1);
   --fill-info: rgba(74, 118, 208, 0.13);
-  --fill-subtle: #f1eff7;
+  --fill-subtle: #f0ede4;
 
   --shadow: var(--shadow-card);
 
   --glass-bg: #ffffff;
   --glass-bg-strong: #ffffff;
-  --glass-border: 1px solid #e4e1ee;
+  --glass-border: 1px solid #e6e2d7;
   --glass-shine: 0 0 0 0 rgba(0, 0, 0, 0);
-  --glass-shadow: 0 2px 10px rgba(39, 33, 68, 0.05);
+  --glass-shadow: 0 2px 10px rgba(23, 23, 29, 0.05);
 }
 
 /* ---- Class-color cycle: slot 0-5, resolved per class by classAccentIndex()
@@ -258,7 +260,7 @@ a {
   text-decoration: none;
 }
 
-/* ---------- Nav — Ink Hero band top row (frame 2a). Flat #221c3d, 66px row,
+/* ---------- Nav — Ink Hero band top row (frame 2a). Flat #101014, 66px row,
    full-width with 40px gutters; the admin Header builder still overrides via
    the inline --hdr-* vars. ---------- */
 .nav {
@@ -360,7 +362,7 @@ a {
   border: none;
   border-radius: var(--radius-pill);
   background: var(--teal-grad);
-  color: #fff;
+  color: var(--on-primary);
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -369,7 +371,7 @@ a {
 }
 .nav-profile-btn:hover .nav-avatar,
 .nav-avatar:hover {
-  box-shadow: 0 0 0 3px rgba(60, 196, 178, 0.25);
+  box-shadow: 0 0 0 3px rgba(52, 201, 162, 0.25);
 }
 .nav-avatar-img {
   position: absolute;
@@ -670,7 +672,7 @@ a {
   border-radius: 8px;
   border: none;
   background: var(--teal-grad);
-  color: #fff;
+  color: var(--on-primary);
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -1090,6 +1092,7 @@ a.card:hover {
 }
 .cat-tile--all .cat-tile-img--empty {
   background: var(--grad-primary);
+  color: var(--on-primary);
 }
 .cat-tile-body {
   padding: 14px 16px;
@@ -1123,14 +1126,14 @@ a.card:hover {
 
 .btn-primary {
   background: var(--teal-grad);
-  color: #fff;
+  color: var(--on-primary);
   box-shadow: var(--shadow-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
   filter: brightness(0.94);
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(53, 179, 162, 0.4);
+  box-shadow: 0 12px 28px rgba(48, 184, 149, 0.4);
 }
 .btn-primary:active:not(:disabled) {
   transform: translateY(0);
@@ -1356,7 +1359,7 @@ a.card:hover {
   border-radius: var(--radius-pill);
   border: none;
   background: var(--grad-primary);
-  color: #fff;
+  color: var(--on-primary);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
@@ -1364,11 +1367,11 @@ a.card:hover {
     filter 0.15s ease,
     transform 0.12s ease,
     box-shadow 0.15s ease;
-  box-shadow: 0 8px 22px rgba(53, 179, 162, 0.28);
+  box-shadow: 0 8px 22px rgba(48, 184, 149, 0.28);
 }
 .form-embed-submit:hover:not(:disabled) {
   filter: brightness(0.94);
-  box-shadow: 0 10px 28px rgba(53, 179, 162, 0.36);
+  box-shadow: 0 10px 28px rgba(48, 184, 149, 0.36);
 }
 .form-embed-submit:active:not(:disabled) {
   transform: translateY(1px);
@@ -1642,7 +1645,7 @@ a.card:hover {
   display: grid;
   place-items: center;
   background: var(--teal-grad);
-  color: #fff;
+  color: var(--on-primary);
 }
 .account-avatar-img {
   position: absolute;
@@ -1871,7 +1874,7 @@ a.card:hover {
 }
 .article-content pre {
   background: var(--ink-800);
-  color: #f4f3f8;
+  color: #f5f2ec;
   padding: 16px;
   border-radius: 8px;
   overflow-x: auto;
@@ -2205,7 +2208,7 @@ a.card:hover {
 }
 .co-btn--navy {
   background: var(--teal-grad);
-  color: #fff;
+  color: var(--on-primary);
   box-shadow: var(--shadow-primary);
 }
 .co-btn--navy:hover:not(:disabled) {
@@ -2242,7 +2245,7 @@ a.card:hover {
   padding: 12px 16px;
   border-radius: 10px;
   background: var(--teal-tint);
-  border: 1px solid rgba(53, 179, 162, 0.25);
+  border: 1px solid rgba(48, 184, 149, 0.25);
   margin-bottom: 18px;
 }
 .co-auth-banner--ghost {
@@ -2446,7 +2449,7 @@ a.card:hover {
     transparent 76%
   );
 }
-.cc-hero-bg--empty { background: linear-gradient(150deg, #37315e, #221c3d 72%); }
+.cc-hero-bg--empty { background: linear-gradient(150deg, #26262f, #101014 72%); }
 .cc-hero-inner {
   position: relative; width: 100%; max-width: 1120px; margin: 0 auto;
   padding: 0 28px 38px;
@@ -2511,7 +2514,7 @@ a.card:hover {
 .cc-skill img { width: 100%; height: 100%; object-fit: cover; opacity: .92; transition: transform .4s, opacity .3s; }
 .cc-skill::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(28,23,52,.92) 8%, rgba(28,23,52,.1) 60%); }
 .cc-skill:hover img { transform: scale(1.05); opacity: 1; }
-.cc-skill--empty { background: linear-gradient(150deg, #37315e, #221c3d); }
+.cc-skill--empty { background: linear-gradient(150deg, #26262f, #101014); }
 .cc-skill-num { position: absolute; top: 12px; left: 12px; z-index: 2; width: 26px; height: 26px; border-radius: 50%; background: var(--cc-primary); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 700; }
 /* Sits over the always-dark .cc-skill::after scrim, so it must be light in BOTH
    themes (otherwise it inherits the dark --cc-text on the light theme = unreadable). */
@@ -2606,7 +2609,7 @@ a.card:hover {
   background: linear-gradient(90deg, rgba(28,23,52,.92) 0%, rgba(28,23,52,.55) 45%, rgba(28,23,52,.15) 100%),
               linear-gradient(0deg, rgba(28,23,52,.85) 0%, transparent 55%);
 }
-.md-continue-bg--empty { background: linear-gradient(150deg, #37315e, #221c3d 72%); }
+.md-continue-bg--empty { background: linear-gradient(150deg, #26262f, #101014 72%); }
 .md-continue-inner { position: relative; padding: 32px 34px; max-width: 560px; }
 .md-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--text-link); margin: 0 0 10px; }
 .md-continue h2 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 14px; text-wrap: balance; }
@@ -2797,7 +2800,7 @@ a.card:hover {
 /* buttons */
 .account-cinema .btn-secondary { background: var(--ac-panel-2); color: var(--ac-text); border-color: var(--ac-border); }
 .account-cinema .btn-secondary:hover:not(:disabled) { background: var(--surface-hover); }
-.account-cinema .btn-primary { background: var(--teal-grad); color: #fff; box-shadow: var(--shadow-primary); }
+.account-cinema .btn-primary { background: var(--teal-grad); color: var(--on-primary); box-shadow: var(--shadow-primary); }
 .account-cinema .btn-primary:hover:not(:disabled) { filter: brightness(0.94); }
 
 /* form fields (edit + change-password) */
@@ -2927,7 +2930,7 @@ a.card:hover {
 .course-cinema .locked-panel { background: var(--cd-panel); border-color: var(--cd-border-soft); }
 .course-cinema .locked-panel h2 { color: var(--cd-text); }
 .course-cinema .locked-panel p { color: var(--cd-muted); }
-.course-cinema .btn-primary { background: var(--teal-grad); color: #fff; box-shadow: var(--shadow-primary); }
+.course-cinema .btn-primary { background: var(--teal-grad); color: var(--on-primary); box-shadow: var(--shadow-primary); }
 .course-cinema .btn-primary:hover:not(:disabled) { filter: brightness(0.94); }
 .course-cinema .alert-error { background: var(--fill-danger); color: var(--danger-text); border-color: rgba(224,72,72,.25); }
 .course-cinema .empty { color: var(--cd-muted); }
@@ -3013,7 +3016,7 @@ a.card:hover {
 
 /* plan cards (catalog) */
 .dark-page .card { background: #fff; border-color: var(--dp-border-soft); box-shadow: var(--shadow-card); }
-.dark-page a.card:hover { border-color: var(--dp-border); box-shadow: 0 8px 24px rgba(20,15,45,.1); }
+.dark-page a.card:hover { border-color: var(--dp-border); box-shadow: 0 8px 24px rgba(16, 16, 20,.1); }
 .dark-page .card-title { color: var(--dp-text); }
 .dark-page .card-desc { color: var(--dp-muted); }
 .dark-page .card-cta { color: var(--text-link); }
@@ -3051,39 +3054,39 @@ a.card:hover {
 
 /* ---- CHECKOUT skin (rides on the .dark-page canvas). Ink Hero: the class
    keeps compiling but now re-pins its local vars to LIGHT surfaces — a white
-   panel on the #f4f3f8 canvas, ink text, teal accents. ---- */
+   panel on the #f5f2ec canvas, ink text, teal accents. ---- */
 .checkout-dark {
-  --text: #272144;
-  --bg: #f4f3f8;
+  --text: #17171d;
+  --bg: #f5f2ec;
   --surface: #ffffff;
-  --border: #e4e1ee;
-  --muted: #8b87a3;
+  --border: #e6e2d7;
+  --muted: #8b8a87;
 }
 .checkout-dark .co-input,
 .checkout-dark .co-field--select,
 .checkout-dark .co-card-element { background: #fff; }
 .checkout-dark .co-input::placeholder,
-.checkout-dark .co-bare::placeholder { color: #8b87a3; }
-.checkout-dark .co-select-input option { background: #fff; color: #272144; }
-.checkout-dark .co-float-label { color: #8b87a3; }
-.checkout-dark .co-rule { background: #e4e1ee; opacity: 1; }
-.checkout-dark .co-radio { border-color: #d8d4e6; }
+.checkout-dark .co-bare::placeholder { color: #8b8a87; }
+.checkout-dark .co-select-input option { background: #fff; color: #17171d; }
+.checkout-dark .co-float-label { color: #8b8a87; }
+.checkout-dark .co-rule { background: #e6e2d7; opacity: 1; }
+.checkout-dark .co-radio { border-color: #dcd6c8; }
 .checkout-dark .co-radio--on { border-color: var(--teal); }
-.checkout-dark .co-product-sub { color: #8b87a3; }
-.checkout-dark .co-product-price { color: #55506e; }
-.checkout-dark .co-brand { color: #8b87a3; background: #f1eff7; border-color: #e4e1ee; }
+.checkout-dark .co-product-sub { color: #8b8a87; }
+.checkout-dark .co-product-price { color: #55534d; }
+.checkout-dark .co-brand { color: #8b8a87; background: #f0ede4; border-color: #e6e2d7; }
 .checkout-dark .co-btn--ghost { background: #fff; }
 .checkout-dark .co-btn--ghost:hover:not(:disabled) { background: var(--surface-hover); }
 .checkout-dark .co-coupon-ok { color: var(--success-text); }
-.checkout-dark .co-auth-banner { background: var(--teal-tint); border-color: rgba(53, 179, 162, 0.25); }
+.checkout-dark .co-auth-banner { background: var(--teal-tint); border-color: rgba(48, 184, 149, 0.25); }
 .checkout-dark .co-alert-error { background: var(--fill-danger); border-color: rgba(224, 72, 72, 0.25); }
-.checkout-dark .co-modal { background: #fff; border: 1px solid #e4e1ee; }
+.checkout-dark .co-modal { background: #fff; border: 1px solid #e6e2d7; }
 .checkout-dark .co-modal-overlay { background: rgba(28, 23, 52, 0.5); }
-.checkout-dark .co-modal-head h2 { color: #272144; }
+.checkout-dark .co-modal-head h2 { color: #17171d; }
 /* White panel behind the form so checkout reads as a card on the canvas. */
 .checkout-dark .co-page {
   background: #fff;
-  border: 1px solid #ecebf2;
+  border: 1px solid #edeae0;
   border-radius: 18px;
   padding: 28px 32px 40px;
   margin-top: 12px;
@@ -3092,7 +3095,7 @@ a.card:hover {
 
 /* ===========================================================================
    Ink band Nav polish (later in the file → wins at equal specificity). Flat
-   #221c3d, no blur, no border — the band must merge seamlessly with each
+   #101014, no blur, no border — the band must merge seamlessly with each
    page's band hero. The admin "Header" builder still wins: it sets --hdr-bg /
    --hdr-link / --hdr-active inline, kept as `var(--hdr-*, <ink fallback>)`.
    =========================================================================== */
@@ -3195,7 +3198,7 @@ a.card:hover {
 }
 
 /* ===========================================================================
-   DISPLAY TYPE — Plus Jakarta Sans everywhere (serif display retired). The
+   DISPLAY TYPE — Space Grotesk everywhere (serif display retired). The
    selector list stays so existing headline markup keeps its weight.
    =========================================================================== */
 .t-display,
@@ -3217,7 +3220,7 @@ a.card:hover {
 
 /* Signature teal gradient headline word. Wrap a word: <span class="t-gradient"> */
 .t-gradient {
-  background: linear-gradient(100deg, #4fcdb8, #2f9d8e);
+  background: linear-gradient(100deg, #4dd1ae, #2aa283);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -3248,7 +3251,7 @@ a.card:hover {
   --border: var(--line);
   --border-soft: var(--line-soft);
   --fill-subtle: rgba(255, 255, 255, 0.05);
-  --fill-primary: rgba(60, 196, 178, 0.2);
+  --fill-primary: rgba(52, 201, 162, 0.2);
   /* Re-pin the scoped --cc-/--md-/--bc- aliases too. They were substituted to
      concrete values on their .class-cinema/.member-dash/.blog-cinema ANCESTOR
      (CSS resolves a custom property's var()s at its declaring element), so the
@@ -3507,8 +3510,8 @@ a.card:hover {
 }
 .ik-chip:hover { color: #fff; }
 .ik-chip.on {
-  background: rgba(60, 196, 178, 0.2);
-  color: #7ce4d2;
+  background: rgba(52, 201, 162, 0.2);
+  color: #79e9c6;
   font-weight: 600;
 }
 
@@ -3531,16 +3534,16 @@ a.card:hover {
   border: none;
   border-radius: 10px;
   padding: 13px 20px;
-  color: #fff;
+  color: var(--on-primary);
   font-size: 13.5px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(53, 179, 162, 0.35);
+  box-shadow: 0 10px 24px rgba(48, 184, 149, 0.35);
   transition: filter var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease),
     box-shadow var(--dur-fast) var(--ease);
 }
-.ik-cta:hover { filter: brightness(0.94); transform: translateY(-1px); box-shadow: 0 12px 28px rgba(53, 179, 162, 0.4); }
+.ik-cta:hover { filter: brightness(0.94); transform: translateY(-1px); box-shadow: 0 12px 28px rgba(48, 184, 149, 0.4); }
 .ik-cta:active { transform: translateY(0); }
 /* Must follow :hover/:active — equal specificity, so the later rule wins and a
    disabled CTA can't still lift or brighten under the cursor. */
@@ -3550,7 +3553,7 @@ a.card:hover {
   filter: none;
   transform: none;
   cursor: not-allowed;
-  box-shadow: 0 6px 14px rgba(53, 179, 162, 0.2);
+  box-shadow: 0 6px 14px rgba(48, 184, 149, 0.2);
 }
 /* Busy reads as "working", not "blocked": keep more presence than a control the
    member isn't allowed to use. */
@@ -3583,7 +3586,7 @@ a.card:hover {
   background: #fff;
   border-radius: 18px;
   padding: 26px 30px;
-  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.12);
+  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.12);
   display: flex;
   align-items: center;
   gap: 30px;
@@ -3628,7 +3631,7 @@ a.card:hover {
      right down so the class PHOTO reads through the body of the tile. */
   background:
     linear-gradient(180deg, rgba(var(--cls-base), 0.82) 0%, rgba(var(--cls-base), 0.30) 30%, rgba(var(--cls-dark), 0.10) 60%, rgba(var(--cls-dark), 0.34) 100%),
-    var(--card-img, linear-gradient(150deg, #37315e, #221c3d)) center/cover;
+    var(--card-img, linear-gradient(150deg, #26262f, #101014)) center/cover;
   border-radius: 18px;
   padding: 22px;
   display: flex;
@@ -3813,8 +3816,8 @@ a.ik-row:hover, .ik-row--hover:hover {
   white-space: nowrap;
 }
 .ik-pill--done { background: var(--teal-tint); color: var(--teal-text); }
-.ik-pill--pct { background: #f1eff7; color: var(--text); }
-.ik-pill--todo { background: #f1eff7; color: var(--text-muted); }
+.ik-pill--pct { background: #f0ede4; color: var(--text); }
+.ik-pill--todo { background: #f0ede4; color: var(--text-muted); }
 /* On the teal header band the status pill reads as a clean white chip
    (keeps each state's text colour: teal done / dark %, muted not-started). */
 .ik-course-head .ik-pill { background: #fff; }
@@ -3851,21 +3854,21 @@ a.ik-lesson:hover { background: var(--surface-hover); box-shadow: 0 0 0 6px var(
   justify-content: center;
   flex: none;
 }
-.ik-lesson-state--done { background: rgba(53, 179, 162, 0.14); }
-.ik-lesson-state--todo { background: #f1eff7; }
+.ik-lesson-state--done { background: rgba(48, 184, 149, 0.14); }
+.ik-lesson-state--todo { background: #f0ede4; }
 /* current lesson: teal tint row + 3px teal left border + RESUME pill */
 .ik-lesson--current {
-  background: rgba(60, 196, 178, 0.07);
+  background: rgba(52, 201, 162, 0.07);
   border-left: 3px solid var(--teal);
   margin: 0 -22px;
   padding: 10px 19px;
 }
-a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: none; border-radius: 0; }
+a.ik-lesson--current:hover { background: rgba(52, 201, 162, 0.12); box-shadow: none; border-radius: 0; }
 .ik-resume-pill {
   background: var(--teal-grad);
   border-radius: 999px;
   padding: 6px 13px;
-  color: #fff;
+  color: var(--on-primary);
   font-size: 11px;
   font-weight: 700;
   flex: none;
@@ -3874,7 +3877,7 @@ a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: n
 /* "START" — a not-yet-begun lesson. Muted (outlined) so it reads as an
    available next step, not the active teal "RESUME" state. */
 .ik-start-pill {
-  background: #f1eff7;
+  background: #f0ede4;
   border-radius: 999px;
   padding: 6px 13px;
   color: var(--text-muted);
@@ -3966,7 +3969,7 @@ a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: n
   overflow: hidden;
   position: relative;
   aspect-ratio: 16 / 9;
-  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.12);
+  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.12);
 }
 .ik-player iframe, .ik-player video { width: 100%; height: 100%; border: 0; display: block; background: var(--ink-900); }
 .ik-player-hero { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
@@ -3990,7 +3993,7 @@ a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: n
 .ik-status--todo { color: var(--text-muted); }
 .ik-status--todo .ik-status-dot { background: var(--text-faint); }
 .ik-actions-meta { font-size: 12px; color: var(--text-muted); }
-.ik-divider { height: 1px; background: #f1eff7; margin: 16px 0; border: none; }
+.ik-divider { height: 1px; background: #f0ede4; margin: 16px 0; border: none; }
 
 /* lesson content block on light */
 .ik-lesson-content {
@@ -4022,7 +4025,7 @@ a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: n
   background: #fff;
   border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.1);
+  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.1);
 }
 .ik-cert-head { background: var(--ink-900); padding: 26px; position: relative; }
 .ik-cert-brand { display: flex; align-items: center; gap: 8px; }
@@ -4042,11 +4045,11 @@ a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: n
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4fcdb8, #2f9d8e);
+  background: linear-gradient(135deg, #4dd1ae, #2aa283);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 20px rgba(53, 179, 162, 0.4);
+  box-shadow: 0 8px 20px rgba(48, 184, 149, 0.4);
 }
 .ik-cert-foot {
   padding: 16px 24px;
@@ -4074,11 +4077,11 @@ a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: n
 .ik-prog-track { height: 5px; border-radius: 3px; background: #eeecf5; display: block; overflow: hidden; }
 .ik-prog-fill { display: block; height: 5px; border-radius: 3px; background: var(--cls, var(--teal)); }
 
-/* ---- skeleton shimmer: #f1eff7 on white, white-alpha on ink ---- */
+/* ---- skeleton shimmer: #f0ede4 on white, white-alpha on ink ---- */
 .ik-skel {
   position: relative;
   overflow: hidden;
-  background: #f1eff7;
+  background: #f0ede4;
   border-radius: 8px;
   color: transparent;
 }
@@ -4143,7 +4146,7 @@ a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: n
   background: linear-gradient(0deg, rgba(28, 23, 52, 0.92) 8%, rgba(28, 23, 52, 0.1) 60%);
 }
 .ik-skill:hover img { transform: scale(1.05); }
-.ik-skill--empty { background: linear-gradient(150deg, #37315e, #221c3d); }
+.ik-skill--empty { background: linear-gradient(150deg, #26262f, #101014); }
 .ik-skill-num {
   position: absolute;
   top: 12px;
@@ -4153,7 +4156,7 @@ a.ik-lesson--current:hover { background: rgba(60, 196, 178, 0.12); box-shadow: n
   height: 26px;
   border-radius: 50%;
   background: var(--teal);
-  color: #fff;
+  color: var(--on-primary);
   display: grid;
   place-items: center;
   font-size: 13px;

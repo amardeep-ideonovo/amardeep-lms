@@ -73,7 +73,7 @@ function isProviderVideoUrl(url: string | null | undefined): boolean {
   );
 }
 
-const CheckIcon = ({ size = 13, color = "#2a9d8d" }: { size?: number; color?: string }) => (
+const CheckIcon = ({ size = 13, color = "#299e7f" }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path
       d="M20 6 9 17l-5-5"
@@ -84,12 +84,12 @@ const CheckIcon = ({ size = 13, color = "#2a9d8d" }: { size?: number; color?: st
     />
   </svg>
 );
-const PlayGlyph = ({ size = 11, fill = "#8b87a3" }: { size?: number; fill?: string }) => (
+const PlayGlyph = ({ size = 11, fill = "#8b8a87" }: { size?: number; fill?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path d="m8 5 12 7-12 7z" fill={fill} />
   </svg>
 );
-const DownloadIcon = ({ color = "#272144" }: { color?: string }) => (
+const DownloadIcon = ({ color = "#17171d" }: { color?: string }) => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path
       d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
@@ -547,7 +547,7 @@ function LessonInner() {
                   </a>
                 )}
                 {completed ? (
-                  <span className="ik-ghost ik-ghost--sm" style={{ cursor: "default", color: "var(--teal-text)", borderColor: "rgba(53,179,162,.35)" }}>
+                  <span className="ik-ghost ik-ghost--sm" style={{ cursor: "default", color: "var(--teal-text)", borderColor: "rgba(48, 184, 149,.35)" }}>
                     <CheckIcon />
                     Marked complete
                   </span>

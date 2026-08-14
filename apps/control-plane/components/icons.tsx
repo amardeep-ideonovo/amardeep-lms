@@ -246,12 +246,14 @@ export function Icon({ name, size = 17 }: { name: IconName; size?: number }) {
   );
 }
 
-/** Spotlight logo glyph — teal spotlight beam + ellipse pool (from the frames). */
+/** Spark logo glyph — teal four-point spark (Spark brand pack). */
 export function LogoGlyph({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M5 2.2 11.6 6 7.8 12.6 1.2 8.8Z" fill="#3cc4b2" />
-      <ellipse cx="14.8" cy="18.6" rx="6.8" ry="2.9" fill="rgba(60,196,178,.32)" />
+      <path
+        d="M12 1.7C12.93 7.35 16.65 11.07 22.3 12C16.65 12.93 12.93 16.65 12 22.3C11.07 16.65 7.35 12.93 1.7 12C7.35 11.07 11.07 7.35 12 1.7Z"
+        fill="#34c9a2"
+      />
     </svg>
   );
 }

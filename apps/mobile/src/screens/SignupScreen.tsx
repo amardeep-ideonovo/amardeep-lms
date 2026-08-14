@@ -239,7 +239,7 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 18,
     padding: spacing.lg,
-    shadowColor: "#140f2d",
+    shadowColor: "#0b0b0e",
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.25,
     shadowRadius: 24,

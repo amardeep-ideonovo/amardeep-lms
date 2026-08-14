@@ -310,7 +310,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       borderRadius: 22,
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: "#35b3a2",
+      shadowColor: "#30b895",
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.4,
       shadowRadius: 10,

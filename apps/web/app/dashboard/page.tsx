@@ -80,13 +80,13 @@ function ProgressRing({ pct }: { pct: number }) {
         cy="46"
         r="39.5"
         fill="none"
-        stroke="#35b3a2"
+        stroke="#30b895"
         strokeWidth="9"
         strokeLinecap="round"
         strokeDasharray={`${arc} ${C}`}
         transform="rotate(-90 46 46)"
       />
-      <text x="46" y="53" textAnchor="middle" fontSize="20" fontWeight="700" fill="#272144">
+      <text x="46" y="53" textAnchor="middle" fontSize="20" fontWeight="700" fill="#17171d">
         {pct}%
       </text>
     </svg>
