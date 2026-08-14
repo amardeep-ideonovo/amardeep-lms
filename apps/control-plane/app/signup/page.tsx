@@ -53,12 +53,15 @@ export default function SignupPage() {
         <div className="signup-head">
           <h1 className="signup-h1">Start your academy</h1>
           <p className="signup-sub">
-            Account, plan, checkout — then your own fully isolated instance boots in minutes.
+            Account, plan, checkout — then your own fully isolated instance
+            boots in minutes.
           </p>
         </div>
       </div>
       {/* useSearchParams (the ?plan= preselect) needs a Suspense boundary in static export. */}
-      <Suspense fallback={<div className="signup-card skl" style={{ height: 420 }} />}>
+      <Suspense
+        fallback={<div className="signup-card skl" style={{ height: 420 }} />}
+      >
         <SignupCard />
       </Suspense>
     </main>
@@ -77,7 +80,9 @@ function SignupCard() {
   const [academyName, setAcademyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [planId, setPlanId] = useState<string>(() => defaultPlanId(seededActive(), planParam));
+  const [planId, setPlanId] = useState<string>(() =>
+    defaultPlanId(seededActive(), planParam),
+  );
   const planTouched = useRef(false);
   const [cardName, setCardName] = useState("");
   const [cardNumber, setCardNumber] = useState("4242 4242 4242 4242");
@@ -93,7 +98,10 @@ function SignupCard() {
     if (!fleet || planTouched.current) return;
     setPlanId((current) => {
       const live = activePlans(fleet);
-      if (live.some((p) => p.id === current) && !(planParam && live.some((p) => p.id === planParam)))
+      if (
+        live.some((p) => p.id === current) &&
+        !(planParam && live.some((p) => p.id === planParam))
+      )
         return current;
       return defaultPlanId(live, planParam);
     });
@@ -106,10 +114,14 @@ function SignupCard() {
     e.preventDefault();
     setError(null);
     setDuplicate(false);
-    if (!name.trim()) return setError("Tell us your name — it becomes your admin account.");
-    if (!academyName.trim()) return setError("Give your academy a name — you can change it later.");
-    if (!/.+@.+\..+/.test(email)) return setError("Enter a valid email — it's how you'll sign in.");
-    if (!password) return setError("Pick a password (any works in the preview).");
+    if (!name.trim())
+      return setError("Tell us your name — it becomes your admin account.");
+    if (!academyName.trim())
+      return setError("Give your academy a name — you can change it later.");
+    if (!/.+@.+\..+/.test(email))
+      return setError("Enter a valid email — it's how you'll sign in.");
+    if (!password)
+      return setError("Pick a password (any works in the preview).");
     if (findClientByEmail(email)) {
       setDuplicate(true);
       setError("An academy is already registered to that email.");
@@ -146,7 +158,10 @@ function SignupCard() {
 
   return (
     <div className="signup-card">
-      <div className="wizard-steps" aria-label={`Step ${step + 1} of 3 — ${STEP_LABELS[step]}`}>
+      <div
+        className="wizard-steps"
+        aria-label={`Step ${step + 1} of 3 — ${STEP_LABELS[step]}`}
+      >
         {STEP_LABELS.map((label, idx) => (
           <span key={label} style={{ display: "contents" }}>
             {idx > 0 && <span className="wstep-line" aria-hidden="true" />}
@@ -154,7 +169,9 @@ function SignupCard() {
               className={`wstep${idx === step ? " active" : ""}${idx < step ? " done" : ""}`}
               aria-current={idx === step ? "step" : undefined}
             >
-              <span className="wstep-num">{idx < step ? <Icon name="check" size={11} /> : idx + 1}</span>
+              <span className="wstep-num">
+                {idx < step ? <Icon name="check" size={11} /> : idx + 1}
+              </span>
               {label}
             </span>
           </span>
@@ -162,7 +179,11 @@ function SignupCard() {
       </div>
 
       {step === 0 && (
-        <form method="post" className="login-form" onSubmit={continueFromAccount}>
+        <form
+          method="post"
+          className="login-form"
+          onSubmit={continueFromAccount}
+        >
           <div className="wizard-two-col">
             <Field label="Your name">
               <input
@@ -175,7 +196,10 @@ function SignupCard() {
                 autoFocus
               />
             </Field>
-            <Field label="Academy name" hint="Shown to your members — you can rebrand any time.">
+            <Field
+              label="Academy name"
+              hint="Shown to your members — you can rebrand any time."
+            >
               <input
                 className="input"
                 name="organization"
@@ -225,7 +249,11 @@ function SignupCard() {
           )}
           <div className="wizard-actions">
             <span className="wizard-fine">Step 1 of 3 — no charge yet</span>
-            <button type="submit" className="btn btn-primary" style={{ padding: "11px 22px" }}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ padding: "11px 22px" }}
+            >
               Continue to plan
             </button>
           </div>
@@ -234,7 +262,11 @@ function SignupCard() {
 
       {step === 1 && (
         <div>
-          <div className="plan-pick" role="radiogroup" aria-label="Choose a plan">
+          <div
+            className="plan-pick"
+            role="radiogroup"
+            aria-label="Choose a plan"
+          >
             {plans.map((t) => {
               const selected = planId === t.id;
               return (
@@ -256,7 +288,9 @@ function SignupCard() {
                     <span className="plan-per">/month</span>
                   </span>
                   <span className="plan-desc">{t.blurb}</span>
-                  <span className={`pill plan-track ${t.featured ? "pill-teal-dark" : "pill-info"}`}>
+                  <span
+                    className={`pill plan-track ${t.featured ? "pill-teal-dark" : "pill-info"}`}
+                  >
                     {trackChipLabel(t.appTrack)}
                   </span>
                   <span className="plan-divider" />
@@ -273,7 +307,11 @@ function SignupCard() {
             })}
           </div>
           <div className="wizard-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => setStep(0)}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setStep(0)}
+            >
               ← Back
             </button>
             <button
@@ -297,14 +335,19 @@ function SignupCard() {
           </div>
           <div className="summary-row">
             <span className="summary-plan">
-              {selectedPlan?.name ?? "—"} plan — {academyName.trim() || "your academy"}
+              {selectedPlan?.name ?? "—"} plan —{" "}
+              {academyName.trim() || "your academy"}
             </span>
             <span className="summary-spacer" />
             <span className="summary-price">
               ${price}
               <span className="summary-per">/mo</span>
             </span>
-            <button type="button" className="link-teal" onClick={() => setStep(1)}>
+            <button
+              type="button"
+              className="link-teal"
+              onClick={() => setStep(1)}
+            >
               Change
             </button>
           </div>
@@ -317,7 +360,10 @@ function SignupCard() {
               onChange={(e) => setCardName(e.target.value)}
             />
           </Field>
-          <Field label="Card number" hint="Demo card — any number, expiry and CVC are accepted.">
+          <Field
+            label="Card number"
+            hint="Demo card — any number, expiry and CVC are accepted."
+          >
             <input
               className="input mono"
               autoComplete="off"
@@ -363,14 +409,21 @@ function SignupCard() {
             disabled={busy}
             style={{ padding: "13px 16px", fontSize: 13.5 }}
           >
-            {busy ? "Creating your academy…" : `Start ${selectedPlan?.name ?? ""} — $${price}/mo`}
+            {busy
+              ? "Creating your academy…"
+              : `Start ${selectedPlan?.name ?? ""} — $${price}/mo`}
           </button>
           <div className="wizard-actions" style={{ marginTop: 2 }}>
-            <button type="button" className="btn btn-ghost" onClick={() => setStep(1)}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setStep(1)}
+            >
               ← Back
             </button>
             <span className="wizard-fine">
-              Preview build — nothing is billed. Your license is created with demo billing (Visa •••• 4242).
+              Preview build — nothing is billed. Your license is created with
+              demo billing (Visa •••• 4242).
             </span>
           </div>
         </form>

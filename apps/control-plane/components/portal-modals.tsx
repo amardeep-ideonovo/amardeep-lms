@@ -22,7 +22,10 @@ import { Field, Modal } from "./ui";
 
 // ---------- backup download (mock manifest as a real file download) ----------
 
-export async function handleDownloadBackup(instanceId: string, entryId?: string): Promise<void> {
+export async function handleDownloadBackup(
+  instanceId: string,
+  entryId?: string,
+): Promise<void> {
   const file = await downloadBackup(instanceId, entryId);
   if (!file) return;
   const blob = new Blob([file.contents], { type: "application/json" });
@@ -38,7 +41,13 @@ export async function handleDownloadBackup(instanceId: string, entryId?: string)
 
 // ---------- restore (confirm by typing the instance id) ----------
 
-export function RestoreModal({ instance, onClose }: { instance: Instance; onClose: () => void }) {
+export function RestoreModal({
+  instance,
+  onClose,
+}: {
+  instance: Instance;
+  onClose: () => void;
+}) {
   const entries = instance.backups.entries;
   const [entryId, setEntryId] = useState(entries[0]?.id ?? "");
   const [confirmText, setConfirmText] = useState("");
@@ -50,12 +59,15 @@ export function RestoreModal({ instance, onClose }: { instance: Instance; onClos
       <div className="modal-body">
         <div className="danger-box">
           This overwrites the live database and uploads for{" "}
-          <span className="mono">{instance.domain}</span> with the selected snapshot. Members see
-          maintenance mode while it runs.
+          <span className="mono">{instance.domain}</span> with the selected
+          snapshot. Members see maintenance mode while it runs.
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {entries.map((entry) => (
-            <label key={entry.id} className={`radio-row${entryId === entry.id ? " checked" : ""}`}>
+            <label
+              key={entry.id}
+              className={`radio-row${entryId === entry.id ? " checked" : ""}`}
+            >
               <input
                 type="radio"
                 name="backup-entry"
@@ -105,7 +117,13 @@ export function RestoreModal({ instance, onClose }: { instance: Instance; onClos
 
 // ---------- new support ticket ----------
 
-export function NewTicketModal({ instance, onClose }: { instance: Instance; onClose: () => void }) {
+export function NewTicketModal({
+  instance,
+  onClose,
+}: {
+  instance: Instance;
+  onClose: () => void;
+}) {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -153,7 +171,13 @@ export function NewTicketModal({ instance, onClose }: { instance: Instance; onCl
 
 // ---------- request mobile builds ----------
 
-export function RequestBuildModal({ instance, onClose }: { instance: Instance; onClose: () => void }) {
+export function RequestBuildModal({
+  instance,
+  onClose,
+}: {
+  instance: Instance;
+  onClose: () => void;
+}) {
   const [ios, setIos] = useState(true);
   const [android, setAndroid] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -161,24 +185,34 @@ export function RequestBuildModal({ instance, onClose }: { instance: Instance; o
     <Modal title="Request build" onClose={onClose} width={420}>
       <div className="modal-body">
         <p className="modal-note">
-          Queues a white-label build on the per-client EAS track. The binary points at this instance's
-          API and ships from your own store accounts.
+          Queues a white-label build on the per-client EAS track. The binary
+          points at this instance's API and ships from your own store accounts.
         </p>
         <label className={`radio-row${ios ? " checked" : ""}`}>
-          <input type="checkbox" checked={ios} onChange={(e) => setIos(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={ios}
+            onChange={(e) => setIos(e.target.checked)}
+          />
           <span className="radio-main">
             <span className="radio-title">iOS — {instance.clientName}</span>
             <span className="radio-sub">
-              {instance.mobileBuilds.ios.version} · {instance.mobileBuilds.ios.detail}
+              {instance.mobileBuilds.ios.version} ·{" "}
+              {instance.mobileBuilds.ios.detail}
             </span>
           </span>
         </label>
         <label className={`radio-row${android ? " checked" : ""}`}>
-          <input type="checkbox" checked={android} onChange={(e) => setAndroid(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={android}
+            onChange={(e) => setAndroid(e.target.checked)}
+          />
           <span className="radio-main">
             <span className="radio-title">Android — {instance.clientName}</span>
             <span className="radio-sub">
-              {instance.mobileBuilds.android.version} · {instance.mobileBuilds.android.detail}
+              {instance.mobileBuilds.android.version} ·{" "}
+              {instance.mobileBuilds.android.detail}
             </span>
           </span>
         </label>
@@ -223,12 +257,16 @@ export function ManageBillingModal({
     <Modal title="Manage billing" onClose={onClose} width={420}>
       <div className="modal-body">
         <p className="modal-note">
-          {plan?.name ?? client.license.planId} — ${plan?.priceMonthly ?? 0}/month · renews{" "}
-          {client.license.renewsAt}. One license covers every instance. In production this opens the
-          hosted billing portal.
+          {plan?.name ?? client.license.planId} — ${plan?.priceMonthly ?? 0}
+          /month · renews {client.license.renewsAt}. One license covers every
+          instance. In production this opens the hosted billing portal.
         </p>
         <Field label="Card brand">
-          <select className="input" value={brand} onChange={(e) => setBrand(e.target.value)}>
+          <select
+            className="input"
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+          >
             <option>Visa</option>
             <option>Mastercard</option>
             <option>Amex</option>
@@ -278,7 +316,10 @@ export function UpgradeModal({
   const current = getPlan(fleet, client.license.planId);
   const owned = clientInstances(fleet, client.id).length;
   const choices = activePlans(fleet);
-  const list = current && !choices.some((p) => p.id === current.id) ? [current, ...choices] : choices;
+  const list =
+    current && !choices.some((p) => p.id === current.id)
+      ? [current, ...choices]
+      : choices;
   const [planId, setPlanId] = useState(client.license.planId);
   const [busy, setBusy] = useState(false);
   const selectedName = list.find((p) => p.id === planId)?.name ?? "plan";
@@ -304,7 +345,8 @@ export function UpgradeModal({
               />
               <span className="radio-main">
                 <span className="radio-title">
-                  {p.name} — ${p.priceMonthly}/mo{p.id === client.license.planId ? " (current)" : ""}
+                  {p.name} — ${p.priceMonthly}/mo
+                  {p.id === client.license.planId ? " (current)" : ""}
                 </span>
                 <span className="radio-sub">
                   {tooSmall
@@ -318,8 +360,8 @@ export function UpgradeModal({
           );
         })}
         <p className="modal-note">
-          Changes prorate on the next invoice. Your instances are untouched — the new instance cap
-          and app track apply immediately.
+          Changes prorate on the next invoice. Your instances are untouched —
+          the new instance cap and app track apply immediately.
         </p>
       </div>
       <div className="modal-actions">
@@ -377,14 +419,32 @@ export function ChangelogModal({ onClose }: { onClose: () => void }) {
       <div className="modal-body">
         {CHANGELOG.map((release) => (
           <div key={release.version}>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
-              <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: "var(--text-ink)" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 8,
+                marginBottom: 4,
+              }}
+            >
+              <span
+                className="mono"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "var(--text-ink)",
+                }}
+              >
                 {release.version}
               </span>
               <span className="card-sub">{release.date}</span>
             </div>
             {release.lines.map((line) => (
-              <div key={line} className="boot-step" style={{ padding: "4px 0" }}>
+              <div
+                key={line}
+                className="boot-step"
+                style={{ padding: "4px 0" }}
+              >
                 <span className="boot-num">•</span>
                 {line}
               </div>

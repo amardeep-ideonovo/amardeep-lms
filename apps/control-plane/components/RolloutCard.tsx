@@ -29,11 +29,17 @@ export function RolloutCard({ rollout }: { rollout: Rollout }) {
         <span className="rollout-pct">{pct}%</span>
       </div>
       <div className="rollout-track">
-        <div className={`rollout-fill${paused ? " paused" : ""}`} style={{ width: `${pct}%` }} />
+        <div
+          className={`rollout-fill${paused ? " paused" : ""}`}
+          style={{ width: `${pct}%` }}
+        />
       </div>
       <div className="wave-list">
         {rollout.waves.map((wave) => (
-          <span key={wave.name} className={`wave-row${wave.state === "active" ? " active" : ""}`}>
+          <span
+            key={wave.name}
+            className={`wave-row${wave.state === "active" ? " active" : ""}`}
+          >
             {wave.state === "done" ? (
               <span className="wave-check">
                 <Icon name="check" size={13} />
@@ -45,21 +51,34 @@ export function RolloutCard({ rollout }: { rollout: Rollout }) {
                 }`}
               />
             )}
-            {wave.name} ({wave.size}) — {wave.state === "active" && paused ? "paused" : wave.note}
+            {wave.name} ({wave.size}) —{" "}
+            {wave.state === "active" && paused ? "paused" : wave.note}
           </span>
         ))}
       </div>
       <div className="card-btn-row">
         {paused ? (
-          <button type="button" className="btn-line" onClick={() => resumeRollout()}>
+          <button
+            type="button"
+            className="btn-line"
+            onClick={() => resumeRollout()}
+          >
             Resume
           </button>
         ) : (
-          <button type="button" className="btn-line" onClick={() => setConfirmPause(true)}>
+          <button
+            type="button"
+            className="btn-line"
+            onClick={() => setConfirmPause(true)}
+          >
             Pause
           </button>
         )}
-        <button type="button" className="btn-line btn-line-ink" onClick={() => setPlanOpen(true)}>
+        <button
+          type="button"
+          className="btn-line btn-line-ink"
+          onClick={() => setPlanOpen(true)}
+        >
           View plan
         </button>
       </div>
@@ -70,11 +89,12 @@ export function RolloutCard({ rollout }: { rollout: Rollout }) {
           body={
             <>
               <div className="warn-box">
-                In-flight instance updates will finish, but no new instances start on{" "}
-                {rollout.targetVersion} until you resume.
+                In-flight instance updates will finish, but no new instances
+                start on {rollout.targetVersion} until you resume.
               </div>
               <p className="modal-note">
-                {rollout.total - rollout.updated} instances are still waiting on the current wave.
+                {rollout.total - rollout.updated} instances are still waiting on
+                the current wave.
               </p>
             </>
           }
@@ -85,17 +105,26 @@ export function RolloutCard({ rollout }: { rollout: Rollout }) {
       )}
 
       {planOpen && (
-        <Modal title={`Rollout plan — ${rollout.targetVersion}`} onClose={() => setPlanOpen(false)} width={460}>
+        <Modal
+          title={`Rollout plan — ${rollout.targetVersion}`}
+          onClose={() => setPlanOpen(false)}
+          width={460}
+        >
           <div className="modal-body">
             <div className="wave-list" style={{ marginTop: 0 }}>
               {rollout.waves.map((wave) => (
-                <span key={wave.name} className={`wave-row${wave.state === "active" ? " active" : ""}`}>
+                <span
+                  key={wave.name}
+                  className={`wave-row${wave.state === "active" ? " active" : ""}`}
+                >
                   {wave.state === "done" ? (
                     <span className="wave-check">
                       <Icon name="check" size={13} />
                     </span>
                   ) : (
-                    <span className={`wave-dot ${wave.state === "active" ? "active" : "pending"}`} />
+                    <span
+                      className={`wave-dot ${wave.state === "active" ? "active" : "pending"}`}
+                    />
                   )}
                   {wave.name} ({wave.size}) — {wave.note}
                 </span>
@@ -111,7 +140,11 @@ export function RolloutCard({ rollout }: { rollout: Rollout }) {
             </div>
           </div>
           <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => setPlanOpen(false)}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setPlanOpen(false)}
+            >
               Close
             </button>
           </div>

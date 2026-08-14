@@ -43,7 +43,7 @@ export function setSelectedInstanceId(id: string): void {
  * to the first instance when nothing (or something stale) is stored.
  */
 export function useSelectedInstance(
-  instances: Instance[]
+  instances: Instance[],
 ): [Instance | undefined, (id: string) => void] {
   const [, force] = useState(0);
   useEffect(() => {

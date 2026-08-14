@@ -47,7 +47,9 @@ export default function LoginPage() {
           </span>
         </Link>
         <h1 className="login-title">Sign in to your academy</h1>
-        <p className="login-sub">Your license, instance, backups, apps &amp; billing.</p>
+        <p className="login-sub">
+          Your license, instance, backups, apps &amp; billing.
+        </p>
         <form method="post" className="login-form" onSubmit={submit}>
           <Field label="Email">
             <input
@@ -99,7 +101,8 @@ export default function LoginPage() {
           </Link>
         </div>
         <p className="login-foot">
-          Preview build — any password works. <Link href="/">Back to the site</Link>
+          Preview build — any password works.{" "}
+          <Link href="/">Back to the site</Link>
         </p>
       </div>
     </main>

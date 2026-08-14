@@ -63,11 +63,7 @@ export interface License {
 }
 
 export type InstanceStatus =
-  | "Running"
-  | "Provisioning"
-  | "Suspended"
-  | "Stopped"
-  | "Failed";
+  "Running" | "Provisioning" | "Suspended" | "Stopped" | "Failed";
 
 /** Per-service state, mirroring the compose healthchecks. */
 export type ServiceState = "ok" | "warn" | "down" | "unknown";

@@ -52,7 +52,11 @@ const OPERATOR_NAV: NavGroup[] = [
     label: "FLEET",
     items: [
       { label: "Instances", href: "/operator", icon: "package" },
-      { label: "Provisioning", href: "/operator/provisioning", icon: "arrow-up" },
+      {
+        label: "Provisioning",
+        href: "/operator/provisioning",
+        icon: "arrow-up",
+      },
       { label: "Updates", href: "/operator/updates", icon: "download" },
       { label: "Backups", href: "/operator/backups", icon: "database" },
     ],
@@ -70,7 +74,12 @@ const OPERATOR_NAV: NavGroup[] = [
     label: "SYSTEM",
     items: [
       { label: "Hosts", href: "/operator/hosts", icon: "server" },
-      { label: "Alerts", href: "/operator/alerts", icon: "alert-triangle", badge: "alerts" },
+      {
+        label: "Alerts",
+        href: "/operator/alerts",
+        icon: "alert-triangle",
+        badge: "alerts",
+      },
       { label: "Audit log", href: "/operator/audit", icon: "file-text" },
       { label: "Settings", href: "/operator/settings", icon: "settings" },
     ],
@@ -91,7 +100,12 @@ function portalNav(multiInstance: boolean): NavGroup[] {
         { label: "Backups", href: "/portal/backups", icon: "database" },
         { label: "Mobile apps", href: "/portal/mobile", icon: "smartphone" },
         { label: "Billing", href: "/portal/billing", icon: "credit-card" },
-        { label: "Support", href: "/portal/support", icon: "lifebuoy", badge: "tickets" },
+        {
+          label: "Support",
+          href: "/portal/support",
+          icon: "lifebuoy",
+          badge: "tickets",
+        },
       ],
     },
   ];
@@ -113,7 +127,13 @@ function titleFor(role: ShellRole, nav: NavGroup[], pathname: string): string {
   return role === "operator" ? "Instances" : "Overview";
 }
 
-export function Shell({ role, children }: { role: ShellRole; children: ReactNode }) {
+export function Shell({
+  role,
+  children,
+}: {
+  role: ShellRole;
+  children: ReactNode;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const fleet = useFleet();
@@ -135,7 +155,8 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
     }
     let clientSession = getClientSession();
     if (!clientSession && typeof window !== "undefined") {
-      const demo = new URLSearchParams(window.location.search).get("demo") === "1";
+      const demo =
+        new URLSearchParams(window.location.search).get("demo") === "1";
       if (demo) clientSession = startDemoSession();
     }
     if (!clientSession) {
@@ -155,7 +176,8 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
     }
   }, [role, authed, fleet, session, router]);
 
-  const client = role === "client" && fleet ? portalClient(fleet, session) : undefined;
+  const client =
+    role === "client" && fleet ? portalClient(fleet, session) : undefined;
   const owned = fleet && client ? clientInstances(fleet, client.id) : [];
   const [selectedInstance] = useSelectedInstance(owned);
 
@@ -167,14 +189,20 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
   const title = titleFor(role, nav, pathname);
   const path = normalizePath(pathname);
   const alertCount = fleet ? openAlertCount(fleet) : 0;
-  const ticketCount = fleet && client ? openTicketCountForClient(fleet, client.id) : 0;
+  const ticketCount =
+    fleet && client ? openTicketCountForClient(fleet, client.id) : 0;
   const persona =
     role === "operator"
       ? fleet?.operator
       : client
-        ? { name: client.name, role: `Owner · ${client.academyName}`, avatarSeed: client.avatarSeed }
+        ? {
+            name: client.name,
+            role: `Owner · ${client.academyName}`,
+            avatarSeed: client.avatarSeed,
+          }
         : undefined;
-  const plan = fleet && client ? getPlan(fleet, client.license.planId) : undefined;
+  const plan =
+    fleet && client ? getPlan(fleet, client.license.planId) : undefined;
   const licenseSuspended = client?.license.status === "suspended";
 
   const signOut = () => {
@@ -194,7 +222,9 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
           <LogoGlyph size={22} />
           <span className="sb-logo-text">
             <span className="sb-logo-name">Spotlight LMS</span>
-            <span className="sb-logo-sub">{role === "operator" ? "CONTROL PLANE" : "CLIENT PORTAL"}</span>
+            <span className="sb-logo-sub">
+              {role === "operator" ? "CONTROL PLANE" : "CLIENT PORTAL"}
+            </span>
           </span>
         </Link>
         {nav.map((group) => (
@@ -203,12 +233,22 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
             {group.items.map((item) => {
               const active = path === item.href;
               const badge =
-                item.badge === "alerts" ? alertCount : item.badge === "tickets" ? ticketCount : 0;
+                item.badge === "alerts"
+                  ? alertCount
+                  : item.badge === "tickets"
+                    ? ticketCount
+                    : 0;
               return (
-                <Link key={item.href} href={item.href} className={`sb-item${active ? " active" : ""}`}>
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`sb-item${active ? " active" : ""}`}
+                >
                   <Icon name={item.icon} size={17} />
                   {item.label}
-                  {item.badge && badge > 0 ? <span className="sb-badge">{badge}</span> : null}
+                  {item.badge && badge > 0 ? (
+                    <span className="sb-badge">{badge}</span>
+                  ) : null}
                 </Link>
               );
             })}
@@ -235,10 +275,13 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
           {role === "operator" ? (
             <span className="tb-env">PRODUCTION</span>
           ) : licenseSuspended ? (
-            <span className="pill pill-warning tb-license">License suspended</span>
+            <span className="pill pill-warning tb-license">
+              License suspended
+            </span>
           ) : plan && client ? (
             <span className="pill pill-teal-dark tb-license">
-              {plan.name} license · renews {client.license.renewsAt.replace(/, \d{4}$/, "")}
+              {plan.name} license · renews{" "}
+              {client.license.renewsAt.replace(/, \d{4}$/, "")}
             </span>
           ) : null}
           <div className="tb-spacer" />
@@ -253,11 +296,19 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
                   onChange={(e) => setInstanceQuery(e.target.value)}
                 />
               </label>
-              <Link href="/operator/alerts" className="tb-bell" aria-label={`Alerts (${alertCount} open)`}>
+              <Link
+                href="/operator/alerts"
+                className="tb-bell"
+                aria-label={`Alerts (${alertCount} open)`}
+              >
                 <Icon name="bell" size={20} />
                 {alertCount > 0 && <span className="tb-bell-dot" />}
               </Link>
-              <button type="button" className="btn btn-primary" onClick={() => setProvisionOpen(true)}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setProvisionOpen(true)}
+              >
                 + Provision instance
               </button>
             </>
@@ -284,8 +335,8 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
             <div className="suspend-banner" role="alert">
               <Icon name="alert-triangle" size={16} />
               <span>
-                <b>License suspended</b> — your instances keep running, but portal actions are
-                disabled. Contact support to reactivate.
+                <b>License suspended</b> — your instances keep running, but
+                portal actions are disabled. Contact support to reactivate.
               </span>
             </div>
           )}
@@ -293,7 +344,9 @@ export function Shell({ role, children }: { role: ShellRole; children: ReactNode
         </main>
       </div>
 
-      {provisionOpen && <ProvisionModal onClose={() => setProvisionOpen(false)} />}
+      {provisionOpen && (
+        <ProvisionModal onClose={() => setProvisionOpen(false)} />
+      )}
     </div>
   );
 }
@@ -310,7 +363,8 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const effectivePlanId = planId || plans.find((p) => p.featured)?.id || plans[0]?.id || "";
+  const effectivePlanId =
+    planId || plans.find((p) => p.featured)?.id || plans[0]?.id || "";
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -328,7 +382,9 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
       return;
     }
     if (!/.+@.+\..+/.test(adminEmail)) {
-      setError("A valid admin email is required — the seeded first admin is created with it.");
+      setError(
+        "A valid admin email is required — the seeded first admin is created with it.",
+      );
       return;
     }
     if (!effectivePlanId) {
@@ -336,7 +392,12 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
       return;
     }
     setBusy(true);
-    const result = await provisionInstance({ id: slug, domain, planId: effectivePlanId, adminEmail });
+    const result = await provisionInstance({
+      id: slug,
+      domain,
+      planId: effectivePlanId,
+      adminEmail,
+    });
     if (!result.ok) {
       setBusy(false);
       setError(result.error);
@@ -351,11 +412,17 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
         <div className="modal-body">
           <p className="modal-note">
             Brings up a fully isolated stack for a NEW license holder —{" "}
-            <span className="mono">docker compose -p lms_{id.trim() || "<id>"}</span> with its own
-            Postgres, Redis and uploads volumes, unique secrets, and a seeded first admin. The client
-            account + license are created alongside it.
+            <span className="mono">
+              docker compose -p lms_{id.trim() || "<id>"}
+            </span>{" "}
+            with its own Postgres, Redis and uploads volumes, unique secrets,
+            and a seeded first admin. The client account + license are created
+            alongside it.
           </p>
-          <Field label="Instance id" hint="Compose project + database become lms_<id>.">
+          <Field
+            label="Instance id"
+            hint="Compose project + database become lms_<id>."
+          >
             <input
               className="input mono"
               placeholder="acme"
@@ -372,8 +439,15 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setDomain(e.target.value)}
             />
           </Field>
-          <Field label="Plan" hint="From the catalog — edit plans in the Plans section.">
-            <select className="input" value={effectivePlanId} onChange={(e) => setPlanId(e.target.value)}>
+          <Field
+            label="Plan"
+            hint="From the catalog — edit plans in the Plans section."
+          >
+            <select
+              className="input"
+              value={effectivePlanId}
+              onChange={(e) => setPlanId(e.target.value)}
+            >
               {plans.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} — ${p.priceMonthly}/mo · cap {p.instanceCap}
@@ -381,7 +455,10 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
               ))}
             </select>
           </Field>
-          <Field label="Admin email" hint="First boot runs migrate deploy + seed and creates this admin.">
+          <Field
+            label="Admin email"
+            hint="First boot runs migrate deploy + seed and creates this admin."
+          >
             <input
               className="input"
               type="email"

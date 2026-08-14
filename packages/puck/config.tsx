@@ -61,7 +61,11 @@ export type HeadingProps = {
   align: Align;
   design?: DesignProps;
 };
-export type RichTextProps = { html: string; align: Align; design?: DesignProps };
+export type RichTextProps = {
+  html: string;
+  align: Align;
+  design?: DesignProps;
+};
 export type ImageProps = {
   src: string;
   alt: string;
@@ -93,9 +97,22 @@ export type ColumnsProps = {
   content: Slot;
   design?: DesignProps;
 };
-export type VideoProps = { url: string; caption?: string; design?: DesignProps };
-export type Feature = { title: string; text?: string; imageUrl?: string; href?: string };
-export type CardsProps = { columns: "2" | "3" | "4"; items: Feature[]; design?: DesignProps };
+export type VideoProps = {
+  url: string;
+  caption?: string;
+  design?: DesignProps;
+};
+export type Feature = {
+  title: string;
+  text?: string;
+  imageUrl?: string;
+  href?: string;
+};
+export type CardsProps = {
+  columns: "2" | "3" | "4";
+  items: Feature[];
+  design?: DesignProps;
+};
 export type CtaProps = {
   title: string;
   subtitle?: string;
@@ -131,7 +148,11 @@ export type IconListProps = {
   design?: DesignProps;
 };
 export type StatItem = { value: string; label: string };
-export type StatsProps = { columns: "2" | "3" | "4"; items: StatItem[]; design?: DesignProps };
+export type StatsProps = {
+  columns: "2" | "3" | "4";
+  items: StatItem[];
+  design?: DesignProps;
+};
 // Raw markup escape hatch. The API sanitizes the `html` prop on write exactly
 // like RichText (scripts/iframes stripped), so this is for tables, custom
 // typography, address blocks — not third-party embed scripts.
@@ -161,14 +182,24 @@ export type PageProps = {
 // Page-level (SEO) props edited in Puck's "page" settings; title/slug live on
 // the Page row and are edited in the editor's top bar instead. Popups pass
 // surface:"popup" and get no root fields (a popup has no SEO surface).
-export type RootProps = { seoTitle?: string; description?: string; ogImage?: string };
+export type RootProps = {
+  seoTitle?: string;
+  description?: string;
+  ogImage?: string;
+};
 
 // ---------- helpers ----------
 const cx = (...parts: Array<string | false | undefined>): string =>
   parts.filter(Boolean).join(" ");
 
 const bgClass = (bg: Bg): string =>
-  bg === "muted" ? "lmspb-bg-muted" : bg === "dark" ? "lmspb-bg-dark" : bg === "brand" ? "lmspb-bg-brand" : "";
+  bg === "muted"
+    ? "lmspb-bg-muted"
+    : bg === "dark"
+      ? "lmspb-bg-dark"
+      : bg === "brand"
+        ? "lmspb-bg-brand"
+        : "";
 
 // Inline band background. An explicit block-level custom color is the most
 // specific intent, so it beats the generic Design-group background; Design
@@ -178,8 +209,13 @@ const bandStyle = (
   backgroundColor: string | undefined,
   design: DesignProps | undefined,
 ): React.CSSProperties | undefined => {
-  const custom = bg === "custom" && backgroundColor ? { background: backgroundColor } : undefined;
-  const fromDesign = design?.background ? { background: design.background } : undefined;
+  const custom =
+    bg === "custom" && backgroundColor
+      ? { background: backgroundColor }
+      : undefined;
+  const fromDesign = design?.background
+    ? { background: design.background }
+    : undefined;
   return custom ?? fromDesign;
 };
 
@@ -204,11 +240,16 @@ const BOOL_OPTIONS = [
 
 // Convert a YouTube/Vimeo/MP4 URL into something embeddable. Pure string work
 // (no `window`) so it runs on the server too.
-function toEmbed(url: string): { kind: "iframe" | "video"; src: string } | null {
+function toEmbed(
+  url: string,
+): { kind: "iframe" | "video"; src: string } | null {
   if (!url) return null;
   const u = url.trim();
-  const yt = u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{6,})/);
-  if (yt) return { kind: "iframe", src: `https://www.youtube.com/embed/${yt[1]}` };
+  const yt = u.match(
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{6,})/,
+  );
+  if (yt)
+    return { kind: "iframe", src: `https://www.youtube.com/embed/${yt[1]}` };
   const vimeo = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
   // title/byline/portrait off: the overlay credits the uploading Vimeo account,
   // which has no business appearing on a page the admin built.
@@ -222,7 +263,8 @@ function toEmbed(url: string): { kind: "iframe" | "video"; src: string } | null 
 }
 
 // ---------- design wrapper ----------
-const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const isNum = (v: unknown): v is number =>
+  typeof v === "number" && Number.isFinite(v);
 
 // Resolve a design prop into wrapper attributes. `ownBackground` is set by the
 // band blocks (Hero/CTA/Section) that paint design.background on their own
@@ -232,7 +274,9 @@ function designAttrs(
   ownBackground: boolean,
 ): { id?: string; className?: string; style?: React.CSSProperties } | null {
   if (!d) return null;
-  const style: React.CSSProperties & { [key: string]: string | number | undefined } = {};
+  const style: React.CSSProperties & {
+    [key: string]: string | number | undefined;
+  } = {};
   const cls: string[] = [];
   if (d.textColor) style.color = d.textColor;
   if (d.background && !ownBackground) style.background = d.background;
@@ -245,7 +289,8 @@ function designAttrs(
     style.paddingRight = d.paddingX;
   }
   if (isNum(d.marginTop) && d.marginTop > 0) style.marginTop = d.marginTop;
-  if (isNum(d.marginBottom) && d.marginBottom > 0) style.marginBottom = d.marginBottom;
+  if (isNum(d.marginBottom) && d.marginBottom > 0)
+    style.marginBottom = d.marginBottom;
   if (isNum(d.radius) && d.radius > 0) {
     style.borderRadius = d.radius;
     style.overflow = "hidden";
@@ -281,16 +326,31 @@ function Designed({
   const attrs = designAttrs(d, ownBackground);
   if (!attrs) return <>{children}</>;
   return (
-    <div id={attrs.id} className={cx("lmspb-design", attrs.className)} style={attrs.style}>
+    <div
+      id={attrs.id}
+      className={cx("lmspb-design", attrs.className)}
+      style={attrs.style}
+    >
       {children}
     </div>
   );
 }
 
 // ---------- icon set (inline SVG, no font dependency) ----------
-function ListIcon({ icon, color }: { icon: IconListProps["icon"]; color: string }) {
+function ListIcon({
+  icon,
+  color,
+}: {
+  icon: IconListProps["icon"];
+  color: string;
+}) {
   const c = color || "var(--lmspb-brand)";
-  const common = { width: 18, height: 18, viewBox: "0 0 24 24", "aria-hidden": true } as const;
+  const common = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    "aria-hidden": true,
+  } as const;
   switch (icon) {
     case "star":
       return (
@@ -306,20 +366,40 @@ function ListIcon({ icon, color }: { icon: IconListProps["icon"]; color: string 
       );
     case "arrow":
       return (
-        <svg {...common} fill="none" stroke={c} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          {...common}
+          fill="none"
+          stroke={c}
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M5 12h14M13 6l6 6-6 6" />
         </svg>
       );
     case "cross":
       return (
-        <svg {...common} fill="none" stroke={c} strokeWidth="2.4" strokeLinecap="round">
+        <svg
+          {...common}
+          fill="none"
+          stroke={c}
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        >
           <path d="M18 6 6 18M6 6l12 12" />
         </svg>
       );
     case "check":
     default:
       return (
-        <svg {...common} fill="none" stroke={c} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          {...common}
+          fill="none"
+          stroke={c}
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <path d="M20 6 9 17l-5-5" />
         </svg>
       );
@@ -388,11 +468,10 @@ export function createPuckConfig(
 ): Config<PageProps, RootProps> {
   const richTextField = opts.richTextField ?? DEFAULT_RICH_TEXT_FIELD;
   const FormComponent = opts.formComponent;
-  const formField: Field =
-    opts.formField ?? {
-      type: "text",
-      label: "Form ID (copy it from the Forms tab)",
-    };
+  const formField: Field = opts.formField ?? {
+    type: "text",
+    label: "Form ID (copy it from the Forms tab)",
+  };
   // Image-URL fields use the injected Media Library picker when provided, else a
   // plain text input (keeps the public <Render> free of admin-only components).
   const imageField = (label: string): Field =>
@@ -400,8 +479,10 @@ export function createPuckConfig(
       ? ({ ...opts.imageField, label } as Field)
       : { type: "text", label };
   const MenuComponent = opts.menuComponent;
-  const menuField: Field =
-    opts.menuField ?? { type: "text", label: "Menu ID (from the Menus tab)" };
+  const menuField: Field = opts.menuField ?? {
+    type: "text",
+    label: "Menu ID (from the Menus tab)",
+  };
   const colorField = (label: string): Field =>
     opts.colorField
       ? ({ ...opts.colorField, label } as Field)
@@ -418,10 +499,30 @@ export function createPuckConfig(
     objectFields: {
       textColor: colorField("Text color"),
       ...(withBackground ? { background: colorField("Background") } : {}),
-      paddingY: { type: "number", label: "Padding top/bottom (px)", min: 0, max: 300 },
-      paddingX: { type: "number", label: "Padding left/right (px)", min: 0, max: 200 },
-      marginTop: { type: "number", label: "Space above (px)", min: 0, max: 300 },
-      marginBottom: { type: "number", label: "Space below (px)", min: 0, max: 300 },
+      paddingY: {
+        type: "number",
+        label: "Padding top/bottom (px)",
+        min: 0,
+        max: 300,
+      },
+      paddingX: {
+        type: "number",
+        label: "Padding left/right (px)",
+        min: 0,
+        max: 200,
+      },
+      marginTop: {
+        type: "number",
+        label: "Space above (px)",
+        min: 0,
+        max: 300,
+      },
+      marginBottom: {
+        type: "number",
+        label: "Space below (px)",
+        min: 0,
+        max: 300,
+      },
       radius: { type: "number", label: "Corner radius (px)", min: 0, max: 80 },
       shadow: {
         type: "select",
@@ -433,7 +534,12 @@ export function createPuckConfig(
           { label: "Large", value: "large" },
         ],
       },
-      fontSize: { type: "number", label: "Font size (px, 0 = default)", min: 0, max: 120 },
+      fontSize: {
+        type: "number",
+        label: "Font size (px, 0 = default)",
+        min: 0,
+        max: 120,
+      },
       hideOn: {
         type: "select",
         label: "Hide on",
@@ -469,7 +575,8 @@ export function createPuckConfig(
       const out: Record<string, Field> = {};
       for (const [k, v] of Object.entries(fields)) {
         out[k] = v;
-        if (k === "background") out.backgroundColor = colorField("Background color");
+        if (k === "background")
+          out.backgroundColor = colorField("Background color");
       }
       return out;
     }) as never;
@@ -481,7 +588,10 @@ export function createPuckConfig(
         opts.surface === "popup"
           ? {}
           : {
-              seoTitle: { type: "text", label: "SEO title (optional override)" },
+              seoTitle: {
+                type: "text",
+                label: "SEO title (optional override)",
+              },
               description: { type: "textarea", label: "Meta description" },
               ogImage: imageField("Social share image URL"),
             },
@@ -539,10 +649,13 @@ export function createPuckConfig(
           subtitle: { type: "textarea", label: "Subtitle" },
           buttonLabel: { type: "text", label: "Button label" },
           buttonHref: { type: "text", label: "Button link" },
-          align: { type: "radio", options: [
-            { label: "Left", value: "left" },
-            { label: "Center", value: "center" },
-          ] },
+          align: {
+            type: "radio",
+            options: [
+              { label: "Left", value: "left" },
+              { label: "Center", value: "center" },
+            ],
+          },
           background: { type: "select", options: BG_OPTIONS },
           design: designFieldBand,
         },
@@ -558,19 +671,41 @@ export function createPuckConfig(
           design: DESIGN_DEFAULT,
         },
         resolveFields: withCustomBackground(),
-        render: ({ eyebrow, title, subtitle, buttonLabel, buttonHref, align, background, backgroundColor, design }) => (
+        render: ({
+          eyebrow,
+          title,
+          subtitle,
+          buttonLabel,
+          buttonHref,
+          align,
+          background,
+          backgroundColor,
+          design,
+        }) => (
           <Designed d={design} ownBackground>
             <section
               className={cx("lmspb-section", bgClass(background))}
               style={bandStyle(background, backgroundColor, design)}
             >
-              <div className={cx("lmspb-container", "lmspb-w-normal", "lmspb-hero", `lmspb-al-${align}`)}>
-                {eyebrow ? <p className="lmspb-hero-eyebrow">{eyebrow}</p> : null}
+              <div
+                className={cx(
+                  "lmspb-container",
+                  "lmspb-w-normal",
+                  "lmspb-hero",
+                  `lmspb-al-${align}`,
+                )}
+              >
+                {eyebrow ? (
+                  <p className="lmspb-hero-eyebrow">{eyebrow}</p>
+                ) : null}
                 <h1 className="lmspb-hero-title">{title}</h1>
                 {subtitle ? <p className="lmspb-hero-sub">{subtitle}</p> : null}
                 {buttonLabel ? (
                   <div className={cx("lmspb-actions", `lmspb-al-${align}`)}>
-                    <a className="lmspb-btn lmspb-btn-primary" href={buttonHref || "#"}>
+                    <a
+                      className="lmspb-btn lmspb-btn-primary"
+                      href={buttonHref || "#"}
+                    >
                       {buttonLabel}
                     </a>
                   </div>
@@ -586,22 +721,32 @@ export function createPuckConfig(
         label: "Heading",
         fields: {
           text: { type: "text", label: "Text" },
-          level: { type: "select", options: [
-            { label: "H1", value: "1" },
-            { label: "H2", value: "2" },
-            { label: "H3", value: "3" },
-            { label: "H4", value: "4" },
-          ] },
+          level: {
+            type: "select",
+            options: [
+              { label: "H1", value: "1" },
+              { label: "H2", value: "2" },
+              { label: "H3", value: "3" },
+              { label: "H4", value: "4" },
+            ],
+          },
           align: { type: "radio", options: ALIGN_OPTIONS },
           design: designField,
         },
-        defaultProps: { text: "Section heading", level: "2", align: "left", design: DESIGN_DEFAULT },
+        defaultProps: {
+          text: "Section heading",
+          level: "2",
+          align: "left",
+          design: DESIGN_DEFAULT,
+        },
         render: ({ text, level, align, design }) => {
-          const Tag = (`h${level}` as unknown) as keyof JSX.IntrinsicElements;
+          const Tag = `h${level}` as unknown as keyof JSX.IntrinsicElements;
           return (
             <Designed d={design}>
               <div className={cx("lmspb-container", "lmspb-w-normal")}>
-                <Tag className={cx("lmspb-heading", `lmspb-al-${align}`)}>{text}</Tag>
+                <Tag className={cx("lmspb-heading", `lmspb-al-${align}`)}>
+                  {text}
+                </Tag>
               </div>
             </Designed>
           );
@@ -616,7 +761,11 @@ export function createPuckConfig(
           align: { type: "radio", options: ALIGN_OPTIONS },
           design: designField,
         },
-        defaultProps: { html: "<p>Write something compelling…</p>", align: "left", design: DESIGN_DEFAULT },
+        defaultProps: {
+          html: "<p>Write something compelling…</p>",
+          align: "left",
+          design: DESIGN_DEFAULT,
+        },
         render: ({ html, align, design }) => (
           <Designed d={design}>
             <div className={cx("lmspb-container", "lmspb-w-normal")}>
@@ -636,16 +785,26 @@ export function createPuckConfig(
         fields: {
           src: imageField("Image URL"),
           alt: { type: "text", label: "Alt text" },
-          width: { type: "select", options: [
-            { label: "Normal", value: "normal" },
-            { label: "Wide", value: "wide" },
-            { label: "Full width", value: "full" },
-          ] },
+          width: {
+            type: "select",
+            options: [
+              { label: "Normal", value: "normal" },
+              { label: "Wide", value: "wide" },
+              { label: "Full width", value: "full" },
+            ],
+          },
           rounded: { type: "radio", options: BOOL_OPTIONS },
           caption: { type: "text", label: "Caption" },
           design: designField,
         },
-        defaultProps: { src: "", alt: "", width: "normal", rounded: true, caption: "", design: DESIGN_DEFAULT },
+        defaultProps: {
+          src: "",
+          alt: "",
+          width: "normal",
+          rounded: true,
+          caption: "",
+          design: DESIGN_DEFAULT,
+        },
         render: ({ src, alt, width, rounded, caption, design, puck }) => {
           if (!src) {
             return puck?.isEditing ? (
@@ -661,9 +820,15 @@ export function createPuckConfig(
                   <img
                     src={src}
                     alt={alt || ""}
-                    className={cx("lmspb-img", `lmspb-img-${width}`, rounded && "lmspb-img-rounded")}
+                    className={cx(
+                      "lmspb-img",
+                      `lmspb-img-${width}`,
+                      rounded && "lmspb-img-rounded",
+                    )}
                   />
-                  {caption ? <figcaption className="lmspb-caption">{caption}</figcaption> : null}
+                  {caption ? (
+                    <figcaption className="lmspb-caption">{caption}</figcaption>
+                  ) : null}
                 </figure>
               </div>
             </Designed>
@@ -677,16 +842,26 @@ export function createPuckConfig(
         fields: {
           label: { type: "text", label: "Label" },
           href: { type: "text", label: "Link" },
-          variant: { type: "select", options: [
-            { label: "Primary", value: "primary" },
-            { label: "Secondary", value: "secondary" },
-            { label: "Outline", value: "outline" },
-          ] },
+          variant: {
+            type: "select",
+            options: [
+              { label: "Primary", value: "primary" },
+              { label: "Secondary", value: "secondary" },
+              { label: "Outline", value: "outline" },
+            ],
+          },
           align: { type: "radio", options: ALIGN_OPTIONS },
           newTab: { type: "radio", options: BOOL_OPTIONS },
           design: designField,
         },
-        defaultProps: { label: "Click me", href: "#", variant: "primary", align: "left", newTab: false, design: DESIGN_DEFAULT },
+        defaultProps: {
+          label: "Click me",
+          href: "#",
+          variant: "primary",
+          align: "left",
+          newTab: false,
+          design: DESIGN_DEFAULT,
+        },
         render: ({ label, href, variant, align, newTab, design }) => (
           <Designed d={design}>
             <div className={cx("lmspb-container", "lmspb-w-normal")}>
@@ -708,9 +883,13 @@ export function createPuckConfig(
       // ---------------- Spacer ----------------
       Spacer: {
         label: "Spacer",
-        fields: { height: { type: "number", label: "Height (px)", min: 0, max: 400 } },
+        fields: {
+          height: { type: "number", label: "Height (px)", min: 0, max: 400 },
+        },
         defaultProps: { height: 48 },
-        render: ({ height }) => <div className="lmspb-spacer" style={{ height: `${height}px` }} />,
+        render: ({ height }) => (
+          <div className="lmspb-spacer" style={{ height: `${height}px` }} />
+        ),
       },
 
       // ---------------- Section (container band) ----------------
@@ -718,13 +897,21 @@ export function createPuckConfig(
         label: "Section",
         fields: {
           background: { type: "select", options: BG_OPTIONS },
-          paddingY: { type: "number", label: "Vertical padding (px)", min: 0, max: 200 },
-          maxWidth: { type: "select", options: [
-            { label: "Narrow", value: "narrow" },
-            { label: "Normal", value: "normal" },
-            { label: "Wide", value: "wide" },
-            { label: "Full", value: "full" },
-          ] },
+          paddingY: {
+            type: "number",
+            label: "Vertical padding (px)",
+            min: 0,
+            max: 200,
+          },
+          maxWidth: {
+            type: "select",
+            options: [
+              { label: "Narrow", value: "narrow" },
+              { label: "Normal", value: "normal" },
+              { label: "Wide", value: "wide" },
+              { label: "Full", value: "full" },
+            ],
+          },
           content: { type: "slot" },
           design: designFieldBand,
         },
@@ -737,7 +924,14 @@ export function createPuckConfig(
           design: DESIGN_DEFAULT,
         },
         resolveFields: withCustomBackground(),
-        render: ({ background, backgroundColor, paddingY, maxWidth, content: Content, design }) => (
+        render: ({
+          background,
+          backgroundColor,
+          paddingY,
+          maxWidth,
+          content: Content,
+          design,
+        }) => (
           <Designed d={design} ownBackground>
             <section
               className={cx("lmspb-section", bgClass(background))}
@@ -759,22 +953,33 @@ export function createPuckConfig(
       Columns: {
         label: "Columns",
         fields: {
-          columns: { type: "select", options: [
-            { label: "2 columns", value: "2" },
-            { label: "3 columns", value: "3" },
-            { label: "4 columns", value: "4" },
-          ] },
+          columns: {
+            type: "select",
+            options: [
+              { label: "2 columns", value: "2" },
+              { label: "3 columns", value: "3" },
+              { label: "4 columns", value: "4" },
+            ],
+          },
           gap: { type: "number", label: "Gap (px)", min: 0, max: 80 },
           content: { type: "slot" },
           design: designField,
         },
-        defaultProps: { columns: "2", gap: 24, content: [], design: DESIGN_DEFAULT },
+        defaultProps: {
+          columns: "2",
+          gap: 24,
+          content: [],
+          design: DESIGN_DEFAULT,
+        },
         render: ({ columns, gap, content: Content, design }) => (
           <Designed d={design}>
             <div className={cx("lmspb-container", "lmspb-w-normal")}>
               <Content
                 className="lmspb-grid"
-                style={{ gridTemplateColumns: `repeat(${columns}, 1fr)`, gap: `${gap}px` }}
+                style={{
+                  gridTemplateColumns: `repeat(${columns}, 1fr)`,
+                  gap: `${gap}px`,
+                }}
               />
             </div>
           </Designed>
@@ -815,7 +1020,9 @@ export function createPuckConfig(
                       />
                     ) : null}
                   </div>
-                  {caption ? <figcaption className="lmspb-caption">{caption}</figcaption> : null}
+                  {caption ? (
+                    <figcaption className="lmspb-caption">{caption}</figcaption>
+                  ) : null}
                 </figure>
               </div>
             </Designed>
@@ -827,22 +1034,31 @@ export function createPuckConfig(
       Cards: {
         label: "Card grid",
         fields: {
-          columns: { type: "select", options: [
-            { label: "2 columns", value: "2" },
-            { label: "3 columns", value: "3" },
-            { label: "4 columns", value: "4" },
-          ] },
+          columns: {
+            type: "select",
+            options: [
+              { label: "2 columns", value: "2" },
+              { label: "3 columns", value: "3" },
+              { label: "4 columns", value: "4" },
+            ],
+          },
           items: {
             type: "array",
             label: "Cards",
-            getItemSummary: (item: Feature, i) => item?.title || `Card ${(i ?? 0) + 1}`,
+            getItemSummary: (item: Feature, i) =>
+              item?.title || `Card ${(i ?? 0) + 1}`,
             arrayFields: {
               imageUrl: imageField("Image URL"),
               title: { type: "text", label: "Title" },
               text: { type: "textarea", label: "Text" },
               href: { type: "text", label: "Link (optional)" },
             },
-            defaultItemProps: { title: "Card title", text: "Card description", imageUrl: "", href: "" },
+            defaultItemProps: {
+              title: "Card title",
+              text: "Card description",
+              imageUrl: "",
+              href: "",
+            },
           },
           design: designField,
         },
@@ -858,21 +1074,34 @@ export function createPuckConfig(
         render: ({ columns, items, design }) => (
           <Designed d={design}>
             <div className={cx("lmspb-container", "lmspb-w-normal")}>
-              <div className="lmspb-cards" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
+              <div
+                className="lmspb-cards"
+                style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+              >
                 {(items || []).map((it, i) => {
                   const inner = (
                     <>
                       {it.imageUrl ? (
-                        <img className="lmspb-card-img" src={it.imageUrl} alt={it.title || ""} />
+                        <img
+                          className="lmspb-card-img"
+                          src={it.imageUrl}
+                          alt={it.title || ""}
+                        />
                       ) : null}
                       <p className="lmspb-card-title">{it.title}</p>
-                      {it.text ? <p className="lmspb-card-text">{it.text}</p> : null}
+                      {it.text ? (
+                        <p className="lmspb-card-text">{it.text}</p>
+                      ) : null}
                     </>
                   );
                   return it.href ? (
-                    <a key={i} className="lmspb-card" href={it.href}>{inner}</a>
+                    <a key={i} className="lmspb-card" href={it.href}>
+                      {inner}
+                    </a>
                   ) : (
-                    <div key={i} className="lmspb-card">{inner}</div>
+                    <div key={i} className="lmspb-card">
+                      {inner}
+                    </div>
                   );
                 })}
               </div>
@@ -889,16 +1118,22 @@ export function createPuckConfig(
           subtitle: { type: "textarea", label: "Subtitle" },
           buttonLabel: { type: "text", label: "Button label" },
           buttonHref: { type: "text", label: "Button link" },
-          background: { type: "select", options: [
-            { label: "Muted", value: "muted" },
-            { label: "Dark", value: "dark" },
-            { label: "Brand", value: "brand" },
-            { label: "Custom color…", value: "custom" },
-          ] },
-          align: { type: "radio", options: [
-            { label: "Left", value: "left" },
-            { label: "Center", value: "center" },
-          ] },
+          background: {
+            type: "select",
+            options: [
+              { label: "Muted", value: "muted" },
+              { label: "Dark", value: "dark" },
+              { label: "Brand", value: "brand" },
+              { label: "Custom color…", value: "custom" },
+            ],
+          },
+          align: {
+            type: "radio",
+            options: [
+              { label: "Left", value: "left" },
+              { label: "Center", value: "center" },
+            ],
+          },
           design: designFieldBand,
         },
         defaultProps: {
@@ -912,18 +1147,39 @@ export function createPuckConfig(
           design: DESIGN_DEFAULT,
         },
         resolveFields: withCustomBackground(),
-        render: ({ title, subtitle, buttonLabel, buttonHref, background, backgroundColor, align, design }) => (
+        render: ({
+          title,
+          subtitle,
+          buttonLabel,
+          buttonHref,
+          background,
+          backgroundColor,
+          align,
+          design,
+        }) => (
           <Designed d={design} ownBackground>
             <div className={cx("lmspb-container", "lmspb-w-normal")}>
               <div
-                className={cx("lmspb-section", bgClass(background), "lmspb-cta", `lmspb-al-${align}`)}
+                className={cx(
+                  "lmspb-section",
+                  bgClass(background),
+                  "lmspb-cta",
+                  `lmspb-al-${align}`,
+                )}
                 style={bandStyle(background, backgroundColor, design)}
               >
                 <div className={cx("lmspb-container", "lmspb-w-narrow")}>
                   <h2 className="lmspb-cta-title">{title}</h2>
-                  {subtitle ? <p className="lmspb-cta-sub">{subtitle}</p> : null}
+                  {subtitle ? (
+                    <p className="lmspb-cta-sub">{subtitle}</p>
+                  ) : null}
                   <div className={cx("lmspb-actions", `lmspb-al-${align}`)}>
-                    <a className="lmspb-btn lmspb-btn-primary" href={buttonHref || "#"}>{buttonLabel}</a>
+                    <a
+                      className="lmspb-btn lmspb-btn-primary"
+                      href={buttonHref || "#"}
+                    >
+                      {buttonLabel}
+                    </a>
                   </div>
                 </div>
               </div>
@@ -939,7 +1195,8 @@ export function createPuckConfig(
           items: {
             type: "array",
             label: "Questions",
-            getItemSummary: (item: FaqItem, i) => item?.question || `Question ${(i ?? 0) + 1}`,
+            getItemSummary: (item: FaqItem, i) =>
+              item?.question || `Question ${(i ?? 0) + 1}`,
             arrayFields: {
               question: { type: "text", label: "Question" },
               answer: { type: "textarea", label: "Answer" },
@@ -995,11 +1252,17 @@ export function createPuckConfig(
                 <p className="lmspb-quote-text">“{quote}”</p>
                 <div className="lmspb-quote-by">
                   {avatarUrl ? (
-                    <img className="lmspb-quote-avatar" src={avatarUrl} alt={author || ""} />
+                    <img
+                      className="lmspb-quote-avatar"
+                      src={avatarUrl}
+                      alt={author || ""}
+                    />
                   ) : null}
                   <div>
                     <div className="lmspb-quote-author">{author}</div>
-                    {role ? <div className="lmspb-quote-role">{role}</div> : null}
+                    {role ? (
+                      <div className="lmspb-quote-role">{role}</div>
+                    ) : null}
                   </div>
                 </div>
               </blockquote>
@@ -1012,21 +1275,38 @@ export function createPuckConfig(
       Divider: {
         label: "Divider",
         fields: {
-          width: { type: "select", options: [
-            { label: "Narrow", value: "narrow" },
-            { label: "Normal", value: "normal" },
-            { label: "Full", value: "full" },
-          ] },
-          thickness: { type: "number", label: "Thickness (px)", min: 1, max: 12 },
-          style: { type: "select", options: [
-            { label: "Solid", value: "solid" },
-            { label: "Dashed", value: "dashed" },
-            { label: "Dotted", value: "dotted" },
-          ] },
+          width: {
+            type: "select",
+            options: [
+              { label: "Narrow", value: "narrow" },
+              { label: "Normal", value: "normal" },
+              { label: "Full", value: "full" },
+            ],
+          },
+          thickness: {
+            type: "number",
+            label: "Thickness (px)",
+            min: 1,
+            max: 12,
+          },
+          style: {
+            type: "select",
+            options: [
+              { label: "Solid", value: "solid" },
+              { label: "Dashed", value: "dashed" },
+              { label: "Dotted", value: "dotted" },
+            ],
+          },
           color: colorField("Line color"),
           design: designField,
         },
-        defaultProps: { width: "normal", thickness: 1, style: "solid", color: "", design: DESIGN_DEFAULT },
+        defaultProps: {
+          width: "normal",
+          thickness: 1,
+          style: "solid",
+          color: "",
+          design: DESIGN_DEFAULT,
+        },
         render: ({ width, thickness, style, color, design }) => (
           <Designed d={design}>
             <div className={cx("lmspb-container", widthClass(width))}>
@@ -1047,22 +1327,30 @@ export function createPuckConfig(
       IconList: {
         label: "Icon list",
         fields: {
-          icon: { type: "select", label: "Icon", options: [
-            { label: "Checkmark", value: "check" },
-            { label: "Star", value: "star" },
-            { label: "Arrow", value: "arrow" },
-            { label: "Dot", value: "dot" },
-            { label: "Cross", value: "cross" },
-          ] },
-          columns: { type: "radio", options: [
-            { label: "1 column", value: "1" },
-            { label: "2 columns", value: "2" },
-          ] },
+          icon: {
+            type: "select",
+            label: "Icon",
+            options: [
+              { label: "Checkmark", value: "check" },
+              { label: "Star", value: "star" },
+              { label: "Arrow", value: "arrow" },
+              { label: "Dot", value: "dot" },
+              { label: "Cross", value: "cross" },
+            ],
+          },
+          columns: {
+            type: "radio",
+            options: [
+              { label: "1 column", value: "1" },
+              { label: "2 columns", value: "2" },
+            ],
+          },
           iconColor: colorField("Icon color"),
           items: {
             type: "array",
             label: "Items",
-            getItemSummary: (item: IconListItem, i) => item?.text || `Item ${(i ?? 0) + 1}`,
+            getItemSummary: (item: IconListItem, i) =>
+              item?.text || `Item ${(i ?? 0) + 1}`,
             arrayFields: { text: { type: "text", label: "Text" } },
             defaultItemProps: { text: "List item" },
           },
@@ -1082,7 +1370,12 @@ export function createPuckConfig(
         render: ({ icon, columns, iconColor, items, design }) => (
           <Designed d={design}>
             <div className={cx("lmspb-container", "lmspb-w-normal")}>
-              <ul className={cx("lmspb-iconlist", columns === "2" && "lmspb-iconlist-2")}>
+              <ul
+                className={cx(
+                  "lmspb-iconlist",
+                  columns === "2" && "lmspb-iconlist-2",
+                )}
+              >
                 {(items || []).map((it, i) => (
                   <li key={i} className="lmspb-iconlist-item">
                     <span className="lmspb-iconlist-icon">
@@ -1101,15 +1394,19 @@ export function createPuckConfig(
       Stats: {
         label: "Stats",
         fields: {
-          columns: { type: "select", options: [
-            { label: "2 columns", value: "2" },
-            { label: "3 columns", value: "3" },
-            { label: "4 columns", value: "4" },
-          ] },
+          columns: {
+            type: "select",
+            options: [
+              { label: "2 columns", value: "2" },
+              { label: "3 columns", value: "3" },
+              { label: "4 columns", value: "4" },
+            ],
+          },
           items: {
             type: "array",
             label: "Stats",
-            getItemSummary: (item: StatItem, i) => item?.label || `Stat ${(i ?? 0) + 1}`,
+            getItemSummary: (item: StatItem, i) =>
+              item?.label || `Stat ${(i ?? 0) + 1}`,
             arrayFields: {
               value: { type: "text", label: "Value (e.g. 10,000+)" },
               label: { type: "text", label: "Label" },
@@ -1130,7 +1427,10 @@ export function createPuckConfig(
         render: ({ columns, items, design }) => (
           <Designed d={design}>
             <div className={cx("lmspb-container", "lmspb-w-normal")}>
-              <div className="lmspb-stats" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
+              <div
+                className="lmspb-stats"
+                style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
+              >
                 {(items || []).map((it, i) => (
                   <div key={i} className="lmspb-stat">
                     <div className="lmspb-stat-value">{it.value}</div>
@@ -1149,7 +1449,10 @@ export function createPuckConfig(
         fields: {
           // Named `html` ON PURPOSE: the API sanitizes every `html` prop in the
           // document on write (scripts/iframes stripped) — same policy as RichText.
-          html: { type: "textarea", label: "HTML (scripts are removed on save)" },
+          html: {
+            type: "textarea",
+            label: "HTML (scripts are removed on save)",
+          },
           design: designField,
         },
         defaultProps: { html: "", design: DESIGN_DEFAULT },
@@ -1164,7 +1467,10 @@ export function createPuckConfig(
           return (
             <Designed d={design}>
               <div className={cx("lmspb-container", "lmspb-w-normal")}>
-                <div className="lmspb-embed" dangerouslySetInnerHTML={{ __html: html }} />
+                <div
+                  className="lmspb-embed"
+                  dangerouslySetInnerHTML={{ __html: html }}
+                />
               </div>
             </Designed>
           );
@@ -1183,7 +1489,11 @@ export function createPuckConfig(
           if (!puck?.isEditing && !formId) return <></>; // unconfigured: hidden on the site
           return (
             <EmptyHint
-              label={formId ? `Form: ${formId}` : "Form — pick one in the field panel"}
+              label={
+                formId
+                  ? `Form: ${formId}`
+                  : "Form — pick one in the field panel"
+              }
             />
           );
         },
@@ -1199,7 +1509,11 @@ export function createPuckConfig(
           if (!puck?.isEditing && !menuId) return <></>; // unconfigured: hidden on the site
           return (
             <EmptyHint
-              label={menuId ? `Menu: ${menuId}` : "Menu — pick one in the field panel"}
+              label={
+                menuId
+                  ? `Menu: ${menuId}`
+                  : "Menu — pick one in the field panel"
+              }
             />
           );
         },

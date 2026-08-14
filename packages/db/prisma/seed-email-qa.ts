@@ -152,7 +152,11 @@ async function main() {
     source?: "SIGNUP" | "FORM" | "FOOTER" | "IMPORT" | "MANUAL" | "ADMIN";
     confirmedAt?: Date | null;
     unsubscribedAt?: Date | null;
-    consent?: { id: string; kind: "OPTIN" | "CONFIRM" | "UNSUBSCRIBE" | "COMPLAINT" | "CLEANED"; source?: string } | null;
+    consent?: {
+      id: string;
+      kind: "OPTIN" | "CONFIRM" | "UNSUBSCRIBE" | "COMPLAINT" | "CLEANED";
+      source?: string;
+    } | null;
   };
 
   const contacts: C[] = [
@@ -165,7 +169,11 @@ async function main() {
       tags: ["qa", "vip"],
       source: "MANUAL",
       confirmedAt: minutesAgo(60),
-      consent: { id: "qa-consent-subscribed", kind: "CONFIRM", source: "admin" },
+      consent: {
+        id: "qa-consent-subscribed",
+        kind: "CONFIRM",
+        source: "admin",
+      },
     },
     {
       // double-opt-in demo target: PENDING + confirmedAt null. The printed
@@ -188,7 +196,11 @@ async function main() {
       tags: ["qa"],
       source: "MANUAL",
       unsubscribedAt: minutesAgo(120),
-      consent: { id: "qa-consent-unsub", kind: "UNSUBSCRIBE", source: "unsubscribe-link" },
+      consent: {
+        id: "qa-consent-unsub",
+        kind: "UNSUBSCRIBE",
+        source: "unsubscribe-link",
+      },
     },
     {
       // suppression demo: cleaned (hard bounce/complaint) -> never mail again.
@@ -264,7 +276,11 @@ async function main() {
       tags: ["qa", "probe"],
       source: "FOOTER",
       confirmedAt: null,
-      consent: { id: "qa-consent-probe-confirm", kind: "OPTIN", source: "footer" },
+      consent: {
+        id: "qa-consent-probe-confirm",
+        kind: "OPTIN",
+        source: "footer",
+      },
     },
     {
       email: "qa-probe-unsub@qa.test", // SUBSCRIBED -> verify unsubscribe POST
@@ -274,7 +290,11 @@ async function main() {
       tags: ["qa", "probe"],
       source: "MANUAL",
       confirmedAt: minutesAgo(60),
-      consent: { id: "qa-consent-probe-unsub", kind: "CONFIRM", source: "admin" },
+      consent: {
+        id: "qa-consent-probe-unsub",
+        kind: "CONFIRM",
+        source: "admin",
+      },
     },
     {
       email: "qa-probe-bounce@qa.test", // SUBSCRIBED -> verify webhook hard bounce -> CLEANED
@@ -284,7 +304,11 @@ async function main() {
       tags: ["qa", "probe"],
       source: "MANUAL",
       confirmedAt: minutesAgo(60),
-      consent: { id: "qa-consent-probe-bounce", kind: "CONFIRM", source: "admin" },
+      consent: {
+        id: "qa-consent-probe-bounce",
+        kind: "CONFIRM",
+        source: "admin",
+      },
     },
   ];
 
@@ -323,7 +347,11 @@ async function main() {
     if (c.consent) {
       await prisma.consentEvent.upsert({
         where: { id: c.consent.id },
-        update: { contactId: row.id, kind: c.consent.kind, source: c.consent.source ?? null },
+        update: {
+          contactId: row.id,
+          kind: c.consent.kind,
+          source: c.consent.source ?? null,
+        },
         create: {
           id: c.consent.id,
           contactId: row.id,
@@ -479,7 +507,10 @@ async function main() {
       to: "qa-member-1@example.com",
       contactEmail: "qa-member-1@example.com",
       sendAt: minutesAgo(1),
-      vars: { firstName: "Morgan", reason: "QA due ScheduledEmail (drains next tick)" },
+      vars: {
+        firstName: "Morgan",
+        reason: "QA due ScheduledEmail (drains next tick)",
+      },
     },
     {
       // Stays PENDING for the user to inspect as a "scheduled" row (future send).
@@ -686,7 +717,9 @@ async function main() {
       where: { dedupeKey: l.dedupeKey },
       update: {
         to: l.to,
-        contactId: l.contactEmail ? contactIdByEmail[l.contactEmail] ?? null : null,
+        contactId: l.contactEmail
+          ? (contactIdByEmail[l.contactEmail] ?? null)
+          : null,
         templateKey: NEWSLETTER_KEY,
         campaignId: l.campaignId,
         subject: l.subject,
@@ -697,7 +730,9 @@ async function main() {
       },
       create: {
         to: l.to,
-        contactId: l.contactEmail ? contactIdByEmail[l.contactEmail] ?? null : null,
+        contactId: l.contactEmail
+          ? (contactIdByEmail[l.contactEmail] ?? null)
+          : null,
         templateKey: NEWSLETTER_KEY,
         campaignId: l.campaignId,
         subject: l.subject,
@@ -742,7 +777,11 @@ async function main() {
       providerId: "qa-prov-bounced",
       type: "BOUNCE" as const,
       email: "qa-bounced@example.com",
-      meta: { type: "hard", reason: "mailbox does not exist", note: "QA bounce" },
+      meta: {
+        type: "hard",
+        reason: "mailbox does not exist",
+        note: "QA bounce",
+      },
     },
     {
       id: "qa-event-complaint",
@@ -791,8 +830,8 @@ async function main() {
   const secretFlavor = process.env.JWT_SECRET
     ? "JWT_SECRET"
     : process.env.SETTINGS_ENC_KEY
-    ? "SETTINGS_ENC_KEY"
-    : "dev-insecure-secret (fallback)";
+      ? "SETTINGS_ENC_KEY"
+      : "dev-insecure-secret (fallback)";
 
   const totals = Object.entries(counts)
     .map(([k, v]) => `${k}=${v}`)

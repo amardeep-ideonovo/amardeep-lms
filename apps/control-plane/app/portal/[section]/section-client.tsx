@@ -35,10 +35,20 @@ import {
   uptimeLabel,
 } from "@/lib/provisioner";
 import { useFleet } from "@/lib/useFleet";
-import type { AppTrack, ClientAccount, FleetState, Instance, MobileBuild } from "@/lib/types";
+import type {
+  AppTrack,
+  ClientAccount,
+  FleetState,
+  Instance,
+  MobileBuild,
+} from "@/lib/types";
 import { SECTIONS, type Section } from "./sections";
 
-export default function PortalSection({ section: sectionParam }: { section: string }) {
+export default function PortalSection({
+  section: sectionParam,
+}: {
+  section: string;
+}) {
   const session = useClientSession();
   const fleet = useFleet();
   if (!SECTIONS.includes(sectionParam as Section)) notFound();
@@ -60,11 +70,15 @@ export default function PortalSection({ section: sectionParam }: { section: stri
             <span className="card-title">No instance yet</span>
           </div>
           <p className="modal-note" style={{ marginBottom: 14, maxWidth: 460 }}>
-            Your {plan?.name ?? "current"} license is active, but {client.academyName} hasn't been
-            provisioned yet. Launch it from the overview — everything here lights up the moment it
-            boots.
+            Your {plan?.name ?? "current"} license is active, but{" "}
+            {client.academyName} hasn't been provisioned yet. Launch it from the
+            overview — everything here lights up the moment it boots.
           </p>
-          <Link href="/portal" className="btn btn-primary" style={{ alignSelf: "flex-start" }}>
+          <Link
+            href="/portal"
+            className="btn btn-primary"
+            style={{ alignSelf: "flex-start" }}
+          >
             Launch {client.academyName}
           </Link>
         </div>
@@ -78,23 +92,49 @@ export default function PortalSection({ section: sectionParam }: { section: stri
   return (
     <div className="stack page-in">
       {showSwitcher && (
-        <InstanceSwitcher instances={owned} selectedId={selected.id} onSelect={setSelected} />
+        <InstanceSwitcher
+          instances={owned}
+          selectedId={selected.id}
+          onSelect={setSelected}
+        />
       )}
       {section === "instance" && (
         <>
           <InstanceView instance={selected} />
-          <ProvisionSlots fleet={fleet} client={client} owned={owned} suspended={suspended} />
+          <ProvisionSlots
+            fleet={fleet}
+            client={client}
+            owned={owned}
+            suspended={suspended}
+          />
         </>
       )}
-      {section === "backups" && <BackupsView instance={selected} suspended={suspended} />}
+      {section === "backups" && (
+        <BackupsView instance={selected} suspended={suspended} />
+      )}
       {section === "mobile" && (
-        <MobileView fleet={fleet} client={client} instance={selected} suspended={suspended} />
+        <MobileView
+          fleet={fleet}
+          client={client}
+          instance={selected}
+          suspended={suspended}
+        />
       )}
       {section === "billing" && (
-        <BillingView fleet={fleet} client={client} owned={owned} suspended={suspended} />
+        <BillingView
+          fleet={fleet}
+          client={client}
+          owned={owned}
+          suspended={suspended}
+        />
       )}
       {section === "support" && (
-        <SupportView fleet={fleet} client={client} instance={selected} suspended={suspended} />
+        <SupportView
+          fleet={fleet}
+          client={client}
+          instance={selected}
+          suspended={suspended}
+        />
       )}
     </div>
   );
@@ -121,14 +161,25 @@ function InstanceView({ instance }: { instance: Instance }) {
             <Pill tone={status.tone}>● {status.label}</Pill>
           </span>
           <span className="hero-meta">
-            {instance.domain} · {instance.dbName} · {instance.version} · {uptimeLabel(instance)}
+            {instance.domain} · {instance.dbName} · {instance.version} ·{" "}
+            {uptimeLabel(instance)}
           </span>
         </span>
         <span className="hero-actions">
-          <a href={instance.urls.admin} target="_blank" rel="noreferrer" className="btn btn-primary">
+          <a
+            href={instance.urls.admin}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary"
+          >
             Open admin
           </a>
-          <a href={instance.urls.web} target="_blank" rel="noreferrer" className="btn btn-ghost">
+          <a
+            href={instance.urls.web}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-ghost"
+          >
             <Icon name="external-link" size={13} />
             Member site
           </a>
@@ -139,7 +190,9 @@ function InstanceView({ instance }: { instance: Instance }) {
         <div className="card">
           <div className="card-head" style={{ marginBottom: 4 }}>
             <span className="card-title">Deployment</span>
-            <span className="card-sub">one fully isolated stack — nothing shared</span>
+            <span className="card-sub">
+              one fully isolated stack — nothing shared
+            </span>
           </div>
           <div className="kv-grid">
             <div className="kv">
@@ -169,7 +222,9 @@ function InstanceView({ instance }: { instance: Instance }) {
             <div className="kv">
               <span className="kv-k">Host</span>
               <span className="kv-v mono">
-                {instance.metrics ? `${instance.metrics.host} · ${instance.metrics.region}` : "—"}
+                {instance.metrics
+                  ? `${instance.metrics.host} · ${instance.metrics.region}`
+                  : "—"}
               </span>
             </div>
             <div className="kv">
@@ -183,8 +238,9 @@ function InstanceView({ instance }: { instance: Instance }) {
           </div>
           <p className="modal-note" style={{ marginTop: 16 }}>
             Your database, media, and job queue run in containers namespaced{" "}
-            <span className="mono">{instance.dbName}</span>. Stripe, email, and video keys live in your own
-            admin Settings, encrypted with your instance's key.
+            <span className="mono">{instance.dbName}</span>. Stripe, email, and
+            video keys live in your own admin Settings, encrypted with your
+            instance's key.
           </p>
         </div>
 
@@ -214,7 +270,13 @@ function InstanceView({ instance }: { instance: Instance }) {
 
 // ---------- backups ----------
 
-function BackupsView({ instance, suspended }: { instance: Instance; suspended: boolean }) {
+function BackupsView({
+  instance,
+  suspended,
+}: {
+  instance: Instance;
+  suspended: boolean;
+}) {
   const [restoreOpen, setRestoreOpen] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   return (
@@ -227,8 +289,12 @@ function BackupsView({ instance, suspended }: { instance: Instance; suspended: b
           <Pill tone="neutral">{instance.backups.schedule}</Pill>
         </div>
         {instance.restoreInProgress && (
-          <div className="info-banner" style={{ marginTop: 4, marginBottom: 8 }}>
-            Restoring “{instance.restoreInProgress.entryLabel}” — maintenance mode is on for members.
+          <div
+            className="info-banner"
+            style={{ marginTop: 4, marginBottom: 8 }}
+          >
+            Restoring “{instance.restoreInProgress.entryLabel}” — maintenance
+            mode is on for members.
           </div>
         )}
         <table className="itable">
@@ -250,7 +316,11 @@ function BackupsView({ instance, suspended }: { instance: Instance; suspended: b
                 <td>{entry.detail}</td>
                 <td>{(entry.sizeMb / 1024).toFixed(1)} GB</td>
                 <td>
-                  {entry.verified ? <Pill tone="success">Verified</Pill> : <Pill tone="warning">Pending</Pill>}
+                  {entry.verified ? (
+                    <Pill tone="success">Verified</Pill>
+                  ) : (
+                    <Pill tone="warning">Pending</Pill>
+                  )}
                 </td>
                 <td style={{ textAlign: "right" }}>
                   <button
@@ -272,29 +342,40 @@ function BackupsView({ instance, suspended }: { instance: Instance; suspended: b
         </table>
         {instance.backups.entries.length === 0 && (
           <div className="empty-note">
-            No snapshots yet — {instance.backups.retentionNote.toLowerCase()}. Every run is verified
-            and mirrored off-server.
+            No snapshots yet — {instance.backups.retentionNote.toLowerCase()}.
+            Every run is verified and mirrored off-server.
           </div>
         )}
         <div className="card-btn-row" style={{ maxWidth: 360 }}>
           <button
             type="button"
             className="btn-line"
-            disabled={!!instance.restoreInProgress || instance.backups.entries.length === 0 || suspended}
+            disabled={
+              !!instance.restoreInProgress ||
+              instance.backups.entries.length === 0 ||
+              suspended
+            }
             onClick={() => setRestoreOpen(true)}
           >
             Restore…
           </button>
         </div>
       </div>
-      {restoreOpen && <RestoreModal instance={instance} onClose={() => setRestoreOpen(false)} />}
+      {restoreOpen && (
+        <RestoreModal
+          instance={instance}
+          onClose={() => setRestoreOpen(false)}
+        />
+      )}
     </>
   );
 }
 
 // ---------- mobile apps (varies by the license's effective app track) ----------
 
-function buildTone(build: MobileBuild): "success" | "warning" | "info" | "neutral" {
+function buildTone(
+  build: MobileBuild,
+): "success" | "warning" | "info" | "neutral" {
   if (build.status === "Live") return "success";
   if (build.status === "In review") return "warning";
   if (build.status === "Building") return "info";
@@ -328,15 +409,20 @@ function MobileView({
             </span>
             <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <span className="card-title">Your plan is web-only</span>
-              <span className="card-sub">no mobile apps on the current license</span>
+              <span className="card-sub">
+                no mobile apps on the current license
+              </span>
             </span>
             <div className="card-head-spacer" />
             <Pill tone="neutral">Web only</Pill>
           </div>
-          <p className="modal-note" style={{ margin: "8px 0 14px", maxWidth: 520 }}>
-            Upgrade for mobile apps: the shared Spotlight app gets {shortName} onto members' phones
-            with a connect code, and white-label plans ship branded builds to your own App Store and
-            Google Play listings.
+          <p
+            className="modal-note"
+            style={{ margin: "8px 0 14px", maxWidth: 520 }}
+          >
+            Upgrade for mobile apps: the shared Spotlight app gets {shortName}{" "}
+            onto members' phones with a connect code, and white-label plans ship
+            branded builds to your own App Store and Google Play listings.
           </p>
           <button
             type="button"
@@ -349,7 +435,11 @@ function MobileView({
           </button>
         </div>
         {upgradeOpen && (
-          <UpgradeModal fleet={fleet} client={client} onClose={() => setUpgradeOpen(false)} />
+          <UpgradeModal
+            fleet={fleet}
+            client={client}
+            onClose={() => setUpgradeOpen(false)}
+          />
         )}
       </>
     );
@@ -364,8 +454,12 @@ function MobileView({
               <Icon name="smartphone" size={15} />
             </span>
             <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <span className="card-title">Connect code — {instance.clientName}</span>
-              <span className="card-sub">shared Spotlight app · App Store + Google Play</span>
+              <span className="card-title">
+                Connect code — {instance.clientName}
+              </span>
+              <span className="card-sub">
+                shared Spotlight app · App Store + Google Play
+              </span>
             </span>
             <div className="card-head-spacer" />
             <Pill tone="info">Shared app</Pill>
@@ -385,10 +479,14 @@ function MobileView({
             </button>
           </div>
           <p className="modal-note" style={{ marginTop: 12, maxWidth: 560 }}>
-            Members install the shared Spotlight app and enter this code — your branding and content
-            load automatically. No store accounts, reviews or builds to manage.
+            Members install the shared Spotlight app and enter this code — your
+            branding and content load automatically. No store accounts, reviews
+            or builds to manage.
           </p>
-          <p className="modal-note" style={{ marginTop: 8, color: "var(--text-faint)" }}>
+          <p
+            className="modal-note"
+            style={{ marginTop: 8, color: "var(--text-faint)" }}
+          >
             Prefer your own branded apps?{" "}
             <button
               type="button"
@@ -401,7 +499,11 @@ function MobileView({
           </p>
         </div>
         {upgradeOpen && (
-          <UpgradeModal fleet={fleet} client={client} onClose={() => setUpgradeOpen(false)} />
+          <UpgradeModal
+            fleet={fleet}
+            client={client}
+            onClose={() => setUpgradeOpen(false)}
+          />
         )}
       </>
     );
@@ -412,8 +514,16 @@ function MobileView({
       <div className="grid-main-rail">
         {(
           [
-            ["iOS", instance.mobileBuilds.ios, "App Store · client-owned developer account"],
-            ["Android", instance.mobileBuilds.android, "Google Play · client-owned developer account"],
+            [
+              "iOS",
+              instance.mobileBuilds.ios,
+              "App Store · client-owned developer account",
+            ],
+            [
+              "Android",
+              instance.mobileBuilds.android,
+              "Google Play · client-owned developer account",
+            ],
           ] as const
         ).map(([platform, build, storeNote]) => (
           <div key={platform} className="card">
@@ -457,19 +567,30 @@ function MobileView({
           </button>
         </div>
         <p className="modal-note" style={{ marginTop: 8, maxWidth: 640 }}>
-          Builds run on the per-client EAS track: the binary is branded to {instance.clientName}, points at
-          your instance's API, and is submitted to the stores under your accounts. The platform team
-          handles signing, review notes, and rollout.
+          Builds run on the per-client EAS track: the binary is branded to{" "}
+          {instance.clientName}, points at your instance's API, and is submitted
+          to the stores under your accounts. The platform team handles signing,
+          review notes, and rollout.
         </p>
       </div>
-      {buildOpen && <RequestBuildModal instance={instance} onClose={() => setBuildOpen(false)} />}
+      {buildOpen && (
+        <RequestBuildModal
+          instance={instance}
+          onClose={() => setBuildOpen(false)}
+        />
+      )}
     </>
   );
 }
 
 // ---------- billing (license-scoped — covers every instance) ----------
 
-const HARBOR_INVOICES: Array<{ id: string; date: string; amount: string; status: "Paid" }> = [
+const HARBOR_INVOICES: Array<{
+  id: string;
+  date: string;
+  amount: string;
+  status: "Paid";
+}> = [
   { id: "INV-0231", date: "Jun 12, 2026", amount: "$249.00", status: "Paid" },
   { id: "INV-0198", date: "May 12, 2026", amount: "$249.00", status: "Paid" },
   { id: "INV-0164", date: "Apr 12, 2026", amount: "$249.00", status: "Paid" },
@@ -478,10 +599,14 @@ const HARBOR_INVOICES: Array<{ id: string; date: string; amount: string; status:
 /** Harbor keeps its seeded history; a fresh self-serve academy has just the signup charge. */
 function invoicesFor(
   client: ClientAccount,
-  price: number
+  price: number,
 ): Array<{ id: string; date: string; amount: string; status: "Paid" }> {
   if (client.id === "harbor") return HARBOR_INVOICES;
-  const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const today = new Date().toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
   return [
     {
       id: `INV-${client.id.slice(0, 6).toUpperCase()}-001`,
@@ -513,7 +638,11 @@ function BillingView({
           <div className="card-head">
             <span className="card-title">License</span>
             <div className="card-head-spacer" />
-            {suspended ? <Pill tone="warning">Suspended</Pill> : <Pill tone="success">Active</Pill>}
+            {suspended ? (
+              <Pill tone="warning">Suspended</Pill>
+            ) : (
+              <Pill tone="success">Active</Pill>
+            )}
           </div>
           <div className="price-row">
             <span className="price-big">
@@ -522,13 +651,18 @@ function BillingView({
             <span className="price-per">/month</span>
           </div>
           <div className="license-copy">
-            {suspended ? "Suspended — contact support" : `Renews ${client.license.renewsAt}`} ·{" "}
-            {client.license.cardBrand} •••• {client.license.cardLast4}
+            {suspended
+              ? "Suspended — contact support"
+              : `Renews ${client.license.renewsAt}`}{" "}
+            · {client.license.cardBrand} •••• {client.license.cardLast4}
             <br />
-            Includes {licenseSummary(fleet, client.license)} — covering {owned.length} of {cap} instance
-            slot{cap === 1 ? "" : "s"}
+            Includes {licenseSummary(fleet, client.license)} — covering{" "}
+            {owned.length} of {cap} instance slot{cap === 1 ? "" : "s"}
           </div>
-          <div className="card-btn-row" style={{ marginTop: 13, maxWidth: 360 }}>
+          <div
+            className="card-btn-row"
+            style={{ marginTop: 13, maxWidth: 360 }}
+          >
             <button
               type="button"
               className="btn-line"
@@ -562,7 +696,9 @@ function BillingView({
             </div>
           ))}
           {(plan?.features.length ?? 0) === 0 && (
-            <div className="empty-note">The operator hasn't listed features for this plan yet.</div>
+            <div className="empty-note">
+              The operator hasn't listed features for this plan yet.
+            </div>
           )}
         </div>
       </div>
@@ -594,10 +730,18 @@ function BillingView({
         </table>
       </div>
       {dialog === "billing" && (
-        <ManageBillingModal fleet={fleet} client={client} onClose={() => setDialog(null)} />
+        <ManageBillingModal
+          fleet={fleet}
+          client={client}
+          onClose={() => setDialog(null)}
+        />
       )}
       {dialog === "upgrade" && (
-        <UpgradeModal fleet={fleet} client={client} onClose={() => setDialog(null)} />
+        <UpgradeModal
+          fleet={fleet}
+          client={client}
+          onClose={() => setDialog(null)}
+        />
       )}
     </>
   );
@@ -626,7 +770,8 @@ function SupportView({
         <div className="card-head" style={{ marginBottom: 4 }}>
           <span className="card-title">Support</span>
           <span className="card-sub">
-            avg first response 4h · {plan?.name ?? "current"} plan · {instance.clientName}
+            avg first response 4h · {plan?.name ?? "current"} plan ·{" "}
+            {instance.clientName}
           </span>
           <div className="card-head-spacer" />
           <button
@@ -661,10 +806,17 @@ function SupportView({
           </div>
         ))}
         {instance.tickets.length === 0 && (
-          <div className="empty-note">No tickets yet — we're here when you need us.</div>
+          <div className="empty-note">
+            No tickets yet — we're here when you need us.
+          </div>
         )}
       </div>
-      {ticketOpen && <NewTicketModal instance={instance} onClose={() => setTicketOpen(false)} />}
+      {ticketOpen && (
+        <NewTicketModal
+          instance={instance}
+          onClose={() => setTicketOpen(false)}
+        />
+      )}
     </>
   );
 }

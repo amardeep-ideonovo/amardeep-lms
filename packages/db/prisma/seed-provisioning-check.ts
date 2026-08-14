@@ -208,7 +208,9 @@ async function main() {
       );
       assert.ok((await db.level.count()) > 0, "demo content must be seeded");
     }
-    console.log("PASS  SEED_ADMIN_* honored + demo admin neutralized (demo=true)");
+    console.log(
+      "PASS  SEED_ADMIN_* honored + demo admin neutralized (demo=true)",
+    );
 
     // ----- 3. Container restart must never clobber an in-app password change.
     const changed = "changed-in-app-7";
@@ -359,7 +361,11 @@ async function main() {
           where: { id: { startsWith: "seed-media-" } },
         }),
       })) {
-        assert.equal(count, 0, `baseline conversion must purge demo ${name} rows`);
+        assert.equal(
+          count,
+          0,
+          `baseline conversion must purge demo ${name} rows`,
+        );
       }
       assert.equal(
         await db.user.findUnique({ where: { email: "member@example.com" } }),
@@ -407,7 +413,9 @@ async function main() {
       });
       assert.ok(state, "first demo landing must write the SeedState marker");
     }
-    console.log("PASS  one-shot first boot seeds the demo and stamps SeedState");
+    console.log(
+      "PASS  one-shot first boot seeds the demo and stamps SeedState",
+    );
 
     // ----- 9. THE BUG REPORT (Test Academy): the client deletes a seeded
     // class, changes another's cover image, rebrands the app, prunes the demo
@@ -444,9 +452,11 @@ async function main() {
         "https://client.example/custom-cover.png",
         "a cover image the client changed must NOT be reverted by a restart",
       );
-      const cfg = (await db.appConfig.findUniqueOrThrow({
-        where: { id: "singleton" },
-      })).config as { title?: string };
+      const cfg = (
+        await db.appConfig.findUniqueOrThrow({
+          where: { id: "singleton" },
+        })
+      ).config as { title?: string };
       assert.equal(
         cfg.title,
         "Client Academy",
@@ -466,12 +476,16 @@ async function main() {
     // post-fix boot stamps the marker and re-imposes NOTHING.
     {
       await db.seedState.deleteMany();
-      await db.level.delete({ where: { id: "seed-class-strength-and-conditioning" } });
+      await db.level.delete({
+        where: { id: "seed-class-strength-and-conditioning" },
+      });
     }
     runSeed(ONCE_ENV, "legacy demo instance, first post-fix boot");
     {
       assert.equal(
-        await db.level.findUnique({ where: { id: "seed-class-strength-and-conditioning" } }),
+        await db.level.findUnique({
+          where: { id: "seed-class-strength-and-conditioning" },
+        }),
         null,
         "legacy footprint must be treated as seeded — nothing re-imposed",
       );

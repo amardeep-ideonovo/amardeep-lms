@@ -11,10 +11,15 @@ const jakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: "Spotlight Ops",
-  description: "Operator console and client portal for the Spotlight LMS fleet.",
+  description:
+    "Operator console and client portal for the Spotlight LMS fleet.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" className={jakarta.variable}>
       <body>{children}</body>
