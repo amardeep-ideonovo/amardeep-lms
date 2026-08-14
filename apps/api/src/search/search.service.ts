@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AdminRole } from '@prisma/client';
 import type {
   AdminSearchGroup,
   AdminSearchResponse,
@@ -32,7 +33,7 @@ export class SearchService {
     const q = (qRaw || '').trim();
     if (q.length < MIN_LEN) return { query: q, groups: [] };
 
-    const isSuper = principal.role === 'SUPER_ADMIN';
+    const isSuper = principal.role === AdminRole.SUPER_ADMIN;
     const perms = principal.permissions ?? {};
     const can = (section: string): boolean =>
       isSuper || (perms as Record<string, { read?: boolean }>)[section]?.read === true;

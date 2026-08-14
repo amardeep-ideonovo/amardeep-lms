@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ConflictException, Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { AdminRole, Prisma } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaService } from '../prisma/prisma.service';
@@ -319,7 +319,7 @@ export class ContentPackService {
   // authored content — mirrors AdminsService.setOwnerPasswordFromControlPlane.
   private async resolveOwnerAdminId(): Promise<string | null> {
     const owner = await this.prisma.admin.findFirst({
-      where: { role: 'SUPER_ADMIN' },
+      where: { role: AdminRole.SUPER_ADMIN },
       orderBy: { createdAt: 'asc' },
       select: { id: true },
     });
