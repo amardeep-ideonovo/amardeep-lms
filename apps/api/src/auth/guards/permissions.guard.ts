@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
+import { AdminRole } from '@prisma/client';
 import type { AuthenticatedPrincipal } from '../jwt-payload.interface';
 import {
   PERMISSION_KEY,
@@ -34,7 +35,7 @@ export class PermissionsGuard extends AuthGuard('jwt') {
     if (!principal.isAdmin) {
       throw new ForbiddenException('Admin privileges required');
     }
-    if (principal.role === 'SUPER_ADMIN') {
+    if (principal.role === AdminRole.SUPER_ADMIN) {
       return user as TUser; // implicit full access
     }
     const required = this.reflector.getAllAndOverride<

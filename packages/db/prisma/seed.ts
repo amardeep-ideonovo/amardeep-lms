@@ -61,7 +61,7 @@
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
-import { Admin, Prisma, PrismaClient } from "@prisma/client";
+import { Admin, AdminRole, Prisma, PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -2216,7 +2216,7 @@ async function seedFirstAdmin(): Promise<Admin> {
       create: {
         email: DEMO_ADMIN.email,
         passwordHash: await bcrypt.hash(DEMO_ADMIN.password, 10),
-        role: "SUPER_ADMIN",
+        role: AdminRole.SUPER_ADMIN,
       },
     });
   }
@@ -2236,7 +2236,7 @@ async function seedFirstAdmin(): Promise<Admin> {
       data: {
         email: OWNER_EMAIL,
         passwordHash: await bcrypt.hash(OWNER_PASSWORD, 10),
-        role: "SUPER_ADMIN",
+        role: AdminRole.SUPER_ADMIN,
       },
     });
     console.log(`First admin created from SEED_ADMIN_*: ${OWNER_EMAIL}`);
@@ -2247,7 +2247,7 @@ async function seedFirstAdmin(): Promise<Admin> {
       where: { id: existing.id },
       data: {
         passwordHash: await bcrypt.hash(OWNER_PASSWORD, 10),
-        role: "SUPER_ADMIN",
+        role: AdminRole.SUPER_ADMIN,
       },
     });
     console.log(
