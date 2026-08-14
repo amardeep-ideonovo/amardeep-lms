@@ -36,7 +36,9 @@ export default function MemberBillingPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // The subscription pending cancellation (drives the immediate/period-end modal).
-  const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(null);
+  const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(
+    null,
+  );
 
   async function load() {
     setLoading(true);
@@ -127,7 +129,9 @@ export default function MemberBillingPage() {
                           {s.provider === "paypal" ? "PayPal" : "Stripe"} ·{" "}
                           {money(s.amount, s.currency)} / {s.interval} ·{" "}
                           {s.paused ? "paused" : s.status}
-                          {s.cancelAtPeriodEnd ? " · cancels at period end" : ""}
+                          {s.cancelAtPeriodEnd
+                            ? " · cancels at period end"
+                            : ""}
                           {s.currentPeriodEnd
                             ? ` · renews ${fmtDate(s.currentPeriodEnd)}`
                             : ""}
@@ -204,40 +208,42 @@ export default function MemberBillingPage() {
             {data.invoices.length === 0 ? (
               <p className="muted">No payments yet.</p>
             ) : (
-              <div className="table-wrap"><table className="table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Description</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.invoices.map((inv) => (
-                    <tr key={inv.id}>
-                      <td>{fmtDate(inv.created)}</td>
-                      <td className="muted">{inv.description ?? "—"}</td>
-                      <td>
-                        {money(inv.amountPaid || inv.amountDue, inv.currency)}
-                      </td>
-                      <td>{inv.status}</td>
-                      <td>
-                        {inv.hostedInvoiceUrl ? (
-                          <a
-                            href={inv.hostedInvoiceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Receipt ↗
-                          </a>
-                        ) : null}
-                      </td>
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Description</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table></div>
+                  </thead>
+                  <tbody>
+                    {data.invoices.map((inv) => (
+                      <tr key={inv.id}>
+                        <td>{fmtDate(inv.created)}</td>
+                        <td className="muted">{inv.description ?? "—"}</td>
+                        <td>
+                          {money(inv.amountPaid || inv.amountDue, inv.currency)}
+                        </td>
+                        <td>{inv.status}</td>
+                        <td>
+                          {inv.hostedInvoiceUrl ? (
+                            <a
+                              href={inv.hostedInvoiceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Receipt ↗
+                            </a>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}
@@ -245,11 +251,7 @@ export default function MemberBillingPage() {
 
       {/* Cancel-subscription modal — not dismissable by accident (backdrop/Escape); use ×/Cancel */}
       {cancelFor && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="modal">
             <div className="modal-header">
               <h2>Cancel {cancelFor.levelName}?</h2>

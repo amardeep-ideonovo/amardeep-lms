@@ -33,7 +33,7 @@
   /* text on light */
   --text: #17171d;
   --text-soft: #55534d;
-  --muted: #74726C; /* was #8b8a87 (3.45:1) — AA on light */
+  --muted: #74726c; /* was #8b8a87 (3.45:1) — AA on light */
   --faint: #706e67; /* was #b7b4ac (2.04:1) — AA on light */
 
   /* text on dark (ink chrome) */
@@ -45,7 +45,7 @@
   /* ---- teal accent ---- */
   --teal: #34c9a2;
   --teal-grad: linear-gradient(100deg, #4dd1ae, #2aa283);
-  --teal-text: #22846A; /* teal on light — was #299e7f (3.33:1), now AA */
+  --teal-text: #22846a; /* teal on light — was #299e7f (3.33:1), now AA */
   --teal-on-dark: #79e9c6;
   --teal-tint: rgba(48, 184, 149, 0.12);
   --sidebar-active-bg: linear-gradient(
@@ -77,22 +77,38 @@
   --purple: #7a3bab;
 
   /* ---- class palette (accents cycle by stable class index) ---- */
-  --music: #f7a01e;   --music-base: 196, 112, 6;   --music-dark: 120, 66, 2;   --music-text: #b46f0a;
-  --cooking: #9046c8; --cooking-base: 112, 42, 163;--cooking-dark: 74, 22, 112;--cooking-text: #7a3bab;
-  --photo: #43a565;   --photo-base: 42, 124, 72;   --photo-dark: 24, 88, 48;   --photo-text: #2d7a45;
-  --film: #e04848;    --film-base: 187, 41, 41;    --film-dark: 132, 22, 22;   --film-text: #c03a3a;
-  --dance: #4a76d0;   --dance-text: #3a62b4;
-  --comedy: #27a596;  --comedy-text: #1f8a7c;
+  --music: #f7a01e;
+  --music-base: 196, 112, 6;
+  --music-dark: 120, 66, 2;
+  --music-text: #b46f0a;
+  --cooking: #9046c8;
+  --cooking-base: 112, 42, 163;
+  --cooking-dark: 74, 22, 112;
+  --cooking-text: #7a3bab;
+  --photo: #43a565;
+  --photo-base: 42, 124, 72;
+  --photo-dark: 24, 88, 48;
+  --photo-text: #2d7a45;
+  --film: #e04848;
+  --film-base: 187, 41, 41;
+  --film-dark: 132, 22, 22;
+  --film-text: #c03a3a;
+  --dance: #4a76d0;
+  --dance-text: #3a62b4;
+  --comedy: #27a596;
+  --comedy-text: #1f8a7c;
 
   /* legacy aliases (kept so inline references keep resolving) */
   --primary: #34c9a2;
   --primary-dark: #2aa283;
 
   /* fonts (next/font var injected on <html>) — Plus Jakarta Sans everywhere */
-  --font-display: var(--font-jakarta), system-ui, -apple-system, "Segoe UI",
-    Roboto, sans-serif;
-  --font-sans: var(--font-jakarta), system-ui, -apple-system, "Segoe UI",
-    Roboto, sans-serif;
+  --font-display:
+    var(--font-jakarta), system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+  --font-sans:
+    var(--font-jakarta), system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
 
   /* gradients */
   --grad-primary: linear-gradient(100deg, #4dd1ae, #2aa283);
@@ -288,7 +304,9 @@ a {
   color: rgba(255, 255, 255, 0.6);
   font-size: 13px;
   font-weight: 500;
-  transition: background 0.16s ease, color 0.16s ease;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
 }
 .nav-link .ico {
   width: 17px;
@@ -1109,9 +1127,11 @@ input:-webkit-autofill:focus,
 textarea:-webkit-autofill:focus,
 select:-webkit-autofill:focus {
   border-color: var(--teal);
-  -webkit-box-shadow: 0 0 0 1000px #fff inset,
+  -webkit-box-shadow:
+    0 0 0 1000px #fff inset,
     0 0 0 3px rgba(52, 201, 162, 0.18);
-  box-shadow: 0 0 0 1000px #fff inset,
+  box-shadow:
+    0 0 0 1000px #fff inset,
     0 0 0 3px rgba(52, 201, 162, 0.18);
 }
 .form-row {
@@ -1136,7 +1156,9 @@ select:-webkit-autofill:focus {
   background: var(--teal-grad);
   color: var(--on-cta);
   box-shadow: var(--shadow-cta);
-  transition: transform var(--t-fast) var(--ease), filter var(--t-fast) var(--ease),
+  transition:
+    transform var(--t-fast) var(--ease),
+    filter var(--t-fast) var(--ease),
     box-shadow var(--t-fast) var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
@@ -2786,7 +2808,9 @@ h1,
   border: var(--glass-border);
   box-shadow: var(--glass-shine), var(--glass-shadow);
 }
-.glass--strong { background: var(--glass-bg-strong); }
+.glass--strong {
+  background: var(--glass-bg-strong);
+}
 .glass-sheen {
   position: absolute;
   inset: 0;
@@ -2804,28 +2828,56 @@ h1,
   outline-offset: 2px;
 }
 .press {
-  transition: transform var(--t-fast) var(--ease), filter var(--t-fast) var(--ease),
+  transition:
+    transform var(--t-fast) var(--ease),
+    filter var(--t-fast) var(--ease),
     box-shadow var(--t-fast) var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
-.press:hover { transform: translateY(-1px); filter: brightness(0.97); }
-.press:active { transform: translateY(0); }
-.lift {
-  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+.press:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.97);
 }
-.lift:hover { transform: translateY(-3px); box-shadow: var(--shadow-pop); }
+.press:active {
+  transform: translateY(0);
+}
+.lift {
+  transition:
+    transform var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
+}
+.lift:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-pop);
+}
 .icon-btn {
-  transition: transform var(--t-fast) var(--ease), background var(--t-fast) var(--ease),
+  transition:
+    transform var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease),
     border-color var(--t-fast) var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
-.icon-btn:hover { transform: scale(1.06); }
-.icon-btn:active { transform: scale(0.94); }
-.hover-pop { transition: transform var(--t-fast) var(--ease); }
-.hover-pop:hover { transform: scale(1.08); }
+.icon-btn:hover {
+  transform: scale(1.06);
+}
+.icon-btn:active {
+  transform: scale(0.94);
+}
+.hover-pop {
+  transition: transform var(--t-fast) var(--ease);
+}
+.hover-pop:hover {
+  transform: scale(1.08);
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .press, .lift, .icon-btn, .hover-pop, .btn, .stat-card, .nav-link {
+  .press,
+  .lift,
+  .icon-btn,
+  .hover-pop,
+  .btn,
+  .stat-card,
+  .nav-link {
     transition: none;
   }
 }
@@ -2843,7 +2895,10 @@ h1,
   align-items: start;
 }
 .pj-shell:has(.pj-thread) {
-  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(280px, 360px);
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(
+      280px,
+      360px
+    );
 }
 .pj-rail,
 .pj-pane,
@@ -2878,7 +2933,9 @@ h1,
   background: transparent;
   color: var(--text-soft);
   font: inherit;
-  transition: background 0.16s ease, color 0.16s ease;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
 }
 .pj-channel:hover {
   background: var(--surface-hover);
@@ -3494,7 +3551,9 @@ h1,
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   padding: 6px 12px;
-  transition: background 0.16s ease, color 0.16s ease;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
 }
 .pj-tbl-tab:hover {
   background: var(--surface-hover);
@@ -3545,7 +3604,10 @@ h1,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+  transition:
+    background 0.16s ease,
+    color 0.16s ease,
+    border-color 0.16s ease;
 }
 .pj-tab:hover {
   background: var(--surface-hover);
@@ -3601,7 +3663,9 @@ h1,
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   padding: 6px 8px;
-  transition: background 0.16s ease, border-color 0.16s ease;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease;
 }
 .pj-canvas-title:hover:not(:disabled),
 .pj-canvas-title:focus {
@@ -3706,7 +3770,9 @@ h1,
   padding: 2px 4px;
   border-radius: 6px;
   opacity: 0;
-  transition: opacity 0.14s ease, background 0.14s ease;
+  transition:
+    opacity 0.14s ease,
+    background 0.14s ease;
 }
 .pj-tbl-th:hover .pj-tbl-th-menu {
   opacity: 1;
@@ -4357,7 +4423,9 @@ select.filter-select {
   padding: 8px 16px;
   border-radius: 999px;
   cursor: pointer;
-  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+  transition:
+    background var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease);
 }
 .chipbar-chip:hover {
   background: var(--surface-hover);
@@ -4677,15 +4745,29 @@ select.filter-select {
   animation: toast-in 160ms ease-out;
 }
 @media (prefers-reduced-motion: reduce) {
-  .toast { animation: none; }
+  .toast {
+    animation: none;
+  }
 }
 @keyframes toast-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-.toast--error { border-left: 3px solid var(--danger); }
-.toast--success { border-left: 3px solid var(--success); }
-.toast-msg { flex: 1; }
+.toast--error {
+  border-left: 3px solid var(--danger);
+}
+.toast--success {
+  border-left: 3px solid var(--success);
+}
+.toast-msg {
+  flex: 1;
+}
 .toast-action {
   flex: none;
   background: transparent;
@@ -4708,7 +4790,9 @@ select.filter-select {
   opacity: 0.6;
   cursor: pointer;
 }
-.toast-close:hover { opacity: 1; }
+.toast-close:hover {
+  opacity: 1;
+}
 .toast-action:focus-visible,
 .toast-close:focus-visible {
   outline: 2px solid var(--success);

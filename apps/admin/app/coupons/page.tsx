@@ -70,7 +70,9 @@ export default function CouponsPage() {
       setCoupons(c);
       setLevels(l);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load coupons");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to load coupons",
+      );
     } finally {
       setLoading(false);
     }
@@ -111,8 +113,12 @@ export default function CouponsPage() {
             : undefined,
         currency: discountType === "amount" ? currency || "usd" : undefined,
         durationInMonths:
-          duration === "repeating" ? Math.round(Number(durationInMonths)) : undefined,
-        maxRedemptions: maxRedemptions ? Math.round(Number(maxRedemptions)) : undefined,
+          duration === "repeating"
+            ? Math.round(Number(durationInMonths))
+            : undefined,
+        maxRedemptions: maxRedemptions
+          ? Math.round(Number(maxRedemptions))
+          : undefined,
         expiresAt: expiresAt || undefined,
         levelId: levelId || undefined,
       };
@@ -123,7 +129,9 @@ export default function CouponsPage() {
       resetForm();
       setCoupons((prev) => [created, ...prev]);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Couldn’t create coupon");
+      setError(
+        err instanceof ApiError ? err.message : "Couldn’t create coupon",
+      );
     } finally {
       setSaving(false);
     }
@@ -225,14 +233,18 @@ export default function CouponsPage() {
               <label>Discount type</label>
               <select
                 value={discountType}
-                onChange={(e) => setDiscountType(e.target.value as DiscountType)}
+                onChange={(e) =>
+                  setDiscountType(e.target.value as DiscountType)
+                }
               >
                 <option value="percent">Percent off</option>
                 <option value="amount">Fixed amount off</option>
               </select>
             </div>
             <div className="field">
-              <label>{discountType === "percent" ? "Percent (1–100)" : "Amount"}</label>
+              <label>
+                {discountType === "percent" ? "Percent (1–100)" : "Amount"}
+              </label>
               <input
                 type="number"
                 min={discountType === "percent" ? "1" : "0"}
@@ -309,7 +321,10 @@ export default function CouponsPage() {
               Restrict to class{" "}
               <span className="muted">(optional — default any plan)</span>
             </label>
-            <select value={levelId} onChange={(e) => setLevelId(e.target.value)}>
+            <select
+              value={levelId}
+              onChange={(e) => setLevelId(e.target.value)}
+            >
               <option value="">Any plan</option>
               {levels
                 .filter((l) => l.type === "PAID")
@@ -368,75 +383,77 @@ export default function CouponsPage() {
         ) : visible.length === 0 ? (
           <p className="muted">No {filter} coupons.</p>
         ) : (
-          <div className="table-wrap"><table className="table">
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Discount</th>
-                <th>Applies to</th>
-                <th>Redemptions</th>
-                <th>Class</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((c) => {
-                const status = statusOf(c);
-                return (
-                  <tr key={c.id}>
-                    <td>
-                      <strong>{c.code}</strong>
-                    </td>
-                    <td>{discountLabel(c)}</td>
-                    <td>{durationLabel(c)}</td>
-                    <td>
-                      {c.timesRedeemed}
-                      {c.maxRedemptions ? ` / ${c.maxRedemptions}` : ""}
-                    </td>
-                    <td>
-                      {c.levelName ?? <span className="muted">Any</span>}
-                    </td>
-                    <td>
-                      <span
-                        className={`chip${status === "Active" ? "" : " chip--muted"}`}
-                      >
-                        {status}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="row-actions">
-                        {c.active ? (
-                          <button
-                            className="btn btn--ghost btn--sm"
-                            disabled={busyId === c.id}
-                            onClick={() => toggleActive(c)}
-                          >
-                            Deactivate
-                          </button>
-                        ) : (
-                          <button
-                            className="btn btn--ghost btn--sm"
-                            disabled={busyId === c.id || status === "Expired"}
-                            onClick={() => toggleActive(c)}
-                          >
-                            Activate
-                          </button>
-                        )}
-                        <button
-                          className="btn btn--danger btn--sm"
-                          disabled={busyId === c.id}
-                          onClick={() => removeCoupon(c)}
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Discount</th>
+                  <th>Applies to</th>
+                  <th>Redemptions</th>
+                  <th>Class</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((c) => {
+                  const status = statusOf(c);
+                  return (
+                    <tr key={c.id}>
+                      <td>
+                        <strong>{c.code}</strong>
+                      </td>
+                      <td>{discountLabel(c)}</td>
+                      <td>{durationLabel(c)}</td>
+                      <td>
+                        {c.timesRedeemed}
+                        {c.maxRedemptions ? ` / ${c.maxRedemptions}` : ""}
+                      </td>
+                      <td>
+                        {c.levelName ?? <span className="muted">Any</span>}
+                      </td>
+                      <td>
+                        <span
+                          className={`chip${status === "Active" ? "" : " chip--muted"}`}
                         >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table></div>
+                          {status}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="row-actions">
+                          {c.active ? (
+                            <button
+                              className="btn btn--ghost btn--sm"
+                              disabled={busyId === c.id}
+                              onClick={() => toggleActive(c)}
+                            >
+                              Deactivate
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn--ghost btn--sm"
+                              disabled={busyId === c.id || status === "Expired"}
+                              onClick={() => toggleActive(c)}
+                            >
+                              Activate
+                            </button>
+                          )}
+                          <button
+                            className="btn btn--danger btn--sm"
+                            disabled={busyId === c.id}
+                            onClick={() => removeCoupon(c)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

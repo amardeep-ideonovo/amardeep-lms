@@ -55,7 +55,9 @@ export default function EmailLogsPage() {
       });
       setList(res);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load email logs");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to load email logs",
+      );
       setList(null);
     } finally {
       setLoading(false);
@@ -188,7 +190,11 @@ export default function EmailLogsPage() {
                         {log.error && (
                           <div
                             className="muted"
-                            style={{ fontSize: 12, marginTop: 2, color: "var(--danger)" }}
+                            style={{
+                              fontSize: 12,
+                              marginTop: 2,
+                              color: "var(--danger)",
+                            }}
                             title={log.error}
                           >
                             {log.error.length > 80

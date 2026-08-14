@@ -27,10 +27,7 @@ import {
   makeNameResolver,
 } from "@/lib/projects";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
-import {
-  getProjectsSocket,
-  onChatListUpdate,
-} from "@/lib/projectsSocket";
+import { getProjectsSocket, onChatListUpdate } from "@/lib/projectsSocket";
 
 // ============================================================================
 // Page
@@ -129,7 +126,7 @@ export default function ProjectListsPage() {
 
   const channelName = useCallback(
     (id: string | null | undefined) =>
-      id ? channels.find((c) => c.id === id)?.name ?? "channel" : null,
+      id ? (channels.find((c) => c.id === id)?.name ?? "channel") : null,
     [channels],
   );
 
@@ -150,8 +147,8 @@ export default function ProjectListsPage() {
         <div>
           <h1>Lists</h1>
           <p className="subtitle">
-            A queue table for the team — define typed columns (status, owner, due
-            date, secrets…) and track work item by item, Airtable-style.
+            A queue table for the team — define typed columns (status, owner,
+            due date, secrets…) and track work item by item, Airtable-style.
           </p>
         </div>
         <div className="row-actions">
@@ -301,7 +298,9 @@ function WorkflowsPanel({
       const rows = await api.listWorkflows(list.id);
       setWorkflows(rows);
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Failed to load workflows");
+      onError(
+        err instanceof ApiError ? err.message : "Failed to load workflows",
+      );
     } finally {
       setLoading(false);
     }
@@ -313,7 +312,7 @@ function WorkflowsPanel({
 
   // Default the post-target select to the list's own channel.
   const listChannelName = list.channelId
-    ? channels.find((c) => c.id === list.channelId)?.name ?? null
+    ? (channels.find((c) => c.id === list.channelId)?.name ?? null)
     : null;
 
   async function create() {
@@ -343,7 +342,9 @@ function WorkflowsPanel({
       setCreating(false);
       await load();
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Failed to create workflow");
+      onError(
+        err instanceof ApiError ? err.message : "Failed to create workflow",
+      );
     } finally {
       setBusy(false);
     }
@@ -390,7 +391,9 @@ function WorkflowsPanel({
       await api.deleteWorkflow(wf.id);
       await load();
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Failed to delete workflow");
+      onError(
+        err instanceof ApiError ? err.message : "Failed to delete workflow",
+      );
     } finally {
       setRowBusy(null);
     }
@@ -399,16 +402,12 @@ function WorkflowsPanel({
   const triggerLabel = (t: ChatWorkflowTrigger) =>
     TRIGGER_LABELS.find((x) => x.value === t)?.label ?? t;
   const channelName = (id: string | null | undefined) =>
-    id ? channels.find((c) => c.id === id)?.name ?? "channel" : null;
+    id ? (channels.find((c) => c.id === id)?.name ?? "channel") : null;
 
   return (
     // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
     <div className="modal-overlay">
-      <div
-        className="modal modal--wide"
-        role="dialog"
-        aria-label="Workflows"
-      >
+      <div className="modal modal--wide" role="dialog" aria-label="Workflows">
         <div className="modal-header">
           <h2>⚡ Workflows — {list.name}</h2>
           <button className="modal-close" onClick={onClose} aria-label="Close">
@@ -417,8 +416,8 @@ function WorkflowsPanel({
         </div>
         <div className="modal-body">
           <p className="muted" style={{ marginTop: 0 }}>
-            Auto-post a formatted, @mentioned message into a channel when items in
-            this list are added or assigned.
+            Auto-post a formatted, @mentioned message into a channel when items
+            in this list are added or assigned.
             {listChannelName ? (
               <>
                 {" "}

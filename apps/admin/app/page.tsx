@@ -18,7 +18,10 @@ import type {
 // exports under GET /admin/reports/*). Recent members takes the wide slot.
 
 function timeAgo(iso: string): string {
-  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  const s = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(iso).getTime()) / 1000),
+  );
   if (s < 60) return "just now";
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ago`;
@@ -218,7 +221,13 @@ export default function DashboardPage() {
           : null,
       icon: (
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-          <path d="M16 19v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM22 19v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M16 19v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM22 19v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       ),
     },
@@ -227,11 +236,18 @@ export default function DashboardPage() {
       value: can("members", "read") ? activeSubs : null,
       tint: "rgba(247,160,30,.14)",
       color: "#b46f0a",
-      delta:
-        pastDue > 0 ? { text: `${pastDue} past due`, cls: "warn" } : null,
+      delta: pastDue > 0 ? { text: `${pastDue} past due`, cls: "warn" } : null,
       icon: (
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-          <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.7" />
+          <rect
+            x="2"
+            y="5"
+            width="20"
+            height="14"
+            rx="2"
+            stroke="currentColor"
+            strokeWidth="1.7"
+          />
           <path d="M2 10h20" stroke="currentColor" strokeWidth="1.7" />
         </svg>
       ),
@@ -243,8 +259,21 @@ export default function DashboardPage() {
       color: "#7a3bab",
       icon: (
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="1.7" />
-          <path d="M3 9h18M8 2v4M16 2v4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+          <rect
+            x="3"
+            y="4"
+            width="18"
+            height="17"
+            rx="2"
+            stroke="currentColor"
+            strokeWidth="1.7"
+          />
+          <path
+            d="M3 9h18M8 2v4M16 2v4"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+          />
         </svg>
       ),
     },
@@ -255,7 +284,13 @@ export default function DashboardPage() {
       color: "#2d7a45",
       icon: (
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15Z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15Z"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       ),
     },
@@ -292,93 +327,90 @@ export default function DashboardPage() {
 
       {/* Recent members + next live session */}
       {(showMembersCard || nextSession) && (
-      <div
-        className="dash-mid"
-        style={
-          nextSession && showMembersCard
-            ? undefined
-            : { gridTemplateColumns: "1fr" }
-        }
-      >
-        {showMembersCard && (
-          <div className="panel">
-            <div className="mini-head">
-              <h2>Recent members</h2>
-              <div className="spacer" />
-              <Link href="/members" className="mini-link">
-                View all
+        <div
+          className="dash-mid"
+          style={
+            nextSession && showMembersCard
+              ? undefined
+              : { gridTemplateColumns: "1fr" }
+          }
+        >
+          {showMembersCard && (
+            <div className="panel">
+              <div className="mini-head">
+                <h2>Recent members</h2>
+                <div className="spacer" />
+                <Link href="/members" className="mini-link">
+                  View all
+                </Link>
+              </div>
+              <div className="mini-grid mini-grid--head mini-grid--members">
+                <span>Member</span>
+                <span>Plan</span>
+                <span>Joined</span>
+                <span>Status</span>
+              </div>
+              {loading ? (
+                <p className="muted" style={{ padding: "12px 0" }}>
+                  Loading…
+                </p>
+              ) : recent.length === 0 ? (
+                <p className="muted" style={{ padding: "12px 0" }}>
+                  No members yet — they appear here as they register.
+                </p>
+              ) : (
+                recent.map((m) => {
+                  const name =
+                    [m.firstName, m.lastName].filter(Boolean).join(" ") ||
+                    m.username ||
+                    m.email;
+                  const st = memberStatus(m);
+                  return (
+                    <div className="mini-grid mini-grid--members" key={m.id}>
+                      <Link href={`/members/${m.id}`} className="mini-member">
+                        <span className="ava" aria-hidden="true">
+                          {initialsOf(name, m.email)}
+                        </span>
+                        <span className="mini-member-main">
+                          <span className="mini-member-name">{name}</span>
+                          <span className="mini-member-sub">{m.email}</span>
+                        </span>
+                      </Link>
+                      <span className="mini-cell">
+                        {m.subscription?.planName ?? "—"}
+                      </span>
+                      <span className="mini-cell--muted">
+                        {shortDate(m.registeredAt)}
+                      </span>
+                      <span>
+                        <span className={st.cls}>{st.label}</span>
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {nextSession && (
+            <div className="live-next">
+              <div className="live-next-tag">
+                <span className="live-dot" />
+                <span>{liveTag(nextSession)}</span>
+              </div>
+              <div className="live-next-title">{nextSession.title}</div>
+              <div className="live-next-meta">
+                {nextSession.audienceLabel}
+                <br />
+                {sessionWhen(nextSession)}
+              </div>
+              <div className="live-next-spacer" />
+              <Link href="/live-sessions" className="btn">
+                Manage session
               </Link>
             </div>
-            <div className="mini-grid mini-grid--head mini-grid--members">
-              <span>Member</span>
-              <span>Plan</span>
-              <span>Joined</span>
-              <span>Status</span>
-            </div>
-            {loading ? (
-              <p className="muted" style={{ padding: "12px 0" }}>
-                Loading…
-              </p>
-            ) : recent.length === 0 ? (
-              <p className="muted" style={{ padding: "12px 0" }}>
-                No members yet — they appear here as they register.
-              </p>
-            ) : (
-              recent.map((m) => {
-                const name =
-                  [m.firstName, m.lastName].filter(Boolean).join(" ") ||
-                  m.username ||
-                  m.email;
-                const st = memberStatus(m);
-                return (
-                  <div
-                    className="mini-grid mini-grid--members"
-                    key={m.id}
-                  >
-                    <Link href={`/members/${m.id}`} className="mini-member">
-                      <span className="ava" aria-hidden="true">
-                        {initialsOf(name, m.email)}
-                      </span>
-                      <span className="mini-member-main">
-                        <span className="mini-member-name">{name}</span>
-                        <span className="mini-member-sub">{m.email}</span>
-                      </span>
-                    </Link>
-                    <span className="mini-cell">
-                      {m.subscription?.planName ?? "—"}
-                    </span>
-                    <span className="mini-cell--muted">
-                      {shortDate(m.registeredAt)}
-                    </span>
-                    <span>
-                      <span className={st.cls}>{st.label}</span>
-                    </span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
-
-        {nextSession && (
-          <div className="live-next">
-            <div className="live-next-tag">
-              <span className="live-dot" />
-              <span>{liveTag(nextSession)}</span>
-            </div>
-            <div className="live-next-title">{nextSession.title}</div>
-            <div className="live-next-meta">
-              {nextSession.audienceLabel}
-              <br />
-              {sessionWhen(nextSession)}
-            </div>
-            <div className="live-next-spacer" />
-            <Link href="/live-sessions" className="btn">
-              Manage session
-            </Link>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
       )}
 
       {/* lower */}
@@ -400,7 +432,13 @@ export default function DashboardPage() {
             <div className={t.done ? "task done" : "task"} key={t.title}>
               <div className="task-check">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                  <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M20 6 9 17l-5-5"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </div>
               <div className="task-main">
@@ -422,7 +460,13 @@ export default function DashboardPage() {
             <div className="ttl">
               <div className="panel-ico">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M22 12h-4l-3 9L9 3l-3 9H2"
+                    stroke="currentColor"
+                    strokeWidth="1.9"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </div>
               <h2>Recent Activity</h2>
@@ -430,7 +474,13 @@ export default function DashboardPage() {
             <Link href="/notifications" className="panel-link">
               View all
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <path
+                  d="M5 12h14M13 6l6 6-6 6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </Link>
           </div>
@@ -444,7 +494,13 @@ export default function DashboardPage() {
               <div className="feed-item" key={n.id}>
                 <div className="feed-ico">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                    <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    <path
+                      d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
                   </svg>
                 </div>
                 <div className="feed-main">

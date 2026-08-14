@@ -41,11 +41,7 @@ const Ctx = createContext<AdminAuthValue>({
 // Loads the current admin (role + per-section permissions) once and exposes
 // `can(section, action)` + `isSuperAdmin` to gate UI. The backend is the real
 // enforcer — this only controls what's shown.
-export function AdminAuthProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [me, setMe] = useState<AuthAdmin | null>(null);
   const [loading, setLoading] = useState(true);

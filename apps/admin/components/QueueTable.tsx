@@ -36,12 +36,7 @@ import type {
 import { ApiError, api } from "@/lib/api";
 import { dialog } from "@/components/DialogProvider";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
-import {
-  AdminLite,
-  NameResolver,
-  formatTime,
-  initials,
-} from "@/lib/projects";
+import { AdminLite, NameResolver, formatTime, initials } from "@/lib/projects";
 import {
   getProjectsSocket,
   joinChannel,
@@ -108,7 +103,8 @@ function asText(v: unknown): string {
   return "";
 }
 function asStringArray(v: unknown): string[] {
-  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string");
+  if (Array.isArray(v))
+    return v.filter((x): x is string => typeof x === "string");
   if (typeof v === "string" && v) return [v];
   return [];
 }
@@ -227,7 +223,10 @@ export default function QueueTable({
               ...prev,
               items: prev.items.map((it) =>
                 it.id === itemId
-                  ? { ...it, values: replace ? values : { ...it.values, ...values } }
+                  ? {
+                      ...it,
+                      values: replace ? values : { ...it.values, ...values },
+                    }
                   : it,
               ),
             }
@@ -330,7 +329,10 @@ function ListTable({
   canDelete: boolean;
   onChanged: () => Promise<void>;
   // Optimistic single-cell write, owned by the component that holds the list.
-  onSaveValues: (itemId: string, values: Record<string, unknown>) => Promise<void>;
+  onSaveValues: (
+    itemId: string,
+    values: Record<string, unknown>,
+  ) => Promise<void>;
   onOpenItem: (id: string) => void;
   onError: (msg: string) => void;
 }) {
@@ -382,7 +384,11 @@ function ListTable({
   // renders from before the PATCH goes out, and put back if it fails (with a
   // Retry toast). The saving tint + pointer-events lock stay — they're what
   // stops a second click landing on a control that has already moved.
-  async function persistValue(item: ChatListItemDTO, fieldId: string, value: unknown) {
+  async function persistValue(
+    item: ChatListItemDTO,
+    fieldId: string,
+    value: unknown,
+  ) {
     setSavingCell(`${item.id}:${fieldId}`);
     try {
       await onSaveValues(item.id, { [fieldId]: value });
@@ -570,7 +576,11 @@ function AddRow({ onAdd }: { onAdd: (title: string) => Promise<void> }) {
         placeholder="Add item…"
         aria-label="New item title"
       />
-      <button className="btn btn--sm" type="submit" disabled={busy || !title.trim()}>
+      <button
+        className="btn btn--sm"
+        type="submit"
+        disabled={busy || !title.trim()}
+      >
         {busy ? "Adding…" : "Add"}
       </button>
     </form>
@@ -609,7 +619,9 @@ function ColumnHeader({
       await api.updateField(field.id, { name: name.trim() });
       await onChanged();
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Failed to rename column");
+      onError(
+        err instanceof ApiError ? err.message : "Failed to rename column",
+      );
     }
   }
   async function remove() {
@@ -624,11 +636,14 @@ function ColumnHeader({
       await api.deleteField(field.id);
       await onChanged();
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Failed to delete column");
+      onError(
+        err instanceof ApiError ? err.message : "Failed to delete column",
+      );
     }
   }
 
-  const typeLabel = FIELD_TYPES.find((t) => t.type === field.type)?.label ?? field.type;
+  const typeLabel =
+    FIELD_TYPES.find((t) => t.type === field.type)?.label ?? field.type;
   const canMenu = canEdit || canDelete;
 
   return (
@@ -685,7 +700,9 @@ function AddColumnButton({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [type, setType] = useState<ChatFieldType>("TEXT");
-  const [options, setOptions] = useState<{ label: string; color: string }[]>([]);
+  const [options, setOptions] = useState<{ label: string; color: string }[]>(
+    [],
+  );
   const [busy, setBusy] = useState(false);
   const wrapRef = useOutsideClose<HTMLDivElement>(() => setOpen(false));
 
@@ -796,7 +813,10 @@ function AddColumnButton({
                 onClick={() =>
                   setOptions((prev) => [
                     ...prev,
-                    { label: "", color: SWATCHES[prev.length % SWATCHES.length] },
+                    {
+                      label: "",
+                      color: SWATCHES[prev.length % SWATCHES.length],
+                    },
                   ])
                 }
               >
@@ -944,15 +964,32 @@ function Cell({
   switch (field.type) {
     case "TEXT":
     case "LONG_TEXT":
-      return <TextCell value={asText(value)} canEdit={canEdit} onSave={onSave} long={field.type === "LONG_TEXT"} />;
+      return (
+        <TextCell
+          value={asText(value)}
+          canEdit={canEdit}
+          onSave={onSave}
+          long={field.type === "LONG_TEXT"}
+        />
+      );
     case "NUMBER":
       return <NumberCell value={value} canEdit={canEdit} onSave={onSave} />;
     case "URL":
-      return <UrlCell value={asText(value)} canEdit={canEdit} onSave={onSave} />;
+      return (
+        <UrlCell value={asText(value)} canEdit={canEdit} onSave={onSave} />
+      );
     case "DATE":
-      return <DateCell value={asText(value)} canEdit={canEdit} onSave={onSave} />;
+      return (
+        <DateCell value={asText(value)} canEdit={canEdit} onSave={onSave} />
+      );
     case "CHECKBOX":
-      return <CheckboxCell value={value === true} canEdit={canEdit} onSave={onSave} />;
+      return (
+        <CheckboxCell
+          value={value === true}
+          canEdit={canEdit}
+          onSave={onSave}
+        />
+      );
     case "SECRET":
       return (
         <SecretCell
@@ -964,9 +1001,23 @@ function Cell({
         />
       );
     case "SELECT":
-      return <SelectCell field={field} value={asText(value)} canEdit={canEdit} onSave={onSave} />;
+      return (
+        <SelectCell
+          field={field}
+          value={asText(value)}
+          canEdit={canEdit}
+          onSave={onSave}
+        />
+      );
     case "MULTI_SELECT":
-      return <MultiSelectCell field={field} value={asStringArray(value)} canEdit={canEdit} onSave={onSave} />;
+      return (
+        <MultiSelectCell
+          field={field}
+          value={asStringArray(value)}
+          canEdit={canEdit}
+          onSave={onSave}
+        />
+      );
     case "PERSON":
       return (
         <PersonCell
@@ -1385,7 +1436,9 @@ function SelectCell({
       {open && (
         <div className="pj-menu pj-menu--options">
           {field.options.length === 0 && (
-            <span className="pj-menu-empty">No options. Add some on the column.</span>
+            <span className="pj-menu-empty">
+              No options. Add some on the column.
+            </span>
           )}
           {field.options.map((o) => (
             <button
@@ -1396,7 +1449,10 @@ function SelectCell({
                 setOpen(false);
               }}
             >
-              <span className="pj-swatch pj-swatch--sm" style={{ background: o.color || "var(--surface-2)" }} />
+              <span
+                className="pj-swatch pj-swatch--sm"
+                style={{ background: o.color || "var(--surface-2)" }}
+              />
               <span>{o.label}</span>
               {value === o.id && <span className="pj-opt-check">✓</span>}
             </button>
@@ -1461,7 +1517,9 @@ function MultiSelectCell({
       {open && (
         <div className="pj-menu pj-menu--options">
           {field.options.length === 0 && (
-            <span className="pj-menu-empty">No options. Add some on the column.</span>
+            <span className="pj-menu-empty">
+              No options. Add some on the column.
+            </span>
           )}
           {field.options.map((o) => (
             <button
@@ -1469,7 +1527,10 @@ function MultiSelectCell({
               className="pj-menu-item pj-menu-item--opt"
               onClick={() => toggle(o.id)}
             >
-              <span className="pj-swatch pj-swatch--sm" style={{ background: o.color || "var(--surface-2)" }} />
+              <span
+                className="pj-swatch pj-swatch--sm"
+                style={{ background: o.color || "var(--surface-2)" }}
+              />
               <span>{o.label}</span>
               {value.includes(o.id) && <span className="pj-opt-check">✓</span>}
             </button>
@@ -1528,7 +1589,9 @@ function PersonCell({
                 setOpen(false);
               }}
             >
-              <span className="pj-avatar pj-avatar--sm">{initials(a.name)}</span>
+              <span className="pj-avatar pj-avatar--sm">
+                {initials(a.name)}
+              </span>
               <span>{a.name}</span>
               {value === a.id && <span className="pj-opt-check">✓</span>}
             </button>
@@ -1606,7 +1669,9 @@ function MultiPersonCell({
             const name = resolveName(id);
             return (
               <span key={id} className="pj-multiperson-chip">
-                <span className="pj-avatar pj-avatar--sm">{initials(name)}</span>
+                <span className="pj-avatar pj-avatar--sm">
+                  {initials(name)}
+                </span>
                 <span className="pj-tbl-personname">{name}</span>
                 {canEdit && (
                   <span
@@ -1661,7 +1726,9 @@ function MultiPersonCell({
                     {initials(a.name)}
                   </span>
                   <span>{a.name}</span>
-                  {value.includes(a.id) && <span className="pj-opt-check">✓</span>}
+                  {value.includes(a.id) && (
+                    <span className="pj-opt-check">✓</span>
+                  )}
                 </button>
               ))}
             </>
@@ -1695,7 +1762,10 @@ function ItemDetailCard({
   canEdit: boolean;
   onClose: () => void;
   onChanged: () => Promise<void>;
-  onSaveValues: (itemId: string, values: Record<string, unknown>) => Promise<void>;
+  onSaveValues: (
+    itemId: string,
+    values: Record<string, unknown>,
+  ) => Promise<void>;
   onError: (msg: string) => void;
 }) {
   const fields = useMemo(
@@ -1716,7 +1786,9 @@ function ItemDetailCard({
       const rows = await api.listItemComments(item.id);
       setComments(rows);
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Failed to load comments");
+      onError(
+        err instanceof ApiError ? err.message : "Failed to load comments",
+      );
     } finally {
       setLoadingComments(false);
     }
@@ -1780,7 +1852,9 @@ function ItemDetailCard({
       await loadComments();
       await onChanged();
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Failed to delete comment");
+      onError(
+        err instanceof ApiError ? err.message : "Failed to delete comment",
+      );
     }
   }
 
@@ -1804,7 +1878,11 @@ function ItemDetailCard({
             <div className="pj-detail-row">
               <span className="pj-detail-label">Name</span>
               <div className="pj-detail-value">
-                <TitleCell item={item} canEdit={canEdit} onSave={persistTitle} />
+                <TitleCell
+                  item={item}
+                  canEdit={canEdit}
+                  onSave={persistTitle}
+                />
               </div>
             </div>
             {fields.map((f) => (

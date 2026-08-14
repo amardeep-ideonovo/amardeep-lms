@@ -36,7 +36,6 @@ export default function RichTextEditor({
     if (next !== editor.getHTML()) {
       editor.commands.setContent(next, { emitUpdate: false });
     }
-     
   }, [value, editor]);
 
   if (!editor) return null;
@@ -106,15 +105,58 @@ export default function RichTextEditor({
   return (
     <div className="editor">
       <div className="editor-toolbar">
-        <Btn label="B" active={editor.isActive("bold")} onClick={() => { selectWordIfEmpty(); editor.chain().focus().toggleBold().run(); }} />
-        <Btn label="I" active={editor.isActive("italic")} onClick={() => { selectWordIfEmpty(); editor.chain().focus().toggleItalic().run(); }} />
-        <Btn label="H2" active={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
-        <Btn label="H3" active={editor.isActive("heading", { level: 3 })} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} />
-        <Btn label="• List" active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()} />
-        <Btn label="1. List" active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
-        <Btn label="❝" active={editor.isActive("blockquote")} onClick={() => editor.chain().focus().toggleBlockquote().run()} />
+        <Btn
+          label="B"
+          active={editor.isActive("bold")}
+          onClick={() => {
+            selectWordIfEmpty();
+            editor.chain().focus().toggleBold().run();
+          }}
+        />
+        <Btn
+          label="I"
+          active={editor.isActive("italic")}
+          onClick={() => {
+            selectWordIfEmpty();
+            editor.chain().focus().toggleItalic().run();
+          }}
+        />
+        <Btn
+          label="H2"
+          active={editor.isActive("heading", { level: 2 })}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 2 }).run()
+          }
+        />
+        <Btn
+          label="H3"
+          active={editor.isActive("heading", { level: 3 })}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 3 }).run()
+          }
+        />
+        <Btn
+          label="• List"
+          active={editor.isActive("bulletList")}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+        />
+        <Btn
+          label="1. List"
+          active={editor.isActive("orderedList")}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        />
+        <Btn
+          label="❝"
+          active={editor.isActive("blockquote")}
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        />
         <Btn label="Link" active={editor.isActive("link")} onClick={setLink} />
-        <Btn label="Clear" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()} />
+        <Btn
+          label="Clear"
+          onClick={() =>
+            editor.chain().focus().unsetAllMarks().clearNodes().run()
+          }
+        />
       </div>
       <EditorContent editor={editor} />
     </div>

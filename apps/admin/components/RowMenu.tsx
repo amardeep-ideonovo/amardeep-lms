@@ -26,7 +26,8 @@ export default function RowMenu({
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -49,7 +50,13 @@ export default function RowMenu({
         aria-label={label}
         onClick={() => setOpen((v) => !v)}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          aria-hidden
+        >
           <circle cx="5" cy="12" r="2" />
           <circle cx="12" cy="12" r="2" />
           <circle cx="19" cy="12" r="2" />
@@ -63,7 +70,9 @@ export default function RowMenu({
               type="button"
               role="menuitem"
               className={
-                it.danger ? "row-menu-item row-menu-item--danger" : "row-menu-item"
+                it.danger
+                  ? "row-menu-item row-menu-item--danger"
+                  : "row-menu-item"
               }
               disabled={it.disabled}
               onClick={() => {

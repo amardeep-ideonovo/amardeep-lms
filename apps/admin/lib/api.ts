@@ -179,7 +179,7 @@ type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 async function request<T>(
   method: Method,
   path: string,
-  body?: unknown
+  body?: unknown,
 ): Promise<T> {
   const headers: Record<string, string> = {};
   const token = getToken();
@@ -252,7 +252,7 @@ async function multipartFetch(path: string, fd: FormData): Promise<Response> {
 
 async function uploadFiles(
   path: string,
-  files: File[]
+  files: File[],
 ): Promise<LessonNoteDTO[]> {
   const fd = new FormData();
   for (const f of files) fd.append("files", f);
@@ -273,7 +273,8 @@ async function downloadBlob(path: string, filename: string): Promise<void> {
   const res = await fetch(`${apiUrl()}${path}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
-  if (!res.ok) throw new ApiError(res.status, `Download failed (${res.status})`);
+  if (!res.ok)
+    throw new ApiError(res.status, `Download failed (${res.status})`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -470,7 +471,7 @@ export const api = {
       status?: MemberStatusFilter;
       page?: number; // 1-based
       pageSize?: number;
-    } = {}
+    } = {},
   ) => {
     const qs = new URLSearchParams();
     if (params.q) qs.set("q", params.q);
@@ -607,11 +608,9 @@ export const api = {
   getSupportThread: (id: string) =>
     request<SupportThreadDTO>("GET", `/admin/support/tickets/${id}`),
   replySupportTicket: (id: string, body: string) =>
-    request<SupportThreadDTO>(
-      "POST",
-      `/admin/support/tickets/${id}/messages`,
-      { body } satisfies SupportReplyInput,
-    ),
+    request<SupportThreadDTO>("POST", `/admin/support/tickets/${id}/messages`, {
+      body,
+    } satisfies SupportReplyInput),
   submitSupportCsat: (id: string, input: SupportCsatInput) =>
     request<SupportThreadDTO>(
       "POST",
@@ -741,7 +740,8 @@ export const api = {
     request<PostAdminRow>("POST", "/admin/blog/posts", input),
   updatePost: (id: string, input: UpdatePostInput) =>
     request<PostAdminRow>("PATCH", `/admin/blog/posts/${id}`, input),
-  deletePost: (id: string) => request<void>("DELETE", `/admin/blog/posts/${id}`),
+  deletePost: (id: string) =>
+    request<void>("DELETE", `/admin/blog/posts/${id}`),
   listPostCategories: () =>
     request<PostCategoryDTO[]>("GET", "/blog/categories"),
   createPostCategory: (name: string, order?: number) =>
@@ -797,7 +797,7 @@ export const api = {
   // you hold as `cursor`; a full page (rows.length === limit) means ask again.
   listFormSubmissions: (
     id: string,
-    q: { limit?: number; cursor?: string } = {}
+    q: { limit?: number; cursor?: string } = {},
   ) => {
     const qs = new URLSearchParams();
     if (q.limit != null) qs.set("limit", String(q.limit));
@@ -805,7 +805,7 @@ export const api = {
     const s = qs.toString();
     return request<FormSubmissionDTO[]>(
       "GET",
-      `/admin/forms/${id}/submissions${s ? `?${s}` : ""}`
+      `/admin/forms/${id}/submissions${s ? `?${s}` : ""}`,
     );
   },
   // Server-streamed CSV of EVERY submission — independent of what the viewer
@@ -816,10 +816,7 @@ export const api = {
   // in-house fields (GET /admin/audiences/:id/fields). EMAIL is implicit and not
   // returned by that list, so callers prepend it (see forms/page.tsx).
   listFormMergeFields: (audienceId: string) =>
-    request<AudienceFieldDTO[]>(
-      "GET",
-      `/admin/audiences/${audienceId}/fields`
-    ),
+    request<AudienceFieldDTO[]>("GET", `/admin/audiences/${audienceId}/fields`),
 
   // contacts / audiences (in-house list)
   listAudiences: () => request<AudienceDTO[]>("GET", "/admin/audiences"),
@@ -838,12 +835,12 @@ export const api = {
     request<AudienceFieldDTO>(
       "POST",
       `/admin/audiences/${audienceId}/fields`,
-      input
+      input,
     ),
   deleteAudienceField: (audienceId: string, tag: string) =>
     request<{ ok: true }>(
       "DELETE",
-      `/admin/audiences/${audienceId}/fields/${encodeURIComponent(tag)}`
+      `/admin/audiences/${audienceId}/fields/${encodeURIComponent(tag)}`,
     ),
   // contacts (paginated; filter by status / tag / search)
   listContacts: (
@@ -854,7 +851,7 @@ export const api = {
       q?: string;
       page?: number;
       pageSize?: number;
-    } = {}
+    } = {},
   ) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set("status", params.status);
@@ -865,14 +862,14 @@ export const api = {
     const tail = qs.toString();
     return request<ContactListDTO>(
       "GET",
-      `/admin/audiences/${audienceId}/contacts${tail ? `?${tail}` : ""}`
+      `/admin/audiences/${audienceId}/contacts${tail ? `?${tail}` : ""}`,
     );
   },
   createContact: (audienceId: string, input: CreateContactInput) =>
     request<ContactDTO>(
       "POST",
       `/admin/audiences/${audienceId}/contacts`,
-      input
+      input,
     ),
   updateContact: (id: string, input: UpdateContactInput) =>
     request<ContactDTO>("PATCH", `/admin/contacts/${id}`, input),
@@ -885,7 +882,7 @@ export const api = {
     request<SegmentDTO>(
       "POST",
       `/admin/audiences/${audienceId}/segments`,
-      input
+      input,
     ),
   updateSegment: (id: string, input: UpdateSegmentInput) =>
     request<SegmentDTO>("PATCH", `/admin/segments/${id}`, input),
@@ -895,10 +892,10 @@ export const api = {
   // deliverability health: is the active provider's From domain sendable?
   // resendDomainVerified === false → Resend will silently drop sends.
   getEmailHealth: () =>
-    request<{ provider: "smtp" | "resend"; resendDomainVerified: boolean | null }>(
-      "GET",
-      "/admin/email/health",
-    ),
+    request<{
+      provider: "smtp" | "resend";
+      resendDomainVerified: boolean | null;
+    }>("GET", "/admin/email/health"),
 
   // email templates (MJML + Handlebars)
   listEmailTemplates: () =>
@@ -907,7 +904,7 @@ export const api = {
   listEmailTemplateSummaries: () =>
     request<EmailTemplateSummaryDTO[]>(
       "GET",
-      "/admin/email/templates?summary=1"
+      "/admin/email/templates?summary=1",
     ),
   getEmailTemplate: (id: string) =>
     request<EmailTemplateDTO>("GET", `/admin/email/templates/${id}`),
@@ -923,7 +920,11 @@ export const api = {
     mjml: string;
     vars?: Record<string, unknown>;
   }) =>
-    request<RenderPreviewResult>("POST", "/admin/email/templates/preview", input),
+    request<RenderPreviewResult>(
+      "POST",
+      "/admin/email/templates/preview",
+      input,
+    ),
   // send a real test of a saved template (no dedupe) -> EmailLog status
   testSendEmailTemplate: (
     id: string,
@@ -936,8 +937,7 @@ export const api = {
     ),
 
   // campaigns (scheduled broadcasts)
-  listCampaigns: () =>
-    request<CampaignDTO[]>("GET", "/admin/email/campaigns"),
+  listCampaigns: () => request<CampaignDTO[]>("GET", "/admin/email/campaigns"),
   getCampaign: (id: string) =>
     request<CampaignDTO>("GET", `/admin/email/campaigns/${id}`),
   createCampaign: (input: CampaignInput) =>
@@ -963,7 +963,12 @@ export const api = {
 
   // email logs (the send ledger; paginated, filter by status + free-text search)
   listEmailLogs: (
-    params: { status?: string; q?: string; page?: number; pageSize?: number } = {}
+    params: {
+      status?: string;
+      q?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
   ) => {
     const qs = new URLSearchParams();
     if (params.status) qs.set("status", params.status);
@@ -973,7 +978,7 @@ export const api = {
     const tail = qs.toString();
     return request<EmailLogListDTO>(
       "GET",
-      `/admin/email/logs${tail ? `?${tail}` : ""}`
+      `/admin/email/logs${tail ? `?${tail}` : ""}`,
     );
   },
 
@@ -981,18 +986,30 @@ export const api = {
   listCertificateTemplates: () =>
     request<CertificateTemplateDTO[]>("GET", "/admin/certificate-templates"),
   getCertificateTemplate: (id: string) =>
-    request<CertificateTemplateDTO>("GET", `/admin/certificate-templates/${id}`),
+    request<CertificateTemplateDTO>(
+      "GET",
+      `/admin/certificate-templates/${id}`,
+    ),
   createCertificateTemplate: (input: CreateCertificateTemplateInput) =>
-    request<CertificateTemplateDTO>("POST", "/admin/certificate-templates", input),
-  updateCertificateTemplate: (id: string, input: UpdateCertificateTemplateInput) =>
+    request<CertificateTemplateDTO>(
+      "POST",
+      "/admin/certificate-templates",
+      input,
+    ),
+  updateCertificateTemplate: (
+    id: string,
+    input: UpdateCertificateTemplateInput,
+  ) =>
     request<CertificateTemplateDTO>(
       "PATCH",
       `/admin/certificate-templates/${id}`,
-      input
+      input,
     ),
   deleteCertificateTemplate: (id: string) =>
     request<{ ok: true }>("DELETE", `/admin/certificate-templates/${id}`),
-  listCertificates: (params: { q?: string; page?: number; pageSize?: number } = {}) => {
+  listCertificates: (
+    params: { q?: string; page?: number; pageSize?: number } = {},
+  ) => {
     const qs = new URLSearchParams();
     if (params.q) qs.set("q", params.q);
     if (params.page) qs.set("page", String(params.page));
@@ -1000,15 +1017,19 @@ export const api = {
     const tail = qs.toString();
     return request<AdminCertificateListDTO>(
       "GET",
-      `/admin/certificates${tail ? `?${tail}` : ""}`
+      `/admin/certificates${tail ? `?${tail}` : ""}`,
     );
   },
   deleteCertificate: (id: string) =>
     request<{ ok: true }>("DELETE", `/admin/certificates/${id}`),
-  downloadCertificate: (row: { id: string; serial: string; className: string }) =>
+  downloadCertificate: (row: {
+    id: string;
+    serial: string;
+    className: string;
+  }) =>
     downloadBlob(
       `/certificates/${row.id}/download`,
-      `Certificate ${row.serial} - ${row.className}.pdf`
+      `Certificate ${row.serial} - ${row.className}.pdf`,
     ),
 
   // projects: internal team chat + task lists (admin-only, RBAC `projects`)
@@ -1023,12 +1044,12 @@ export const api = {
     request<ChatChannelDetailDTO>(
       "PATCH",
       `/admin/projects/channels/${id}`,
-      input
+      input,
     ),
   joinChannel: (id: string) =>
     request<ChatChannelDetailDTO>(
       "POST",
-      `/admin/projects/channels/${id}/join`
+      `/admin/projects/channels/${id}/join`,
     ),
   leaveChannel: (id: string) =>
     request<{ ok: true }>("POST", `/admin/projects/channels/${id}/leave`),
@@ -1053,47 +1074,43 @@ export const api = {
     const tail = qs.toString();
     return request<ChatMessageDTO[]>(
       "GET",
-      `/admin/projects/channels/${channelId}/messages${tail ? `?${tail}` : ""}`
+      `/admin/projects/channels/${channelId}/messages${tail ? `?${tail}` : ""}`,
     );
   },
   sendMessage: (
     channelId: string,
-    input: SendMessageInput
+    input: SendMessageInput,
   ): Promise<ChatMessageDTO> =>
     request<ChatMessageDTO>(
       "POST",
       `/admin/projects/channels/${channelId}/messages`,
-      input
+      input,
     ),
   editMessage: (messageId: string, body: string) =>
     request<ChatMessageDTO>("PATCH", `/admin/projects/messages/${messageId}`, {
       body,
     }),
   deleteMessage: (messageId: string) =>
-    request<ChatMessageDTO>(
-      "DELETE",
-      `/admin/projects/messages/${messageId}`
-    ),
+    request<ChatMessageDTO>("DELETE", `/admin/projects/messages/${messageId}`),
   listReplies: (messageId: string) =>
     request<ChatMessageDTO[]>(
       "GET",
-      `/admin/projects/messages/${messageId}/replies`
+      `/admin/projects/messages/${messageId}/replies`,
     ),
   toggleReaction: (messageId: string, emoji: string) =>
     request<ChatMessageDTO>(
       "POST",
       `/admin/projects/messages/${messageId}/reactions`,
-      { emoji } satisfies ChatReactionToggleInput
+      { emoji } satisfies ChatReactionToggleInput,
     ),
   // `seq` omitted => server marks the channel read up to its current max seq.
   markRead: (channelId: string, seq?: number) =>
     request<{ ok: true }>(
       "POST",
       `/admin/projects/channels/${channelId}/read`,
-      seq !== undefined ? { seq } : {}
+      seq !== undefined ? { seq } : {},
     ),
-  getUnread: () =>
-    request<UnreadSummaryDTO>("GET", "/admin/projects/unread"),
+  getUnread: () => request<UnreadSummaryDTO>("GET", "/admin/projects/unread"),
 
   // ---- lists (task boards) ----
   listLists: (channelId?: string) =>
@@ -1101,14 +1118,14 @@ export const api = {
       "GET",
       `/admin/projects/lists${
         channelId ? `?channelId=${encodeURIComponent(channelId)}` : ""
-      }`
+      }`,
     ),
   // Single list by id (items + fields) — lets QueueTable load just its own list
   // instead of fetching every list and picking one.
   getList: (id: string) =>
     request<ChatListDTO>(
       "GET",
-      `/admin/projects/lists/${encodeURIComponent(id)}`
+      `/admin/projects/lists/${encodeURIComponent(id)}`,
     ),
   createList: (input: CreateChatListInput) =>
     request<ChatListDTO>("POST", "/admin/projects/lists", input),
@@ -1116,25 +1133,22 @@ export const api = {
     request<ChatListItemDTO>(
       "POST",
       `/admin/projects/lists/${listId}/items`,
-      input
+      input,
     ),
   updateListItem: (itemId: string, input: UpdateChatListItemInput) =>
     request<ChatListItemDTO>(
       "PATCH",
       `/admin/projects/list-items/${itemId}`,
-      input
+      input,
     ),
   deleteListItem: (itemId: string) =>
-    request<{ ok: true }>(
-      "DELETE",
-      `/admin/projects/list-items/${itemId}`
-    ),
+    request<{ ok: true }>("DELETE", `/admin/projects/list-items/${itemId}`),
   // Turn a chat message into a task in `listId`; title = the (truncated) body.
   messageToTask: (messageId: string, listId: string) =>
     request<ChatListItemDTO>(
       "POST",
       `/admin/projects/messages/${messageId}/to-task`,
-      { listId }
+      { listId },
     ),
 
   // ---- lists: custom fields (Slack-Lists columns) ----
@@ -1142,24 +1156,21 @@ export const api = {
     request<ChatListFieldDTO>(
       "POST",
       `/admin/projects/lists/${listId}/fields`,
-      input
+      input,
     ),
   updateField: (fieldId: string, input: UpdateListFieldInput) =>
     request<ChatListFieldDTO>(
       "PATCH",
       `/admin/projects/list-fields/${fieldId}`,
-      input
+      input,
     ),
   deleteField: (fieldId: string) =>
-    request<{ ok: true }>(
-      "DELETE",
-      `/admin/projects/list-fields/${fieldId}`
-    ),
+    request<{ ok: true }>("DELETE", `/admin/projects/list-fields/${fieldId}`),
   reorderFields: (listId: string, orderedFieldIds: string[]) =>
     request<ChatListFieldDTO[]>(
       "POST",
       `/admin/projects/lists/${listId}/fields/reorder`,
-      { orderedFieldIds } satisfies ReorderListFieldsInput
+      { orderedFieldIds } satisfies ReorderListFieldsInput,
     ),
 
   // ---- lists: item custom-field values (validated against each field's type) ----
@@ -1167,7 +1178,7 @@ export const api = {
     request<ChatListItemDTO>(
       "PATCH",
       `/admin/projects/list-items/${itemId}/values`,
-      { values } satisfies UpdateListItemValuesInput
+      { values } satisfies UpdateListItemValuesInput,
     ),
   // Fetch ONE SECRET field's plaintext (masked out of the item payload). Gated
   // at projects:edit and audited server-side; call only on an explicit reveal.
@@ -1175,32 +1186,32 @@ export const api = {
     request<{ value: string | null }>(
       "GET",
       `/admin/projects/list-items/${itemId}/reveal?fieldId=${encodeURIComponent(
-        fieldId
-      )}`
+        fieldId,
+      )}`,
     ),
 
   // ---- lists: per-item comment thread (the 💬) ----
   listItemComments: (itemId: string) =>
     request<ChatListItemCommentDTO[]>(
       "GET",
-      `/admin/projects/list-items/${itemId}/comments`
+      `/admin/projects/list-items/${itemId}/comments`,
     ),
   createItemComment: (itemId: string, body: string) =>
     request<ChatListItemCommentDTO>(
       "POST",
       `/admin/projects/list-items/${itemId}/comments`,
-      { body } satisfies CreateListItemCommentInput
+      { body } satisfies CreateListItemCommentInput,
     ),
   editItemComment: (commentId: string, body: string) =>
     request<ChatListItemCommentDTO>(
       "PATCH",
       `/admin/projects/list-item-comments/${commentId}`,
-      { body } satisfies UpdateListItemCommentInput
+      { body } satisfies UpdateListItemCommentInput,
     ),
   deleteItemComment: (commentId: string) =>
     request<{ ok: true }>(
       "DELETE",
-      `/admin/projects/list-item-comments/${commentId}`
+      `/admin/projects/list-item-comments/${commentId}`,
     ),
 
   // ---- workflows (auto-post a list event into a channel — the Image-1 flow) ----
@@ -1209,16 +1220,12 @@ export const api = {
       "GET",
       `/admin/projects/workflows${
         listId ? `?listId=${encodeURIComponent(listId)}` : ""
-      }`
+      }`,
     ),
   createWorkflow: (input: CreateWorkflowInput) =>
     request<ChatWorkflowDTO>("POST", "/admin/projects/workflows", input),
   updateWorkflow: (id: string, input: UpdateWorkflowInput) =>
-    request<ChatWorkflowDTO>(
-      "PATCH",
-      `/admin/projects/workflows/${id}`,
-      input
-    ),
+    request<ChatWorkflowDTO>("PATCH", `/admin/projects/workflows/${id}`, input),
   deleteWorkflow: (id: string) =>
     request<{ ok: true }>("DELETE", `/admin/projects/workflows/${id}`),
 
@@ -1228,19 +1235,19 @@ export const api = {
   listCanvases: (channelId: string) =>
     request<ChatCanvasDTO[]>(
       "GET",
-      `/admin/projects/channels/${channelId}/canvases`
+      `/admin/projects/channels/${channelId}/canvases`,
     ),
   createCanvas: (channelId: string, input: CreateCanvasInput) =>
     request<ChatCanvasDTO>(
       "POST",
       `/admin/projects/channels/${channelId}/canvases`,
-      input
+      input,
     ),
   updateCanvas: (canvasId: string, input: UpdateCanvasInput) =>
     request<ChatCanvasDTO>(
       "PATCH",
       `/admin/projects/canvases/${canvasId}`,
-      input
+      input,
     ),
   deleteCanvas: (canvasId: string) =>
     request<{ ok: true }>("DELETE", `/admin/projects/canvases/${canvasId}`),

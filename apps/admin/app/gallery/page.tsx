@@ -53,28 +53,25 @@ export default function MediaPage() {
   const [selected, setSelected] = useState<MediaDTO | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const load = useCallback(
-    async (p: number, query: string, k: string) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await api.listMedia({
-          q: query,
-          kind: k,
-          page: p,
-          pageSize: PAGE_SIZE,
-        });
-        setItems(res.items);
-        setTotal(res.total);
-        setPage(res.page);
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : "Failed to load media");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
+  const load = useCallback(async (p: number, query: string, k: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.listMedia({
+        q: query,
+        kind: k,
+        page: p,
+        pageSize: PAGE_SIZE,
+      });
+      setItems(res.items);
+      setTotal(res.total);
+      setPage(res.page);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to load media");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Initial load + reload on filter/page change. Search is debounced.
   useEffect(() => {
@@ -475,7 +472,9 @@ function NewMediaModal({
                 <button
                   className="btn"
                   disabled={busy}
-                  onClick={() => onSave({ title, altText, caption, description })}
+                  onClick={() =>
+                    onSave({ title, altText, caption, description })
+                  }
                 >
                   {busy ? "Saving…" : "Save to gallery"}
                 </button>
@@ -533,10 +532,13 @@ function MediaDetails({
   // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
 
   function copyUrl() {
-    navigator.clipboard?.writeText(asset.url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    }).catch(() => {});
+    navigator.clipboard
+      ?.writeText(asset.url)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => {});
   }
 
   async function save() {
@@ -672,7 +674,11 @@ function MediaDetails({
 
               <div className="field">
                 <label>File URL</label>
-                <input value={asset.url} readOnly onFocus={(e) => e.target.select()} />
+                <input
+                  value={asset.url}
+                  readOnly
+                  onFocus={(e) => e.target.select()}
+                />
                 <div className="row-actions" style={{ marginTop: 6 }}>
                   <button
                     type="button"
@@ -720,7 +726,6 @@ function MediaDetails({
 
 function MediaPreview({ asset }: { asset: MediaDTO }) {
   if (asset.kind === "image")
-     
     return (
       <img
         src={asset.url}

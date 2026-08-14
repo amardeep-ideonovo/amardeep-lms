@@ -77,7 +77,10 @@ type RunFn = <S, R>(
   action: OptimisticAction<S, R>,
 ) => Promise<OptimisticOutcome<R>>;
 
-export function optimisticErrorMessage(error: unknown, fallback: string): string {
+export function optimisticErrorMessage(
+  error: unknown,
+  fallback: string,
+): string {
   return error instanceof ApiError && error.message ? error.message : fallback;
 }
 
@@ -102,7 +105,9 @@ export function useOptimisticAction() {
   }, []);
 
   const execute = useCallback(
-    async <S, R>(action: OptimisticAction<S, R>): Promise<OptimisticOutcome<R>> => {
+    async <S, R>(
+      action: OptimisticAction<S, R>,
+    ): Promise<OptimisticOutcome<R>> => {
       running.current.add(action.key);
       const snapshot = action.snapshot();
       action.apply();
@@ -118,7 +123,10 @@ export function useOptimisticAction() {
             action:
               action.retry === false
                 ? undefined
-                : { label: "Retry", onAction: () => void runRef.current?.(action) },
+                : {
+                    label: "Retry",
+                    onAction: () => void runRef.current?.(action),
+                  },
           });
         }
         return { status: "failed", error };

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type {
   AutomationDTO,
   AutomationTrigger,
@@ -323,7 +317,9 @@ export default function AutomationsPage() {
                             {busy ? "…" : a.active ? "Active" : "Paused"}
                           </button>
                         </td>
-                        <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                        <td
+                          style={{ textAlign: "right", whiteSpace: "nowrap" }}
+                        >
                           {canDelete && (
                             <button
                               className="btn btn--danger btn--sm"

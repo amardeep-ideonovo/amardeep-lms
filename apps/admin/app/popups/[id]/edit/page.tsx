@@ -132,7 +132,9 @@ function FormPreview({ formId }: { formId: string }) {
         textAlign: "center",
       }}
     >
-      {formId ? `Embedded form: ${formId}` : "Form block — set a Form ID in the panel"}
+      {formId
+        ? `Embedded form: ${formId}`
+        : "Form block — set a Form ID in the panel"}
     </div>
   );
 }
@@ -217,7 +219,11 @@ export default function PopupEditor() {
         value?: string;
         onChange: (v: string) => void;
       }) => (
-        <PuckColorField label={field?.label} value={value} onChange={onChange} />
+        <PuckColorField
+          label={field?.label}
+          value={value}
+          onChange={onChange}
+        />
       ),
     } as Field;
     return createPuckConfig({
@@ -280,7 +286,7 @@ export default function PopupEditor() {
       } catch (err) {
         if (alive)
           setLoadError(
-            err instanceof ApiError ? err.message : "Failed to load popup"
+            err instanceof ApiError ? err.message : "Failed to load popup",
           );
       } finally {
         if (alive) setLoaded(true);
@@ -302,32 +308,39 @@ export default function PopupEditor() {
     latest.current = data;
     if (docTimer.current) clearTimeout(docTimer.current);
     setSaveState("saving");
-    docTimer.current = setTimeout(() => void (async () => {
-      try {
-        await api.updatePopup(id, {
-          data: (latest.current ?? undefined) as unknown as
-            | PuckDocument
-            | undefined,
-        });
-        setSaveState("saved");
-      } catch {
-        setSaveState("error");
-      }
-    })(), 1000);
+    docTimer.current = setTimeout(
+      () =>
+        void (async () => {
+          try {
+            await api.updatePopup(id, {
+              data: (latest.current ?? undefined) as unknown as
+                PuckDocument | undefined,
+            });
+            setSaveState("saved");
+          } catch {
+            setSaveState("error");
+          }
+        })(),
+      1000,
+    );
   }
 
   // Debounced autosave of the popup settings (style + visibility).
   function scheduleSettingsSave(next: Settings) {
     if (settingsTimer.current) clearTimeout(settingsTimer.current);
     setSaveState("saving");
-    settingsTimer.current = setTimeout(() => void (async () => {
-      try {
-        await api.updatePopup(id, { ...next });
-        setSaveState("saved");
-      } catch {
-        setSaveState("error");
-      }
-    })(), 600);
+    settingsTimer.current = setTimeout(
+      () =>
+        void (async () => {
+          try {
+            await api.updatePopup(id, { ...next });
+            setSaveState("saved");
+          } catch {
+            setSaveState("error");
+          }
+        })(),
+      600,
+    );
   }
 
   function updateSettings(patch: Partial<Settings>) {
@@ -428,10 +441,10 @@ export default function PopupEditor() {
     saveState === "saving"
       ? "Saving…"
       : saveState === "saved"
-      ? "Saved ✓"
-      : saveState === "error"
-      ? "Save failed"
-      : "";
+        ? "Saved ✓"
+        : saveState === "error"
+          ? "Save failed"
+          : "";
 
   const needsPageList =
     settings.pageMode === "INCLUDE" || settings.pageMode === "EXCLUDE";
@@ -478,7 +491,9 @@ export default function PopupEditor() {
         />
         <span
           className={
-            status === "ACTIVE" ? "badge badge--published" : "badge badge--draft"
+            status === "ACTIVE"
+              ? "badge badge--published"
+              : "badge badge--draft"
           }
         >
           {status === "ACTIVE" ? "Active" : "Inactive"}
@@ -496,8 +511,12 @@ export default function PopupEditor() {
           ⚙ Settings
         </button>
         <button
-          className={status === "ACTIVE" ? "btn btn--ghost btn--sm" : "btn btn--sm"}
-          onClick={() => saveStatus(status === "ACTIVE" ? "INACTIVE" : "ACTIVE")}
+          className={
+            status === "ACTIVE" ? "btn btn--ghost btn--sm" : "btn btn--sm"
+          }
+          onClick={() =>
+            saveStatus(status === "ACTIVE" ? "INACTIVE" : "ACTIVE")
+          }
         >
           {status === "ACTIVE" ? "Deactivate" : "Activate"}
         </button>
@@ -648,7 +667,9 @@ export default function PopupEditor() {
                 <select
                   value={settings.position}
                   onChange={(e) =>
-                    updateSettings({ position: e.target.value as PopupPosition })
+                    updateSettings({
+                      position: e.target.value as PopupPosition,
+                    })
                   }
                   style={inputStyle}
                 >
@@ -714,7 +735,7 @@ export default function PopupEditor() {
                       updateSettings({
                         borderRadius: Math.max(
                           0,
-                          Math.min(200, Number(e.target.value) || 0)
+                          Math.min(200, Number(e.target.value) || 0),
                         ),
                       })
                     }
@@ -732,7 +753,7 @@ export default function PopupEditor() {
                       updateSettings({
                         padding: Math.max(
                           0,
-                          Math.min(200, Number(e.target.value) || 0)
+                          Math.min(200, Number(e.target.value) || 0),
                         ),
                       })
                     }
@@ -773,7 +794,7 @@ export default function PopupEditor() {
                       updateSettings({
                         triggerValue: Math.max(
                           0,
-                          Math.min(600, Number(e.target.value) || 0)
+                          Math.min(600, Number(e.target.value) || 0),
                         ),
                       })
                     }
@@ -794,7 +815,7 @@ export default function PopupEditor() {
                       updateSettings({
                         triggerValue: Math.max(
                           1,
-                          Math.min(100, Number(e.target.value) || 0)
+                          Math.min(100, Number(e.target.value) || 0),
                         ),
                       })
                     }
@@ -834,7 +855,7 @@ export default function PopupEditor() {
                       updateSettings({
                         frequencyDays: Math.max(
                           1,
-                          Math.min(365, Number(e.target.value) || 1)
+                          Math.min(365, Number(e.target.value) || 1),
                         ),
                       })
                     }
@@ -965,8 +986,7 @@ export default function PopupEditor() {
                           onChange={() => togglePageId(pg.id)}
                         />
                         <span style={{ fontSize: 13 }}>
-                          {pg.title}{" "}
-                          <span className="muted">/{pg.slug}</span>
+                          {pg.title} <span className="muted">/{pg.slug}</span>
                         </span>
                       </label>
                     ))

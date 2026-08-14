@@ -20,7 +20,12 @@ export type LessonMediaState = {
 };
 
 export function emptyLessonMedia(): LessonMediaState {
-  return { mediaType: "video", videoSource: "vimeo", videoUrl: "", audioUrl: "" };
+  return {
+    mediaType: "video",
+    videoSource: "vimeo",
+    videoUrl: "",
+    audioUrl: "",
+  };
 }
 
 // Seed the form from a saved lesson: audio wins if present, otherwise the video
@@ -127,7 +132,10 @@ export default function LessonMediaFields({
                 // reject (e.g. a Vimeo link left over when switching to
                 // YouTube), so the field starts clean instead of flashing red.
                 const keep = !validateVideoUrl(next, state.videoUrl);
-                set({ videoSource: next, videoUrl: keep ? state.videoUrl : "" });
+                set({
+                  videoSource: next,
+                  videoUrl: keep ? state.videoUrl : "",
+                });
               }}
             >
               <option value="vimeo">Vimeo</option>
@@ -149,8 +157,8 @@ export default function LessonMediaFields({
               state.videoSource === "youtube"
                 ? "https://www.youtube.com/watch?v=…"
                 : state.videoSource === "file"
-                ? "Direct video URL"
-                : "https://vimeo.com/123456789"
+                  ? "Direct video URL"
+                  : "https://vimeo.com/123456789"
             }
           />
           {state.videoSource === "file" ? (

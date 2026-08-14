@@ -120,9 +120,14 @@ export default function NotificationBell() {
   // The touched slice for both marks is the same pair: which rows show as read,
   // and the badge count. Snapshots read it through the setters so they capture
   // the state at run time, not at render time.
-  const snapshotRead = () =>
-    ({ items: itemsRef.current, unread: unreadRef.current });
-  const restoreRead = (snap: { items: AdminNotificationDTO[]; unread: number }) => {
+  const snapshotRead = () => ({
+    items: itemsRef.current,
+    unread: unreadRef.current,
+  });
+  const restoreRead = (snap: {
+    items: AdminNotificationDTO[];
+    unread: number;
+  }) => {
     setItems(snap.items);
     setUnread(snap.unread);
   };
@@ -235,7 +240,9 @@ export default function NotificationBell() {
                   <div className="notif-item__main">
                     <div className="notif-item__title">{n.title}</div>
                     <div className="notif-item__body">{n.body}</div>
-                    <div className="notif-item__time">{timeAgo(n.createdAt)}</div>
+                    <div className="notif-item__time">
+                      {timeAgo(n.createdAt)}
+                    </div>
                   </div>
                 </div>
               ))

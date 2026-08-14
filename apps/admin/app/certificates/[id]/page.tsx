@@ -46,10 +46,55 @@ const SAMPLE: Record<CertificateFieldKind, string> = {
 // Starter layout for new templates — centered name/class, date + serial in
 // the bottom corners (all adjustable, of course).
 const DEFAULT_FIELDS: CertificateFieldLayout[] = [
-  { kind: "memberName", enabled: true, xPct: 10, yPct: 42, widthPct: 80, align: "center", fontFamily: "greatvibes", fontSizePct: 7, color: "#101828", uppercase: false },
-  { kind: "className", enabled: true, xPct: 10, yPct: 58, widthPct: 80, align: "center", fontFamily: "playfair", fontSizePct: 3.6, color: "#101828", uppercase: false },
-  { kind: "issueDate", enabled: true, xPct: 8, yPct: 88, widthPct: 30, align: "left", fontFamily: "inter", fontSizePct: 1.6, color: "#52525b", uppercase: false },
-  { kind: "serial", enabled: true, xPct: 62, yPct: 88, widthPct: 30, align: "right", fontFamily: "inter", fontSizePct: 1.3, color: "#52525b", uppercase: false, letterSpacing: 0.06 },
+  {
+    kind: "memberName",
+    enabled: true,
+    xPct: 10,
+    yPct: 42,
+    widthPct: 80,
+    align: "center",
+    fontFamily: "greatvibes",
+    fontSizePct: 7,
+    color: "#101828",
+    uppercase: false,
+  },
+  {
+    kind: "className",
+    enabled: true,
+    xPct: 10,
+    yPct: 58,
+    widthPct: 80,
+    align: "center",
+    fontFamily: "playfair",
+    fontSizePct: 3.6,
+    color: "#101828",
+    uppercase: false,
+  },
+  {
+    kind: "issueDate",
+    enabled: true,
+    xPct: 8,
+    yPct: 88,
+    widthPct: 30,
+    align: "left",
+    fontFamily: "inter",
+    fontSizePct: 1.6,
+    color: "#52525b",
+    uppercase: false,
+  },
+  {
+    kind: "serial",
+    enabled: true,
+    xPct: 62,
+    yPct: 88,
+    widthPct: 30,
+    align: "right",
+    fontFamily: "inter",
+    fontSizePct: 1.3,
+    color: "#52525b",
+    uppercase: false,
+    letterSpacing: 0.06,
+  },
 ];
 
 type DragState = {
@@ -69,12 +114,15 @@ export default function CertificateTemplateEditorPage() {
   const router = useRouter();
   const { can, loading: authLoading } = useAdminAuth();
   const isNew = params.id === "new";
-  const canEdit = isNew ? can("certificates", "create") : can("certificates", "edit");
+  const canEdit = isNew
+    ? can("certificates", "create")
+    : can("certificates", "edit");
 
   const [name, setName] = useState("");
   const [artworkUrl, setArtworkUrl] = useState("");
   const [isDefault, setIsDefault] = useState(false);
-  const [fields, setFields] = useState<CertificateFieldLayout[]>(DEFAULT_FIELDS);
+  const [fields, setFields] =
+    useState<CertificateFieldLayout[]>(DEFAULT_FIELDS);
   const [selected, setSelected] = useState<CertificateFieldKind>("memberName");
   const [loaded, setLoaded] = useState(isNew);
   const [saving, setSaving] = useState(false);
@@ -95,18 +143,27 @@ export default function CertificateTemplateEditorPage() {
         // Merge stored fields over the defaults so older rows still expose
         // every editable field row.
         setFields(
-          DEFAULT_FIELDS.map((d) => t.fields.find((f) => f.kind === d.kind) ?? { ...d, enabled: d.kind === "memberName" || d.kind === "className" }),
+          DEFAULT_FIELDS.map(
+            (d) =>
+              t.fields.find((f) => f.kind === d.kind) ?? {
+                ...d,
+                enabled: d.kind === "memberName" || d.kind === "className",
+              },
+          ),
         );
         setLoaded(true);
       })
-      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load"));
+      .catch((e) =>
+        setError(e instanceof ApiError ? e.message : "Failed to load"),
+      );
   }, [isNew, params.id]);
 
   // @font-face for the exact TTFs the PDF embeds (served by the API).
   const fontCss = useMemo(
     () =>
       CERTIFICATE_FONTS.map(
-        (f) => `@font-face { font-family: "cert-${f.id}"; src: url("${API_BASE_URL}/cert-fonts/${f.file}") format("truetype"); font-display: block; }`,
+        (f) =>
+          `@font-face { font-family: "cert-${f.id}"; src: url("${API_BASE_URL}/cert-fonts/${f.file}") format("truetype"); font-display: block; }`,
       ).join("\n"),
     [],
   );
@@ -115,7 +172,9 @@ export default function CertificateTemplateEditorPage() {
 
   const patchField = useCallback(
     (kind: CertificateFieldKind, patch: Partial<CertificateFieldLayout>) => {
-      setFields((prev) => prev.map((f) => (f.kind === kind ? { ...f, ...patch } : f)));
+      setFields((prev) =>
+        prev.map((f) => (f.kind === kind ? { ...f, ...patch } : f)),
+      );
       setSavedAt(null);
     },
     [],
@@ -123,7 +182,11 @@ export default function CertificateTemplateEditorPage() {
 
   // ----- drag (pointer events; % deltas against the preview box) -----
 
-  const onPointerDown = (e: React.PointerEvent, kind: CertificateFieldKind, mode: "move" | "width") => {
+  const onPointerDown = (
+    e: React.PointerEvent,
+    kind: CertificateFieldKind,
+    mode: "move" | "width",
+  ) => {
     if (!canEdit) return;
     const rect = previewRef.current?.getBoundingClientRect();
     const f = fields.find((x) => x.kind === kind);
@@ -213,7 +276,11 @@ export default function CertificateTemplateEditorPage() {
           ...(isDefault ? { isDefault: true } : {}),
         });
         setIsDefault(updated.isDefault);
-        setFields(DEFAULT_FIELDS.map((d) => updated.fields.find((f) => f.kind === d.kind) ?? d));
+        setFields(
+          DEFAULT_FIELDS.map(
+            (d) => updated.fields.find((f) => f.kind === d.kind) ?? d,
+          ),
+        );
       }
       setSavedAt(Date.now());
     } catch (e) {
@@ -226,7 +293,8 @@ export default function CertificateTemplateEditorPage() {
   const remove = async () => {
     const ok = await dialog.confirm({
       title: "Delete template?",
-      message: "Issued certificates keep their PDFs and stay valid — only this design is removed.",
+      message:
+        "Issued certificates keep their PDFs and stay valid — only this design is removed.",
       confirmLabel: "Delete",
       danger: true,
     });
@@ -261,7 +329,11 @@ export default function CertificateTemplateEditorPage() {
       <style dangerouslySetInnerHTML={{ __html: fontCss }} />
       <div className="page-header with-action">
         <div>
-          <h1>{isNew ? "New certificate template" : name || "Certificate template"}</h1>
+          <h1>
+            {isNew
+              ? "New certificate template"
+              : name || "Certificate template"}
+          </h1>
           <p className="subtitle">
             Drag the fields into place on the artwork — the member’s PDF uses
             the exact same positions and fonts.
@@ -286,7 +358,14 @@ export default function CertificateTemplateEditorPage() {
       </div>
       {error && <p className="error">{error}</p>}
 
-      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 22, alignItems: "start" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "320px 1fr",
+          gap: 22,
+          alignItems: "start",
+        }}
+      >
         {/* ----- left: controls ----- */}
         <div className="card" style={{ display: "grid", gap: 14 }}>
           <div className="field">
@@ -337,11 +416,19 @@ export default function CertificateTemplateEditorPage() {
             />
             <span>
               Default template{" "}
-              <span className="muted">(used by every class without its own pick)</span>
+              <span className="muted">
+                (used by every class without its own pick)
+              </span>
             </span>
           </label>
 
-          <hr style={{ border: 0, borderTop: "1px solid var(--border)", margin: 0 }} />
+          <hr
+            style={{
+              border: 0,
+              borderTop: "1px solid var(--border)",
+              margin: 0,
+            }}
+          />
 
           {/* field list */}
           <div style={{ display: "grid", gap: 6 }}>
@@ -359,14 +446,18 @@ export default function CertificateTemplateEditorPage() {
                   border: `1px solid ${selected === f.kind ? "var(--primary, #34c9a2)" : "var(--border)"}`,
                 }}
               >
-                <strong style={{ flex: 1, fontSize: 13.5 }}>{FIELD_LABELS[f.kind]}</strong>
+                <strong style={{ flex: 1, fontSize: 13.5 }}>
+                  {FIELD_LABELS[f.kind]}
+                </strong>
                 {(f.kind === "issueDate" || f.kind === "serial") && (
                   <input
                     type="checkbox"
                     title="Show on the certificate"
                     checked={f.enabled}
                     onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => patchField(f.kind, { enabled: e.target.checked })}
+                    onChange={(e) =>
+                      patchField(f.kind, { enabled: e.target.checked })
+                    }
                     disabled={!canEdit}
                   />
                 )}
@@ -377,12 +468,18 @@ export default function CertificateTemplateEditorPage() {
           {/* selected field controls */}
           {sel && (
             <div style={{ display: "grid", gap: 10 }}>
-              <strong style={{ fontSize: 13 }}>{FIELD_LABELS[sel.kind]} style</strong>
+              <strong style={{ fontSize: 13 }}>
+                {FIELD_LABELS[sel.kind]} style
+              </strong>
               <div className="field">
                 <label>Font</label>
                 <select
                   value={sel.fontFamily}
-                  onChange={(e) => patchField(sel.kind, { fontFamily: e.target.value as CertificateFontId })}
+                  onChange={(e) =>
+                    patchField(sel.kind, {
+                      fontFamily: e.target.value as CertificateFontId,
+                    })
+                  }
                   disabled={!canEdit}
                 >
                   {CERTIFICATE_FONTS.map((f) => (
@@ -394,7 +491,10 @@ export default function CertificateTemplateEditorPage() {
               </div>
               <div className="field">
                 <label>
-                  Size <span className="muted">({sel.fontSizePct.toFixed(1)}% of width)</span>
+                  Size{" "}
+                  <span className="muted">
+                    ({sel.fontSizePct.toFixed(1)}% of width)
+                  </span>
                 </label>
                 <input
                   type="range"
@@ -402,13 +502,20 @@ export default function CertificateTemplateEditorPage() {
                   max={15}
                   step={0.1}
                   value={sel.fontSizePct}
-                  onChange={(e) => patchField(sel.kind, { fontSizePct: Number(e.target.value) })}
+                  onChange={(e) =>
+                    patchField(sel.kind, {
+                      fontSizePct: Number(e.target.value),
+                    })
+                  }
                   disabled={!canEdit}
                 />
               </div>
               <div className="field">
                 <label>
-                  Box width <span className="muted">({Math.round(sel.widthPct)}% — long text shrinks to fit)</span>
+                  Box width{" "}
+                  <span className="muted">
+                    ({Math.round(sel.widthPct)}% — long text shrinks to fit)
+                  </span>
                 </label>
                 <input
                   type="range"
@@ -416,7 +523,9 @@ export default function CertificateTemplateEditorPage() {
                   max={100}
                   step={1}
                   value={sel.widthPct}
-                  onChange={(e) => patchField(sel.kind, { widthPct: Number(e.target.value) })}
+                  onChange={(e) =>
+                    patchField(sel.kind, { widthPct: Number(e.target.value) })
+                  }
                   disabled={!canEdit}
                 />
               </div>
@@ -426,7 +535,11 @@ export default function CertificateTemplateEditorPage() {
                   {(["left", "center", "right"] as const).map((a) => (
                     <button
                       key={a}
-                      className={sel.align === a ? "btn btn--sm" : "btn btn--ghost btn--sm"}
+                      className={
+                        sel.align === a
+                          ? "btn btn--sm"
+                          : "btn btn--ghost btn--sm"
+                      }
                       onClick={() => patchField(sel.kind, { align: a })}
                       disabled={!canEdit}
                       type="button"
@@ -446,14 +559,19 @@ export default function CertificateTemplateEditorPage() {
                 <input
                   type="checkbox"
                   checked={sel.uppercase}
-                  onChange={(e) => patchField(sel.kind, { uppercase: e.target.checked })}
+                  onChange={(e) =>
+                    patchField(sel.kind, { uppercase: e.target.checked })
+                  }
                   disabled={!canEdit}
                 />
                 <span>Uppercase</span>
               </label>
               <div className="field">
                 <label>
-                  Letter spacing <span className="muted">({(sel.letterSpacing ?? 0).toFixed(2)}em)</span>
+                  Letter spacing{" "}
+                  <span className="muted">
+                    ({(sel.letterSpacing ?? 0).toFixed(2)}em)
+                  </span>
                 </label>
                 <input
                   type="range"
@@ -470,7 +588,8 @@ export default function CertificateTemplateEditorPage() {
                 />
               </div>
               <p className="muted" style={{ fontSize: 12, margin: 0 }}>
-                Tip: click a box and nudge with arrow keys (Shift = bigger steps).
+                Tip: click a box and nudge with arrow keys (Shift = bigger
+                steps).
               </p>
             </div>
           )}
@@ -481,13 +600,20 @@ export default function CertificateTemplateEditorPage() {
           {!artworkUrl ? (
             <div
               className="card"
-              style={{ display: "grid", placeItems: "center", minHeight: 360, textAlign: "center" }}
+              style={{
+                display: "grid",
+                placeItems: "center",
+                minHeight: 360,
+                textAlign: "center",
+              }}
             >
               <div>
-                <p style={{ fontWeight: 600, marginBottom: 6 }}>No artwork yet</p>
+                <p style={{ fontWeight: 600, marginBottom: 6 }}>
+                  No artwork yet
+                </p>
                 <p className="muted" style={{ margin: 0 }}>
-                  Upload a PNG/JPG on the left — then drag the name, class,
-                  date and serial into place here.
+                  Upload a PNG/JPG on the left — then drag the name, class, date
+                  and serial into place here.
                 </p>
               </div>
             </div>
@@ -534,7 +660,9 @@ export default function CertificateTemplateEditorPage() {
                       fontFamily: `"cert-${f.fontFamily}", serif`,
                       fontSize: `${f.fontSizePct}cqw`,
                       color: f.color,
-                      letterSpacing: f.letterSpacing ? `${f.letterSpacing}em` : undefined,
+                      letterSpacing: f.letterSpacing
+                        ? `${f.letterSpacing}em`
+                        : undefined,
                       textTransform: f.uppercase ? "uppercase" : undefined,
                       outline:
                         selected === f.kind

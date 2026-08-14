@@ -337,7 +337,9 @@ function HeaderEditor({
     let alive = true;
     api
       .getMenu(id)
-      .then((m: MenuDTO) => alive && setPreviewLabels(m.items.map((i) => i.label)))
+      .then(
+        (m: MenuDTO) => alive && setPreviewLabels(m.items.map((i) => i.label)),
+      )
       .catch(() => alive && setPreviewLabels([]));
     return () => {
       alive = false;
@@ -624,10 +626,13 @@ function HeaderEditor({
         <div className="hb-preview" style={{ background: config.bgColor }}>
           <div
             className={
-              config.layout === "THREE_COL" ? "hb-bar hb-bar--3" : "hb-bar hb-bar--2"
+              config.layout === "THREE_COL"
+                ? "hb-bar hb-bar--3"
+                : "hb-bar hb-bar--2"
             }
             style={{
-              maxWidth: config.width === "FULL" ? "100%" : config.maxWidth ?? 1080,
+              maxWidth:
+                config.width === "FULL" ? "100%" : (config.maxWidth ?? 1080),
               padding: `${config.paddingY}px ${config.paddingX}px`,
             }}
           >
@@ -647,7 +652,7 @@ function HeaderEditor({
                   style={{
                     color:
                       i === 0
-                        ? config.menuActiveColor ?? config.linkColor
+                        ? (config.menuActiveColor ?? config.linkColor)
                         : config.linkColor,
                     background:
                       i === 0 && config.menuActiveColor
@@ -774,7 +779,8 @@ function HeaderEditor({
         <h2>Logo &amp; menu</h2>
         <div className="field">
           <label>
-            Logo image <span className="muted">(blank = “{previewBrand}” text)</span>
+            Logo image{" "}
+            <span className="muted">(blank = “{previewBrand}” text)</span>
           </label>
           <MediaPicker
             value={config.logoUrl ?? ""}
@@ -839,7 +845,9 @@ function HeaderEditor({
                       <input
                         value={c.label}
                         disabled={ro}
-                        onChange={(e) => updCta(c.id, { label: e.target.value })}
+                        onChange={(e) =>
+                          updCta(c.id, { label: e.target.value })
+                        }
                       />
                     </div>
                     <ColorField
@@ -874,7 +882,9 @@ function HeaderEditor({
                         value={c.paddingY}
                         disabled={ro}
                         onChange={(e) =>
-                          updCta(c.id, { paddingY: clamp(e.target.value, 0, 40) })
+                          updCta(c.id, {
+                            paddingY: clamp(e.target.value, 0, 40),
+                          })
                         }
                       />
                     </div>
@@ -887,7 +897,9 @@ function HeaderEditor({
                         value={c.paddingX}
                         disabled={ro}
                         onChange={(e) =>
-                          updCta(c.id, { paddingX: clamp(e.target.value, 0, 60) })
+                          updCta(c.id, {
+                            paddingX: clamp(e.target.value, 0, 60),
+                          })
                         }
                       />
                     </div>
@@ -922,7 +934,10 @@ function HeaderEditor({
                       </label>
                     </div>
                     {canEdit && (
-                      <div className="field" style={{ justifyContent: "flex-end" }}>
+                      <div
+                        className="field"
+                        style={{ justifyContent: "flex-end" }}
+                      >
                         <label>&nbsp;</label>
                         <button
                           className="btn btn--danger btn--sm"

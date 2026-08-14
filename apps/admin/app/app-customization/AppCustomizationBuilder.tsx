@@ -11,7 +11,8 @@ import { ApiError, api } from "@/lib/api";
 import ColorField from "@/components/ColorField";
 import MediaPicker from "@/components/MediaPicker";
 
-const msg = (e: unknown, fb: string) => (e instanceof ApiError ? e.message : fb);
+const msg = (e: unknown, fb: string) =>
+  e instanceof ApiError ? e.message : fb;
 
 // The 8 themeable colors, mirroring apps/mobile/src/theme.ts.
 const PALETTE_FIELDS: { key: keyof AppThemePalette; label: string }[] = [
@@ -200,7 +201,9 @@ export default function AppCustomizationBuilder({
                 <button
                   type="button"
                   className={
-                    previewMode === "light" ? "btn btn--sm" : "btn btn--ghost btn--sm"
+                    previewMode === "light"
+                      ? "btn btn--sm"
+                      : "btn btn--ghost btn--sm"
                   }
                   onClick={() => setPreviewMode("light")}
                 >
@@ -209,7 +212,9 @@ export default function AppCustomizationBuilder({
                 <button
                   type="button"
                   className={
-                    previewMode === "dark" ? "btn btn--sm" : "btn btn--ghost btn--sm"
+                    previewMode === "dark"
+                      ? "btn btn--sm"
+                      : "btn btn--ghost btn--sm"
                   }
                   onClick={() => setPreviewMode("dark")}
                 >
@@ -270,9 +275,9 @@ export default function AppCustomizationBuilder({
             ) : (
               <>
                 ⚠ Used only when a <strong>white-label</strong> (branded) app is
-                built for your academy — the shared app keeps its standard
-                icon and splash. These are baked in at build time, not live like
-                the colors above. Upload <strong>PNG</strong>s (icon 1024×1024
+                built for your academy — the shared app keeps its standard icon
+                and splash. These are baked in at build time, not live like the
+                colors above. Upload <strong>PNG</strong>s (icon 1024×1024
                 opaque, splash ≥1242×2436) — the next app build bakes them in
                 automatically; a store submission is still required.
               </>
@@ -431,7 +436,9 @@ function PhonePreview({
           marginBottom: 8,
         }}
       />
-      <div style={{ color: p.text, fontSize: 13, fontWeight: 700 }}>{title}</div>
+      <div style={{ color: p.text, fontSize: 13, fontWeight: 700 }}>
+        {title}
+      </div>
       <div style={{ color: p.textMuted, fontSize: 11, marginBottom: 8 }}>
         {sub}
       </div>
@@ -472,7 +479,9 @@ function PhonePreview({
         }}
       >
         {/* notch */}
-        <div style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}>
+        <div
+          style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}
+        >
           <div
             style={{
               width: 110,

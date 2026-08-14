@@ -57,7 +57,8 @@ export function CtaTargetPicker({
       postId: null,
       openNewTab: value.openNewTab,
     });
-  const set = (patch: Partial<HeaderCtaLink>) => onChange({ ...value, ...patch });
+  const set = (patch: Partial<HeaderCtaLink>) =>
+    onChange({ ...value, ...patch });
   const fixed = FIXED[value.type];
 
   return (

@@ -111,7 +111,9 @@ export default function MembersPage() {
       setLevels(l);
       setStats(s);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load members");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to load members",
+      );
     } finally {
       setLoading(false);
     }
@@ -157,7 +159,9 @@ export default function MembersPage() {
       // keeps a (differently-sourced) chip the response doesn't describe.
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to remove class");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to remove class",
+      );
     } finally {
       setBusy(null);
     }
@@ -179,7 +183,9 @@ export default function MembersPage() {
       await api.deleteMember(m.id);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to delete member");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to delete member",
+      );
     } finally {
       setBusy(null);
     }
@@ -214,8 +220,19 @@ export default function MembersPage() {
       <div className="filter-row">
         <div className="filter-search">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-            <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <circle
+              cx="11"
+              cy="11"
+              r="7"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
+            <path
+              d="m20 20-3.5-3.5"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
           </svg>
           <input
             type="search"
@@ -269,7 +286,9 @@ export default function MembersPage() {
           type="button"
           className="btn btn--ghost btn--sm btn--icon"
           disabled={exporting}
-          aria-label={exporting ? "Exporting members…" : "Download members as Excel"}
+          aria-label={
+            exporting ? "Exporting members…" : "Download members as Excel"
+          }
           title={exporting ? "Exporting…" : "Download Excel"}
           onClick={async () => {
             setExporting(true);
@@ -306,112 +325,117 @@ export default function MembersPage() {
                 widths on narrow screens instead of crushing names/emails
                 (min-width kicks in ≤680px; see globals.css). */}
             <div className="table-wrap">
-            <div
-              className="mini-grid mini-grid--head"
-              style={{ gridTemplateColumns: GRID }}
-            >
-              <span>Member</span>
-              <span>Plan</span>
-              <span>Classes</span>
-              <span>Joined</span>
-              <span>Status</span>
-              <span />
-            </div>
-            {pageRows.map((m) => {
-              const name = [m.firstName, m.lastName].filter(Boolean).join(" ");
-              const display = name || m.username || m.email;
-              const st = memberStatus(m);
-              return (
-                <div
-                  className="mini-grid"
-                  style={{ gridTemplateColumns: GRID }}
-                  key={m.id}
-                >
-                  <button
-                    type="button"
-                    className="mini-member"
-                    style={{
-                      border: "none",
-                      background: "none",
-                      padding: 0,
-                      font: "inherit",
-                      textAlign: "left",
-                      cursor: "pointer",
-                    }}
-                    title="View subscription & payments"
-                    onClick={() => router.push(`/members/${m.id}`)}
+              <div
+                className="mini-grid mini-grid--head"
+                style={{ gridTemplateColumns: GRID }}
+              >
+                <span>Member</span>
+                <span>Plan</span>
+                <span>Classes</span>
+                <span>Joined</span>
+                <span>Status</span>
+                <span />
+              </div>
+              {pageRows.map((m) => {
+                const name = [m.firstName, m.lastName]
+                  .filter(Boolean)
+                  .join(" ");
+                const display = name || m.username || m.email;
+                const st = memberStatus(m);
+                return (
+                  <div
+                    className="mini-grid"
+                    style={{ gridTemplateColumns: GRID }}
+                    key={m.id}
                   >
-                    <span className="ava" aria-hidden="true">
-                      {initialsOf(display, m.email)}
-                    </span>
-                    <span className="mini-member-main">
-                      <span className="mini-member-name">{display}</span>
-                      <span className="mini-member-sub">{m.email}</span>
-                    </span>
-                  </button>
-                  <span className="mini-cell" style={{ fontSize: 12.5 }}>
-                    {m.subscription?.planName ?? "—"}
-                  </span>
-                  <span>
-                    {m.levels.length === 0 ? (
-                      <span className="mini-cell--muted">—</span>
-                    ) : (
-                      <span className="chips">
-                        {m.levels.map((l) => (
-                          <span key={`${l.id}-${l.source}`} className="chip">
-                            {l.name}
-                            {l.lifetime ? (
-                              <span className="muted" style={{ fontSize: 10.5 }}>
-                                LIFETIME
-                              </span>
-                            ) : null}
-                            {l.source === "MANUAL" ? (
-                              <button
-                                className="chip-x"
-                                title="Remove manual grant"
-                                disabled={busy === m.id}
-                                onClick={() => removeLevel(m.id, l.id)}
-                              >
-                                ×
-                              </button>
-                            ) : null}
-                          </span>
-                        ))}
+                    <button
+                      type="button"
+                      className="mini-member"
+                      style={{
+                        border: "none",
+                        background: "none",
+                        padding: 0,
+                        font: "inherit",
+                        textAlign: "left",
+                        cursor: "pointer",
+                      }}
+                      title="View subscription & payments"
+                      onClick={() => router.push(`/members/${m.id}`)}
+                    >
+                      <span className="ava" aria-hidden="true">
+                        {initialsOf(display, m.email)}
                       </span>
-                    )}
-                  </span>
-                  <span className="mini-cell--muted">
-                    {shortDate(m.registeredAt)}
-                  </span>
-                  <span>
-                    <span className={st.cls} title={m.subscription?.status}>
-                      {st.label}
+                      <span className="mini-member-main">
+                        <span className="mini-member-name">{display}</span>
+                        <span className="mini-member-sub">{m.email}</span>
+                      </span>
+                    </button>
+                    <span className="mini-cell" style={{ fontSize: 12.5 }}>
+                      {m.subscription?.planName ?? "—"}
                     </span>
-                  </span>
-                  <span style={{ textAlign: "right" }}>
-                    <RowMenu
-                      label={`Actions for ${display}`}
-                      items={[
-                        {
-                          label: "View billing",
-                          onClick: () => router.push(`/members/${m.id}`),
-                        },
-                        {
-                          label: "Edit details",
-                          onClick: () => router.push(`/members/${m.id}/edit`),
-                        },
-                        { label: "Add class…", onClick: () => openGrant(m) },
-                        {
-                          label: "Delete member…",
-                          danger: true,
-                          onClick: () => void onDeleteMember(m),
-                        },
-                      ]}
-                    />
-                  </span>
-                </div>
-              );
-            })}
+                    <span>
+                      {m.levels.length === 0 ? (
+                        <span className="mini-cell--muted">—</span>
+                      ) : (
+                        <span className="chips">
+                          {m.levels.map((l) => (
+                            <span key={`${l.id}-${l.source}`} className="chip">
+                              {l.name}
+                              {l.lifetime ? (
+                                <span
+                                  className="muted"
+                                  style={{ fontSize: 10.5 }}
+                                >
+                                  LIFETIME
+                                </span>
+                              ) : null}
+                              {l.source === "MANUAL" ? (
+                                <button
+                                  className="chip-x"
+                                  title="Remove manual grant"
+                                  disabled={busy === m.id}
+                                  onClick={() => removeLevel(m.id, l.id)}
+                                >
+                                  ×
+                                </button>
+                              ) : null}
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </span>
+                    <span className="mini-cell--muted">
+                      {shortDate(m.registeredAt)}
+                    </span>
+                    <span>
+                      <span className={st.cls} title={m.subscription?.status}>
+                        {st.label}
+                      </span>
+                    </span>
+                    <span style={{ textAlign: "right" }}>
+                      <RowMenu
+                        label={`Actions for ${display}`}
+                        items={[
+                          {
+                            label: "View billing",
+                            onClick: () => router.push(`/members/${m.id}`),
+                          },
+                          {
+                            label: "Edit details",
+                            onClick: () => router.push(`/members/${m.id}/edit`),
+                          },
+                          { label: "Add class…", onClick: () => openGrant(m) },
+                          {
+                            label: "Delete member…",
+                            danger: true,
+                            onClick: () => void onDeleteMember(m),
+                          },
+                        ]}
+                      />
+                    </span>
+                  </div>
+                );
+              })}
             </div>
             <div className="table-foot">
               <span>

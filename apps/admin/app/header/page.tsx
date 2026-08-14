@@ -62,9 +62,9 @@ export default function HeaderPage() {
       <div className="page-header">
         <h1>Header</h1>
         <p className="subtitle">
-          Build site headers and choose where each appears — by page and by who’s
-          visiting. The first matching header (top of the list) is shown; if none
-          match, the built-in default is used.
+          Build site headers and choose where each appears — by page and by
+          who’s visiting. The first matching header (top of the list) is shown;
+          if none match, the built-in default is used.
         </p>
       </div>
       {error && <p className="error">{error}</p>}

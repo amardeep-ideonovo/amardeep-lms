@@ -38,9 +38,12 @@ export default function AvatarCropper({
   const [error, setError] = useState<string | null>(null);
 
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(
-    null,
-  );
+  const drag = useRef<{
+    px: number;
+    py: number;
+    ox: number;
+    oy: number;
+  } | null>(null);
 
   // Keep the image covering the viewport so the circle is never empty.
   const clampPos = useCallback(

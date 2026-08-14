@@ -64,7 +64,10 @@ const EMAIL_MERGE: AudienceFieldDTO = {
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const slugifyKey = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "field";
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "") || "field";
 
 // Instance origins resolved at RUNTIME (window.__ENV__ / container env via
 // lib/runtime-env) — NEXT_PUBLIC_* is baked at image build time, so on the
@@ -83,11 +86,17 @@ function previewField(fld: FormFieldDef) {
   };
   if (fld.type === "textarea")
     return (
-      <textarea disabled placeholder={fld.placeholder} style={{ ...base, minHeight: 56 }} />
+      <textarea
+        disabled
+        placeholder={fld.placeholder}
+        style={{ ...base, minHeight: 56 }}
+      />
     );
   if (fld.type === "checkbox")
     return (
-      <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 14 }}>
+      <label
+        style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 14 }}
+      >
         <input type="checkbox" disabled /> {fld.label}
         {fld.required ? " *" : ""}
       </label>
@@ -105,10 +114,10 @@ function previewField(fld: FormFieldDef) {
     fld.type === "email"
       ? "email"
       : fld.type === "phone"
-      ? "tel"
-      : fld.type === "number"
-      ? "number"
-      : "text";
+        ? "tel"
+        : fld.type === "number"
+          ? "number"
+          : "text";
   return <input disabled type={t} placeholder={fld.placeholder} style={base} />;
 }
 
@@ -130,8 +139,22 @@ function newForm(): EditorState {
   return {
     name: "Untitled form",
     fields: [
-      { id: uid(), type: "email", label: "Email", name: "email", required: true, mergeTag: "EMAIL" },
-      { id: uid(), type: "text", label: "Name", name: "name", required: false, mergeTag: "FNAME" },
+      {
+        id: uid(),
+        type: "email",
+        label: "Email",
+        name: "email",
+        required: true,
+        mergeTag: "EMAIL",
+      },
+      {
+        id: uid(),
+        type: "text",
+        label: "Name",
+        name: "name",
+        required: false,
+        mergeTag: "FNAME",
+      },
     ],
     audienceId: "",
     audienceName: "",
@@ -182,7 +205,7 @@ export default function FormsPage() {
       setEntriesHasMore(rows.length === ENTRIES_PAGE);
     } catch (err) {
       setEntriesError(
-        err instanceof ApiError ? err.message : "Failed to load submissions"
+        err instanceof ApiError ? err.message : "Failed to load submissions",
       );
     } finally {
       setEntriesLoading(false);
@@ -201,7 +224,7 @@ export default function FormsPage() {
       setEntriesHasMore(rows.length === ENTRIES_PAGE);
     } catch (err) {
       setEntriesError(
-        err instanceof ApiError ? err.message : "Failed to load submissions"
+        err instanceof ApiError ? err.message : "Failed to load submissions",
       );
     } finally {
       setEntriesLoading(false);
@@ -213,12 +236,10 @@ export default function FormsPage() {
     try {
       await api.exportFormSubmissionsCsv(
         f.id,
-        `${f.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-submissions.csv`
+        `${f.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-submissions.csv`,
       );
     } catch (err) {
-      setEntriesError(
-        err instanceof ApiError ? err.message : "Export failed"
-      );
+      setEntriesError(err instanceof ApiError ? err.message : "Export failed");
     } finally {
       setExporting(false);
     }
@@ -257,7 +278,7 @@ export default function FormsPage() {
     } catch {
       setAudiences([]);
       setAudiencesError(
-        "Could not load audiences — new submissions still go to the default audience."
+        "Could not load audiences — new submissions still go to the default audience.",
       );
     }
   }, []);
@@ -309,7 +330,9 @@ export default function FormsPage() {
       });
       if (f.audienceId) void loadMergeFields(f.audienceId);
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Failed to load form");
+      setFormError(
+        err instanceof ApiError ? err.message : "Failed to load form",
+      );
     }
   }
 
@@ -348,14 +371,23 @@ export default function FormsPage() {
       ...f,
       fields: [
         ...f.fields,
-        { id: uid(), type: "text", label: "New field", name: `field_${f.fields.length + 1}`, required: false, mergeTag: "" },
+        {
+          id: uid(),
+          type: "text",
+          label: "New field",
+          name: `field_${f.fields.length + 1}`,
+          required: false,
+          mergeTag: "",
+        },
       ],
     }));
   }
   function patchField(i: number, patch: Partial<FormFieldDef>) {
     setForm((f) => ({
       ...f,
-      fields: f.fields.map((fld, idx) => (idx === i ? { ...fld, ...patch } : fld)),
+      fields: f.fields.map((fld, idx) =>
+        idx === i ? { ...fld, ...patch } : fld,
+      ),
     }));
   }
   function removeField(i: number) {
@@ -399,7 +431,10 @@ export default function FormsPage() {
       audienceId: form.audienceId || undefined,
       doubleOptIn: form.doubleOptIn,
       updateExisting: form.updateExisting,
-      tags: form.tags.split(",").map((t) => t.trim()).filter(Boolean),
+      tags: form.tags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
       successMessage: form.successMessage.trim() || undefined,
       // Clear the redirect when "show message" is chosen so the message shows;
       // set it (and message stays as a stored fallback) when "redirect" is chosen.
@@ -422,7 +457,9 @@ export default function FormsPage() {
       setMode("list");
       setEditingId(null);
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Failed to save form");
+      setFormError(
+        err instanceof ApiError ? err.message : "Failed to save form",
+      );
     } finally {
       setSaving(false);
     }
@@ -472,9 +509,9 @@ export default function FormsPage() {
           <div>
             <h1>Forms</h1>
             <p className="subtitle">
-              Build forms linked to an audience. Submissions subscribe the person
-              to that audience and are stored here too. Embed a form with its id
-              (Puck “Form” block, the <code>&lt;FormEmbed&gt;</code>{" "}
+              Build forms linked to an audience. Submissions subscribe the
+              person to that audience and are stored here too. Embed a form with
+              its id (Puck “Form” block, the <code>&lt;FormEmbed&gt;</code>{" "}
               component, or <code>/forms/&lt;id&gt;</code>).
             </p>
           </div>
@@ -489,74 +526,80 @@ export default function FormsPage() {
           {loading ? (
             <p className="muted">Loading…</p>
           ) : forms.length === 0 ? (
-            <p className="muted">No forms yet. Click “Add new form” to start.</p>
+            <p className="muted">
+              No forms yet. Click “Add new form” to start.
+            </p>
           ) : (
-            <div className="table-wrap"><table className="table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Audience</th>
-                  <th>Fields</th>
-                  <th>Submissions</th>
-                  <th>Status</th>
-                  <th>Embed id</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {forms.map((f) => (
-                  <tr key={f.id}>
-                    <td>{f.name}</td>
-                    <td className="muted">{f.audienceName ?? "Default (Members)"}</td>
-                    <td className="muted">{f.fields.length}</td>
-                    <td className="muted">{f.submissionCount}</td>
-                    <td>
-                      <span
-                        className={
-                          f.status === "ACTIVE"
-                            ? "badge badge--published"
-                            : "badge badge--draft"
-                        }
-                      >
-                        {f.status === "ACTIVE" ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td>
-                      <code style={{ fontSize: 12 }}>{f.id}</code>{" "}
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => copyId(f.id)}
-                        title="Copy form id"
-                      >
-                        Copy
-                      </button>
-                    </td>
-                    <td>
-                      <div className="row-actions">
-                        <button
-                          className="btn btn--ghost btn--sm"
-                          onClick={() => openEntries(f)}
-                        >
-                          Entries ({f.submissionCount})
-                        </button>
-                        <button
-                          className="btn btn--ghost btn--sm"
-                          onClick={() => openEdit(f.id)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn--danger btn--sm"
-                          onClick={() => remove(f)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Audience</th>
+                    <th>Fields</th>
+                    <th>Submissions</th>
+                    <th>Status</th>
+                    <th>Embed id</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table></div>
+                </thead>
+                <tbody>
+                  {forms.map((f) => (
+                    <tr key={f.id}>
+                      <td>{f.name}</td>
+                      <td className="muted">
+                        {f.audienceName ?? "Default (Members)"}
+                      </td>
+                      <td className="muted">{f.fields.length}</td>
+                      <td className="muted">{f.submissionCount}</td>
+                      <td>
+                        <span
+                          className={
+                            f.status === "ACTIVE"
+                              ? "badge badge--published"
+                              : "badge badge--draft"
+                          }
+                        >
+                          {f.status === "ACTIVE" ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td>
+                        <code style={{ fontSize: 12 }}>{f.id}</code>{" "}
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => copyId(f.id)}
+                          title="Copy form id"
+                        >
+                          Copy
+                        </button>
+                      </td>
+                      <td>
+                        <div className="row-actions">
+                          <button
+                            className="btn btn--ghost btn--sm"
+                            onClick={() => openEntries(f)}
+                          >
+                            Entries ({f.submissionCount})
+                          </button>
+                          <button
+                            className="btn btn--ghost btn--sm"
+                            onClick={() => openEdit(f.id)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn--danger btn--sm"
+                            onClick={() => remove(f)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
@@ -632,32 +675,36 @@ export default function FormsPage() {
                 ) : entries.length === 0 ? (
                   <p className="muted">No submissions yet.</p>
                 ) : (
-                  <div className="table-wrap"><table className="table">
-                    <thead>
-                      <tr>
-                        <th>Submitted</th>
-                        <th>Email</th>
-                        {entriesForm.fields.map((f) => (
-                          <th key={f.id}>{f.label || f.name}</th>
-                        ))}
-                        <th>Subscribe status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {entries.map((r) => (
-                        <tr key={r.id}>
-                          <td className="muted">
-                            {new Date(r.createdAt).toLocaleString()}
-                          </td>
-                          <td>{r.email ?? "—"}</td>
+                  <div className="table-wrap">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Submitted</th>
+                          <th>Email</th>
                           {entriesForm.fields.map((f) => (
-                            <td key={f.id}>{cellText(r.data?.[f.name])}</td>
+                            <th key={f.id}>{f.label || f.name}</th>
                           ))}
-                          <td className="muted">{r.subscribeStatus ?? "—"}</td>
+                          <th>Subscribe status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table></div>
+                      </thead>
+                      <tbody>
+                        {entries.map((r) => (
+                          <tr key={r.id}>
+                            <td className="muted">
+                              {new Date(r.createdAt).toLocaleString()}
+                            </td>
+                            <td>{r.email ?? "—"}</td>
+                            {entriesForm.fields.map((f) => (
+                              <td key={f.id}>{cellText(r.data?.[f.name])}</td>
+                            ))}
+                            <td className="muted">
+                              {r.subscribeStatus ?? "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
                 {entriesHasMore && (
                   <div style={{ padding: "12px 0", textAlign: "center" }}>
@@ -706,274 +753,291 @@ export default function FormsPage() {
           }}
         >
           <div style={{ flex: "1 1 440px", minWidth: 0 }}>
-        <div className="card">
-          <div className="field">
-            <label>Form name</label>
-            <input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="field">
-            <label>Audience</label>
-            <select
-              value={form.audienceId}
-              onChange={(e) => onSelectAudience(e.target.value)}
-            >
-              <option value="">— None (use the default audience) —</option>
-              {audiences.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                  {a.isDefault ? " (default)" : ""} ({a.subscribedCount})
-                </option>
-              ))}
-            </select>
-            {audiencesError ? (
-              <p className="muted" style={{ marginTop: 4 }}>
-                {audiencesError}
-              </p>
-            ) : (
-              <p className="muted" style={{ marginTop: 4 }}>
-                Submissions subscribe the person to this audience. Leave on “None”
-                to use the default “Members” audience.
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-head">
-            <h2>Fields</h2>
-            <button type="button" className="btn btn--sm" onClick={addField}>
-              + Add field
-            </button>
-          </div>
-          {form.fields.length === 0 && (
-            <p className="muted">No fields yet — add one.</p>
-          )}
-          {form.fields.map((fld, i) => (
-            <div
-              key={fld.id}
-              className="card"
-              style={{ background: "var(--bg)" }}
-            >
-              <div className="form-row">
-                <div className="field">
-                  <label>Label</label>
-                  <input
-                    value={fld.label}
-                    onChange={(e) =>
-                      patchField(i, {
-                        label: e.target.value,
-                        // keep key in sync if it was auto-derived
-                        name:
-                          fld.name === slugifyKey(fld.label)
-                            ? slugifyKey(e.target.value)
-                            : fld.name,
-                      })
-                    }
-                  />
-                </div>
-                <div className="field">
-                  <label>Key</label>
-                  <input
-                    value={fld.name}
-                    onChange={(e) =>
-                      patchField(i, { name: slugifyKey(e.target.value) })
-                    }
-                  />
-                </div>
-                <div className="field">
-                  <label>Type</label>
-                  <select
-                    value={fld.type}
-                    onChange={(e) =>
-                      patchField(i, { type: e.target.value as FormFieldType })
-                    }
-                  >
-                    {FIELD_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <div className="card">
+              <div className="field">
+                <label>Form name</label>
+                <input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
               </div>
 
+              <div className="field">
+                <label>Audience</label>
+                <select
+                  value={form.audienceId}
+                  onChange={(e) => onSelectAudience(e.target.value)}
+                >
+                  <option value="">— None (use the default audience) —</option>
+                  {audiences.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                      {a.isDefault ? " (default)" : ""} ({a.subscribedCount})
+                    </option>
+                  ))}
+                </select>
+                {audiencesError ? (
+                  <p className="muted" style={{ marginTop: 4 }}>
+                    {audiencesError}
+                  </p>
+                ) : (
+                  <p className="muted" style={{ marginTop: 4 }}>
+                    Submissions subscribe the person to this audience. Leave on
+                    “None” to use the default “Members” audience.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-head">
+                <h2>Fields</h2>
+                <button
+                  type="button"
+                  className="btn btn--sm"
+                  onClick={addField}
+                >
+                  + Add field
+                </button>
+              </div>
+              {form.fields.length === 0 && (
+                <p className="muted">No fields yet — add one.</p>
+              )}
+              {form.fields.map((fld, i) => (
+                <div
+                  key={fld.id}
+                  className="card"
+                  style={{ background: "var(--bg)" }}
+                >
+                  <div className="form-row">
+                    <div className="field">
+                      <label>Label</label>
+                      <input
+                        value={fld.label}
+                        onChange={(e) =>
+                          patchField(i, {
+                            label: e.target.value,
+                            // keep key in sync if it was auto-derived
+                            name:
+                              fld.name === slugifyKey(fld.label)
+                                ? slugifyKey(e.target.value)
+                                : fld.name,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Key</label>
+                      <input
+                        value={fld.name}
+                        onChange={(e) =>
+                          patchField(i, { name: slugifyKey(e.target.value) })
+                        }
+                      />
+                    </div>
+                    <div className="field">
+                      <label>Type</label>
+                      <select
+                        value={fld.type}
+                        onChange={(e) =>
+                          patchField(i, {
+                            type: e.target.value as FormFieldType,
+                          })
+                        }
+                      >
+                        {FIELD_TYPES.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="field">
+                      <label>Audience field</label>
+                      <select
+                        value={fld.mergeTag ?? ""}
+                        onChange={(e) =>
+                          patchField(i, { mergeTag: e.target.value })
+                        }
+                      >
+                        <option value="">— not synced —</option>
+                        {mergeOptions.map((m) => (
+                          <option key={m.tag} value={m.tag}>
+                            {m.label} ({m.tag})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Required</label>
+                      <select
+                        value={fld.required ? "yes" : "no"}
+                        onChange={(e) =>
+                          patchField(i, { required: e.target.value === "yes" })
+                        }
+                      >
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                      </select>
+                    </div>
+                    {fld.type === "select" && (
+                      <div className="field">
+                        <label>Options (comma-separated)</label>
+                        <input
+                          value={(fld.options ?? []).join(", ")}
+                          onChange={(e) =>
+                            patchField(i, {
+                              options: e.target.value
+                                .split(",")
+                                .map((o) => o.trim())
+                                .filter(Boolean),
+                            })
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="row-actions">
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => moveField(i, -1)}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() => moveField(i, 1)}
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--danger btn--sm"
+                      onClick={() => removeField(i)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="card">
+              <h2>Subscribe behaviour</h2>
               <div className="form-row">
                 <div className="field">
-                  <label>Audience field</label>
+                  <label>Use double opt-in?</label>
                   <select
-                    value={fld.mergeTag ?? ""}
-                    onChange={(e) => patchField(i, { mergeTag: e.target.value })}
-                  >
-                    <option value="">— not synced —</option>
-                    {mergeOptions.map((m) => (
-                      <option key={m.tag} value={m.tag}>
-                        {m.label} ({m.tag})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field">
-                  <label>Required</label>
-                  <select
-                    value={fld.required ? "yes" : "no"}
+                    value={form.doubleOptIn ? "yes" : "no"}
                     onChange={(e) =>
-                      patchField(i, { required: e.target.value === "yes" })
+                      setForm({
+                        ...form,
+                        doubleOptIn: e.target.value === "yes",
+                      })
                     }
                   >
                     <option value="no">No</option>
                     <option value="yes">Yes</option>
                   </select>
                 </div>
-                {fld.type === "select" && (
-                  <div className="field">
-                    <label>Options (comma-separated)</label>
-                    <input
-                      value={(fld.options ?? []).join(", ")}
-                      onChange={(e) =>
-                        patchField(i, {
-                          options: e.target.value
-                            .split(",")
-                            .map((o) => o.trim())
-                            .filter(Boolean),
-                        })
-                      }
-                    />
-                  </div>
-                )}
+                <div className="field">
+                  <label>Update existing subscribers?</label>
+                  <select
+                    value={form.updateExisting ? "yes" : "no"}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        updateExisting: e.target.value === "yes",
+                      })
+                    }
+                  >
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
               </div>
-
-              <div className="row-actions">
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => moveField(i, -1)}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => moveField(i, 1)}
-                >
-                  ↓
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--danger btn--sm"
-                  onClick={() => removeField(i)}
-                >
-                  Remove
-                </button>
+              <div className="field">
+                <label>
+                  Subscriber tags{" "}
+                  <span className="muted">(comma-separated)</span>
+                </label>
+                <input
+                  value={form.tags}
+                  onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                  placeholder="e.g. lead, webinar"
+                />
               </div>
             </div>
-          ))}
-        </div>
 
-        <div className="card">
-          <h2>Subscribe behaviour</h2>
-          <div className="form-row">
-            <div className="field">
-              <label>Use double opt-in?</label>
-              <select
-                value={form.doubleOptIn ? "yes" : "no"}
-                onChange={(e) =>
-                  setForm({ ...form, doubleOptIn: e.target.value === "yes" })
-                }
-              >
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
-              </select>
-            </div>
-            <div className="field">
-              <label>Update existing subscribers?</label>
-              <select
-                value={form.updateExisting ? "yes" : "no"}
-                onChange={(e) =>
-                  setForm({ ...form, updateExisting: e.target.value === "yes" })
-                }
-              >
-                <option value="yes">Yes</option>
-                <option value="no">No</option>
-              </select>
-            </div>
-          </div>
-          <div className="field">
-            <label>
-              Subscriber tags <span className="muted">(comma-separated)</span>
-            </label>
-            <input
-              value={form.tags}
-              onChange={(e) => setForm({ ...form, tags: e.target.value })}
-              placeholder="e.g. lead, webinar"
-            />
-          </div>
-        </div>
+            <div className="card">
+              <h2>After submit</h2>
+              <div className="field">
+                <label>When the form is submitted</label>
+                <select
+                  value={form.afterSubmit}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      afterSubmit: e.target.value as "message" | "redirect",
+                    })
+                  }
+                >
+                  <option value="message">Show a thank-you message</option>
+                  <option value="redirect">
+                    Redirect to another page (URL)
+                  </option>
+                </select>
+              </div>
 
-        <div className="card">
-          <h2>After submit</h2>
-          <div className="field">
-            <label>When the form is submitted</label>
-            <select
-              value={form.afterSubmit}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  afterSubmit: e.target.value as "message" | "redirect",
-                })
-              }
-            >
-              <option value="message">Show a thank-you message</option>
-              <option value="redirect">Redirect to another page (URL)</option>
-            </select>
-          </div>
+              {form.afterSubmit === "message" ? (
+                <div className="field">
+                  <label>Thank-you message</label>
+                  <textarea
+                    value={form.successMessage}
+                    onChange={(e) =>
+                      setForm({ ...form, successMessage: e.target.value })
+                    }
+                    style={{ minHeight: 60 }}
+                    placeholder="Thanks! You're subscribed."
+                  />
+                </div>
+              ) : (
+                <div className="field">
+                  <label>Redirect URL</label>
+                  <input
+                    value={form.redirectUrl}
+                    onChange={(e) =>
+                      setForm({ ...form, redirectUrl: e.target.value })
+                    }
+                    placeholder="https://example.com/thank-you"
+                  />
+                  <p className="muted" style={{ marginTop: 4 }}>
+                    The visitor is sent here after a successful submit — use a
+                    full URL (including https://).
+                  </p>
+                </div>
+              )}
 
-          {form.afterSubmit === "message" ? (
-            <div className="field">
-              <label>Thank-you message</label>
-              <textarea
-                value={form.successMessage}
-                onChange={(e) =>
-                  setForm({ ...form, successMessage: e.target.value })
-                }
-                style={{ minHeight: 60 }}
-                placeholder="Thanks! You're subscribed."
-              />
+              <div className="field">
+                <label>Status</label>
+                <select
+                  value={form.status}
+                  onChange={(e) =>
+                    setForm({ ...form, status: e.target.value as FormStatus })
+                  }
+                >
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
+              </div>
             </div>
-          ) : (
-            <div className="field">
-              <label>Redirect URL</label>
-              <input
-                value={form.redirectUrl}
-                onChange={(e) =>
-                  setForm({ ...form, redirectUrl: e.target.value })
-                }
-                placeholder="https://example.com/thank-you"
-              />
-              <p className="muted" style={{ marginTop: 4 }}>
-                The visitor is sent here after a successful submit — use a full
-                URL (including https://).
-              </p>
-            </div>
-          )}
-
-          <div className="field">
-            <label>Status</label>
-            <select
-              value={form.status}
-              onChange={(e) =>
-                setForm({ ...form, status: e.target.value as FormStatus })
-              }
-            >
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
-          </div>
-        </div>
           </div>
 
           <div
@@ -992,7 +1056,9 @@ export default function FormsPage() {
                   drag ⠿ to reorder
                 </span>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 12 }}
+              >
                 {form.fields.length === 0 && (
                   <p className="muted">Add fields to see them here.</p>
                 )}
@@ -1068,7 +1134,9 @@ export default function FormsPage() {
             <div className="card">
               <h2>Embed code</h2>
               {editingId ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 12 }}
+                >
                   {[
                     {
                       label: "Paste anywhere (script)",
@@ -1079,7 +1147,10 @@ export default function FormsPage() {
                       label: "React component",
                       code: `<FormEmbed formId="${editingId}" />`,
                     },
-                    { label: "Direct link", code: `${webUrl()}/forms/${editingId}` },
+                    {
+                      label: "Direct link",
+                      code: `${webUrl()}/forms/${editingId}`,
+                    },
                   ].map((row) => (
                     <div key={row.label}>
                       <div className="card-head" style={{ marginBottom: 4 }}>

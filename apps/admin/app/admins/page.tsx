@@ -35,10 +35,7 @@ function PermsSummary({ perms }: { perms: AdminPermissions }) {
   return <span style={{ fontSize: 12 }}>{parts.join(" · ")}</span>;
 }
 
-type Modal =
-  | { mode: "create" }
-  | { mode: "edit"; admin: AdminDTO }
-  | null;
+type Modal = { mode: "create" } | { mode: "edit"; admin: AdminDTO } | null;
 
 export default function AdminsPage() {
   const { me, isSuperAdmin, loading: authLoading } = useAdminAuth();
@@ -141,69 +138,71 @@ export default function AdminsPage() {
         {loading ? (
           <p className="muted">Loading…</p>
         ) : (
-          <div className="table-wrap"><table className="table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Access</th>
-                <th>Created</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {admins.map((a) => (
-                <tr key={a.id}>
-                  <td>
-                    {a.email}
-                    {a.id === me?.id ? (
-                      <span className="muted"> (you)</span>
-                    ) : null}
-                  </td>
-                  <td>
-                    {a.role === "SUPER_ADMIN" ? (
-                      <span className="badge">Super admin</span>
-                    ) : (
-                      "Admin"
-                    )}
-                  </td>
-                  <td>
-                    {a.role === "SUPER_ADMIN" ? (
-                      <span className="muted">Full access</span>
-                    ) : (
-                      <PermsSummary perms={a.permissions} />
-                    )}
-                  </td>
-                  <td className="muted">{fmtDate(a.createdAt)}</td>
-                  <td>
-                    <div className="row-actions">
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        disabled={busy}
-                        onClick={() => setModal({ mode: "edit", admin: a })}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        disabled={busy}
-                        onClick={() => onResetPassword(a)}
-                      >
-                        Reset password
-                      </button>
-                      <button
-                        className="btn btn--danger btn--sm"
-                        disabled={busy || a.id === me?.id}
-                        onClick={() => onDelete(a)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Access</th>
+                  <th>Created</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table></div>
+              </thead>
+              <tbody>
+                {admins.map((a) => (
+                  <tr key={a.id}>
+                    <td>
+                      {a.email}
+                      {a.id === me?.id ? (
+                        <span className="muted"> (you)</span>
+                      ) : null}
+                    </td>
+                    <td>
+                      {a.role === "SUPER_ADMIN" ? (
+                        <span className="badge">Super admin</span>
+                      ) : (
+                        "Admin"
+                      )}
+                    </td>
+                    <td>
+                      {a.role === "SUPER_ADMIN" ? (
+                        <span className="muted">Full access</span>
+                      ) : (
+                        <PermsSummary perms={a.permissions} />
+                      )}
+                    </td>
+                    <td className="muted">{fmtDate(a.createdAt)}</td>
+                    <td>
+                      <div className="row-actions">
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          disabled={busy}
+                          onClick={() => setModal({ mode: "edit", admin: a })}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          disabled={busy}
+                          onClick={() => onResetPassword(a)}
+                        >
+                          Reset password
+                        </button>
+                        <button
+                          className="btn btn--danger btn--sm"
+                          disabled={busy || a.id === me?.id}
+                          onClick={() => onDelete(a)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -236,7 +235,9 @@ function AdminModal({
   const [email, setEmail] = useState(admin?.email ?? "");
   const [password, setPassword] = useState("");
   const [superAdmin, setSuperAdmin] = useState(admin?.role === "SUPER_ADMIN");
-  const [perms, setPerms] = useState<AdminPermissions>(admin?.permissions ?? {});
+  const [perms, setPerms] = useState<AdminPermissions>(
+    admin?.permissions ?? {},
+  );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -289,15 +290,8 @@ function AdminModal({
 
   // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
   return (
-    <div
-      className="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        className="modal"
-        style={{ maxWidth: 660 }}
-      >
+    <div className="modal-overlay" role="dialog" aria-modal="true">
+      <div className="modal" style={{ maxWidth: 660 }}>
         <div className="modal-header">
           <h2>{mode === "create" ? "Add admin" : `Edit ${admin?.email}`}</h2>
           <button
@@ -363,46 +357,48 @@ function AdminModal({
             </label>
 
             {!superAdmin && (
-              <div className="table-wrap"><table className="table perms-matrix">
-                <thead>
-                  <tr>
-                    <th>Section</th>
-                    {ADMIN_ACTIONS.map((a) => (
-                      <th key={a} style={{ textTransform: "capitalize" }}>
-                        {a}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {ADMIN_SECTIONS.map((s) => (
-                    <tr key={s.key}>
-                      <td>
-                        {s.label}
-                        {isReadOnly(s) ? (
-                          <span className="muted"> (read-only)</span>
-                        ) : null}
-                      </td>
-                      {ADMIN_ACTIONS.map((a) => {
-                        const disabled = isReadOnly(s) && a !== "read";
-                        return (
-                          <td key={a} style={{ textAlign: "center" }}>
-                            {disabled ? (
-                              <span className="muted">—</span>
-                            ) : (
-                              <input
-                                type="checkbox"
-                                checked={perms[s.key]?.[a] === true}
-                                onChange={() => toggle(s.key, a)}
-                              />
-                            )}
-                          </td>
-                        );
-                      })}
+              <div className="table-wrap">
+                <table className="table perms-matrix">
+                  <thead>
+                    <tr>
+                      <th>Section</th>
+                      {ADMIN_ACTIONS.map((a) => (
+                        <th key={a} style={{ textTransform: "capitalize" }}>
+                          {a}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table></div>
+                  </thead>
+                  <tbody>
+                    {ADMIN_SECTIONS.map((s) => (
+                      <tr key={s.key}>
+                        <td>
+                          {s.label}
+                          {isReadOnly(s) ? (
+                            <span className="muted"> (read-only)</span>
+                          ) : null}
+                        </td>
+                        {ADMIN_ACTIONS.map((a) => {
+                          const disabled = isReadOnly(s) && a !== "read";
+                          return (
+                            <td key={a} style={{ textAlign: "center" }}>
+                              {disabled ? (
+                                <span className="muted">—</span>
+                              ) : (
+                                <input
+                                  type="checkbox"
+                                  checked={perms[s.key]?.[a] === true}
+                                  onChange={() => toggle(s.key, a)}
+                                />
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             <div className="row-actions" style={{ marginTop: 16 }}>

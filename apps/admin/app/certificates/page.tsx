@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import type { AdminCertificateListDTO, CertificateTemplateDTO } from "@lms/types";
+import type {
+  AdminCertificateListDTO,
+  CertificateTemplateDTO,
+} from "@lms/types";
 import { api, API_BASE_URL, ApiError } from "@/lib/api";
 import { webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
@@ -38,21 +41,25 @@ export default function CertificatesPage() {
         <h1>Certificates</h1>
         <p className="subtitle">
           Completion certificates for classes — members claim them after
-          finishing every lesson. Upload artwork and position the dynamic
-          fields visually.
+          finishing every lesson. Upload artwork and position the dynamic fields
+          visually.
         </p>
       </div>
       {error && <p className="error">{error}</p>}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
         <button
-          className={tab === "templates" ? "btn btn--sm" : "btn btn--ghost btn--sm"}
+          className={
+            tab === "templates" ? "btn btn--sm" : "btn btn--ghost btn--sm"
+          }
           onClick={() => setTab("templates")}
         >
           Templates
         </button>
         <button
-          className={tab === "issued" ? "btn btn--sm" : "btn btn--ghost btn--sm"}
+          className={
+            tab === "issued" ? "btn btn--sm" : "btn btn--ghost btn--sm"
+          }
           onClick={() => setTab("issued")}
         >
           Issued
@@ -66,7 +73,10 @@ export default function CertificatesPage() {
           onError={setError}
         />
       ) : (
-        <IssuedTab canDelete={can("certificates", "delete")} onError={setError} />
+        <IssuedTab
+          canDelete={can("certificates", "delete")}
+          onError={setError}
+        />
       )}
     </div>
   );
@@ -89,7 +99,9 @@ function TemplatesTab({
     api
       .listCertificateTemplates()
       .then(setRows)
-      .catch((e) => onError(e instanceof ApiError ? e.message : "Failed to load"));
+      .catch((e) =>
+        onError(e instanceof ApiError ? e.message : "Failed to load"),
+      );
   }, [onError]);
   useEffect(load, [load]);
 
@@ -124,7 +136,14 @@ function TemplatesTab({
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 14,
+        }}
+      >
         <p className="muted" style={{ margin: 0 }}>
           {rows.length} template{rows.length === 1 ? "" : "s"} — the default
           applies to every class without its own pick (set per class in the
@@ -139,8 +158,8 @@ function TemplatesTab({
 
       {!hasDefault && rows.length > 0 && (
         <p className="error" style={{ marginBottom: 14 }}>
-          No default template — certificates are inactive for classes without
-          an explicit template. Open a template and turn on “Default”.
+          No default template — certificates are inactive for classes without an
+          explicit template. Open a template and turn on “Default”.
         </p>
       )}
       {rows.length === 0 && (
@@ -158,23 +177,44 @@ function TemplatesTab({
         }}
       >
         {rows.map((t) => (
-          <div key={t.id} className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div
+            key={t.id}
+            className="card"
+            style={{ padding: 0, overflow: "hidden" }}
+          >
             <Link href={`/certificates/${t.id}`} style={{ display: "block" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`${API_BASE_URL}${t.artworkUrl}`}
                 alt=""
-                style={{ width: "100%", aspectRatio: `${t.imageWidth} / ${t.imageHeight}`, objectFit: "cover", display: "block" }}
+                style={{
+                  width: "100%",
+                  aspectRatio: `${t.imageWidth} / ${t.imageHeight}`,
+                  objectFit: "cover",
+                  display: "block",
+                }}
               />
             </Link>
             <div style={{ padding: "10px 12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <strong style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <strong
+                  style={{
+                    flex: 1,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {t.name}
                 </strong>
-                {t.isDefault && <span className="badge badge--ok">Default</span>}
+                {t.isDefault && (
+                  <span className="badge badge--ok">Default</span>
+                )}
               </div>
-              <p className="muted" style={{ margin: "4px 0 8px", fontSize: 12.5 }}>
+              <p
+                className="muted"
+                style={{ margin: "4px 0 8px", fontSize: 12.5 }}
+              >
                 {t.imageWidth}×{t.imageHeight} · {t.issuedCount} issued
               </p>
               <div style={{ display: "flex", gap: 8 }}>
@@ -214,7 +254,9 @@ function IssuedTab({
     api
       .listCertificates({ q: q || undefined, page, pageSize: PAGE_SIZE })
       .then(setData)
-      .catch((e) => onError(e instanceof ApiError ? e.message : "Failed to load"));
+      .catch((e) =>
+        onError(e instanceof ApiError ? e.message : "Failed to load"),
+      );
   }, [q, page, onError]);
   useEffect(() => {
     const t = setTimeout(load, q ? 250 : 0); // debounce typing
@@ -268,7 +310,9 @@ function IssuedTab({
       {!data ? (
         <p className="muted">Loading…</p>
       ) : data.items.length === 0 ? (
-        <p className="muted">No certificates issued{q ? " for this search" : " yet"}.</p>
+        <p className="muted">
+          No certificates issued{q ? " for this search" : " yet"}.
+        </p>
       ) : (
         <>
           <table className="table">
@@ -285,15 +329,22 @@ function IssuedTab({
             <tbody>
               {data.items.map((r) => (
                 <tr key={r.id}>
-                  <td style={{ fontFamily: "monospace", fontSize: 12.5 }}>{r.serial}</td>
+                  <td style={{ fontFamily: "monospace", fontSize: 12.5 }}>
+                    {r.serial}
+                  </td>
                   <td>
                     {r.memberName}
-                    <span className="muted" style={{ display: "block", fontSize: 12 }}>
+                    <span
+                      className="muted"
+                      style={{ display: "block", fontSize: 12 }}
+                    >
                       {r.memberEmail}
                     </span>
                   </td>
                   <td>{r.className}</td>
-                  <td>{r.templateName ?? <span className="muted">removed</span>}</td>
+                  <td>
+                    {r.templateName ?? <span className="muted">removed</span>}
+                  </td>
                   <td>{new Date(r.issuedAt).toLocaleDateString()}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
                     <button
@@ -302,13 +353,20 @@ function IssuedTab({
                         api
                           .downloadCertificate(r)
                           .catch((e) =>
-                            onError(e instanceof ApiError ? e.message : "Download failed")
+                            onError(
+                              e instanceof ApiError
+                                ? e.message
+                                : "Download failed",
+                            ),
                           )
                       }
                     >
                       Download
                     </button>{" "}
-                    <button className="btn btn--sm" onClick={() => copyVerify(r.serial)}>
+                    <button
+                      className="btn btn--sm"
+                      onClick={() => copyVerify(r.serial)}
+                    >
                       Copy verify link
                     </button>{" "}
                     {canDelete && (
@@ -325,14 +383,29 @@ function IssuedTab({
             </tbody>
           </table>
           {pages > 1 && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
-              <button className="btn btn--sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+                marginTop: 12,
+              }}
+            >
+              <button
+                className="btn btn--sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
                 ← Prev
               </button>
               <span className="muted">
                 Page {data.page} of {pages} ({data.total} total)
               </span>
-              <button className="btn btn--sm" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>
+              <button
+                className="btn btn--sm"
+                disabled={page >= pages}
+                onClick={() => setPage((p) => p + 1)}
+              >
                 Next →
               </button>
             </div>

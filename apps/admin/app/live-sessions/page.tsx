@@ -15,7 +15,6 @@ import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RowMenu from "@/components/RowMenu";
 
-
 // Browser IANA zone (fallback UTC), used as the default for a new session.
 function browserTz(): string {
   try {
@@ -74,8 +73,10 @@ function providerLabel(p: LiveProvider): string {
 
 // Human status for the list, derived from the clock for a SCHEDULED session.
 function statusInfo(s: AdminLiveSessionDTO): { label: string; cls: string } {
-  if (s.status === "CANCELED") return { label: "Canceled", cls: "badge badge--neutral" };
-  if (s.status === "DRAFT") return { label: "Draft", cls: "badge badge--draft" };
+  if (s.status === "CANCELED")
+    return { label: "Canceled", cls: "badge badge--neutral" };
+  if (s.status === "DRAFT")
+    return { label: "Draft", cls: "badge badge--draft" };
   const now = Date.now();
   const starts = Date.parse(s.startsAt);
   const ends = Date.parse(s.endsAt);
@@ -199,7 +200,9 @@ export default function LiveSessionsPage() {
     try {
       setSessions(await api.listLiveSessions());
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load live sessions");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to load live sessions",
+      );
     } finally {
       setLoading(false);
     }
@@ -208,7 +211,10 @@ export default function LiveSessionsPage() {
     if (authLoading || !can("liveSessions", "read")) return;
     void load();
     // Classes for the audience picker (used in the editor).
-    api.listLevels().then(setLevels).catch(() => setLevels([]));
+    api
+      .listLevels()
+      .then(setLevels)
+      .catch(() => setLevels([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
@@ -245,7 +251,9 @@ export default function LiveSessionsPage() {
         joinLeadMin: s.joinLeadMin,
       });
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Failed to load session");
+      setFormError(
+        err instanceof ApiError ? err.message : "Failed to load session",
+      );
     }
   }
 
@@ -284,7 +292,9 @@ export default function LiveSessionsPage() {
       const { joinUrl } = await api.revealLiveSession(editingId);
       window.open(joinUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Could not load the link");
+      setFormError(
+        err instanceof ApiError ? err.message : "Could not load the link",
+      );
     }
   }
 
@@ -296,7 +306,9 @@ export default function LiveSessionsPage() {
       const { joinUrl } = await api.revealLiveSession(id);
       window.open(joinUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not load the link");
+      setError(
+        err instanceof ApiError ? err.message : "Could not load the link",
+      );
     }
   }
 
@@ -365,7 +377,9 @@ export default function LiveSessionsPage() {
       setMode("list");
       setEditingId(null);
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : "Failed to save session");
+      setFormError(
+        err instanceof ApiError ? err.message : "Failed to save session",
+      );
     } finally {
       setSaving(false);
     }
@@ -438,7 +452,10 @@ export default function LiveSessionsPage() {
       .sort((a, b) => Date.parse(b.startsAt) - Date.parse(a.startsAt));
 
     // One upcoming-session card row (This week / Later / Drafts share it).
-    const sessionCard = (s: AdminLiveSessionDTO, kind: "week" | "later" | "draft") => {
+    const sessionCard = (
+      s: AdminLiveSessionDTO,
+      kind: "week" | "later" | "draft",
+    ) => {
       const cover = coverFor(s);
       const tagColor = tagColorFor(s);
       const chip = kind === "week" ? countdown(s) : null;
@@ -456,14 +473,19 @@ export default function LiveSessionsPage() {
       ];
       return (
         <div
-          className={kind === "week" ? "live-card" : "live-card live-card--later"}
+          className={
+            kind === "week" ? "live-card" : "live-card live-card--later"
+          }
           key={s.id}
         >
           {cover ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={cover} alt="" className="live-card-thumb" />
           ) : (
-            <span className="live-card-thumb row-thumb--empty" aria-hidden="true">
+            <span
+              className="live-card-thumb row-thumb--empty"
+              aria-hidden="true"
+            >
               {providerLabel(s.provider)}
             </span>
           )}
@@ -523,9 +545,9 @@ export default function LiveSessionsPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <div className="filter-row" style={{ marginBottom: 0 }}>
           <p className="subtitle" style={{ maxWidth: 620 }}>
-            Schedule a Zoom or Google Meet call. Entitled members see a countdown
-            on their dashboard and join from a gated page — credentials stay
-            encrypted until the join window.
+            Schedule a Zoom or Google Meet call. Entitled members see a
+            countdown on their dashboard and join from a gated page —
+            credentials stay encrypted until the join window.
           </p>
           <div className="filter-spacer" />
           {can("liveSessions", "create") && (
@@ -651,10 +673,14 @@ export default function LiveSessionsPage() {
             />
           </div>
           <div className="field">
-            <label>Description <span className="muted">(optional)</span></label>
+            <label>
+              Description <span className="muted">(optional)</span>
+            </label>
             <textarea
               value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
               style={{ minHeight: 56 }}
             />
           </div>
@@ -680,7 +706,11 @@ export default function LiveSessionsPage() {
             {form.hasJoinUrl && !form.replaceUrl ? (
               <div className="row-actions">
                 <span className="muted">A link is saved.</span>
-                <button type="button" className="btn btn--ghost btn--sm" onClick={testLink}>
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={testLink}
+                >
                   Test link
                 </button>
                 <button
@@ -712,7 +742,9 @@ export default function LiveSessionsPage() {
 
           {!isMeet && (
             <div className="field">
-              <label>Passcode <span className="muted">(optional)</span></label>
+              <label>
+                Passcode <span className="muted">(optional)</span>
+              </label>
               {form.hasPassword && !form.replacePassword ? (
                 <div className="row-actions">
                   <span className="muted">A passcode is saved.</span>
@@ -727,7 +759,11 @@ export default function LiveSessionsPage() {
                     type="button"
                     className="btn btn--ghost btn--sm"
                     onClick={() =>
-                      setForm({ ...form, clearPassword: true, replacePassword: false })
+                      setForm({
+                        ...form,
+                        clearPassword: true,
+                        replacePassword: false,
+                      })
                     }
                   >
                     Clear
@@ -747,7 +783,9 @@ export default function LiveSessionsPage() {
               ) : (
                 <input
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, password: e.target.value })
+                  }
                   placeholder="Meeting passcode"
                 />
               )}
@@ -780,7 +818,9 @@ export default function LiveSessionsPage() {
               {levels.length === 0 ? (
                 <p className="muted">No classes found.</p>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                >
                   {levels.map((l) => (
                     <label
                       key={l.id}

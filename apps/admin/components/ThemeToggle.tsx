@@ -25,7 +25,12 @@ const OPTIONS: { value: Pref; label: string; icon: JSX.Element }[] = [
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="4" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path
+          d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5 19 19M19 5l-1.5 1.5M6.5 17.5 5 19"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
       </svg>
     ),
   },
@@ -34,7 +39,12 @@ const OPTIONS: { value: Pref; label: string; icon: JSX.Element }[] = [
     label: "Dark",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path
+          d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinejoin="round"
+        />
       </svg>
     ),
   },
@@ -43,8 +53,21 @@ const OPTIONS: { value: Pref; label: string; icon: JSX.Element }[] = [
     label: "System",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-        <rect x="2" y="4" width="20" height="13" rx="2" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <rect
+          x="2"
+          y="4"
+          width="20"
+          height="13"
+          rx="2"
+          stroke="currentColor"
+          strokeWidth="1.8"
+        />
+        <path
+          d="M8 21h8M12 17v4"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+        />
       </svg>
     ),
   },

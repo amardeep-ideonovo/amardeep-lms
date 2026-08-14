@@ -43,9 +43,9 @@ export default function ClassesPage() {
   // Names the class whose archive/delete is mid-flight so its row menu locks.
   const [rowBusy, setRowBusy] = useState<string | null>(null);
   // Published/Draft chip-bar filter for the management table.
-  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">(
-    "all",
-  );
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "published" | "draft"
+  >("all");
   // Free-text search (name or slug), composed with the status chips.
   const [search, setSearch] = useState("");
 
@@ -69,7 +69,7 @@ export default function ClassesPage() {
   const [description, setDescription] = useState("");
   const [trailerUrl, setTrailerUrl] = useState("");
   const [skills, setSkills] = useState<{ title: string; imageUrl: string }[]>(
-    []
+    [],
   );
   // Completion-certificate template override ('' = use the default template).
   const [certificateTemplateId, setCertificateTemplateId] = useState("");
@@ -98,7 +98,9 @@ export default function ClassesPage() {
       setLevels(lvls);
       setCategories(cats);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load classes");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to load classes",
+      );
     } finally {
       setLoading(false);
     }
@@ -148,8 +150,8 @@ export default function ClassesPage() {
         (ts) =>
           alive &&
           setCertTemplates(
-            ts.map((t) => ({ id: t.id, name: t.name, isDefault: t.isDefault }))
-          )
+            ts.map((t) => ({ id: t.id, name: t.name, isDefault: t.isDefault })),
+          ),
       )
       .catch(() => alive && setCertTemplates(null));
     return () => {
@@ -205,7 +207,7 @@ export default function ClassesPage() {
       level.skills?.map((s) => ({
         title: s.title,
         imageUrl: s.imageUrl ?? "",
-      })) ?? []
+      })) ?? [],
     );
     setPrices(
       level.prices.length
@@ -214,7 +216,7 @@ export default function ClassesPage() {
             amount: (p.amount / 100).toString(),
             installments: p.installments != null ? String(p.installments) : "",
           }))
-        : [emptyPrice()]
+        : [emptyPrice()],
     );
     setFormError(null);
     setModalOpen(true);
@@ -360,7 +362,7 @@ export default function ClassesPage() {
 
   function updatePrice(i: number, patch: Partial<PriceForm>) {
     setPrices((prev) =>
-      prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p))
+      prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)),
     );
   }
 
@@ -370,7 +372,7 @@ export default function ClassesPage() {
   }
   function updateSkill(
     i: number,
-    patch: Partial<{ title: string; imageUrl: string }>
+    patch: Partial<{ title: string; imageUrl: string }>,
   ) {
     setSkills((p) => p.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   }
@@ -381,7 +383,7 @@ export default function ClassesPage() {
   // ----- Categories (admin-only grouping) -----
   function toggleCategory(id: string) {
     setCategoryIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   }
 
@@ -398,7 +400,7 @@ export default function ClassesPage() {
       setCategories((prev) => [...prev, cat].sort((a, b) => a.order - b.order));
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Failed to create category"
+        err instanceof ApiError ? err.message : "Failed to create category",
       );
     }
   }
@@ -421,7 +423,7 @@ export default function ClassesPage() {
       await load();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Failed to remove category"
+        err instanceof ApiError ? err.message : "Failed to remove category",
       );
     }
   }
@@ -487,11 +489,7 @@ export default function ClassesPage() {
       {error && <p className="error">{error}</p>}
 
       {modalOpen && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="modal">
             <div className="modal-header">
               <h2>{editingId ? "Edit class" : "Create class"}</h2>
@@ -507,332 +505,366 @@ export default function ClassesPage() {
             <div className="modal-body">
               {formError && <p className="error">{formError}</p>}
               <form onSubmit={onSubmit}>
-          <div className="form-row">
-            <div className="field">
-              <label>Name</label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>Type</label>
-              <select
-                value={type}
-                onChange={(e) => setType(e.target.value as LevelType)}
-              >
-                {LEVEL_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>
-                Tags{" "}
-                <span className="muted">
-                  (applied within the audience when a member is granted this
-                  class)
-                </span>
-              </label>
-              <input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === ",") {
-                    e.preventDefault();
-                    addTag();
-                  }
-                }}
-                onBlur={addTag}
-                placeholder="Type a tag, press Enter"
-              />
-              {audienceTags.length > 0 && (
-                <div className="chips" style={{ marginTop: 8 }}>
-                  {audienceTags.map((t) => (
-                    <span key={t} className="chip chip--muted">
-                      {t}
-                      <button
-                        type="button"
-                        className="chip-x"
-                        aria-label={`Remove ${t}`}
-                        title={`Remove ${t}`}
-                        onClick={() => removeTag(t)}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="field">
-            <label>Visibility</label>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontWeight: 400,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={published}
-                onChange={(e) => setPublished(e.target.checked)}
-              />
-              Published — show this class as a tile on the member dashboard
-            </label>
-          </div>
-
-          <div className="field">
-            <label>
-              URL slug <span className="muted">(optional)</span>
-            </label>
-            <input
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder="e.g. class-1"
-            />
-            <span className="muted" style={{ fontSize: 12 }}>
-              {slug.trim()
-                ? `Class URL: /classes/${slug.trim()}`
-                : "Leave blank to auto-generate from the class name."}
-            </span>
-          </div>
-
-          <div className="field">
-            <label>
-              Audience{" "}
-              <span className="muted">
-                (members granted this class are subscribed to this audience; the
-                tags are applied within it — leave as default to use the default
-                “Members” audience)
-              </span>
-            </label>
-            <select
-              value={audienceId}
-              onChange={(e) => setAudienceId(e.target.value)}
-            >
-              <option value="">— None (use the default audience) —</option>
-              {/* keep the stored audience selectable even if it isn't in the
-                  fetched list (e.g. the picker 403'd for a class-only admin) */}
-              {audienceId &&
-                !audiences.some((a) => a.id === audienceId) && (
-                  <option value={audienceId}>{audienceName ?? audienceId}</option>
-                )}
-              {audiences.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                  {a.isDefault ? " (default)" : ""}
-                </option>
-              ))}
-            </select>
-            {audiences.length === 0 && (
-              <span className="muted" style={{ fontSize: 12 }}>
-                Using the default audience.
-              </span>
-            )}
-          </div>
-
-          {type === "PAID" && (
-            <div className="field">
-              <label>Prices</label>
-              <span
-                className="muted"
-                style={{ fontSize: 12, display: "block", marginBottom: 8 }}
-              >
-                “Payments” bills that many times, then the member keeps the class
-                for life. Leave it blank for an ongoing subscription.
-              </span>
-              {prices.map((p, i) => (
-                <div className="form-row" key={i} style={{ marginBottom: 8 }}>
-                  <select
-                    value={p.interval}
-                    onChange={(e) =>
-                      updatePrice(i, {
-                        interval: e.target.value as "month" | "year",
-                      })
-                    }
-                  >
-                    <option value="month">Monthly</option>
-                    <option value="year">Yearly</option>
-                  </select>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="Amount (USD)"
-                    value={p.amount}
-                    onChange={(e) => updatePrice(i, { amount: e.target.value })}
-                  />
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    placeholder="Payments"
-                    title="Number of payments, then lifetime access. Blank = ongoing subscription."
-                    value={p.installments}
-                    onChange={(e) =>
-                      updatePrice(i, { installments: e.target.value })
-                    }
-                    style={{ maxWidth: 130 }}
-                  />
-                  <button
-                    type="button"
-                    className="btn btn--ghost btn--sm"
-                    onClick={() =>
-                      setPrices((prev) =>
-                        prev.length > 1
-                          ? prev.filter((_, idx) => idx !== i)
-                          : prev
-                      )
-                    }
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                className="btn btn--ghost btn--sm"
-                onClick={() => setPrices((prev) => [...prev, emptyPrice()])}
-              >
-                + Add price
-              </button>
-            </div>
-          )}
-
-          <div className="field">
-            <label>Categories</label>
-            {categories.length === 0 ? (
-              <p className="muted">No categories yet — add one above.</p>
-            ) : (
-              <div className="checkbox-list">
-                {categories.map((c) => (
-                  <label key={c.id}>
+                <div className="form-row">
+                  <div className="field">
+                    <label>Name</label>
                     <input
-                      type="checkbox"
-                      checked={categoryIds.includes(c.id)}
-                      onChange={() => toggleCategory(c.id)}
-                    />
-                    {c.name}
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="field">
-            <label>
-              Class image <span className="muted">(landing-page hero)</span>
-            </label>
-            <MediaPicker value={imageUrl} onChange={setImageUrl} aspect={16 / 9} />
-          </div>
-
-          <div className="field">
-            <label>
-              Description <span className="muted">(landing page)</span>
-            </label>
-            <RichTextEditor value={description} onChange={setDescription} />
-          </div>
-
-          <div className="field">
-            <label>
-              Trailer{" "}
-              <span className="muted">
-                (upload a video or paste a Vimeo/MP4 link)
-              </span>
-            </label>
-            <MediaPicker
-              value={trailerUrl}
-              onChange={setTrailerUrl}
-              kind="video"
-            />
-          </div>
-
-          {certTemplates !== null && (
-            <div className="field">
-              <label>
-                Certificate template{" "}
-                <span className="muted">
-                  (members get it after completing every lesson)
-                </span>
-              </label>
-              <select
-                value={certificateTemplateId}
-                onChange={(e) => setCertificateTemplateId(e.target.value)}
-              >
-                <option value="">
-                  Use default
-                  {(() => {
-                    const d = certTemplates.find((t) => t.isDefault);
-                    return d ? ` (${d.name})` : " (none set — certificates off)";
-                  })()}
-                </option>
-                {certTemplates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="field">
-            <label>Skills you&apos;ll learn</label>
-            {skills.length === 0 ? (
-              <p className="muted">No skills yet — add the first below.</p>
-            ) : (
-              skills.map((s, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "flex",
-                    gap: 12,
-                    alignItems: "flex-start",
-                    marginBottom: 12,
-                  }}
-                >
-                  <input
-                    placeholder="Skill title"
-                    value={s.title}
-                    onChange={(e) => updateSkill(i, { title: e.target.value })}
-                    style={{ flex: "0 0 200px" }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <MediaPicker
-                      value={s.imageUrl}
-                      onChange={(url) => updateSkill(i, { imageUrl: url })}
-                      aspect={3 / 4}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
                     />
                   </div>
+                  <div className="field">
+                    <label>Type</label>
+                    <select
+                      value={type}
+                      onChange={(e) => setType(e.target.value as LevelType)}
+                    >
+                      {LEVEL_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>
+                      Tags{" "}
+                      <span className="muted">
+                        (applied within the audience when a member is granted
+                        this class)
+                      </span>
+                    </label>
+                    <input
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === ",") {
+                          e.preventDefault();
+                          addTag();
+                        }
+                      }}
+                      onBlur={addTag}
+                      placeholder="Type a tag, press Enter"
+                    />
+                    {audienceTags.length > 0 && (
+                      <div className="chips" style={{ marginTop: 8 }}>
+                        {audienceTags.map((t) => (
+                          <span key={t} className="chip chip--muted">
+                            {t}
+                            <button
+                              type="button"
+                              className="chip-x"
+                              aria-label={`Remove ${t}`}
+                              title={`Remove ${t}`}
+                              onClick={() => removeTag(t)}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="field">
+                  <label>Visibility</label>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      fontWeight: 400,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={published}
+                      onChange={(e) => setPublished(e.target.checked)}
+                    />
+                    Published — show this class as a tile on the member
+                    dashboard
+                  </label>
+                </div>
+
+                <div className="field">
+                  <label>
+                    URL slug <span className="muted">(optional)</span>
+                  </label>
+                  <input
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value)}
+                    placeholder="e.g. class-1"
+                  />
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    {slug.trim()
+                      ? `Class URL: /classes/${slug.trim()}`
+                      : "Leave blank to auto-generate from the class name."}
+                  </span>
+                </div>
+
+                <div className="field">
+                  <label>
+                    Audience{" "}
+                    <span className="muted">
+                      (members granted this class are subscribed to this
+                      audience; the tags are applied within it — leave as
+                      default to use the default “Members” audience)
+                    </span>
+                  </label>
+                  <select
+                    value={audienceId}
+                    onChange={(e) => setAudienceId(e.target.value)}
+                  >
+                    <option value="">
+                      — None (use the default audience) —
+                    </option>
+                    {/* keep the stored audience selectable even if it isn't in the
+                  fetched list (e.g. the picker 403'd for a class-only admin) */}
+                    {audienceId &&
+                      !audiences.some((a) => a.id === audienceId) && (
+                        <option value={audienceId}>
+                          {audienceName ?? audienceId}
+                        </option>
+                      )}
+                    {audiences.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                        {a.isDefault ? " (default)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {audiences.length === 0 && (
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      Using the default audience.
+                    </span>
+                  )}
+                </div>
+
+                {type === "PAID" && (
+                  <div className="field">
+                    <label>Prices</label>
+                    <span
+                      className="muted"
+                      style={{
+                        fontSize: 12,
+                        display: "block",
+                        marginBottom: 8,
+                      }}
+                    >
+                      “Payments” bills that many times, then the member keeps
+                      the class for life. Leave it blank for an ongoing
+                      subscription.
+                    </span>
+                    {prices.map((p, i) => (
+                      <div
+                        className="form-row"
+                        key={i}
+                        style={{ marginBottom: 8 }}
+                      >
+                        <select
+                          value={p.interval}
+                          onChange={(e) =>
+                            updatePrice(i, {
+                              interval: e.target.value as "month" | "year",
+                            })
+                          }
+                        >
+                          <option value="month">Monthly</option>
+                          <option value="year">Yearly</option>
+                        </select>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Amount (USD)"
+                          value={p.amount}
+                          onChange={(e) =>
+                            updatePrice(i, { amount: e.target.value })
+                          }
+                        />
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          placeholder="Payments"
+                          title="Number of payments, then lifetime access. Blank = ongoing subscription."
+                          value={p.installments}
+                          onChange={(e) =>
+                            updatePrice(i, { installments: e.target.value })
+                          }
+                          style={{ maxWidth: 130 }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
+                          onClick={() =>
+                            setPrices((prev) =>
+                              prev.length > 1
+                                ? prev.filter((_, idx) => idx !== i)
+                                : prev,
+                            )
+                          }
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="btn btn--ghost btn--sm"
+                      onClick={() =>
+                        setPrices((prev) => [...prev, emptyPrice()])
+                      }
+                    >
+                      + Add price
+                    </button>
+                  </div>
+                )}
+
+                <div className="field">
+                  <label>Categories</label>
+                  {categories.length === 0 ? (
+                    <p className="muted">No categories yet — add one above.</p>
+                  ) : (
+                    <div className="checkbox-list">
+                      {categories.map((c) => (
+                        <label key={c.id}>
+                          <input
+                            type="checkbox"
+                            checked={categoryIds.includes(c.id)}
+                            onChange={() => toggleCategory(c.id)}
+                          />
+                          {c.name}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="field">
+                  <label>
+                    Class image{" "}
+                    <span className="muted">(landing-page hero)</span>
+                  </label>
+                  <MediaPicker
+                    value={imageUrl}
+                    onChange={setImageUrl}
+                    aspect={16 / 9}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>
+                    Description <span className="muted">(landing page)</span>
+                  </label>
+                  <RichTextEditor
+                    value={description}
+                    onChange={setDescription}
+                  />
+                </div>
+
+                <div className="field">
+                  <label>
+                    Trailer{" "}
+                    <span className="muted">
+                      (upload a video or paste a Vimeo/MP4 link)
+                    </span>
+                  </label>
+                  <MediaPicker
+                    value={trailerUrl}
+                    onChange={setTrailerUrl}
+                    kind="video"
+                  />
+                </div>
+
+                {certTemplates !== null && (
+                  <div className="field">
+                    <label>
+                      Certificate template{" "}
+                      <span className="muted">
+                        (members get it after completing every lesson)
+                      </span>
+                    </label>
+                    <select
+                      value={certificateTemplateId}
+                      onChange={(e) => setCertificateTemplateId(e.target.value)}
+                    >
+                      <option value="">
+                        Use default
+                        {(() => {
+                          const d = certTemplates.find((t) => t.isDefault);
+                          return d
+                            ? ` (${d.name})`
+                            : " (none set — certificates off)";
+                        })()}
+                      </option>
+                      {certTemplates.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="field">
+                  <label>Skills you&apos;ll learn</label>
+                  {skills.length === 0 ? (
+                    <p className="muted">
+                      No skills yet — add the first below.
+                    </p>
+                  ) : (
+                    skills.map((s, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          display: "flex",
+                          gap: 12,
+                          alignItems: "flex-start",
+                          marginBottom: 12,
+                        }}
+                      >
+                        <input
+                          placeholder="Skill title"
+                          value={s.title}
+                          onChange={(e) =>
+                            updateSkill(i, { title: e.target.value })
+                          }
+                          style={{ flex: "0 0 200px" }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <MediaPicker
+                            value={s.imageUrl}
+                            onChange={(url) =>
+                              updateSkill(i, { imageUrl: url })
+                            }
+                            aspect={3 / 4}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="chip-x"
+                          aria-label={`Remove skill ${i + 1}`}
+                          title="Remove skill"
+                          onClick={() => removeSkill(i)}
+                          style={{ flex: "none", fontSize: 20, marginTop: 8 }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))
+                  )}
                   <button
                     type="button"
-                    className="chip-x"
-                    aria-label={`Remove skill ${i + 1}`}
-                    title="Remove skill"
-                    onClick={() => removeSkill(i)}
-                    style={{ flex: "none", fontSize: 20, marginTop: 8 }}
+                    className="btn btn--add btn--sm"
+                    onClick={addSkill}
+                    style={{ width: "100%", marginTop: 4 }}
                   >
-                    ×
+                    + Add skill
                   </button>
                 </div>
-              ))
-            )}
-            <button
-              type="button"
-              className="btn btn--add btn--sm"
-              onClick={addSkill}
-              style={{ width: "100%", marginTop: 4 }}
-            >
-              + Add skill
-            </button>
-          </div>
 
                 <div className="row-actions">
                   <button className="btn" type="submit" disabled={saving}>
@@ -861,7 +893,9 @@ export default function ClassesPage() {
         <button
           type="button"
           className={
-            statusFilter === "all" ? "chipbar-chip chipbar-chip--on" : "chipbar-chip"
+            statusFilter === "all"
+              ? "chipbar-chip chipbar-chip--on"
+              : "chipbar-chip"
           }
           onClick={() => setStatusFilter("all")}
         >
@@ -892,7 +926,13 @@ export default function ClassesPage() {
         <div className="filter-spacer" />
         <div className="filter-search">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+            <circle
+              cx="11"
+              cy="11"
+              r="7"
+              stroke="currentColor"
+              strokeWidth="2"
+            />
             <path
               d="m20 20-3.5-3.5"
               stroke="currentColor"
@@ -948,12 +988,22 @@ export default function ClassesPage() {
                   style={{ gridTemplateColumns: gridCols }}
                   key={lvl.id}
                 >
-                  <span style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      minWidth: 0,
+                    }}
+                  >
                     {lvl.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={lvl.imageUrl} alt="" className="row-thumb" />
                     ) : (
-                      <span className="row-thumb row-thumb--empty" aria-hidden="true">
+                      <span
+                        className="row-thumb row-thumb--empty"
+                        aria-hidden="true"
+                      >
                         —
                       </span>
                     )}
@@ -970,8 +1020,12 @@ export default function ClassesPage() {
                       {lvl.name}
                     </span>
                   </span>
-                  {courses && <span className="mini-cell">{counts?.courses ?? "—"}</span>}
-                  {courses && <span className="mini-cell">{counts?.lessons ?? "—"}</span>}
+                  {courses && (
+                    <span className="mini-cell">{counts?.courses ?? "—"}</span>
+                  )}
+                  {courses && (
+                    <span className="mini-cell">{counts?.lessons ?? "—"}</span>
+                  )}
                   <span
                     className="mini-cell"
                     style={{ fontWeight: 600, color: "var(--ink-800)" }}
@@ -996,7 +1050,8 @@ export default function ClassesPage() {
                         { label: "Edit", onClick: () => startEdit(lvl) },
                         {
                           label: lvl.archivedAt ? "Unarchive" : "Archive",
-                          onClick: () => void onArchive(lvl.id, !!lvl.archivedAt),
+                          onClick: () =>
+                            void onArchive(lvl.id, !!lvl.archivedAt),
                           disabled: rowBusy === lvl.id,
                         },
                         {

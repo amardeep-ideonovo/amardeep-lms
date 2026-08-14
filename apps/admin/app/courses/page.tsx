@@ -96,7 +96,9 @@ export default function CoursesPage() {
       setCourses(c);
       setLevels(lvls);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load courses");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to load courses",
+      );
     } finally {
       setLoading(false);
     }
@@ -227,7 +229,7 @@ export default function CoursesPage() {
       }
     } catch (err) {
       setFormError(
-        err instanceof ApiError ? err.message : "Failed to save course"
+        err instanceof ApiError ? err.message : "Failed to save course",
       );
     } finally {
       setSaving(false);
@@ -252,7 +254,9 @@ export default function CoursesPage() {
       // classes list this page also holds is unaffected by it.
       setCourses((prev) => prev.filter((c) => c.id !== course.id));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to delete course");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to delete course",
+      );
     } finally {
       setRowBusy(null);
     }
@@ -293,8 +297,8 @@ export default function CoursesPage() {
         <div>
           <h1>Courses</h1>
           <p className="subtitle">
-            Assign each course to one or more classes. A course unlocks if a member
-            holds ANY assigned class.
+            Assign each course to one or more classes. A course unlocks if a
+            member holds ANY assigned class.
           </p>
         </div>
         <button className="btn" onClick={openCreate}>
@@ -317,7 +321,13 @@ export default function CoursesPage() {
           >
             <div className="filter-search">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
+                <circle
+                  cx="11"
+                  cy="11"
+                  r="7"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
                 <path
                   d="m20 20-3.5-3.5"
                   stroke="currentColor"
@@ -341,100 +351,104 @@ export default function CoursesPage() {
         {loading ? (
           <p className="muted">Loading…</p>
         ) : courses.length === 0 ? (
-          <p className="muted">No courses yet. Click “Add new course” to start.</p>
+          <p className="muted">
+            No courses yet. Click “Add new course” to start.
+          </p>
         ) : visibleCourses.length === 0 ? (
           <p className="muted">No courses match your search.</p>
         ) : (
-          <div className="table-wrap"><table className="table">
-            <thead>
-              <tr>
-                <th></th>
-                <th>Title</th>
-                <th>Class</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleCourses.map((course) => (
-                <Fragment key={course.id}>
-                  <tr>
-                    <td>
-                      {course.thumbnailUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={course.thumbnailUrl}
-                          alt=""
-                          className="table-thumb"
-                        />
-                      ) : (
-                        <div className="table-thumb table-thumb--empty">—</div>
-                      )}
-                    </td>
-                    <td>{course.title}</td>
-                    <td>
-                      {levelNamesFor(course.levelIds).length === 0 ? (
-                        <span className="muted">—</span>
-                      ) : (
-                        <div className="chips">
-                          {levelNamesFor(course.levelIds).map((name, i) => (
-                            <span key={i} className="chip chip--muted">
-                              {name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <div className="row-actions">
-                        <button
-                          className="btn btn--ghost btn--sm"
-                          onClick={() =>
-                            setOpenCourse(
-                              openCourse === course.id ? null : course.id
-                            )
-                          }
-                        >
-                          {openCourse === course.id ? "Hide lessons" : "Lessons"}
-                        </button>
-                        <button
-                          className="btn btn--ghost btn--sm"
-                          onClick={() => startEdit(course)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn--danger btn--sm"
-                          onClick={() => removeCourse(course)}
-                          disabled={rowBusy === course.id}
-                        >
-                          {rowBusy === course.id ? "Deleting…" : "Delete"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  {openCourse === course.id && (
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Title</th>
+                  <th>Class</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleCourses.map((course) => (
+                  <Fragment key={course.id}>
                     <tr>
-                      <td colSpan={4} style={{ padding: 0 }}>
-                        <CourseLessons
-                          courseId={course.id}
-                          courseTitle={course.title}
-                        />
+                      <td>
+                        {course.thumbnailUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={course.thumbnailUrl}
+                            alt=""
+                            className="table-thumb"
+                          />
+                        ) : (
+                          <div className="table-thumb table-thumb--empty">
+                            —
+                          </div>
+                        )}
+                      </td>
+                      <td>{course.title}</td>
+                      <td>
+                        {levelNamesFor(course.levelIds).length === 0 ? (
+                          <span className="muted">—</span>
+                        ) : (
+                          <div className="chips">
+                            {levelNamesFor(course.levelIds).map((name, i) => (
+                              <span key={i} className="chip chip--muted">
+                                {name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <div className="row-actions">
+                          <button
+                            className="btn btn--ghost btn--sm"
+                            onClick={() =>
+                              setOpenCourse(
+                                openCourse === course.id ? null : course.id,
+                              )
+                            }
+                          >
+                            {openCourse === course.id
+                              ? "Hide lessons"
+                              : "Lessons"}
+                          </button>
+                          <button
+                            className="btn btn--ghost btn--sm"
+                            onClick={() => startEdit(course)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn--danger btn--sm"
+                            onClick={() => removeCourse(course)}
+                            disabled={rowBusy === course.id}
+                          >
+                            {rowBusy === course.id ? "Deleting…" : "Delete"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
-                  )}
-                </Fragment>
-              ))}
-            </tbody>
-          </table></div>
+                    {openCourse === course.id && (
+                      <tr>
+                        <td colSpan={4} style={{ padding: 0 }}>
+                          <CourseLessons
+                            courseId={course.id}
+                            courseTitle={course.title}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {modalOpen && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="modal">
             <div className="modal-header">
               <h2>{editingId ? "Edit course" : "New course"}</h2>
@@ -454,7 +468,9 @@ export default function CoursesPage() {
                   <label>Title</label>
                   <input
                     value={form.title}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, title: e.target.value })
+                    }
                     autoFocus
                     required
                   />
@@ -464,9 +480,7 @@ export default function CoursesPage() {
                   <label>Description</label>
                   <RichTextEditor
                     value={form.description}
-                    onChange={(html) =>
-                      setForm({ ...form, description: html })
-                    }
+                    onChange={(html) => setForm({ ...form, description: html })}
                   />
                 </div>
 
@@ -553,8 +567,8 @@ export default function CoursesPage() {
                   </label>
                   <p className="muted">
                     A member who lacks membership access can buy lifetime access
-                    to just this course. Uncheck to pause sales without losing the
-                    price.
+                    to just this course. Uncheck to pause sales without losing
+                    the price.
                   </p>
                 </div>
 
@@ -595,8 +609,8 @@ export default function CoursesPage() {
                     {saving
                       ? "Saving…"
                       : editingId
-                      ? "Save changes"
-                      : "Create course"}
+                        ? "Save changes"
+                        : "Create course"}
                   </button>
                   <button
                     type="button"
@@ -644,7 +658,9 @@ function CourseLessons({
     try {
       setLessons(await api.listCourseLessons(courseId));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load lessons");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to load lessons",
+      );
     } finally {
       setLoading(false);
     }
@@ -736,15 +752,8 @@ function CourseLessons({
       </button>
 
       {showAdd && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div
-            className="modal"
-            style={{ maxWidth: 860 }}
-          >
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal" style={{ maxWidth: 860 }}>
             <div className="modal-header">
               <h2>Add lesson — {courseTitle}</h2>
               <button
@@ -922,11 +931,11 @@ function LessonRow({
   const [title, setTitle] = useState(lesson.title);
   const [content, setContent] = useState(lesson.content ?? "");
   const [media, setMedia] = useState<LessonMediaState>(
-    lessonMediaFromDTO(lesson)
+    lessonMediaFromDTO(lesson),
   );
   const [thumbnailUrl, setThumbnailUrl] = useState(lesson.thumbnailUrl ?? "");
   const [duration, setDuration] = useState(
-    formatDuration(lesson.durationSeconds)
+    formatDuration(lesson.durationSeconds),
   );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -1033,8 +1042,8 @@ function LessonRow({
     n < 1024
       ? `${n} B`
       : n < 1024 * 1024
-      ? `${(n / 1024).toFixed(0)} KB`
-      : `${(n / 1024 / 1024).toFixed(1)} MB`;
+        ? `${(n / 1024).toFixed(0)} KB`
+        : `${(n / 1024 / 1024).toFixed(1)} MB`;
 
   return (
     <div className="lesson-item">
@@ -1143,7 +1152,8 @@ function LessonRow({
                       className="btn btn--ghost btn--sm"
                       onClick={() => rename(n)}
                       disabled={
-                        !nameFor(n).trim() || nameFor(n).trim() === n.originalName
+                        !nameFor(n).trim() ||
+                        nameFor(n).trim() === n.originalName
                       }
                     >
                       Rename

@@ -19,7 +19,9 @@ export default function PuckColorField({
   return (
     <div style={{ display: "grid", gap: 4 }}>
       {label ? (
-        <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-soft)" }}>
+        <label
+          style={{ fontSize: 12, fontWeight: 600, color: "var(--text-soft)" }}
+        >
           {label}
         </label>
       ) : null}

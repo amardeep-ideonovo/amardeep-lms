@@ -132,69 +132,75 @@ export default function NotificationsPage() {
           <p className="muted">No notifications yet.</p>
         ) : (
           <>
-            <div className="table-wrap"><table className="table">
-              <thead>
-                <tr>
-                  <th>Severity</th>
-                  <th>Event</th>
-                  <th>Member</th>
-                  <th>When</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((n) => {
-                  const sev = SEVERITY_META[n.severity];
-                  return (
-                    <tr
-                      key={n.id}
-                      style={
-                        n.read ? undefined : { background: "var(--surface-2)" }
-                      }
-                    >
-                      <td>
-                        <span className={`badge ${sev.cls}`}>{sev.label}</span>
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 600 }}>{n.title}</div>
-                        <div className="muted" style={{ fontSize: 12 }}>
-                          {n.body}
-                        </div>
-                      </td>
-                      <td>
-                        {n.userId ? (
-                          <Link
-                            href={`/members/${n.userId}`}
-                            className="linklike"
-                          >
-                            View member
-                          </Link>
-                        ) : (
-                          <span className="muted">—</span>
-                        )}
-                      </td>
-                      <td className="muted" style={{ fontSize: 13 }}>
-                        {fmtDateTime(n.createdAt)}
-                      </td>
-                      <td>
-                        {n.read ? (
-                          <span className="muted" style={{ fontSize: 12 }}>
-                            Read
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Severity</th>
+                    <th>Event</th>
+                    <th>Member</th>
+                    <th>When</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((n) => {
+                    const sev = SEVERITY_META[n.severity];
+                    return (
+                      <tr
+                        key={n.id}
+                        style={
+                          n.read
+                            ? undefined
+                            : { background: "var(--surface-2)" }
+                        }
+                      >
+                        <td>
+                          <span className={`badge ${sev.cls}`}>
+                            {sev.label}
                           </span>
-                        ) : (
-                          <button
-                            className="btn btn--ghost btn--sm"
-                            onClick={() => markRead(n)}
-                          >
-                            Mark read
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table></div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{n.title}</div>
+                          <div className="muted" style={{ fontSize: 12 }}>
+                            {n.body}
+                          </div>
+                        </td>
+                        <td>
+                          {n.userId ? (
+                            <Link
+                              href={`/members/${n.userId}`}
+                              className="linklike"
+                            >
+                              View member
+                            </Link>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td className="muted" style={{ fontSize: 13 }}>
+                          {fmtDateTime(n.createdAt)}
+                        </td>
+                        <td>
+                          {n.read ? (
+                            <span className="muted" style={{ fontSize: 12 }}>
+                              Read
+                            </span>
+                          ) : (
+                            <button
+                              className="btn btn--ghost btn--sm"
+                              onClick={() => markRead(n)}
+                            >
+                              Mark read
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
             <div
               style={{
