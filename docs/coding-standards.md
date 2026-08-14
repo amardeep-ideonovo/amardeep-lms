@@ -106,7 +106,7 @@ npm workspaces (`package.json` → `apps/*`, `packages/*`), Node ≥ 20. No Turb
 | BDD              | postgres+redis services → migrate → seed → **`test:seed` (11-scenario seed-provisioning check)** → build & boot API from `dist` → 64 Cucumber scenarios; `ENV_NAME` deliberately unset to exercise the production storage-dir boot guard | `bdd.yml`   |
 
 - `images.yml` (push to main): Buildx → GHCR `{api,web,admin}` with `latest` + `sha-*` tags, GHA layer cache. `smoke-staging.yml` (manual): `/health` + `@smoke` Cucumber subset against a deployed URL.
-- ⚠️ **Gaps** (→ D7): the API's 23 spec files are **never run in CI**; `apps/control-plane` is neither typechecked nor built (lint-only); web/admin `tsc` is only implicit via `next build`.
+- ⚠️ **Gaps** (→ D7): the API's 23 spec files are **never run in CI**; `apps/control-plane` is neither typechecked nor built (lint-only); web/admin `tsc` is only implicit via `next build`. (**PR #127** adds `Test (api)` + `Next build (control-plane)` — add both to the `protect-main` ruleset after it merges.)
 
 ### 2.6 Environment variables
 
@@ -162,7 +162,7 @@ Three tiers — this distinction has bitten before (a build-time `NEXT_PUBLIC_SI
 
 - ✅ Forms: controlled `useState` per field, `<form onSubmit>` + `preventDefault`, one `busy` flag, one `error` string, native HTML validation attributes; the API is the source-of-truth validator and `ApiError.message` is surfaced. No form/validation library — acceptable at current form complexity; revisit only if a form needs cross-field validation.
 - ✅ **Modal contract** (post-#106/#107): `.modal-overlay[role=dialog][aria-modal] > .modal` with `.modal-header/.modal-close/.modal-body/.modal-actions`; **form/editor modals must not close on backdrop click or Escape** — dismiss is ×/Cancel/Save only. Transient popovers (row menus, pickers, notification panel) remain outside-dismissable by design.
-- ⚠️ The contract is a hand-applied convention (a marker comment at ~20 call sites), not a component; web was never migrated (`checkout/LoginModal.tsx` still Escape-closes and uses a parallel `co-modal` class family; web `AvatarCropper` too). No focus trap and no focus restore anywhere — with Escape removed, keyboard users can tab out of an open dialog and cannot dismiss it. → D5 (one `<Modal>` primitive fixes compliance + a11y everywhere).
+- ✅ **Keyboard/AT wiring (PR #128):** `useModalA11y` (in `apps/{admin,web}/lib`, one copy each pending the P2 `packages/ui` extraction) is attached at every overlay: focus moves in on open, Tab/Shift-Tab is trapped, escaped focus is pulled back (never from a dialog stacked later), and the opener regains focus on close. Web's modals (account ×2, `AvatarCropper`, checkout `LoginModal`) joined the contract in the same PR — their backdrop/Escape closes are gone. **Escape decision (recorded here):** form modals stay Escape-proof — with the trap in place, Tab always reaches ×/Cancel, so keyboard dismissal exists without Escape's risk of discarding a half-filled form; dialogs with nothing to lose take Escape (DialogProvider `confirm`/`notify`, `prompt` while its input is pristine, web's cancel-membership confirm). New modals must use the hook and this policy.
 - ✅ Toasts: provider-based queue with SR live region pre-mounted; admin's flavor adds action buttons (Retry). ⚠️ Two near-identical implementations (`web/components/Toast.tsx` vs `admin/components/ToastProvider.tsx` — the diff is comments) + duplicated CSS. → D5.
 - ✅ Destructive confirms go through `DialogProvider.confirm()` (42 admin sites) — never `window.confirm` (one raw usage left in `coupons/page.tsx`; fix on touch).
 
@@ -246,32 +246,32 @@ Class-accent theming is the one dynamic mechanism: `.class-c0…c5` remap `--cls
 
 **High — correctness/user-facing risk:**
 
-| #   | Problem                                                                                                                                                   | Evidence                                                                                    |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| H1  | API's 23 spec files never run in CI (incl. the storage-pin contract test)                                                                                 | no workflow invokes `-w @lms/api test`                                                      |
-| H2  | `apps/api` non-strict (`noImplicitAny: false`) — largest workspace, weakest compiler                                                                      | `apps/api/tsconfig.json`                                                                    |
-| H3  | ~2,000 hardcoded user-facing strings; top-15 literals repeated ~230×; same messages drift in wording/punctuation across apps and vs API                   | §10 D1 census                                                                               |
-| H4  | Accent map ×3 verbatim copies (each self-documenting "three copies, no shared package") + a 4th palette copy in demo-art                                  | `web/lib/memberData.ts:94`, `admin/lib/class-accent.ts:12`, `mobile/src/class-colors.ts:38` |
-| H5  | Optimistic-UI implemented 3 incompatible ways; web's drops overlapping actions; nothing tested                                                            | two `useOptimisticAction.ts` + `mobile/src/optimistic.ts`                                   |
-| H6  | Modal a11y: no focus trap/restore anywhere + Escape removed → keyboard users can't dismiss; web modals never migrated to the no-accidental-close contract | `web/components/checkout/LoginModal.tsx`, web `AvatarCropper.tsx`                           |
-| H7  | Password min-length tiers (member 10 / admin 8 / reset 12 — intentional per owner) are re-hardcoded by every client instead of imported                   | `api/src/admins/dto/admins.dto.ts:16` vs `auth/dto/signup.dto.ts:17`                        |
-| H8  | 8 inline uses of retired `#8b8a87` render below AA contrast since the admin token moved                                                                   | admin TSX inline styles                                                                     |
+| #   | Problem                                                                                                                                                                                                                                                       | Evidence                                                                                    |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| H1  | API's 23 spec files never run in CI (incl. the storage-pin contract test) — **PR #127** adds the `Test (api)` job                                                                                                                                             | no workflow invokes `-w @lms/api test`                                                      |
+| H2  | `apps/api` non-strict (`noImplicitAny: false`) — largest workspace, weakest compiler                                                                                                                                                                          | `apps/api/tsconfig.json`                                                                    |
+| H3  | ~2,000 hardcoded user-facing strings; top-15 literals repeated ~230×; same messages drift in wording/punctuation across apps and vs API — **PR #126** ships the `STR` catalog, a ~590-site migration, and the warn-level lint ratchet                         | §10 D1 census                                                                               |
+| H4  | Accent map ×3 verbatim copies (each self-documenting "three copies, no shared package") + a 4th palette copy in demo-art — **consolidated in PR #126** (`packages/types/class-accents.ts`; the three files are now re-export shims)                           | `web/lib/memberData.ts:94`, `admin/lib/class-accent.ts:12`, `mobile/src/class-colors.ts:38` |
+| H5  | Optimistic-UI implemented 3 incompatible ways; web's drops overlapping actions; nothing tested                                                                                                                                                                | two `useOptimisticAction.ts` + `mobile/src/optimistic.ts`                                   |
+| H6  | Modal a11y: no focus trap/restore anywhere + Escape removed → keyboard users can't dismiss; web modals never migrated to the no-accidental-close contract — **fixed in PR #128** (`useModalA11y` at all 20 sites; Escape policy in §4.4)                      | `web/components/checkout/LoginModal.tsx`, web `AvatarCropper.tsx`                           |
+| H7  | Password min-length tiers (member 10 / admin 8 / reset 12 — intentional per owner) are re-hardcoded by every client instead of imported — **named as `PASSWORD_MIN` in PR #126**, which also fixed checkout's stray client floor of 8 (below the server's 10) | `api/src/admins/dto/admins.dto.ts:16` vs `auth/dto/signup.dto.ts:17`                        |
+| H8  | 8 inline uses of retired `#8b8a87` render below AA contrast since the admin token moved                                                                                                                                                                       | admin TSX inline styles                                                                     |
 
 **Medium — duplication/maintainability:**
 
-| #   | Problem                                                                                                                                  | Evidence                                       |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| M1  | Two token vocabularies for identical hexes (web `--lav-*`/color-named vs admin semantic); puck-theme re-hardcodes palette                | both `globals.css`, `admin/app/puck-theme.css` |
-| M2  | 108 raw hexes in web/admin TSX; mobile: 29 `#ffffff`, 41 raw `rgba()`, slate palette in `PopupHost`                                      | census                                         |
-| M3  | Two fetch wrappers with different signatures; `ApiError` ×2 (+ mobile's third); web lacks 401 handling; 3 ad-hoc request caches in admin | `web/lib/api.ts:152` vs `admin/lib/api.ts:180` |
-| M4  | Toast system ×2 (diff = comments); croppers ×3; `AuthGate`/`AuthGuard` divergent UX                                                      | components dirs                                |
-| M5  | Currency formatter ×13 files, `formatBytes` ×5, date-format block ×6, `MIME_TO_EXT` ×5, upload configs ×4                                | census                                         |
-| M6  | API error surface: 329 throws, ad-hoc English, 1 machine-readable code                                                                   | `live.service.ts` is the lone precedent        |
-| M7  | Env read two ways in API; `isProduction()` re-inlined twice                                                                              | §2.6                                           |
-| M8  | `AdminGuard` (6 sites) duplicates `PermissionsGuard`; `AdminRole` imported from 2 sources                                                | §3                                             |
-| M9  | Mobile: two fetch architectures; zero `useMutation`; `LessonScreen` dual source of truth                                                 | §5                                             |
-| M10 | control-plane: no typecheck/build in CI; Dockerfiles' manifest-copy layer missing `packages/puck` + `apps/control-plane`                 | `build.yml`, all three Dockerfiles             |
-| M11 | 4 TS compiler versions in tree; floating `^` where CI pins matter                                                                        | §2.1                                           |
+| #   | Problem                                                                                                                                                                          | Evidence                                       |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| M1  | Two token vocabularies for identical hexes (web `--lav-*`/color-named vs admin semantic); puck-theme re-hardcodes palette                                                        | both `globals.css`, `admin/app/puck-theme.css` |
+| M2  | 108 raw hexes in web/admin TSX; mobile: 29 `#ffffff`, 41 raw `rgba()`, slate palette in `PopupHost`                                                                              | census                                         |
+| M3  | Two fetch wrappers with different signatures; `ApiError` ×2 (+ mobile's third); web lacks 401 handling; 3 ad-hoc request caches in admin                                         | `web/lib/api.ts:152` vs `admin/lib/api.ts:180` |
+| M4  | Toast system ×2 (diff = comments); croppers ×3; `AuthGate`/`AuthGuard` divergent UX                                                                                              | components dirs                                |
+| M5  | Currency formatter ×13 files, `formatBytes` ×5, date-format block ×6, `MIME_TO_EXT` ×5, upload configs ×4                                                                        | census                                         |
+| M6  | API error surface: 329 throws, ad-hoc English, 1 machine-readable code                                                                                                           | `live.service.ts` is the lone precedent        |
+| M7  | Env read two ways in API; `isProduction()` re-inlined twice                                                                                                                      | §2.6                                           |
+| M8  | `AdminGuard` (6 sites) duplicates `PermissionsGuard`; `AdminRole` imported from 2 sources                                                                                        | §3                                             |
+| M9  | Mobile: two fetch architectures; zero `useMutation`; `LessonScreen` dual source of truth                                                                                         | §5                                             |
+| M10 | control-plane: no typecheck/build in CI (**PR #127** adds the build job); Dockerfiles' manifest-copy layer missing `packages/puck` + `apps/control-plane` (**fixed in this PR**) | `build.yml`, all three Dockerfiles             |
+| M11 | 4 TS compiler versions in tree; floating `^` where CI pins matter                                                                                                                | §2.1                                           |
 
 **Low — cosmetic/naming (fix on touch):** variant-controller naming (dot vs dash); `lib/` casing mix; `src/auth/dto` file granularity; mobile's one default export; `[error, setError]` vs `[errorMsg, …]`; dead `ThemeToggle`; `ScheduleModule.forRoot()` living in `email.module.ts`; stale docs (`deploy/STAGING.md` says "PLAN" but is live; `LIVE-SESSIONS-PLAN.md` historical; README's tree omits control-plane/puck/bdd; `render.yaml` legacy); root `docker-compose.yml` lacks a "dev-only" banner; three ignore files (`.gitignore`/`.dockerignore`/`.prettierignore`) answer differently for `.claude/` and `graphify-out/`.
 
@@ -280,6 +280,8 @@ Class-accent theming is the one dynamic mechanism: `.class-c0…c5` remap `--cls
 ## 10. Standardization decisions
 
 ### D1 — Shared strings catalog 🎯 (the "Close" problem)
+
+> **Status: shipped as PR #126** — `STR` in `packages/types/strings.ts`, ~590 call sites migrated across the four client apps, warn-level lint ratchet in place. The long tail migrates via the ratchet + PR review.
 
 **Verdict: adopt.** The census found ~2,000 distinct user-facing strings, all inline. A catalog of ~60 entries covers ~600 call sites (~30%): `Loading…` ×79, `Cancel` ×45, permission-denied sentence ×28, `Close` ×26, `Delete` ×26, the 42 `confirm()` prompts (11 near-identical `Delete <entity> "<name>"?` shapes, three spellings of "cannot be undone"), and 334 `setError("…")` sites drawing on ~10 recurring error sentences.
 
@@ -323,6 +325,8 @@ export const STR = {
 **Enforcement:** ESLint `no-restricted-syntax` entries generated from the catalog's top literals (e.g. `JSXText[value=/^\s*Close\s*$/]` → "use STR.common.close") — start as `warn`, ratchet to `error` per app once migrated.
 
 ### D2 — Shared constants 🎯
+
+> **Status: core shipped in PR #126** — `PASSWORD_MIN` (tiers named; every DTO + client check imports them), accent map consolidated, `SEARCH_DEBOUNCE_MS`, shared upload caps, safe-image MIME map. Still open: the shared formatters (`formatMoney`/`formatBytes`/`fmtDate` → D5).
 
 Same home (`packages/types/constants.ts`). First residents, all currently multiply-declared:
 
@@ -368,6 +372,8 @@ Adding the package is also the moment to fix the Dockerfile manifest-copy drift 
 Extend the one existing precedent (`{ code: "OUTSIDE_WINDOW" }`) into the standard error shape: `throw new BadRequestException({ code: ErrorCode.X, message })`, with the `ErrorCode` union living in `@lms/types` and clients mapping `code → STR.errors.*` instead of parroting server prose (kills the API↔client message drift in H3/H7). Rollout: new endpoints + auth/billing first; a thin exception filter can normalize legacy string-only errors into `{ code: "UNSPECIFIED", message }` so clients handle one shape.
 
 ### D7 — Enforcement & CI hardening 🎯
+
+> **Status: partial.** CI gates → **PR #127** (ruleset addition pending merge); Dockerfile manifests + dead `maskSecret()` → this PR; D1 string ratchet → PR #126. Still open: api strict ratchet, type-aware lint on `packages/db`, TS version pins, hex grep.
 
 - Add the missing gates: `Test (api)` job running the 23 specs (this also puts the storage-pin contract test in CI — closes H1); `TypeCheck (control-plane)` + its `next build`.
 - Ratchet `apps/api` strictness: flip `noImplicitAny: true` first (smallest blast radius), then full `strict` module-by-module; new files must be strict-clean now.
