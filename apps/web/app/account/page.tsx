@@ -13,6 +13,7 @@ import { PASSWORD_MIN, STR } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import AvatarCropper from "@/components/AvatarCropper";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
 
 // Avatar fallback initials from the member's name, else username/email.
@@ -147,6 +148,7 @@ function DangerZoneSection() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const deleteModalRef = useModalA11y();
 
   function openModal() {
     setPassword("");
@@ -208,13 +210,12 @@ function DangerZoneSection() {
       </section>
 
       {open && (
+        // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
         <div
+          ref={deleteModalRef}
           className="modal-overlay"
           role="dialog"
           aria-modal="true"
-          onClick={() => {
-            if (!busy) setOpen(false);
-          }}
         >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -461,6 +462,13 @@ function AccountInner() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarErr, setAvatarErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Pure confirm with nothing to lose, so Escape may dismiss it (mirrors the
+  // DialogProvider policy); the delete-account modal above stays Escape-proof.
+  const cancelModalRef = useModalA11y({
+    onEscape: () => {
+      if (!cancelBusy) setCancelFor(null);
+    },
+  });
 
   function fail(err: unknown) {
     if (err instanceof ApiError && err.status === 401) {
@@ -1066,12 +1074,10 @@ function AccountInner() {
 
       {cancelFor && (
         <div
+          ref={cancelModalRef}
           className="modal-overlay"
           role="dialog"
           aria-modal="true"
-          onClick={() => {
-            if (!cancelBusy) setCancelFor(null);
-          }}
         >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">

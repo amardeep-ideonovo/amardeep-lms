@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MediaDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import MediaCropper from "./MediaCropper";
 import { SEARCH_DEBOUNCE_MS, STR } from "@lms/types";
 
@@ -238,6 +239,7 @@ function MediaLibraryModal({
   const [err, setErr] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const modalRef = useModalA11y();
   const noun =
     kind === "video" ? "videos" : kind === "audio" ? "audio files" : "images";
 
@@ -282,7 +284,12 @@ function MediaLibraryModal({
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <div
+      ref={modalRef}
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="modal" style={{ maxWidth: 760 }}>
         <div className="modal-header">
           <h2>Gallery</h2>

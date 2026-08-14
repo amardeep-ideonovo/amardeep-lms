@@ -9,6 +9,7 @@ import type {
   SubscriptionDetailDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { STR } from "@lms/types";
 
@@ -40,6 +41,7 @@ export default function MemberBillingPage() {
   const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(
     null,
   );
+  const modalRef = useModalA11y();
 
   async function load() {
     setLoading(true);
@@ -252,7 +254,12 @@ export default function MemberBillingPage() {
 
       {/* Cancel-subscription modal — not dismissable by accident (backdrop/Escape); use ×/Cancel */}
       {cancelFor && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div
+          ref={modalRef}
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="modal">
             <div className="modal-header">
               <h2>Cancel {cancelFor.levelName}?</h2>

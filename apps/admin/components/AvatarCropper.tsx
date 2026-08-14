@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { STR } from "@lms/types";
+import { useModalA11y } from "@/lib/useModalA11y";
 
 // Self-contained avatar cropper. The admin picks an image, then pans (drag) and
 // zooms (slider / wheel) to frame a square crop under a circular guide. On apply
@@ -45,6 +46,7 @@ export default function AvatarCropper({
     ox: number;
     oy: number;
   } | null>(null);
+  const modalRef = useModalA11y();
 
   // Keep the image covering the viewport so the circle is never empty.
   const clampPos = useCallback(
@@ -170,7 +172,12 @@ export default function AvatarCropper({
   const h = dims ? dims.h * scale : 0;
 
   return (
-    <div className="modal-overlay modal-overlay--center">
+    <div
+      ref={modalRef}
+      className="modal-overlay modal-overlay--center"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="modal modal--crop">
         <div className="modal-header">
           <h2>Position your photo</h2>

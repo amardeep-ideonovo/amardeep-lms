@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MediaDTO, MediaKind } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR } from "@lms/types";
@@ -350,6 +351,7 @@ function NewMediaModal({
   const [caption, setCaption] = useState("");
   const [description, setDescription] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const newMediaModalRef = useModalA11y();
 
   // Fresh fields + a local preview whenever the queued file changes.
   useEffect(() => {
@@ -375,7 +377,12 @@ function NewMediaModal({
           : "other";
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <div
+      ref={newMediaModalRef}
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="modal" style={{ maxWidth: 760 }}>
         <div className="modal-header">
           <h2>Add to Gallery{remaining > 1 ? ` — ${remaining} files` : ""}</h2>
@@ -517,6 +524,7 @@ function MediaDetails({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const detailsModalRef = useModalA11y();
 
   // Re-init when a different asset is opened.
   useEffect(() => {
@@ -574,7 +582,12 @@ function MediaDetails({
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <div
+      ref={detailsModalRef}
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="modal" style={{ maxWidth: 920 }}>
         <div className="modal-header">
           <h2>Attachment details</h2>

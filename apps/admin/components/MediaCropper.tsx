@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { STR } from "@lms/types";
+import { useModalA11y } from "@/lib/useModalA11y";
 
 // Generalized image cropper (rectangular, arbitrary aspect ratio). The admin
 // pans (drag) + zooms (slider/wheel) to frame the image inside an aspect-locked
@@ -78,6 +79,7 @@ export default function MediaCropper({
     ox: number;
     oy: number;
   } | null>(null);
+  const modalRef = useModalA11y();
 
   // Keep the (already-scaled) image covering the whole framing window.
   const clampPos = useCallback(
@@ -206,7 +208,12 @@ export default function MediaCropper({
   const h = dims ? dims.h * scale : 0;
 
   return (
-    <div className="modal-overlay modal-overlay--center">
+    <div
+      ref={modalRef}
+      className="modal-overlay modal-overlay--center"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="modal modal--crop modal--crop-rect">
         <div className="modal-header">
           <h2>Position the image</h2>

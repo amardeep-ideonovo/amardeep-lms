@@ -10,6 +10,7 @@ import type {
   LevelType,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
@@ -87,6 +88,8 @@ export default function ClassesPage() {
   // 'contacts' permission, so a class-only admin gets an empty list (403) and
   // simply sees the default-audience option.
   const [audiences, setAudiences] = useState<AudienceDTO[]>([]);
+
+  const modalRef = useModalA11y();
 
   async function load() {
     setLoading(true);
@@ -490,7 +493,12 @@ export default function ClassesPage() {
       {error && <p className="error">{error}</p>}
 
       {modalOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div
+          ref={modalRef}
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="modal">
             <div className="modal-header">
               <h2>{editingId ? "Edit class" : "Create class"}</h2>

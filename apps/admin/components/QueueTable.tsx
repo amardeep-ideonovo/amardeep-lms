@@ -35,6 +35,7 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { dialog } from "@/components/DialogProvider";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import { AdminLite, NameResolver, formatTime, initials } from "@/lib/projects";
 import {
@@ -1780,6 +1781,7 @@ function ItemDetailCard({
   const [posting, setPosting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const modalRef = useModalA11y();
 
   const loadComments = useCallback(async () => {
     setLoadingComments(true);
@@ -1861,7 +1863,12 @@ function ItemDetailCard({
 
   // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
   return (
-    <div className="modal-overlay">
+    <div
+      ref={modalRef}
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+    >
       <div
         className="modal modal--wide"
         role="dialog"
