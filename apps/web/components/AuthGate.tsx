@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { STR } from "@lms/types";
 import { getToken } from "@/lib/api";
 
 // Client-side auth wrapper: redirects to /login when no member token is present.
@@ -36,7 +37,7 @@ export default function AuthGate({
       <>
         {fallback ?? (
           <div className="centered-state">
-            <div className="spinner" aria-label="Loading" />
+            <div className="spinner" aria-label={STR.common.loadingLabel} />
           </div>
         )}
       </>

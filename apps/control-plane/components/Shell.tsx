@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { STR } from "@lms/types";
 import {
   ClientSession,
   clientSignOut,
@@ -440,7 +441,7 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
             />
           </Field>
           <Field
-            label="Plan"
+            label={STR.labels.plan}
             hint="From the catalog — edit plans in the Plans section."
           >
             <select
@@ -471,7 +472,7 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Cancel
+            {STR.common.cancel}
           </button>
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy ? "Provisioning…" : "Provision"}

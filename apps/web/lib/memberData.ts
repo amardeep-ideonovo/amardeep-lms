@@ -75,55 +75,8 @@ export function classColorClass(index: number): string {
   return `class-c${((index % 6) + 6) % 6}`;
 }
 
-/**
- * Accent slots (globals.css: 0 amber · 1 violet · 2 green · 3 red · 4 blue ·
- * 5 sea) are picked by subject keyword rather than list position, because the
- * API lists classes alphabetically and a pure position cycle would re-color
- * every class whenever one is added or renamed. Unmatched classes fall back to
- * the position cycle, so an arbitrary client catalog still looks deliberate.
- *
- * Order matters — first match wins. The seeded demo catalog is listed first
- * (music/food/sports/technology → amber/violet/green/blue, which is what
- * assets/generate-demo-art.ts paints its artwork to match); the rest are
- * common subjects a client catalog might use. Comedy precedes film so
- * "Film & TV · Comedy" lands on sea, not red.
- *
- * Keep this list in sync with apps/admin/lib/class-accent.ts and
- * apps/mobile/src/class-colors.ts — three copies, no shared package.
- */
-const ACCENT_KEYWORDS: Array<[RegExp, number]> = [
-  [/music|song/i, 0],
-  [/cook|food|culinary|kitchen|flavor|baking/i, 1],
-  [/sport|fitness|athlet|strength|conditioning/i, 2],
-  [/technolog|software|coding|web develop|developer|programming/i, 4],
-  [/comedy|stand.?up/i, 5],
-  [/photo/i, 2],
-  [/film|cinema|screen|tv/i, 3],
-  [/dance|choreo/i, 4],
-];
-
-export function classAccentIndex(
-  name: string,
-  categories: string[],
-  fallback: number,
-): number {
-  const hay = `${name} ${categories.join(" ")}`;
-  for (const [re, idx] of ACCENT_KEYWORDS) if (re.test(hay)) return idx;
-  return ((fallback % 6) + 6) % 6;
-}
-
-/** id → accent slot for color mapping (category-keyed, position fallback). */
-export function classIndexMap(classes: ClassTileDTO[]): Map<string, number> {
-  const m = new Map<string, number>();
-  classes.forEach((c, i) =>
-    m.set(
-      c.id,
-      classAccentIndex(
-        c.name,
-        (c.categories ?? []).map((x) => x.name),
-        i,
-      ),
-    ),
-  );
-  return m;
-}
+// Accent-slot selection lives in @lms/types now — the single source across
+// web/admin/mobile (docs/coding-standards.md D2; this file was one of three
+// verbatim copies). Re-exported here so existing web imports stay stable;
+// `classIndexMap` is the shared `accentIndexMap` under its original web name.
+export { classAccentIndex, accentIndexMap as classIndexMap } from "@lms/types";

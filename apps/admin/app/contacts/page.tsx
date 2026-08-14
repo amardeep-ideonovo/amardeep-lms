@@ -12,6 +12,7 @@ import type {
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { STR } from "@lms/types";
 
 // Contact status options (mirrors the ContactStatus enum) + a label/badge map.
 const STATUSES: ContactStatus[] = [
@@ -220,7 +221,7 @@ export default function ContactsPage() {
     const name = await dialog.prompt({
       message: "New audience name",
       placeholder: "e.g. Newsletter",
-      confirmLabel: "Create",
+      confirmLabel: STR.common.create,
     });
     if (!name || !name.trim()) return;
     try {
@@ -248,7 +249,7 @@ export default function ContactsPage() {
     const name = await dialog.prompt({
       message: "Rename audience",
       defaultValue: a.name,
-      confirmLabel: "Save",
+      confirmLabel: STR.common.save,
     });
     if (!name || !name.trim() || name.trim() === a.name) return;
     try {
@@ -267,9 +268,9 @@ export default function ContactsPage() {
       return;
     }
     const ok = await dialog.confirm({
-      message: `Delete audience "${a.name}"? Its ${a.contactCount} contact(s), fields and segments are removed too.`,
+      message: `${STR.confirm.deleteEntity("audience", a.name)} Its ${a.contactCount} contact(s), fields and segments are removed too.`,
       danger: true,
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
     });
     if (!ok) return;
     try {
@@ -334,9 +335,9 @@ export default function ContactsPage() {
 
   async function deleteContact(c: ContactDTO) {
     const ok = await dialog.confirm({
-      message: `Delete contact "${c.email}"?`,
+      message: STR.confirm.deleteEntity("contact", c.email),
       danger: true,
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
     });
     if (!ok) return;
     try {
@@ -358,14 +359,14 @@ export default function ContactsPage() {
     ? Math.max(1, Math.ceil(list.total / list.pageSize))
     : 1;
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("contacts", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Contacts</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -404,7 +405,7 @@ export default function ContactsPage() {
             <h2 style={{ fontSize: 16 }}>Audiences</h2>
           </div>
           {loadingAudiences ? (
-            <p className="muted">Loading…</p>
+            <p className="muted">{STR.common.loading}</p>
           ) : audiences.length === 0 ? (
             <p className="muted">
               No audiences yet.{canCreate ? " Add one to begin." : ""}
@@ -504,7 +505,7 @@ export default function ContactsPage() {
                   className="btn btn--danger btn--sm"
                   onClick={() => deleteAudience(selected)}
                 >
-                  Delete
+                  {STR.common.delete}
                 </button>
               )}
             </div>
@@ -604,7 +605,7 @@ export default function ContactsPage() {
                 {contactsError && <p className="error">{contactsError}</p>}
 
                 {loadingContacts ? (
-                  <p className="muted">Loading…</p>
+                  <p className="muted">{STR.common.loading}</p>
                 ) : !list || list.items.length === 0 ? (
                   <p className="muted">No contacts match.</p>
                 ) : (
@@ -613,9 +614,9 @@ export default function ContactsPage() {
                       <table className="table">
                         <thead>
                           <tr>
-                            <th>Email</th>
-                            <th>Name</th>
-                            <th>Status</th>
+                            <th>{STR.labels.email}</th>
+                            <th>{STR.labels.name}</th>
+                            <th>{STR.labels.status}</th>
                             <th>Tags</th>
                             <th>Source</th>
                             <th>Added</th>
@@ -673,7 +674,7 @@ export default function ContactsPage() {
                                       className="btn btn--ghost btn--sm"
                                       onClick={() => openEdit(c)}
                                     >
-                                      Edit
+                                      {STR.common.edit}
                                     </button>
                                   )}
                                   {canDelete && (
@@ -681,7 +682,7 @@ export default function ContactsPage() {
                                       className="btn btn--danger btn--sm"
                                       onClick={() => deleteContact(c)}
                                     >
-                                      Delete
+                                      {STR.common.delete}
                                     </button>
                                   )}
                                 </div>
@@ -776,7 +777,7 @@ export default function ContactsPage() {
               <div className="modal-body">
                 {editorError && <p className="error">{editorError}</p>}
                 <div className="field">
-                  <label>Email</label>
+                  <label>{STR.labels.email}</label>
                   <input
                     type="email"
                     value={draft.email}
@@ -789,7 +790,7 @@ export default function ContactsPage() {
                 </div>
                 <div className="form-row">
                   <div className="field">
-                    <label>First name</label>
+                    <label>{STR.labels.firstName}</label>
                     <input
                       value={draft.firstName}
                       onChange={(e) =>
@@ -798,7 +799,7 @@ export default function ContactsPage() {
                     />
                   </div>
                   <div className="field">
-                    <label>Last name</label>
+                    <label>{STR.labels.lastName}</label>
                     <input
                       value={draft.lastName}
                       onChange={(e) =>
@@ -808,7 +809,7 @@ export default function ContactsPage() {
                   </div>
                 </div>
                 <div className="field">
-                  <label>Status</label>
+                  <label>{STR.labels.status}</label>
                   <select
                     value={draft.status}
                     onChange={(e) =>
@@ -858,7 +859,7 @@ export default function ContactsPage() {
                     className="btn btn--ghost"
                     onClick={closeEditor}
                   >
-                    Cancel
+                    {STR.common.cancel}
                   </button>
                   <button
                     className="btn"
@@ -866,7 +867,7 @@ export default function ContactsPage() {
                     disabled={savingContact}
                   >
                     {savingContact
-                      ? "Saving…"
+                      ? STR.common.saving
                       : editingId
                         ? "Save changes"
                         : "Add contact"}
@@ -932,7 +933,7 @@ function SegmentsPanel({
     const tags = await dialog.prompt({
       message: `Tags for "${name.trim()}" (comma-separated, optional — matches ANY)`,
       placeholder: "e.g. lead, webinar",
-      confirmLabel: "Create",
+      confirmLabel: STR.common.create,
     });
     if (tags === null) return; // cancelled
     const anyTags = tags
@@ -958,7 +959,7 @@ function SegmentsPanel({
     const name = await dialog.prompt({
       message: "Rename segment",
       defaultValue: s.name,
-      confirmLabel: "Save",
+      confirmLabel: STR.common.save,
     });
     if (!name || !name.trim() || name.trim() === s.name) return;
     try {
@@ -972,9 +973,9 @@ function SegmentsPanel({
 
   async function remove(s: SegmentDTO) {
     const ok = await dialog.confirm({
-      message: `Delete segment "${s.name}"?`,
+      message: STR.confirm.deleteEntity("segment", s.name),
       danger: true,
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
     });
     if (!ok) return;
     try {
@@ -1129,7 +1130,7 @@ function FieldsPanel({
     const ok = await dialog.confirm({
       message: `Delete field "${f.label}" (${f.tag})?`,
       danger: true,
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
     });
     if (!ok) return;
     try {
@@ -1161,8 +1162,8 @@ function FieldsPanel({
             <thead>
               <tr>
                 <th>Tag</th>
-                <th>Label</th>
-                <th>Type</th>
+                <th>{STR.labels.label}</th>
+                <th>{STR.labels.type}</th>
                 <th>Req.</th>
                 {canEdit && <th></th>}
               </tr>
@@ -1175,7 +1176,9 @@ function FieldsPanel({
                   </td>
                   <td>{f.label}</td>
                   <td className="muted">{f.type}</td>
-                  <td className="muted">{f.required ? "Yes" : "No"}</td>
+                  <td className="muted">
+                    {f.required ? STR.common.yes : STR.common.no}
+                  </td>
                   {canEdit && (
                     <td>
                       <button
@@ -1205,7 +1208,7 @@ function FieldsPanel({
               />
             </div>
             <div className="field">
-              <label>Label</label>
+              <label>{STR.labels.label}</label>
               <input
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
@@ -1215,7 +1218,7 @@ function FieldsPanel({
           </div>
           <div className="form-row">
             <div className="field">
-              <label>Type</label>
+              <label>{STR.labels.type}</label>
               <select value={type} onChange={(e) => setType(e.target.value)}>
                 <option value="text">text</option>
                 <option value="number">number</option>
@@ -1230,8 +1233,8 @@ function FieldsPanel({
                 value={required ? "yes" : "no"}
                 onChange={(e) => setRequired(e.target.value === "yes")}
               >
-                <option value="no">No</option>
-                <option value="yes">Yes</option>
+                <option value="no">{STR.common.no}</option>
+                <option value="yes">{STR.common.yes}</option>
               </select>
             </div>
           </div>
@@ -1240,7 +1243,7 @@ function FieldsPanel({
             type="submit"
             disabled={busy || !tag.trim() || !label.trim()}
           >
-            {busy ? "Saving…" : "Add / update field"}
+            {busy ? STR.common.saving : "Add / update field"}
           </button>
         </form>
       )}

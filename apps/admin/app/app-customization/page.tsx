@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import AppCustomizationBuilder from "./AppCustomizationBuilder";
+import { STR } from "@lms/types";
 
 // Standalone "App Customization" page (System group). A single global config
 // that drives the native mobile app's branding — title, logo, theme colors, and
@@ -12,14 +13,14 @@ export default function AppCustomizationPage() {
   const { can, loading: authLoading } = useAdminAuth();
   const [error, setError] = useState<string | null>(null);
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("appCustomization", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>App Customization</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 

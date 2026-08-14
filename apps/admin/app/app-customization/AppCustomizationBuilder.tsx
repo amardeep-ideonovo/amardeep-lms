@@ -10,6 +10,7 @@ import type {
 import { ApiError, api } from "@/lib/api";
 import ColorField from "@/components/ColorField";
 import MediaPicker from "@/components/MediaPicker";
+import { STR } from "@lms/types";
 
 const msg = (e: unknown, fb: string) =>
   e instanceof ApiError ? e.message : fb;
@@ -58,7 +59,7 @@ export default function AppCustomizationBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!cfg) return <p className="muted">Loading…</p>;
+  if (!cfg) return <p className="muted">{STR.common.loading}</p>;
   const ro = !canEdit;
   const wlRequested = !!wl?.whiteLabelRequestedAt;
   const wlLocked = wl?.appMode === "SHARED" && !wlRequested;
@@ -196,7 +197,7 @@ export default function AppCustomizationBuilder({
               </select>
             </div>
             <div className="field" style={{ flex: 1 }}>
-              <label>Preview</label>
+              <label>{STR.common.preview}</label>
               <div className="row-actions">
                 <button
                   type="button"
@@ -304,7 +305,7 @@ export default function AppCustomizationBuilder({
         {canEdit && (
           <div className="row-actions" style={{ alignItems: "center" }}>
             <button className="btn" onClick={save} disabled={busy}>
-              {busy ? "Saving…" : "Save"}
+              {busy ? STR.common.saving : STR.common.save}
             </button>
             {saved && (
               <span className="alert-success" style={{ padding: "6px 10px" }}>

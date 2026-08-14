@@ -16,6 +16,7 @@ import type {
   LessonDTO,
   LessonNoteDTO,
 } from "@lms/types";
+import { STR } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import { fmtDuration } from "@/lib/memberData";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
@@ -632,7 +633,7 @@ function LessonInner() {
                     aria-busy={completing}
                   >
                     <CheckIcon color="#fff" />
-                    {completing ? "Saving…" : "Mark as complete"}
+                    {completing ? STR.common.saving : "Mark as complete"}
                   </button>
                 )}
               </div>

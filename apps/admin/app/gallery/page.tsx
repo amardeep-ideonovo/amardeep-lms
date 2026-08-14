@@ -5,6 +5,7 @@ import type { MediaDTO, MediaKind } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { STR } from "@lms/types";
 
 const PAGE_SIZE = 40;
 
@@ -131,14 +132,14 @@ export default function MediaPage() {
   const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const to = Math.min(total, page * PAGE_SIZE);
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("gallery", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Gallery</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -196,7 +197,7 @@ export default function MediaPage() {
         </div>
 
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : items.length === 0 ? (
           <p className="muted">
             No media yet. Click “Add Media File” to upload your first file.
@@ -382,7 +383,7 @@ function NewMediaModal({
             type="button"
             className="modal-close"
             onClick={onCancel}
-            aria-label="Close"
+            aria-label={STR.common.close}
           >
             ×
           </button>
@@ -439,7 +440,7 @@ function NewMediaModal({
                 <strong>File size:</strong> {fmtBytes(file.size)}
               </p>
               <div className="field">
-                <label>Title</label>
+                <label>{STR.labels.title}</label>
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -461,7 +462,7 @@ function NewMediaModal({
                 />
               </div>
               <div className="field">
-                <label>Description</label>
+                <label>{STR.labels.description}</label>
                 <textarea
                   rows={3}
                   value={description}
@@ -476,7 +477,7 @@ function NewMediaModal({
                     onSave({ title, altText, caption, description })
                   }
                 >
-                  {busy ? "Saving…" : "Save to gallery"}
+                  {busy ? STR.common.saving : "Save to gallery"}
                 </button>
                 <button
                   type="button"
@@ -484,7 +485,7 @@ function NewMediaModal({
                   disabled={busy}
                   onClick={onCancel}
                 >
-                  Cancel
+                  {STR.common.cancel}
                 </button>
               </div>
             </div>
@@ -581,7 +582,7 @@ function MediaDetails({
             type="button"
             className="modal-close"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={STR.common.close}
           >
             ×
           </button>
@@ -635,7 +636,7 @@ function MediaDetails({
               </p>
 
               <div className="field">
-                <label>Title</label>
+                <label>{STR.labels.title}</label>
                 <input
                   value={form.title}
                   onChange={(e) =>
@@ -662,7 +663,7 @@ function MediaDetails({
                 />
               </div>
               <div className="field">
-                <label>Description</label>
+                <label>{STR.labels.description}</label>
                 <textarea
                   rows={3}
                   value={form.description}
@@ -706,7 +707,7 @@ function MediaDetails({
                 }}
               >
                 <button className="btn" onClick={save} disabled={saving}>
-                  {saving ? "Saving…" : "Save changes"}
+                  {saving ? STR.common.saving : "Save changes"}
                 </button>
                 <button
                   className="btn btn--danger btn--sm"

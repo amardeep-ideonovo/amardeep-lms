@@ -52,6 +52,7 @@ import {
   onChatPresence,
   onConnect,
 } from "@/lib/projectsSocket";
+import { STR } from "@lms/types";
 
 // Phase 3: realtime over a Socket.IO gateway delivers other admins' messages,
 // edits and reactions live. We keep two safety polls behind it:
@@ -469,7 +470,7 @@ export default function ProjectsPage() {
     const name = await dialog.prompt({
       message: "New channel name",
       placeholder: "e.g. ops, launch-q3",
-      confirmLabel: "Create",
+      confirmLabel: STR.common.create,
     });
     if (!name || !name.trim()) return;
     try {
@@ -656,7 +657,7 @@ export default function ProjectsPage() {
     const body = await dialog.prompt({
       message: "Edit message",
       defaultValue: m.body,
-      confirmLabel: "Save",
+      confirmLabel: STR.common.save,
     });
     if (body === null || !body.trim() || body.trim() === m.body) return;
     const next = body.trim();
@@ -679,9 +680,9 @@ export default function ProjectsPage() {
   async function deleteMessage(m: ChatMessageDTO, patchLocal?: LocalPatch) {
     if (isPendingMessage(m)) return;
     const ok = await dialog.confirm({
-      message: "Delete this message?",
+      message: STR.confirm.deleteEntity("this message"),
       danger: true,
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
     });
     if (!ok) return;
     // Soft-delete: the row stays and renders "message deleted", so the
@@ -816,14 +817,14 @@ export default function ProjectsPage() {
     setMessages((prev) => prev.filter((x) => x.id !== m.id));
   }, []);
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("projects", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Projects</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -851,7 +852,7 @@ export default function ProjectsPage() {
             )}
           </div>
           {loadingChannels ? (
-            <p className="muted">Loading…</p>
+            <p className="muted">{STR.common.loading}</p>
           ) : channels.length === 0 ? (
             <p className="muted">
               No channels yet.{canCreate ? " Create one to begin." : ""}
@@ -1054,7 +1055,7 @@ export default function ProjectsPage() {
                 <>
                   <div className="pj-messages" ref={scrollRef}>
                     {loadingMessages ? (
-                      <p className="muted">Loading…</p>
+                      <p className="muted">{STR.common.loading}</p>
                     ) : rootMessages.length === 0 ? (
                       <p className="muted">No messages yet. Say hello below.</p>
                     ) : (
@@ -1252,7 +1253,7 @@ function DmPicker({
       )}
       <div className="pj-dm-picker-actions">
         <button className="btn btn--ghost btn--sm" onClick={onClose}>
-          Cancel
+          {STR.common.cancel}
         </button>
         <button
           className="btn btn--sm"
@@ -1387,7 +1388,7 @@ function MessageRow({
                             onEdit(m, patchLocal);
                           }}
                         >
-                          Edit
+                          {STR.common.edit}
                         </button>
                       )}
                       {mine && canDelete && (
@@ -1398,7 +1399,7 @@ function MessageRow({
                             onDelete(m, patchLocal);
                           }}
                         >
-                          Delete
+                          {STR.common.delete}
                         </button>
                       )}
                     </div>
@@ -1598,7 +1599,7 @@ function ThreadPanel({
         </div>
         {err && <p className="error">{err}</p>}
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : replies.length === 0 && pendingReplies.length === 0 ? (
           <p className="muted">No replies yet.</p>
         ) : (
@@ -1954,7 +1955,9 @@ function renderCardValue(
         </span>
       );
     case "CHECKBOX":
-      return <span>{field.value === true ? "Yes" : "No"}</span>;
+      return (
+        <span>{field.value === true ? STR.common.yes : STR.common.no}</span>
+      );
     default:
       return <span>{cardValueText(field.value)}</span>;
   }
@@ -2167,7 +2170,7 @@ function CanvasEditor({
   async function remove() {
     if (!canvas) return;
     const ok = await dialog.confirm({
-      message: `Delete canvas "${canvas.title}"? This cannot be undone.`,
+      message: STR.confirm.deleteEntity("canvas", canvas.title),
       danger: true,
       confirmLabel: "Delete canvas",
     });
@@ -2182,7 +2185,7 @@ function CanvasEditor({
     }
   }
 
-  if (loading && !canvas) return <p className="muted">Loading…</p>;
+  if (loading && !canvas) return <p className="muted">{STR.common.loading}</p>;
   if (!canvas)
     return (
       <div className="card" style={{ margin: 0 }}>
@@ -2213,12 +2216,16 @@ function CanvasEditor({
               disabled={saving || !dirty}
               title={dirty ? "Save changes" : "No changes to save"}
             >
-              {saving ? "Saving…" : dirty ? "Save" : "Saved"}
+              {saving
+                ? STR.common.saving
+                : dirty
+                  ? STR.common.save
+                  : STR.common.saved}
             </button>
           )}
           {canDelete && (
             <button className="btn btn--ghost btn--sm" onClick={remove}>
-              Delete
+              {STR.common.delete}
             </button>
           )}
         </div>

@@ -3,6 +3,7 @@
 import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { PASSWORD_MIN, STR } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 
 // Self-serve password reset, step 2: the page the emailed link lands on
@@ -24,7 +25,7 @@ function ResetPasswordForm() {
     setError(null);
     // Match-check lives client-side, same as the account change-password form.
     if (password !== confirm) {
-      setError("Passwords don’t match.");
+      setError(STR.errors.passwordsDontMatch);
       return;
     }
     setLoading(true);
@@ -32,11 +33,7 @@ function ResetPasswordForm() {
       await api.resetPassword({ token, newPassword: password });
       setDone(true);
     } catch (err) {
-      setError(
-        err instanceof ApiError
-          ? err.message
-          : "Something went wrong. Try again.",
-      );
+      setError(err instanceof ApiError ? err.message : STR.errors.generic);
     } finally {
       setLoading(false);
     }
@@ -87,7 +84,7 @@ function ResetPasswordForm() {
       <h1>
         Choose a new <span className="t-gradient">password</span>
       </h1>
-      <p className="sub">At least 10 characters.</p>
+      <p className="sub">{`At least ${PASSWORD_MIN.member} characters.`}</p>
 
       {error && (
         <div className="alert alert-error">
@@ -100,26 +97,28 @@ function ResetPasswordForm() {
 
       <form onSubmit={onSubmit}>
         <div className="field">
-          <label htmlFor="new-password">New password</label>
+          <label htmlFor="new-password">{STR.labels.newPassword}</label>
           <input
             id="new-password"
             type="password"
             autoComplete="new-password"
             required
-            minLength={10}
+            minLength={PASSWORD_MIN.member}
             maxLength={72}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
         <div className="field">
-          <label htmlFor="confirm-password">Confirm new password</label>
+          <label htmlFor="confirm-password">
+            {STR.labels.confirmNewPassword}
+          </label>
           <input
             id="confirm-password"
             type="password"
             autoComplete="new-password"
             required
-            minLength={10}
+            minLength={PASSWORD_MIN.member}
             maxLength={72}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
@@ -131,7 +130,7 @@ function ResetPasswordForm() {
           disabled={loading}
           aria-busy={loading}
         >
-          {loading ? "Saving…" : "Set new password"}
+          {loading ? STR.common.saving : "Set new password"}
         </button>
       </form>
     </>

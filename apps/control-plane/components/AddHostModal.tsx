@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { STR } from "@lms/types";
 import { addHost } from "@/lib/provisioner";
 import { Field, Modal } from "./ui";
 
@@ -40,7 +41,7 @@ export function AddHostModal({ onClose }: { onClose: () => void }) {
       </div>
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Cancel
+          {STR.common.cancel}
         </button>
         <button
           type="button"

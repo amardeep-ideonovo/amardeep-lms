@@ -8,7 +8,7 @@ import type {
   CertificateFieldLayout,
   CertificateFontId,
 } from "@lms/types";
-import { CERTIFICATE_FONTS } from "@lms/types";
+import { CERTIFICATE_FONTS, STR } from "@lms/types";
 import { api, API_BASE_URL, ApiError } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
@@ -295,7 +295,7 @@ export default function CertificateTemplateEditorPage() {
       title: "Delete template?",
       message:
         "Issued certificates keep their PDFs and stay valid — only this design is removed.",
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
       danger: true,
     });
     if (!ok) return;
@@ -319,10 +319,10 @@ export default function CertificateTemplateEditorPage() {
       />
     );
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("certificates", "read"))
-    return <p className="muted">You don’t have permission to view this.</p>;
-  if (!loaded && !error) return <p className="muted">Loading…</p>;
+    return <p className="muted">{STR.errors.permissionDenied}</p>;
+  if (!loaded && !error) return <p className="muted">{STR.common.loading}</p>;
 
   return (
     <div>
@@ -342,16 +342,16 @@ export default function CertificateTemplateEditorPage() {
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {savedAt && <span className="muted">Saved ✓</span>}
           <Link href="/certificates" className="btn btn--ghost">
-            Back
+            {STR.common.back}
           </Link>
           {!isNew && can("certificates", "delete") && (
             <button className="btn btn--danger" onClick={remove}>
-              Delete
+              {STR.common.delete}
             </button>
           )}
           {canEdit && (
             <button className="btn" onClick={save} disabled={saving}>
-              {saving ? "Saving…" : "Save"}
+              {saving ? STR.common.saving : STR.common.save}
             </button>
           )}
         </div>

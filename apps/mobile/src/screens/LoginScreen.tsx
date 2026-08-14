@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { STR } from "@lms/types";
 
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
@@ -58,7 +59,7 @@ export function LoginScreen({ navigation }: Props) {
           ? "Invalid email or password."
           : e instanceof Error
             ? e.message
-            : "Something went wrong.";
+            : STR.errors.generic;
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -102,7 +103,7 @@ export function LoginScreen({ navigation }: Props) {
 
             <TextInput
               style={styles.input}
-              placeholder="Email"
+              placeholder={STR.labels.email}
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
@@ -114,7 +115,7 @@ export function LoginScreen({ navigation }: Props) {
             />
             <TextInput
               style={styles.input}
-              placeholder="Password"
+              placeholder={STR.labels.password}
               placeholderTextColor={colors.textMuted}
               secureTextEntry
               textContentType="password"

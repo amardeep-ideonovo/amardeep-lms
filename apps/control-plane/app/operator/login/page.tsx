@@ -6,6 +6,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
+import { STR } from "@lms/types";
 import { isOperator, operatorSignIn } from "@/lib/auth";
 import { LogoGlyph } from "@/components/icons";
 
@@ -42,7 +43,7 @@ export default function OperatorLoginPage() {
         <p className="oplogin-sub">Internal fleet console.</p>
         <form method="post" className="login-form" onSubmit={submit}>
           <label className="field field-dark">
-            <span className="field-label">Email</span>
+            <span className="field-label">{STR.labels.email}</span>
             <input
               className="input input-dark"
               type="email"
@@ -55,7 +56,7 @@ export default function OperatorLoginPage() {
             />
           </label>
           <label className="field field-dark">
-            <span className="field-label">Password</span>
+            <span className="field-label">{STR.labels.password}</span>
             <input
               className="input input-dark"
               type="password"

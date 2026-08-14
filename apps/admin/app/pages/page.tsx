@@ -8,6 +8,7 @@ import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import { withBase } from "@/lib/base-path";
+import { STR } from "@lms/types";
 
 // The public "View" link opens on the member site — origin from webUrl() at
 // render time (runtime per-instance value; NEXT_PUBLIC_* would bake the
@@ -172,14 +173,14 @@ export default function PagesPage() {
         })
       : "—";
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("pages", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Pages</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -206,7 +207,7 @@ export default function PagesPage() {
           <h2>All pages</h2>
         </div>
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : pages.length === 0 ? (
           <p className="muted">No pages yet. Click “Add new page” to start.</p>
         ) : (
@@ -214,10 +215,10 @@ export default function PagesPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Title</th>
+                  <th>{STR.labels.title}</th>
                   <th>URL</th>
                   <th>Updated</th>
-                  <th>Status</th>
+                  <th>{STR.labels.status}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -244,7 +245,7 @@ export default function PagesPage() {
                           className="btn btn--ghost btn--sm"
                           onClick={() => openEditor(p.id)}
                         >
-                          Edit
+                          {STR.common.edit}
                         </button>
                         <button
                           className="btn btn--ghost btn--sm"
@@ -266,7 +267,7 @@ export default function PagesPage() {
                           disabled={rowBusy === p.id}
                         >
                           {rowBusy === p.id
-                            ? "Saving…"
+                            ? STR.common.saving
                             : p.status === "PUBLISHED"
                               ? "Unpublish"
                               : "Publish"}
@@ -276,7 +277,7 @@ export default function PagesPage() {
                           onClick={() => remove(p)}
                           disabled={rowBusy === p.id}
                         >
-                          Delete
+                          {STR.common.delete}
                         </button>
                       </div>
                     </td>

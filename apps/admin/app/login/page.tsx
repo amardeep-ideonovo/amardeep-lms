@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, api, setToken } from "@/lib/api";
 import { useAppBrand } from "@/lib/app-brand";
+import { STR } from "@lms/types";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -66,7 +67,7 @@ export default function LoginPage() {
           <p className="subtitle">Sign in to continue</p>
         </div>
         <div className="field">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">{STR.labels.email}</label>
           <input
             id="email"
             type="email"
@@ -77,7 +78,7 @@ export default function LoginPage() {
           />
         </div>
         <div className="field">
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">{STR.labels.password}</label>
           <input
             id="password"
             type="password"

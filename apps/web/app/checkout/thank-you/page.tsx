@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { STR } from "@lms/types";
 import { api } from "@/lib/api";
 
 function ThankYouInner() {
@@ -94,7 +95,7 @@ export default function ThankYouPage() {
     <Suspense
       fallback={
         <div className="centered-state">
-          <div className="spinner" aria-label="Loading" />
+          <div className="spinner" aria-label={STR.common.loadingLabel} />
         </div>
       }
     >

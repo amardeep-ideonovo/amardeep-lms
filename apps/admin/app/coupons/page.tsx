@@ -5,6 +5,7 @@ import type { CouponDTO, CreateCouponInput, LevelDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { STR } from "@lms/types";
 
 type DiscountType = "percent" | "amount";
 type Duration = "once" | "repeating" | "forever";
@@ -185,14 +186,14 @@ export default function CouponsPage() {
     filter === "all" ? true : filter === "active" ? c.active : !c.active,
   );
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("coupons", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Coupons</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -367,7 +368,7 @@ export default function CouponsPage() {
                 setFilter(e.target.value as "active" | "inactive" | "all")
               }
             >
-              <option value="active">Active</option>
+              <option value="active">{STR.common.active}</option>
               <option value="inactive">Inactive</option>
               <option value="all">All</option>
             </select>
@@ -377,7 +378,7 @@ export default function CouponsPage() {
           </div>
         )}
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : coupons.length === 0 ? (
           <p className="muted">No coupons yet.</p>
         ) : visible.length === 0 ? (
@@ -391,8 +392,8 @@ export default function CouponsPage() {
                   <th>Discount</th>
                   <th>Applies to</th>
                   <th>Redemptions</th>
-                  <th>Class</th>
-                  <th>Status</th>
+                  <th>{STR.labels.class}</th>
+                  <th>{STR.labels.status}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -444,7 +445,7 @@ export default function CouponsPage() {
                             disabled={busyId === c.id}
                             onClick={() => removeCoupon(c)}
                           >
-                            Delete
+                            {STR.common.delete}
                           </button>
                         </div>
                       </td>

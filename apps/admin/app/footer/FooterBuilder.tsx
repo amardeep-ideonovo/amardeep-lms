@@ -12,6 +12,7 @@ import { ApiError, api } from "@/lib/api";
 import MediaPicker from "@/components/MediaPicker";
 import ColorField from "@/components/ColorField";
 import { useAppBrand } from "@/lib/app-brand";
+import { STR } from "@lms/types";
 
 const msg = (e: unknown, fb: string) =>
   e instanceof ApiError ? e.message : fb;
@@ -69,7 +70,7 @@ export default function FooterBuilder({
     };
   }, [cfg?.menuId]);
 
-  if (!cfg) return <p className="muted">Loading…</p>;
+  if (!cfg) return <p className="muted">{STR.common.loading}</p>;
   const ro = !canEdit;
 
   const upd = (patch: Partial<FooterConfig>) => {
@@ -326,7 +327,7 @@ export default function FooterBuilder({
             />
           </div>
           <div className="field" style={{ flex: 2 }}>
-            <label>Audience</label>
+            <label>{STR.labels.audience}</label>
             <select
               value={cfg.email.audienceId ?? ""}
               disabled={ro}
@@ -436,7 +437,7 @@ export default function FooterBuilder({
             {cfg.bottomLinks.map((l) => (
               <div key={l.id} className="form-row">
                 <div className="field" style={{ flex: 1 }}>
-                  <label>Label</label>
+                  <label>{STR.labels.label}</label>
                   <input
                     value={l.label}
                     disabled={ro}
@@ -459,7 +460,7 @@ export default function FooterBuilder({
                       className="btn btn--danger btn--sm"
                       onClick={() => removeLink(l.id)}
                     >
-                      Remove
+                      {STR.common.remove}
                     </button>
                   </div>
                 )}
@@ -472,7 +473,7 @@ export default function FooterBuilder({
       {canEdit && (
         <div className="row-actions" style={{ alignItems: "center" }}>
           <button className="btn" onClick={save} disabled={busy}>
-            {busy ? "Saving…" : "Save footer"}
+            {busy ? STR.common.saving : "Save footer"}
           </button>
           {saved && (
             <span className="alert-success" style={{ padding: "6px 10px" }}>

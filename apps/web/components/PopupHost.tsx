@@ -22,6 +22,7 @@ import { createPuckConfig } from "@lms/puck";
 import type { PageProps, RootProps } from "@lms/puck";
 import "@lms/puck/styles.css";
 import type { PopupContext, PopupPosition, PopupPublicDTO } from "@lms/types";
+import { STR } from "@lms/types";
 import FormEmbed from "@/components/FormEmbed";
 import PageMenu from "@/components/PageMenu";
 import { fetchActivePopups, recordPopupEvent } from "@/lib/api";
@@ -217,7 +218,7 @@ function PopupCard({
           <button
             type="button"
             onClick={handleClose}
-            aria-label="Close"
+            aria-label={STR.common.close}
             style={{
               position: "absolute",
               top: 8,
