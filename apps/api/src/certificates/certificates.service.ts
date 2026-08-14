@@ -295,7 +295,7 @@ export class CertificatesService {
 
     // Render BEFORE any row exists — artwork problems abort with nothing persisted.
     const issuedAt = new Date();
-    const pdf = await this.renderForTemplate(template, {
+    await this.renderForTemplate(template, {
       memberName,
       className: level.name,
       issueDate: formatIssueDate(issuedAt),

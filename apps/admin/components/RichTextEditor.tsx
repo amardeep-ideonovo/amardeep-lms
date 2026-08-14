@@ -36,7 +36,7 @@ export default function RichTextEditor({
     if (next !== editor.getHTML()) {
       editor.commands.setContent(next, { emitUpdate: false });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [value, editor]);
 
   if (!editor) return null;

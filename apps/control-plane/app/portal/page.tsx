@@ -29,10 +29,8 @@ import { Field, Kebab, PageSkeleton, Pill } from "@/components/ui";
 import { useClientSession } from "@/lib/auth";
 import { useSelectedInstance } from "@/lib/instance-selection";
 import {
-  activePlans,
   clientInstances,
   displayStatus,
-  effectiveCap,
   effectiveTrack,
   getPlan,
   initialsOf,

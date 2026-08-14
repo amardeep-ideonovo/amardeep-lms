@@ -12,7 +12,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ChatChannelDTO,
-  ChatListDTO,
   ChatListSummaryDTO,
   ChatWorkflowDTO,
   ChatWorkflowTrigger,

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Easing, StyleSheet, Text, View } from "react-native";
+import { Animated, Easing, StyleSheet, Text } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 
 import { DEFAULT_APP_CONFIG, paletteFrom, fonts } from "../theme";

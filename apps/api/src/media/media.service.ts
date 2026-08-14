@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { MediaDTO, MediaKind, MediaListDTO } from '@lms/types';
+import type { MediaDTO, MediaListDTO } from '@lms/types';
 import { Prisma } from '@prisma/client';
 import { imageSize } from 'image-size';
 import * as path from 'path';

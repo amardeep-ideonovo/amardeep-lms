@@ -13,7 +13,7 @@ export class AdminGuard extends AuthGuard('jwt') {
   handleRequest<TUser = AuthenticatedPrincipal>(
     err: any,
     user: any,
-    info: any,
+    _info: any,
   ): TUser {
     if (err || !user) {
       throw err || new ForbiddenException('Authentication required');

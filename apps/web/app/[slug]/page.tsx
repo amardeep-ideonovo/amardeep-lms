@@ -73,7 +73,6 @@ export default async function CmsPage({ params }: Params) {
 
   return (
     <>
-      {/* eslint-disable-next-line react/no-danger */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbLd) }}

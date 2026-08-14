@@ -11,7 +11,7 @@
 // file bytes inlined as base64. See content-pack.service.ts for the exact model
 // list, the FK-safe insert order, and the transforms applied on import.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export type PackRow = Record<string, any>;
 
 // Which on-disk store a file belongs to. Mirrors the three writable upload roots

@@ -1,0 +1,138 @@
+// Root ESLint flat config for the whole monorepo (ESLint 9 + typescript-eslint 8).
+//
+// Philosophy: WARNING-FIRST baseline. Rules are hand-picked for signal, not
+// taken wholesale from presets, so the first CI run lands green and the diff
+// stays reviewable. Only rules that are clean today (or catch outright bugs)
+// are errors; everything else warns until a later ratchet.
+//
+// Type-aware rules (no-floating-promises &c.) run only where the root-hoisted
+// TypeScript 5.5 can serve the project: api, the three Next apps, and puck.
+// apps/mobile deliberately stays syntax-only — it compiles with its OWN nested
+// TS 6 + React 19 types (see .github/workflows/build.yml), and type-aware
+// linting through the root compiler would produce garbage there.
+import tseslint from "typescript-eslint";
+import nextPlugin from "@next/eslint-plugin-next";
+import reactHooks from "eslint-plugin-react-hooks";
+import globals from "globals";
+
+// Next's plugin reads settings.next.rootDir to locate each app.
+const NEXT_APPS = ["apps/web", "apps/admin", "apps/control-plane"];
+
+export default tseslint.config(
+  {
+    ignores: [
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/.expo/**",
+      "**/coverage/**",
+      "apps/mobile/android/**",
+      "apps/mobile/ios/**",
+      "apps/mobile/certs/**",
+      "**/next-env.d.ts",
+      "graphify-out/**",
+      ".claude/**",
+    ],
+  },
+
+  // ---------- all TypeScript: syntax-only correctness baseline ----------
+  {
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: { sourceType: "module", ecmaFeatures: { jsx: true } },
+    },
+    plugins: { "@typescript-eslint": tseslint.plugin },
+    rules: {
+      // TS itself doesn't flag unused locals anywhere in this repo (no
+      // noUnusedLocals in any tsconfig), so this is the one place that does.
+      // Error, not warn: the repo was brought to zero in the baseline PR.
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+      "no-var": "error",
+      "no-debugger": "error",
+      "no-dupe-else-if": "error",
+      "no-duplicate-case": "error",
+      "no-self-assign": "error",
+      "no-unsafe-negation": "error",
+      "prefer-const": "warn",
+      eqeqeq: ["warn", "smart"],
+    },
+  },
+
+  // ---------- plain JS (build scripts, configs): node environment ----------
+  {
+    files: ["**/*.{js,cjs,mjs}"],
+    languageOptions: { globals: { ...globals.node } },
+    rules: {
+      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "no-undef": "error",
+    },
+  },
+
+  // ---------- React hooks: every plane that renders React ----------
+  {
+    files: [
+      "apps/web/**/*.tsx",
+      "apps/admin/**/*.tsx",
+      "apps/control-plane/**/*.tsx",
+      "apps/mobile/**/*.{ts,tsx}",
+      "packages/puck/**/*.tsx",
+    ],
+    plugins: { "react-hooks": reactHooks },
+    rules: {
+      // A conditional hook is a crash, not a style choice.
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+
+  // ---------- Next.js apps: framework footguns ----------
+  ...NEXT_APPS.map((app) => ({
+    files: [`${app}/**/*.{ts,tsx}`],
+    plugins: { "@next/next": nextPlugin },
+    settings: { next: { rootDir: app } },
+    rules: {
+      ...nextPlugin.configs.recommended.rules,
+      // Uses the removed-in-ESLint-9 context.getAncestors API (plugin v14
+      // predates flat config), and only inspects pages-router _document.js —
+      // this repo is app-router-only, so nothing is lost.
+      "@next/next/no-duplicate-head": "off",
+    },
+  })),
+
+  // ---------- type-aware promise safety (root-TS-served workspaces only) ----------
+  {
+    files: [
+      "apps/api/**/*.ts",
+      "apps/web/**/*.{ts,tsx}",
+      "apps/admin/**/*.{ts,tsx}",
+      "apps/control-plane/**/*.{ts,tsx}",
+      "packages/puck/**/*.{ts,tsx}",
+    ],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": "warn",
+      "@typescript-eslint/await-thenable": "warn",
+      // checksVoidReturn.attributes would flag every `onClick={async ...}`,
+      // which this codebase uses idiomatically.
+      "@typescript-eslint/no-misused-promises": [
+        "warn",
+        { checksVoidReturn: { attributes: false } },
+      ],
+    },
+  },
+);

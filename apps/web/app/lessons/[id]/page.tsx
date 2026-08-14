@@ -426,7 +426,6 @@ function LessonInner() {
         )}
         <span className="ik-player-scrim" aria-hidden="true" />
         <div className="ik-player-audio">
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <audio
             ref={audioRef}
             controls
@@ -465,7 +464,6 @@ function LessonInner() {
     );
   } else if (lesson.videoUrl && !isProviderVideoUrl(lesson.videoUrl)) {
     media = (
-      // eslint-disable-next-line jsx-a11y/media-has-caption
       <video
         ref={videoRef}
         controls

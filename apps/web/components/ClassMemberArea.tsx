@@ -518,7 +518,6 @@ export default function ClassMemberArea({
                     allowFullScreen
                   />
                 ) : (
-                  // eslint-disable-next-line jsx-a11y/media-has-caption
                   <video src={trailerUrl} controls />
                 )}
               </div>

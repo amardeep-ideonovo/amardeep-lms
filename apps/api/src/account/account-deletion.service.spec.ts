@@ -11,7 +11,7 @@ import { AccountDeletionService } from './account-deletion.service';
 // queued-mail cancellation, mirror anonymization, notification redaction, and
 // post-commit file cleanup.
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 
 type Harness = {
   svc: any;

@@ -15,7 +15,6 @@ import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RowMenu from "@/components/RowMenu";
 
-const pad = (n: number) => String(n).padStart(2, "0");
 
 // Browser IANA zone (fallback UTC), used as the default for a new session.
 function browserTz(): string {

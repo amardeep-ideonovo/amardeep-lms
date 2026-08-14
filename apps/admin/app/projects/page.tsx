@@ -14,7 +14,6 @@ import type {
   ChatChannelDTO,
   ChatChannelDetailDTO,
   ChatDmDTO,
-  ChatListDTO,
   ChatListSummaryDTO,
   ChatMessageDTO,
   UnreadSummaryDTO,
@@ -689,7 +688,7 @@ export default function ProjectsPage() {
   async function turnIntoTask(m: ChatMessageDTO) {
     if (!selectedId) return;
     try {
-      let lists: ChatListSummaryDTO[] = await api.listLists(selectedId);
+      const lists: ChatListSummaryDTO[] = await api.listLists(selectedId);
       let listId: string | undefined = lists[0]?.id;
       if (lists.length === 0) {
         const name = await dialog.prompt({

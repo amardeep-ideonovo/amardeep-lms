@@ -6,7 +6,7 @@ import { LmsService } from './lms.service';
 // Guard tests for the destructive-delete fix: a course that members still own
 // can't be hard-deleted (would wipe lifetime purchases + payment correlation).
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 function make(prisma: any): LmsService {
   return new LmsService(prisma, {} as any, {} as any, {} as any);
 }

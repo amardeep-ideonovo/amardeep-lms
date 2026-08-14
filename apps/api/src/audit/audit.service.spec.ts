@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { AuditService } from './audit.service';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 function make(create: (a: any) => Promise<unknown>): AuditService {
   return new AuditService({ auditLog: { create } } as any);
 }

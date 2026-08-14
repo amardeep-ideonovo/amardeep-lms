@@ -108,7 +108,6 @@ export default function MediaPicker({
       {value ? (
         <div style={{ marginBottom: 8 }}>
           {kind === "video" ? (
-            // eslint-disable-next-line jsx-a11y/media-has-caption
             <video
               src={value}
               controls
@@ -354,7 +353,6 @@ function MediaLibraryModal({
                   }}
                 >
                   {kind === "video" ? (
-                    // eslint-disable-next-line jsx-a11y/media-has-caption
                     <video
                       src={m.url}
                       muted

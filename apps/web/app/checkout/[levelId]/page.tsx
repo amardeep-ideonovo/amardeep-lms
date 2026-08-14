@@ -163,7 +163,7 @@ export default function CheckoutPage() {
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [slugOrId]);
 
   const selected: CheckoutProductOption | null = useMemo(

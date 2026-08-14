@@ -46,7 +46,7 @@ async function withKeyAsync<T>(
   }
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 function make(prisma: any, audit: any = { write: async () => {} }): ListsService {
   return new ListsService(prisma, {} as any, {} as any, {} as any, audit);
 }

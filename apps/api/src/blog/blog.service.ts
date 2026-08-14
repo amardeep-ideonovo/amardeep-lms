@@ -322,7 +322,7 @@ export class BlogService {
     let slug = base;
     let n = 1;
     // Append -2, -3, … until free.
-    // eslint-disable-next-line no-constant-condition
+     
     while (true) {
       const hit = await this.prisma.post.findUnique({ where: { slug } });
       if (!hit) return slug;
@@ -334,7 +334,7 @@ export class BlogService {
   private async uniqueCategorySlug(base: string): Promise<string> {
     let slug = base;
     let n = 1;
-    // eslint-disable-next-line no-constant-condition
+     
     while (true) {
       const hit = await this.prisma.postCategory.findUnique({
         where: { slug },

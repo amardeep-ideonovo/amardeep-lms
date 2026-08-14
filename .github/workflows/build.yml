@@ -14,6 +14,28 @@ on:
     branches: [amardeepLMS]
 
 jobs:
+  # Repo-wide ESLint (root flat config). Warning-first baseline: the job fails
+  # only on errors (no-unused-vars, rules-of-hooks, and the always-error core
+  # rules); the promise-safety rules warn until the backlog is ratcheted down.
+  # Prisma generate runs first so type-aware rules see real Prisma promise
+  # types instead of `any` (a missing client would silently blind
+  # no-floating-promises on every prisma.* call).
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate --schema packages/db/prisma/schema.prisma
+      - name: ESLint
+        run: npm run lint
+
   typecheck:
     name: TypeCheck (${{ matrix.workspace }})
     runs-on: ubuntu-latest

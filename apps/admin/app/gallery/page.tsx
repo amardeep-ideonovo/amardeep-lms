@@ -720,7 +720,7 @@ function MediaDetails({
 
 function MediaPreview({ asset }: { asset: MediaDTO }) {
   if (asset.kind === "image")
-    // eslint-disable-next-line @next/next/no-img-element
+     
     return (
       <img
         src={asset.url}

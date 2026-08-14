@@ -126,7 +126,7 @@ function motifSports(c: Canvas, accent: RGB, r: () => number): void {
   }
 }
 
-function motifGeneral(c: Canvas, accent: RGB, r: () => number): void {
+function motifGeneral(c: Canvas, accent: RGB, _r: () => number): void {
   // Neutral dot lattice for platform/announcement art with no subject.
   const step = Math.max(26, c.w / 30);
   for (let y = step; y < c.h; y += step) {

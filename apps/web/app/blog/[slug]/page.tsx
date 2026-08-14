@@ -85,12 +85,10 @@ export default async function BlogPostPage({ params }: Params) {
   return (
     <div className="blog-cinema">
       <article className="article">
-      {/* eslint-disable-next-line react/no-danger */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(articleLd) }}
       />
-      {/* eslint-disable-next-line react/no-danger */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbLd) }}
