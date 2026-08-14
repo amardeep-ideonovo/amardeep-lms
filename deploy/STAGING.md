@@ -1,12 +1,17 @@
 # Staging environment + production testing strategy
 
-> **Status:** PLAN — for review, not yet executed.
->
-> **Scope (revised):** Hosting setup (staging server, DNS, Render/Vercel/VPS,
-> Stripe dashboard, Sentry account) is handled by the
-> user. This plan covers ONLY the in-repo code/config changes I'll push to
-> GitHub to make the codebase production-ready. After the code lands, the
-> user wires up the actual environments using the hosting checklist in §13.
+> **Status: LEGACY — never executed as written (marked 2026-08-14). Do not
+> follow.** This plan targeted the retired `amardeepLMS` branch and a
+> Render/Vercel staging topology that was never built (`render-staging.yaml`
+> was never created; root `render.yaml` is likewise legacy, pending deletion).
+> Several code deliverables later shipped by other routes — deep `/health`,
+> login/signup rate limiting, public signup, `deploy/QA-CHECKLIST.md`,
+> `deploy/BACKUP.md`, the `@smoke` suite + `smoke-staging.yml`, and CI build
+> gates (required checks since 2026-08-14) — but the hosting topology below
+> never existed. The real platform is the VPS fleet
+> ([`SERVER-SETUP.md`](SERVER-SETUP.md) + [`VPS-GUIDEBOOK.md`](VPS-GUIDEBOOK.md));
+> "staging" today means an internal instance rolled to the candidate image
+> (see [`QA-CHECKLIST.md`](QA-CHECKLIST.md)). Kept for historical context only.
 
 ---
 

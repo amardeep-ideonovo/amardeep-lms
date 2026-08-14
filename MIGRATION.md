@@ -109,7 +109,7 @@ migration** rather than a whole-machine copy:
 ## Phase 1 — Export from the OLD machine
 
 ```bash
-cd ~/Desktop/LMS          # repo root
+cd ~/LMS                  # repo root
 mkdir -p ~/lms-migration
 
 # 1) Secrets + local config (not in git)
@@ -163,10 +163,10 @@ nvm install 24.13.0 && nvm alias default 24.13.0
 git config --global user.name "Amardeep Singh"
 git config --global user.email "you@example.com"
 
-# --- Clone + the working branch ---
+# --- Clone ---
 gh auth login
 git clone https://github.com/amardeep-ideonovo/amardeep-lms.git LMS
-cd LMS && git checkout amardeepLMS
+cd LMS   # you land on main; work happens on short-lived claude/* branches (see README)
 
 # --- Drop the non-git pieces back in ---
 cp ~/lms-migration/root.env ./.env
