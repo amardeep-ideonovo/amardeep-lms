@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
@@ -9,12 +9,13 @@ import { DialogProvider } from "@/components/DialogProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import { withBase } from "@/lib/base-path";
 
-// Ink Hero UI type — Plus Jakarta Sans everywhere (display + body), exposed as
-// a CSS var consumed by globals.css (--font-sans AND --font-display).
-const jakarta = Plus_Jakarta_Sans({
+// Spark UI type — Space Grotesk everywhere (display + body), exposed as a CSS
+// var consumed by globals.css (--font-sans AND --font-display). No 800 cut;
+// font-weight:800 renders on the 700 face.
+const grotesk = Space_Grotesk({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-jakarta",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-grotesk",
   display: "swap",
 });
 
@@ -61,7 +62,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={jakarta.variable}
+      className={grotesk.variable}
       suppressHydrationWarning
     >
       <head>

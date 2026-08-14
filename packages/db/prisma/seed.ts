@@ -2154,11 +2154,12 @@ async function seedCertificateTemplates() {
 // ---------- app customization (mobile branding) ----------
 
 async function seedAppConfig() {
-  // The app mirrors the "Ink Hero" design: light content under ink #221c3d
-  // chrome with a teal #3cc4b2 accent. The app ships LIGHT by default; DARK is
-  // the all-ink variant. Both palettes are the cross-stack defaults in
-  // apps/mobile/src/theme.ts / apps/api/src/site/app-config.service.ts.
-  // Admins can still recolor live via App Customization.
+  // The app mirrors the "Spark" design (Spotlight Academy brand pack, direction
+  // 5B): cream content under ink #101014 chrome with a teal #34c9a2 accent.
+  // The app ships LIGHT by default; DARK is the all-ink variant. Both palettes
+  // are the cross-stack defaults in apps/mobile/src/theme.ts /
+  // apps/api/src/site/app-config.service.ts. Admins can still recolor live via
+  // App Customization.
   const config = {
     title: "Spotlight Academy",
     tagline: "Learn from the best. Love what you make.",
@@ -2169,23 +2170,23 @@ async function seedAppConfig() {
     splashUrl: null,
     colorScheme: "light",
     light: {
-      bg: "#f4f3f8",
+      bg: "#f5f2ec",
       surface: "#ffffff",
-      surfaceMuted: "#f1eff7",
-      border: "#e4e1ee",
-      text: "#272144",
-      textMuted: "#8b87a3",
-      primary: "#3cc4b2",
+      surfaceMuted: "#f0ede4",
+      border: "#e6e2d7",
+      text: "#17171d",
+      textMuted: "#8b8a87",
+      primary: "#34c9a2",
       danger: "#e04848",
     },
     dark: {
-      bg: "#221c3d",
-      surface: "#272144",
-      surfaceMuted: "#322b52",
-      border: "#3a3460",
+      bg: "#101014",
+      surface: "#17171d",
+      surfaceMuted: "#1e1e26",
+      border: "#2a2a33",
       text: "#ffffff",
-      textMuted: "#a7a3bd",
-      primary: "#3cc4b2",
+      textMuted: "#a4a3a9",
+      primary: "#34c9a2",
       danger: "#ea4f4f",
     },
   } as Prisma.InputJsonValue;

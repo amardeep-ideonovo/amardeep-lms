@@ -360,11 +360,13 @@ export default function Sidebar() {
       />
       <aside className={drawerOpen ? "sidebar sidebar--open" : "sidebar"}>
         <div className="sidebar-brand sidebar-brand--row">
-        {/* Spotlight mark: teal beam + light pool (from the Ink Hero frames) */}
+        {/* Spark mark: teal four-point spark (Spark brand pack) */}
         <span className="brand-mark" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <path d="M5 2.2 11.6 6 7.8 12.6 1.2 8.8Z" fill="#3cc4b2" />
-            <ellipse cx="14.8" cy="18.6" rx="6.8" ry="2.9" fill="rgba(60,196,178,.32)" />
+            <path
+              d="M12 1.7C12.93 7.35 16.65 11.07 22.3 12C16.65 12.93 12.93 16.65 12 22.3C11.07 16.65 7.35 12.93 1.7 12C7.35 11.07 11.07 7.35 12 1.7Z"
+              fill="#34c9a2"
+            />
           </svg>
         </span>
         <span className="brand-name" title={brand ?? undefined}>

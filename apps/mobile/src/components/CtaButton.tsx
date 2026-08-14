@@ -71,7 +71,7 @@ const makeStyles = ({ fonts }: Theme) =>
       justifyContent: "center",
       // Teal CTA glow (iOS; Android elevation is skipped — it needs an opaque
       // bg and the gradient wrapper has none).
-      shadowColor: "#35b3a2",
+      shadowColor: "#30b895",
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.35,
       shadowRadius: 12,

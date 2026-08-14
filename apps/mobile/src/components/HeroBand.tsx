@@ -174,7 +174,7 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       borderRadius: 11,
       paddingVertical: 11,
       paddingHorizontal: 18,
-      shadowColor: "#35b3a2",
+      shadowColor: "#30b895",
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.35,
       shadowRadius: 12,

@@ -10,12 +10,11 @@ import { StatusBar } from "expo-status-bar";
 import * as ExpoLinking from "expo-linking";
 import { useFonts } from "expo-font";
 import {
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-  PlusJakartaSans_800ExtraBold,
-} from "@expo-google-fonts/plus-jakarta-sans";
+  SpaceGrotesk_400Regular,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from "@expo-google-fonts/space-grotesk";
 
 import { AuthProvider, useAuth } from "./src/auth";
 import { IS_LOCKED_BUILD, WEB_BASE_URL, unbindInstance } from "./src/config";
@@ -418,11 +417,10 @@ export default function App() {
   // Load the brand faces before first paint. On error we proceed anyway so a
   // font hiccup never hangs the app (text falls back to the system face).
   const [fontsLoaded, fontError] = useFonts({
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
-    PlusJakartaSans_800ExtraBold,
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
   });
   if (!fontsLoaded && !fontError) return null;
   return (

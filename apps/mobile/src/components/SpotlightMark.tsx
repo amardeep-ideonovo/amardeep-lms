@@ -1,7 +1,7 @@
-// Brand glyph for the ink band (pure RN — no SVG dependency): the design's
-// spotlight beam approximated with a rotated rounded square in the primary
-// color, over a translucent elliptical light pool. Only shown when the admin
-// hasn't uploaded a logo (the logo image replaces the whole brand row mark).
+// Brand glyph for the ink band (pure RN — no SVG dependency): the Spark
+// four-point star approximated as a rotated-square diamond with a smaller
+// companion spark at its top-right, both in the primary color. Only shown when
+// the admin hasn't uploaded a logo (the logo image replaces the brand mark).
 import React from "react";
 import { View } from "react-native";
 
@@ -14,25 +14,26 @@ export function SpotlightMark({ size = 20 }: { size?: number }) {
       <View
         style={{
           position: "absolute",
-          left: size * 0.34,
-          top: size * 0.68,
-          width: size * 0.66,
-          height: size * 0.3,
-          borderRadius: size * 0.33,
+          left: size * 0.14,
+          top: size * 0.22,
+          width: size * 0.46,
+          height: size * 0.46,
+          borderRadius: size * 0.09,
           backgroundColor: colors.primary,
-          opacity: 0.32,
+          transform: [{ rotate: "45deg" }],
         }}
       />
       <View
         style={{
           position: "absolute",
-          left: size * 0.08,
-          top: size * 0.08,
-          width: size * 0.5,
-          height: size * 0.5,
-          borderRadius: size * 0.07,
+          left: size * 0.64,
+          top: size * 0.06,
+          width: size * 0.24,
+          height: size * 0.24,
+          borderRadius: size * 0.05,
           backgroundColor: colors.primary,
-          transform: [{ rotate: "30deg" }],
+          opacity: 0.85,
+          transform: [{ rotate: "45deg" }],
         }}
       />
     </View>

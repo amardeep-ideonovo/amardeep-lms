@@ -58,7 +58,7 @@ const CLASS_ACCENTS = [
   "#4a76d0",
   "#27a596",
 ];
-const MIX_COLORS = ["#35b3a2", "#272144", "#f6a623", "#8b87a3"];
+const MIX_COLORS = ["#30b895", "#17171d", "#f6a623", "#8b8a87"];
 
 // A subscription row that is currently billing (both providers use raw
 // Stripe-style statuses in this DTO).
@@ -252,7 +252,7 @@ export default function ReportsPage() {
               <h2 style={{ marginBottom: 10 }}>Plan mix</h2>
               <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
                 <svg width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Active subscriptions by plan">
-                  <circle cx="75" cy="75" r={R} fill="none" stroke="#f1eff7" strokeWidth="16" />
+                  <circle cx="75" cy="75" r={R} fill="none" stroke="#f0ede4" strokeWidth="16" />
                   {slices.map((s) => (
                     <circle
                       key={s.label}
@@ -267,10 +267,10 @@ export default function ReportsPage() {
                       transform="rotate(-90 75 75)"
                     />
                   ))}
-                  <text x="75" y="72" textAnchor="middle" fontSize="20" fontWeight="700" fill="#272144" fontFamily="inherit">
+                  <text x="75" y="72" textAnchor="middle" fontSize="20" fontWeight="700" fill="#17171d" fontFamily="inherit">
                     {mixTotal.toLocaleString()}
                   </text>
-                  <text x="75" y="88" textAnchor="middle" fontSize="10" fill="#8b87a3" fontFamily="inherit">
+                  <text x="75" y="88" textAnchor="middle" fontSize="10" fill="#8b8a87" fontFamily="inherit">
                     active subs
                   </text>
                 </svg>

@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
@@ -13,12 +13,13 @@ import {
 } from "@/lib/api";
 import { SITE_DESCRIPTION, SITE_URL, getSiteName } from "@/lib/seo";
 
-// Ink Hero single typeface — exposed as a CSS var consumed by globals.css
-// (BOTH --font-sans and --font-display resolve to it).
-const jakarta = Plus_Jakarta_Sans({
+// Spark single typeface — exposed as a CSS var consumed by globals.css
+// (BOTH --font-sans and --font-display resolve to it). Space Grotesk has no
+// 800 cut; font-weight:800 renders on the 700 face.
+const grotesk = Space_Grotesk({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-jakarta",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-grotesk",
   display: "swap",
 });
 
@@ -61,7 +62,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#221c3d",
+  themeColor: "#101014",
 };
 
 export default async function RootLayout({
@@ -103,7 +104,7 @@ export default async function RootLayout({
     <html
       lang="en"
       data-theme="dark"
-      className={jakarta.variable}
+      className={grotesk.variable}
       suppressHydrationWarning
     >
       <body>

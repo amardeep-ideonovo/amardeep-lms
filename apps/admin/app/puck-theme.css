@@ -18,16 +18,16 @@ html,
 html[data-theme="light"],
 html[data-theme="dark"] {
   --puck-color-white: #ffffff;
-  --puck-color-black: #272144; /* ink text */
+  --puck-color-black: #17171d; /* ink text */
 
   /* azure: action color becomes the admin teal; tints become teal washes */
   --puck-color-azure-01: #0d3f38;
   --puck-color-azure-02: #14544b;
   --puck-color-azure-03: #1f7d70;
-  --puck-color-azure-04: #2a9d8d; /* primary action (teal on light) */
-  --puck-color-azure-05: #35b3a2;
-  --puck-color-azure-06: #3cc4b2;
-  --puck-color-azure-07: #7ce4d2;
+  --puck-color-azure-04: #299e7f; /* primary action (teal on light) */
+  --puck-color-azure-05: #30b895;
+  --puck-color-azure-06: #34c9a2;
+  --puck-color-azure-07: #79e9c6;
   --puck-color-azure-08: #b3efe4;
   --puck-color-azure-09: #d2f5ee;
   --puck-color-azure-10: #e2f8f3;
@@ -38,23 +38,23 @@ html[data-theme="dark"] {
 /* =========================================================================
    Canvas fidelity — the iframe previews the RENDER TARGET, not the admin.
 
-   Pages render on the member site's Ink Hero shell (light #f4f3f8 with teal
+   Pages render on the member site's Ink Hero shell (light #f5f2ec with teal
    brand); popups render in a white box. Pinning both here keeps the canvas
    truthful regardless of the admin chrome. Shared styles.css supplies the
    member CMS tokens for the page canvas.
    ========================================================================= */
 
 .lmspb-root.lmspb-canvas-page {
-  --primary: #3cc4b2; /* member-site brand teal, NOT the admin chrome */
-  background: #f4f3f8; /* member site page background (Ink Hero light) */
+  --primary: #34c9a2; /* member-site brand teal, NOT the admin chrome */
+  background: #f5f2ec; /* member site page background (Ink Hero light) */
   min-height: 100vh;
   padding: 16px 0 48px;
 }
 
 .lmspb-root.lmspb-canvas-popup {
-  --primary: #3cc4b2;
+  --primary: #34c9a2;
   background: #ffffff; /* popups live in a white box by default */
-  color: #272144;
+  color: #17171d;
   min-height: 100vh;
   padding: 16px;
 }

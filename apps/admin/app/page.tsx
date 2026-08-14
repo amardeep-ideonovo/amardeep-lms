@@ -210,8 +210,8 @@ export default function DashboardPage() {
     {
       label: "Total members",
       value: can("members", "read") ? totalMembers : null,
-      tint: "rgba(53,179,162,.13)",
-      color: "#2a9d8d",
+      tint: "rgba(48, 184, 149,.13)",
+      color: "#299e7f",
       delta:
         newThisWeek > 0
           ? { text: `↑ ${newThisWeek} this week`, cls: "up" }
