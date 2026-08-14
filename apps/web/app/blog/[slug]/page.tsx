@@ -43,7 +43,9 @@ export default async function BlogPostPage({ params }: Params) {
   if (!post) notFound();
 
   const url = absoluteUrl(`/blog/${post.slug}`);
-  const image = post.coverImageUrl ? absoluteUrl(post.coverImageUrl) : undefined;
+  const image = post.coverImageUrl
+    ? absoluteUrl(post.coverImageUrl)
+    : undefined;
   // Per-instance brand for the JSON-LD publisher (runtime, not build-time).
   const siteName = await getSiteName();
 
@@ -71,7 +73,12 @@ export default async function BlogPostPage({ params }: Params) {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: absoluteUrl("/"),
+      },
       {
         "@type": "ListItem",
         position: 2,
@@ -85,55 +92,55 @@ export default async function BlogPostPage({ params }: Params) {
   return (
     <div className="blog-cinema">
       <article className="article">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdScript(articleLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbLd) }}
-      />
-
-      <div className="breadcrumb">
-        <Link href="/blog">← Blog</Link>
-      </div>
-
-      <h1 className="page-title">{post.title}</h1>
-
-      <div className="post-meta" style={{ marginBottom: 20 }}>
-        {post.author && <span>By {post.author.name}</span>}
-        {post.publishedAt && <span>· {fmtDate(post.publishedAt)}</span>}
-        {post.categories.length > 0 && (
-          <span className="post-cat">
-            · {post.categories.map((c) => c.name).join(", ")}
-          </span>
-        )}
-      </div>
-
-      {post.coverImageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={post.coverImageUrl}
-          alt={post.title}
-          className="article-cover"
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(articleLd) }}
         />
-      )}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbLd) }}
+        />
 
-      {/* Content is sanitized server-side on write (sanitize-html). */}
-      <div
-        className="article-content"
-        dangerouslySetInnerHTML={{ __html: post.content }}
-      />
-
-      {post.tags.length > 0 && (
-        <div className="post-tags">
-          {post.tags.map((t) => (
-            <span key={t} className="post-tag">
-              #{t}
-            </span>
-          ))}
+        <div className="breadcrumb">
+          <Link href="/blog">← Blog</Link>
         </div>
-      )}
+
+        <h1 className="page-title">{post.title}</h1>
+
+        <div className="post-meta" style={{ marginBottom: 20 }}>
+          {post.author && <span>By {post.author.name}</span>}
+          {post.publishedAt && <span>· {fmtDate(post.publishedAt)}</span>}
+          {post.categories.length > 0 && (
+            <span className="post-cat">
+              · {post.categories.map((c) => c.name).join(", ")}
+            </span>
+          )}
+        </div>
+
+        {post.coverImageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={post.coverImageUrl}
+            alt={post.title}
+            className="article-cover"
+          />
+        )}
+
+        {/* Content is sanitized server-side on write (sanitize-html). */}
+        <div
+          className="article-content"
+          dangerouslySetInnerHTML={{ __html: post.content }}
+        />
+
+        {post.tags.length > 0 && (
+          <div className="post-tags">
+            {post.tags.map((t) => (
+              <span key={t} className="post-tag">
+                #{t}
+              </span>
+            ))}
+          </div>
+        )}
       </article>
     </div>
   );

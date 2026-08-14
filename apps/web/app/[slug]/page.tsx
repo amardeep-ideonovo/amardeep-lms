@@ -28,7 +28,10 @@ type Params = { params: { slug: string } };
 
 type SeoProps = { seoTitle?: string; description?: string; ogImage?: string };
 
-function pageSeo(page: { title: string; data?: { root?: { props?: unknown } } }) {
+function pageSeo(page: {
+  title: string;
+  data?: { root?: { props?: unknown } };
+}) {
   const seo = (page.data?.root?.props ?? {}) as SeoProps;
   return {
     title: seo.seoTitle?.trim() || page.title,
@@ -37,9 +40,7 @@ function pageSeo(page: { title: string; data?: { root?: { props?: unknown } } })
   };
 }
 
-export async function generateMetadata({
-  params,
-}: Params): Promise<Metadata> {
+export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const page = await fetchPublishedPage(params.slug);
   if (!page) return { title: "Page not found", robots: { index: false } };
   const seo = pageSeo(page);
@@ -61,7 +62,12 @@ export default async function CmsPage({ params }: Params) {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: absoluteUrl("/"),
+      },
       {
         "@type": "ListItem",
         position: 2,

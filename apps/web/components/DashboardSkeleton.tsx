@@ -8,7 +8,10 @@ export default function DashboardSkeleton() {
     <div className="ink-page">
       <div className="ik-band">
         <div className="ik-band-inner">
-          <div className="ik-skel ik-skel--ink" style={{ width: 320, height: 34 }} />
+          <div
+            className="ik-skel ik-skel--ink"
+            style={{ width: 320, height: 34 }}
+          />
           <div
             className="ik-skel ik-skel--ink"
             style={{ width: 420, height: 16, marginTop: 12 }}

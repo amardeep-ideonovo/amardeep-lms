@@ -39,7 +39,7 @@ export default function SignupPage() {
       if (err instanceof ApiError) {
         if (err.status === 409) {
           setError(
-            "An account with this email already exists. Try signing in instead."
+            "An account with this email already exists. Try signing in instead.",
           );
         } else if (err.status === 403) {
           setError("That invite code isn't valid.");
@@ -50,7 +50,7 @@ export default function SignupPage() {
         setError(
           err instanceof Error
             ? err.message
-            : "Unable to create your account. Try again."
+            : "Unable to create your account. Try again.",
         );
       }
     } finally {
@@ -67,95 +67,95 @@ export default function SignupPage() {
       </div>
       <div className="dp-wrap">
         <div className="form-card">
-      <h1>Create your account</h1>
-      <p className="sub">
-        Already a member?{" "}
-        <Link href="/login" className="link">
-          Sign in
-        </Link>
-      </p>
+          <h1>Create your account</h1>
+          <p className="sub">
+            Already a member?{" "}
+            <Link href="/login" className="link">
+              Sign in
+            </Link>
+          </p>
 
-      {error && <div className="alert alert-error">{error}</div>}
+          {error && <div className="alert alert-error">{error}</div>}
 
-      <form onSubmit={onSubmit}>
-        <div className="field-row">
-          <div className="field">
-            <label htmlFor="firstName">First name</label>
-            <input
-              id="firstName"
-              autoComplete="given-name"
-              required
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="lastName">Last name</label>
-            <input
-              id="lastName"
-              autoComplete="family-name"
-              required
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-            />
-          </div>
-        </div>
+          <form onSubmit={onSubmit}>
+            <div className="field-row">
+              <div className="field">
+                <label htmlFor="firstName">First name</label>
+                <input
+                  id="firstName"
+                  autoComplete="given-name"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="lastName">Last name</label>
+                <input
+                  id="lastName"
+                  autoComplete="family-name"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </div>
+            </div>
 
-        <div className="field">
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
+            <div className="field">
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
 
-        <div className="field">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            minLength={10}
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <span className="hint">At least 10 characters.</span>
-        </div>
+            <div className="field">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                minLength={10}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <span className="hint">At least 10 characters.</span>
+            </div>
 
-        <div className="field">
-          <label htmlFor="phone">Phone (optional)</label>
-          <input
-            id="phone"
-            type="tel"
-            autoComplete="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-        </div>
+            <div className="field">
+              <label htmlFor="phone">Phone (optional)</label>
+              <input
+                id="phone"
+                type="tel"
+                autoComplete="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
 
-        <div className="field">
-          <label htmlFor="inviteCode">Invite code (if you have one)</label>
-          <input
-            id="inviteCode"
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-          />
-        </div>
+            <div className="field">
+              <label htmlFor="inviteCode">Invite code (if you have one)</label>
+              <input
+                id="inviteCode"
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+              />
+            </div>
 
-        <button
-          type="submit"
-          className="btn btn-primary btn-block press"
-          disabled={loading}
-          aria-busy={loading}
-        >
-          {loading ? "Creating account…" : "Create account"}
-        </button>
-      </form>
+            <button
+              type="submit"
+              className="btn btn-primary btn-block press"
+              disabled={loading}
+              aria-busy={loading}
+            >
+              {loading ? "Creating account…" : "Create account"}
+            </button>
+          </form>
         </div>
       </div>
     </div>

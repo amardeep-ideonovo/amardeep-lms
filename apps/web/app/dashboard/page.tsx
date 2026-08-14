@@ -4,13 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AuthUser, ClassTileDTO, MyCertificateDTO } from "@lms/types";
-import {
-  ApiError,
-  api,
-  clearToken,
-  getCachedMe,
-  setCachedMe,
-} from "@/lib/api";
+import { ApiError, api, clearToken, getCachedMe, setCachedMe } from "@/lib/api";
 import {
   type ClassExtras,
   classColorClass,
@@ -40,12 +34,24 @@ function greetingName(u: AuthUser | null): string {
 
 /* ---------- shared inline icons (paths from the design frames) ---------- */
 const PlayIcon = ({ size = 15 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
     <path d="m8 5 12 7-12 7z" fill="currentColor" />
   </svg>
 );
 const BookIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
     <path
       d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15Z"
       stroke="currentColor"
@@ -56,7 +62,13 @@ const BookIcon = () => (
   </svg>
 );
 const AwardIcon = ({ size = 16 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
     <circle cx="12" cy="9" r="6" stroke="currentColor" strokeWidth="1.7" />
     <path
       d="M9 14.5 8 22l4-2.5L16 22l-1-7.5"
@@ -73,8 +85,21 @@ function ProgressRing({ pct }: { pct: number }) {
   const C = 2 * Math.PI * 39.5; // ≈248.2
   const arc = Math.max(0, Math.min(100, pct)) * (C / 100);
   return (
-    <svg className="ik-ring" width="92" height="92" viewBox="0 0 92 92" aria-label={`${pct}% complete`}>
-      <circle cx="46" cy="46" r="39.5" fill="none" stroke="#eeecf5" strokeWidth="9" />
+    <svg
+      className="ik-ring"
+      width="92"
+      height="92"
+      viewBox="0 0 92 92"
+      aria-label={`${pct}% complete`}
+    >
+      <circle
+        cx="46"
+        cy="46"
+        r="39.5"
+        fill="none"
+        stroke="#eeecf5"
+        strokeWidth="9"
+      />
       <circle
         cx="46"
         cy="46"
@@ -86,7 +111,14 @@ function ProgressRing({ pct }: { pct: number }) {
         strokeDasharray={`${arc} ${C}`}
         transform="rotate(-90 46 46)"
       />
-      <text x="46" y="53" textAnchor="middle" fontSize="20" fontWeight="700" fill="#17171d">
+      <text
+        x="46"
+        y="53"
+        textAnchor="middle"
+        fontSize="20"
+        fontWeight="700"
+        fill="#17171d"
+      >
         {pct}%
       </text>
     </svg>
@@ -116,7 +148,11 @@ function ClassCard({
     ? ({ "--card-img": `url(${cls.imageUrl})` } as React.CSSProperties)
     : {};
   return (
-    <Link href={href} className={`ik-class-card ${classColorClass(colorIdx)}`} style={style}>
+    <Link
+      href={href}
+      className={`ik-class-card ${classColorClass(colorIdx)}`}
+      style={style}
+    >
       <div className="ik-class-title">{cls.name}</div>
       {meta && <div className="ik-class-meta">{meta}</div>}
       <div className="ik-class-spacer" />
@@ -129,7 +165,9 @@ function ClassCard({
           <div className="ik-class-track">
             <div className="ik-class-fill" style={{ width: `${pct}%` }} />
           </div>
-          <span className="ik-class-btn">{started ? "Continue Class" : "Start Class"}</span>
+          <span className="ik-class-btn">
+            {started ? "Continue Class" : "Start Class"}
+          </span>
         </>
       ) : (
         <span className="ik-class-btn">View Class</span>
@@ -166,7 +204,9 @@ function DashboardInner() {
           router.replace("/login");
           return;
         }
-        setError(err instanceof Error ? err.message : "Failed to load dashboard.");
+        setError(
+          err instanceof Error ? err.message : "Failed to load dashboard.",
+        );
       }
     }
     void load();
@@ -234,11 +274,16 @@ function DashboardInner() {
   // lesson (deep link) when known; otherwise the class page.
   const featured =
     enrolled.find(
-      (c) => c.progress && c.progress.total > 0 && c.progress.completed < c.progress.total,
+      (c) =>
+        c.progress &&
+        c.progress.total > 0 &&
+        c.progress.completed < c.progress.total,
     ) ??
     enrolled[0] ??
     null;
-  const featuredNext = featured ? extras.get(featured.id)?.next ?? null : null;
+  const featuredNext = featured
+    ? (extras.get(featured.id)?.next ?? null)
+    : null;
   const resumeHref = featuredNext
     ? `/lessons/${featuredNext.lesson.id}`
     : featured
@@ -249,7 +294,10 @@ function DashboardInner() {
   // Continue-learning queue: next incomplete lesson per enrolled class.
   const queue = enrolled
     .map((c) => ({ cls: c, next: extras.get(c.id)?.next ?? null }))
-    .filter((q): q is { cls: ClassTileDTO; next: NonNullable<typeof q.next> } => !!q.next);
+    .filter(
+      (q): q is { cls: ClassTileDTO; next: NonNullable<typeof q.next> } =>
+        !!q.next,
+    );
 
   return (
     <div className="ink-page">
@@ -288,15 +336,22 @@ function DashboardInner() {
             <div className="ik-overview-main">
               <div className="ik-overview-title">My Learning Overview</div>
               <div className="ik-overview-stats">
-                {enrolled.length} active {enrolled.length === 1 ? "class" : "classes"}
+                {enrolled.length} active{" "}
+                {enrolled.length === 1 ? "class" : "classes"}
                 {certCount > 0 &&
                   ` · ${certCount} certificate${certCount === 1 ? "" : "s"} earned`}
               </div>
               <div className="ik-dots">
                 {enrolled.slice(0, 4).map((c) => (
-                  <span key={c.id} className={`ik-dot-item ${classColorClass(colorIdx.get(c.id) ?? 0)}`}>
+                  <span
+                    key={c.id}
+                    className={`ik-dot-item ${classColorClass(colorIdx.get(c.id) ?? 0)}`}
+                  >
                     <span className="ik-dot" />
-                    {c.name.length > 26 ? `${c.name.slice(0, 24)}…` : c.name} {classPct(c)}%
+                    {c.name.length > 26
+                      ? `${c.name.slice(0, 24)}…`
+                      : c.name}{" "}
+                    {classPct(c)}%
                   </span>
                 ))}
               </div>
@@ -351,10 +406,17 @@ function DashboardInner() {
                 <div className="ik-rows">
                   {queue.slice(0, 4).map(({ cls, next }) => {
                     const thumb =
-                      next.lesson.thumbnailUrl ?? next.courseThumb ?? cls.imageUrl ?? null;
+                      next.lesson.thumbnailUrl ??
+                      next.courseThumb ??
+                      cls.imageUrl ??
+                      null;
                     const dur = fmtDuration(next.lesson.durationSeconds);
                     return (
-                      <Link key={next.lesson.id} href={`/lessons/${next.lesson.id}`} className="ik-row">
+                      <Link
+                        key={next.lesson.id}
+                        href={`/lessons/${next.lesson.id}`}
+                        className="ik-row"
+                      >
                         {thumb ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={thumb} alt="" className="ik-row-thumb" />
@@ -362,7 +424,9 @@ function DashboardInner() {
                           <span className="ik-row-thumb" aria-hidden="true" />
                         )}
                         <span className="ik-row-main">
-                          <span className="ik-row-title">{next.lesson.title}</span>
+                          <span className="ik-row-title">
+                            {next.lesson.title}
+                          </span>
                           <span className="ik-row-meta">
                             {next.courseTitle}
                             {dur ? ` · ${dur}` : ""}
@@ -400,7 +464,9 @@ function DashboardInner() {
           </section>
         )}
 
-        {classes.length === 0 && <p className="empty">No classes are available yet.</p>}
+        {classes.length === 0 && (
+          <p className="empty">No classes are available yet.</p>
+        )}
       </div>
     </div>
   );

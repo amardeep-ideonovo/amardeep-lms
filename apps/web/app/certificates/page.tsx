@@ -24,7 +24,13 @@ function fmtDate(iso: string): string {
 }
 
 const AwardIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <svg
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
     <circle cx="12" cy="9" r="6" stroke="#fff" strokeWidth="1.7" />
     <path
       d="M9 14.5 8 22l4-2.5L16 22l-1-7.5"
@@ -36,7 +42,13 @@ const AwardIcon = () => (
   </svg>
 );
 const DownloadIcon = ({ color = "#fff" }: { color?: string }) => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
     <path
       d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
       stroke={color}
@@ -80,7 +92,13 @@ function CertCard({ cert }: { cert: MyCertificateDTO }) {
       <div className="ik-cert-foot">
         <span className="ik-cert-serial">Credential ID {cert.serial}</span>
         <div className="ik-grow" />
-        <button type="button" className="ik-cta ik-cta--sm" onClick={download} disabled={busy} aria-busy={busy}>
+        <button
+          type="button"
+          className="ik-cta ik-cta--sm"
+          onClick={download}
+          disabled={busy}
+          aria-busy={busy}
+        >
           <DownloadIcon />
           {busy ? "Preparing…" : "Download PDF"}
         </button>
@@ -127,7 +145,9 @@ function CertificatesInner() {
           router.replace("/login");
           return;
         }
-        setError(err instanceof Error ? err.message : "Failed to load certificates.");
+        setError(
+          err instanceof Error ? err.message : "Failed to load certificates.",
+        );
       }
     }
     void load();
@@ -160,14 +180,24 @@ function CertificatesInner() {
       <div className="ink-page">
         <div className="ik-band">
           <div className="ik-band-inner">
-            <div className="ik-skel ik-skel--ink" style={{ width: 220, height: 34 }} />
-            <div className="ik-skel ik-skel--ink" style={{ width: 380, height: 16, marginTop: 12 }} />
+            <div
+              className="ik-skel ik-skel--ink"
+              style={{ width: 220, height: 34 }}
+            />
+            <div
+              className="ik-skel ik-skel--ink"
+              style={{ width: 380, height: 16, marginTop: 12 }}
+            />
           </div>
         </div>
         <div className="ik-main">
           <div className="ik-cert-grid">
             {[0, 1].map((i) => (
-              <div key={i} className="ik-skel" style={{ height: 220, borderRadius: 18 }} />
+              <div
+                key={i}
+                className="ik-skel"
+                style={{ height: 220, borderRadius: 18 }}
+              />
             ))}
           </div>
         </div>
@@ -181,7 +211,11 @@ function CertificatesInner() {
     (c) =>
       c.owned &&
       !certLevelIds.has(c.id) &&
-      !(c.progress && c.progress.total > 0 && c.progress.completed >= c.progress.total),
+      !(
+        c.progress &&
+        c.progress.total > 0 &&
+        c.progress.completed >= c.progress.total
+      ),
   );
 
   return (
@@ -191,8 +225,8 @@ function CertificatesInner() {
         <div className="ik-band-inner">
           <h1 className="ik-band-title">Certificates</h1>
           <p className="ik-band-sub">
-            {certs.length} earned · {inProgress.length} in progress — finish a class to
-            unlock its certificate.
+            {certs.length} earned · {inProgress.length} in progress — finish a
+            class to unlock its certificate.
           </p>
         </div>
       </div>
@@ -205,11 +239,22 @@ function CertificatesInner() {
             ))}
           </div>
         ) : (
-          <div className="ik-panel" style={{ textAlign: "center", padding: "36px 24px" }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>
+          <div
+            className="ik-panel"
+            style={{ textAlign: "center", padding: "36px 24px" }}
+          >
+            <div
+              style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}
+            >
               No certificates yet
             </div>
-            <p style={{ color: "var(--text-muted)", fontSize: 13.5, margin: "8px 0 0" }}>
+            <p
+              style={{
+                color: "var(--text-muted)",
+                fontSize: 13.5,
+                margin: "8px 0 0",
+              }}
+            >
               Finish every lesson in a class to earn its certificate.
             </p>
           </div>
@@ -258,7 +303,10 @@ function CertificatesInner() {
                       </span>
                     </span>
                     <span className="ik-prog-track">
-                      <span className="ik-prog-fill" style={{ width: `${pct}%` }} />
+                      <span
+                        className="ik-prog-fill"
+                        style={{ width: `${pct}%` }}
+                      />
                     </span>
                   </span>
                 </Link>

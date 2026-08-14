@@ -67,7 +67,9 @@ export default async function ClassPage({ params }: Params) {
       {/* ---- band hero: class photo under an ink scrim + breadcrumb/title ---- */}
       <header
         className={cls.imageUrl ? "ik-band ik-band--photo" : "ik-band"}
-        style={cls.imageUrl ? { backgroundImage: `url(${cls.imageUrl})` } : undefined}
+        style={
+          cls.imageUrl ? { backgroundImage: `url(${cls.imageUrl})` } : undefined
+        }
       >
         <div className="ik-band-inner ik-band-inner--crumbs">
           <nav className="ik-crumbs" aria-label="Breadcrumb">
@@ -79,7 +81,9 @@ export default async function ClassPage({ params }: Params) {
             <div className="ik-grow">
               <h1 className="ik-band-title">{cls.name}</h1>
               <p className="ik-band-sub" style={{ fontSize: 13.5 }}>
-                {metaBits.length > 0 ? metaBits.join(" · ") : cls.categories.map((c) => c.name).join(" · ")}
+                {metaBits.length > 0
+                  ? metaBits.join(" · ")
+                  : cls.categories.map((c) => c.name).join(" · ")}
               </p>
             </div>
             {/* member-only 72px progress ring (client) */}
@@ -118,7 +122,12 @@ export default async function ClassPage({ params }: Params) {
                 </div>
                 <div className="ik-skills">
                   {cls.skills.map((s, i) => (
-                    <div key={i} className={s.imageUrl ? "ik-skill" : "ik-skill ik-skill--empty"}>
+                    <div
+                      key={i}
+                      className={
+                        s.imageUrl ? "ik-skill" : "ik-skill ik-skill--empty"
+                      }
+                    >
                       <span className="ik-skill-num">{i + 1}</span>
                       {s.imageUrl && (
                         // eslint-disable-next-line @next/next/no-img-element

@@ -38,7 +38,9 @@ export default function ZoomEmbed({
     return () => {
       const c = clientRef.current;
       if (c) {
-        (c.leaveMeeting?.() ?? c.leave?.() ?? Promise.resolve()).catch(() => {});
+        (c.leaveMeeting?.() ?? c.leave?.() ?? Promise.resolve()).catch(
+          () => {},
+        );
       }
     };
   }, []);
@@ -50,7 +52,8 @@ export default function ZoomEmbed({
     try {
       const mod = await import("@zoom/meetingsdk/embedded");
       const ZoomMtgEmbedded = mod.default;
-      const client = ZoomMtgEmbedded.createClient() as unknown as EmbeddedClient;
+      const client =
+        ZoomMtgEmbedded.createClient() as unknown as EmbeddedClient;
       clientRef.current = client;
       await client.init({
         zoomAppRoot: rootRef.current,
@@ -81,7 +84,12 @@ export default function ZoomEmbed({
           <p className="live-status live-status--go">Ready to join</p>
           <div className="live-field">
             <label htmlFor="zoom-pass">
-              Passcode {embed.password ? "" : <span className="live-hint">(if the meeting needs one)</span>}
+              Passcode{" "}
+              {embed.password ? (
+                ""
+              ) : (
+                <span className="live-hint">(if the meeting needs one)</span>
+              )}
             </label>
             <input
               id="zoom-pass"
@@ -122,7 +130,9 @@ export default function ZoomEmbed({
       <div
         ref={rootRef}
         className="live-zoom-root"
-        style={{ display: phase === "joining" || phase === "joined" ? "block" : "none" }}
+        style={{
+          display: phase === "joining" || phase === "joined" ? "block" : "none",
+        }}
       />
     </div>
   );

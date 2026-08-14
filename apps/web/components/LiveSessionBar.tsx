@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LiveSessionBarDTO } from "@lms/types";
@@ -121,7 +115,9 @@ export default function LiveSessionBar() {
       <div className="ik-live-title">{first.title}</div>
       <div className="ik-live-meta">
         {first.audienceLabel}
-        {!joinable && <> · starts in {countdown(Date.parse(first.startsAt) - now)}</>}
+        {!joinable && (
+          <> · starts in {countdown(Date.parse(first.startsAt) - now)}</>
+        )}
       </div>
       <div style={{ flex: 1 }} />
       <button

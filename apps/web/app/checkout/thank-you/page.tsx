@@ -38,49 +38,51 @@ function ThankYouInner() {
     <div className="dark-page">
       <div className="dp-wrap">
         <div className="thankyou">
-      <div className="thankyou-check" aria-hidden="true">
-        <svg
-          width="64"
-          height="64"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="12" cy="12" r="10" />
-          <path d="m9 12 2 2 4-4" />
-        </svg>
-      </div>
+          <div className="thankyou-check" aria-hidden="true">
+            <svg
+              width="64"
+              height="64"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+          </div>
 
-      <h1 className="page-title">
-        {className ? `Thank you for joining ${className}!` : "Thank you for your purchase!"}
-      </h1>
-      <p className="page-sub">
-        Your enrollment is confirmed. You can start learning right away, or view
-        your receipt for this payment.
-      </p>
+          <h1 className="page-title">
+            {className
+              ? `Thank you for joining ${className}!`
+              : "Thank you for your purchase!"}
+          </h1>
+          <p className="page-sub">
+            Your enrollment is confirmed. You can start learning right away, or
+            view your receipt for this payment.
+          </p>
 
-      <div className="thankyou-actions">
-        <Link href="/dashboard" className="btn btn-primary">
-          Go to dashboard
-        </Link>
-        {receiptUrl ? (
-          <a
-            href={receiptUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="btn btn-secondary"
-          >
-            View receipt ↗
-          </a>
-        ) : (
-          <Link href="/account/payments" className="btn btn-secondary">
-            {loadingReceipt ? "Loading receipt…" : "View receipt"}
-          </Link>
-        )}
-      </div>
+          <div className="thankyou-actions">
+            <Link href="/dashboard" className="btn btn-primary">
+              Go to dashboard
+            </Link>
+            {receiptUrl ? (
+              <a
+                href={receiptUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-secondary"
+              >
+                View receipt ↗
+              </a>
+            ) : (
+              <Link href="/account/payments" className="btn btn-secondary">
+                {loadingReceipt ? "Loading receipt…" : "View receipt"}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </div>

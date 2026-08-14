@@ -27,7 +27,10 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   }
 }
 
-export async function login(email: string, password: string): Promise<AuthUser> {
+export async function login(
+  email: string,
+  password: string,
+): Promise<AuthUser> {
   const res = await api.login(email, password);
   setToken(res.token);
   return res.user;

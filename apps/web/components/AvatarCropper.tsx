@@ -38,9 +38,12 @@ export default function AvatarCropper({
   const [error, setError] = useState<string | null>(null);
 
   const imgRef = useRef<HTMLImageElement | null>(null);
-  const drag = useRef<{ px: number; py: number; ox: number; oy: number } | null>(
-    null,
-  );
+  const drag = useRef<{
+    px: number;
+    py: number;
+    ox: number;
+    oy: number;
+  } | null>(null);
 
   // Keep the image covering the viewport so the circle is never empty.
   const clampPos = useCallback(
@@ -179,7 +182,10 @@ export default function AvatarCropper({
         if (e.target === e.currentTarget && !busy) onCancel();
       }}
     >
-      <div className="modal modal--crop" onMouseDown={(e) => e.stopPropagation()}>
+      <div
+        className="modal modal--crop"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <h2>Position your photo</h2>
           <button

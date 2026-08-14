@@ -73,8 +73,20 @@ function isProviderVideoUrl(url: string | null | undefined): boolean {
   );
 }
 
-const CheckIcon = ({ size = 13, color = "#299e7f" }: { size?: number; color?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+const CheckIcon = ({
+  size = 13,
+  color = "#299e7f",
+}: {
+  size?: number;
+  color?: string;
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
     <path
       d="M20 6 9 17l-5-5"
       stroke={color}
@@ -84,13 +96,31 @@ const CheckIcon = ({ size = 13, color = "#299e7f" }: { size?: number; color?: st
     />
   </svg>
 );
-const PlayGlyph = ({ size = 11, fill = "#8b8a87" }: { size?: number; fill?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+const PlayGlyph = ({
+  size = 11,
+  fill = "#8b8a87",
+}: {
+  size?: number;
+  fill?: string;
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
     <path d="m8 5 12 7-12 7z" fill={fill} />
   </svg>
 );
 const DownloadIcon = ({ color = "#17171d" }: { color?: string }) => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <svg
+    width="13"
+    height="13"
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
     <path
       d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
       stroke={color}
@@ -118,7 +148,9 @@ function LessonInner() {
   const [noteError, setNoteError] = useState<string | null>(null);
   // Per-class certificate state — present only when this is the final lesson
   // of a class with certificates configured.
-  const [certificates, setCertificates] = useState<ClassCertificateStatusDTO[]>([]);
+  const [certificates, setCertificates] = useState<ClassCertificateStatusDTO[]>(
+    [],
+  );
 
   useEffect(() => {
     let active = true;
@@ -133,11 +165,17 @@ function LessonInner() {
         // line). Both best-effort — the player works without them.
         api
           .courseLessons(l.courseId)
-          .then((ls) => active && setSiblings([...ls].sort((a, b) => a.order - b.order)))
+          .then(
+            (ls) =>
+              active && setSiblings([...ls].sort((a, b) => a.order - b.order)),
+          )
           .catch(() => active && setSiblings([]));
         api
           .courses()
-          .then((cs) => active && setCourse(cs.find((c) => c.id === l.courseId) ?? null))
+          .then(
+            (cs) =>
+              active && setCourse(cs.find((c) => c.id === l.courseId) ?? null),
+          )
           .catch(() => {});
       })
       .catch((err) => {
@@ -193,7 +231,9 @@ function LessonInner() {
           setLocked(true);
           return;
         }
-        setError(err instanceof Error ? err.message : "Could not mark complete.");
+        setError(
+          err instanceof Error ? err.message : "Could not mark complete.",
+        );
       },
     });
     setCompleting(false);
@@ -206,7 +246,7 @@ function LessonInner() {
       await api.downloadNote(note);
     } catch (err) {
       setNoteError(
-        err instanceof Error ? err.message : "Could not download the file."
+        err instanceof Error ? err.message : "Could not download the file.",
       );
     } finally {
       setDownloadingId(null);
@@ -271,7 +311,10 @@ function LessonInner() {
         "https://player.vimeo.com",
       );
     const onMessage = (e: MessageEvent) => {
-      if (typeof e.origin === "string" && !e.origin.includes("player.vimeo.com"))
+      if (
+        typeof e.origin === "string" &&
+        !e.origin.includes("player.vimeo.com")
+      )
         return;
       let data: { event?: string; data?: { seconds?: number } };
       try {
@@ -348,7 +391,9 @@ function LessonInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson?.id, throttledSave]);
 
-  const railDone = siblings?.filter((l) => l.completed || l.id === (completed ? lessonId : "")).length ?? 0;
+  const railDone =
+    siblings?.filter((l) => l.completed || l.id === (completed ? lessonId : ""))
+      .length ?? 0;
 
   /* ---------- locked / error / loading states on the light canvas ---------- */
   if (locked) {
@@ -359,7 +404,9 @@ function LessonInner() {
           <div className="locked-panel">
             <div className="lock-icon">🔒</div>
             <h2>This lesson is locked</h2>
-            <p>Your current membership doesn’t include access to this lesson.</p>
+            <p>
+              Your current membership doesn’t include access to this lesson.
+            </p>
             <Link href="/account" className="btn btn-primary">
               Upgrade membership
             </Link>
@@ -383,14 +430,26 @@ function LessonInner() {
       <div className="ink-page">
         <div className="ik-band">
           <div className="ik-band-inner ik-band-inner--crumbs">
-            <div className="ik-skel ik-skel--ink" style={{ width: 260, height: 14 }} />
-            <div className="ik-skel ik-skel--ink" style={{ width: 380, height: 30, marginTop: 16 }} />
+            <div
+              className="ik-skel ik-skel--ink"
+              style={{ width: 260, height: 14 }}
+            />
+            <div
+              className="ik-skel ik-skel--ink"
+              style={{ width: 380, height: 30, marginTop: 16 }}
+            />
           </div>
         </div>
         <div className="ik-main">
           <div className="ik-cols ik-cols--player">
-            <div className="ik-skel" style={{ aspectRatio: "16/9", borderRadius: 18 }} />
-            <div className="ik-skel" style={{ height: 220, borderRadius: 16, background: "#fff" }} />
+            <div
+              className="ik-skel"
+              style={{ aspectRatio: "16/9", borderRadius: 18 }}
+            />
+            <div
+              className="ik-skel"
+              style={{ height: 220, borderRadius: 16, background: "#fff" }}
+            />
           </div>
         </div>
       </div>
@@ -405,8 +464,8 @@ function LessonInner() {
     n < 1024
       ? `${n} B`
       : n < 1024 * 1024
-      ? `${(n / 1024).toFixed(0)} KB`
-      : `${(n / 1024 / 1024).toFixed(1)} MB`;
+        ? `${(n / 1024).toFixed(0)} KB`
+        : `${(n / 1024 / 1024).toFixed(1)} MB`;
   const dur = fmtDuration(lesson.durationSeconds);
 
   let media: ReactNode;
@@ -501,9 +560,13 @@ function LessonInner() {
           <nav className="ik-crumbs" aria-label="Breadcrumb">
             <Link href="/dashboard">Dashboard</Link>
             <span aria-hidden="true">›</span>
-            <Link href={`/courses/${course?.slug ?? lesson.courseId}`}>{course?.title ?? "Course"}</Link>
+            <Link href={`/courses/${course?.slug ?? lesson.courseId}`}>
+              {course?.title ?? "Course"}
+            </Link>
             <span aria-hidden="true">›</span>
-            <span className="on">{lessonPos ? `Lesson ${lessonPos.n}` : "Lesson"}</span>
+            <span className="on">
+              {lessonPos ? `Lesson ${lessonPos.n}` : "Lesson"}
+            </span>
           </nav>
           <div className="ik-band-row" style={{ marginTop: 12 }}>
             <div className="ik-grow">
@@ -528,7 +591,11 @@ function LessonInner() {
 
             <section className="ik-panel ik-actions-card">
               <div className="ik-actions-row">
-                <span className={completed ? "ik-status" : "ik-status ik-status--todo"}>
+                <span
+                  className={
+                    completed ? "ik-status" : "ik-status ik-status--todo"
+                  }
+                >
                   <span className="ik-status-dot" aria-hidden="true" />
                   {completed ? "Completed" : "In progress"}
                 </span>
@@ -545,7 +612,14 @@ function LessonInner() {
                   </a>
                 )}
                 {completed ? (
-                  <span className="ik-ghost ik-ghost--sm" style={{ cursor: "default", color: "var(--teal-text)", borderColor: "rgba(48, 184, 149,.35)" }}>
+                  <span
+                    className="ik-ghost ik-ghost--sm"
+                    style={{
+                      cursor: "default",
+                      color: "var(--teal-text)",
+                      borderColor: "rgba(48, 184, 149,.35)",
+                    }}
+                  >
                     <CheckIcon />
                     Marked complete
                   </span>
@@ -564,7 +638,10 @@ function LessonInner() {
               </div>
 
               {error && (
-                <div className="alert alert-error" style={{ marginTop: 14, marginBottom: 0 }}>
+                <div
+                  className="alert alert-error"
+                  style={{ marginTop: 14, marginBottom: 0 }}
+                >
                   {error}
                 </div>
               )}
@@ -575,9 +652,17 @@ function LessonInner() {
                   <div style={{ display: "grid", gap: 14 }}>
                     {certificates.map((c) => (
                       <div key={c.levelId} style={{ display: "grid", gap: 6 }}>
-                        {(c.eligible || c.claimed) && certificates.length > 1 && (
-                          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{c.levelName}</span>
-                        )}
+                        {(c.eligible || c.claimed) &&
+                          certificates.length > 1 && (
+                            <span
+                              style={{
+                                fontSize: 13,
+                                color: "var(--text-muted)",
+                              }}
+                            >
+                              {c.levelName}
+                            </span>
+                          )}
                         {c.eligible || c.claimed ? (
                           <CertificateClaimButton status={c} />
                         ) : completing ? (
@@ -592,12 +677,17 @@ function LessonInner() {
                           // terminal lesson (certificates.service statusForLesson
                           // returns [] otherwise), so this block rendering at all
                           // is already the server saying so.
-                          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                          <span
+                            style={{ fontSize: 13, color: "var(--text-muted)" }}
+                          >
                             Checking your certificate…
                           </span>
                         ) : (
-                          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                            Finish every lesson in “{c.levelName}” to earn your certificate.
+                          <span
+                            style={{ fontSize: 13, color: "var(--text-muted)" }}
+                          >
+                            Finish every lesson in “{c.levelName}” to earn your
+                            certificate.
                           </span>
                         )}
                       </div>
@@ -608,7 +698,11 @@ function LessonInner() {
             </section>
 
             {notes.length > 0 && (
-              <section className="ik-panel" id="downloads" style={{ marginTop: 16 }}>
+              <section
+                className="ik-panel"
+                id="downloads"
+                style={{ marginTop: 16 }}
+              >
                 <div className="ik-panel-head">
                   <span className="ik-panel-title">Downloads</span>
                 </div>
@@ -621,7 +715,9 @@ function LessonInner() {
                   {notes.map((n) => (
                     <div key={n.id} className="ik-download">
                       <span className="ik-download-name">{n.originalName}</span>
-                      <span className="ik-download-size">{fmtSize(n.size)}</span>
+                      <span className="ik-download-size">
+                        {fmtSize(n.size)}
+                      </span>
                       <button
                         type="button"
                         className="ik-ghost ik-ghost--sm"
@@ -648,7 +744,10 @@ function LessonInner() {
 
           {/* ---- right rail: course lessons + up-next teaser ---- */}
           <div className="ik-stack">
-            <section className="ik-panel ik-panel--snug" aria-label="Course lessons">
+            <section
+              className="ik-panel ik-panel--snug"
+              aria-label="Course lessons"
+            >
               <div className="ik-panel-head" style={{ marginBottom: 6 }}>
                 <span className="ik-panel-title ik-panel-title--lg">
                   {course?.title ?? "This course"}
@@ -664,9 +763,15 @@ function LessonInner() {
                 <div>
                   {[0, 1, 2].map((i) => (
                     <div key={i} className="ik-lesson">
-                      <span className="ik-skel" style={{ width: 56, height: 38 }} />
+                      <span
+                        className="ik-skel"
+                        style={{ width: 56, height: 38 }}
+                      />
                       <span className="ik-lesson-main">
-                        <span className="ik-skel" style={{ width: "70%", height: 13 }} />
+                        <span
+                          className="ik-skel"
+                          style={{ width: "70%", height: 13 }}
+                        />
                       </span>
                     </div>
                   ))}
@@ -680,12 +785,18 @@ function LessonInner() {
                     <Link
                       key={l.id}
                       href={`/lessons/${l.id}`}
-                      className={isCurrent ? "ik-lesson ik-lesson--current" : "ik-lesson"}
+                      className={
+                        isCurrent ? "ik-lesson ik-lesson--current" : "ik-lesson"
+                      }
                       aria-current={isCurrent ? "page" : undefined}
                     >
                       {l.thumbnailUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={l.thumbnailUrl} alt="" className="ik-lesson-thumb" />
+                        <img
+                          src={l.thumbnailUrl}
+                          alt=""
+                          className="ik-lesson-thumb"
+                        />
                       ) : (
                         <span className="ik-lesson-thumb" aria-hidden="true" />
                       )}
@@ -714,7 +825,11 @@ function LessonInner() {
               <Link href={`/lessons/${upNext.id}`} className="ik-upnext">
                 {upNext.thumbnailUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={upNext.thumbnailUrl} alt="" className="ik-upnext-thumb" />
+                  <img
+                    src={upNext.thumbnailUrl}
+                    alt=""
+                    className="ik-upnext-thumb"
+                  />
                 ) : (
                   <span
                     className="ik-upnext-thumb"

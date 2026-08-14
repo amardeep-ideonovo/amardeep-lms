@@ -38,7 +38,9 @@ function PaymentsInner() {
           router.replace("/login");
           return;
         }
-        setError(err instanceof Error ? err.message : "Failed to load payments.");
+        setError(
+          err instanceof Error ? err.message : "Failed to load payments.",
+        );
       });
     return () => {
       active = false;
@@ -51,57 +53,59 @@ function PaymentsInner() {
         <Link href="/account" className="back-link">
           ← Account
         </Link>
-      <h1 className="page-title">Payment history</h1>
-      <p className="page-sub">All of your payments.</p>
+        <h1 className="page-title">Payment history</h1>
+        <p className="page-sub">All of your payments.</p>
 
-      {error && <div className="alert alert-error">{error}</div>}
+        {error && <div className="alert alert-error">{error}</div>}
 
-      <section className="account-section">
-        {invoices === null ? (
-          <div className="centered-state">
-            <div className="spinner" aria-label="Loading" />
-          </div>
-        ) : invoices.length === 0 ? (
-          <p className="empty">No payments yet.</p>
-        ) : (
-          <table className="pay-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Description</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((inv) => (
-                <tr key={inv.id}>
-                  <td>{fmtDate(inv.created)}</td>
-                  <td>{inv.description ?? "—"}</td>
-                  <td>{money(inv.amountPaid || inv.amountDue, inv.currency)}</td>
-                  <td>
-                    <span className={`pay-badge ${inv.status}`}>
-                      {inv.status}
-                    </span>
-                  </td>
-                  <td>
-                    {inv.hostedInvoiceUrl ? (
-                      <a
-                        href={inv.hostedInvoiceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Receipt ↗
-                      </a>
-                    ) : null}
-                  </td>
+        <section className="account-section">
+          {invoices === null ? (
+            <div className="centered-state">
+              <div className="spinner" aria-label="Loading" />
+            </div>
+          ) : invoices.length === 0 ? (
+            <p className="empty">No payments yet.</p>
+          ) : (
+            <table className="pay-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Description</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+              </thead>
+              <tbody>
+                {invoices.map((inv) => (
+                  <tr key={inv.id}>
+                    <td>{fmtDate(inv.created)}</td>
+                    <td>{inv.description ?? "—"}</td>
+                    <td>
+                      {money(inv.amountPaid || inv.amountDue, inv.currency)}
+                    </td>
+                    <td>
+                      <span className={`pay-badge ${inv.status}`}>
+                        {inv.status}
+                      </span>
+                    </td>
+                    <td>
+                      {inv.hostedInvoiceUrl ? (
+                        <a
+                          href={inv.hostedInvoiceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Receipt ↗
+                        </a>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
       </div>
     </div>
   );

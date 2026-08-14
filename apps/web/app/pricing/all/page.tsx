@@ -9,7 +9,10 @@ import AuthGate from "@/components/AuthGate";
 
 function lowestPrice(prices: PriceDTO[]): PriceDTO | null {
   if (prices.length === 0) return null;
-  return prices.reduce((min, p) => (p.amount < min.amount ? p : min), prices[0]);
+  return prices.reduce(
+    (min, p) => (p.amount < min.amount ? p : min),
+    prices[0],
+  );
 }
 function money(amount: number, currency: string): string {
   return (amount / 100).toLocaleString(undefined, {
@@ -30,7 +33,9 @@ function AllPlansInner() {
       try {
         const [l, s] = await Promise.all([
           api.levels(),
-          api.mySubscriptionDetails().catch(() => [] as SubscriptionDetailDTO[]),
+          api
+            .mySubscriptionDetails()
+            .catch(() => [] as SubscriptionDetailDTO[]),
         ]);
         if (!mounted) return;
         setLevels(l);
@@ -117,35 +122,35 @@ function AllPlansInner() {
         <Link href="/account" className="back-link">
           ← Account
         </Link>
-      <h1 className="page-title">All membership plans</h1>
-      <p className="page-sub">Choose a plan to unlock more courses.</p>
+        <h1 className="page-title">All membership plans</h1>
+        <p className="page-sub">Choose a plan to unlock more courses.</p>
 
-      {error && <div className="alert alert-error">{error}</div>}
+        {error && <div className="alert alert-error">{error}</div>}
 
-      {levels === null ? (
-        <div className="centered-state">
-          <div className="spinner" aria-label="Loading" />
-        </div>
-      ) : planLevels.length === 0 ? (
-        <p className="empty">No plans are available right now.</p>
-      ) : (
-        <>
-          {currentPlans.length > 0 && (
-            <section>
-              <h2 className="section-title" style={{ marginTop: 8 }}>
-                Your plans
-              </h2>
-              <div className="card-grid">{currentPlans.map(renderPlan)}</div>
-            </section>
-          )}
-          {otherPlans.length > 0 && (
-            <section>
-              <h2 className="section-title">Available plans</h2>
-              <div className="card-grid">{otherPlans.map(renderPlan)}</div>
-            </section>
-          )}
-        </>
-      )}
+        {levels === null ? (
+          <div className="centered-state">
+            <div className="spinner" aria-label="Loading" />
+          </div>
+        ) : planLevels.length === 0 ? (
+          <p className="empty">No plans are available right now.</p>
+        ) : (
+          <>
+            {currentPlans.length > 0 && (
+              <section>
+                <h2 className="section-title" style={{ marginTop: 8 }}>
+                  Your plans
+                </h2>
+                <div className="card-grid">{currentPlans.map(renderPlan)}</div>
+              </section>
+            )}
+            {otherPlans.length > 0 && (
+              <section>
+                <h2 className="section-title">Available plans</h2>
+                <div className="card-grid">{otherPlans.map(renderPlan)}</div>
+              </section>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

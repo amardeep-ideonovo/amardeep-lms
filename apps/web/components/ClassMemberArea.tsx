@@ -74,7 +74,13 @@ function resolveOwnership(slugOrId: string): Promise<Ownership> {
 
 /* ---------- tiny icons (paths from the frames) ---------- */
 const CheckIcon = ({ size = 13 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
     <path
       d="M20 6 9 17l-5-5"
       stroke="#299e7f"
@@ -84,8 +90,20 @@ const CheckIcon = ({ size = 13 }: { size?: number }) => (
     />
   </svg>
 );
-const PlayGlyph = ({ size = 11, fill = "#8b8a87" }: { size?: number; fill?: string }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+const PlayGlyph = ({
+  size = 11,
+  fill = "#8b8a87",
+}: {
+  size?: number;
+  fill?: string;
+}) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
     <path d="m8 5 12 7-12 7z" fill={fill} />
   </svg>
 );
@@ -95,8 +113,21 @@ function BandRing({ pct }: { pct: number }) {
   const C = 2 * Math.PI * 30.5; // ≈191.6
   const arc = Math.max(0, Math.min(100, pct)) * (C / 100);
   return (
-    <svg className="ik-ring" width="72" height="72" viewBox="0 0 72 72" aria-label={`${pct}% complete`}>
-      <circle cx="36" cy="36" r="30.5" fill="none" stroke="rgba(255,255,255,.15)" strokeWidth="7" />
+    <svg
+      className="ik-ring"
+      width="72"
+      height="72"
+      viewBox="0 0 72 72"
+      aria-label={`${pct}% complete`}
+    >
+      <circle
+        cx="36"
+        cy="36"
+        r="30.5"
+        fill="none"
+        stroke="rgba(255,255,255,.15)"
+        strokeWidth="7"
+      />
       <circle
         cx="36"
         cy="36"
@@ -108,7 +139,14 @@ function BandRing({ pct }: { pct: number }) {
         strokeDasharray={`${arc} ${C}`}
         transform="rotate(-90 36 36)"
       />
-      <text x="36" y="41.6" textAnchor="middle" fontSize="16" fontWeight="700" fill="#fff">
+      <text
+        x="36"
+        y="41.6"
+        textAnchor="middle"
+        fontSize="16"
+        fontWeight="700"
+        fill="#fff"
+      >
         {pct}%
       </text>
     </svg>
@@ -120,8 +158,21 @@ function CertRing({ pct }: { pct: number }) {
   const C = 2 * Math.PI * 36; // ≈226.2
   const arc = Math.max(0, Math.min(100, pct)) * (C / 100);
   return (
-    <svg className="ik-ring" width="84" height="84" viewBox="0 0 84 84" aria-hidden="true">
-      <circle cx="42" cy="42" r="36" fill="none" stroke="rgba(255,255,255,.14)" strokeWidth="8" />
+    <svg
+      className="ik-ring"
+      width="84"
+      height="84"
+      viewBox="0 0 84 84"
+      aria-hidden="true"
+    >
+      <circle
+        cx="42"
+        cy="42"
+        r="36"
+        fill="none"
+        stroke="rgba(255,255,255,.14)"
+        strokeWidth="8"
+      />
       <circle
         cx="42"
         cy="42"
@@ -133,7 +184,14 @@ function CertRing({ pct }: { pct: number }) {
         strokeDasharray={`${arc} ${C}`}
         transform="rotate(-90 42 42)"
       />
-      <text x="42" y="48.3" textAnchor="middle" fontSize="18" fontWeight="700" fill="#fff">
+      <text
+        x="42"
+        y="48.3"
+        textAnchor="middle"
+        fontSize="18"
+        fontWeight="700"
+        fill="#fff"
+      >
         {pct}%
       </text>
     </svg>
@@ -155,13 +213,16 @@ function CourseAccordion({
   const pct = course.lessonCount
     ? Math.round((course.completedCount / course.lessonCount) * 100)
     : 0;
-  const done = course.lessonCount > 0 && course.completedCount >= course.lessonCount;
+  const done =
+    course.lessonCount > 0 && course.completedCount >= course.lessonCount;
   // "In progress" the moment ANY lesson is opened — startedCount counts started
   // lessons (completed included), so this no longer waits for a completion.
   const started = (course.startedCount ?? 0) > 0 || course.completedCount > 0;
   const mins =
     lessons && lessons.length > 0
-      ? fmtTotalMinutes(lessons.reduce((n, l) => n + (l.durationSeconds ?? 0), 0))
+      ? fmtTotalMinutes(
+          lessons.reduce((n, l) => n + (l.durationSeconds ?? 0), 0),
+        )
       : null;
   const meta = [
     `${course.lessonCount} lesson${course.lessonCount === 1 ? "" : "s"}`,
@@ -176,7 +237,11 @@ function CourseAccordion({
         <span className="ik-course-num">Course {index + 1}</span>
         {course.thumbnailUrl || course.coverImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={course.thumbnailUrl ?? course.coverImageUrl ?? ""} alt="" className="ik-course-thumb" />
+          <img
+            src={course.thumbnailUrl ?? course.coverImageUrl ?? ""}
+            alt=""
+            className="ik-course-thumb"
+          />
         ) : (
           <span className="ik-course-thumb" aria-hidden="true" />
         )}
@@ -201,7 +266,10 @@ function CourseAccordion({
               <span className="ik-lesson-num" aria-hidden="true" />
               <span className="ik-skel" style={{ width: 56, height: 38 }} />
               <span className="ik-lesson-main">
-                <span className="ik-skel" style={{ width: "60%", height: 13 }} />
+                <span
+                  className="ik-skel"
+                  style={{ width: "60%", height: 13 }}
+                />
               </span>
             </div>
           ))}
@@ -209,42 +277,48 @@ function CourseAccordion({
       ) : (
         <div className="ik-lesson-group">
           {lessons.map((l, i) => {
-          const isCurrent = l.id === currentLessonId;
-          const dur = fmtDuration(l.durationSeconds);
-          return (
-            <Link
-              key={l.id}
-              href={`/lessons/${l.id}`}
-              className={isCurrent ? "ik-lesson ik-lesson--current" : "ik-lesson"}
-            >
-              <span className="ik-lesson-num" aria-hidden="true">
-                {i + 1}
-              </span>
-              {l.thumbnailUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={l.thumbnailUrl} alt="" className="ik-lesson-thumb" />
-              ) : (
-                <span className="ik-lesson-thumb" aria-hidden="true" />
-              )}
-              <span className="ik-lesson-main">
-                <span className="ik-lesson-title">{l.title}</span>
-                {dur && <span className="ik-lesson-dur">{dur}</span>}
-              </span>
-              {l.completed ? (
-                <span className="ik-lesson-state ik-lesson-state--done">
-                  <CheckIcon />
+            const isCurrent = l.id === currentLessonId;
+            const dur = fmtDuration(l.durationSeconds);
+            return (
+              <Link
+                key={l.id}
+                href={`/lessons/${l.id}`}
+                className={
+                  isCurrent ? "ik-lesson ik-lesson--current" : "ik-lesson"
+                }
+              >
+                <span className="ik-lesson-num" aria-hidden="true">
+                  {i + 1}
                 </span>
-              ) : l.started ? (
-                <span className="ik-resume-pill">RESUME</span>
-              ) : isCurrent ? (
-                <span className="ik-start-pill">START</span>
-              ) : (
-                <span className="ik-lesson-state ik-lesson-state--todo">
-                  <PlayGlyph />
+                {l.thumbnailUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={l.thumbnailUrl}
+                    alt=""
+                    className="ik-lesson-thumb"
+                  />
+                ) : (
+                  <span className="ik-lesson-thumb" aria-hidden="true" />
+                )}
+                <span className="ik-lesson-main">
+                  <span className="ik-lesson-title">{l.title}</span>
+                  {dur && <span className="ik-lesson-dur">{dur}</span>}
                 </span>
-              )}
-            </Link>
-          );
+                {l.completed ? (
+                  <span className="ik-lesson-state ik-lesson-state--done">
+                    <CheckIcon />
+                  </span>
+                ) : l.started ? (
+                  <span className="ik-resume-pill">RESUME</span>
+                ) : isCurrent ? (
+                  <span className="ik-start-pill">START</span>
+                ) : (
+                  <span className="ik-lesson-state ik-lesson-state--todo">
+                    <PlayGlyph />
+                  </span>
+                )}
+              </Link>
+            );
           })}
         </div>
       )}
@@ -289,12 +363,32 @@ function ClassLiveCard({
   });
   return (
     <section className="ik-panel" aria-label="Live session">
-      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 7,
+          marginBottom: 12,
+        }}
+      >
         <span
-          style={{ width: 7, height: 7, borderRadius: "50%", background: "#ea4f4f", flex: "none" }}
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: "#ea4f4f",
+            flex: "none",
+          }}
           aria-hidden="true"
         />
-        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.8, color: "#c03a3a" }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 0.8,
+            color: "#c03a3a",
+          }}
+        >
           LIVE SESSION
         </span>
       </div>
@@ -304,12 +398,27 @@ function ClassLiveCard({
           <img
             src={imageUrl}
             alt=""
-            style={{ width: 88, height: 56, borderRadius: 10, objectFit: "cover", flex: "none" }}
+            style={{
+              width: 88,
+              height: 56,
+              borderRadius: 10,
+              objectFit: "cover",
+              flex: "none",
+            }}
           />
         )}
-        <span style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+        <span
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            minWidth: 0,
+          }}
+        >
           <span className="ik-live-white-title">{session.title}</span>
-          <span className="ik-row-meta">{session.isLive ? "Happening now" : when}</span>
+          <span className="ik-row-meta">
+            {session.isLive ? "Happening now" : when}
+          </span>
         </span>
       </div>
       <Link
@@ -348,9 +457,9 @@ export default function ClassMemberArea({
   const [courses, setCourses] = useState<CourseCard[]>([]);
   const [certificate, setCertificate] =
     useState<ClassCertificateStatusDTO | null>(null);
-  const [lessonsByCourse, setLessonsByCourse] = useState<Map<string, LessonDTO[]>>(
-    new Map(),
-  );
+  const [lessonsByCourse, setLessonsByCourse] = useState<
+    Map<string, LessonDTO[]>
+  >(new Map());
 
   useEffect(() => {
     let active = true;
@@ -374,7 +483,9 @@ export default function ClassMemberArea({
       courses.map((c) =>
         api
           .courseLessons(c.id)
-          .then((ls) => [c.id, [...ls].sort((a, b) => a.order - b.order)] as const)
+          .then(
+            (ls) => [c.id, [...ls].sort((a, b) => a.order - b.order)] as const,
+          )
           .catch(() => [c.id, [] as LessonDTO[]] as const),
       ),
     ).then((entries) => {
@@ -491,11 +602,22 @@ export default function ClassMemberArea({
             {description ? (
               <div
                 className="rich-text"
-                style={{ color: "var(--text-soft)", fontSize: 14, lineHeight: 1.65, margin: "10px 0 0" }}
+                style={{
+                  color: "var(--text-soft)",
+                  fontSize: 14,
+                  lineHeight: 1.65,
+                  margin: "10px 0 0",
+                }}
                 dangerouslySetInnerHTML={{ __html: description }}
               />
             ) : (
-              <p style={{ color: "var(--text-muted)", fontSize: 13.5, margin: "10px 0 0" }}>
+              <p
+                style={{
+                  color: "var(--text-muted)",
+                  fontSize: 13.5,
+                  margin: "10px 0 0",
+                }}
+              >
                 {lessonCount > 0
                   ? `${lessonCount} lesson${lessonCount === 1 ? "" : "s"}${totalLabel ? ` · ${totalLabel} of video` : ""}.`
                   : "Details coming soon."}
@@ -503,7 +625,11 @@ export default function ClassMemberArea({
             )}
           </section>
           {trailerUrl && (
-            <section className="ik-panel" id="trailer" aria-label="Class trailer">
+            <section
+              className="ik-panel"
+              id="trailer"
+              aria-label="Class trailer"
+            >
               <div className="ik-panel-head" style={{ marginBottom: 12 }}>
                 <span className="ik-panel-title">Class trailer</span>
                 <div className="ik-grow" />
@@ -529,16 +655,36 @@ export default function ClassMemberArea({
             Get {name}
           </div>
           {priceLabel && (
-            <p style={{ color: "var(--text-muted)", fontSize: 13, margin: "6px 0 0" }}>
+            <p
+              style={{
+                color: "var(--text-muted)",
+                fontSize: 13,
+                margin: "6px 0 0",
+              }}
+            >
               Starting at <b style={{ color: "var(--text)" }}>{priceLabel}</b>
             </p>
           )}
-          <Link href={checkoutHref} className="ik-cta ik-cta--block" style={{ marginTop: 16 }}>
+          <Link
+            href={checkoutHref}
+            className="ik-cta ik-cta--block"
+            style={{ marginTop: 16 }}
+          >
             Get Class
           </Link>
-          <p style={{ color: "var(--text-muted)", fontSize: 12.5, textAlign: "center", margin: "12px 0 0" }}>
+          <p
+            style={{
+              color: "var(--text-muted)",
+              fontSize: 12.5,
+              textAlign: "center",
+              margin: "12px 0 0",
+            }}
+          >
             {trailerUrl ? (
-              <a href="#trailer" style={{ color: "var(--teal-text)", fontWeight: 600 }}>
+              <a
+                href="#trailer"
+                style={{ color: "var(--teal-text)", fontWeight: 600 }}
+              >
                 Watch the trailer ↓
               </a>
             ) : (
@@ -550,18 +696,42 @@ export default function ClassMemberArea({
 
       {skills}
 
-      <section className="ik-panel" style={{ marginTop: 30, textAlign: "center", padding: "40px 24px" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: 1.4, textTransform: "uppercase", color: "var(--teal-text)" }}>
+      <section
+        className="ik-panel"
+        style={{ marginTop: 30, textAlign: "center", padding: "40px 24px" }}
+      >
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: 1.4,
+            textTransform: "uppercase",
+            color: "var(--teal-text)",
+          }}
+        >
           Start today
         </div>
-        <h2 style={{ fontSize: 24, fontWeight: 700, color: "var(--text)", margin: "10px 0 18px" }}>
+        <h2
+          style={{
+            fontSize: 24,
+            fontWeight: 700,
+            color: "var(--text)",
+            margin: "10px 0 18px",
+          }}
+        >
           Begin {name}
         </h2>
-        <Link href={checkoutHref} className="ik-cta" style={{ padding: "13px 34px" }}>
+        <Link
+          href={checkoutHref}
+          className="ik-cta"
+          style={{ padding: "13px 34px" }}
+        >
           Get Class
         </Link>
         {priceLabel && (
-          <p style={{ color: "var(--text-muted)", fontSize: 14, marginTop: 16 }}>
+          <p
+            style={{ color: "var(--text-muted)", fontSize: 14, marginTop: 16 }}
+          >
             Starting at {priceLabel}
           </p>
         )}

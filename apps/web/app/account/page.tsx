@@ -17,7 +17,9 @@ import { useOptimisticAction } from "@/lib/useOptimisticAction";
 // Avatar fallback initials from the member's name, else username/email.
 function avatarInitials(u: AuthUser): string {
   const src =
-    [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email;
+    [u.firstName, u.lastName].filter(Boolean).join(" ") ||
+    u.username ||
+    u.email;
   const parts = src.split(/[\s@._-]+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "M") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
@@ -37,7 +39,10 @@ function fmtDate(iso: string): string {
 }
 
 // Status pill for a membership row: green active, amber paused/canceling.
-function planStatus(sub: SubscriptionDetailDTO): { label: string; cls: string } {
+function planStatus(sub: SubscriptionDetailDTO): {
+  label: string;
+  cls: string;
+} {
   if (sub.cancelAtPeriodEnd)
     return {
       label: sub.currentPeriodEnd
@@ -97,7 +102,10 @@ function CertificatesSection() {
               </div>
               <span className="plan-tile__meta">
                 {c.serial} · issued {fmtDate(c.issuedAt)} ·{" "}
-                <Link href={`/verify/${c.serial}`} style={{ textDecoration: "underline" }}>
+                <Link
+                  href={`/verify/${c.serial}`}
+                  style={{ textDecoration: "underline" }}
+                >
                   verify
                 </Link>
               </span>
@@ -116,7 +124,11 @@ function CertificatesSection() {
           </div>
         ))}
       </div>
-      {error && <p className="alert-error" style={{ marginTop: 10 }}>{error}</p>}
+      {error && (
+        <p className="alert-error" style={{ marginTop: 10 }}>
+          {error}
+        </p>
+      )}
     </section>
   );
 }
@@ -147,7 +159,9 @@ function DangerZoneSection() {
       .then(setSummary)
       .catch((e) =>
         setLoadErr(
-          e instanceof Error ? e.message : "Couldn’t load your account details.",
+          e instanceof Error
+            ? e.message
+            : "Couldn’t load your account details.",
         ),
       );
   }
@@ -275,7 +289,8 @@ function DangerZoneSection() {
                     <div style={{ marginBottom: 14 }}>
                       <strong>Subscriptions</strong>
                       <p style={{ margin: "4px 0 8px" }}>
-                        Canceled immediately — no refund of the remaining period.
+                        Canceled immediately — no refund of the remaining
+                        period.
                       </p>
                       <ul style={{ margin: 0, paddingLeft: 18 }}>
                         {summary.subscriptions.map((s) => (
@@ -417,7 +432,9 @@ function AccountInner() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [subs, setSubs] = useState<SubscriptionDetailDTO[]>([]);
   // Member self-cancel (period end). `cancelFor` drives the confirm modal.
-  const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(null);
+  const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(
+    null,
+  );
   const [cancelBusy, setCancelBusy] = useState(false);
   // Inline edit of name + username (email is not editable by members).
   const [editing, setEditing] = useState(false);
@@ -436,7 +453,9 @@ function AccountInner() {
   const [pwOk, setPwOk] = useState(false);
   // Profile photo: cropper file + upload state.
   const [cropFile, setCropFile] = useState<File | null>(null);
-  const [avatarBusy, setAvatarBusy] = useState<null | "upload" | "remove">(null);
+  const [avatarBusy, setAvatarBusy] = useState<null | "upload" | "remove">(
+    null,
+  );
   // Object URL for the just-cropped bytes, shown while the upload is in flight.
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarErr, setAvatarErr] = useState<string | null>(null);
@@ -457,7 +476,9 @@ function AccountInner() {
       try {
         const [u, s] = await Promise.all([
           api.me(),
-          api.mySubscriptionDetails().catch(() => [] as SubscriptionDetailDTO[]),
+          api
+            .mySubscriptionDetails()
+            .catch(() => [] as SubscriptionDetailDTO[]),
         ]);
         if (!mounted) return;
         setUser(u);
@@ -673,355 +694,369 @@ function AccountInner() {
         <h1 className="page-title">Account</h1>
         <p className="page-sub">Manage your membership and billing.</p>
 
-      <Suspense fallback={null}>
-        <CheckoutBanner />
-      </Suspense>
+        <Suspense fallback={null}>
+          <CheckoutBanner />
+        </Suspense>
 
-      {error && <div className="alert alert-error">{error}</div>}
+        {error && <div className="alert alert-error">{error}</div>}
 
-      <section className="account-section">
-        <div className="section-head">
-          <h2>Your details</h2>
-          {user && !editing && !pwEditing && (
-            <div className="section-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={startPwEdit}
-              >
-                Change password
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={startEdit}
-              >
-                Edit
-              </button>
+        <section className="account-section">
+          <div className="section-head">
+            <h2>Your details</h2>
+            {user && !editing && !pwEditing && (
+              <div className="section-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={startPwEdit}
+                >
+                  Change password
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={startEdit}
+                >
+                  Edit
+                </button>
+              </div>
+            )}
+          </div>
+          {pwOk && !editing && !pwEditing && (
+            <div className="alert alert-info">
+              Your password has been updated.
             </div>
           )}
-        </div>
-        {pwOk && !editing && !pwEditing && (
-          <div className="alert alert-info">
-            Your password has been updated.
-          </div>
-        )}
-        {!user ? (
-          <p className="empty">Loading…</p>
-        ) : editing ? (
-          <form onSubmit={saveProfile}>
-            {editError && <div className="alert alert-error">{editError}</div>}
-            <div className="field-row">
+          {!user ? (
+            <p className="empty">Loading…</p>
+          ) : editing ? (
+            <form onSubmit={saveProfile}>
+              {editError && (
+                <div className="alert alert-error">{editError}</div>
+              )}
+              <div className="field-row">
+                <div className="field">
+                  <label htmlFor="firstName">First name</label>
+                  <input
+                    id="firstName"
+                    value={form.firstName}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, firstName: e.target.value }))
+                    }
+                    maxLength={80}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="lastName">Last name</label>
+                  <input
+                    id="lastName"
+                    value={form.lastName}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, lastName: e.target.value }))
+                    }
+                    maxLength={80}
+                    required
+                  />
+                </div>
+              </div>
               <div className="field">
-                <label htmlFor="firstName">First name</label>
+                <label htmlFor="username">Username</label>
                 <input
-                  id="firstName"
-                  value={form.firstName}
+                  id="username"
+                  value={form.username}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, firstName: e.target.value }))
+                    setForm((f) => ({ ...f, username: e.target.value }))
                   }
-                  maxLength={80}
+                  pattern="[a-zA-Z0-9_]{3,30}"
+                  title="3–30 characters: letters, numbers, or underscore"
+                  required
+                />
+                <p className="field-hint">
+                  Letters, numbers, underscore. Must be unique.
+                </p>
+              </div>
+              <div className="field">
+                <label>Email</label>
+                <div className="field-readonly">{user.email}</div>
+                <p className="field-hint">
+                  Email can’t be changed here — contact support if you need it
+                  updated.
+                </p>
+              </div>
+              <div className="form-actions">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={saving}
+                  aria-busy={saving}
+                >
+                  {saving ? "Saving…" : "Save changes"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setEditing(false)}
+                  disabled={saving}
+                  aria-busy={saving}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : pwEditing ? (
+            <form onSubmit={savePassword}>
+              {pwError && <div className="alert alert-error">{pwError}</div>}
+              <div className="field">
+                <label htmlFor="curpw">Current password</label>
+                <input
+                  id="curpw"
+                  type="password"
+                  autoComplete="current-password"
+                  value={pwForm.current}
+                  onChange={(e) =>
+                    setPwForm((f) => ({ ...f, current: e.target.value }))
+                  }
                   required
                   autoFocus
                 />
               </div>
-              <div className="field">
-                <label htmlFor="lastName">Last name</label>
-                <input
-                  id="lastName"
-                  value={form.lastName}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, lastName: e.target.value }))
-                  }
-                  maxLength={80}
-                  required
-                />
-              </div>
-            </div>
-            <div className="field">
-              <label htmlFor="username">Username</label>
-              <input
-                id="username"
-                value={form.username}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, username: e.target.value }))
-                }
-                pattern="[a-zA-Z0-9_]{3,30}"
-                title="3–30 characters: letters, numbers, or underscore"
-                required
-              />
-              <p className="field-hint">
-                Letters, numbers, underscore. Must be unique.
-              </p>
-            </div>
-            <div className="field">
-              <label>Email</label>
-              <div className="field-readonly">{user.email}</div>
-              <p className="field-hint">
-                Email can’t be changed here — contact support if you need it
-                updated.
-              </p>
-            </div>
-            <div className="form-actions">
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={saving}
-                aria-busy={saving}
-              >
-                {saving ? "Saving…" : "Save changes"}
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setEditing(false)}
-                disabled={saving}
-                aria-busy={saving}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : pwEditing ? (
-          <form onSubmit={savePassword}>
-            {pwError && <div className="alert alert-error">{pwError}</div>}
-            <div className="field">
-              <label htmlFor="curpw">Current password</label>
-              <input
-                id="curpw"
-                type="password"
-                autoComplete="current-password"
-                value={pwForm.current}
-                onChange={(e) =>
-                  setPwForm((f) => ({ ...f, current: e.target.value }))
-                }
-                required
-                autoFocus
-              />
-            </div>
-            <div className="field-row">
-              <div className="field">
-                <label htmlFor="newpw">New password</label>
-                <input
-                  id="newpw"
-                  type="password"
-                  autoComplete="new-password"
-                  value={pwForm.next}
-                  onChange={(e) =>
-                    setPwForm((f) => ({ ...f, next: e.target.value }))
-                  }
-                  minLength={10}
-                  maxLength={72}
-                  required
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="confpw">Confirm new password</label>
-                <input
-                  id="confpw"
-                  type="password"
-                  autoComplete="new-password"
-                  value={pwForm.confirm}
-                  onChange={(e) =>
-                    setPwForm((f) => ({ ...f, confirm: e.target.value }))
-                  }
-                  minLength={10}
-                  maxLength={72}
-                  required
-                />
-              </div>
-            </div>
-            <p className="field-hint">
-              At least 10 characters. Use one you don’t use elsewhere.
-            </p>
-            <div className="form-actions">
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={pwSaving}
-                aria-busy={pwSaving}
-              >
-                {pwSaving ? "Saving…" : "Update password"}
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setPwEditing(false)}
-                disabled={pwSaving}
-                aria-busy={pwSaving}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : (
-          <>
-            <div className="account-avatar-row">
-              <div className="account-avatar">
-                {avatarPreview ?? user.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    // The local crop wins while it exists, so the new photo is
-                    // on screen before the upload finishes.
-                    src={avatarPreview ?? user.avatarUrl ?? undefined}
-                    alt=""
-                    className="account-avatar-img"
+              <div className="field-row">
+                <div className="field">
+                  <label htmlFor="newpw">New password</label>
+                  <input
+                    id="newpw"
+                    type="password"
+                    autoComplete="new-password"
+                    value={pwForm.next}
+                    onChange={(e) =>
+                      setPwForm((f) => ({ ...f, next: e.target.value }))
+                    }
+                    minLength={10}
+                    maxLength={72}
+                    required
                   />
-                ) : (
-                  <span className="account-avatar-initials">
-                    {avatarInitials(user)}
-                  </span>
-                )}
+                </div>
+                <div className="field">
+                  <label htmlFor="confpw">Confirm new password</label>
+                  <input
+                    id="confpw"
+                    type="password"
+                    autoComplete="new-password"
+                    value={pwForm.confirm}
+                    onChange={(e) =>
+                      setPwForm((f) => ({ ...f, confirm: e.target.value }))
+                    }
+                    minLength={10}
+                    maxLength={72}
+                    required
+                  />
+                </div>
               </div>
-              <div className="account-avatar-actions">
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={onPickAvatar}
-                />
-                <div className="account-avatar-btns">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    disabled={!!avatarBusy}
-                    onClick={() => fileRef.current?.click()}
-                  >
-                    {avatarBusy === "upload"
-                      ? "Uploading…"
-                      : user.avatarUrl
-                        ? "Change photo"
-                        : "Upload photo"}
-                  </button>
-                  {user.avatarUrl && (
+              <p className="field-hint">
+                At least 10 characters. Use one you don’t use elsewhere.
+              </p>
+              <div className="form-actions">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={pwSaving}
+                  aria-busy={pwSaving}
+                >
+                  {pwSaving ? "Saving…" : "Update password"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setPwEditing(false)}
+                  disabled={pwSaving}
+                  aria-busy={pwSaving}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <div className="account-avatar-row">
+                <div className="account-avatar">
+                  {(avatarPreview ?? user.avatarUrl) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      // The local crop wins while it exists, so the new photo is
+                      // on screen before the upload finishes.
+                      src={avatarPreview ?? user.avatarUrl ?? undefined}
+                      alt=""
+                      className="account-avatar-img"
+                    />
+                  ) : (
+                    <span className="account-avatar-initials">
+                      {avatarInitials(user)}
+                    </span>
+                  )}
+                </div>
+                <div className="account-avatar-actions">
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={onPickAvatar}
+                  />
+                  <div className="account-avatar-btns">
                     <button
                       type="button"
                       className="btn btn-secondary"
                       disabled={!!avatarBusy}
-                      aria-busy={avatarBusy === "remove"}
-                      onClick={removeAvatar}
+                      onClick={() => fileRef.current?.click()}
                     >
-                      {avatarBusy === "remove" ? "Removing…" : "Remove"}
+                      {avatarBusy === "upload"
+                        ? "Uploading…"
+                        : user.avatarUrl
+                          ? "Change photo"
+                          : "Upload photo"}
                     </button>
-                  )}
-                </div>
-                <p className="field-hint">JPG, PNG, WebP or GIF, up to 8 MB.</p>
-              </div>
-            </div>
-            {avatarErr && <div className="alert alert-error">{avatarErr}</div>}
-            <dl className="detail-list">
-              <div>
-                <dt>Name</dt>
-                <dd>{fullName}</dd>
-              </div>
-              <div>
-                <dt>Email</dt>
-                <dd>{user.email}</dd>
-              </div>
-              <div>
-                <dt>Username</dt>
-                <dd>{user.username}</dd>
-              </div>
-            </dl>
-          </>
-        )}
-      </section>
-
-      <section className="account-section">
-        <h2>{subs.length > 1 ? "Your plans" : "Your plan"}</h2>
-        {subs.length === 0 ? (
-          <p className="empty">You don’t have a paid membership yet.</p>
-        ) : (
-          <div className="plan-list">
-            {subs.map((sub) => {
-              const installment = sub.installmentsTotal != null;
-              const status = planStatus(sub);
-              return (
-                <div key={sub.stripeSubId} className="plan-tile">
-                  <div className="plan-tile__info">
-                    <div className="plan-tile__top">
-                      <strong>{sub.levelName}</strong>
-                      <span className={`plan-status ${status.cls}`}>
-                        {status.label}
-                      </span>
-                    </div>
-                    <span className="plan-tile__meta">
-                      {sub.provider === "paypal" ? "PayPal · " : ""}
-                      {money(sub.amount, sub.currency)} / {sub.interval}
-                      {sub.currentPeriodEnd
-                        ? ` · renews ${fmtDate(sub.currentPeriodEnd)}`
-                        : ""}
-                      {installment
-                        ? ` · payment ${sub.installmentsPaid ?? 0} of ${sub.installmentsTotal} (then lifetime)`
-                        : ""}
-                    </span>
-                  </div>
-                  <div className="plan-tile__actions">
-                    {!sub.cancelAtPeriodEnd && !sub.paused && !installment && (
+                    {user.avatarUrl && (
                       <button
                         type="button"
-                        className="plan-tile__cancel"
-                        onClick={() => setCancelFor(sub)}
+                        className="btn btn-secondary"
+                        disabled={!!avatarBusy}
+                        aria-busy={avatarBusy === "remove"}
+                        onClick={removeAvatar}
                       >
-                        Cancel
+                        {avatarBusy === "remove" ? "Removing…" : "Remove"}
                       </button>
                     )}
                   </div>
+                  <p className="field-hint">
+                    JPG, PNG, WebP or GIF, up to 8 MB.
+                  </p>
                 </div>
-              );
-            })}
+              </div>
+              {avatarErr && (
+                <div className="alert alert-error">{avatarErr}</div>
+              )}
+              <dl className="detail-list">
+                <div>
+                  <dt>Name</dt>
+                  <dd>{fullName}</dd>
+                </div>
+                <div>
+                  <dt>Email</dt>
+                  <dd>{user.email}</dd>
+                </div>
+                <div>
+                  <dt>Username</dt>
+                  <dd>{user.username}</dd>
+                </div>
+              </dl>
+            </>
+          )}
+        </section>
+
+        <section className="account-section">
+          <h2>{subs.length > 1 ? "Your plans" : "Your plan"}</h2>
+          {subs.length === 0 ? (
+            <p className="empty">You don’t have a paid membership yet.</p>
+          ) : (
+            <div className="plan-list">
+              {subs.map((sub) => {
+                const installment = sub.installmentsTotal != null;
+                const status = planStatus(sub);
+                return (
+                  <div key={sub.stripeSubId} className="plan-tile">
+                    <div className="plan-tile__info">
+                      <div className="plan-tile__top">
+                        <strong>{sub.levelName}</strong>
+                        <span className={`plan-status ${status.cls}`}>
+                          {status.label}
+                        </span>
+                      </div>
+                      <span className="plan-tile__meta">
+                        {sub.provider === "paypal" ? "PayPal · " : ""}
+                        {money(sub.amount, sub.currency)} / {sub.interval}
+                        {sub.currentPeriodEnd
+                          ? ` · renews ${fmtDate(sub.currentPeriodEnd)}`
+                          : ""}
+                        {installment
+                          ? ` · payment ${sub.installmentsPaid ?? 0} of ${sub.installmentsTotal} (then lifetime)`
+                          : ""}
+                      </span>
+                    </div>
+                    <div className="plan-tile__actions">
+                      {!sub.cancelAtPeriodEnd &&
+                        !sub.paused &&
+                        !installment && (
+                          <button
+                            type="button"
+                            className="plan-tile__cancel"
+                            onClick={() => setCancelFor(sub)}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              marginTop: 14,
+              flexWrap: "wrap",
+            }}
+          >
+            <Link href="/pricing/all" className="btn btn-secondary">
+              View all plans
+            </Link>
+            {/* Opens the full payment history in a new tab. */}
+            <a
+              href="/account/payments"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary"
+            >
+              Payment history ↗
+            </a>
           </div>
-        )}
-        <div
-          style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" }}
-        >
-          <Link href="/pricing/all" className="btn btn-secondary">
-            View all plans
-          </Link>
-          {/* Opens the full payment history in a new tab. */}
-          <a
-            href="/account/payments"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-secondary"
-          >
-            Payment history ↗
-          </a>
-        </div>
-      </section>
+        </section>
 
-      <CertificatesSection />
+        <CertificatesSection />
 
-      {/* Card management is a Stripe-portal feature; PayPal members manage
+        {/* Card management is a Stripe-portal feature; PayPal members manage
           their payment method in their PayPal account instead. */}
-      {subs.some((s) => s.provider === "stripe") ? (
-        <section className="account-section">
-          <h2>Manage/Update Your Card Details</h2>
-          <p>
-            Update your card details through the secure Stripe customer portal.
-          </p>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={openPortal}
-            disabled={busy}
-            aria-busy={busy}
-          >
-            {busy ? "Redirecting…" : "Update Card Details"}
-          </button>
-        </section>
-      ) : subs.some((s) => s.provider === "paypal") ? (
-        <section className="account-section">
-          <h2>Payment method</h2>
-          <p>
-            Your subscription is billed through PayPal. Manage your payment
-            method in your PayPal account at paypal.com.
-          </p>
-        </section>
-      ) : null}
+        {subs.some((s) => s.provider === "stripe") ? (
+          <section className="account-section">
+            <h2>Manage/Update Your Card Details</h2>
+            <p>
+              Update your card details through the secure Stripe customer
+              portal.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={openPortal}
+              disabled={busy}
+              aria-busy={busy}
+            >
+              {busy ? "Redirecting…" : "Update Card Details"}
+            </button>
+          </section>
+        ) : subs.some((s) => s.provider === "paypal") ? (
+          <section className="account-section">
+            <h2>Payment method</h2>
+            <p>
+              Your subscription is billed through PayPal. Manage your payment
+              method in your PayPal account at paypal.com.
+            </p>
+          </section>
+        ) : null}
 
-      <DangerZoneSection />
+        <DangerZoneSection />
       </div>
 
       {cancelFor && (

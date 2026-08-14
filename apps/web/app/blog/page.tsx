@@ -31,7 +31,8 @@ function fmtDate(iso: string | null): string {
 // distinct—but stable—cover instead of a blank tile.
 function coverGradient(seed: string): string {
   let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) % 75;
+  for (let i = 0; i < seed.length; i++)
+    hash = (hash * 31 + seed.charCodeAt(i)) % 75;
   // Constrain the base hue to the violet→magenta band so auto covers stay on-brand.
   const h = 255 + hash;
   const h2 = 255 + ((hash + 42) % 75); // keep the 2nd stop inside the band too
@@ -75,7 +76,11 @@ function PostCard({ post }: { post: PostListItem }) {
     <Link href={`/blog/${post.slug}`} className="bc-card">
       <div
         className={post.coverImageUrl ? "bc-cover" : "bc-cover bc-cover--empty"}
-        style={post.coverImageUrl ? undefined : { background: coverGradient(post.id) }}
+        style={
+          post.coverImageUrl
+            ? undefined
+            : { background: coverGradient(post.id) }
+        }
       >
         {post.coverImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -119,7 +124,12 @@ export default async function BlogIndexPage() {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: absoluteUrl("/") },
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: absoluteUrl("/"),
+      },
       {
         "@type": "ListItem",
         position: 2,

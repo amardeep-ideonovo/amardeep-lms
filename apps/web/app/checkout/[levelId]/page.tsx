@@ -3,11 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import type {
-  AuthUser,
-  BillingConfigDTO,
-  CouponPreviewDTO,
-} from "@lms/types";
+import type { AuthUser, BillingConfigDTO, CouponPreviewDTO } from "@lms/types";
 import {
   ApiError,
   getBillingConfig,
@@ -120,8 +116,7 @@ export default function CheckoutPage() {
   // production build we block the purchase and say so plainly. Local dev keeps
   // mock mode so the flow stays testable without real keys (NODE_ENV is
   // "development" under `next dev`).
-  const paymentsUnavailable =
-    mockMode && process.env.NODE_ENV === "production";
+  const paymentsUnavailable = mockMode && process.env.NODE_ENV === "production";
 
   // Prefill identity from the signed-in profile (State B). Kept editable.
   function applyUser(u: AuthUser | null) {
@@ -163,7 +158,6 @@ export default function CheckoutPage() {
     return () => {
       active = false;
     };
-     
   }, [slugOrId]);
 
   const selected: CheckoutProductOption | null = useMemo(
@@ -466,13 +460,14 @@ export default function CheckoutPage() {
       <div className="dark-page checkout-dark">
         <div className="dp-wrap">
           <div className="co-notfound">
-        <h1 className="page-title">Checkout not found</h1>
-        <p className="page-sub">
-          We couldn’t find a plan for “{slugOrId}”. The link may be out of date.
-        </p>
-        <Link href="/pricing/all" className="btn btn-primary press">
-          View all plans
-        </Link>
+            <h1 className="page-title">Checkout not found</h1>
+            <p className="page-sub">
+              We couldn’t find a plan for “{slugOrId}”. The link may be out of
+              date.
+            </p>
+            <Link href="/pricing/all" className="btn btn-primary press">
+              View all plans
+            </Link>
           </div>
         </div>
       </div>
@@ -483,258 +478,269 @@ export default function CheckoutPage() {
     <div className="dark-page checkout-dark">
       <div className="dp-wrap">
         <div className="co-page">
-      {/* Auth banner */}
-      {user ? (
-        <div className="co-auth-banner">
-          <span>
-            Logged in as <strong>{user.email}</strong>
-          </span>
-          <button
-            type="button"
-            className="co-linkbtn"
-            onClick={() => {
-              logout();
-              applyUser(null);
-              setPassword("");
-            }}
-          >
-            Log out
-          </button>
-        </div>
-      ) : (
-        <div className="co-auth-banner co-auth-banner--ghost">
-          <span>Already have an account?</span>
-          <button
-            type="button"
-            className="co-linkbtn"
-            onClick={() => setShowLogin(true)}
-          >
-            Already a member?
-          </button>
-        </div>
-      )}
-
-      <form onSubmit={onSubmit} noValidate>
-        {/* SELECT PRODUCT */}
-        <SectionHead>SELECT PRODUCT</SectionHead>
-        <div className="co-products">
-          {config.options.map((opt) => {
-            const active = opt.key === selectedKey;
-            return (
-              <label
-                key={opt.key}
-                className={`co-product${active ? " co-product--active" : ""}`}
-              >
-                <span
-                  className={`co-radio${active ? " co-radio--on" : ""}`}
-                  aria-hidden
-                />
-                <input
-                  type="radio"
-                  name="product"
-                  className="co-sr-only"
-                  checked={active}
-                  onChange={() => setSelectedKey(opt.key)}
-                />
-                <span className="co-product-main">
-                  <span className="co-product-title">{opt.title}</span>
-                  <span className="co-product-sub">{opt.subLabel}</span>
-                </span>
-                <span className="co-product-price">{opt.priceText}</span>
-              </label>
-            );
-          })}
-        </div>
-
-        {/* Email + (conditional) Password */}
-        <input
-          className="co-input"
-          type="email"
-          placeholder="Email"
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          aria-label="Email"
-        />
-        {!user && (
-          <input
-            className="co-input"
-            type="password"
-            placeholder={`Password (${MIN_PASSWORD}+ characters)`}
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            aria-label="Password"
-          />
-        )}
-
-        {/* BILLING INFORMATION */}
-        <SectionHead>BILLING INFORMATION</SectionHead>
-        <div className="co-grid2">
-          <input
-            className="co-input"
-            placeholder="First name"
-            autoComplete="given-name"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            aria-label="First name"
-          />
-          <input
-            className="co-input"
-            placeholder="Last name"
-            autoComplete="family-name"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            aria-label="Last name"
-          />
-        </div>
-        <CountrySelect value={country} onChange={setCountry} />
-        <input
-          className="co-input"
-          placeholder="Address"
-          autoComplete="street-address"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          aria-label="Address"
-        />
-
-        {/* PAYMENT INFORMATION */}
-        <SectionHead>PAYMENT INFORMATION</SectionHead>
-        {paymentsUnavailable ? (
-          <div className="co-alert" role="status">
-            Online payments aren’t available for this class yet — the site owner
-            hasn’t finished setting up a payment method. Please check back soon.
-          </div>
-        ) : (
-          <PaymentSection
-            ref={payRef}
-            provider={provider}
-            publishableKey={billing.publishableKey}
-            paypalClientId={billing.paypalClientId}
-            paypal={provider === "paypal" ? paypalDriver : undefined}
-          />
-        )}
-
-        {/* Coupon — Stripe promotion codes only; PayPal has no coupon engine. */}
-        {provider !== "paypal" && (
-          <>
-            <div className="co-coupon">
-              <input
-                className="co-input"
-                placeholder="Discount code"
-                value={coupon}
-                onChange={(e) => setCoupon(e.target.value)}
-                aria-label="Discount code"
-              />
+          {/* Auth banner */}
+          {user ? (
+            <div className="co-auth-banner">
+              <span>
+                Logged in as <strong>{user.email}</strong>
+              </span>
               <button
                 type="button"
-                className="co-btn co-btn--ghost"
-                onClick={applyCoupon}
-                disabled={couponBusy || !coupon.trim()}
-                aria-busy={couponBusy}
+                className="co-linkbtn"
+                onClick={() => {
+                  logout();
+                  applyUser(null);
+                  setPassword("");
+                }}
               >
-                {couponBusy ? "Applying…" : "Apply"}
+                Log out
               </button>
             </div>
-            {couponPreview && (
-              <p
-                className={
-                  couponPreview.valid ? "co-coupon-ok" : "co-coupon-bad"
-                }
+          ) : (
+            <div className="co-auth-banner co-auth-banner--ghost">
+              <span>Already have an account?</span>
+              <button
+                type="button"
+                className="co-linkbtn"
+                onClick={() => setShowLogin(true)}
               >
-                {couponPreview.valid
-                  ? `Coupon “${couponPreview.code}” applied${couponPreview.label ? ` — ${couponPreview.label}` : ""}.`
-                  : couponPreview.message || "Invalid code."}
-              </p>
-            )}
-          </>
-        )}
-
-        {/* Summary (collapsible) */}
-        <div className="co-summary">
-          <button
-            type="button"
-            className="co-summary-head"
-            onClick={() => setSummaryOpen((s) => !s)}
-            aria-expanded={summaryOpen}
-          >
-            <span className="co-summary-title">🛒 Summary</span>
-            <span className="co-summary-hint">
-              {summaryOpen ? "Hide details" : "For more details, fill the form"}
-            </span>
-            <span className="co-chevron hover-pop" aria-hidden>
-              {summaryOpen ? "▴" : "▾"}
-            </span>
-          </button>
-          {summaryOpen && (
-            <div className="co-summary-body">
-              <div className="co-summary-row">
-                <span>{selected.title}</span>
-                <span>{formatMoney(selected.amount, selected.currency)}</span>
-              </div>
-              {couponPreview?.valid && couponPreview.amountOff != null && (
-                <div className="co-summary-row co-summary-row--muted">
-                  <span>Discount ({couponPreview.code})</span>
-                  <span>
-                    −{formatMoney(couponPreview.amountOff, selected.currency)}
-                  </span>
-                </div>
-              )}
-              <div className="co-summary-row co-summary-row--total">
-                <span>Total due today</span>
-                <span>{formatMoney(total, selected.currency)}</span>
-              </div>
+                Already a member?
+              </button>
             </div>
           )}
-        </div>
 
-        {error && <div className="co-alert co-alert-error">{error}</div>}
+          <form onSubmit={onSubmit} noValidate>
+            {/* SELECT PRODUCT */}
+            <SectionHead>SELECT PRODUCT</SectionHead>
+            <div className="co-products">
+              {config.options.map((opt) => {
+                const active = opt.key === selectedKey;
+                return (
+                  <label
+                    key={opt.key}
+                    className={`co-product${active ? " co-product--active" : ""}`}
+                  >
+                    <span
+                      className={`co-radio${active ? " co-radio--on" : ""}`}
+                      aria-hidden
+                    />
+                    <input
+                      type="radio"
+                      name="product"
+                      className="co-sr-only"
+                      checked={active}
+                      onChange={() => setSelectedKey(opt.key)}
+                    />
+                    <span className="co-product-main">
+                      <span className="co-product-title">{opt.title}</span>
+                      <span className="co-product-sub">{opt.subLabel}</span>
+                    </span>
+                    <span className="co-product-price">{opt.priceText}</span>
+                  </label>
+                );
+              })}
+            </div>
 
-        {paymentsUnavailable ? (
-          <button
-            type="button"
-            className="co-btn co-btn--navy co-btn--block co-submit"
-            disabled
-            aria-disabled="true"
-            title="Online payments aren’t available for this class yet."
-          >
-            Payments unavailable
-          </button>
-        ) : provider === "paypal" ? (
-          <>
-            {submitting && (
-              <div className="co-alert">Confirming your subscription…</div>
+            {/* Email + (conditional) Password */}
+            <input
+              className="co-input"
+              type="email"
+              placeholder="Email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-label="Email"
+            />
+            {!user && (
+              <input
+                className="co-input"
+                type="password"
+                placeholder={`Password (${MIN_PASSWORD}+ characters)`}
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                aria-label="Password"
+              />
+            )}
+
+            {/* BILLING INFORMATION */}
+            <SectionHead>BILLING INFORMATION</SectionHead>
+            <div className="co-grid2">
+              <input
+                className="co-input"
+                placeholder="First name"
+                autoComplete="given-name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                aria-label="First name"
+              />
+              <input
+                className="co-input"
+                placeholder="Last name"
+                autoComplete="family-name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                aria-label="Last name"
+              />
+            </div>
+            <CountrySelect value={country} onChange={setCountry} />
+            <input
+              className="co-input"
+              placeholder="Address"
+              autoComplete="street-address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              aria-label="Address"
+            />
+
+            {/* PAYMENT INFORMATION */}
+            <SectionHead>PAYMENT INFORMATION</SectionHead>
+            {paymentsUnavailable ? (
+              <div className="co-alert" role="status">
+                Online payments aren’t available for this class yet — the site
+                owner hasn’t finished setting up a payment method. Please check
+                back soon.
+              </div>
+            ) : (
+              <PaymentSection
+                ref={payRef}
+                provider={provider}
+                publishableKey={billing.publishableKey}
+                paypalClientId={billing.paypalClientId}
+                paypal={provider === "paypal" ? paypalDriver : undefined}
+              />
+            )}
+
+            {/* Coupon — Stripe promotion codes only; PayPal has no coupon engine. */}
+            {provider !== "paypal" && (
+              <>
+                <div className="co-coupon">
+                  <input
+                    className="co-input"
+                    placeholder="Discount code"
+                    value={coupon}
+                    onChange={(e) => setCoupon(e.target.value)}
+                    aria-label="Discount code"
+                  />
+                  <button
+                    type="button"
+                    className="co-btn co-btn--ghost"
+                    onClick={applyCoupon}
+                    disabled={couponBusy || !coupon.trim()}
+                    aria-busy={couponBusy}
+                  >
+                    {couponBusy ? "Applying…" : "Apply"}
+                  </button>
+                </div>
+                {couponPreview && (
+                  <p
+                    className={
+                      couponPreview.valid ? "co-coupon-ok" : "co-coupon-bad"
+                    }
+                  >
+                    {couponPreview.valid
+                      ? `Coupon “${couponPreview.code}” applied${couponPreview.label ? ` — ${couponPreview.label}` : ""}.`
+                      : couponPreview.message || "Invalid code."}
+                  </p>
+                )}
+              </>
+            )}
+
+            {/* Summary (collapsible) */}
+            <div className="co-summary">
+              <button
+                type="button"
+                className="co-summary-head"
+                onClick={() => setSummaryOpen((s) => !s)}
+                aria-expanded={summaryOpen}
+              >
+                <span className="co-summary-title">🛒 Summary</span>
+                <span className="co-summary-hint">
+                  {summaryOpen
+                    ? "Hide details"
+                    : "For more details, fill the form"}
+                </span>
+                <span className="co-chevron hover-pop" aria-hidden>
+                  {summaryOpen ? "▴" : "▾"}
+                </span>
+              </button>
+              {summaryOpen && (
+                <div className="co-summary-body">
+                  <div className="co-summary-row">
+                    <span>{selected.title}</span>
+                    <span>
+                      {formatMoney(selected.amount, selected.currency)}
+                    </span>
+                  </div>
+                  {couponPreview?.valid && couponPreview.amountOff != null && (
+                    <div className="co-summary-row co-summary-row--muted">
+                      <span>Discount ({couponPreview.code})</span>
+                      <span>
+                        −
+                        {formatMoney(
+                          couponPreview.amountOff,
+                          selected.currency,
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  <div className="co-summary-row co-summary-row--total">
+                    <span>Total due today</span>
+                    <span>{formatMoney(total, selected.currency)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {error && <div className="co-alert co-alert-error">{error}</div>}
+
+            {paymentsUnavailable ? (
+              <button
+                type="button"
+                className="co-btn co-btn--navy co-btn--block co-submit"
+                disabled
+                aria-disabled="true"
+                title="Online payments aren’t available for this class yet."
+              >
+                Payments unavailable
+              </button>
+            ) : provider === "paypal" ? (
+              <>
+                {submitting && (
+                  <div className="co-alert">Confirming your subscription…</div>
+                )}
+                <p className="co-footer-note">
+                  Complete your purchase with the PayPal button above.
+                </p>
+              </>
+            ) : (
+              <button
+                type="submit"
+                className="co-btn co-btn--navy co-btn--block co-submit press"
+                disabled={submitting}
+                aria-busy={submitting}
+              >
+                {submitting
+                  ? SUBMIT_STAGE_LABELS[stage ?? "account"]
+                  : "Submit"}
+              </button>
             )}
             <p className="co-footer-note">
-              Complete your purchase with the PayPal button above.
+              We Never Share Your Information With Anyone
             </p>
-          </>
-        ) : (
-          <button
-            type="submit"
-            className="co-btn co-btn--navy co-btn--block co-submit press"
-            disabled={submitting}
-            aria-busy={submitting}
-          >
-            {submitting ? SUBMIT_STAGE_LABELS[stage ?? "account"] : "Submit"}
-          </button>
-        )}
-        <p className="co-footer-note">
-          We Never Share Your Information With Anyone
-        </p>
-      </form>
+          </form>
 
-      {showLogin && (
-        <LoginModal
-          onClose={() => setShowLogin(false)}
-          onSuccess={(u) => {
-            applyUser(u);
-            setShowLogin(false);
-            setError(null);
-          }}
-        />
-      )}
-    </div>
+          {showLogin && (
+            <LoginModal
+              onClose={() => setShowLogin(false)}
+              onSuccess={(u) => {
+                applyUser(u);
+                setShowLogin(false);
+                setError(null);
+              }}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
