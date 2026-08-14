@@ -62,9 +62,7 @@ export function useContentLayout(): {
 // grid styles (paddingHorizontal spacing.md, gap spacing.sm).
 export function exploreTileWidth(contentWidth: number): number {
   const columns = contentWidth >= WIDE_CONTENT_MIN ? 3 : 2;
-  return (
-    (contentWidth - spacing.md * 2 - spacing.sm * (columns - 1)) / columns
-  );
+  return (contentWidth - spacing.md * 2 - spacing.sm * (columns - 1)) / columns;
 }
 
 // Android ships with the activity portrait-locked in the manifest (phones

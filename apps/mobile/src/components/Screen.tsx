@@ -37,7 +37,11 @@ export function ErrorState({
     <Centered>
       <Text style={styles.errorText}>{message}</Text>
       {onRetry ? (
-        <TouchableOpacity style={styles.retry} onPress={onRetry} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.retry}
+          onPress={onRetry}
+          activeOpacity={0.8}
+        >
           <Text style={styles.retryText}>Try again</Text>
         </TouchableOpacity>
       ) : null}
@@ -54,32 +58,37 @@ export function EmptyState({ message }: { message: string }) {
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  center: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.lg,
-    backgroundColor: colors.bg,
-  },
-  errorText: {
-    color: colors.danger,
-    fontSize: 15,
-    textAlign: "center",
-    marginBottom: spacing.md,
-    fontFamily: fonts.regular,
-  },
-  emptyText: {
-    color: colors.textMuted,
-    fontSize: 15,
-    textAlign: "center",
-    fontFamily: fonts.regular,
-  },
-  retry: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 8,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  retryText: { color: colors.text, fontWeight: "600", fontFamily: fonts.semibold },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    center: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: spacing.lg,
+      backgroundColor: colors.bg,
+    },
+    errorText: {
+      color: colors.danger,
+      fontSize: 15,
+      textAlign: "center",
+      marginBottom: spacing.md,
+      fontFamily: fonts.regular,
+    },
+    emptyText: {
+      color: colors.textMuted,
+      fontSize: 15,
+      textAlign: "center",
+      fontFamily: fonts.regular,
+    },
+    retry: {
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: 8,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+    },
+    retryText: {
+      color: colors.text,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
+  });

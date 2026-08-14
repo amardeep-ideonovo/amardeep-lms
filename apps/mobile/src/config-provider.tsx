@@ -122,7 +122,8 @@ async function writeCache(config: AppConfig): Promise<void> {
   try {
     const raw = JSON.stringify(config);
     if (isWeb) {
-      if (typeof localStorage !== "undefined") localStorage.setItem(configKey(), raw);
+      if (typeof localStorage !== "undefined")
+        localStorage.setItem(configKey(), raw);
     } else {
       await SecureStore.setItemAsync(configKey(), raw);
     }
@@ -230,7 +231,9 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     () => ({ config, loading, compat: compatOf(config) }),
     [config, loading],
   );
-  return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>;
+  return (
+    <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>
+  );
 }
 
 export function useAppConfig(): ConfigState {

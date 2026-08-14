@@ -17,20 +17,24 @@ The steps below need **your** accounts / credentials — fill the placeholders
 in `eas.json`, then build & submit.
 
 ## 1. Brand assets (now automatic)
+
 EAS builds pull the admin-uploaded icon/splash (Admin → App Customization,
 **PNG only**) into the binary via the `eas-build-pre-install` hook — see
 [assets/README.md](assets/README.md). If those fields are unset, the checked-in
 files ship instead; manual replacement (same filenames) remains the fallback.
 
 ## 2. Set the production API URL — REQUIRED
+
 The app currently points at placeholder URLs. In `eas.json`, under
 `build.preview.env` **and** `build.production.env`, set:
+
 - `EXPO_PUBLIC_API_URL` — your deployed API base (e.g. the Render URL), HTTPS.
 - `EXPO_PUBLIC_WEB_ACCOUNT_URL` — the member web `/account` URL, HTTPS.
 
 (Or set them as EAS environment variables / secrets in the Expo dashboard.)
 
 ## 3. Apple (App Store)
+
 - Apple Developer account; register the bundle id `com.thewebpaanda.lms`.
 - Create the app record in App Store Connect.
 - In `eas.json` → `submit.production.ios`, set `appleId`, `ascAppId`,
@@ -38,9 +42,11 @@ The app currently points at placeholder URLs. In `eas.json`, under
 - `eas build` will create/manage signing credentials (or supply your own).
 
 ## 3b. Tablets (iPad + Android tablets)
+
 The app is a universal iPhone + iPad app (`supportsTablet: true`) and Android
 tablets rotate freely (phones stay portrait-locked — see `src/responsive.ts`).
 Consequences for store submission:
+
 - **Apple reviews on iPad** and the listing requires **13" iPad screenshots
   (2064×2752)** in addition to the iPhone set. Capture on the
   "iPad Pro 13-inch" simulator.
@@ -50,6 +56,7 @@ Consequences for store submission:
   in a new store binary (`eas build`), never over OTA.
 
 ## 4. Google (Play)
+
 - Create the app in Google Play Console under `com.thewebpaanda.lms`.
 - Create a Play **service-account JSON** and save it as
   `apps/mobile/play-service-account.json` (already gitignored). It is referenced
@@ -57,6 +64,7 @@ Consequences for store submission:
 - EAS manages the upload keystore (or upload your own).
 
 ## 5. Build & submit (from `apps/mobile`)
+
 ```bash
 eas build  --profile preview    --platform all   # internal test (APK + ad-hoc / TestFlight)
 eas build  --profile production --platform all   # store builds (AAB + App Store)
@@ -65,6 +73,7 @@ eas submit --profile production --platform android
 ```
 
 ## 6. App privacy questionnaire
+
 Both stores ask about data collection. This app collects: account **email + name**
 (login/signup) and **lesson progress**; **no tracking, no ads**. The auth token is
 stored in the device keychain (SecureStore). Declare accordingly. Export compliance
@@ -76,6 +85,7 @@ built: members delete from the in-app Account screen, and the public page is
 `https://<member-web>/delete-account` — use that URL in the Play Data-safety form.
 
 ## 7. OTA updates & code signing — ⚠ BACK UP THE PRIVATE KEY
+
 The app ships expo-updates (OTA) so JS-only fixes go out without a store review.
 The signing **certificate** is committed at `certs/certificate.pem` and baked into
 every build via `EXPO_PUBLIC_CODE_SIGNING_CERT` (set in `eas.json` preview +
@@ -84,9 +94,10 @@ compromised Expo/EAS account alone can't push malicious JS to installed apps.
 
 The matching **private key** was generated at `keys/private-key.pem` and is
 **gitignored — it is NOT in the repo**. You MUST:
+
 1. **Back it up now** (password manager / secure store) AND upload it as an EAS
    secret, e.g. `eas env:create --name EXPO_UPDATES_PRIVATE_KEY --type file \
-   --value ./keys/private-key.pem --visibility secret`.
+--value ./keys/private-key.pem --visibility secret`.
 2. Publish signed OTA updates with it:
    `eas update --channel production --private-key-path keys/private-key.pem`.
 

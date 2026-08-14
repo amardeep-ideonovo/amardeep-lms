@@ -188,7 +188,8 @@ export async function bindInstance(
   applyBinding(b);
   const raw = JSON.stringify(b);
   if (isWeb) {
-    if (typeof localStorage !== "undefined") localStorage.setItem(BINDING_KEY, raw);
+    if (typeof localStorage !== "undefined")
+      localStorage.setItem(BINDING_KEY, raw);
     return;
   }
   await SecureStore.setItemAsync(BINDING_KEY, raw);
@@ -222,7 +223,8 @@ export async function unbindInstance(): Promise<void> {
   WEB_ACCOUNT_URL = "";
   WEB_BASE_URL = "";
   if (isWeb) {
-    if (typeof localStorage !== "undefined") localStorage.removeItem(BINDING_KEY);
+    if (typeof localStorage !== "undefined")
+      localStorage.removeItem(BINDING_KEY);
   } else {
     await SecureStore.deleteItemAsync(BINDING_KEY);
   }

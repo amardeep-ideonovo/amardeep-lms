@@ -50,7 +50,9 @@ export function HeroBand({
   const softColor = onDarkSurface ? colors.heroTextSoft : colors.textMuted;
   // Over the dark scrim the AA-darkened primarySoft would vanish — lift to the
   // on-dark accent there.
-  const eyebrowColor = onDarkSurface ? colors.primaryOnDark : colors.primarySoft;
+  const eyebrowColor = onDarkSurface
+    ? colors.primaryOnDark
+    : colors.primarySoft;
 
   const pct =
     progress && progress.total > 0
@@ -67,7 +69,11 @@ export function HeroBand({
             resizeMode="cover"
           />
           <LinearGradient
-            colors={[colors.overlayFaint, colors.overlayMid, colors.overlayStrong]}
+            colors={[
+              colors.overlayFaint,
+              colors.overlayMid,
+              colors.overlayStrong,
+            ]}
             locations={[0, 0.5, 1]}
             style={StyleSheet.absoluteFill}
           />
@@ -87,7 +93,9 @@ export function HeroBand({
 
       <View style={styles.inner}>
         {eyebrow ? (
-          <Text style={[styles.eyebrow, { color: eyebrowColor }]}>{eyebrow}</Text>
+          <Text style={[styles.eyebrow, { color: eyebrowColor }]}>
+            {eyebrow}
+          </Text>
         ) : null}
         <Text style={[styles.title, { color: titleColor }]}>{title}</Text>
         {chips && chips.length > 0 ? (
@@ -153,18 +161,31 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       textTransform: "uppercase",
       letterSpacing: 1.4,
     },
-    title: { fontSize: 24, fontWeight: "700", fontFamily: fonts.display, lineHeight: 30 },
+    title: {
+      fontSize: 24,
+      fontWeight: "700",
+      fontFamily: fonts.display,
+      lineHeight: 30,
+    },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
     progressWrap: { gap: 6, marginTop: spacing.xs },
     progressLabels: { flexDirection: "row", justifyContent: "space-between" },
-    progressLabel: { fontSize: 12, fontWeight: "600", fontFamily: fonts.semibold },
+    progressLabel: {
+      fontSize: 12,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
     track: {
       height: 6,
       borderRadius: 999,
       backgroundColor: "rgba(255,255,255,0.18)",
       overflow: "hidden",
     },
-    fill: { height: "100%", backgroundColor: colors.primary, borderRadius: 999 },
+    fill: {
+      height: "100%",
+      backgroundColor: colors.primary,
+      borderRadius: 999,
+    },
     button: {
       alignSelf: "flex-start",
       marginTop: spacing.xs,

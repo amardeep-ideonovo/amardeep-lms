@@ -39,8 +39,8 @@ export function CourseListScreen({
       const sections = data.categories;
       const picked = all
         ? sections.flatMap((s) => s.courses)
-        : sections.find((s) => s.category.id === (categoryId ?? ""))?.courses ??
-          [];
+        : (sections.find((s) => s.category.id === (categoryId ?? ""))
+            ?.courses ?? []);
       setCourses(picked);
       loadedOnce.current = true;
     } catch (e) {
@@ -54,7 +54,7 @@ export function CourseListScreen({
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -100,26 +100,27 @@ export function CourseListScreen({
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  list: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md, ...contentColumn },
-  search: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    color: colors.text,
-    fontSize: 15,
-    marginBottom: spacing.md,
-    fontFamily: fonts.regular,
-  },
-  empty: {
-    color: colors.textMuted,
-    fontSize: 15,
-    textAlign: "center",
-    marginTop: spacing.lg,
-    fontFamily: fonts.regular,
-  },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    list: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: spacing.md, ...contentColumn },
+    search: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 10,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      color: colors.text,
+      fontSize: 15,
+      marginBottom: spacing.md,
+      fontFamily: fonts.regular,
+    },
+    empty: {
+      color: colors.textMuted,
+      fontSize: 15,
+      textAlign: "center",
+      marginTop: spacing.lg,
+      fontFamily: fonts.regular,
+    },
+  });

@@ -56,7 +56,9 @@ export default function CertificateClaim({
       setAskName(false);
       await openPdf(issued);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not issue the certificate.");
+      setError(
+        e instanceof Error ? e.message : "Could not issue the certificate.",
+      );
     } finally {
       setClaiming(false);
     }
@@ -68,7 +70,8 @@ export default function CertificateClaim({
     try {
       // claim() is idempotent — it returns the existing certificate when the
       // member already earned it (e.g. claimed on the web earlier).
-      const c = cert ?? (await api.claimCertificate({ levelId: status.levelId }));
+      const c =
+        cert ?? (await api.claimCertificate({ levelId: status.levelId }));
       setCert(c);
       await openPdf(c);
     } catch (e) {
@@ -186,7 +189,12 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       textAlign: "center",
       fontFamily: fonts.regular,
     },
-    error: { color: colors.danger, marginTop: 8, fontSize: 13.5, fontFamily: fonts.regular },
+    error: {
+      color: colors.danger,
+      marginTop: 8,
+      fontSize: 13.5,
+      fontFamily: fonts.regular,
+    },
     modalBackdrop: {
       flex: 1,
       backgroundColor: "rgba(0,0,0,0.55)",

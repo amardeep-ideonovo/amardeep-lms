@@ -76,7 +76,12 @@ const makeStyles = ({ fonts }: Theme) =>
       shadowOpacity: 0.35,
       shadowRadius: 12,
     },
-    row: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
     label: { color: "#ffffff", fontSize: 12.5, fontFamily: fonts.semibold },
     disabled: { opacity: 0.55 },
   });

@@ -224,7 +224,10 @@ function safePalette(
   return out;
 }
 
-export function paletteFrom(input: AppThemePalette, mode: "light" | "dark"): ThemePalette {
+export function paletteFrom(
+  input: AppThemePalette,
+  mode: "light" | "dark",
+): ThemePalette {
   // `input` is typed AppThemePalette, but it can be partial/empty at runtime
   // (untrusted cached branding) — normalize it so nothing below sees undefined.
   const p = safePalette(input, mode);
@@ -276,7 +279,9 @@ export function paletteFrom(input: AppThemePalette, mode: "light" | "dark"): The
     ctaEnd,
     // Label color chosen against the LIGHTER gradient stop (worst case for white
     // text), so a light brand accent gets dark ink instead of unreadable white.
-    onCta: onColor(luminance(ctaStart) >= luminance(ctaEnd) ? ctaStart : ctaEnd),
+    onCta: onColor(
+      luminance(ctaStart) >= luminance(ctaEnd) ? ctaStart : ctaEnd,
+    ),
     primaryOnDark,
     gradientStart: hslToHex(h, 0.36, mode === "dark" ? 0.17 : 0.92),
     gradientEnd: p.bg,
@@ -308,7 +313,8 @@ export function letterGradient(seed: string): [string, string] {
   // Deterministic per seed, constrained to the teal→sea brand band (150–200°)
   // so image-less tiles read on-brand with the Ink Hero teal.
   let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) % 50;
+  for (let i = 0; i < seed.length; i++)
+    hash = (hash * 31 + seed.charCodeAt(i)) % 50;
   const h = 150 + hash;
   const h2 = 150 + ((hash + 20) % 50);
   // Muted deep-teal (low saturation + lightness) so image-less tiles read as
@@ -354,7 +360,8 @@ export const fonts = {
 // Map a fontWeight to the matching Jakarta family (so existing `fontWeight`
 // values pick the right loaded face rather than synthetic bold).
 export function fontFamily(weight?: string | number): string {
-  const w = typeof weight === "string" ? parseInt(weight, 10) || 400 : weight ?? 400;
+  const w =
+    typeof weight === "string" ? parseInt(weight, 10) || 400 : (weight ?? 400);
   if (w >= 800) return fonts.extrabold;
   if (w >= 700) return fonts.bold;
   if (w >= 600) return fonts.semibold;

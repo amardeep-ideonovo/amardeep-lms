@@ -98,7 +98,9 @@ function PlayerInner({
   const pct = duration > 0 ? Math.min(1, current / duration) : 0;
 
   return (
-    <View style={[styles.wrap, { backgroundColor: colors.surfaceMuted }, style]}>
+    <View
+      style={[styles.wrap, { backgroundColor: colors.surfaceMuted }, style]}
+    >
       {/* Hidden — audio has no picture; this only anchors the native player. */}
       <VideoView
         player={player}
@@ -128,7 +130,8 @@ function PlayerInner({
           onLayout={(e) => setTrackWidth(e.nativeEvent.layout.width)}
           onStartShouldSetResponder={() => true}
           onResponderRelease={(e) => {
-            if (trackWidth > 0) seekToRatio(e.nativeEvent.locationX / trackWidth);
+            if (trackWidth > 0)
+              seekToRatio(e.nativeEvent.locationX / trackWidth);
           }}
         >
           <View

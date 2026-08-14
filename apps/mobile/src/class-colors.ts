@@ -53,16 +53,30 @@ export function classAccentIndex(
 ): number {
   const hay = `${name} ${categories.join(" ")}`;
   for (const [re, idx] of ACCENT_KEYWORDS) if (re.test(hay)) return idx;
-  return ((fallback % CLASS_ACCENTS.length) + CLASS_ACCENTS.length) % CLASS_ACCENTS.length;
+  return (
+    ((fallback % CLASS_ACCENTS.length) + CLASS_ACCENTS.length) %
+    CLASS_ACCENTS.length
+  );
 }
 
 /** id → accent slot for a class list (category-keyed, position fallback). */
 export function accentIndexMap(
-  classes: Array<{ id: string; name: string; categories?: Array<{ name: string }> | null }>,
+  classes: Array<{
+    id: string;
+    name: string;
+    categories?: Array<{ name: string }> | null;
+  }>,
 ): Map<string, number> {
   const m = new Map<string, number>();
   classes.forEach((c, i) =>
-    m.set(c.id, classAccentIndex(c.name, (c.categories ?? []).map((x) => x.name), i)),
+    m.set(
+      c.id,
+      classAccentIndex(
+        c.name,
+        (c.categories ?? []).map((x) => x.name),
+        i,
+      ),
+    ),
   );
   return m;
 }

@@ -141,7 +141,7 @@ function renderBlocks(nodes: DomNode[], ctx: Ctx): React.ReactNode[] {
           style={[ctx.s.body, ctx.baseStyle, ctx.s.p]}
         >
           {run.map((n, i) => renderInline(n, ctx, i))}
-        </Text>
+        </Text>,
       );
     }
     run = [];
@@ -209,16 +209,16 @@ function renderBlock(el: DomNode, ctx: Ctx, key: number): React.ReactNode {
     case "ol": {
       const ordered = el.name === "ol";
       const items = (el.children ?? []).filter(
-        (c) => c.type === "tag" && c.name === "li"
+        (c) => c.type === "tag" && c.name === "li",
       );
       return (
         <View key={key} style={s.list}>
           {items.map((li, i) => {
             const nested = (li.children ?? []).filter(
-              (c) => c.type === "tag" && (c.name === "ul" || c.name === "ol")
+              (c) => c.type === "tag" && (c.name === "ul" || c.name === "ol"),
             );
             const inline = (li.children ?? []).filter(
-              (c) => !nested.includes(c)
+              (c) => !nested.includes(c),
             );
             return (
               <View key={i}>
@@ -290,7 +290,7 @@ function HtmlImg({ src, contentWidth }: { src: string; contentWidth: number }) {
       (w, h) => {
         if (alive && w && h) setRatio(w / h);
       },
-      () => {}
+      () => {},
     );
     return () => {
       alive = false;
@@ -316,7 +316,7 @@ export function HtmlView({
   const s = useScopedStyles(makeHtmlStyles);
   const nodes = useMemo(
     () => parseDocument(html || "").children as unknown as DomNode[],
-    [html]
+    [html],
   );
   return (
     <View>
@@ -335,9 +335,19 @@ export function HtmlView({
 // (BlogPostScreen + PageRenderer) — values preserved verbatim.
 const makeHtmlStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
-    body: { color: colors.text, fontSize: 16, lineHeight: 24, fontFamily: fonts.regular },
+    body: {
+      color: colors.text,
+      fontSize: 16,
+      lineHeight: 24,
+      fontFamily: fonts.regular,
+    },
     p: { marginBottom: spacing.md },
-    h1: { fontSize: 22, fontWeight: "700", fontFamily: fonts.bold, marginBottom: spacing.sm },
+    h1: {
+      fontSize: 22,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+      marginBottom: spacing.sm,
+    },
     h2: {
       fontSize: 20,
       fontWeight: "700",

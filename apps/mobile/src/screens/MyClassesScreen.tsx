@@ -16,11 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import type { ClassTileDTO, CourseCard } from "@lms/types";
 
-import {
-  useMyClasses,
-  useMyClassCourses,
-  useRefreshOnFocus,
-} from "../queries";
+import { useMyClasses, useMyClassCourses, useRefreshOnFocus } from "../queries";
 import { accentIndexMap, classAccent } from "../class-colors";
 import { ClassTile } from "../components/ClassTile";
 import { Press } from "../components/Press";
@@ -29,7 +25,11 @@ import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { classSeed, courseSeed } from "../navigation";
 import type { TabScreenProps } from "../navigation";
-import { contentColumn, exploreTileWidth, useContentLayout } from "../responsive";
+import {
+  contentColumn,
+  exploreTileWidth,
+  useContentLayout,
+} from "../responsive";
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
@@ -112,7 +112,7 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
     !!p && p.total > 0 && p.completed < p.total;
   const active = owned.find((c) => incomplete(c.progress)) ?? owned[0] ?? null;
   const others = owned.filter((c) => c.id !== active?.id);
-  const activeIdx = active ? accentIndex.get(active.id) ?? 0 : 0;
+  const activeIdx = active ? (accentIndex.get(active.id) ?? 0) : 0;
   const tileWidth = exploreTileWidth(contentWidth);
 
   // The card already shows this class's artwork and name — hand them to the
@@ -202,9 +202,14 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
                     }
                   >
                     {thumb ? (
-                      <Image source={{ uri: thumb }} style={styles.courseThumb} />
+                      <Image
+                        source={{ uri: thumb }}
+                        style={styles.courseThumb}
+                      />
                     ) : (
-                      <View style={[styles.courseThumb, styles.courseThumbEmpty]}>
+                      <View
+                        style={[styles.courseThumb, styles.courseThumbEmpty]}
+                      >
                         <Text style={styles.courseThumbLetter}>
                           {c.title.slice(0, 1).toUpperCase()}
                         </Text>
@@ -293,7 +298,10 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
                 onPress={() => openClass(c)}
               >
                 {c.imageUrl ? (
-                  <Image source={{ uri: c.imageUrl }} style={styles.otherThumb} />
+                  <Image
+                    source={{ uri: c.imageUrl }}
+                    style={styles.otherThumb}
+                  />
                 ) : (
                   <LinearGradient
                     colors={letterGradient(c.id)}
@@ -415,8 +423,16 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       marginTop: 8,
       marginBottom: 0,
     },
-    sectionTitle: { color: colors.text, fontSize: 14, fontFamily: fonts.semibold },
-    sectionMeta: { color: colors.textMuted, fontSize: 11, fontFamily: fonts.regular },
+    sectionTitle: {
+      color: colors.text,
+      fontSize: 14,
+      fontFamily: fonts.semibold,
+    },
+    sectionMeta: {
+      color: colors.textMuted,
+      fontSize: 11,
+      fontFamily: fonts.regular,
+    },
 
     courseRow: {
       borderRadius: 14,
@@ -468,7 +484,11 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       backgroundColor: colors.surfaceMuted,
     },
     otherInfo: { flex: 1, gap: 6 },
-    otherName: { color: colors.text, fontSize: 12.5, fontFamily: fonts.semibold },
+    otherName: {
+      color: colors.text,
+      fontSize: 12.5,
+      fontFamily: fonts.semibold,
+    },
     otherTrack: {
       height: 4,
       borderRadius: 2,

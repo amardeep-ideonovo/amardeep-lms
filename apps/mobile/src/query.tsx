@@ -86,11 +86,14 @@ export function makeQueryClient(): QueryClient {
 // listener, so a remount (academy switch) re-binds cleanly.
 function bindAppStateToFocus(): void {
   focusManager.setEventListener((handleFocus) => {
-    const sub = AppState.addEventListener("change", (status: AppStateStatus) => {
-      // 'active' → focused; 'background'/'inactive' → not. Web has no AppState
-      // focus semantics worth forwarding, so leave its default behavior.
-      if (Platform.OS !== "web") handleFocus(status === "active");
-    });
+    const sub = AppState.addEventListener(
+      "change",
+      (status: AppStateStatus) => {
+        // 'active' → focused; 'background'/'inactive' → not. Web has no AppState
+        // focus semantics worth forwarding, so leave its default behavior.
+        if (Platform.OS !== "web") handleFocus(status === "active");
+      },
+    );
     return () => sub.remove();
   });
 }

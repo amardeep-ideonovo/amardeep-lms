@@ -263,7 +263,9 @@ function AppNavigator() {
       <AppStack.Screen
         name="LiveSession"
         component={LiveSessionScreen}
-        options={({ route }) => ({ title: route.params.title ?? "Live Session" })}
+        options={({ route }) => ({
+          title: route.params.title ?? "Live Session",
+        })}
       />
       <AppStack.Screen
         name="Certificates"
@@ -440,25 +442,25 @@ export default function App() {
           positions against the full screen (SafeAreaProvider's native layout
           must not own the overlay). */}
       <View style={styles.appRoot}>
-      <InstanceGate>
-        {/* QueryProvider is INSIDE InstanceGate on purpose: an academy switch
+        <InstanceGate>
+          {/* QueryProvider is INSIDE InstanceGate on purpose: an academy switch
             remounts this subtree (key=API_BASE_URL) and the new QueryClient
             starts empty, so one instance's cache never bleeds into another.
             QueryAuthReset (under AuthProvider) covers the other boundary —
             a member switch on the SAME instance. See src/query.tsx. */}
-        <QueryProvider>
-          <ConfigProvider>
-            <ThemeProvider>
-              <AuthProvider>
-                <QueryAuthReset>
-                  <ThemedApp />
-                </QueryAuthReset>
-              </AuthProvider>
-            </ThemeProvider>
-          </ConfigProvider>
-        </QueryProvider>
-      </InstanceGate>
-      {!splashDone && <AnimatedSplash onDone={() => setSplashDone(true)} />}
+          <QueryProvider>
+            <ConfigProvider>
+              <ThemeProvider>
+                <AuthProvider>
+                  <QueryAuthReset>
+                    <ThemedApp />
+                  </QueryAuthReset>
+                </AuthProvider>
+              </ThemeProvider>
+            </ConfigProvider>
+          </QueryProvider>
+        </InstanceGate>
+        {!splashDone && <AnimatedSplash onDone={() => setSplashDone(true)} />}
       </View>
     </SafeAreaProvider>
   );

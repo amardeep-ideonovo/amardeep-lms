@@ -18,7 +18,13 @@
 // it fires (IMMEDIATE/DELAY honored natively; SCROLL and EXIT_INTENT have no
 // mobile equivalent and approximate with a short delay) and HOW OFTEN
 // (frequency capping persisted in SecureStore; per-session in app memory).
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Modal,
   Pressable,
@@ -30,11 +36,7 @@ import {
   View,
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import type {
-  PopupContext,
-  PopupPosition,
-  PopupPublicDTO,
-} from "@lms/types";
+import type { PopupContext, PopupPosition, PopupPublicDTO } from "@lms/types";
 
 import { api } from "../api";
 import { scopedKey } from "../config";
@@ -76,7 +78,10 @@ async function persistSeen(id: string): Promise<void> {
   }
 }
 
-function isSuppressed(p: PopupPublicDTO, seen: Record<string, number>): boolean {
+function isSuppressed(
+  p: PopupPublicDTO,
+  seen: Record<string, number>,
+): boolean {
   const b = p.behavior;
   if (!b || b.frequency === "EVERY_VISIT") return false;
   if (b.frequency === "ONCE_PER_SESSION") return sessionShown.has(p.id);
@@ -160,7 +165,11 @@ function luminanceOf(color: string): number | null {
   } else {
     const fn = /^rgba?\(([^)]+)\)$/i.exec(c);
     const parts = fn?.[1].split(",").map((v) => parseFloat(v));
-    if (parts && parts.length >= 3 && parts.slice(0, 3).every(Number.isFinite)) {
+    if (
+      parts &&
+      parts.length >= 3 &&
+      parts.slice(0, 3).every(Number.isFinite)
+    ) {
       rgb = parts.slice(0, 3);
     }
   }
@@ -225,7 +234,7 @@ function PopupModal({
     (configuredBg ? (light ? "#e2e8f0" : "#334155") : colors.border);
   const contentTheme = useMemo(
     () => (configuredBg ? popupTheme(theme, configuredBg, light) : null),
-    [configuredBg, theme, light]
+    [configuredBg, theme, light],
   );
 
   // Count one impression + start the frequency clock when the popup appears.

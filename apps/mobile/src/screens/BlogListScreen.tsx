@@ -143,47 +143,63 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  list: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md, ...contentColumn },
-  heroWrap: { marginBottom: spacing.md },
-  heroExcerpt: { color: colors.heroTextSoft, fontSize: 14, lineHeight: 20, fontFamily: fonts.regular },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: 14,
-    marginBottom: spacing.md,
-    overflow: "hidden",
-  },
-  cover: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-    backgroundColor: colors.surfaceMuted,
-  },
-  coverLetterBox: { alignItems: "center", justifyContent: "center" },
-  coverLetter: { color: colors.heroText, fontSize: 44, fontWeight: "800", fontFamily: fonts.extrabold },
-  cardBody: { padding: spacing.md },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  meta: { color: colors.textMuted, fontSize: 12, fontFamily: fonts.regular },
-  title: { color: colors.text, fontSize: 16, fontWeight: "700", fontFamily: fonts.bold },
-  excerpt: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginTop: spacing.xs,
-    lineHeight: 20,
-    fontFamily: fonts.regular,
-  },
-  readMore: {
-    color: colors.primarySoft,
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: spacing.sm,
-    fontFamily: fonts.bold,
-  },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    list: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: spacing.md, ...contentColumn },
+    heroWrap: { marginBottom: spacing.md },
+    heroExcerpt: {
+      color: colors.heroTextSoft,
+      fontSize: 14,
+      lineHeight: 20,
+      fontFamily: fonts.regular,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 14,
+      marginBottom: spacing.md,
+      overflow: "hidden",
+    },
+    cover: {
+      width: "100%",
+      aspectRatio: 16 / 9,
+      backgroundColor: colors.surfaceMuted,
+    },
+    coverLetterBox: { alignItems: "center", justifyContent: "center" },
+    coverLetter: {
+      color: colors.heroText,
+      fontSize: 44,
+      fontWeight: "800",
+      fontFamily: fonts.extrabold,
+    },
+    cardBody: { padding: spacing.md },
+    metaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    meta: { color: colors.textMuted, fontSize: 12, fontFamily: fonts.regular },
+    title: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    excerpt: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginTop: spacing.xs,
+      lineHeight: 20,
+      fontFamily: fonts.regular,
+    },
+    readMore: {
+      color: colors.primarySoft,
+      fontSize: 13,
+      fontWeight: "700",
+      marginTop: spacing.sm,
+      fontFamily: fonts.bold,
+    },
+  });

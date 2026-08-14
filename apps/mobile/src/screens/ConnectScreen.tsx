@@ -10,11 +10,7 @@ import {
   View,
 } from "react-native";
 
-import {
-  DIRECTORY_URL,
-  bindInstance,
-  type InstanceBinding,
-} from "../config";
+import { DIRECTORY_URL, bindInstance, type InstanceBinding } from "../config";
 import { formColumn } from "../responsive";
 import { DEFAULT_APP_CONFIG, paletteFrom, fonts, spacing } from "../theme";
 
@@ -65,7 +61,9 @@ export function ConnectScreen({
         signal: ctrl.signal,
       });
     } catch {
-      throw new Error("Couldn't reach that academy. Check the details and try again.");
+      throw new Error(
+        "Couldn't reach that academy. Check the details and try again.",
+      );
     } finally {
       clearTimeout(t);
     }
@@ -90,10 +88,14 @@ export function ConnectScreen({
         { signal: ctrl.signal },
       );
       if (res.status === 404) {
-        throw new Error("No academy found for that code. Check it and try again.");
+        throw new Error(
+          "No academy found for that code. Check it and try again.",
+        );
       }
       if (res.status === 429) {
-        throw new Error("Too many attempts. Please wait a minute and try again.");
+        throw new Error(
+          "Too many attempts. Please wait a minute and try again.",
+        );
       }
       if (!res.ok) throw new Error("Could not reach the directory. Try again.");
       const data = (await res.json()) as {
@@ -118,7 +120,9 @@ export function ConnectScreen({
     setStep("verifying");
     setError(null);
     try {
-      const apiUrl = /^https?:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`;
+      const apiUrl = /^https?:\/\//.test(trimmed)
+        ? trimmed
+        : `https://${trimmed}`;
       // Without the directory we don't know the member website URL; default to
       // the API origin (account links degrade gracefully). Dev/self-host path.
       await validateAndBind({ apiUrl, webUrl: apiUrl }, "manual");
@@ -160,12 +164,17 @@ export function ConnectScreen({
             <Pressable
               onPress={connectByCode}
               disabled={busy || !code.trim()}
-              style={[styles.button, (busy || !code.trim()) && styles.buttonDisabled]}
+              style={[
+                styles.button,
+                (busy || !code.trim()) && styles.buttonDisabled,
+              ]}
             >
               {busy ? (
                 <View style={styles.busyRow}>
                   <ActivityIndicator color={colors.onPrimary} />
-                  <Text style={styles.buttonText}>{STEP_LABELS[step ?? "resolving"]}</Text>
+                  <Text style={styles.buttonText}>
+                    {STEP_LABELS[step ?? "resolving"]}
+                  </Text>
                 </View>
               ) : (
                 <Text style={styles.buttonText}>Connect</Text>
@@ -190,12 +199,17 @@ export function ConnectScreen({
             <Pressable
               onPress={connectByUrl}
               disabled={busy || !serverUrl.trim()}
-              style={[styles.button, (busy || !serverUrl.trim()) && styles.buttonDisabled]}
+              style={[
+                styles.button,
+                (busy || !serverUrl.trim()) && styles.buttonDisabled,
+              ]}
             >
               {busy ? (
                 <View style={styles.busyRow}>
                   <ActivityIndicator color={colors.onPrimary} />
-                  <Text style={styles.buttonText}>{STEP_LABELS[step ?? "resolving"]}</Text>
+                  <Text style={styles.buttonText}>
+                    {STEP_LABELS[step ?? "resolving"]}
+                  </Text>
                 </View>
               ) : (
                 <Text style={styles.buttonText}>Connect to server</Text>
@@ -216,7 +230,9 @@ export function ConnectScreen({
             disabled={busy}
           >
             <Text style={styles.linkText}>
-              {advanced ? "Use a connect code instead" : "Advanced: connect by server URL"}
+              {advanced
+                ? "Use a connect code instead"
+                : "Advanced: connect by server URL"}
             </Text>
           </Pressable>
         )}
@@ -230,7 +246,12 @@ type Colors = ReturnType<typeof paletteFrom>;
 const makeStyles = (colors: Colors) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
-    body: { flex: 1, justifyContent: "center", padding: spacing.lg, ...formColumn },
+    body: {
+      flex: 1,
+      justifyContent: "center",
+      padding: spacing.lg,
+      ...formColumn,
+    },
     title: {
       color: colors.text,
       fontSize: 28,
@@ -277,5 +298,9 @@ const makeStyles = (colors: Colors) =>
       fontFamily: fonts.regular,
     },
     linkButton: { marginTop: spacing.lg, alignItems: "center" },
-    linkText: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
+    linkText: {
+      color: colors.textMuted,
+      fontSize: 14,
+      fontFamily: fonts.regular,
+    },
   });

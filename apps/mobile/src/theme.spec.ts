@@ -34,7 +34,10 @@ test("isCompletePalette rejects empty / partial / non-object", () => {
 
 test("isCompleteAppConfig requires BOTH palettes complete", () => {
   assert.equal(isCompleteAppConfig(DEFAULT_APP_CONFIG), true);
-  assert.equal(isCompleteAppConfig({ ...DEFAULT_APP_CONFIG, light: {} }), false);
+  assert.equal(
+    isCompleteAppConfig({ ...DEFAULT_APP_CONFIG, light: {} }),
+    false,
+  );
   assert.equal(
     isCompleteAppConfig({ ...DEFAULT_APP_CONFIG, dark: { primary: "#fff" } }),
     false,

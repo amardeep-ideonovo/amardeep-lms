@@ -21,7 +21,9 @@ export function stripHtml(html: string | null | undefined): string {
 }
 
 // "2hr 52min" / "45min" — total class duration (web classes/[slug] fmtTotal).
-export function fmtTotalDuration(totalSeconds: number | null | undefined): string {
+export function fmtTotalDuration(
+  totalSeconds: number | null | undefined,
+): string {
   if (!totalSeconds || totalSeconds <= 0) return "";
   const mins = Math.round(totalSeconds / 60);
   const h = Math.floor(mins / 60);

@@ -41,7 +41,8 @@ export function LoginScreen({ navigation }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = email.trim().length > 0 && password.length > 0 && !submitting;
+  const canSubmit =
+    email.trim().length > 0 && password.length > 0 && !submitting;
 
   async function onSubmit() {
     if (!canSubmit) return;
@@ -186,83 +187,84 @@ export function LoginScreen({ navigation }: Props) {
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.chrome },
-  flex: { flex: 1 },
-  container: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    ...formColumn,
-  },
-  brandBlock: { alignItems: "center", marginBottom: spacing.lg },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  brand: {
-    color: "#ffffff",
-    fontSize: 26,
-    fontFamily: fonts.bold,
-    textAlign: "center",
-  },
-  logo: {
-    height: 56,
-    width: 220,
-    alignSelf: "center",
-  },
-  tagline: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: spacing.sm,
-    fontFamily: fonts.regular,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    padding: spacing.lg,
-    shadowColor: "#0b0b0e",
-    shadowOffset: { width: 0, height: 14 },
-    shadowOpacity: 0.25,
-    shadowRadius: 24,
-    elevation: 10,
-  },
-  cardTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontFamily: fonts.bold,
-  },
-  cardSub: {
-    color: colors.textMuted,
-    fontSize: 12.5,
-    marginTop: 2,
-    marginBottom: spacing.md,
-    fontFamily: fonts.regular,
-  },
-  input: {
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 10,
-    color: colors.text,
-    fontSize: 15,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md - 2,
-    marginBottom: spacing.md - 4,
-    fontFamily: fonts.regular,
-  },
-  button: { marginTop: spacing.xs },
-  buttonText: { fontSize: 14, fontFamily: fonts.bold },
-  error: {
-    color: colors.danger,
-    marginBottom: spacing.sm,
-    textAlign: "center",
-    fontFamily: fonts.regular,
-  },
-  linkButton: { marginTop: spacing.lg, alignItems: "center" },
-  linkText: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 13.5,
-    fontFamily: fonts.regular,
-  },
-  linkTextStrong: { color: colors.primaryOnDark, fontFamily: fonts.bold },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: colors.chrome },
+    flex: { flex: 1 },
+    container: {
+      flexGrow: 1,
+      justifyContent: "center",
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.lg,
+      ...formColumn,
+    },
+    brandBlock: { alignItems: "center", marginBottom: spacing.lg },
+    brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+    brand: {
+      color: "#ffffff",
+      fontSize: 26,
+      fontFamily: fonts.bold,
+      textAlign: "center",
+    },
+    logo: {
+      height: 56,
+      width: 220,
+      alignSelf: "center",
+    },
+    tagline: {
+      color: "rgba(255,255,255,0.55)",
+      fontSize: 13,
+      textAlign: "center",
+      marginTop: spacing.sm,
+      fontFamily: fonts.regular,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 18,
+      padding: spacing.lg,
+      shadowColor: "#0b0b0e",
+      shadowOffset: { width: 0, height: 14 },
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+      elevation: 10,
+    },
+    cardTitle: {
+      color: colors.text,
+      fontSize: 18,
+      fontFamily: fonts.bold,
+    },
+    cardSub: {
+      color: colors.textMuted,
+      fontSize: 12.5,
+      marginTop: 2,
+      marginBottom: spacing.md,
+      fontFamily: fonts.regular,
+    },
+    input: {
+      backgroundColor: colors.bg,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 10,
+      color: colors.text,
+      fontSize: 15,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md - 2,
+      marginBottom: spacing.md - 4,
+      fontFamily: fonts.regular,
+    },
+    button: { marginTop: spacing.xs },
+    buttonText: { fontSize: 14, fontFamily: fonts.bold },
+    error: {
+      color: colors.danger,
+      marginBottom: spacing.sm,
+      textAlign: "center",
+      fontFamily: fonts.regular,
+    },
+    linkButton: { marginTop: spacing.lg, alignItems: "center" },
+    linkText: {
+      color: "rgba(255,255,255,0.55)",
+      fontSize: 13.5,
+      fontFamily: fonts.regular,
+    },
+    linkTextStrong: { color: colors.primaryOnDark, fontFamily: fonts.bold },
+  });
