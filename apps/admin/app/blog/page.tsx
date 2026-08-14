@@ -70,7 +70,7 @@ export default function BlogPage() {
 
   useEffect(() => {
     if (authLoading || !can("blog", "read")) return;
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 

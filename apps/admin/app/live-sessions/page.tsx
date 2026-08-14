@@ -206,7 +206,7 @@ export default function LiveSessionsPage() {
   }
   useEffect(() => {
     if (authLoading || !can("liveSessions", "read")) return;
-    load();
+    void load();
     // Classes for the audience picker (used in the editor).
     api.listLevels().then(setLevels).catch(() => setLevels([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -252,7 +252,7 @@ export default function LiveSessionsPage() {
   function backToList() {
     setMode("list");
     setEditingId(null);
-    load();
+    void load();
   }
 
   // Create/update/publish all return the full AdminLiveSessionDTO through the

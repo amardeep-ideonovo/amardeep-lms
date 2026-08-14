@@ -304,7 +304,7 @@ export default function Sidebar() {
           if (active) setSupportUnread(r.count);
         })
         .catch(() => undefined);
-    tick();
+    void tick();
     const timer = setInterval(tick, 30_000);
     return () => {
       active = false;

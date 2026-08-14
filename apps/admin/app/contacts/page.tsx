@@ -177,7 +177,7 @@ export default function ContactsPage() {
   // Initial load (once auth resolves + permission present).
   useEffect(() => {
     if (authLoading || !can("contacts", "read")) return;
-    loadAudiences();
+    void loadAudiences();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
@@ -203,12 +203,12 @@ export default function ContactsPage() {
       setSegments([]);
       return;
     }
-    loadContacts(selectedId);
+    void loadContacts(selectedId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, statusFilter, tagFilter, debouncedSearch, page]);
 
   useEffect(() => {
-    if (selectedId) loadPanels(selectedId);
+    if (selectedId) void loadPanels(selectedId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 

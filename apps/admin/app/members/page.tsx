@@ -119,7 +119,7 @@ export default function MembersPage() {
 
   useEffect(() => {
     if (authLoading || !can("members", "read")) return;
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, load]);
 

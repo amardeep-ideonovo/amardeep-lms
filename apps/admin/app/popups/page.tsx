@@ -73,7 +73,7 @@ export default function PopupsPage() {
 
   useEffect(() => {
     if (authLoading || !can("popups", "read")) return;
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 

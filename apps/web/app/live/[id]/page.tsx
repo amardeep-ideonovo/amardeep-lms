@@ -71,7 +71,7 @@ function LiveInner() {
   }, [id, router]);
 
   useEffect(() => {
-    loadShell();
+    void loadShell();
   }, [loadShell]);
 
   useEffect(() => {

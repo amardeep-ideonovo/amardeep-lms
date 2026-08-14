@@ -106,7 +106,7 @@ export default function ClassesPage() {
 
   useEffect(() => {
     if (authLoading || !can("classes", "read")) return;
-    load();
+    void load();
     // Courses for the per-class counts. 403 (no permission) → hide columns.
     if (can("courses", "read")) {
       api

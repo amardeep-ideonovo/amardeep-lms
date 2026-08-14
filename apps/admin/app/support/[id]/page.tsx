@@ -185,7 +185,7 @@ export default function SupportThreadPage() {
 
   useEffect(() => {
     let active = true;
-    (async () => {
+    void (async () => {
       setLoading(true);
       setError(null);
       try {

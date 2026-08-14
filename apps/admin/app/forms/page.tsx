@@ -243,7 +243,7 @@ export default function FormsPage() {
   }
   useEffect(() => {
     if (authLoading || !can("forms", "read")) return;
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
@@ -284,13 +284,13 @@ export default function FormsPage() {
     setFormError(null);
     setMergeFields([]);
     setMode("edit");
-    loadAudiences();
+    void loadAudiences();
   }
 
   async function openEdit(id: string) {
     setFormError(null);
     setMode("edit");
-    loadAudiences();
+    void loadAudiences();
     try {
       const f = await api.getForm(id);
       setEditingId(f.id);
@@ -307,7 +307,7 @@ export default function FormsPage() {
         afterSubmit: f.redirectUrl ? "redirect" : "message",
         status: f.status,
       });
-      if (f.audienceId) loadMergeFields(f.audienceId);
+      if (f.audienceId) void loadMergeFields(f.audienceId);
     } catch (err) {
       setFormError(err instanceof ApiError ? err.message : "Failed to load form");
     }
@@ -316,7 +316,7 @@ export default function FormsPage() {
   function backToList() {
     setMode("list");
     setEditingId(null);
-    load();
+    void load();
   }
 
   // Create/update return exactly the FormAdminRow the list renders (same
@@ -339,7 +339,7 @@ export default function FormsPage() {
       audienceId: id,
       audienceName: a?.name ?? "",
     }));
-    loadMergeFields(id);
+    void loadMergeFields(id);
   }
 
   // ----- field builder -----

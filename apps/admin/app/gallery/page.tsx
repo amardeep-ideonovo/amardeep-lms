@@ -79,7 +79,7 @@ export default function MediaPage() {
   // Initial load + reload on filter/page change. Search is debounced.
   useEffect(() => {
     if (authLoading || !can("gallery", "read")) return;
-    load(1, q, kind);
+    void load(1, q, kind);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, authLoading]);
   useEffect(() => {
@@ -536,7 +536,7 @@ function MediaDetails({
     navigator.clipboard?.writeText(asset.url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    });
+    }).catch(() => {});
   }
 
   async function save() {

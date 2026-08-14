@@ -135,7 +135,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     let active = true;
-    (async () => {
+    void (async () => {
       try {
         const [u, cfg, resolved] = await Promise.all([
           getCurrentUser(),

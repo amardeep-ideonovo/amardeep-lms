@@ -145,7 +145,7 @@ export default function PageEditor() {
     if (!id) return;
     if (authLoading || !can("pages", "read")) return;
     let alive = true;
-    (async () => {
+    void (async () => {
       try {
         const page = await api.getPage(id);
         if (!alive) return;
@@ -374,7 +374,7 @@ export default function PageEditor() {
           onChange={(data) => scheduleSave(data)}
           onPublish={(data) => {
             latest.current = data;
-            saveStatus("PUBLISHED");
+            void saveStatus("PUBLISHED");
           }}
         />
       </div>

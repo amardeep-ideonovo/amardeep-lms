@@ -39,7 +39,7 @@ export default function FormPickerField({
 
   useEffect(() => {
     let alive = true;
-    loadForms().then((f) => alive && setForms(f));
+    void loadForms().then((f) => alive && setForms(f));
     return () => {
       alive = false;
     };

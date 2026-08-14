@@ -98,7 +98,7 @@ function CourseInner() {
         setError(err instanceof Error ? err.message : "Failed to load lessons.");
       }
     }
-    run();
+    void run();
     return () => {
       active = false;
     };

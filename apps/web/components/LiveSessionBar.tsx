@@ -74,9 +74,9 @@ export default function LiveSessionBar() {
   }, []);
 
   useEffect(() => {
-    load();
+    void load();
     const onFocus = () => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") void load();
     };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
@@ -98,7 +98,7 @@ export default function LiveSessionBar() {
   useEffect(() => {
     if (!sessions) return;
     const sig = sessions.map((s) => `${s.id}:${phaseOf(s, now)}`).join("|");
-    if (phasesRef.current && phasesRef.current !== sig) load();
+    if (phasesRef.current && phasesRef.current !== sig) void load();
     phasesRef.current = sig;
   }, [now, sessions, load]);
 

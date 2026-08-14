@@ -79,11 +79,11 @@ export default function NotificationBell() {
       if (document.hidden) {
         stop();
       } else {
-        fetchUnread();
+        void fetchUnread();
         start();
       }
     };
-    fetchUnread();
+    void fetchUnread();
     start();
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
@@ -114,7 +114,7 @@ export default function NotificationBell() {
   const toggle = () => {
     const next = !open;
     setOpen(next);
-    if (next) loadList();
+    if (next) void loadList();
   };
 
   // The touched slice for both marks is the same pair: which rows show as read,

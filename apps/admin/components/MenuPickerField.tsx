@@ -38,7 +38,7 @@ export default function MenuPickerField({
 
   useEffect(() => {
     let alive = true;
-    loadMenus().then((m) => alive && setMenus(m));
+    void loadMenus().then((m) => alive && setMenus(m));
     return () => {
       alive = false;
     };

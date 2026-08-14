@@ -111,7 +111,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (authLoading) return;
     let alive = true;
-    (async () => {
+    void (async () => {
       // Fetch only what this admin may read; tolerate per-call failures.
       const [m, l, c, s, n] = await Promise.allSettled([
         can("members", "read")

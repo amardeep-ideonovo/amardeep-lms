@@ -169,7 +169,7 @@ function DashboardInner() {
         setError(err instanceof Error ? err.message : "Failed to load dashboard.");
       }
     }
-    load();
+    void load();
     api
       .myCertificates()
       .then((rows) => mounted && setCerts(rows))
@@ -177,7 +177,7 @@ function DashboardInner() {
     // Refresh when the member returns to this tab so a class purchased elsewhere
     // (or an admin grant) flips to "Enrolled" without a manual reload.
     const refresh = () => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") void load();
     };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);

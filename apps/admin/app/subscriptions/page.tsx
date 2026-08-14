@@ -75,7 +75,7 @@ export default function SubscriptionsPage() {
   }
   useEffect(() => {
     if (authLoading || !can("subscriptions", "read")) return;
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 

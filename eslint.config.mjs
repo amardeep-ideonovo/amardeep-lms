@@ -125,8 +125,25 @@ export default tseslint.config(
       },
     },
     rules: {
-      "@typescript-eslint/no-floating-promises": "warn",
-      "@typescript-eslint/await-thenable": "warn",
+      // Error, not warn: the 271-site backlog was burned down to zero in the
+      // baseline PR (await / void / .catch chosen per site, not blanket).
+      "@typescript-eslint/no-floating-promises": [
+        "error",
+        {
+          // node:test's test() returns a promise the RUNNER coordinates —
+          // top-level test(...) calls are safe unawaited by design (this is
+          // the canonical allowForKnownSafeCalls use case). Without this,
+          // every API spec file lights up.
+          allowForKnownSafeCalls: [
+            {
+              from: "package",
+              name: ["test", "it", "describe"],
+              package: "node:test",
+            },
+          ],
+        },
+      ],
+      "@typescript-eslint/await-thenable": "error",
       // checksVoidReturn.attributes would flag every `onClick={async ...}`,
       // which this codebase uses idiomatically.
       "@typescript-eslint/no-misused-promises": [

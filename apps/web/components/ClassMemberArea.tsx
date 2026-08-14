@@ -65,7 +65,7 @@ function resolveOwnership(slugOrId: string): Promise<Ownership> {
       }))
       .catch(() => ({ owned: false, courses: [], certificate: null }));
     inflight.set(slugOrId, p);
-    p.finally(() => {
+    void p.finally(() => {
       setTimeout(() => inflight.delete(slugOrId), 0);
     });
   }
@@ -354,7 +354,7 @@ export default function ClassMemberArea({
 
   useEffect(() => {
     let active = true;
-    resolveOwnership(slugOrId).then((res) => {
+    void resolveOwnership(slugOrId).then((res) => {
       if (!active) return;
       setOwned(res.owned);
       setCourses(res.courses);
@@ -370,7 +370,7 @@ export default function ClassMemberArea({
   useEffect(() => {
     if (slot !== "body" || !owned || courses.length === 0) return;
     let active = true;
-    Promise.all(
+    void Promise.all(
       courses.map((c) =>
         api
           .courseLessons(c.id)

@@ -104,7 +104,7 @@ export default function CoursesPage() {
 
   useEffect(() => {
     if (authLoading || !can("courses", "read")) return;
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
@@ -651,7 +651,7 @@ function CourseLessons({
   }
 
   useEffect(() => {
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
 

@@ -61,7 +61,7 @@ export default function AdminsPage() {
   }, []);
 
   useEffect(() => {
-    if (isSuperAdmin) load();
+    if (isSuperAdmin) void load();
   }, [isSuperAdmin, load]);
 
   if (authLoading) return <p className="muted">Loading…</p>;

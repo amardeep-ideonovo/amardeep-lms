@@ -578,7 +578,7 @@ function MobileOverviewCard({
             type="button"
             className="btn btn-primary"
             onClick={() => {
-              navigator.clipboard?.writeText(instance.id);
+              navigator.clipboard?.writeText(instance.id).catch(() => {});
               setCopied(true);
               setTimeout(() => setCopied(false), 1600);
             }}

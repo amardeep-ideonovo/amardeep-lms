@@ -65,7 +65,7 @@ export default function EmailLogsPage() {
   // Initial + filter-driven load (once auth resolves + permission present).
   useEffect(() => {
     if (authLoading || !can("email", "read")) return;
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, statusFilter, debouncedSearch, page]);
 

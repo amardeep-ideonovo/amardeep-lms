@@ -224,4 +224,10 @@ async function bootstrap() {
   console.log(`[api] listening on :${port}`);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  // A failed boot must exit nonzero (compose restart policy + health checks
+  // depend on it) — with the error logged plainly, not as an unhandled
+  // rejection stack the process reaper may swallow.
+  console.error('[api] fatal during bootstrap:', err);
+  process.exit(1);
+});

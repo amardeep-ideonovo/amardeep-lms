@@ -238,7 +238,7 @@ export default function PopupEditor() {
     if (!id) return;
     if (authLoading || !can("popups", "read")) return;
     let alive = true;
-    (async () => {
+    void (async () => {
       try {
         const [popup, pageList] = await Promise.all([
           api.getPopup(id),
