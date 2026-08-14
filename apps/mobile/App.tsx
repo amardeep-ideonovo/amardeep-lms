@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import type { LinkingOptions } from "@react-navigation/native";
@@ -10,12 +10,14 @@ import { StatusBar } from "expo-status-bar";
 import * as ExpoLinking from "expo-linking";
 import { useFonts } from "expo-font";
 import {
-  SpaceGrotesk_400Regular,
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_600SemiBold,
-  SpaceGrotesk_700Bold,
-} from "@expo-google-fonts/space-grotesk";
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from "@expo-google-fonts/plus-jakarta-sans";
 
+import { AnimatedSplash } from "./src/components/AnimatedSplash";
 import { AuthProvider, useAuth } from "./src/auth";
 import { IS_LOCKED_BUILD, WEB_BASE_URL, unbindInstance } from "./src/config";
 import { ConfigProvider, useAppConfig } from "./src/config-provider";
@@ -417,14 +419,22 @@ export default function App() {
   // Load the brand faces before first paint. On error we proceed anyway so a
   // font hiccup never hangs the app (text falls back to the system face).
   const [fontsLoaded, fontError] = useFonts({
-    SpaceGrotesk_400Regular,
-    SpaceGrotesk_500Medium,
-    SpaceGrotesk_600SemiBold,
-    SpaceGrotesk_700Bold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
   });
-  if (!fontsLoaded && !fontError) return null;
+  // ~2s branded boot: the animated splash overlays the app while it loads
+  // (providers below mount and fetch underneath), then fades itself out.
+  const [splashDone, setSplashDone] = useState(false);
+  if (!fontsLoaded && !fontError) return null; // native splash stays up
   return (
     <SafeAreaProvider>
+      {/* Plain flex wrapper so the AnimatedSplash overlay's absolute-fill
+          positions against the full screen (SafeAreaProvider's native layout
+          must not own the overlay). */}
+      <View style={styles.appRoot}>
       <InstanceGate>
         {/* QueryProvider is INSIDE InstanceGate on purpose: an academy switch
             remounts this subtree (key=API_BASE_URL) and the new QueryClient
@@ -443,11 +453,14 @@ export default function App() {
           </ConfigProvider>
         </QueryProvider>
       </InstanceGate>
+      {!splashDone && <AnimatedSplash onDone={() => setSplashDone(true)} />}
+      </View>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  appRoot: { flex: 1 },
   center: {
     flex: 1,
     alignItems: "center",

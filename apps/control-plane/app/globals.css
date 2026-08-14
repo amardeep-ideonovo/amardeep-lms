@@ -1,11 +1,11 @@
 /* ============================================================
    Spotlight Ops — "Spark" design tokens (teal + mint on ink,
-   cream canvas, Space Grotesk; Ink Hero structure)
+   cream canvas, Plus Jakarta Sans; Ink Hero structure)
    ============================================================ */
 
 :root {
   /* ---- Type ---- */
-  --font-sans: var(--font-grotesk), "Space Grotesk", system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   --font-mono: ui-monospace, Menlo, monospace;
 
   /* ---- Ink chrome ---- */

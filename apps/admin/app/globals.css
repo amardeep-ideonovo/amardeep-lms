@@ -1,7 +1,7 @@
 /* =========================================================================
    LMS Admin — "Spark" theme (single appearance; Ink Hero structure).
    Ink #101014 chrome (sidebar + top bar) around a cream #f6f4ef content panel
-   with the signature 22px top-left radius. Teal accent, Space Grotesk.
+   with the signature 22px top-left radius. Teal accent, Plus Jakarta Sans.
    All original class names are preserved, so every page reskins automatically.
    NOTE: `:root` and `:root[data-theme="light"]` intentionally carry the SAME
    values — any stored theme preference renders identically.
@@ -88,10 +88,10 @@
   --primary: #34c9a2;
   --primary-dark: #2aa283;
 
-  /* fonts (next/font var injected on <html>) — Space Grotesk everywhere */
-  --font-display: var(--font-grotesk), system-ui, -apple-system, "Segoe UI",
+  /* fonts (next/font var injected on <html>) — Plus Jakarta Sans everywhere */
+  --font-display: var(--font-jakarta), system-ui, -apple-system, "Segoe UI",
     Roboto, sans-serif;
-  --font-sans: var(--font-grotesk), system-ui, -apple-system, "Segoe UI",
+  --font-sans: var(--font-jakarta), system-ui, -apple-system, "Segoe UI",
     Roboto, sans-serif;
 
   /* gradients */
@@ -2761,7 +2761,7 @@ select:-webkit-autofill:focus {
 }
 
 /* =========================================================================
-   DISPLAY TYPE — Space Grotesk everywhere (display == sans in Spark).
+   DISPLAY TYPE — Plus Jakarta Sans everywhere (display == sans in Spark).
    ========================================================================= */
 h1,
 .dash-hero-title {
