@@ -1,8 +1,9 @@
 name: Build
 
-# Runs in parallel with the BDD workflow. Currently INFORMATIONAL ONLY —
-# it does not block merges. Once stable for ~2 weeks we can promote any
-# of these jobs to required checks in the repo ruleset.
+# Runs alongside the BDD workflow on every PR to main. Every job here is a
+# REQUIRED check in the protect-main repo ruleset (lint included since the
+# repo-wide Prettier sweep; its ESLint step stays warning-first — see the
+# lint job comment).
 #
 # The goal is to stop "merged green, broke on deploy" — typecheck/bundle
 # regressions in admin/web/mobile that BDD's API-only check misses.
@@ -10,8 +11,6 @@ name: Build
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [amardeepLMS]
 
 jobs:
   # Repo-wide ESLint (root flat config). Warning-first baseline: the job fails

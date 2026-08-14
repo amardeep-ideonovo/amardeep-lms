@@ -1,12 +1,10 @@
 name: BDD
 
-# Gates merges into main: BDD scenarios must pass on every PR targeting main.
-# Also runs on pushes to amardeepLMS for fast feedback while developing.
+# Gates merges into main: BDD scenarios must pass on every PR targeting main
+# (required check in the protect-main repo ruleset).
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [amardeepLMS]
 
 jobs:
   bdd:

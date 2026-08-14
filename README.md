@@ -16,9 +16,10 @@ packages/types  Shared TS types / API client
 
 ## Status
 
-Foundation scaffolded: monorepo, Prisma schema (the data model), env template.
-The four apps are stubs — each needs its framework scaffold (commands in each
-`package.json` description). Build order is the phasing list in PLAN.md.
+**Live in production.** The platform runs as a fleet of per-client Docker
+instances (API + admin + member web + Postgres + Redis, behind Caddy for
+HTTPS) on a VPS, provisioned and upgraded by the licensing control plane
+(separate repo). This repo builds the runtime images every instance pulls.
 
 ## Getting started
 
@@ -29,31 +30,36 @@ The four apps are stubs — each needs its framework scaffold (commands in each
 5. `npm run dev:api` (:3000), `npm run dev:admin` (:3001), `npm run dev:web` (:3002).
    Mobile: `cd apps/mobile && npm start`.
 
-All four apps are scaffolded and compile/build clean. Next: the WordPress
-migration tooling.
+## Deployment (production)
 
-## Deployment (pre-prod → prod)
+Self-hosted on a VPS fleet — server bring-up in
+[`deploy/SERVER-SETUP.md`](deploy/SERVER-SETUP.md), day-2 operations in
+[`deploy/VPS-GUIDEBOOK.md`](deploy/VPS-GUIDEBOOK.md).
 
-Auto-deploys from `main`; no custom middleware needed.
-
-- **Frontends (admin, member web) → Vercel.** Two Vercel projects, each with
-  **Root Directory** = `apps/admin` / `apps/web`. Vercel auto-builds on push to
-  `main` and gives a preview deploy per PR. Set `NEXT_PUBLIC_API_URL` per project.
-- **API + Postgres + Redis → Render** via [`render.yaml`](render.yaml) (Blueprint).
-  Render provisions the DB + Redis, builds [`apps/api/Dockerfile`](apps/api/Dockerfile),
-  runs `prisma migrate deploy`, and redeploys on push to `main`. Health check: `/health`.
-  Secrets (`SETTINGS_ENC_KEY`, Stripe keys, `WEB_APP_URL`, `CORS_ORIGIN`)
-  are set in the Render dashboard, never committed.
-- The shared Plesk host (static/PHP only) is **not** used for the app — DNS can
-  point your domain/subdomains at Vercel + Render.
+- Push to `main` → [`images.yml`](.github/workflows/images.yml) builds the
+  three runtime images (api, web, admin) and pushes them to GHCR as
+  `latest` + `sha-<sha>`.
+- Client instances **pull** those tags (runtime env means one shared image
+  serves every client). Rolling the fleet to a new tag is an operator action
+  from the control plane — never automatic on push.
 - Mobile (Expo) ships via TestFlight/Play, not web deploy.
+- [`render.yaml`](render.yaml) is **legacy** — the original Vercel + Render
+  plan, never used for production. It declares `autoDeploy: true`, so before
+  deleting it confirm in the Render dashboard that no service is still
+  connected to this repo.
 
-## Branching & BDD gate
+## Branching & CI gate
 
-- Work lands on **`amardeepLMS`** first, then merges to **`main`** via PR.
-- The BDD suite (`packages/bdd`, Cucumber.js, API-level) runs on every PR to
-  `main` via `.github/workflows/bdd.yml` and must pass before merge
-  (enforced by branch protection on `main`).
+- Work happens on short-lived `claude/*` feature branches → PR →
+  **squash-merge to `main`**. No long-lived integration branch.
+- The `protect-main` repo ruleset requires these checks green on every PR
+  before merge:
+  - `bdd` — the BDD suite (`packages/bdd`, Cucumber.js, API-level) via
+    [`bdd.yml`](.github/workflows/bdd.yml).
+  - `Lint`, `TypeCheck (mobile|puck|bdd|db)`, `Test (mobile)`,
+    `Next build (admin)` and `Next build (web)` via
+    [`build.yml`](.github/workflows/build.yml). (ESLint inside `Lint` is
+    warning-first — the job fails only on lint errors or Prettier drift.)
 - Run BDDs locally against a running API:
   ```bash
   npm run dev:api                     # API on :3000 (DB seeded)
