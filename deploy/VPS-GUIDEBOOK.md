@@ -5,10 +5,10 @@ fleet of client LMS instances, and the member-facing apps** (web + admin per
 instance; mobile via the store track). Written against the current state of
 both repos (2026-07-07):
 
-| Repo | Deploy from | Provides |
-|---|---|---|
-| `LMS` (this repo) | `main` | The product: API/web/admin images ([images.yml](../.github/workflows/images.yml)), per-instance stack ([instance/](instance/)), mobile app (`apps/mobile`) |
-| `licensing-dashboard` | `portal-self-serve` | The control plane: operator dashboard, client portal, provisioner, fleet Caddy ingress, custom domains, EAS orchestrator |
+| Repo                  | Deploy from         | Provides                                                                                                                                                   |
+| --------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LMS` (this repo)     | `main`              | The product: API/web/admin images ([images.yml](../.github/workflows/images.yml)), per-instance stack ([instance/](instance/)), mobile app (`apps/mobile`) |
+| `licensing-dashboard` | `portal-self-serve` | The control plane: operator dashboard, client portal, provisioner, fleet Caddy ingress, custom domains, EAS orchestrator                                   |
 
 > `apps/control-plane` in this repo is a **static UI with a mock provisioner**
 > (sales page + design surfaces). The functional operator/client dashboards
@@ -65,7 +65,7 @@ flagship + ~6–10 small client instances; disk is the least of your worries.
 - **Domain + DNS access** (zone can stay on the Plesk panel).
 - **GitHub PAT** with `read:packages` (pull GHCR images) and repo read (clone
   private repos). Fine-grained or classic both work.
-- **Stripe account** for *selling licenses* (control-plane checkout). Note:
+- **Stripe account** for _selling licenses_ (control-plane checkout). Note:
   the current `portal-self-serve` checkout is **USD-hardcoded** and the known
   Stripe-India activation issue applies — see §14 gaps.
 - **Resend API key** (optional at boot) for control-plane emails; each
@@ -108,10 +108,10 @@ No swap needed at 16 GB.
 
 A records → VPS IP. As built on `ontimewebsolutions.com`:
 
-| Record | Type | Purpose |
-|---|---|---|
-| `operator` | A | Control plane (operator dashboard + client portal) |
-| `*.app` | A (wildcard) | Fleet subdomains: `<client>.app`, `<client>-admin.app`, `<client>-api.app` |
+| Record     | Type         | Purpose                                                                    |
+| ---------- | ------------ | -------------------------------------------------------------------------- |
+| `operator` | A            | Control plane (operator dashboard + client portal)                         |
+| `*.app`    | A (wildcard) | Fleet subdomains: `<client>.app`, `<client>-admin.app`, `<client>-api.app` |
 
 Caddy issues certs via HTTP-01 on first request, so records must resolve
 before the first hit. Client custom domains are added per instance from the
@@ -161,19 +161,19 @@ cp .env.example .env && nano .env
 
 Minimum viable `.env`:
 
-| Var | Value |
-|---|---|
-| `CP_DB_USER` / `CP_DB_PASSWORD` / `CP_DB_NAME` | control-plane Postgres creds (generate the password) |
-| `SESSION_SECRET` | `openssl rand -hex 32` |
-| `SETTINGS_ENC_KEY` | `openssl rand -base64 32` — encrypts operator-entered secrets; back it up with the DB |
-| `NEXT_PUBLIC_APP_URL` | `https://console.<domain>` |
-| `OPERATOR_EMAIL` / `OPERATOR_PASSWORD` / `OPERATOR_NAME` | first Owner account (bootstrap creates it once, then ignores) |
-| `FLEET_BASE_DOMAIN` | `app.<domain>` (must match the wildcard DNS) |
-| `LMS_REPO_PATH` | `/opt/lms` — **required**: the code default is a macOS path (`/Users/amardeepsingh/LMS`) and provisioning fails without this override |
-| `LMS_IMAGE_REGISTRY` / `LMS_IMAGE_TAG` | `ghcr.io/<owner>/<repo>` / `latest` (or a pinned `sha-…`) |
-| `CRON_SECRET` | random — protects `/api/jobs/*` (§12) |
-| `BACKUP_HOST_DIR` / `BACKUP_KEEP_DAYS` | `/opt/lms-backups` / `7` |
-| Stripe / Resend / EAS keys | optional now; can be entered later in dashboard Settings (stored encrypted) |
+| Var                                                      | Value                                                                                                                                 |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `CP_DB_USER` / `CP_DB_PASSWORD` / `CP_DB_NAME`           | control-plane Postgres creds (generate the password)                                                                                  |
+| `SESSION_SECRET`                                         | `openssl rand -hex 32`                                                                                                                |
+| `SETTINGS_ENC_KEY`                                       | `openssl rand -base64 32` — encrypts operator-entered secrets; back it up with the DB                                                 |
+| `NEXT_PUBLIC_APP_URL`                                    | `https://console.<domain>`                                                                                                            |
+| `OPERATOR_EMAIL` / `OPERATOR_PASSWORD` / `OPERATOR_NAME` | first Owner account (bootstrap creates it once, then ignores)                                                                         |
+| `FLEET_BASE_DOMAIN`                                      | `app.<domain>` (must match the wildcard DNS)                                                                                          |
+| `LMS_REPO_PATH`                                          | `/opt/lms` — **required**: the code default is a macOS path (`/Users/amardeepsingh/LMS`) and provisioning fails without this override |
+| `LMS_IMAGE_REGISTRY` / `LMS_IMAGE_TAG`                   | `ghcr.io/<owner>/<repo>` / `latest` (or a pinned `sha-…`)                                                                             |
+| `CRON_SECRET`                                            | random — protects `/api/jobs/*` (§12)                                                                                                 |
+| `BACKUP_HOST_DIR` / `BACKUP_KEEP_DAYS`                   | `/opt/lms-backups` / `7`                                                                                                              |
+| Stripe / Resend / EAS keys                               | optional now; can be entered later in dashboard Settings (stored encrypted)                                                           |
 
 `PROVISION_DRIVER=cloud` is already set in the compose file — the cloud
 driver is what binds instance ports to loopback, injects real URLs/CORS, and
@@ -324,6 +324,7 @@ into the backup dir if client media matters (it does).
   nothing to restore from. The script is idempotent and aborts non-zero rather
   than let you upgrade over unrescued files; if it aborts, do not upgrade that
   instance until it passes.
+
 - **Control plane**: `git pull` in `/opt/licensing-dashboard` →
   `docker compose -f deploy/host/docker-compose.host.yml --env-file .env up -d --build`.
 - **Caddy**: routes live in the DB too — after any Caddy mishap,

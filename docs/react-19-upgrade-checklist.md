@@ -6,7 +6,7 @@
 >
 > **Verdict:** **Defer, but schedule.** Nothing user-visible and nothing in the
 > perceived-latency plan is blocked on this. Do it as a **maintenance-currency**
-> window (or as step 0 of the cookie-auth + RSC P4 work), *not* for features.
+> window (or as step 0 of the cookie-auth + RSC P4 work), _not_ for features.
 
 ---
 
@@ -36,7 +36,7 @@
    platform-wide.
 3. Native `useOptimistic` / `useActionState` / `use()` — **marginal**: P0–P3
    already shipped hand-rolled equivalents. This is refactoring working code, not
-   a user-visible win. Don't upgrade *for* this.
+   a user-visible win. Don't upgrade _for_ this.
 4. Precursor to the **cookie-auth + RSC** P4 item and eligibility for the React
    Compiler later. If you're going to do RSC/cookie-auth, upgrade **first** so you
    don't rewrite the same pages twice.
@@ -51,18 +51,20 @@
 TS codemod surface also zero (`JSX.Element` 0, bare `useRef()` 0).
 
 Re-run:
+
 ```bash
 SRC="apps/web apps/admin apps/control-plane"
 grep -rEn "\.defaultProps|propTypes|findDOMNode|ReactDOM\.render\(|unmountComponentAtNode|createFactory|getChildContext|useFormState|ReactChild|ReactText|\bVFC\b" $SRC --include="*.ts" --include="*.tsx"
 ```
 
 **Dependency React-19 peer readiness (swept all direct deps):**
-| Package | Peer range | 19-ready? |
-|---|---|---|
-| `@puckeditor/core` 0.21.3 (admin page builder — the scary one) | `^18.0.0 \|\| ^19.0.0` | ✅ no bump forced |
-| `@tiptap/react` 3.26.0 | `^17 \|\| ^18 \|\| ^19` | ✅ |
-| all hoisted `@radix-ui/*` (Puck internals) | allow 19 | ✅ |
-| `@zoom/meetingsdk` 6.2.0 | **`18.2.0` (exact)** | ⚠️ **see below** |
+
+| Package                                                        | Peer range              | 19-ready?         |
+| -------------------------------------------------------------- | ----------------------- | ----------------- |
+| `@puckeditor/core` 0.21.3 (admin page builder — the scary one) | `^18.0.0 \|\| ^19.0.0`  | ✅ no bump forced |
+| `@tiptap/react` 3.26.0                                         | `^17 \|\| ^18 \|\| ^19` | ✅                |
+| all hoisted `@radix-ui/*` (Puck internals)                     | allow 19                | ✅                |
+| `@zoom/meetingsdk` 6.2.0                                       | **`18.2.0` (exact)**    | ⚠️ **see below**  |
 
 ## ⚠️ The one blocker: `@zoom/meetingsdk`
 
@@ -116,8 +118,8 @@ grep -rEn "\.defaultProps|propTypes|findDOMNode|ReactDOM\.render\(|unmountCompon
        small `@types/react` 19 nits (children typing, ref types) — mechanical.
 6. [ ] `npx next build` in each app; resolve config/lint deprecations.
 7. [ ] Verify the mobile cast can be removed: delete `{children as never}` in
-       `apps/mobile/src/query.tsx` (now one React) and re-tsc mobile — *optional
-       cleanup, do it in this PR while the split is gone*.
+       `apps/mobile/src/query.tsx` (now one React) and re-tsc mobile — _optional
+       cleanup, do it in this PR while the split is gone_.
 
 ## Verification gates
 
@@ -161,6 +163,7 @@ next@14.2.5 peerDependencies.react = ^18.2.0   (⇐ why React 19 forces a Next m
 ```
 
 Version re-check:
+
 ```bash
 for w in apps/web apps/admin apps/control-plane apps/mobile; do
   node -e "const p=require('./$w/package.json');const d={...p.dependencies,...p.devDependencies};console.log('$w',d.next||'-',d.react,d['@types/react'])"

@@ -48,11 +48,11 @@ Time conversion via `common/wallclock.util.ts` — DONE (phase 1).
 
 Member (`JwtAuthGuard`):
 
-| Method | Path | Returns / gate |
-|---|---|---|
-| GET | `/live/current` | `LiveSessionBarDTO[]` (cap 3); entitlement; 200 `[]` if none |
-| GET | `/live/:id` | shell; not-entitled 403, DRAFT/unknown 404, CANCELED 410 (entitled) |
-| GET | `/live/:id/credentials` | decrypted creds; entitlement + window + `SCHEDULED`; throttled; writes `LiveJoinAudit` |
+| Method | Path                    | Returns / gate                                                                         |
+| ------ | ----------------------- | -------------------------------------------------------------------------------------- |
+| GET    | `/live/current`         | `LiveSessionBarDTO[]` (cap 3); entitlement; 200 `[]` if none                           |
+| GET    | `/live/:id`             | shell; not-entitled 403, DRAFT/unknown 404, CANCELED 410 (entitled)                    |
+| GET    | `/live/:id/credentials` | decrypted creds; entitlement + window + `SCHEDULED`; throttled; writes `LiveJoinAudit` |
 
 Admin (`PermissionsGuard` + `@RequirePermission('liveSessions', …)`): `GET
 /admin/live-sessions` (read), `GET /:id` (read), `GET /:id/reveal` (edit), `POST`

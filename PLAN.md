@@ -4,6 +4,7 @@ Replaces a WordPress + **WooCommerce Subscriptions** site. Reuses the **same Str
 account** (subscriptions keep billing — no migration of live subs, only reconciliation).
 
 ## Locked decisions
+
 - **Contacts/email:** ONE in-house contact list, each level = a **tag** (not a
   separate list per level). Tags dedup naturally and a user can hold many at once.
 - **Stripe multi-level:** one subscription with multiple line items (one invoice/charge).
@@ -16,16 +17,18 @@ account** (subscriptions keep billing — no migration of live subs, only reconc
   webhooks, never client redirects.
 
 ## Stack
-| Layer | Choice |
-|---|---|
-| API (the "backend") | NestJS + Postgres + Prisma |
-| Async jobs | Redis + BullMQ (contact/tag sync, webhooks, migration — idempotent + retryable) |
-| Admin panel (web only) | Next.js |
-| Member web | Next.js |
-| Mobile | Expo / React Native (shares the TS API client) |
-| Video | Mux (or Cloudflare Stream) |
+
+| Layer                  | Choice                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| API (the "backend")    | NestJS + Postgres + Prisma                                                      |
+| Async jobs             | Redis + BullMQ (contact/tag sync, webhooks, migration — idempotent + retryable) |
+| Admin panel (web only) | Next.js                                                                         |
+| Member web             | Next.js                                                                         |
+| Mobile                 | Expo / React Native (shares the TS API client)                                  |
+| Video                  | Mux (or Cloudflare Stream)                                                      |
 
 ## Monorepo layout
+
 ```
 apps/api      NestJS API — single source of truth, serves all clients
 apps/admin    Next.js admin (levels, members, LMS, Stripe keys)
@@ -36,7 +39,9 @@ packages/types Shared TS types / API client
 ```
 
 ## Data model
+
 See `packages/db/prisma/schema.prisma`. Keystones:
+
 - **UserLevel** join carries `source (stripe|manual)` + `status`, so a manual grant and a
   paid subscription for the same level coexist (resolves the manual+paid overlap edge case).
 - **CourseLevel** join: a course is assigned to many levels.
@@ -47,6 +52,7 @@ See `packages/db/prisma/schema.prisma`. Keystones:
 - **Setting** stores Stripe secrets encrypted at rest, write-only from admin UI.
 
 ## Backend modules (apps/api)
+
 1. Auth/RBAC — admin + member login; admin roles SUPER_ADMIN/ADMIN/EDITOR.
 2. Levels — CRUD; on create pick contact tag + create/link Stripe Product+Price.
 3. Members — list (Username, Email, Registered Date, all levels); manual add-to-level.
@@ -59,11 +65,13 @@ See `packages/db/prisma/schema.prisma`. Keystones:
 7. Migration — one-off import + reconciliation (below).
 
 ## Frontend
+
 - **Member web:** Login · Dashboard (lock/unlock per access) · Course→lesson list ·
   Lesson page (Mux player) · Account → Stripe Customer Portal.
 - **Mobile:** Login · Dashboard · Lesson playback · progress. Links out to web for billing.
 
 ## Migration & cutover (WooCommerce Subscriptions → same Stripe account)
+
 1. **Users:** MySQL dump (REST/CSV drop the Stripe meta). Import users; migrate WP
    phpass/bcrypt password hashes, transparently re-hash on first login (no forced reset).
 2. **Subscriptions:** none to migrate. Pull active subs from Stripe API, match
@@ -73,6 +81,7 @@ See `packages/db/prisma/schema.prisma`. Keystones:
    Keep WP read-only one billing cycle as fallback. Never run two writers.
 
 ## Security
+
 - Stripe secret keys encrypted at rest, write-only in admin UI, never returned to client.
 - Card updates via Stripe Elements/SetupIntents (no PAN on our servers).
 - Signed/expiring Mux playback URLs.
@@ -80,6 +89,7 @@ See `packages/db/prisma/schema.prisma`. Keystones:
 - GDPR/consent check before pushing migrated users into the contact list.
 
 ## QA / test strategy
+
 - Unit + integration per module; Stripe webhooks tested via Stripe CLI on a test account.
 - Idempotency tests for webhook + contact-sync handlers (out-of-order/duplicate events).
 - Migration dry-run against a WP staging dump with count reconciliation before cutover.
@@ -87,6 +97,7 @@ See `packages/db/prisma/schema.prisma`. Keystones:
   lesson playback → portal cancel → access revoked.
 
 ## Phasing
+
 1. Foundation — API skeleton, DB schema, auth/RBAC.
 2. LMS core — categories/courses/lessons, Mux, access rules, dashboard + lesson pages.
 3. Billing — Stripe products/prices, Customer Portal, webhooks → UserLevel.

@@ -28,7 +28,11 @@ services:
     volumes:
       - pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-lms}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-lms}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -127,7 +131,13 @@ services:
       # so only the shared Caddy ingress reaches the stack (raw HTTP not public).
       - "${PORT_BIND_IP:-127.0.0.1}:${API_PORT}:3000"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
