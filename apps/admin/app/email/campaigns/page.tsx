@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type {
   AudienceDTO,
   CampaignCadence,
@@ -220,7 +214,8 @@ export default function CampaignsPage() {
       ...emptyDraft(),
       // Preselect the first template/audience so the form is usable immediately.
       templateId: templates[0]?.id ?? "",
-      audienceId: audiences.find((a) => a.isDefault)?.id ?? audiences[0]?.id ?? "",
+      audienceId:
+        audiences.find((a) => a.isDefault)?.id ?? audiences[0]?.id ?? "",
     });
     setEditorError(null);
   }
@@ -284,10 +279,7 @@ export default function CampaignsPage() {
 
   // Row actions (schedule / pause / resume). Each refreshes the list and, when
   // the acted-on campaign is open in the editor, re-syncs the draft.
-  async function runAction(
-    c: CampaignDTO,
-    fn: () => Promise<CampaignDTO>,
-  ) {
+  async function runAction(c: CampaignDTO, fn: () => Promise<CampaignDTO>) {
     setBusyId(c.id);
     setError(null);
     try {
@@ -343,9 +335,9 @@ export default function CampaignsPage() {
           <h1>Campaigns</h1>
           <p className="subtitle">
             Scheduled email broadcasts to an audience (optionally a saved
-            segment). Send once at a set time, or repeat weekly, monthly, or on a
-            custom cron schedule. A built-in scheduler dispatches due campaigns
-            every minute.
+            segment). Send once at a set time, or repeat weekly, monthly, or on
+            a custom cron schedule. A built-in scheduler dispatches due
+            campaigns every minute.
           </p>
         </div>
         {canCreate && (
@@ -428,7 +420,9 @@ export default function CampaignsPage() {
                         <td>{CADENCE_LABEL[c.cadence]}</td>
                         <td>{fmt(c.nextRunAt)}</td>
                         <td style={{ textAlign: "right" }}>{c.sentCount}</td>
-                        <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                        <td
+                          style={{ textAlign: "right", whiteSpace: "nowrap" }}
+                        >
                           {canEdit &&
                             (c.status === "DRAFT" || c.status === "SENT") && (
                               <button
@@ -564,7 +558,8 @@ export default function CampaignsPage() {
 
             <div className="field">
               <label>
-                Segment <span className="muted">(optional — narrows the audience)</span>
+                Segment{" "}
+                <span className="muted">(optional — narrows the audience)</span>
               </label>
               <select
                 value={draft.segmentId}
@@ -660,8 +655,8 @@ export default function CampaignsPage() {
                 <span className={STATUS_CLASS[selected.status]}>
                   {STATUS_LABEL[selected.status]}
                 </span>{" "}
-                · Sent {selected.sentCount} · Next run {fmt(selected.nextRunAt)} ·
-                Last run {fmt(selected.lastRunAt)}
+                · Sent {selected.sentCount} · Next run {fmt(selected.nextRunAt)}{" "}
+                · Last run {fmt(selected.lastRunAt)}
               </div>
             )}
 
@@ -686,8 +681,7 @@ export default function CampaignsPage() {
               {!creating &&
                 selected &&
                 canEdit &&
-                (selected.status === "DRAFT" ||
-                  selected.status === "SENT") && (
+                (selected.status === "DRAFT" || selected.status === "SENT") && (
                   <button
                     type="button"
                     className="btn btn--ghost"

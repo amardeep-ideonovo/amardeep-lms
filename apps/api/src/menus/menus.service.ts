@@ -2,8 +2,8 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import type {
   CreateMenuInput,
   MenuDTO,
@@ -17,24 +17,24 @@ import type {
   ResolvedMenu,
   ResolvedMenuItem,
   UpdateMenuInput,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { buildHrefMaps, resolveHref } from './menu-href.util';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { buildHrefMaps, resolveHref } from "./menu-href.util";
 
 // Canonical value sets (the API can't import @lms/types runtime values).
-const LOCATIONS = ['HEADER', 'FOOTER', 'MOBILE'] as const;
+const LOCATIONS = ["HEADER", "FOOTER", "MOBILE"] as const;
 const ITEM_TYPES = [
-  'PAGE',
-  'CLASS',
-  'CLASS_INDEX',
-  'COURSE',
-  'COURSE_INDEX',
-  'BLOG_INDEX',
-  'BLOG_POST',
-  'ROUTE',
-  'CUSTOM',
+  "PAGE",
+  "CLASS",
+  "CLASS_INDEX",
+  "COURSE",
+  "COURSE_INDEX",
+  "BLOG_INDEX",
+  "BLOG_POST",
+  "ROUTE",
+  "CUSTOM",
 ] as const;
-const VISIBILITIES = ['ALL', 'GUEST', 'AUTHED', 'LEVEL'] as const;
+const VISIBILITIES = ["ALL", "GUEST", "AUTHED", "LEVEL"] as const;
 
 type MenuItemRow = Prisma.MenuItemGetPayload<Record<string, never>>;
 
@@ -44,7 +44,8 @@ export class MenusService {
 
   // ---------- validation helpers ----------
   private validLocation(loc: unknown): MenuLocation | null {
-    return typeof loc === 'string' && (LOCATIONS as readonly string[]).includes(loc)
+    return typeof loc === "string" &&
+      (LOCATIONS as readonly string[]).includes(loc)
       ? (loc as MenuLocation)
       : null;
   }
@@ -65,15 +66,16 @@ export class MenusService {
     return this.sortLocations([...seen]);
   }
   private validType(t: unknown): MenuItemType | null {
-    return typeof t === 'string' && (ITEM_TYPES as readonly string[]).includes(t)
+    return typeof t === "string" &&
+      (ITEM_TYPES as readonly string[]).includes(t)
       ? (t as MenuItemType)
       : null;
   }
   private validVisibility(v: unknown): MenuItemVisibility {
-    return typeof v === 'string' &&
+    return typeof v === "string" &&
       (VISIBILITIES as readonly string[]).includes(v)
       ? (v as MenuItemVisibility)
-      : 'ALL';
+      : "ALL";
   }
 
   // Keep only the target field(s) relevant to the item type; null the rest.
@@ -85,12 +87,12 @@ export class MenusService {
       courseId: null as string | null,
       postId: null as string | null,
     };
-    if (type === 'PAGE') d.pageId = input.pageId || null;
-    else if (type === 'CLASS') d.levelId = input.levelId || null;
-    else if (type === 'COURSE') d.courseId = input.courseId || null;
-    else if (type === 'BLOG_POST') d.postId = input.postId || null;
-    else if (type === 'ROUTE' || type === 'CUSTOM')
-      d.url = (input.url ?? '').trim() || null;
+    if (type === "PAGE") d.pageId = input.pageId || null;
+    else if (type === "CLASS") d.levelId = input.levelId || null;
+    else if (type === "COURSE") d.courseId = input.courseId || null;
+    else if (type === "BLOG_POST") d.postId = input.postId || null;
+    else if (type === "ROUTE" || type === "CUSTOM")
+      d.url = (input.url ?? "").trim() || null;
     // BLOG_INDEX has no target.
     return d;
   }
@@ -124,10 +126,10 @@ export class MenusService {
       where: { id: menuId },
       include: { locationAssignments: true },
     });
-    if (!menu) throw new NotFoundException('Menu not found');
+    if (!menu) throw new NotFoundException("Menu not found");
     const items = await this.prisma.menuItem.findMany({
       where: { menuId },
-      orderBy: { order: 'asc' },
+      orderBy: { order: "asc" },
     });
     const byParent = new Map<string | null, MenuItemRow[]>();
     for (const it of items) {
@@ -150,7 +152,7 @@ export class MenusService {
   // ---------- admin CRUD ----------
   async list(): Promise<MenuListItem[]> {
     const menus = await this.prisma.menu.findMany({
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
       include: {
         _count: { select: { items: true } },
         locationAssignments: true,
@@ -171,8 +173,8 @@ export class MenusService {
   }
 
   async create(dto: CreateMenuInput): Promise<MenuDTO> {
-    const name = (dto.name ?? '').trim();
-    if (!name) throw new BadRequestException('Name is required');
+    const name = (dto.name ?? "").trim();
+    if (!name) throw new BadRequestException("Name is required");
     const locations = this.normalizeLocations(dto.locations);
     const menu = await this.prisma.$transaction(async (tx) => {
       const m = await tx.menu.create({ data: { name: name.slice(0, 120) } });
@@ -192,12 +194,12 @@ export class MenusService {
 
   async update(id: string, dto: UpdateMenuInput): Promise<MenuDTO> {
     const existing = await this.prisma.menu.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Menu not found');
+    if (!existing) throw new NotFoundException("Menu not found");
 
     const data: Prisma.MenuUpdateInput = {};
     if (dto.name !== undefined) {
-      const n = (dto.name ?? '').trim();
-      if (!n) throw new BadRequestException('Name is required');
+      const n = (dto.name ?? "").trim();
+      if (!n) throw new BadRequestException("Name is required");
       data.name = n.slice(0, 120);
     }
     // Only an actual array reconciles assignments; anything else (omitted, or a
@@ -234,18 +236,18 @@ export class MenusService {
 
   async remove(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.menu.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Menu not found');
+    if (!existing) throw new NotFoundException("Menu not found");
     await this.prisma.menu.delete({ where: { id } }); // cascades items
     return { ok: true };
   }
 
   async addItem(menuId: string, input: MenuItemInput): Promise<MenuDTO> {
     const menu = await this.prisma.menu.findUnique({ where: { id: menuId } });
-    if (!menu) throw new NotFoundException('Menu not found');
+    if (!menu) throw new NotFoundException("Menu not found");
     const type = this.validType(input.type);
-    if (!type) throw new BadRequestException('Invalid item type');
-    const label = (input.label ?? '').trim();
-    if (!label) throw new BadRequestException('Label is required');
+    if (!type) throw new BadRequestException("Invalid item type");
+    const label = (input.label ?? "").trim();
+    if (!label) throw new BadRequestException("Label is required");
 
     let parentId: string | null = null;
     if (input.parentId) {
@@ -253,7 +255,7 @@ export class MenusService {
         where: { id: input.parentId },
       });
       if (!parent || parent.menuId !== menuId)
-        throw new BadRequestException('Invalid parent item');
+        throw new BadRequestException("Invalid parent item");
       parentId = parent.id;
     }
     const order = await this.prisma.menuItem.count({
@@ -271,7 +273,7 @@ export class MenusService {
         openNewTab: !!input.openNewTab,
         visibility,
         visibilityLevelId:
-          visibility === 'LEVEL' ? input.visibilityLevelId || null : null,
+          visibility === "LEVEL" ? input.visibilityLevelId || null : null,
       },
     });
     return this.buildMenuDTO(menuId);
@@ -281,13 +283,15 @@ export class MenusService {
     itemId: string,
     input: Partial<MenuItemInput>,
   ): Promise<MenuDTO> {
-    const item = await this.prisma.menuItem.findUnique({ where: { id: itemId } });
-    if (!item) throw new NotFoundException('Item not found');
+    const item = await this.prisma.menuItem.findUnique({
+      where: { id: itemId },
+    });
+    if (!item) throw new NotFoundException("Item not found");
 
     const data: Prisma.MenuItemUpdateInput = {};
     if (input.label !== undefined) {
-      const l = (input.label ?? '').trim();
-      if (!l) throw new BadRequestException('Label is required');
+      const l = (input.label ?? "").trim();
+      if (!l) throw new BadRequestException("Label is required");
       data.label = l.slice(0, 200);
     }
     const nextType =
@@ -295,7 +299,7 @@ export class MenusService {
         ? this.validType(input.type)
         : (item.type as MenuItemType);
     if (input.type !== undefined) {
-      if (!nextType) throw new BadRequestException('Invalid item type');
+      if (!nextType) throw new BadRequestException("Invalid item type");
       data.type = nextType;
     }
     const targetTouched =
@@ -323,12 +327,12 @@ export class MenusService {
       const v = this.validVisibility(input.visibility);
       data.visibility = v;
       data.visibilityLevelId =
-        v === 'LEVEL'
-          ? input.visibilityLevelId ?? item.visibilityLevelId ?? null
+        v === "LEVEL"
+          ? (input.visibilityLevelId ?? item.visibilityLevelId ?? null)
           : null;
     } else if (
       input.visibilityLevelId !== undefined &&
-      item.visibility === 'LEVEL'
+      item.visibility === "LEVEL"
     ) {
       data.visibilityLevelId = input.visibilityLevelId || null;
     }
@@ -338,8 +342,10 @@ export class MenusService {
   }
 
   async deleteItem(itemId: string): Promise<MenuDTO> {
-    const item = await this.prisma.menuItem.findUnique({ where: { id: itemId } });
-    if (!item) throw new NotFoundException('Item not found');
+    const item = await this.prisma.menuItem.findUnique({
+      where: { id: itemId },
+    });
+    if (!item) throw new NotFoundException("Item not found");
     await this.prisma.menuItem.delete({ where: { id: itemId } }); // cascades children
     return this.buildMenuDTO(item.menuId);
   }
@@ -364,7 +370,7 @@ export class MenusService {
       let cur = parentOf.get(id) ?? null;
       let hops = 0;
       while (cur) {
-        if (cur === id) throw new BadRequestException('Cyclic menu nesting');
+        if (cur === id) throw new BadRequestException("Cyclic menu nesting");
         cur = parentOf.get(cur) ?? null;
         if (++hops > 1000) break;
       }
@@ -390,9 +396,7 @@ export class MenusService {
     const assignment = await this.prisma.menuLocationAssignment.findUnique({
       where: { location: loc },
     });
-    return assignment
-      ? this.resolveMenu(assignment.menuId, userId, loc)
-      : null;
+    return assignment ? this.resolveMenu(assignment.menuId, userId, loc) : null;
   }
 
   async resolveById(id: string, userId?: string): Promise<ResolvedMenu | null> {
@@ -410,25 +414,25 @@ export class MenusService {
     });
     const items = await this.prisma.menuItem.findMany({
       where: { menuId },
-      orderBy: { order: 'asc' },
+      orderBy: { order: "asc" },
     });
 
     const authed = !!userId;
     let owned = new Set<string>();
     if (userId) {
       const uls = await this.prisma.userLevel.findMany({
-        where: { userId, status: 'ACTIVE' },
+        where: { userId, status: "ACTIVE" },
         select: { levelId: true },
       });
       owned = new Set(uls.map((u) => u.levelId));
     }
     const canSee = (it: MenuItemRow): boolean => {
       switch (it.visibility) {
-        case 'GUEST':
+        case "GUEST":
           return !authed;
-        case 'AUTHED':
+        case "AUTHED":
           return authed;
-        case 'LEVEL':
+        case "LEVEL":
           return (
             authed && !!it.visibilityLevelId && owned.has(it.visibilityLevelId)
           );

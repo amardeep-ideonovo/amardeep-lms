@@ -41,7 +41,7 @@ export default function BlogPage() {
   // Saving is blocked until that resolves: an empty editor saved over a loaded
   // post would replace its whole body (blog.service PATCHes content wholesale).
   const [detailState, setDetailState] = useState<"ready" | "loading" | "error">(
-    "ready"
+    "ready",
   );
   // Guards against a late detail response landing in the form after the admin
   // has closed the modal or opened a different post.
@@ -61,7 +61,7 @@ export default function BlogPage() {
       setCategories(c);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Failed to load blog posts"
+        err instanceof ApiError ? err.message : "Failed to load blog posts",
       );
     } finally {
       setLoading(false);
@@ -140,7 +140,7 @@ export default function BlogPage() {
     } catch (err) {
       if (editingIdRef.current !== post.id) return;
       setFormError(
-        err instanceof ApiError ? err.message : "Failed to load this post"
+        err instanceof ApiError ? err.message : "Failed to load this post",
       );
       // Stay in "error": saving now would wipe the body we failed to load.
       setDetailState("error");
@@ -189,7 +189,7 @@ export default function BlogPage() {
       resetForm();
     } catch (err) {
       setFormError(
-        err instanceof ApiError ? err.message : "Failed to save post"
+        err instanceof ApiError ? err.message : "Failed to save post",
       );
     } finally {
       setSaving(false);
@@ -206,7 +206,7 @@ export default function BlogPage() {
       );
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Failed to update status"
+        err instanceof ApiError ? err.message : "Failed to update status",
       );
     }
   }
@@ -245,7 +245,7 @@ export default function BlogPage() {
       setCategories((prev) => [...prev, cat].sort((a, b) => a.order - b.order));
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Failed to create category"
+        err instanceof ApiError ? err.message : "Failed to create category",
       );
     }
   }
@@ -271,7 +271,7 @@ export default function BlogPage() {
       await load();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Failed to remove category"
+        err instanceof ApiError ? err.message : "Failed to remove category",
       );
     }
   }
@@ -357,80 +357,80 @@ export default function BlogPage() {
         ) : posts.length === 0 ? (
           <p className="muted">No posts yet. Click “Add new post” to start.</p>
         ) : (
-          <div className="table-wrap"><table className="table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>Category</th>
-                <th>Tags</th>
-                <th>Author</th>
-                <th>Date</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {posts.map((post) => (
-                <tr key={post.id}>
-                  <td>{post.title}</td>
-                  <td className="muted">
-                    {post.categories.length
-                      ? post.categories.map((c) => c.name).join(", ")
-                      : "—"}
-                  </td>
-                  <td className="muted">
-                    {post.tags.length ? post.tags.join(", ") : "—"}
-                  </td>
-                  <td className="muted">{post.author?.name ?? "—"}</td>
-                  <td className="muted">
-                    {fmtDate(post.publishedAt ?? post.createdAt)}
-                  </td>
-                  <td>
-                    <span
-                      className={
-                        post.status === "PUBLISHED"
-                          ? "badge badge--published"
-                          : "badge badge--draft"
-                      }
-                    >
-                      {post.status === "PUBLISHED" ? "Published" : "Draft"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="row-actions">
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => startEdit(post)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => togglePublish(post)}
-                      >
-                        {post.status === "PUBLISHED" ? "Unpublish" : "Publish"}
-                      </button>
-                      <button
-                        className="btn btn--danger btn--sm"
-                        onClick={() => remove(post)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Category</th>
+                  <th>Tags</th>
+                  <th>Author</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table></div>
+              </thead>
+              <tbody>
+                {posts.map((post) => (
+                  <tr key={post.id}>
+                    <td>{post.title}</td>
+                    <td className="muted">
+                      {post.categories.length
+                        ? post.categories.map((c) => c.name).join(", ")
+                        : "—"}
+                    </td>
+                    <td className="muted">
+                      {post.tags.length ? post.tags.join(", ") : "—"}
+                    </td>
+                    <td className="muted">{post.author?.name ?? "—"}</td>
+                    <td className="muted">
+                      {fmtDate(post.publishedAt ?? post.createdAt)}
+                    </td>
+                    <td>
+                      <span
+                        className={
+                          post.status === "PUBLISHED"
+                            ? "badge badge--published"
+                            : "badge badge--draft"
+                        }
+                      >
+                        {post.status === "PUBLISHED" ? "Published" : "Draft"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="row-actions">
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => startEdit(post)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => togglePublish(post)}
+                        >
+                          {post.status === "PUBLISHED"
+                            ? "Unpublish"
+                            : "Publish"}
+                        </button>
+                        <button
+                          className="btn btn--danger btn--sm"
+                          onClick={() => remove(post)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {modalOpen && (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="modal">
             <div className="modal-header">
               <h2>{editingId ? "Edit post" : "New post"}</h2>
@@ -450,7 +450,9 @@ export default function BlogPage() {
                   <label>Title</label>
                   <input
                     value={form.title}
-                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, title: e.target.value })
+                    }
                     autoFocus
                     required
                   />
@@ -552,10 +554,10 @@ export default function BlogPage() {
                     {detailState === "loading"
                       ? "Loading…"
                       : saving
-                      ? "Saving…"
-                      : editingId
-                      ? "Save changes"
-                      : "Publish post"}
+                        ? "Saving…"
+                        : editingId
+                          ? "Save changes"
+                          : "Publish post"}
                   </button>
                   <button
                     type="button"

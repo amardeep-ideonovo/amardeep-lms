@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { CampaignService } from './campaign.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import { CampaignService } from "./campaign.service";
 
 // The single recurring tick that drives campaign delivery. Every minute it asks
 // CampaignService to dispatch any campaign whose nextRunAt has arrived. Wrapped
@@ -19,7 +19,9 @@ export class SchedulerService {
   @Cron(CronExpression.EVERY_MINUTE)
   async tick(): Promise<void> {
     if (this.running) {
-      this.logger.debug('campaign tick skipped — previous run still in progress');
+      this.logger.debug(
+        "campaign tick skipped — previous run still in progress",
+      );
       return;
     }
     this.running = true;

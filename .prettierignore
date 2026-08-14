@@ -11,3 +11,6 @@ apps/mobile/certs
 docs/architecture.excalidraw
 graphify-out
 .claude
+# Contains a literal NUL byte (token separator) — keep byte-identical; git/grep
+# already treat it as binary, so formatting buys nothing and risks the NUL.
+apps/api/src/contacts/confirm-token.util.ts

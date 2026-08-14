@@ -46,7 +46,9 @@ function FormPreview({ formId }: { formId: string }) {
         textAlign: "center",
       }}
     >
-      {formId ? `Embedded form: ${formId}` : "Form block — set a Form ID in the panel"}
+      {formId
+        ? `Embedded form: ${formId}`
+        : "Form block — set a Form ID in the panel"}
     </div>
   );
 }
@@ -126,7 +128,11 @@ export default function PageEditor() {
         value?: string;
         onChange: (v: string) => void;
       }) => (
-        <PuckColorField label={field?.label} value={value} onChange={onChange} />
+        <PuckColorField
+          label={field?.label}
+          value={value}
+          onChange={onChange}
+        />
       ),
     } as Field;
     return createPuckConfig({
@@ -158,7 +164,7 @@ export default function PageEditor() {
       } catch (err) {
         if (alive)
           setLoadError(
-            err instanceof ApiError ? err.message : "Failed to load page"
+            err instanceof ApiError ? err.message : "Failed to load page",
           );
       } finally {
         if (alive) setLoaded(true);
@@ -176,7 +182,8 @@ export default function PageEditor() {
 
   function persist(extra?: { status?: PageStatus }) {
     return api.updatePage(id, {
-      data: (latest.current ?? undefined) as unknown as PuckDocument | undefined,
+      data: (latest.current ?? undefined) as unknown as
+        PuckDocument | undefined,
       ...extra,
     });
   }
@@ -186,14 +193,18 @@ export default function PageEditor() {
     latest.current = data;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     setSaveState("saving");
-    saveTimer.current = setTimeout(() => void (async () => {
-      try {
-        await persist();
-        setSaveState("saved");
-      } catch {
-        setSaveState("error");
-      }
-    })(), 1000);
+    saveTimer.current = setTimeout(
+      () =>
+        void (async () => {
+          try {
+            await persist();
+            setSaveState("saved");
+          } catch {
+            setSaveState("error");
+          }
+        })(),
+      1000,
+    );
   }
 
   async function saveStatus(next: PageStatus) {
@@ -275,10 +286,10 @@ export default function PageEditor() {
     saveState === "saving"
       ? "Saving…"
       : saveState === "saved"
-      ? "Saved ✓"
-      : saveState === "error"
-      ? "Save failed"
-      : "";
+        ? "Saved ✓"
+        : saveState === "error"
+          ? "Save failed"
+          : "";
 
   return (
     <div

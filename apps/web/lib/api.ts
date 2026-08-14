@@ -59,7 +59,8 @@ import type {
 //   • else    → build-time NEXT_PUBLIC_API_URL, then localhost
 function apiBase(): string {
   if (typeof window !== "undefined") {
-    const env = (window as unknown as { __ENV__?: { apiUrl?: string } }).__ENV__;
+    const env = (window as unknown as { __ENV__?: { apiUrl?: string } })
+      .__ENV__;
     return (
       env?.apiUrl ||
       process.env.NEXT_PUBLIC_API_URL ||
@@ -334,7 +335,11 @@ export const api = {
       { auth: false },
     ),
   // Same authed blob-download pattern as lesson notes.
-  downloadCertificate: async (cert: { downloadUrl: string; serial: string; className: string }) => {
+  downloadCertificate: async (cert: {
+    downloadUrl: string;
+    serial: string;
+    className: string;
+  }) => {
     const token = getToken();
     const res = await fetch(`${apiBase()}${cert.downloadUrl}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -396,8 +401,7 @@ export const api = {
       body: { priceId },
     }),
   portal: () => request<{ url: string }>("/billing/portal"),
-  mySubscriptions: () =>
-    request<MySubscriptionDTO[]>("/billing/subscriptions"),
+  mySubscriptions: () => request<MySubscriptionDTO[]>("/billing/subscriptions"),
 
   // One-off course purchase (Stripe mode=payment). `courseCheckout` returns the
   // hosted-checkout URL to redirect to; `confirmCoursePurchase` grants inline on
@@ -486,7 +490,9 @@ export async function fetchHeaderMenu(
   menuId?: string | null,
 ): Promise<ResolvedMenu | null> {
   try {
-    const path = menuId ? `/menus/${menuId}/resolved` : `/menus/location/HEADER`;
+    const path = menuId
+      ? `/menus/${menuId}/resolved`
+      : `/menus/location/HEADER`;
     return await request<ResolvedMenu>(path, {
       auth: false,
       revalidate: PUBLIC_TTL_SECONDS,
@@ -550,12 +556,12 @@ export function fetchPublishedPosts(): Promise<PostListItem[]> {
 }
 
 export async function fetchPublishedPost(
-  slug: string
+  slug: string,
 ): Promise<PostDetailDTO | null> {
   try {
     return await request<PostDetailDTO>(
       `/blog/posts/${encodeURIComponent(slug)}`,
-      { auth: false }
+      { auth: false },
     );
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return null;
@@ -572,7 +578,7 @@ export function fetchPublishedPages(): Promise<PageListItem[]> {
 }
 
 export async function fetchPublishedPage(
-  slug: string
+  slug: string,
 ): Promise<PagePublicDTO | null> {
   try {
     return await request<PagePublicDTO>(`/pages/${encodeURIComponent(slug)}`, {
@@ -591,12 +597,12 @@ export function fetchPublicClasses(): Promise<PublicClassListItem[]> {
 }
 
 export async function fetchClassPage(
-  slugOrId: string
+  slugOrId: string,
 ): Promise<ClassPublicDTO | null> {
   try {
     return await request<ClassPublicDTO>(
       `/levels/page/${encodeURIComponent(slugOrId)}`,
-      { auth: false }
+      { auth: false },
     );
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return null;
@@ -607,7 +613,7 @@ export async function fetchClassPage(
 // ---------- Forms (PUBLIC, audience-linked) ----------
 // Used client-side by <FormEmbed>. Only ACTIVE forms are returned.
 export async function fetchPublicForm(
-  id: string
+  id: string,
 ): Promise<FormPublicDTO | null> {
   try {
     return await request<FormPublicDTO>(`/forms/${encodeURIComponent(id)}`, {
@@ -621,7 +627,7 @@ export async function fetchPublicForm(
 
 export function submitForm(
   id: string,
-  values: Record<string, string | number | boolean>
+  values: Record<string, string | number | boolean>,
 ): Promise<FormSubmitResult> {
   return request<FormSubmitResult>(`/forms/${encodeURIComponent(id)}/submit`, {
     method: "POST",
@@ -634,7 +640,7 @@ export function submitForm(
 // Used client-side by <PopupHost>. The server filters by context, so we just
 // render what we get. A failure must never break the host page → return [].
 export async function fetchActivePopups(
-  ctx: PopupContext
+  ctx: PopupContext,
 ): Promise<PopupPublicDTO[]> {
   const qs =
     ctx.type === "page"

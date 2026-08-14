@@ -4,20 +4,20 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
-import type { DeleteAccountSummaryDTO } from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { BillingService } from '../billing/billing.service';
-import { CertificatesService } from '../certificates/certificates.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { MediaStorage } from '../media/media.storage';
-import { MEDIA_ROUTE } from '../media/media.config';
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import * as bcrypt from "bcryptjs";
+import type { DeleteAccountSummaryDTO } from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { BillingService } from "../billing/billing.service";
+import { CertificatesService } from "../certificates/certificates.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { MediaStorage } from "../media/media.storage";
+import { MEDIA_ROUTE } from "../media/media.config";
 
 // Who initiated the deletion — a member erasing themselves (self) or an admin
 // acting on the member's behalf (admin, for GDPR requests / support).
-type Actor = { kind: 'self' } | { kind: 'admin'; adminId: string };
+type Actor = { kind: "self" } | { kind: "admin"; adminId: string };
 
 /**
  * Member account deletion — a HARD, irreversible purge that both app stores
@@ -62,23 +62,28 @@ export class AccountDeletionService {
    */
   async summaryFor(userId: string): Promise<DeleteAccountSummaryDTO> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('Member not found');
+    if (!user) throw new NotFoundException("Member not found");
 
-    const [subscriptions, certificates, lifetimeCoursesRows, lifetimeLevelRows, completedLessons] =
-      await Promise.all([
-        this.billing.getMySubscriptionDetails(userId),
-        this.certificates.mine(userId),
-        this.prisma.userCourse.findMany({
-          where: { userId, status: 'ACTIVE' },
-          include: { course: { select: { title: true } } },
-          orderBy: { grantedAt: 'desc' },
-        }),
-        this.prisma.userLevel.findMany({
-          where: { userId, lifetime: true },
-          include: { level: { select: { name: true } } },
-        }),
-        this.prisma.lessonProgress.count({ where: { userId } }),
-      ]);
+    const [
+      subscriptions,
+      certificates,
+      lifetimeCoursesRows,
+      lifetimeLevelRows,
+      completedLessons,
+    ] = await Promise.all([
+      this.billing.getMySubscriptionDetails(userId),
+      this.certificates.mine(userId),
+      this.prisma.userCourse.findMany({
+        where: { userId, status: "ACTIVE" },
+        include: { course: { select: { title: true } } },
+        orderBy: { grantedAt: "desc" },
+      }),
+      this.prisma.userLevel.findMany({
+        where: { userId, lifetime: true },
+        include: { level: { select: { name: true } } },
+      }),
+      this.prisma.lessonProgress.count({ where: { userId } }),
+    ]);
 
     const lifetimeCourses = lifetimeCoursesRows.map((uc) => ({
       id: uc.courseId,
@@ -117,11 +122,11 @@ export class AccountDeletionService {
     opts: { password?: string; actor: Actor },
   ): Promise<{ ok: true }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('Member not found');
+    if (!user) throw new NotFoundException("Member not found");
 
     if (opts.password !== undefined) {
       const ok = await bcrypt.compare(opts.password, user.passwordHash);
-      if (!ok) throw new BadRequestException('Password is incorrect');
+      if (!ok) throw new BadRequestException("Password is incorrect");
     }
 
     // 1) Cancel all subscriptions at the provider first. A failure here must
@@ -135,9 +140,9 @@ export class AccountDeletionService {
           `aborting deletion: ${err instanceof Error ? err.message : err}`,
       );
       throw new ConflictException(
-        'We could not automatically cancel your active subscription, so your ' +
-          'account was NOT deleted. Please try again in a few minutes, or ' +
-          'contact your academy for help.',
+        "We could not automatically cancel your active subscription, so your " +
+          "account was NOT deleted. Please try again in a few minutes, or " +
+          "contact your academy for help.",
       );
     }
 
@@ -165,7 +170,7 @@ export class AccountDeletionService {
             where: { id: c.id },
             data: {
               userId: null,
-              status: 'UNSUBSCRIBED',
+              status: "UNSUBSCRIBED",
               unsubscribedAt: new Date(),
               firstName: null,
               lastName: null,
@@ -174,7 +179,11 @@ export class AccountDeletionService {
             },
           });
           await tx.consentEvent.create({
-            data: { contactId: c.id, kind: 'UNSUBSCRIBE', source: 'account-deletion' },
+            data: {
+              contactId: c.id,
+              kind: "UNSUBSCRIBE",
+              source: "account-deletion",
+            },
           });
         }
 
@@ -196,16 +205,16 @@ export class AccountDeletionService {
               data: {
                 audienceId: audience.id,
                 email,
-                status: 'UNSUBSCRIBED',
-                source: 'MANUAL',
+                status: "UNSUBSCRIBED",
+                source: "MANUAL",
                 unsubscribedAt: new Date(),
               },
             });
             await tx.consentEvent.create({
               data: {
                 contactId: tombstone.id,
-                kind: 'UNSUBSCRIBE',
-                source: 'account-deletion',
+                kind: "UNSUBSCRIBE",
+                source: "account-deletion",
               },
             });
           }
@@ -214,8 +223,8 @@ export class AccountDeletionService {
         // b) Cancel queued automation mail to this address (it has no
         //    user-existence check and would otherwise still send).
         await tx.scheduledEmail.updateMany({
-          where: { to: email, status: 'PENDING' },
-          data: { status: 'CANCELED' },
+          where: { to: email, status: "PENDING" },
+          data: { status: "CANCELED" },
         });
 
         // c) Redact the member's email from historical admin-notification
@@ -229,7 +238,7 @@ export class AccountDeletionService {
             where: { id: n.id },
             data: {
               userId: null,
-              body: n.body.split(email).join('[deleted member]'),
+              body: n.body.split(email).join("[deleted member]"),
             },
           });
         }
@@ -251,7 +260,7 @@ export class AccountDeletionService {
       // report success (idempotent) rather than a spurious 500.
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2025'
+        err.code === "P2025"
       ) {
         this.logger.log(
           `[account-deletion] ${userId} already deleted (concurrent) — no-op`,
@@ -269,14 +278,14 @@ export class AccountDeletionService {
     // 5) Leave an admin record of the erasure (the notification body is the only
     //    place the email now legitimately survives — as the request record).
     const who =
-      opts.actor.kind === 'admin'
+      opts.actor.kind === "admin"
         ? `by an admin (${opts.actor.adminId})`
-        : 'by the member';
+        : "by the member";
     try {
       await this.notifications.record({
-        type: 'MEMBER_DELETED',
-        severity: 'INFO',
-        title: 'Member account deleted',
+        type: "MEMBER_DELETED",
+        severity: "INFO",
+        title: "Member account deleted",
         body: `${email} deleted their account ${who}. All data was purged and any subscription canceled.`,
         userId: null,
         dedupeKey: `member-deleted:${userId}`,
@@ -302,7 +311,7 @@ export class AccountDeletionService {
     const idx = url.indexOf(marker);
     if (idx === -1) return;
     const key = url.slice(idx + marker.length);
-    if (key.startsWith('avatar-')) {
+    if (key.startsWith("avatar-")) {
       await this.storage.delete(key).catch(() => undefined);
     }
   }

@@ -27,12 +27,12 @@ automatic HTTPS). The **mobile app is a separate track** (see the last section).
 
 In your DNS provider (could be your Plesk panel), create **A records** → your VPS's public IP:
 
-| Host | Type | Value |
-|------|------|-------|
-| `@` (example.com) | A | `YOUR.VPS.IP` |
-| `www` | A | `YOUR.VPS.IP` |
-| `api` | A | `YOUR.VPS.IP` |
-| `admin` | A | `YOUR.VPS.IP` |
+| Host              | Type | Value         |
+| ----------------- | ---- | ------------- |
+| `@` (example.com) | A    | `YOUR.VPS.IP` |
+| `www`             | A    | `YOUR.VPS.IP` |
+| `api`             | A    | `YOUR.VPS.IP` |
+| `admin`           | A    | `YOUR.VPS.IP` |
 
 DNS can take minutes to a few hours to propagate. Caddy won't get HTTPS certs until these resolve.
 

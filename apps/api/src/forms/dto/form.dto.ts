@@ -10,11 +10,11 @@ import {
   Min,
   MinLength,
   ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-import type { FormStatus } from '@lms/types';
+} from "class-validator";
+import { Type } from "class-transformer";
+import type { FormStatus } from "@lms/types";
 
-const STATUSES: FormStatus[] = ['ACTIVE', 'INACTIVE'];
+const STATUSES: FormStatus[] = ["ACTIVE", "INACTIVE"];
 
 // A nested DTO is REQUIRED for the fields array: with the global ValidationPipe
 // (transform + enableImplicitConversion), an array-of-objects property without

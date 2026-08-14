@@ -43,7 +43,9 @@ test("youtubeId — non-YouTube URLs are null (so they fall through)", () => {
 
 test("youtubeEmbed — privacy domain, playsinline, and start= resume", () => {
   const noResume = youtubeEmbed(`https://youtu.be/${ID}`, 0);
-  assert.ok(noResume?.startsWith("https://www.youtube-nocookie.com/embed/" + ID));
+  assert.ok(
+    noResume?.startsWith("https://www.youtube-nocookie.com/embed/" + ID),
+  );
   assert.ok(noResume?.includes("playsinline=1"));
   assert.ok(!noResume?.includes("start="));
 
@@ -69,7 +71,9 @@ test("vimeoEmbed parses every path shape (and rejects YouTube)", () => {
     );
   }
   // Privacy hash still extracted on the plain shape.
-  assert.ok(vimeoEmbed("https://vimeo.com/123456789/abcdef")?.includes("h=abcdef"));
+  assert.ok(
+    vimeoEmbed("https://vimeo.com/123456789/abcdef")?.includes("h=abcdef"),
+  );
   assert.equal(vimeoEmbed(`https://youtu.be/${ID}`), null);
   // A vanity slug with no path-separated numeric id yields no video id: the
   // regex needs the digits to sit as their own /segment, not embedded in a word.
@@ -78,7 +82,10 @@ test("vimeoEmbed parses every path shape (and rejects YouTube)", () => {
 
 test("isProviderVideoUrl flags provider links (parseable or not), not direct files", () => {
   assert.equal(isProviderVideoUrl("https://vimeo.com/123456789"), true);
-  assert.equal(isProviderVideoUrl(`https://www.youtube.com/watch?v=${ID}`), true);
+  assert.equal(
+    isProviderVideoUrl(`https://www.youtube.com/watch?v=${ID}`),
+    true,
+  );
   assert.equal(isProviderVideoUrl("https://youtu.be/tooShort"), true); // youtube host, unparseable id
   assert.equal(isProviderVideoUrl("https://cdn.example.com/lesson.mp4"), false);
   assert.equal(isProviderVideoUrl("https://cdn.example.com/audio.mp3"), false);

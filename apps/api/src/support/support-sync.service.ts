@@ -1,17 +1,21 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import type { SupportMessage, SupportStatus, SupportTicket } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { EmailService } from '../email/email.service';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import type {
+  SupportMessage,
+  SupportStatus,
+  SupportTicket,
+} from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { EmailService } from "../email/email.service";
 
 // Wire shapes returned by the control plane's /api/instance/support/sync. Only
 // the admin-visible slice ever reaches here — the control plane filters INTERNAL
 // notes and non-invited OPS messages server-side.
 interface SyncMessage {
   id: string; // canonical control-plane message id (our reconcile/tombstone key)
-  lane: 'MAIN' | 'OPS';
-  authorKind: 'ADMIN' | 'CLIENT' | 'OPERATOR' | 'SYSTEM';
+  lane: "MAIN" | "OPS";
+  authorKind: "ADMIN" | "CLIENT" | "OPERATOR" | "SYSTEM";
   authorEmail: string;
   authorName: string | null;
   originMessageId: string | null; // set for OUR ADMIN messages (the local id we pushed)
@@ -23,7 +27,7 @@ interface SyncTicket {
   originTicketId: string; // our local SupportTicket.id
   status: string;
   category: string;
-  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
   ownerTier: string | null;
   adminInOpsLane: boolean;
   csatPromptedAt: string | null;
@@ -47,19 +51,21 @@ export class SupportSyncService {
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
   ) {
-    this.baseUrl = (process.env.CONTROL_PLANE_URL ?? '').replace(/\/+$/, '');
-    this.token = process.env.INSTANCE_SERVICE_TOKEN ?? '';
+    this.baseUrl = (process.env.CONTROL_PLANE_URL ?? "").replace(/\/+$/, "");
+    this.token = process.env.INSTANCE_SERVICE_TOKEN ?? "";
     this.enabled = !!(this.baseUrl && this.token);
     if (this.token && !this.baseUrl) {
       // A token but no reachable control-plane URL = misconfiguration. Fail LOUD
       // (per the review) rather than silently never delivering tickets.
       this.logger.error(
-        'support: INSTANCE_SERVICE_TOKEN is set but CONTROL_PLANE_URL is missing — ' +
-          'tickets will be raised locally and NEVER delivered. Set CONTROL_PLANE_PUBLIC_URL ' +
-          'in the control-plane deploy env.',
+        "support: INSTANCE_SERVICE_TOKEN is set but CONTROL_PLANE_URL is missing — " +
+          "tickets will be raised locally and NEVER delivered. Set CONTROL_PLANE_PUBLIC_URL " +
+          "in the control-plane deploy env.",
       );
     } else if (!this.enabled) {
-      this.logger.log('support sync disabled (no service token) — module is inert');
+      this.logger.log(
+        "support sync disabled (no service token) — module is inert",
+      );
     }
   }
 
@@ -111,11 +117,14 @@ export class SupportSyncService {
   }
 
   // ---- outbound ----
-  async pushCreate(ticket: SupportTicket, firstMsg: SupportMessage): Promise<void> {
+  async pushCreate(
+    ticket: SupportTicket,
+    firstMsg: SupportMessage,
+  ): Promise<void> {
     if (!this.enabled) return;
     try {
-      const res = await this.post('/api/instance/support/ingest', {
-        kind: 'ticket.create',
+      const res = await this.post("/api/instance/support/ingest", {
+        kind: "ticket.create",
         originTicketId: ticket.id,
         firstMessageOriginId: firstMsg.id,
         subject: ticket.subject,
@@ -126,9 +135,10 @@ export class SupportSyncService {
         adminEmail: ticket.raiserAdminEmail,
         adminName: firstMsg.authorName,
       });
-      const j = (await res.json().catch(() => null)) as
-        | { ticketId?: string; messageId?: string }
-        | null;
+      const j = (await res.json().catch(() => null)) as {
+        ticketId?: string;
+        messageId?: string;
+      } | null;
       if (res.ok && j?.ticketId) {
         await this.prisma.supportTicket.update({
           where: { id: ticket.id },
@@ -151,8 +161,8 @@ export class SupportSyncService {
   async pushMessage(msg: SupportMessage, ticket: SupportTicket): Promise<void> {
     if (!this.enabled) return;
     try {
-      const res = await this.post('/api/instance/support/ingest', {
-        kind: 'message.create',
+      const res = await this.post("/api/instance/support/ingest", {
+        kind: "message.create",
         remoteTicketId: ticket.remoteId ?? undefined,
         originTicketId: ticket.id,
         originMessageId: msg.id,
@@ -160,11 +170,17 @@ export class SupportSyncService {
         authorEmail: msg.authorEmail,
         authorName: msg.authorName,
       });
-      const j = (await res.json().catch(() => null)) as { messageId?: string } | null;
+      const j = (await res.json().catch(() => null)) as {
+        messageId?: string;
+      } | null;
       if (res.ok && j?.messageId) {
         await this.prisma.supportMessage.update({
           where: { id: msg.id },
-          data: { remoteId: j.messageId, syncedAt: new Date(), lastError: null },
+          data: {
+            remoteId: j.messageId,
+            syncedAt: new Date(),
+            lastError: null,
+          },
         });
       } else {
         await this.markMsgError(msg.id, `ingest ${res.status}`);
@@ -174,11 +190,15 @@ export class SupportSyncService {
     }
   }
 
-  async pushCsat(ticket: SupportTicket, rating: number, comment?: string): Promise<void> {
+  async pushCsat(
+    ticket: SupportTicket,
+    rating: number,
+    comment?: string,
+  ): Promise<void> {
     if (!this.enabled || !ticket.remoteId) return;
     try {
-      await this.post('/api/instance/support/ingest', {
-        kind: 'csat.submit',
+      await this.post("/api/instance/support/ingest", {
+        kind: "csat.submit",
         ticketId: ticket.remoteId,
         rating,
         comment,
@@ -192,7 +212,7 @@ export class SupportSyncService {
     // Unacked ticket creates first (so replies can reference the CP ticket).
     const pendingTickets = await this.prisma.supportTicket.findMany({
       where: { syncedAt: null },
-      include: { messages: { orderBy: { createdAt: 'asc' }, take: 1 } },
+      include: { messages: { orderBy: { createdAt: "asc" }, take: 1 } },
       take: 100,
     });
     for (const t of pendingTickets) {
@@ -200,7 +220,7 @@ export class SupportSyncService {
     }
     // Unacked ADMIN replies whose ticket is already synced.
     const pendingMsgs = await this.prisma.supportMessage.findMany({
-      where: { remoteId: null, authorKind: 'ADMIN', syncedAt: null },
+      where: { remoteId: null, authorKind: "ADMIN", syncedAt: null },
       include: { ticket: true },
       take: 200,
     });
@@ -227,9 +247,9 @@ export class SupportSyncService {
       this.logger.warn(`support sync pull failed: ${res.status}`);
       return;
     }
-    const payload = (await res.json().catch(() => null)) as
-      | { tickets?: SyncTicket[] }
-      | null;
+    const payload = (await res.json().catch(() => null)) as {
+      tickets?: SyncTicket[];
+    } | null;
     for (const t of payload?.tickets ?? []) {
       await this.reconcileTicket(t).catch((e) =>
         this.logger.error(`reconcile ${t.remoteId} failed: ${this.msg(e)}`),
@@ -247,7 +267,7 @@ export class SupportSyncService {
     });
     if (!local) return; // the instance always authors its own tickets
 
-    const wasResolved = local.status === 'RESOLVED';
+    const wasResolved = local.status === "RESOLVED";
     const wasInvited = local.adminInOpsLane;
 
     await this.prisma.supportTicket.update({
@@ -280,7 +300,7 @@ export class SupportSyncService {
     const newInbound: SyncMessage[] = [];
 
     for (const m of t.messages) {
-      if (m.authorKind === 'ADMIN' && m.originMessageId) {
+      if (m.authorKind === "ADMIN" && m.originMessageId) {
         // Our own pushed message — back-fill its remoteId; never duplicate it.
         const localMsg = byId.get(m.originMessageId);
         if (localMsg && !localMsg.remoteId) {
@@ -295,7 +315,7 @@ export class SupportSyncService {
       }
       if (!byRemote.has(m.id)) {
         await this.createMirrorMessage(local.id, m);
-        if (m.authorKind === 'OPERATOR' || m.authorKind === 'CLIENT') {
+        if (m.authorKind === "OPERATOR" || m.authorKind === "CLIENT") {
           newInbound.push(m);
         }
       }
@@ -313,7 +333,7 @@ export class SupportSyncService {
     }
 
     // ---- notify the instance admins (org-level bell + best-effort email) ----
-    const nowResolved = t.status === 'RESOLVED' && !wasResolved;
+    const nowResolved = t.status === "RESOLVED" && !wasResolved;
     const nowInvited = t.adminInOpsLane && !wasInvited;
     if (newInbound.length || nowResolved || nowInvited) {
       await this.prisma.supportTicket.update({
@@ -325,7 +345,7 @@ export class SupportSyncService {
       const latest = newInbound[newInbound.length - 1];
       await this.notifyAdmins(
         local,
-        'SUPPORT_REPLY',
+        "SUPPORT_REPLY",
         `New reply on "${local.subject}"`,
         latest.body.slice(0, 140),
         `support:reply:${latest.id}`,
@@ -334,24 +354,27 @@ export class SupportSyncService {
     if (nowInvited) {
       await this.notifyAdmins(
         local,
-        'SUPPORT_INVITED_OPS',
+        "SUPPORT_INVITED_OPS",
         `You were added to the support conversation: "${local.subject}"`,
-        'Your client invited you into the conversation with our support team.',
+        "Your client invited you into the conversation with our support team.",
         `support:invite:${t.remoteId}`,
       );
     }
     if (nowResolved) {
       await this.notifyAdmins(
         local,
-        'SUPPORT_STATUS',
+        "SUPPORT_STATUS",
         `Support ticket resolved: "${local.subject}"`,
-        'Your ticket was marked resolved. Reply to reopen it, or rate the support you received.',
+        "Your ticket was marked resolved. Reply to reopen it, or rate the support you received.",
         `support:status:${t.remoteId}:RESOLVED`,
       );
     }
   }
 
-  private async createMirrorMessage(ticketId: string, m: SyncMessage): Promise<void> {
+  private async createMirrorMessage(
+    ticketId: string,
+    m: SyncMessage,
+  ): Promise<void> {
     await this.prisma.supportMessage.create({
       data: {
         ticketId,
@@ -369,7 +392,7 @@ export class SupportSyncService {
 
   private async notifyAdmins(
     ticket: SupportTicket,
-    type: 'SUPPORT_REPLY' | 'SUPPORT_STATUS' | 'SUPPORT_INVITED_OPS',
+    type: "SUPPORT_REPLY" | "SUPPORT_STATUS" | "SUPPORT_INVITED_OPS",
     title: string,
     body: string,
     dedupeKey: string,
@@ -380,7 +403,7 @@ export class SupportSyncService {
       type,
       title,
       body,
-      entityType: 'support',
+      entityType: "support",
       entityId: ticket.id,
       dedupeKey,
     });
@@ -399,9 +422,9 @@ export class SupportSyncService {
   // ---- http + error helpers ----
   private post(path: string, body: unknown): Promise<Response> {
     return fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'content-type': 'application/json',
+        "content-type": "application/json",
         authorization: `Bearer ${this.token}`,
       },
       body: JSON.stringify(body),
@@ -410,7 +433,7 @@ export class SupportSyncService {
   private get(path: string): Promise<Response> {
     return fetch(`${this.baseUrl}${path}`, {
       headers: { authorization: `Bearer ${this.token}` },
-      cache: 'no-store',
+      cache: "no-store",
     });
   }
   private async markTicketError(id: string, err: string): Promise<void> {
@@ -430,8 +453,8 @@ export class SupportSyncService {
 
 function escapeHtml(s: string): string {
   return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

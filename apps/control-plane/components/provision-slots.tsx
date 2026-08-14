@@ -34,7 +34,7 @@ export function ProvisionSlots({
   const cap = effectiveCap(fleet, client.license);
   const underCap = owned.length < cap;
   const upgradeTarget = activePlans(fleet).some(
-    (p) => p.id !== client.license.planId && p.instanceCap > cap
+    (p) => p.id !== client.license.planId && p.instanceCap > cap,
   );
 
   return (
@@ -45,7 +45,8 @@ export function ProvisionSlots({
       {underCap && suspended && (
         <div className="card">
           <div className="empty-note" style={{ padding: "2px 0" }}>
-            License suspended — provisioning is disabled until it&apos;s reactivated.
+            License suspended — provisioning is disabled until it&apos;s
+            reactivated.
           </div>
         </div>
       )}
@@ -58,7 +59,10 @@ export function ProvisionSlots({
               {owned.length} of {cap} used
             </Pill>
           </div>
-          <p className="modal-note" style={{ maxWidth: 460, margin: "6px 0 0" }}>
+          <p
+            className="modal-note"
+            style={{ maxWidth: 460, margin: "6px 0 0" }}
+          >
             {upgradeTarget
               ? cap === 1
                 ? "Your plan includes a single instance — upgrade your plan to launch more academies on this license."
@@ -80,7 +84,11 @@ export function ProvisionSlots({
       )}
 
       {upgradeOpen && (
-        <UpgradeModal fleet={fleet} client={client} onClose={() => setUpgradeOpen(false)} />
+        <UpgradeModal
+          fleet={fleet}
+          client={client}
+          onClose={() => setUpgradeOpen(false)}
+        />
       )}
     </>
   );
@@ -137,13 +145,21 @@ function ProvisionAnotherCard({
         </span>
         <div className="card-head-spacer" />
         {!expanded && (
-          <button type="button" className="btn btn-primary" onClick={() => setExpanded(true)}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setExpanded(true)}
+          >
             + New instance
           </button>
         )}
       </div>
       {expanded && (
-        <form onSubmit={submit} className="modal-body" style={{ maxWidth: 480, marginTop: 10 }}>
+        <form
+          onSubmit={submit}
+          className="modal-body"
+          style={{ maxWidth: 480, marginTop: 10 }}
+        >
           <Field label="Academy / site name">
             <input
               className="input"
@@ -153,7 +169,10 @@ function ProvisionAnotherCard({
               autoFocus
             />
           </Field>
-          <Field label="Domain" hint="Optional for now — point DNS whenever you're ready.">
+          <Field
+            label="Domain"
+            hint="Optional for now — point DNS whenever you're ready."
+          >
             <input
               className="input mono"
               placeholder="berlin.youracademy.com"
@@ -167,7 +186,11 @@ function ProvisionAnotherCard({
             <button type="submit" className="btn btn-primary" disabled={busy}>
               {busy ? "Starting the boot…" : "Provision instance"}
             </button>
-            <button type="button" className="btn btn-ghost" onClick={() => setExpanded(false)}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setExpanded(false)}
+            >
               Cancel
             </button>
           </div>

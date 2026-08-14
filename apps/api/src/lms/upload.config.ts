@@ -1,7 +1,7 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { IMAGES_ROOT, imageExt } from '../blog/upload.config';
-import { resolveStorageDir } from '../storage/storage-dirs';
+import * as fs from "fs";
+import * as path from "path";
+import { IMAGES_ROOT, imageExt } from "../blog/upload.config";
+import { resolveStorageDir } from "../storage/storage-dirs";
 
 // Reuse the blog image validator + the same public images root so all uploaded
 // images share one served tree (/images/*, see main.ts).
@@ -9,10 +9,10 @@ export { imageExt };
 
 // ---------- Public images (served at /images via express.static) ----------
 // Course + lesson images sit alongside blog images under the public root.
-export const COURSE_IMG_DIR = path.join(IMAGES_ROOT, 'course');
-export const LESSON_IMG_DIR = path.join(IMAGES_ROOT, 'lesson');
-export const COURSE_IMG_URL_PATH = '/images/course';
-export const LESSON_IMG_URL_PATH = '/images/lesson';
+export const COURSE_IMG_DIR = path.join(IMAGES_ROOT, "course");
+export const LESSON_IMG_DIR = path.join(IMAGES_ROOT, "lesson");
+export const COURSE_IMG_URL_PATH = "/images/course";
+export const LESSON_IMG_URL_PATH = "/images/lesson";
 
 // ---------- Private files (NEVER served statically) ----------
 // Lesson note attachments. Streamed only through an access-checked endpoint so
@@ -20,8 +20,8 @@ export const LESSON_IMG_URL_PATH = '/images/lesson';
 //
 // LESSON_FILES_DIR must point at a persistent volume in production —
 // storage-dirs.ts owns that rule and refuses to boot without it.
-export const FILES_ROOT = resolveStorageDir('LESSON_FILES_DIR');
-export const LESSON_NOTES_DIR = path.join(FILES_ROOT, 'lesson-notes');
+export const FILES_ROOT = resolveStorageDir("LESSON_FILES_DIR");
+export const LESSON_NOTES_DIR = path.join(FILES_ROOT, "lesson-notes");
 
 // Create the upload directory tree if missing (idempotent).
 export function ensureLmsUploadDirs(): void {
@@ -37,40 +37,40 @@ export const MAX_NOTES_PER_UPLOAD = 20;
 
 // Allowed attachment types -> canonical extension.
 const NOTE_MIME_TO_EXT: Record<string, string> = {
-  'application/pdf': '.pdf',
-  'application/msword': '.doc',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-    '.docx',
-  'application/vnd.ms-excel': '.xls',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
-  'application/vnd.ms-powerpoint': '.ppt',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation':
-    '.pptx',
-  'text/plain': '.txt',
-  'text/csv': '.csv',
-  'application/zip': '.zip',
-  'application/x-zip-compressed': '.zip',
-  'image/jpeg': '.jpg',
-  'image/png': '.png',
-  'image/webp': '.webp',
-  'image/gif': '.gif',
+  "application/pdf": ".pdf",
+  "application/msword": ".doc",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+    ".docx",
+  "application/vnd.ms-excel": ".xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+  "application/vnd.ms-powerpoint": ".ppt",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+    ".pptx",
+  "text/plain": ".txt",
+  "text/csv": ".csv",
+  "application/zip": ".zip",
+  "application/x-zip-compressed": ".zip",
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
 };
 const NOTE_ALLOWED_EXT = new Set([
-  '.pdf',
-  '.doc',
-  '.docx',
-  '.xls',
-  '.xlsx',
-  '.ppt',
-  '.pptx',
-  '.txt',
-  '.csv',
-  '.zip',
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.webp',
-  '.gif',
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".txt",
+  ".csv",
+  ".zip",
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".gif",
 ]);
 
 // Resolve a safe extension for an attachment from its mime (preferred) or
@@ -78,8 +78,8 @@ const NOTE_ALLOWED_EXT = new Set([
 export function noteFileExt(mime: string, originalName: string): string | null {
   const byMime = NOTE_MIME_TO_EXT[mime];
   if (byMime) return byMime;
-  const ext = path.extname(originalName || '').toLowerCase();
-  if (NOTE_ALLOWED_EXT.has(ext)) return ext === '.jpeg' ? '.jpg' : ext;
+  const ext = path.extname(originalName || "").toLowerCase();
+  if (NOTE_ALLOWED_EXT.has(ext)) return ext === ".jpeg" ? ".jpg" : ext;
   return null;
 }
 

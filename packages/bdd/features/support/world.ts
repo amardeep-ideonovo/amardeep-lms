@@ -1,11 +1,18 @@
-import { setWorldConstructor, World, setDefaultTimeout } from "@cucumber/cucumber";
+import {
+  setWorldConstructor,
+  World,
+  setDefaultTimeout,
+} from "@cucumber/cucumber";
 import type { SmtpCatcher } from "./smtp-catcher";
 
 setDefaultTimeout(30_000);
 
 // Black-box BDD: every step talks to the running API over HTTP, exactly like a
 // real client. Credentials below come from the dev seed (packages/db/prisma/seed.ts).
-const BASE_URL = (process.env.API_URL || "http://localhost:3000").replace(/\/$/, "");
+const BASE_URL = (process.env.API_URL || "http://localhost:3000").replace(
+  /\/$/,
+  "",
+);
 
 export const SEED = {
   admin: { email: "admin@example.com", password: "admin123" },
@@ -126,7 +133,11 @@ export class LmsWorld extends World {
       "base64",
     );
     const fd = new FormData();
-    fd.append("file", new Blob([png], { type: "image/png" }), "bdd-artwork.png");
+    fd.append(
+      "file",
+      new Blob([png], { type: "image/png" }),
+      "bdd-artwork.png",
+    );
     const res = await fetch(`${this.baseUrl}/admin/media`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },

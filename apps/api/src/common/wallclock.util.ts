@@ -25,7 +25,7 @@ export interface WallClock {
 // Decompose an instant into wall-clock Y/M/D/H/M/S as seen in `tz` (UTC when
 // null). Intl keeps this correct across DST without a date library.
 export function wallClockIn(d: Date, tz: string | null): WallClock {
-  if (!tz || tz === 'UTC') {
+  if (!tz || tz === "UTC") {
     return {
       year: d.getUTCFullYear(),
       month: d.getUTCMonth() + 1,
@@ -35,27 +35,27 @@ export function wallClockIn(d: Date, tz: string | null): WallClock {
       second: d.getUTCSeconds(),
     };
   }
-  const parts = new Intl.DateTimeFormat('en-US', {
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
     hour12: false,
   }).formatToParts(d);
   const get = (t: string): number =>
-    Number(parts.find((p) => p.type === t)?.value ?? '0');
+    Number(parts.find((p) => p.type === t)?.value ?? "0");
   // Intl can emit hour '24' at midnight for hour12:false; normalize to 0.
-  const hour = get('hour') % 24;
+  const hour = get("hour") % 24;
   return {
-    year: get('year'),
-    month: get('month'),
-    day: get('day'),
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
     hour,
-    minute: get('minute'),
-    second: get('second'),
+    minute: get("minute"),
+    second: get("second"),
   };
 }
 
@@ -71,32 +71,32 @@ export function instantFromWallClock(wall: WallClock, tz: string | null): Date {
     wall.minute,
     wall.second,
   );
-  if (!tz || tz === 'UTC') return new Date(asUtc);
+  if (!tz || tz === "UTC") return new Date(asUtc);
   const offsetMs = tzOffsetMs(new Date(asUtc), tz);
   return new Date(asUtc - offsetMs);
 }
 
 // Milliseconds `tz` is ahead of UTC at instant `d` (negative west of UTC).
 export function tzOffsetMs(d: Date, tz: string): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
+  const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: tz,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
     hour12: false,
   }).formatToParts(d);
   const get = (t: string): number =>
-    Number(parts.find((p) => p.type === t)?.value ?? '0');
+    Number(parts.find((p) => p.type === t)?.value ?? "0");
   const asUtc = Date.UTC(
-    get('year'),
-    get('month') - 1,
-    get('day'),
-    get('hour') % 24,
-    get('minute'),
-    get('second'),
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour") % 24,
+    get("minute"),
+    get("second"),
   );
   return asUtc - d.getTime();
 }
@@ -110,7 +110,9 @@ const LOCAL_INPUT_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/;
 export function utcFromLocalInput(local: string, tz: string | null): Date {
   const m = LOCAL_INPUT_RE.exec(local.trim());
   if (!m) {
-    throw new Error(`Invalid local datetime: "${local}" (expected YYYY-MM-DDTHH:mm)`);
+    throw new Error(
+      `Invalid local datetime: "${local}" (expected YYYY-MM-DDTHH:mm)`,
+    );
   }
   const wall: WallClock = {
     year: Number(m[1]),

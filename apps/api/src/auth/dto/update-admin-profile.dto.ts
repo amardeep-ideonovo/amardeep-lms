@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MaxLength } from "class-validator";
 
 // Admin self-service profile update (PATCH /auth/admin/profile). Email is the
 // login id and is NOT editable here. Send name: "" to clear the display name;

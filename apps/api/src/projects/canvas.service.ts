@@ -1,13 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import type { ChatCanvas } from '@prisma/client';
-import sanitizeHtml from 'sanitize-html';
-import { ALLOWED_STYLES } from '../common/sanitize-styles';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import type { ChatCanvas } from "@prisma/client";
+import sanitizeHtml from "sanitize-html";
+import { ALLOWED_STYLES } from "../common/sanitize-styles";
 import type {
   ChatCanvasDTO,
   CreateCanvasInput,
   UpdateCanvasInput,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
 
 // Canvas docs: rich-text documents pinned to a channel as header tabs (the Slack
 // "Web SOP" tab). A channel hosts MANY canvases, ordered by position, alongside
@@ -23,23 +23,51 @@ import { PrismaService } from '../prisma/prisma.service';
 // stored HTML is sanitized on write as defense-in-depth — mirroring blog/pages.
 const SANITIZE_OPTS: sanitizeHtml.IOptions = {
   allowedTags: [
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'blockquote', 'a', 'ul', 'ol',
-    'li', 'b', 'i', 'strong', 'em', 's', 'strike', 'code', 'pre', 'hr', 'br',
-    'span', 'img', 'figure', 'figcaption', 'table', 'thead', 'tbody', 'tr',
-    'th', 'td',
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "p",
+    "blockquote",
+    "a",
+    "ul",
+    "ol",
+    "li",
+    "b",
+    "i",
+    "strong",
+    "em",
+    "s",
+    "strike",
+    "code",
+    "pre",
+    "hr",
+    "br",
+    "span",
+    "img",
+    "figure",
+    "figcaption",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
   ],
   allowedAttributes: {
-    a: ['href', 'name', 'target', 'rel'],
-    img: ['src', 'alt', 'title', 'width', 'height'],
-    '*': ['style'],
+    a: ["href", "name", "target", "rel"],
+    img: ["src", "alt", "title", "width", "height"],
+    "*": ["style"],
   },
   allowedStyles: ALLOWED_STYLES,
-  allowedSchemes: ['http', 'https', 'mailto'],
-  allowedSchemesByTag: { img: ['http', 'https', 'data'] },
+  allowedSchemes: ["http", "https", "mailto"],
+  allowedSchemesByTag: { img: ["http", "https", "data"] },
   transformTags: {
     a: sanitizeHtml.simpleTransform(
-      'a',
-      { rel: 'noopener noreferrer', target: '_blank' },
+      "a",
+      { rel: "noopener noreferrer", target: "_blank" },
       true,
     ),
   },
@@ -71,7 +99,7 @@ export class CanvasService {
     await this.assertChannel(channelId);
     const canvases = await this.prisma.chatCanvas.findMany({
       where: { channelId },
-      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     });
     return canvases.map((c) => this.toDTO(c));
   }
@@ -89,7 +117,7 @@ export class CanvasService {
       ((
         await this.prisma.chatCanvas.findFirst({
           where: { channelId },
-          orderBy: { position: 'desc' },
+          orderBy: { position: "desc" },
           select: { position: true },
         })
       )?.position ?? -1) + 1;
@@ -97,7 +125,9 @@ export class CanvasService {
       data: {
         channelId,
         title: input.title.trim(),
-        content: input.content ? sanitizeHtml(input.content, SANITIZE_OPTS) : '',
+        content: input.content
+          ? sanitizeHtml(input.content, SANITIZE_OPTS)
+          : "",
         position,
         createdByAdminId: adminId,
       },
@@ -128,10 +158,7 @@ export class CanvasService {
 
   // ----- Delete -----
 
-  async deleteCanvas(
-    adminId: string,
-    canvasId: string,
-  ): Promise<{ ok: true }> {
+  async deleteCanvas(adminId: string, canvasId: string): Promise<{ ok: true }> {
     await this.assertCanvas(canvasId);
     await this.prisma.chatCanvas.delete({ where: { id: canvasId } });
     return { ok: true };
@@ -144,7 +171,7 @@ export class CanvasService {
       where: { id: channelId },
       select: { id: true },
     });
-    if (!channel) throw new NotFoundException('Channel not found');
+    if (!channel) throw new NotFoundException("Channel not found");
   }
 
   private async assertCanvas(canvasId: string): Promise<void> {
@@ -152,6 +179,6 @@ export class CanvasService {
       where: { id: canvasId },
       select: { id: true },
     });
-    if (!canvas) throw new NotFoundException('Canvas not found');
+    if (!canvas) throw new NotFoundException("Canvas not found");
   }
 }

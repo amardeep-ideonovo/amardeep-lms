@@ -1,4 +1,4 @@
-import { decryptSecret, encryptSecret } from '../common/crypto.util';
+import { decryptSecret, encryptSecret } from "../common/crypto.util";
 
 // At-rest sealing for SECRET-typed Projects custom-field values.
 //
@@ -19,7 +19,7 @@ import { decryptSecret, encryptSecret } from '../common/crypto.util';
 // updateField can flip a TEXT column to SECRET at any time without rewriting
 // stored values, so fresh plaintext can appear under a SECRET field forever.
 // Never treat an unsealed value as corrupt — that would destroy real secrets.
-export const ENC_PREFIX = 'enc:v1:';
+export const ENC_PREFIX = "enc:v1:";
 
 // Cap on a stored secret. Sealing inflates the value (base64 ~4/3, plus IV +
 // auth tag + envelope ≈ 45 bytes), and an uncapped credential field is an easy
@@ -28,7 +28,7 @@ export const SECRET_MAX_LENGTH = 4096;
 
 /** True when a stored value carries our envelope (i.e. we encrypted it). */
 export function isSealed(value: unknown): value is string {
-  return typeof value === 'string' && value.startsWith(ENC_PREFIX);
+  return typeof value === "string" && value.startsWith(ENC_PREFIX);
 }
 
 /**
@@ -40,7 +40,7 @@ export function sealSecretValue(plaintext: string): string {
   const sealed = ENC_PREFIX + encryptSecret(plaintext);
   if (openSecretValue(sealed) !== plaintext) {
     throw new Error(
-      'Secret failed its encrypt/decrypt round-trip; refusing to store it',
+      "Secret failed its encrypt/decrypt round-trip; refusing to store it",
     );
   }
   return sealed;
@@ -58,7 +58,7 @@ export function sealSecretValue(plaintext: string): string {
  * credential as "not set" invites an overwrite that destroys the only copy.
  */
 export function openSecretValue(stored: unknown): string | null {
-  if (typeof stored !== 'string' || stored === '') return null;
+  if (typeof stored !== "string" || stored === "") return null;
   if (!isSealed(stored)) return stored;
   return decryptSecret(stored.slice(ENC_PREFIX.length));
 }

@@ -9,11 +9,7 @@ export type UserLevelSource = "STRIPE" | "MANUAL" | "PAYPAL";
 // subscriptions keep billing on the provider that created them.
 export type PaymentProviderId = "stripe" | "paypal";
 export type UserLevelStatus =
-  | "ACTIVE"
-  | "PAST_DUE"
-  | "CANCELED"
-  | "EXPIRED"
-  | "PAUSED"; // billing paused — access suspended but resumable
+  "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED" | "PAUSED"; // billing paused — access suspended but resumable
 export type AdminRole = "SUPER_ADMIN" | "ADMIN" | "EDITOR";
 
 // ---------- DTOs ----------
@@ -494,11 +490,7 @@ export interface MemberRow {
 // admin list renders. NOTE "active" also matches members with NO paid grant at
 // all — they registered, so the UI shows them as Active.
 export type MemberStatusFilter =
-  | "active"
-  | "past_due"
-  | "paused"
-  | "canceled"
-  | "expired";
+  "active" | "past_due" | "paused" | "canceled" | "expired";
 // Server-paged member list. total/page describe the FILTERED set — use
 // MemberStatsDTO.total for the unfiltered headline count.
 export interface MemberListDTO {
@@ -664,14 +656,19 @@ export interface MyClassCoursesDTO {
 // at GET /cert-fonts/<file> so the admin preview @font-faces the EXACT bytes
 // the PDF embeds (WYSIWYG parity).
 export const CERTIFICATE_FONTS = [
-  { id: "playfair", label: "Playfair Display", file: "PlayfairDisplay-Regular.ttf" },
+  {
+    id: "playfair",
+    label: "Playfair Display",
+    file: "PlayfairDisplay-Regular.ttf",
+  },
   { id: "greatvibes", label: "Great Vibes", file: "GreatVibes-Regular.ttf" },
   { id: "inter", label: "Inter", file: "Inter-Regular.ttf" },
   { id: "ebgaramond", label: "EB Garamond", file: "EBGaramond-Regular.ttf" },
 ] as const;
 export type CertificateFontId = (typeof CERTIFICATE_FONTS)[number]["id"];
 
-export type CertificateFieldKind = "memberName" | "className" | "issueDate" | "serial";
+export type CertificateFieldKind =
+  "memberName" | "className" | "issueDate" | "serial";
 
 // Normalized field layout. xPct/yPct are the text box's LEFT/TOP edges as % of
 // the artwork (CSS convention; the PDF renderer converts top → baseline).
@@ -707,7 +704,8 @@ export interface CreateCertificateTemplateInput {
   fields: CertificateFieldLayout[];
   isDefault?: boolean;
 }
-export type UpdateCertificateTemplateInput = Partial<CreateCertificateTemplateInput>;
+export type UpdateCertificateTemplateInput =
+  Partial<CreateCertificateTemplateInput>;
 
 // Per-class certificate state on member surfaces (lesson + class pages).
 export interface ClassCertificateStatusDTO {
@@ -955,13 +953,7 @@ export type UpdatePageInput = Partial<CreatePageInput>;
 export type FormStatus = "ACTIVE" | "INACTIVE";
 
 export type FormFieldType =
-  | "text"
-  | "email"
-  | "textarea"
-  | "phone"
-  | "number"
-  | "checkbox"
-  | "select";
+  "text" | "email" | "textarea" | "phone" | "number" | "checkbox" | "select";
 
 // One configurable field. `mergeTag` maps the value to a contact field; the
 // field whose mergeTag is "EMAIL" is treated as the subscriber email.
@@ -985,12 +977,7 @@ export type ContactStatus =
   | "UNSUBSCRIBED"
   | "CLEANED"; // hard-bounced / complained
 export type ContactSource =
-  | "SIGNUP"
-  | "FORM"
-  | "FOOTER"
-  | "IMPORT"
-  | "MANUAL"
-  | "ADMIN";
+  "SIGNUP" | "FORM" | "FOOTER" | "IMPORT" | "MANUAL" | "ADMIN";
 
 export interface AudienceDTO {
   id: string;
@@ -1143,11 +1130,7 @@ export interface TestSendInput {
 // Outcome of a template send/test — mirrors the EmailLog ledger row the
 // EmailService returns (status drives the admin toast).
 export type EmailSendStatus =
-  | "QUEUED"
-  | "SENT"
-  | "FAILED"
-  | "BOUNCED"
-  | "COMPLAINED";
+  "QUEUED" | "SENT" | "FAILED" | "BOUNCED" | "COMPLAINED";
 export interface EmailSendResultDTO {
   id: string;
   to: string;
@@ -1464,10 +1447,7 @@ export type PopupTrigger = "IMMEDIATE" | "DELAY" | "SCROLL" | "EXIT_INTENT";
 //   ONCE_PER_DAYS    — at most once every frequencyDays days
 //   ONCE             — once ever per device
 export type PopupFrequency =
-  | "EVERY_VISIT"
-  | "ONCE_PER_SESSION"
-  | "ONCE_PER_DAYS"
-  | "ONCE";
+  "EVERY_VISIT" | "ONCE_PER_SESSION" | "ONCE_PER_DAYS" | "ONCE";
 
 // Entrance animation of the popup box.
 export type PopupAnimation = "NONE" | "FADE" | "SLIDE_UP" | "ZOOM";
@@ -1586,8 +1566,7 @@ export type PopupSurface = "dashboard" | "classes" | "courses" | "lessons";
 // Context the public renderer asks about. Member-area surfaces carry no id; a
 // CMS page passes its page id so INCLUDE/EXCLUDE targeting can be evaluated.
 export type PopupContext =
-  | { type: PopupSurface }
-  | { type: "page"; pageId: string };
+  { type: PopupSurface } | { type: "page"; pageId: string };
 
 // Analytics events the renderer reports (fire-and-forget, public).
 export type PopupEventType = "view" | "click" | "dismiss";
@@ -1596,13 +1575,7 @@ export type PopupEventType = "view" | "click" | "dismiss";
 // Base: process.env API URL. All authed routes use `Authorization: Bearer <token>`.
 // ---------- Media Library (Gallery) ----------
 export type MediaKind =
-  | "image"
-  | "video"
-  | "audio"
-  | "pdf"
-  | "document"
-  | "archive"
-  | "other";
+  "image" | "video" | "audio" | "pdf" | "document" | "archive" | "other";
 
 // A managed media asset. `url` is the absolute, public, embeddable URL.
 export interface MediaDTO {
@@ -1692,10 +1665,7 @@ export type SupportTicketCategory =
   | "OTHER";
 export type SupportMessageLane = "MAIN" | "OPS";
 export type SupportMessageAuthorKind =
-  | "ADMIN"
-  | "CLIENT"
-  | "OPERATOR"
-  | "SYSTEM";
+  "ADMIN" | "CLIENT" | "OPERATOR" | "SYSTEM";
 
 // One ticket as shown in the list. `unread` drives the sidebar dot/badge and is
 // cleared server-side when the thread is opened. `raiserAdminEmail` is a label
@@ -2379,9 +2349,7 @@ export interface MessageToTaskInput {
 // A trigger on a list fires an action: post a templated, @mentioned channel
 // message carrying an inline item card. Idempotent per (workflow, item, trigger).
 export type ChatWorkflowTrigger =
-  | "ITEM_CREATED"
-  | "ITEM_ASSIGNED"
-  | "ITEM_UPDATED";
+  "ITEM_CREATED" | "ITEM_ASSIGNED" | "ITEM_UPDATED";
 export interface ChatWorkflowConfig {
   // The PERSON field whose value is the assignee to @mention. Defaults to the
   // field literally named "Assignee" when omitted.
@@ -2773,14 +2741,20 @@ export const ROUTES = {
   adminCreateProjectListField: "POST /admin/projects/lists/:id/fields", // body CreateListFieldInput -> ChatListFieldDTO (auto-slug key, unique per list)
   adminUpdateProjectListField: "PATCH /admin/projects/list-fields/:fieldId", // body UpdateListFieldInput -> ChatListFieldDTO
   adminDeleteProjectListField: "DELETE /admin/projects/list-fields/:fieldId", // -> { ok: true }
-  adminReorderProjectListFields: "POST /admin/projects/lists/:id/fields/reorder", // body ReorderListFieldsInput -> ChatListFieldDTO[]
+  adminReorderProjectListFields:
+    "POST /admin/projects/lists/:id/fields/reorder", // body ReorderListFieldsInput -> ChatListFieldDTO[]
   // list item custom-field values (validated against each field's type)
-  adminUpdateProjectListItemValues: "PATCH /admin/projects/list-items/:id/values", // body UpdateListItemValuesInput -> ChatListItemDTO (merge)
+  adminUpdateProjectListItemValues:
+    "PATCH /admin/projects/list-items/:id/values", // body UpdateListItemValuesInput -> ChatListItemDTO (merge)
   // per-item comments (the 💬 thread)
-  adminListProjectListItemComments: "GET /admin/projects/list-items/:id/comments", // -> ChatListItemCommentDTO[] (oldest→newest, excludes soft-deleted)
-  adminCreateProjectListItemComment: "POST /admin/projects/list-items/:id/comments", // body CreateListItemCommentInput -> ChatListItemCommentDTO
-  adminUpdateProjectListItemComment: "PATCH /admin/projects/list-item-comments/:cid", // body UpdateListItemCommentInput -> ChatListItemCommentDTO (own; sets editedAt)
-  adminDeleteProjectListItemComment: "DELETE /admin/projects/list-item-comments/:cid", // own; soft-delete -> { ok: true }
+  adminListProjectListItemComments:
+    "GET /admin/projects/list-items/:id/comments", // -> ChatListItemCommentDTO[] (oldest→newest, excludes soft-deleted)
+  adminCreateProjectListItemComment:
+    "POST /admin/projects/list-items/:id/comments", // body CreateListItemCommentInput -> ChatListItemCommentDTO
+  adminUpdateProjectListItemComment:
+    "PATCH /admin/projects/list-item-comments/:cid", // body UpdateListItemCommentInput -> ChatListItemCommentDTO (own; sets editedAt)
+  adminDeleteProjectListItemComment:
+    "DELETE /admin/projects/list-item-comments/:cid", // own; soft-delete -> { ok: true }
   // workflows (auto-post a list event into a channel — the Image-1 flow)
   adminListProjectWorkflows: "GET /admin/projects/workflows", // ?listId -> ChatWorkflowDTO[]
   adminCreateProjectWorkflow: "POST /admin/projects/workflows", // body CreateWorkflowInput -> ChatWorkflowDTO

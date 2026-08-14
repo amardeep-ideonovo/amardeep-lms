@@ -55,7 +55,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     (message, opts) => {
       const id = nextId.current++;
       const tone = opts?.tone ?? "error";
-      setToasts((prev) => [...prev, { id, tone, message, action: opts?.action }]);
+      setToasts((prev) => [
+        ...prev,
+        { id, tone, message, action: opts?.action },
+      ]);
       // An error carrying a retry stays until it's acted on or dismissed —
       // auto-hiding it would take the recovery away with it.
       const sticky = tone === "error" && !!opts?.action;

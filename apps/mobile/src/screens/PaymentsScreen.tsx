@@ -102,7 +102,12 @@ export function PaymentsScreen(_props: ScreenProps<"Payments">) {
     return (
       <View style={styles.skeletons}>
         {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} height={76} radius={12} style={styles.skeletonRow} />
+          <Skeleton
+            key={i}
+            height={76}
+            radius={12}
+            style={styles.skeletonRow}
+          />
         ))}
       </View>
     );
@@ -123,24 +128,45 @@ export function PaymentsScreen(_props: ScreenProps<"Payments">) {
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  list: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md, ...contentColumn },
-  skeletons: { flex: 1, backgroundColor: colors.bg, padding: spacing.md },
-  skeletonRow: { marginBottom: spacing.sm },
-  row: {
-    flexDirection: "row",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  rowLeft: { flex: 1, paddingRight: spacing.sm },
-  date: { color: colors.text, fontSize: 15, fontWeight: "600", fontFamily: fonts.semibold },
-  desc: { color: colors.textMuted, fontSize: 13, marginTop: spacing.xs, fontFamily: fonts.regular },
-  rowRight: { alignItems: "flex-end", gap: spacing.xs },
-  amount: { color: colors.text, fontSize: 15, fontWeight: "700", fontFamily: fonts.bold },
-  receipt: { color: colors.primarySoft, fontSize: 13, fontWeight: "600", fontFamily: fonts.semibold },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    list: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: spacing.md, ...contentColumn },
+    skeletons: { flex: 1, backgroundColor: colors.bg, padding: spacing.md },
+    skeletonRow: { marginBottom: spacing.sm },
+    row: {
+      flexDirection: "row",
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    rowLeft: { flex: 1, paddingRight: spacing.sm },
+    date: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
+    desc: {
+      color: colors.textMuted,
+      fontSize: 13,
+      marginTop: spacing.xs,
+      fontFamily: fonts.regular,
+    },
+    rowRight: { alignItems: "flex-end", gap: spacing.xs },
+    amount: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    receipt: {
+      color: colors.primarySoft,
+      fontSize: 13,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
+  });

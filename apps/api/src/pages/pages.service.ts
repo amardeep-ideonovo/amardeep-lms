@@ -2,7 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import type {
   PageAdminRow,
   PageAuthorDTO,
@@ -11,12 +11,12 @@ import type {
   PageStatus,
   PuckComponentData,
   PuckDocument,
-} from '@lms/types';
-import type { Prisma } from '@prisma/client';
-import sanitizeHtml from 'sanitize-html';
-import { ALLOWED_STYLES } from '../common/sanitize-styles';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreatePageDto, UpdatePageDto } from './dto/page.dto';
+} from "@lms/types";
+import type { Prisma } from "@prisma/client";
+import sanitizeHtml from "sanitize-html";
+import { ALLOWED_STYLES } from "../common/sanitize-styles";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreatePageDto, UpdatePageDto } from "./dto/page.dto";
 
 // Pages render on PUBLIC (logged-out) URLs, so any rich-text HTML embedded in
 // the Puck document (the RichText block's `html` prop) is sanitized on write —
@@ -25,23 +25,51 @@ import { CreatePageDto, UpdatePageDto } from './dto/page.dto';
 // sanitization (their text props are escaped by React at render time).
 const SANITIZE_OPTS: sanitizeHtml.IOptions = {
   allowedTags: [
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'blockquote', 'a', 'ul', 'ol',
-    'li', 'b', 'i', 'strong', 'em', 's', 'strike', 'code', 'pre', 'hr', 'br',
-    'span', 'img', 'figure', 'figcaption', 'table', 'thead', 'tbody', 'tr',
-    'th', 'td',
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "p",
+    "blockquote",
+    "a",
+    "ul",
+    "ol",
+    "li",
+    "b",
+    "i",
+    "strong",
+    "em",
+    "s",
+    "strike",
+    "code",
+    "pre",
+    "hr",
+    "br",
+    "span",
+    "img",
+    "figure",
+    "figcaption",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
   ],
   allowedAttributes: {
-    a: ['href', 'name', 'target', 'rel'],
-    img: ['src', 'alt', 'title', 'width', 'height'],
-    '*': ['style'],
+    a: ["href", "name", "target", "rel"],
+    img: ["src", "alt", "title", "width", "height"],
+    "*": ["style"],
   },
   allowedStyles: ALLOWED_STYLES,
-  allowedSchemes: ['http', 'https', 'mailto'],
-  allowedSchemesByTag: { img: ['http', 'https', 'data'] },
+  allowedSchemes: ["http", "https", "mailto"],
+  allowedSchemesByTag: { img: ["http", "https", "data"] },
   transformTags: {
     a: sanitizeHtml.simpleTransform(
-      'a',
-      { rel: 'noopener noreferrer', target: '_blank' },
+      "a",
+      { rel: "noopener noreferrer", target: "_blank" },
       true,
     ),
   },
@@ -52,9 +80,23 @@ const SANITIZE_OPTS: sanitizeHtml.IOptions = {
 // routes, but refusing to mint a colliding slug gives the admin a clear error
 // instead of a silently-unreachable page.
 const RESERVED_SLUGS = new Set([
-  'blog', 'courses', 'lessons', 'dashboard', 'account', 'login', 'logout',
-  'admin', 'api', 'images', 'health', 'billing', 'pages', '_next',
-  'favicon.ico', 'robots.txt', 'sitemap.xml',
+  "blog",
+  "courses",
+  "lessons",
+  "dashboard",
+  "account",
+  "login",
+  "logout",
+  "admin",
+  "api",
+  "images",
+  "health",
+  "billing",
+  "pages",
+  "_next",
+  "favicon.ico",
+  "robots.txt",
+  "sitemap.xml",
 ]);
 
 const EMPTY_DOC: PuckDocument = { content: [], root: { props: {} } };
@@ -85,8 +127,8 @@ export class PagesService {
 
   async listPublished(): Promise<PageListItem[]> {
     const pages = await this.prisma.page.findMany({
-      where: { status: 'PUBLISHED' },
-      orderBy: { publishedAt: 'desc' },
+      where: { status: "PUBLISHED" },
+      orderBy: { publishedAt: "desc" },
       include: PagesService.REL,
     });
     return pages.map((p: PageRow) => this.toListItem(p));
@@ -98,8 +140,8 @@ export class PagesService {
       include: PagesService.REL,
     });
     // Drafts and unknown slugs are indistinguishable to the public: both 404.
-    if (!page || page.status !== 'PUBLISHED') {
-      throw new NotFoundException('Page not found');
+    if (!page || page.status !== "PUBLISHED") {
+      throw new NotFoundException("Page not found");
     }
     return this.toPublic(page);
   }
@@ -108,7 +150,7 @@ export class PagesService {
 
   async adminList(): Promise<PageListItem[]> {
     const pages = await this.prisma.page.findMany({
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { updatedAt: "desc" },
       include: PagesService.REL,
     });
     return pages.map((p: PageRow) => this.toListItem(p));
@@ -119,15 +161,18 @@ export class PagesService {
       where: { id },
       include: PagesService.REL,
     });
-    if (!page) throw new NotFoundException('Page not found');
+    if (!page) throw new NotFoundException("Page not found");
     return this.toAdminRow(page);
   }
 
-  async adminCreate(dto: CreatePageDto, authorId: string): Promise<PageAdminRow> {
+  async adminCreate(
+    dto: CreatePageDto,
+    authorId: string,
+  ): Promise<PageAdminRow> {
     const wantsCustom = !!dto.slug?.trim();
     const base = this.slugify(dto.slug?.trim() || dto.title);
     const slug = await this.resolveSlug(base, wantsCustom);
-    const status: PageStatus = dto.status ?? 'DRAFT';
+    const status: PageStatus = dto.status ?? "DRAFT";
     // authorId comes from the JWT. If it no longer maps to an Admin (e.g. a token
     // issued before a DB reseed), fall back to an authorless page rather than
     // letting the authorId foreign key throw a 500 — the column is nullable.
@@ -141,7 +186,7 @@ export class PagesService {
         title: dto.title.trim(),
         data: this.sanitizeDoc(dto.data),
         status,
-        publishedAt: status === 'PUBLISHED' ? new Date() : null,
+        publishedAt: status === "PUBLISHED" ? new Date() : null,
         authorId: author ? authorId : null,
       },
       include: PagesService.REL,
@@ -151,11 +196,11 @@ export class PagesService {
 
   async adminUpdate(id: string, dto: UpdatePageDto): Promise<PageAdminRow> {
     const existing = await this.prisma.page.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Page not found');
+    if (!existing) throw new NotFoundException("Page not found");
 
     // Stamp publishedAt the first time the page goes live; keep it stable after.
     let publishedAt = existing.publishedAt;
-    if (dto.status === 'PUBLISHED' && !existing.publishedAt) {
+    if (dto.status === "PUBLISHED" && !existing.publishedAt) {
       publishedAt = new Date();
     }
 
@@ -185,7 +230,7 @@ export class PagesService {
 
   async adminDelete(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.page.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Page not found');
+    if (!existing) throw new NotFoundException("Page not found");
     await this.prisma.page.delete({ where: { id } });
     return { ok: true };
   }
@@ -203,11 +248,11 @@ export class PagesService {
     if (Array.isArray(value)) {
       return value.map((v) => this.sanitizeHtmlDeep(v));
     }
-    if (value && typeof value === 'object') {
+    if (value && typeof value === "object") {
       const out: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
         out[k] =
-          k === 'html' && typeof v === 'string'
+          k === "html" && typeof v === "string"
             ? sanitizeHtml(v, SANITIZE_OPTS)
             : this.sanitizeHtmlDeep(v);
       }
@@ -220,17 +265,17 @@ export class PagesService {
   // envelope so only a well-formed Puck document is ever stored.
   private sanitizeDoc(input: unknown): Prisma.InputJsonValue {
     const doc = (
-      input && typeof input === 'object' ? input : EMPTY_DOC
+      input && typeof input === "object" ? input : EMPTY_DOC
     ) as PuckDocument;
     const cleaned = this.sanitizeHtmlDeep(doc) as Partial<PuckDocument>;
     return {
       root:
-        cleaned.root && typeof cleaned.root === 'object'
+        cleaned.root && typeof cleaned.root === "object"
           ? cleaned.root
           : { props: {} },
       content: Array.isArray(cleaned.content) ? cleaned.content : [],
       zones:
-        cleaned.zones && typeof cleaned.zones === 'object' ? cleaned.zones : {},
+        cleaned.zones && typeof cleaned.zones === "object" ? cleaned.zones : {},
     } as unknown as Prisma.InputJsonValue;
   }
 
@@ -240,24 +285,24 @@ export class PagesService {
     a: { id: string; email: string } | null,
   ): PageAuthorDTO | null {
     if (!a) return null;
-    return { id: a.id, name: a.email.split('@')[0] || a.email };
+    return { id: a.id, name: a.email.split("@")[0] || a.email };
   }
 
   // Normalize whatever JSON is in the column back into a valid Puck envelope so
   // <Puck>/<Render> always receive { root, content, zones }.
   private asDoc(data: Prisma.JsonValue): PuckDocument {
-    if (data && typeof data === 'object' && !Array.isArray(data)) {
+    if (data && typeof data === "object" && !Array.isArray(data)) {
       const d = data as { content?: unknown; root?: unknown; zones?: unknown };
       return {
         content: Array.isArray(d.content)
           ? (d.content as PuckComponentData[])
           : [],
-        root: (d.root && typeof d.root === 'object'
+        root: (d.root && typeof d.root === "object"
           ? d.root
-          : { props: {} }) as PuckDocument['root'],
-        zones: (d.zones && typeof d.zones === 'object'
+          : { props: {} }) as PuckDocument["root"],
+        zones: (d.zones && typeof d.zones === "object"
           ? d.zones
-          : {}) as PuckDocument['zones'],
+          : {}) as PuckDocument["zones"],
       };
     }
     return { content: [], root: { props: {} } };
@@ -299,12 +344,12 @@ export class PagesService {
     return (
       input
         .toLowerCase()
-        .normalize('NFKD')
-        .replace(/[̀-ͯ]/g, '') // strip diacritics
-        .replace(/[^a-z0-9\s-]/g, '')
+        .normalize("NFKD")
+        .replace(/[̀-ͯ]/g, "") // strip diacritics
+        .replace(/[^a-z0-9\s-]/g, "")
         .trim()
-        .replace(/[\s_-]+/g, '-')
-        .replace(/^-+|-+$/g, '') || 'page'
+        .replace(/[\s_-]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "page"
     );
   }
 

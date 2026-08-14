@@ -9,7 +9,14 @@ import { useMemo, useState } from "react";
 import { AddHostModal } from "@/components/AddHostModal";
 import { RolloutCard } from "@/components/RolloutCard";
 import { Icon } from "@/components/icons";
-import { Avatar, ConfirmModal, HealthLabel, Kebab, PageSkeleton, Pill } from "@/components/ui";
+import {
+  Avatar,
+  ConfirmModal,
+  HealthLabel,
+  Kebab,
+  PageSkeleton,
+  Pill,
+} from "@/components/ui";
 import {
   activeWaveName,
   awaitingUpdateCount,
@@ -47,7 +54,11 @@ function matchesFilter(inst: Instance, filter: RowFilter): boolean {
     case "running":
       return inst.status === "Running";
     case "attention":
-      return inst.health.tone === "warn" || inst.health.tone === "danger" || inst.updateQueued;
+      return (
+        inst.health.tone === "warn" ||
+        inst.health.tone === "danger" ||
+        inst.updateQueued
+      );
     case "provisioning":
       return inst.status === "Provisioning";
     case "suspended":
@@ -71,7 +82,7 @@ export default function OperatorDashboard() {
           i.clientName.toLowerCase().includes(query) ||
           i.domain.toLowerCase().includes(query) ||
           i.id.includes(query) ||
-          i.owner.toLowerCase().includes(query))
+          i.owner.toLowerCase().includes(query)),
     );
   }, [fleet, filter, query]);
 
@@ -81,7 +92,9 @@ export default function OperatorDashboard() {
   const runningCount = fleet.stats.running;
   const awaiting = awaitingUpdateCount(fleet);
   const criticals = criticalAlertCount(fleet);
-  const openTickets = fleet.instances.flatMap((i) => i.tickets).filter((t) => t.status === "Open");
+  const openTickets = fleet.instances
+    .flatMap((i) => i.tickets)
+    .filter((t) => t.status === "Open");
   const inboxRows = fleet.instances
     .flatMap((i) => i.tickets.map((t) => ({ ticket: t, instance: i })))
     .slice(0, 4);
@@ -97,7 +110,9 @@ export default function OperatorDashboard() {
           <span>
             <span className="stat-label">Running instances</span>
             <span className="stat-value">{runningCount}</span>
-            <span className="stat-note tone-success">of {fleet.stats.licenses} licenses</span>
+            <span className="stat-note tone-success">
+              of {fleet.stats.licenses} licenses
+            </span>
           </span>
         </div>
         <div className="stat-card">
@@ -106,8 +121,12 @@ export default function OperatorDashboard() {
           </span>
           <span>
             <span className="stat-label">Fleet MRR</span>
-            <span className="stat-value">${fleet.stats.mrr.toLocaleString("en-US")}</span>
-            <span className="stat-note tone-success">{fleet.stats.mrrNote}</span>
+            <span className="stat-value">
+              ${fleet.stats.mrr.toLocaleString("en-US")}
+            </span>
+            <span className="stat-note tone-success">
+              {fleet.stats.mrrNote}
+            </span>
           </span>
         </div>
         <div className="stat-card">
@@ -115,9 +134,13 @@ export default function OperatorDashboard() {
             <Icon name="download" size={17} />
           </span>
           <span>
-            <span className="stat-label">Awaiting {fleet.rollout.targetVersion}</span>
+            <span className="stat-label">
+              Awaiting {fleet.rollout.targetVersion}
+            </span>
             <span className="stat-value">{awaiting}</span>
-            <span className="stat-note tone-info">rollout {activeWaveName(fleet)}</span>
+            <span className="stat-note tone-info">
+              rollout {activeWaveName(fleet)}
+            </span>
           </span>
         </div>
         <div className="stat-card">
@@ -144,7 +167,11 @@ export default function OperatorDashboard() {
             </span>
             <div className="card-head-spacer" />
             <span className="kebab-wrap">
-              <button type="button" className="link-teal" onClick={() => setFilterOpen((v) => !v)}>
+              <button
+                type="button"
+                className="link-teal"
+                onClick={() => setFilterOpen((v) => !v)}
+              >
                 {filter === "all" ? "Filter" : FILTER_LABELS[filter]} ▾
               </button>
               {filterOpen && (
@@ -163,7 +190,11 @@ export default function OperatorDashboard() {
                       type="button"
                       role="menuitem"
                       className="pop-item"
-                      style={f === filter ? { color: "var(--teal-text)", fontWeight: 600 } : undefined}
+                      style={
+                        f === filter
+                          ? { color: "var(--teal-text)", fontWeight: 600 }
+                          : undefined
+                      }
                       onClick={() => {
                         setFilter(f);
                         setFilterOpen(false);
@@ -206,7 +237,9 @@ export default function OperatorDashboard() {
                   <tr key={inst.id}>
                     <td>
                       <span className="inst-cell">
-                        <span className="inst-tile">{initialsOf(inst.clientName)}</span>
+                        <span className="inst-tile">
+                          {initialsOf(inst.clientName)}
+                        </span>
                         <span className="inst-text">
                           <span className="inst-name">{inst.clientName}</span>
                           <span className="inst-domain">{inst.domain}</span>
@@ -215,10 +248,19 @@ export default function OperatorDashboard() {
                     </td>
                     <td className="cell-version">{inst.version}</td>
                     <td>
-                      <HealthLabel tone={inst.health.tone} label={inst.health.label} />
+                      <HealthLabel
+                        tone={inst.health.tone}
+                        label={inst.health.label}
+                      />
                     </td>
-                    <td>{inst.membersCount === null ? "—" : inst.membersCount.toLocaleString("en-US")}</td>
-                    <td>{owner ? planName(fleet, owner.license.planId) : "—"}</td>
+                    <td>
+                      {inst.membersCount === null
+                        ? "—"
+                        : inst.membersCount.toLocaleString("en-US")}
+                    </td>
+                    <td>
+                      {owner ? planName(fleet, owner.license.planId) : "—"}
+                    </td>
                     <td>
                       <Pill tone={status.tone}>{status.label}</Pill>
                     </td>
@@ -228,10 +270,21 @@ export default function OperatorDashboard() {
                           { label: "Open admin", href: inst.urls.admin },
                           { label: "Member site", href: inst.urls.web },
                           ...(inst.status === "Running"
-                            ? [{ label: "Stop (compose stop)", onSelect: () => stopInstance(inst.id) }]
+                            ? [
+                                {
+                                  label: "Stop (compose stop)",
+                                  onSelect: () => stopInstance(inst.id),
+                                },
+                              ]
                             : inst.status === "Stopped" ||
-                                (inst.status === "Suspended" && !licenseSuspended)
-                              ? [{ label: "Start (compose start)", onSelect: () => startInstance(inst.id) }]
+                                (inst.status === "Suspended" &&
+                                  !licenseSuspended)
+                              ? [
+                                  {
+                                    label: "Start (compose start)",
+                                    onSelect: () => startInstance(inst.id),
+                                  },
+                                ]
                               : inst.status === "Provisioning"
                                 ? [{ label: "Booting…", disabled: true }]
                                 : []),
@@ -248,7 +301,11 @@ export default function OperatorDashboard() {
                                     },
                               ]
                             : []),
-                          { label: "Destroy…", danger: true, onSelect: () => setDestroyTarget(inst) },
+                          {
+                            label: "Destroy…",
+                            danger: true,
+                            onSelect: () => setDestroyTarget(inst),
+                          },
                         ]}
                       />
                     </td>
@@ -258,7 +315,9 @@ export default function OperatorDashboard() {
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={7}>
-                    <span className="empty-note">No instances match — clear the search or filter.</span>
+                    <span className="empty-note">
+                      No instances match — clear the search or filter.
+                    </span>
                   </td>
                 </tr>
               )}
@@ -276,7 +335,9 @@ export default function OperatorDashboard() {
               <AlertRow key={alert.id} alert={alert} />
             ))}
             {openAlerts.length === 0 && (
-              <div className="empty-note">No open alerts — the fleet is quiet.</div>
+              <div className="empty-note">
+                No open alerts — the fleet is quiet.
+              </div>
             )}
           </div>
         </div>
@@ -297,7 +358,8 @@ export default function OperatorDashboard() {
                 <div key={host.name} className="host-row">
                   <span className="host-name">{host.name}</span>
                   <span className="host-count">
-                    {host.instanceCount} instance{host.instanceCount === 1 ? "" : "s"}
+                    {host.instanceCount} instance
+                    {host.instanceCount === 1 ? "" : "s"}
                   </span>
                   <span className="bar" style={{ height: 8 }}>
                     <span
@@ -305,7 +367,8 @@ export default function OperatorDashboard() {
                       style={{
                         width: `${worst.pct}%`,
                         height: 8,
-                        background: worst.pct >= 80 ? "var(--warning)" : "var(--success)",
+                        background:
+                          worst.pct >= 80 ? "var(--warning)" : "var(--success)",
                       }}
                     />
                   </span>
@@ -322,11 +385,16 @@ export default function OperatorDashboard() {
             <div className="card-head baseline" style={{ marginBottom: 8 }}>
               <span className="card-title">Support inbox</span>
               <div className="card-head-spacer" />
-              <span className="link-teal">Open inbox · {openTickets.length}</span>
+              <span className="link-teal">
+                Open inbox · {openTickets.length}
+              </span>
             </div>
             {inboxRows.map(({ ticket, instance }) => (
               <div key={ticket.id} className="inbox-row">
-                <span className="inst-tile" style={{ width: 30, height: 30, fontSize: 11 }}>
+                <span
+                  className="inst-tile"
+                  style={{ width: 30, height: 30, fontSize: 11 }}
+                >
                   {initialsOf(instance.clientName)}
                 </span>
                 <span className="inbox-body">
@@ -335,7 +403,9 @@ export default function OperatorDashboard() {
                     {ticket.requester} · {instance.clientName}
                   </span>
                 </span>
-                <Pill tone={ticket.status === "Open" ? "danger" : "success"}>{ticket.status}</Pill>
+                <Pill tone={ticket.status === "Open" ? "danger" : "success"}>
+                  {ticket.status}
+                </Pill>
               </div>
             ))}
           </div>
@@ -372,11 +442,16 @@ export default function OperatorDashboard() {
           body={
             <>
               <div className="danger-box">
-                Runs <span className="mono">docker compose -p {destroyTarget.dbName} down -v</span> — containers
-                AND data volumes (Postgres, Redis, uploads) are deleted. This cannot be undone.
+                Runs{" "}
+                <span className="mono">
+                  docker compose -p {destroyTarget.dbName} down -v
+                </span>{" "}
+                — containers AND data volumes (Postgres, Redis, uploads) are
+                deleted. This cannot be undone.
               </div>
               <p className="modal-note">
-                Last backup: {destroyTarget.backups.lastRunAt} ({destroyTarget.backups.schedule}).
+                Last backup: {destroyTarget.backups.lastRunAt} (
+                {destroyTarget.backups.schedule}).
               </p>
             </>
           }

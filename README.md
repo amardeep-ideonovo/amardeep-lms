@@ -4,6 +4,7 @@ Membership LMS replacing a WordPress + WooCommerce Subscriptions site. Full
 architecture and rationale in [PLAN.md](PLAN.md).
 
 ## Monorepo (npm workspaces)
+
 ```
 apps/api        NestJS API — single source of truth, serves all clients
 apps/admin      Next.js admin (web only): levels, members, LMS, Stripe keys
@@ -14,11 +15,13 @@ packages/types  Shared TS types / API client
 ```
 
 ## Status
+
 Foundation scaffolded: monorepo, Prisma schema (the data model), env template.
 The four apps are stubs — each needs its framework scaffold (commands in each
 `package.json` description). Build order is the phasing list in PLAN.md.
 
 ## Getting started
+
 1. `cp .env.example .env` and fill in values.
 2. `docker compose up -d` (Postgres on :5432, Redis on :6379).
 3. `npm install`
@@ -30,6 +33,7 @@ All four apps are scaffolded and compile/build clean. Next: the WordPress
 migration tooling.
 
 ## Deployment (pre-prod → prod)
+
 Auto-deploys from `main`; no custom middleware needed.
 
 - **Frontends (admin, member web) → Vercel.** Two Vercel projects, each with
@@ -45,6 +49,7 @@ Auto-deploys from `main`; no custom middleware needed.
 - Mobile (Expo) ships via TestFlight/Play, not web deploy.
 
 ## Branching & BDD gate
+
 - Work lands on **`amardeepLMS`** first, then merges to **`main`** via PR.
 - The BDD suite (`packages/bdd`, Cucumber.js, API-level) runs on every PR to
   `main` via `.github/workflows/bdd.yml` and must pass before merge

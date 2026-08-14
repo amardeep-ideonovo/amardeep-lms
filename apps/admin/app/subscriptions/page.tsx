@@ -44,11 +44,7 @@ const statusKey = (s: SubscriptionRowDTO): string =>
 function StatusBadge({ s }: { s: SubscriptionRowDTO }) {
   const key = statusKey(s);
   const meta = STATUS_META[key] ?? { label: key, cls: "badge--neutral" };
-  return (
-    <span className={`badge ${meta.cls}`}>
-      {meta.label}
-    </span>
-  );
+  return <span className={`badge ${meta.cls}`}>{meta.label}</span>;
 }
 
 export default function SubscriptionsPage() {
@@ -124,7 +120,9 @@ export default function SubscriptionsPage() {
             className="btn btn--ghost btn--icon"
             disabled={exporting || loading}
             aria-label={
-              exporting ? "Exporting subscriptions…" : "Download subscriptions as Excel"
+              exporting
+                ? "Exporting subscriptions…"
+                : "Download subscriptions as Excel"
             }
             title={exporting ? "Exporting…" : "Download Excel"}
             onClick={async () => {
@@ -199,80 +197,82 @@ export default function SubscriptionsPage() {
             {visible.length === 0 ? (
               <p className="muted">No subscriptions match this filter.</p>
             ) : (
-              <div className="table-wrap"><table className="table">
-                <thead>
-                  <tr>
-                    <th>Status</th>
-                    <th>Name</th>
-                    <th>Class Name</th>
-                    <th>Total</th>
-                    <th>Start Date</th>
-                    <th>Next Payment</th>
-                    <th>Last Order Date</th>
-                    <th>End Date</th>
-                    <th>Orders</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visible.map((r) => (
-                    <tr key={r.id}>
-                      <td>
-                        <StatusBadge s={r} />
-                        <div
-                          className="muted"
-                          style={{ fontSize: 11, marginTop: 4 }}
-                        >
-                          {r.provider === "paypal" ? "PayPal" : "Stripe"}
-                          {r.cancelAtPeriodEnd && !r.paused
-                            ? " · cancels at period end"
-                            : ""}
-                        </div>
-                      </td>
-                      <td>
-                        {r.memberId ? (
-                          <Link
-                            href={`/members/${r.memberId}`}
-                            className="linklike"
-                            title="View subscription & payments"
-                          >
-                            {r.memberName}
-                          </Link>
-                        ) : (
-                          r.memberName
-                        )}
-                        {r.memberEmail ? (
-                          <div className="muted" style={{ fontSize: 12 }}>
-                            {r.memberEmail}
-                          </div>
-                        ) : null}
-                      </td>
-                      <td>{r.levelName}</td>
-                      <td>
-                        {money(r.amount, r.currency)}
-                        {r.interval ? (
-                          <span className="muted"> / {r.interval}</span>
-                        ) : null}
-                      </td>
-                      <td>{fmtDate(r.startDate)}</td>
-                      <td>{fmtDate(r.nextPayment)}</td>
-                      <td>{fmtDate(r.lastOrderDate)}</td>
-                      <td>{fmtDate(r.endDate)}</td>
-                      <td>
-                        {r.installmentsTotal != null ? (
-                          <span title="Installment payments made">
-                            {r.orders} / {r.installmentsTotal}
-                            <div className="muted" style={{ fontSize: 11 }}>
-                              → lifetime
-                            </div>
-                          </span>
-                        ) : (
-                          r.orders
-                        )}
-                      </td>
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Status</th>
+                      <th>Name</th>
+                      <th>Class Name</th>
+                      <th>Total</th>
+                      <th>Start Date</th>
+                      <th>Next Payment</th>
+                      <th>Last Order Date</th>
+                      <th>End Date</th>
+                      <th>Orders</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table></div>
+                  </thead>
+                  <tbody>
+                    {visible.map((r) => (
+                      <tr key={r.id}>
+                        <td>
+                          <StatusBadge s={r} />
+                          <div
+                            className="muted"
+                            style={{ fontSize: 11, marginTop: 4 }}
+                          >
+                            {r.provider === "paypal" ? "PayPal" : "Stripe"}
+                            {r.cancelAtPeriodEnd && !r.paused
+                              ? " · cancels at period end"
+                              : ""}
+                          </div>
+                        </td>
+                        <td>
+                          {r.memberId ? (
+                            <Link
+                              href={`/members/${r.memberId}`}
+                              className="linklike"
+                              title="View subscription & payments"
+                            >
+                              {r.memberName}
+                            </Link>
+                          ) : (
+                            r.memberName
+                          )}
+                          {r.memberEmail ? (
+                            <div className="muted" style={{ fontSize: 12 }}>
+                              {r.memberEmail}
+                            </div>
+                          ) : null}
+                        </td>
+                        <td>{r.levelName}</td>
+                        <td>
+                          {money(r.amount, r.currency)}
+                          {r.interval ? (
+                            <span className="muted"> / {r.interval}</span>
+                          ) : null}
+                        </td>
+                        <td>{fmtDate(r.startDate)}</td>
+                        <td>{fmtDate(r.nextPayment)}</td>
+                        <td>{fmtDate(r.lastOrderDate)}</td>
+                        <td>{fmtDate(r.endDate)}</td>
+                        <td>
+                          {r.installmentsTotal != null ? (
+                            <span title="Installment payments made">
+                              {r.orders} / {r.installmentsTotal}
+                              <div className="muted" style={{ fontSize: 11 }}>
+                                → lifetime
+                              </div>
+                            </span>
+                          ) : (
+                            r.orders
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}

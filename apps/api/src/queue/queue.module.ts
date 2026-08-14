@@ -1,5 +1,5 @@
-import { Global, Module, OnModuleDestroy } from '@nestjs/common';
-import { redisProvider, REDIS_CONNECTION } from './redis.provider';
+import { Global, Module, OnModuleDestroy } from "@nestjs/common";
+import { redisProvider, REDIS_CONNECTION } from "./redis.provider";
 
 @Global()
 @Module({

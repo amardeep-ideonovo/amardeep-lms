@@ -57,13 +57,28 @@ function motifMusic(c: Canvas, accent: RGB, r: () => number): void {
     const hgt = c.h * (0.06 + env * 0.3 * (0.6 + r() * 0.4));
     const x = gap * (i + 0.5);
     const col = mix(accent, WHITE, 0.15 + env * 0.25);
-    c.roundRect(x - gap * 0.22, baseY - hgt, gap * 0.44, hgt, gap * 0.22, col, 0.5);
+    c.roundRect(
+      x - gap * 0.22,
+      baseY - hgt,
+      gap * 0.44,
+      hgt,
+      gap * 0.22,
+      col,
+      0.5,
+    );
   }
   // Concentric rings behind, like a speaker cone.
   const cx = c.w * 0.24;
   const cy = c.h * 0.36;
   for (let i = 0; i < 4; i++) {
-    c.ring(cx, cy, c.h * (0.1 + i * 0.09), 2, mix(accent, WHITE, 0.3), 0.16 - i * 0.025);
+    c.ring(
+      cx,
+      cy,
+      c.h * (0.1 + i * 0.09),
+      2,
+      mix(accent, WHITE, 0.3),
+      0.16 - i * 0.025,
+    );
   }
 }
 
@@ -73,13 +88,26 @@ function motifFood(c: Canvas, accent: RGB, r: () => number): void {
   const cy = c.h * (0.46 + r() * 0.1);
   const base = Math.min(c.w, c.h) * 0.34;
   for (let i = 0; i < 5; i++) {
-    c.ring(cx, cy, base * (0.42 + i * 0.17), i === 2 ? 3 : 1.6, mix(accent, WHITE, 0.35), 0.3 - i * 0.04);
+    c.ring(
+      cx,
+      cy,
+      base * (0.42 + i * 0.17),
+      i === 2 ? 3 : 1.6,
+      mix(accent, WHITE, 0.35),
+      0.3 - i * 0.04,
+    );
   }
   c.disc(cx, cy, base * 0.3, mix(accent, WHITE, 0.1), 0.22);
   for (let i = 0; i < 14; i++) {
     const a = r() * Math.PI * 2;
     const d = base * (0.55 + r() * 0.85);
-    c.disc(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.8, 3 + r() * 7, mix(accent, WHITE, 0.5), 0.2 + r() * 0.2);
+    c.disc(
+      cx + Math.cos(a) * d,
+      cy + Math.sin(a) * d * 0.8,
+      3 + r() * 7,
+      mix(accent, WHITE, 0.5),
+      0.2 + r() * 0.2,
+    );
   }
 }
 
@@ -101,12 +129,26 @@ function motifTechnology(c: Canvas, accent: RGB, r: () => number): void {
     for (let j = i + 1; j < pts.length; j++) {
       const d = Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]);
       if (d > near) continue;
-      c.line(pts[i][0], pts[i][1], pts[j][0], pts[j][1], 1.2, mix(accent, WHITE, 0.35), 0.16 * (1 - d / near));
+      c.line(
+        pts[i][0],
+        pts[i][1],
+        pts[j][0],
+        pts[j][1],
+        1.2,
+        mix(accent, WHITE, 0.35),
+        0.16 * (1 - d / near),
+      );
     }
   }
   for (const [x, y] of pts) {
     const big = r() > 0.78;
-    c.disc(x, y, big ? 6 : 3, mix(accent, WHITE, big ? 0.6 : 0.3), big ? 0.6 : 0.3);
+    c.disc(
+      x,
+      y,
+      big ? 6 : 3,
+      mix(accent, WHITE, big ? 0.6 : 0.3),
+      big ? 0.6 : 0.3,
+    );
   }
 }
 
@@ -115,14 +157,29 @@ function motifSports(c: Canvas, accent: RGB, r: () => number): void {
   const cx = c.w * 0.72;
   const cy = c.h * 1.05;
   for (let i = 0; i < 4; i++) {
-    c.ring(cx, cy, c.h * (0.45 + i * 0.16), 3, mix(accent, WHITE, 0.3), 0.22 - i * 0.035);
+    c.ring(
+      cx,
+      cy,
+      c.h * (0.45 + i * 0.16),
+      3,
+      mix(accent, WHITE, 0.3),
+      0.22 - i * 0.035,
+    );
   }
   const streaks = 7;
   for (let i = 0; i < streaks; i++) {
     const y = c.h * (0.12 + (i / streaks) * 0.7) + (r() - 0.5) * 20;
     const len = c.w * (0.16 + r() * 0.3);
     const x = c.w * (0.04 + r() * 0.22);
-    c.line(x, y, x + len, y - len * 0.34, 5 + r() * 5, mix(accent, WHITE, 0.4), 0.14 + r() * 0.12);
+    c.line(
+      x,
+      y,
+      x + len,
+      y - len * 0.34,
+      5 + r() * 5,
+      mix(accent, WHITE, 0.4),
+      0.14 + r() * 0.12,
+    );
   }
 }
 
@@ -131,12 +188,21 @@ function motifGeneral(c: Canvas, accent: RGB, _r: () => number): void {
   const step = Math.max(26, c.w / 30);
   for (let y = step; y < c.h; y += step) {
     for (let x = step; x < c.w; x += step) {
-      const t = smooth(1 - Math.hypot(x - c.w * 0.7, y - c.h * 0.4) / (c.w * 0.7));
+      const t = smooth(
+        1 - Math.hypot(x - c.w * 0.7, y - c.h * 0.4) / (c.w * 0.7),
+      );
       c.disc(x, y, 1.6 + t * 2.4, mix(accent, WHITE, 0.4), 0.08 + t * 0.3);
     }
   }
   for (let i = 0; i < 3; i++) {
-    c.ring(c.w * 0.7, c.h * 0.4, c.h * (0.2 + i * 0.16), 2, mix(accent, WHITE, 0.3), 0.14 - i * 0.03);
+    c.ring(
+      c.w * 0.7,
+      c.h * 0.4,
+      c.h * (0.2 + i * 0.16),
+      2,
+      mix(accent, WHITE, 0.3),
+      0.14 - i * 0.03,
+    );
   }
 }
 
@@ -197,7 +263,8 @@ function avatar(key: string, size: number): Canvas {
       const py = cell * (1 + y);
       c.roundRect(px, py, cell, cell, cell * 0.3, col, 0.5);
       const mirrorX = cell * (1 + (cells - 1 - x));
-      if (mirrorX !== px) c.roundRect(mirrorX, py, cell, cell, cell * 0.3, col, 0.5);
+      if (mirrorX !== px)
+        c.roundRect(mirrorX, py, cell, cell, cell * 0.3, col, 0.5);
     }
   }
   c.vignette(0.25);
@@ -209,7 +276,9 @@ function avatar(key: string, size: number): Canvas {
 function write(name: string, c: Canvas): void {
   const file = path.join(OUT_DIR, name);
   fs.writeFileSync(file, c.toPng());
-  console.log(`  ${name}  ${c.w}×${c.h}  ${(fs.statSync(file).size / 1024).toFixed(1)} KB`);
+  console.log(
+    `  ${name}  ${c.w}×${c.h}  ${(fs.statSync(file).size / 1024).toFixed(1)} KB`,
+  );
 }
 
 function main(): void {
@@ -219,13 +288,16 @@ function main(): void {
   // Class/course/lesson/skill art. Five variants per theme; the seed rotates
   // through them so a class's surfaces share a palette without repeating.
   for (const theme of ["music", "food", "technology", "sports"] as const) {
-    for (let v = 0; v < 5; v++) write(`demo-${theme}-${v}.png`, panel(theme, v, 1200, 675));
+    for (let v = 0; v < 5; v++)
+      write(`demo-${theme}-${v}.png`, panel(theme, v, 1200, 675));
   }
   // Subject-free art for platform announcements and the QA fixture courses.
-  for (let v = 0; v < 2; v++) write(`demo-general-${v}.png`, panel("general", v, 1200, 675));
+  for (let v = 0; v < 2; v++)
+    write(`demo-general-${v}.png`, panel("general", v, 1200, 675));
 
   // 0 = the About page's testimonial, 1 = the demo member's profile photo.
-  for (let v = 0; v < 2; v++) write(`demo-avatar-${v}.png`, avatar(`avatar-${v}`, 240));
+  for (let v = 0; v < 2; v++)
+    write(`demo-avatar-${v}.png`, avatar(`avatar-${v}`, 240));
 
   console.log("Done.");
 }

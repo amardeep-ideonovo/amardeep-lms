@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from "@nestjs/common";
 import type {
   PostAdminListRow,
   PostAdminRow,
@@ -7,39 +7,67 @@ import type {
   PostDetailDTO,
   PostListItem,
   PostStatus,
-} from '@lms/types';
-import sanitizeHtml from 'sanitize-html';
-import { ALLOWED_STYLES } from '../common/sanitize-styles';
-import { PrismaService } from '../prisma/prisma.service';
+} from "@lms/types";
+import sanitizeHtml from "sanitize-html";
+import { ALLOWED_STYLES } from "../common/sanitize-styles";
+import { PrismaService } from "../prisma/prisma.service";
 import {
   CreatePostCategoryDto,
   CreatePostDto,
   UpdatePostDto,
-} from './dto/blog.dto';
+} from "./dto/blog.dto";
 
 // Posts are authored by admins but rendered on a PUBLIC (logged-out) page, so
 // the HTML is sanitized on write as defense-in-depth: a stored-XSS payload must
 // never reach a visitor's browser. Allow a blog-appropriate tag/attr set only.
 const SANITIZE_OPTS: sanitizeHtml.IOptions = {
   allowedTags: [
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'blockquote', 'a', 'ul', 'ol',
-    'li', 'b', 'i', 'strong', 'em', 's', 'strike', 'code', 'pre', 'hr', 'br',
-    'span', 'img', 'figure', 'figcaption', 'table', 'thead', 'tbody', 'tr',
-    'th', 'td',
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "p",
+    "blockquote",
+    "a",
+    "ul",
+    "ol",
+    "li",
+    "b",
+    "i",
+    "strong",
+    "em",
+    "s",
+    "strike",
+    "code",
+    "pre",
+    "hr",
+    "br",
+    "span",
+    "img",
+    "figure",
+    "figcaption",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
   ],
   allowedAttributes: {
-    a: ['href', 'name', 'target', 'rel'],
-    img: ['src', 'alt', 'title', 'width', 'height'],
-    '*': ['style'],
+    a: ["href", "name", "target", "rel"],
+    img: ["src", "alt", "title", "width", "height"],
+    "*": ["style"],
   },
   allowedStyles: ALLOWED_STYLES,
   // No data: in <a href> (phishing/JS vector); data: only for inline images.
-  allowedSchemes: ['http', 'https', 'mailto'],
-  allowedSchemesByTag: { img: ['http', 'https', 'data'] },
+  allowedSchemes: ["http", "https", "mailto"],
+  allowedSchemesByTag: { img: ["http", "https", "data"] },
   transformTags: {
     a: sanitizeHtml.simpleTransform(
-      'a',
-      { rel: 'noopener noreferrer', target: '_blank' },
+      "a",
+      { rel: "noopener noreferrer", target: "_blank" },
       true,
     ),
   },
@@ -63,7 +91,7 @@ type PostRow = {
 };
 
 // Same row minus the body columns — what the admin LIST projection reads.
-type PostListDbRow = Omit<PostRow, 'excerpt' | 'content' | 'coverImageUrl'>;
+type PostListDbRow = Omit<PostRow, "excerpt" | "content" | "coverImageUrl">;
 
 @Injectable()
 export class BlogService {
@@ -79,8 +107,8 @@ export class BlogService {
 
   async listPublished(): Promise<PostListItem[]> {
     const posts = await this.prisma.post.findMany({
-      where: { status: 'PUBLISHED' },
-      orderBy: { publishedAt: 'desc' },
+      where: { status: "PUBLISHED" },
+      orderBy: { publishedAt: "desc" },
       include: BlogService.REL,
     });
     return posts.map((p: PostRow) => this.toListItem(p));
@@ -92,15 +120,15 @@ export class BlogService {
       include: BlogService.REL,
     });
     // Drafts and unknown slugs are indistinguishable to the public: both 404.
-    if (!post || post.status !== 'PUBLISHED') {
-      throw new NotFoundException('Post not found');
+    if (!post || post.status !== "PUBLISHED") {
+      throw new NotFoundException("Post not found");
     }
     return this.toDetail(post);
   }
 
   async listCategories(): Promise<PostCategoryDTO[]> {
     const cats = await this.prisma.postCategory.findMany({
-      orderBy: { order: 'asc' },
+      orderBy: { order: "asc" },
     });
     return cats.map((c) => ({
       id: c.id,
@@ -117,7 +145,7 @@ export class BlogService {
   // via adminGet.
   async adminList(): Promise<PostAdminListRow[]> {
     const posts = await this.prisma.post.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       select: {
         id: true,
         slug: true,
@@ -140,13 +168,16 @@ export class BlogService {
       where: { id },
       include: BlogService.REL,
     });
-    if (!post) throw new NotFoundException('Post not found');
+    if (!post) throw new NotFoundException("Post not found");
     return this.toAdminRow(post as PostRow);
   }
 
-  async adminCreate(dto: CreatePostDto, authorId: string): Promise<PostAdminRow> {
+  async adminCreate(
+    dto: CreatePostDto,
+    authorId: string,
+  ): Promise<PostAdminRow> {
     const slug = await this.uniquePostSlug(this.slugify(dto.title));
-    const status: PostStatus = dto.status ?? 'DRAFT';
+    const status: PostStatus = dto.status ?? "DRAFT";
     // authorId comes from the JWT. If it no longer maps to an Admin (e.g. a token
     // issued before a DB reseed), fall back to an authorless post rather than
     // letting the authorId foreign key throw a 500 — the column is nullable.
@@ -159,10 +190,10 @@ export class BlogService {
         slug,
         title: dto.title.trim(),
         excerpt: dto.excerpt?.trim() || null,
-        content: dto.content ? sanitizeHtml(dto.content, SANITIZE_OPTS) : '',
+        content: dto.content ? sanitizeHtml(dto.content, SANITIZE_OPTS) : "",
         coverImageUrl: dto.coverImageUrl?.trim() || null,
         status,
-        publishedAt: status === 'PUBLISHED' ? new Date() : null,
+        publishedAt: status === "PUBLISHED" ? new Date() : null,
         categories: dto.categoryIds?.length
           ? { connect: dto.categoryIds.map((id) => ({ id })) }
           : undefined,
@@ -176,11 +207,11 @@ export class BlogService {
 
   async adminUpdate(id: string, dto: UpdatePostDto): Promise<PostAdminRow> {
     const existing = await this.prisma.post.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Post not found');
+    if (!existing) throw new NotFoundException("Post not found");
 
     // Stamp publishedAt the first time a post goes live; keep it stable after.
     let publishedAt = existing.publishedAt;
-    if (dto.status === 'PUBLISHED' && !existing.publishedAt) {
+    if (dto.status === "PUBLISHED" && !existing.publishedAt) {
       publishedAt = new Date();
     }
 
@@ -212,7 +243,7 @@ export class BlogService {
 
   async adminDelete(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.post.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Post not found');
+    if (!existing) throw new NotFoundException("Post not found");
     await this.prisma.post.delete({ where: { id } });
     return { ok: true };
   }
@@ -231,7 +262,7 @@ export class BlogService {
     const existing = await this.prisma.postCategory.findUnique({
       where: { id },
     });
-    if (!existing) throw new NotFoundException('Category not found');
+    if (!existing) throw new NotFoundException("Category not found");
     await this.prisma.postCategory.delete({ where: { id } });
     return { ok: true };
   }
@@ -242,7 +273,7 @@ export class BlogService {
     a: { id: string; email: string } | null,
   ): PostAuthorDTO | null {
     if (!a) return null;
-    return { id: a.id, name: a.email.split('@')[0] || a.email };
+    return { id: a.id, name: a.email.split("@")[0] || a.email };
   }
 
   private toCategories(
@@ -309,12 +340,12 @@ export class BlogService {
     return (
       input
         .toLowerCase()
-        .normalize('NFKD')
-        .replace(/[̀-ͯ]/g, '') // strip diacritics
-        .replace(/[^a-z0-9\s-]/g, '')
+        .normalize("NFKD")
+        .replace(/[̀-ͯ]/g, "") // strip diacritics
+        .replace(/[^a-z0-9\s-]/g, "")
         .trim()
-        .replace(/[\s_-]+/g, '-')
-        .replace(/^-+|-+$/g, '') || 'post'
+        .replace(/[\s_-]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "post"
     );
   }
 
@@ -322,7 +353,7 @@ export class BlogService {
     let slug = base;
     let n = 1;
     // Append -2, -3, … until free.
-     
+
     while (true) {
       const hit = await this.prisma.post.findUnique({ where: { slug } });
       if (!hit) return slug;
@@ -334,7 +365,7 @@ export class BlogService {
   private async uniqueCategorySlug(base: string): Promise<string> {
     let slug = base;
     let n = 1;
-     
+
     while (true) {
       const hit = await this.prisma.postCategory.findUnique({
         where: { slug },

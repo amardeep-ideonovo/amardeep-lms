@@ -3,14 +3,14 @@ import {
   BadRequestException,
   Injectable,
   Logger,
-} from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import ExcelJS from 'exceljs';
-import type { SubscriptionRowDTO } from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { SubscriptionsService } from '../subscriptions/subscriptions.service';
-import { MembersService } from '../members/members.service';
-import type { ListMembersQueryDto } from '../members/dto/member.dto';
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import ExcelJS from "exceljs";
+import type { SubscriptionRowDTO } from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { SubscriptionsService } from "../subscriptions/subscriptions.service";
+import { MembersService } from "../members/members.service";
+import type { ListMembersQueryDto } from "../members/dto/member.dto";
 
 // Column spec for the shared sheet builder. `numFmt` drives Excel cell formatting
 // (dates, currency, percentages) so values stay sortable/filterable numbers/dates
@@ -55,7 +55,11 @@ export class ReportsService {
   // list WHERE for parity; pagination is ignored (exports every match).
   async membersWorkbookFiltered(query: ListMembersQueryDto): Promise<Buffer> {
     const wb = this.newWorkbook();
-    await this.addMembersSheet(wb, undefined, this.members.buildListWhere(query));
+    await this.addMembersSheet(
+      wb,
+      undefined,
+      this.members.buildListWhere(query),
+    );
     return this.toBuffer(wb);
   }
 
@@ -71,7 +75,7 @@ export class ReportsService {
         `[reports] subscriptions export failed: ${this.msg(err)}`,
       );
       throw new BadGatewayException(
-        'Could not load subscriptions from Stripe. Check the Stripe configuration and try again.',
+        "Could not load subscriptions from Stripe. Check the Stripe configuration and try again.",
       );
     }
     this.addSubscriptionsSheet(wb, this.filterSubs(rows, filter));
@@ -99,8 +103,8 @@ export class ReportsService {
       );
       this.addNoteSheet(
         wb,
-        'Subscriptions',
-        'Subscriptions unavailable — Stripe is not configured or could not be reached.',
+        "Subscriptions",
+        "Subscriptions unavailable — Stripe is not configured or could not be reached.",
       );
     }
     await this.addEngagementSheet(wb, filter);
@@ -126,57 +130,62 @@ export class ReportsService {
       };
     }
     if (!whereOverride && filter?.levelId) {
-      where.levels = { some: { levelId: filter.levelId, status: 'ACTIVE' } };
+      where.levels = { some: { levelId: filter.levelId, status: "ACTIVE" } };
     }
     const users = await this.prisma.user.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
       include: { levels: { include: { level: true } } },
     });
 
     const rows = users.map((u) => {
       // Paid-subscription summary — mirrors MembersService.toRow: STRIPE source,
       // prefer an ACTIVE/PAST_DUE grant, else the most recent stripe grant.
-      const stripeLevels = u.levels.filter((ul) => ul.source === 'STRIPE');
+      const stripeLevels = u.levels.filter((ul) => ul.source === "STRIPE");
       const activePaid = stripeLevels.find(
-        (ul) => ul.status === 'ACTIVE' || ul.status === 'PAST_DUE',
+        (ul) => ul.status === "ACTIVE" || ul.status === "PAST_DUE",
       );
       const summary = activePaid ?? stripeLevels[0];
-      const activeLevels = u.levels.filter((ul) => ul.status === 'ACTIVE');
+      const activeLevels = u.levels.filter((ul) => ul.status === "ACTIVE");
       return {
         memberId: u.id,
-        firstName: u.firstName ?? '',
-        lastName: u.lastName ?? '',
+        firstName: u.firstName ?? "",
+        lastName: u.lastName ?? "",
         email: u.email,
         username: u.username,
-        phone: u.phone ?? '',
+        phone: u.phone ?? "",
         registeredAt: u.createdAt,
-        emailOptOut: u.emailOptOut ? 'Yes' : 'No',
+        emailOptOut: u.emailOptOut ? "Yes" : "No",
         activeClassCount: activeLevels.length,
-        activeClasses: activeLevels.map((ul) => ul.level.name).join(', '),
-        paidPlan: summary?.level.name ?? '',
-        paidStatus: summary ? summary.status : '',
-        stripeCustomerId: u.stripeCustomerId ?? '',
+        activeClasses: activeLevels.map((ul) => ul.level.name).join(", "),
+        paidPlan: summary?.level.name ?? "",
+        paidStatus: summary ? summary.status : "",
+        stripeCustomerId: u.stripeCustomerId ?? "",
       };
     });
 
     this.addSheet(
       wb,
-      'Members',
+      "Members",
       [
-        { header: 'Member ID', key: 'memberId', width: 26 },
-        { header: 'First name', key: 'firstName', width: 16 },
-        { header: 'Last name', key: 'lastName', width: 16 },
-        { header: 'Email', key: 'email', width: 30 },
-        { header: 'Username', key: 'username', width: 20 },
-        { header: 'Phone', key: 'phone', width: 16 },
-        { header: 'Registered', key: 'registeredAt', width: 14, numFmt: 'yyyy-mm-dd' },
-        { header: 'Email opt-out', key: 'emailOptOut', width: 13 },
-        { header: 'Active classes', key: 'activeClassCount', width: 13 },
-        { header: 'Class names', key: 'activeClasses', width: 36 },
-        { header: 'Paid plan', key: 'paidPlan', width: 22 },
-        { header: 'Paid status', key: 'paidStatus', width: 13 },
-        { header: 'Stripe customer ID', key: 'stripeCustomerId', width: 22 },
+        { header: "Member ID", key: "memberId", width: 26 },
+        { header: "First name", key: "firstName", width: 16 },
+        { header: "Last name", key: "lastName", width: 16 },
+        { header: "Email", key: "email", width: 30 },
+        { header: "Username", key: "username", width: 20 },
+        { header: "Phone", key: "phone", width: 16 },
+        {
+          header: "Registered",
+          key: "registeredAt",
+          width: 14,
+          numFmt: "yyyy-mm-dd",
+        },
+        { header: "Email opt-out", key: "emailOptOut", width: 13 },
+        { header: "Active classes", key: "activeClassCount", width: 13 },
+        { header: "Class names", key: "activeClasses", width: 36 },
+        { header: "Paid plan", key: "paidPlan", width: 22 },
+        { header: "Paid status", key: "paidStatus", width: 13 },
+        { header: "Stripe customer ID", key: "stripeCustomerId", width: 22 },
       ],
       rows,
     );
@@ -188,18 +197,18 @@ export class ReportsService {
   ): void {
     const d = (iso: string | null) => (iso ? new Date(iso) : null);
     const rows = subs.map((s) => ({
-      provider: s.provider === 'paypal' ? 'PayPal' : 'Stripe',
+      provider: s.provider === "paypal" ? "PayPal" : "Stripe",
       memberName: s.memberName,
-      memberEmail: s.memberEmail ?? '',
+      memberEmail: s.memberEmail ?? "",
       plan: s.levelName,
       status: s.status,
-      paused: s.paused ? 'Yes' : 'No',
-      cancelAtPeriodEnd: s.cancelAtPeriodEnd ? 'Yes' : 'No',
+      paused: s.paused ? "Yes" : "No",
+      cancelAtPeriodEnd: s.cancelAtPeriodEnd ? "Yes" : "No",
       amount: s.amount != null ? s.amount / 100 : null, // minor units -> major
-      currency: (s.currency ?? '').toUpperCase(),
-      interval: s.interval ?? '',
+      currency: (s.currency ?? "").toUpperCase(),
+      interval: s.interval ?? "",
       orders: s.orders,
-      installmentsTotal: s.installmentsTotal ?? '',
+      installmentsTotal: s.installmentsTotal ?? "",
       startDate: d(s.startDate),
       nextPayment: d(s.nextPayment),
       lastOrderDate: d(s.lastOrderDate),
@@ -209,25 +218,39 @@ export class ReportsService {
 
     this.addSheet(
       wb,
-      'Subscriptions',
+      "Subscriptions",
       [
-        { header: 'Provider', key: 'provider', width: 10 },
-        { header: 'Member', key: 'memberName', width: 22 },
-        { header: 'Email', key: 'memberEmail', width: 30 },
-        { header: 'Plan', key: 'plan', width: 24 },
-        { header: 'Status', key: 'status', width: 12 },
-        { header: 'Paused', key: 'paused', width: 9 },
-        { header: 'Cancels at period end', key: 'cancelAtPeriodEnd', width: 19 },
-        { header: 'Amount', key: 'amount', width: 12, numFmt: '#,##0.00' },
-        { header: 'Currency', key: 'currency', width: 10 },
-        { header: 'Interval', key: 'interval', width: 10 },
-        { header: 'Orders', key: 'orders', width: 9 },
-        { header: 'Installments', key: 'installmentsTotal', width: 12 },
-        { header: 'Start', key: 'startDate', width: 14, numFmt: 'yyyy-mm-dd' },
-        { header: 'Next payment', key: 'nextPayment', width: 14, numFmt: 'yyyy-mm-dd' },
-        { header: 'Last order', key: 'lastOrderDate', width: 14, numFmt: 'yyyy-mm-dd' },
-        { header: 'End', key: 'endDate', width: 14, numFmt: 'yyyy-mm-dd' },
-        { header: 'Subscription ID', key: 'subscriptionId', width: 24 },
+        { header: "Provider", key: "provider", width: 10 },
+        { header: "Member", key: "memberName", width: 22 },
+        { header: "Email", key: "memberEmail", width: 30 },
+        { header: "Plan", key: "plan", width: 24 },
+        { header: "Status", key: "status", width: 12 },
+        { header: "Paused", key: "paused", width: 9 },
+        {
+          header: "Cancels at period end",
+          key: "cancelAtPeriodEnd",
+          width: 19,
+        },
+        { header: "Amount", key: "amount", width: 12, numFmt: "#,##0.00" },
+        { header: "Currency", key: "currency", width: 10 },
+        { header: "Interval", key: "interval", width: 10 },
+        { header: "Orders", key: "orders", width: 9 },
+        { header: "Installments", key: "installmentsTotal", width: 12 },
+        { header: "Start", key: "startDate", width: 14, numFmt: "yyyy-mm-dd" },
+        {
+          header: "Next payment",
+          key: "nextPayment",
+          width: 14,
+          numFmt: "yyyy-mm-dd",
+        },
+        {
+          header: "Last order",
+          key: "lastOrderDate",
+          width: 14,
+          numFmt: "yyyy-mm-dd",
+        },
+        { header: "End", key: "endDate", width: 14, numFmt: "yyyy-mm-dd" },
+        { header: "Subscription ID", key: "subscriptionId", width: 24 },
       ],
       rows,
     );
@@ -256,10 +279,10 @@ export class ReportsService {
       await Promise.all([
         this.prisma.user.findMany({
           select: { id: true, firstName: true, lastName: true, email: true },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { createdAt: "desc" },
         }),
         this.prisma.userLevel.findMany({
-          where: { status: 'ACTIVE' },
+          where: { status: "ACTIVE" },
           select: { userId: true, levelId: true },
         }),
         this.prisma.courseLevel.findMany({
@@ -352,7 +375,7 @@ export class ReportsService {
         }
       }
       const name =
-        [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.email;
+        [u.firstName, u.lastName].filter(Boolean).join(" ").trim() || u.email;
       return {
         name,
         email: u.email,
@@ -368,16 +391,21 @@ export class ReportsService {
 
     this.addSheet(
       wb,
-      'Course engagement',
+      "Course engagement",
       [
-        { header: 'Member', key: 'name', width: 22 },
-        { header: 'Email', key: 'email', width: 30 },
-        { header: 'Active classes', key: 'activeClasses', width: 13 },
-        { header: 'Accessible courses', key: 'accessibleCourses', width: 17 },
-        { header: 'Lessons completed', key: 'lessonsCompleted', width: 16 },
-        { header: 'Total lessons', key: 'totalLessons', width: 13 },
-        { header: 'Completion', key: 'completion', width: 12, numFmt: '0%' },
-        { header: 'Last activity', key: 'lastActivity', width: 14, numFmt: 'yyyy-mm-dd' },
+        { header: "Member", key: "name", width: 22 },
+        { header: "Email", key: "email", width: 30 },
+        { header: "Active classes", key: "activeClasses", width: 13 },
+        { header: "Accessible courses", key: "accessibleCourses", width: 17 },
+        { header: "Lessons completed", key: "lessonsCompleted", width: 16 },
+        { header: "Total lessons", key: "totalLessons", width: 13 },
+        { header: "Completion", key: "completion", width: 12, numFmt: "0%" },
+        {
+          header: "Last activity",
+          key: "lastActivity",
+          width: 14,
+          numFmt: "yyyy-mm-dd",
+        },
       ],
       rows,
     );
@@ -387,7 +415,7 @@ export class ReportsService {
 
   private newWorkbook(): ExcelJS.Workbook {
     const wb = new ExcelJS.Workbook();
-    wb.creator = 'Spotlight Academy';
+    wb.creator = "Spotlight Academy";
     return wb;
   }
 
@@ -398,7 +426,7 @@ export class ReportsService {
     rows: Record<string, unknown>[],
   ): void {
     const ws = wb.addWorksheet(name, {
-      views: [{ state: 'frozen', ySplit: 1 }],
+      views: [{ state: "frozen", ySplit: 1 }],
     });
     ws.columns = columns.map((c) => ({
       header: c.header,
@@ -408,7 +436,7 @@ export class ReportsService {
     }));
     const header = ws.getRow(1);
     header.font = { bold: true };
-    header.alignment = { vertical: 'middle' };
+    header.alignment = { vertical: "middle" };
     if (rows.length) ws.addRows(rows);
     ws.autoFilter = {
       from: { row: 1, column: 1 },
@@ -420,7 +448,7 @@ export class ReportsService {
   // workbook valid + self-explanatory instead of omitting a sheet silently).
   private addNoteSheet(wb: ExcelJS.Workbook, name: string, note: string): void {
     const ws = wb.addWorksheet(name);
-    ws.columns = [{ header: name, key: 'note', width: 90 }];
+    ws.columns = [{ header: name, key: "note", width: 90 }];
     ws.getRow(1).font = { bold: true };
     ws.addRow({ note });
   }
@@ -440,9 +468,12 @@ export class ReportsService {
   // 2026-02-30) that would become an Invalid Date and crash the Prisma query —
   // turning a 500 into a clean 400.
   private range(f?: ReportFilter): Range {
-    const parse = (s: string | undefined, endOfDay: boolean): Date | undefined => {
+    const parse = (
+      s: string | undefined,
+      endOfDay: boolean,
+    ): Date | undefined => {
       if (!s) return undefined;
-      const d = new Date(`${s}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`);
+      const d = new Date(`${s}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`);
       // NaN catches month>12 / garbage; the round-trip catches day-overflow that
       // JS silently rolls over (e.g. 2026-02-30 -> 2026-03-02).
       if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== s) {
@@ -470,7 +501,10 @@ export class ReportsService {
     const dated = !!(r.gte || r.lte);
     return subs.filter((s) => {
       if (f?.levelId && s.levelId !== f.levelId) return false;
-      if (dated && !this.inRange(s.startDate ? new Date(s.startDate) : null, r)) {
+      if (
+        dated &&
+        !this.inRange(s.startDate ? new Date(s.startDate) : null, r)
+      ) {
         return false;
       }
       return true;

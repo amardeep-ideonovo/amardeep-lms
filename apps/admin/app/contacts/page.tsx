@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type {
   AudienceDTO,
   AudienceFieldDTO,
@@ -123,7 +117,8 @@ export default function ContactsPage() {
       const rows = await api.listAudiences();
       setAudiences(rows);
       setSelectedId((prev) => {
-        if (keepSelection && prev && rows.some((r) => r.id === prev)) return prev;
+        if (keepSelection && prev && rows.some((r) => r.id === prev))
+          return prev;
         return rows[0]?.id ?? null;
       });
     } catch (err) {
@@ -245,9 +240,7 @@ export default function ContactsPage() {
       await api.updateAudience(a.id, { isDefault: true });
       await loadAudiences();
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Failed to set default",
-      );
+      setError(err instanceof ApiError ? err.message : "Failed to set default");
     }
   }
 
@@ -361,7 +354,9 @@ export default function ContactsPage() {
     setTagFilter(tag);
   }
 
-  const totalPages = list ? Math.max(1, Math.ceil(list.total / list.pageSize)) : 1;
+  const totalPages = list
+    ? Math.max(1, Math.ceil(list.total / list.pageSize))
+    : 1;
 
   if (authLoading) return <p className="muted">Loading…</p>;
   if (!can("contacts", "read"))
@@ -427,7 +422,9 @@ export default function ContactsPage() {
                       textAlign: "left",
                       width: "100%",
                       cursor: "pointer",
-                      background: active ? "var(--surface-hover)" : "transparent",
+                      background: active
+                        ? "var(--surface-hover)"
+                        : "transparent",
                       border: active
                         ? "1px solid var(--border-strong)"
                         : "1px solid transparent",
@@ -456,9 +453,12 @@ export default function ContactsPage() {
                         <span className="badge badge--violet">Default</span>
                       )}
                     </div>
-                    <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                      {a.contactCount} contact{a.contactCount === 1 ? "" : "s"} ·{" "}
-                      {a.subscribedCount} subscribed
+                    <div
+                      className="muted"
+                      style={{ fontSize: 12, marginTop: 2 }}
+                    >
+                      {a.contactCount} contact{a.contactCount === 1 ? "" : "s"}{" "}
+                      · {a.subscribedCount} subscribed
                     </div>
                   </button>
                 );
@@ -744,7 +744,9 @@ export default function ContactsPage() {
                   onChanged={() => loadPanels(selected.id)}
                   onApply={(filter) => {
                     setStatusFilter(filter.status ?? "");
-                    setTagFilter(filter.anyTags?.[0] ?? filter.allTags?.[0] ?? "");
+                    setTagFilter(
+                      filter.anyTags?.[0] ?? filter.allTags?.[0] ?? "",
+                    );
                     setSearch(filter.search ?? "");
                   }}
                 />
@@ -763,10 +765,7 @@ export default function ContactsPage() {
       {/* ---------------- Contact editor modal ---------------- */}
       {editorOpen && (
         <div className="modal-overlay">
-          <div
-            className="modal modal--wide"
-            style={{ maxWidth: 520 }}
-          >
+          <div className="modal modal--wide" style={{ maxWidth: 520 }}>
             <div className="modal-header">
               <h2>{editingId ? "Edit contact" : "New contact"}</h2>
               <button className="modal-close" onClick={closeEditor}>
@@ -847,7 +846,10 @@ export default function ContactsPage() {
               </div>
               <div
                 className="modal-header"
-                style={{ borderTop: "1px solid var(--border)", borderBottom: "none" }}
+                style={{
+                  borderTop: "1px solid var(--border)",
+                  borderBottom: "none",
+                }}
               >
                 <span />
                 <div className="row-actions">
@@ -858,7 +860,11 @@ export default function ContactsPage() {
                   >
                     Cancel
                   </button>
-                  <button className="btn" type="submit" disabled={savingContact}>
+                  <button
+                    className="btn"
+                    type="submit"
+                    disabled={savingContact}
+                  >
                     {savingContact
                       ? "Saving…"
                       : editingId
@@ -936,7 +942,10 @@ function SegmentsPanel({
     try {
       await api.createSegment(audience.id, {
         name: name.trim(),
-        filter: { status: "SUBSCRIBED", ...(anyTags.length ? { anyTags } : {}) },
+        filter: {
+          status: "SUBSCRIBED",
+          ...(anyTags.length ? { anyTags } : {}),
+        },
       });
       setErr(null);
       onChanged();

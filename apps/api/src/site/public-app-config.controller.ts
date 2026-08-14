@@ -1,6 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
-import type { AppConfig } from '@lms/types';
-import { AppConfigService } from './app-config.service';
+import { Controller, Get } from "@nestjs/common";
+import type { AppConfig } from "@lms/types";
+import { AppConfigService } from "./app-config.service";
 
 // Public, unauthenticated: the mobile app fetches this at launch (including its
 // logged-out login/signup screens) to theme itself. No per-user variation, so
@@ -11,11 +11,11 @@ import { AppConfigService } from './app-config.service';
 // (deploy/instance/build-images.sh) and MIN_APP_VERSION is raised deliberately
 // when the fleet drops support for old app builds. The app compares these at
 // launch and gates gracefully instead of breaking on missing endpoints.
-@Controller('app')
+@Controller("app")
 export class PublicAppConfigController {
   constructor(private readonly appConfig: AppConfigService) {}
 
-  @Get('config')
+  @Get("config")
   async config(): Promise<AppConfig> {
     const config = await this.appConfig.read();
     // `|| null` (not `?? null`): the Dockerfile sets APP_VERSION="" on an

@@ -1,9 +1,9 @@
-import { Logger } from '@nestjs/common';
-import type { INestApplicationContext } from '@nestjs/common';
-import { IoAdapter } from '@nestjs/platform-socket.io';
-import { createAdapter } from '@socket.io/redis-adapter';
-import IORedis, { Redis } from 'ioredis';
-import type { Server, ServerOptions } from 'socket.io';
+import { Logger } from "@nestjs/common";
+import type { INestApplicationContext } from "@nestjs/common";
+import { IoAdapter } from "@nestjs/platform-socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
+import IORedis, { Redis } from "ioredis";
+import type { Server, ServerOptions } from "socket.io";
 
 // Socket.IO adapter backed by Redis pub/sub, so a channel-room broadcast emitted
 // on one API instance reaches sockets connected to OTHER instances. Without this
@@ -27,15 +27,15 @@ export class RedisIoAdapter extends IoAdapter {
     const url = process.env.REDIS_URL;
     if (!url) {
       // Caller guards on this too, but be defensive: no URL => no Redis adapter.
-      throw new Error('REDIS_URL is not set');
+      throw new Error("REDIS_URL is not set");
     }
     const pubClient = new IORedis(url);
     const subClient = pubClient.duplicate();
     // Surface connection errors instead of letting them go unhandled.
-    pubClient.on('error', (err) =>
+    pubClient.on("error", (err) =>
       this.logger.error(`Redis pub error: ${err.message}`),
     );
-    subClient.on('error', (err) =>
+    subClient.on("error", (err) =>
       this.logger.error(`Redis sub error: ${err.message}`),
     );
     this.pubClient = pubClient;

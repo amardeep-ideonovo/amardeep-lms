@@ -3,17 +3,13 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import { CronExpressionParser } from 'cron-parser';
-import { Prisma, type Campaign } from '@prisma/client';
-import type {
-  CampaignDTO,
-  CampaignInput,
-  ContactFilter,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { AppConfigService } from '../site/app-config.service';
-import { EmailService } from './email.service';
+} from "@nestjs/common";
+import { CronExpressionParser } from "cron-parser";
+import { Prisma, type Campaign } from "@prisma/client";
+import type { CampaignDTO, CampaignInput, ContactFilter } from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { AppConfigService } from "../site/app-config.service";
+import { EmailService } from "./email.service";
 
 // Page size for resolving + sending a run. We no longer cap the audience: a run
 // sends to EVERY eligible recipient, walked in deterministic (createdAt, id)
@@ -48,28 +44,28 @@ export class CampaignService {
 
   async list(): Promise<CampaignDTO[]> {
     const rows = await this.prisma.campaign.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
     return rows.map((c) => this.toDTO(c));
   }
 
   async get(id: string): Promise<CampaignDTO> {
     const row = await this.prisma.campaign.findUnique({ where: { id } });
-    if (!row) throw new NotFoundException('Campaign not found');
+    if (!row) throw new NotFoundException("Campaign not found");
     return this.toDTO(row);
   }
 
   async create(input: CampaignInput): Promise<CampaignDTO> {
     if (!input.templateId) {
-      throw new BadRequestException('A template is required');
+      throw new BadRequestException("A template is required");
     }
     if (!input.audienceId) {
-      throw new BadRequestException('An audience is required');
+      throw new BadRequestException("An audience is required");
     }
     const data = this.normalizeInput(input);
     const row = await this.prisma.campaign.create({
       data: {
-        name: (input.name ?? '').trim() || 'Untitled campaign',
+        name: (input.name ?? "").trim() || "Untitled campaign",
         templateId: input.templateId,
         audienceId: input.audienceId,
         segmentId: input.segmentId ?? null,
@@ -78,7 +74,7 @@ export class CampaignService {
         cron: data.cron,
         timezone: data.timezone,
         // New campaigns always start as DRAFT; scheduling is an explicit action.
-        status: 'DRAFT',
+        status: "DRAFT",
       },
     });
     return this.toDTO(row);
@@ -86,16 +82,17 @@ export class CampaignService {
 
   async update(id: string, input: CampaignInput): Promise<CampaignDTO> {
     const existing = await this.prisma.campaign.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Campaign not found');
+    if (!existing) throw new NotFoundException("Campaign not found");
     const data = this.normalizeInput(input);
 
     const patch: Prisma.CampaignUpdateInput = {};
     if (input.name !== undefined) {
-      patch.name = input.name.trim() || 'Untitled campaign';
+      patch.name = input.name.trim() || "Untitled campaign";
     }
     if (input.templateId !== undefined) patch.templateId = input.templateId;
     if (input.audienceId !== undefined) patch.audienceId = input.audienceId;
-    if (input.segmentId !== undefined) patch.segmentId = input.segmentId ?? null;
+    if (input.segmentId !== undefined)
+      patch.segmentId = input.segmentId ?? null;
     if (input.cadence !== undefined) patch.cadence = data.cadence;
     if (input.runAt !== undefined) patch.runAt = data.runAt;
     if (input.cron !== undefined) patch.cron = data.cron;
@@ -105,7 +102,7 @@ export class CampaignService {
     // the change takes effect, rather than firing on the stale nextRunAt. A
     // timezone change shifts a cron/recurring schedule, so it counts as timing.
     if (
-      existing.status === 'SCHEDULED' &&
+      existing.status === "SCHEDULED" &&
       (input.cadence !== undefined ||
         input.runAt !== undefined ||
         input.cron !== undefined ||
@@ -114,11 +111,15 @@ export class CampaignService {
       const cadence = data.cadence ?? existing.cadence;
       const runAt = input.runAt !== undefined ? data.runAt : existing.runAt;
       const cron = input.cron !== undefined ? data.cron : existing.cron;
-      const tz = input.timezone !== undefined ? data.timezone : existing.timezone;
+      const tz =
+        input.timezone !== undefined ? data.timezone : existing.timezone;
       patch.nextRunAt = this.computeFirstRun(cadence, runAt, cron, tz);
     }
 
-    const row = await this.prisma.campaign.update({ where: { id }, data: patch });
+    const row = await this.prisma.campaign.update({
+      where: { id },
+      data: patch,
+    });
     return this.toDTO(row);
   }
 
@@ -127,7 +128,7 @@ export class CampaignService {
       where: { id },
       select: { id: true },
     });
-    if (!existing) throw new NotFoundException('Campaign not found');
+    if (!existing) throw new NotFoundException("Campaign not found");
     await this.prisma.campaign.delete({ where: { id } });
     return { ok: true };
   }
@@ -139,7 +140,7 @@ export class CampaignService {
   // it's the next cron occurrence from now.
   async schedule(id: string): Promise<CampaignDTO> {
     const existing = await this.prisma.campaign.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Campaign not found');
+    if (!existing) throw new NotFoundException("Campaign not found");
     const nextRunAt = this.computeFirstRun(
       existing.cadence,
       existing.runAt,
@@ -148,7 +149,7 @@ export class CampaignService {
     );
     const row = await this.prisma.campaign.update({
       where: { id },
-      data: { status: 'SCHEDULED', nextRunAt },
+      data: { status: "SCHEDULED", nextRunAt },
     });
     return this.toDTO(row);
   }
@@ -157,10 +158,10 @@ export class CampaignService {
   // nextRunAt is retained so resume() can decide whether it's stale.
   async pause(id: string): Promise<CampaignDTO> {
     const existing = await this.prisma.campaign.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Campaign not found');
+    if (!existing) throw new NotFoundException("Campaign not found");
     const row = await this.prisma.campaign.update({
       where: { id },
-      data: { status: 'PAUSED' },
+      data: { status: "PAUSED" },
     });
     return this.toDTO(row);
   }
@@ -170,7 +171,7 @@ export class CampaignService {
   // a ONCE campaign doesn't fire instantly on an ancient runAt.
   async resume(id: string): Promise<CampaignDTO> {
     const existing = await this.prisma.campaign.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Campaign not found');
+    if (!existing) throw new NotFoundException("Campaign not found");
     const now = new Date();
     let nextRunAt = existing.nextRunAt;
     if (!nextRunAt || nextRunAt <= now) {
@@ -183,7 +184,7 @@ export class CampaignService {
     }
     const row = await this.prisma.campaign.update({
       where: { id },
-      data: { status: 'SCHEDULED', nextRunAt },
+      data: { status: "SCHEDULED", nextRunAt },
     });
     return this.toDTO(row);
   }
@@ -204,8 +205,8 @@ export class CampaignService {
     await this.recoverStuckSending(now);
 
     const due = await this.prisma.campaign.findMany({
-      where: { status: 'SCHEDULED', nextRunAt: { lte: now } },
-      orderBy: { nextRunAt: 'asc' },
+      where: { status: "SCHEDULED", nextRunAt: { lte: now } },
+      orderBy: { nextRunAt: "asc" },
     });
     let dispatched = 0;
     for (const campaign of due) {
@@ -214,8 +215,8 @@ export class CampaignService {
       // this run; a concurrent tick / second instance sees count === 0 and skips,
       // which prevents the double-send that the prior read-then-write allowed.
       const claim = await this.prisma.campaign.updateMany({
-        where: { id: campaign.id, status: 'SCHEDULED' },
-        data: { status: 'SENDING' },
+        where: { id: campaign.id, status: "SCHEDULED" },
+        data: { status: "SENDING" },
       });
       if (claim.count !== 1) continue;
 
@@ -242,8 +243,8 @@ export class CampaignService {
   private async recoverStuckSending(now: Date): Promise<void> {
     const cutoff = new Date(now.getTime() - STUCK_SENDING_MS);
     const healed = await this.prisma.campaign.updateMany({
-      where: { status: 'SENDING', updatedAt: { lt: cutoff } },
-      data: { status: 'SCHEDULED' },
+      where: { status: "SENDING", updatedAt: { lt: cutoff } },
+      data: { status: "SCHEDULED" },
     });
     if (healed.count > 0) {
       this.logger.warn(
@@ -267,10 +268,10 @@ export class CampaignService {
     error: string,
   ): Promise<void> {
     try {
-      if (campaign.cadence === 'ONCE') {
+      if (campaign.cadence === "ONCE") {
         await this.prisma.campaign.update({
           where: { id: campaign.id },
-          data: { status: 'PAUSED' },
+          data: { status: "PAUSED" },
         });
         this.logger.error(
           `campaign "${campaign.name}" (${campaign.id}) ONCE run failed → PAUSED: ${error}`,
@@ -278,10 +279,11 @@ export class CampaignService {
         return;
       }
       const slot = campaign.nextRunAt ?? now;
-      const nextRunAt = slot <= now ? this.advanceSlot(campaign, slot, now) : slot;
+      const nextRunAt =
+        slot <= now ? this.advanceSlot(campaign, slot, now) : slot;
       await this.prisma.campaign.update({
         where: { id: campaign.id },
-        data: { status: 'SCHEDULED', nextRunAt },
+        data: { status: "SCHEDULED", nextRunAt },
       });
     } catch (err) {
       this.logger.error(
@@ -308,7 +310,7 @@ export class CampaignService {
     if (invalid) {
       await this.prisma.campaign.update({
         where: { id: campaign.id },
-        data: { status: 'PAUSED' },
+        data: { status: "PAUSED" },
       });
       this.logger.error(
         `campaign "${campaign.name}" (${campaign.id}) not runnable → PAUSED: ${invalid}`,
@@ -328,7 +330,7 @@ export class CampaignService {
     let attempted = 0;
     for await (const r of this.iterateRecipients(campaign)) {
       attempted += 1;
-      const firstName = (r.firstName ?? '').trim() || 'there';
+      const firstName = (r.firstName ?? "").trim() || "there";
       const log = await this.email.sendTemplate({
         to: r.email,
         templateId: campaign.templateId,
@@ -336,7 +338,7 @@ export class CampaignService {
         contactId: r.id,
         dedupeKey: `campaign:${campaign.id}:${runStamp}:${r.id}`,
       });
-      if (log.status === 'SENT') sent += 1;
+      if (log.status === "SENT") sent += 1;
     }
 
     // Advance the schedule. ONCE finishes; recurring re-arms and stays SCHEDULED.
@@ -387,7 +389,7 @@ export class CampaignService {
   ): Promise<Prisma.ContactWhereInput> {
     const where: Prisma.ContactWhereInput = {
       audienceId: campaign.audienceId,
-      status: 'SUBSCRIBED',
+      status: "SUBSCRIBED",
     };
 
     if (campaign.segmentId) {
@@ -416,7 +418,6 @@ export class CampaignService {
     const where = await this.buildRecipientWhere(campaign);
     let cursor: { createdAt: Date; id: string } | null = null;
 
-     
     while (true) {
       const pageWhere: Prisma.ContactWhereInput = cursor
         ? {
@@ -435,7 +436,7 @@ export class CampaignService {
       const rows = await this.prisma.contact.findMany({
         where: pageWhere,
         select: { id: true, email: true, firstName: true, createdAt: true },
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         take: RECIPIENT_BATCH_SIZE,
       });
       if (rows.length === 0) break;
@@ -458,7 +459,7 @@ export class CampaignService {
     where: Prisma.ContactWhereInput,
     filter: ContactFilter,
   ): void {
-    if (filter.status === 'SUBSCRIBED') {
+    if (filter.status === "SUBSCRIBED") {
       where.status = filter.status;
     }
     if (filter.anyTags?.length) where.tags = { hasSome: filter.anyTags };
@@ -477,9 +478,9 @@ export class CampaignService {
     const search = filter.search?.trim();
     if (search) {
       where.OR = [
-        { email: { contains: search, mode: 'insensitive' } },
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: "insensitive" } },
+        { firstName: { contains: search, mode: "insensitive" } },
+        { lastName: { contains: search, mode: "insensitive" } },
       ];
     }
   }
@@ -491,12 +492,12 @@ export class CampaignService {
   // campaign fires on the next tick). CRON is the next occurrence from now,
   // resolved in the campaign's timezone.
   private computeFirstRun(
-    cadence: Campaign['cadence'],
+    cadence: Campaign["cadence"],
     runAt: Date | null,
     cron: string | null,
     tz: string | null,
   ): Date {
-    if (cadence === 'CRON') {
+    if (cadence === "CRON") {
       return this.nextCron(cron, new Date(), tz);
     }
     return runAt ?? new Date();
@@ -510,12 +511,15 @@ export class CampaignService {
   private advance(
     campaign: Campaign,
     now: Date,
-  ): { status: Campaign['status']; nextRunAt: Date | null } {
-    if (campaign.cadence === 'ONCE') {
-      return { status: 'SENT', nextRunAt: null };
+  ): { status: Campaign["status"]; nextRunAt: Date | null } {
+    if (campaign.cadence === "ONCE") {
+      return { status: "SENT", nextRunAt: null };
     }
     const slot = campaign.nextRunAt ?? now;
-    return { status: 'SCHEDULED', nextRunAt: this.advanceSlot(campaign, slot, now) };
+    return {
+      status: "SCHEDULED",
+      nextRunAt: this.advanceSlot(campaign, slot, now),
+    };
   }
 
   // Advance a recurring cadence forward from its intended `slot`, looping until
@@ -529,13 +533,13 @@ export class CampaignService {
     // across any realistic downtime; the cap just prevents a pathological spin.
     for (let i = 0; i < 10000; i++) {
       switch (campaign.cadence) {
-        case 'WEEKLY':
+        case "WEEKLY":
           next = this.addDays(next, 7);
           break;
-        case 'MONTHLY':
+        case "MONTHLY":
           next = this.addMonths(next, 1, tz);
           break;
-        case 'CRON':
+        case "CRON":
           next = this.nextCron(campaign.cron, next, tz);
           break;
         default:
@@ -556,12 +560,14 @@ export class CampaignService {
     try {
       return CronExpressionParser.parse(expr, {
         currentDate: from,
-        tz: tz || 'UTC',
+        tz: tz || "UTC",
       })
         .next()
         .toDate();
     } catch (err) {
-      this.logger.warn(`invalid cron "${expr}": ${this.msg(err)} — +1d fallback`);
+      this.logger.warn(
+        `invalid cron "${expr}": ${this.msg(err)} — +1d fallback`,
+      );
       return this.addDays(from, 1);
     }
   }
@@ -587,7 +593,14 @@ export class CampaignService {
     const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
     const day = Math.min(wall.day, lastDay);
     return this.instantFromWallClock(
-      { year, month: monthIndex + 1, day, hour: wall.hour, minute: wall.minute, second: wall.second },
+      {
+        year,
+        month: monthIndex + 1,
+        day,
+        hour: wall.hour,
+        minute: wall.minute,
+        second: wall.second,
+      },
       tz,
     );
   }
@@ -605,7 +618,7 @@ export class CampaignService {
     minute: number;
     second: number;
   } {
-    if (!tz || tz === 'UTC') {
+    if (!tz || tz === "UTC") {
       return {
         year: d.getUTCFullYear(),
         month: d.getUTCMonth() + 1,
@@ -615,27 +628,27 @@ export class CampaignService {
         second: d.getUTCSeconds(),
       };
     }
-    const parts = new Intl.DateTimeFormat('en-US', {
+    const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: tz,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
       hour12: false,
     }).formatToParts(d);
     const get = (t: string): number =>
-      Number(parts.find((p) => p.type === t)?.value ?? '0');
+      Number(parts.find((p) => p.type === t)?.value ?? "0");
     // Intl can emit hour '24' at midnight for hour12:false; normalize to 0.
-    const hour = get('hour') % 24;
+    const hour = get("hour") % 24;
     return {
-      year: get('year'),
-      month: get('month'),
-      day: get('day'),
+      year: get("year"),
+      month: get("month"),
+      day: get("day"),
       hour,
-      minute: get('minute'),
-      second: get('second'),
+      minute: get("minute"),
+      second: get("second"),
     };
   }
 
@@ -663,7 +676,7 @@ export class CampaignService {
       wall.minute,
       wall.second,
     );
-    if (!tz || tz === 'UTC') return new Date(asUtc);
+    if (!tz || tz === "UTC") return new Date(asUtc);
     // Offset (ms) that `tz` is ahead of UTC at this instant; subtract to get the
     // UTC instant whose wall-clock-in-tz matches the requested fields.
     const offsetMs = this.tzOffsetMs(new Date(asUtc), tz);
@@ -672,25 +685,25 @@ export class CampaignService {
 
   // Milliseconds `tz` is ahead of UTC at instant `d` (negative west of UTC).
   private tzOffsetMs(d: Date, tz: string): number {
-    const parts = new Intl.DateTimeFormat('en-US', {
+    const parts = new Intl.DateTimeFormat("en-US", {
       timeZone: tz,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
       hour12: false,
     }).formatToParts(d);
     const get = (t: string): number =>
-      Number(parts.find((p) => p.type === t)?.value ?? '0');
+      Number(parts.find((p) => p.type === t)?.value ?? "0");
     const asUtc = Date.UTC(
-      get('year'),
-      get('month') - 1,
-      get('day'),
-      get('hour') % 24,
-      get('minute'),
-      get('second'),
+      get("year"),
+      get("month") - 1,
+      get("day"),
+      get("hour") % 24,
+      get("minute"),
+      get("second"),
     );
     return asUtc - d.getTime();
   }
@@ -699,12 +712,12 @@ export class CampaignService {
   // a cron string; ONCE/WEEKLY/MONTHLY use runAt. Only the keys present in the
   // input are returned-shaped, but callers gate writes on `=== undefined`.
   private normalizeInput(input: CampaignInput): {
-    cadence: Campaign['cadence'];
+    cadence: Campaign["cadence"];
     runAt: Date | null;
     cron: string | null;
     timezone: string | null;
   } {
-    const cadence = (input.cadence ?? 'ONCE') as Campaign['cadence'];
+    const cadence = (input.cadence ?? "ONCE") as Campaign["cadence"];
     const runAt = input.runAt ? new Date(input.runAt) : null;
     const cron = input.cron?.trim() || null;
     // IANA tz string; blank/whitespace normalizes to null (=> UTC at runtime).

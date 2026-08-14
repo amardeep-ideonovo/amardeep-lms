@@ -18,18 +18,18 @@ You need no product knowledge. Follow the steps in order. Total time ≈ 1–2 h
 
 ## 0. Values you need from the owner (fill in before starting)
 
-| Placeholder | Meaning | Example |
-|---|---|---|
-| `<VPS_IP>` | Public IP of the VPS | `203.0.113.10` |
-| `<DOMAIN>` | Base domain | `ontimewebsolutions.com` |
-| `<CONSOLE_HOST>` | Dashboard hostname | `operator.<DOMAIN>` |
-| `<FLEET_DOMAIN>` | Customer subdomain base | `app.<DOMAIN>` |
-| `<ACME_EMAIL>` | Email for HTTPS certs | owner's email |
-| `<LMS_REPO_URL>` | Git URL of repo 1 ("LMS") | from owner |
-| `<DASH_REPO_URL>` | Git URL of repo 2 ("licensing-dashboard") | from owner |
-| `<GITHUB_USER>` / `<GITHUB_PAT>` | GitHub username + token with `repo` read and `read:packages` | from owner |
-| `<GHCR_PATH>` | Container registry path for the LMS images | `ghcr.io/<github-org>/<lms-repo-name>` |
-| `<OPERATOR_EMAIL>` / `<OPERATOR_PASSWORD>` | First dashboard login for the owner | from owner |
+| Placeholder                                | Meaning                                                      | Example                                |
+| ------------------------------------------ | ------------------------------------------------------------ | -------------------------------------- |
+| `<VPS_IP>`                                 | Public IP of the VPS                                         | `203.0.113.10`                         |
+| `<DOMAIN>`                                 | Base domain                                                  | `ontimewebsolutions.com`               |
+| `<CONSOLE_HOST>`                           | Dashboard hostname                                           | `operator.<DOMAIN>`                    |
+| `<FLEET_DOMAIN>`                           | Customer subdomain base                                      | `app.<DOMAIN>`                         |
+| `<ACME_EMAIL>`                             | Email for HTTPS certs                                        | owner's email                          |
+| `<LMS_REPO_URL>`                           | Git URL of repo 1 ("LMS")                                    | from owner                             |
+| `<DASH_REPO_URL>`                          | Git URL of repo 2 ("licensing-dashboard")                    | from owner                             |
+| `<GITHUB_USER>` / `<GITHUB_PAT>`           | GitHub username + token with `repo` read and `read:packages` | from owner                             |
+| `<GHCR_PATH>`                              | Container registry path for the LMS images                   | `ghcr.io/<github-org>/<lms-repo-name>` |
+| `<OPERATOR_EMAIL>` / `<OPERATOR_PASSWORD>` | First dashboard login for the owner                          | from owner                             |
 
 Anything else (Stripe keys, email keys) is optional at setup time — the owner
 enters those later in the dashboard UI.
@@ -54,10 +54,10 @@ docker --version && docker compose version   # both must print versions
 
 Create these records in the domain's DNS panel, all pointing to `<VPS_IP>`:
 
-| Record | Type | Value |
-|---|---|---|
-| `operator` | A | `<VPS_IP>` |
-| `*.app` | A | `<VPS_IP>` |
+| Record     | Type | Value      |
+| ---------- | ---- | ---------- |
+| `operator` | A    | `<VPS_IP>` |
+| `*.app`    | A    | `<VPS_IP>` |
 
 Verify before continuing (both must return `<VPS_IP>`):
 
@@ -146,7 +146,7 @@ In the dashboard (you are logged in as the owner-level operator):
 
 1. Create a client (any name, e.g. `Test Co`) — if asked for a plan, pick any.
 2. On the client's page, **create an instance**: name `testco`, admin email
-   `test@example.com`. Watch it go from *provisioning* to **LIVE**
+   `test@example.com`. Watch it go from _provisioning_ to **LIVE**
    (first time pulls images, can take a few minutes).
 3. Verify in a browser (HTTPS must work on all three — certs are issued on
    first hit, so allow ~10 s each):
@@ -194,10 +194,10 @@ email domain, migrating their existing school onto the platform).
 
 ## Troubleshooting
 
-| Symptom | Check |
-|---|---|
-| No HTTPS cert / connection refused | DNS records resolve to `<VPS_IP>` (§2)? Ports 80+443 open in BOTH ufw and the hPanel firewall (§1)? `docker logs` on the caddy container. |
-| Dashboard unreachable | `docker compose -f docker-compose.host.yml ps` and `logs dashboard` in `/opt/licensing-dashboard/deploy/host`. |
-| Instance stuck in *provisioning* | `LMS_REPO_PATH=/opt/lms` set in `.env`? `docker login ghcr.io` done? `docker compose -f docker-compose.host.yml logs dashboard` shows the compose error. |
-| Instance LIVE but URL 404s | Wildcard `*.app` DNS record present? Re-run route sync: the reconcile-routes cron line from §7 (or wait for 04:00). |
-| GHCR pull "not found" | Owner must push LMS `main` once so CI publishes images (§3 note). |
+| Symptom                            | Check                                                                                                                                                    |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No HTTPS cert / connection refused | DNS records resolve to `<VPS_IP>` (§2)? Ports 80+443 open in BOTH ufw and the hPanel firewall (§1)? `docker logs` on the caddy container.                |
+| Dashboard unreachable              | `docker compose -f docker-compose.host.yml ps` and `logs dashboard` in `/opt/licensing-dashboard/deploy/host`.                                           |
+| Instance stuck in _provisioning_   | `LMS_REPO_PATH=/opt/lms` set in `.env`? `docker login ghcr.io` done? `docker compose -f docker-compose.host.yml logs dashboard` shows the compose error. |
+| Instance LIVE but URL 404s         | Wildcard `*.app` DNS record present? Re-run route sync: the reconcile-routes cron line from §7 (or wait for 04:00).                                      |
+| GHCR pull "not found"              | Owner must push LMS `main` once so CI publishes images (§3 note).                                                                                        |

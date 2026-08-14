@@ -121,7 +121,12 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     },
     info: { flex: 1, minWidth: 0, gap: 1 },
     eyebrowRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.danger },
+    dot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.danger,
+    },
     eyebrow: {
       color: "rgba(255,255,255,0.6)",
       fontSize: 9.5,

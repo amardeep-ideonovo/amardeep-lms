@@ -13,15 +13,13 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 
-const STATUS_META: Record<
-  SupportTicketStatus,
-  { label: string; cls: string }
-> = {
-  OPEN: { label: "Open", cls: "badge--info" },
-  PENDING: { label: "Pending", cls: "badge--warn" },
-  RESOLVED: { label: "Resolved", cls: "badge--ok" },
-  CLOSED: { label: "Closed", cls: "badge--neutral" },
-};
+const STATUS_META: Record<SupportTicketStatus, { label: string; cls: string }> =
+  {
+    OPEN: { label: "Open", cls: "badge--info" },
+    PENDING: { label: "Pending", cls: "badge--warn" },
+    RESOLVED: { label: "Resolved", cls: "badge--ok" },
+    CLOSED: { label: "Closed", cls: "badge--neutral" },
+  };
 
 const PRIORITY_LABEL: Record<SupportTicketPriority, string> = {
   LOW: "Low",
@@ -264,7 +262,9 @@ export default function SupportThreadPage() {
       });
       setThread(t);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to submit rating");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to submit rating",
+      );
     } finally {
       setCsatSubmitting(false);
     }

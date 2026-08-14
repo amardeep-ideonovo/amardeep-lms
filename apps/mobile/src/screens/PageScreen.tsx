@@ -25,7 +25,8 @@ export function PageScreen({ route }: ScreenProps<"Page">) {
   );
 }
 
-const makeStyles = ({ colors }: Theme) => StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingBottom: 24, ...contentColumn },
-});
+const makeStyles = ({ colors }: Theme) =>
+  StyleSheet.create({
+    scroll: { flex: 1, backgroundColor: colors.bg },
+    content: { paddingBottom: 24, ...contentColumn },
+  });

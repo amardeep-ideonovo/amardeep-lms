@@ -23,7 +23,9 @@ import SpotlightLogo from "./SpotlightLogo";
 // Avatar fallback initials from the member's name, else username/email.
 function avatarInitials(u: AuthUser): string {
   const src =
-    [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email;
+    [u.firstName, u.lastName].filter(Boolean).join(" ") ||
+    u.username ||
+    u.email;
   const parts = src.split(/[\s@._-]+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "M") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
@@ -90,7 +92,10 @@ export default function Nav({
       ? api.resolveMenuById(menuId)
       : api.resolveMenu("HEADER");
     headerMenu.then((m) => alive && setMenu(m)).catch(() => {});
-    api.resolveMenu("MOBILE").then((m) => alive && setMobile(m)).catch(() => {});
+    api
+      .resolveMenu("MOBILE")
+      .then((m) => alive && setMobile(m))
+      .catch(() => {});
     return () => {
       alive = false;
     };
@@ -301,11 +306,15 @@ export default function Nav({
             ? headerItems.map((it) => (
                 <div
                   key={it.id}
-                  className={it.children.length ? "nav-item has-sub" : "nav-item"}
+                  className={
+                    it.children.length ? "nav-item has-sub" : "nav-item"
+                  }
                 >
                   <MenuLink
                     item={it}
-                    className={isActive(it.href) ? "nav-link active" : "nav-link"}
+                    className={
+                      isActive(it.href) ? "nav-link active" : "nav-link"
+                    }
                   />
                   {it.children.length > 0 && (
                     <div className="nav-sub">
@@ -403,11 +412,7 @@ export default function Nav({
                   >
                     Your account
                   </Link>
-                  <button
-                    type="button"
-                    className="nav-logout"
-                    onClick={logout}
-                  >
+                  <button type="button" className="nav-logout" onClick={logout}>
                     Log out
                   </button>
                 </>

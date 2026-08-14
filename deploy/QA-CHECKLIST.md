@@ -5,6 +5,7 @@
 >
 > Set `STAGING_WEB`, `STAGING_ADMIN`, `STAGING_API` to your staging URLs
 > before you start. Sample:
+>
 > - `STAGING_WEB = https://staging.example.com`
 > - `STAGING_ADMIN = https://admin-staging.example.com`
 > - `STAGING_API = https://api-staging.example.com`
@@ -126,6 +127,7 @@ highest-impact class of bug.
 those surfaces.
 
 If anything failed:
+
 1. File a GitHub issue with the failing step, the URL, and the request/
    response if relevant.
 2. Do not promote.

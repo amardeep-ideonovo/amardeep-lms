@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 
 // Resolves the set of levelIds a user currently holds with status ACTIVE.
 // Centralized so the access rule is computed identically for dashboard,
@@ -10,7 +10,7 @@ export class AccessService {
 
   async activeLevelIds(userId: string): Promise<Set<string>> {
     const rows = await this.prisma.userLevel.findMany({
-      where: { userId, status: 'ACTIVE' },
+      where: { userId, status: "ACTIVE" },
       select: { levelId: true },
     });
     return new Set(rows.map((r) => r.levelId));
@@ -25,7 +25,7 @@ export class AccessService {
     const rows = await this.prisma.userCourse.findMany({
       where: {
         userId,
-        status: 'ACTIVE',
+        status: "ACTIVE",
         OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
       select: { courseId: true },
@@ -41,7 +41,7 @@ export class AccessService {
       where: {
         userId,
         courseId,
-        status: 'ACTIVE',
+        status: "ACTIVE",
         OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
       select: { id: true },
@@ -57,9 +57,9 @@ export class AccessService {
   // Level. An empty targets array therefore fails closed (invisible to all).
   canAccessLiveSessionWith(
     activeLevelIds: Set<string>,
-    session: { audience: 'ALL_ACTIVE' | 'LEVELS'; levelIds: string[] },
+    session: { audience: "ALL_ACTIVE" | "LEVELS"; levelIds: string[] },
   ): boolean {
-    if (session.audience === 'ALL_ACTIVE') return activeLevelIds.size > 0;
+    if (session.audience === "ALL_ACTIVE") return activeLevelIds.size > 0;
     return session.levelIds.some((id) => activeLevelIds.has(id));
   }
 

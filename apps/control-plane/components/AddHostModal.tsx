@@ -12,7 +12,8 @@ export function AddHostModal({ onClose }: { onClose: () => void }) {
     <Modal title="Add host" onClose={onClose} width={400}>
       <div className="modal-body">
         <p className="modal-note">
-          Registers a VPS with the fleet. New instances are placed on the least-loaded host.
+          Registers a VPS with the fleet. New instances are placed on the
+          least-loaded host.
         </p>
         <Field label="Host name">
           <input
@@ -24,7 +25,11 @@ export function AddHostModal({ onClose }: { onClose: () => void }) {
           />
         </Field>
         <Field label="Region">
-          <select className="input" value={region} onChange={(e) => setRegion(e.target.value)}>
+          <select
+            className="input"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+          >
             <option>Frankfurt</option>
             <option>Amsterdam</option>
             <option>London</option>

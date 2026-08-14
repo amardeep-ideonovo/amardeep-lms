@@ -64,7 +64,7 @@ function PaymentProviderSection() {
         setError(
           err instanceof ApiError
             ? err.message
-            : "Failed to load the payment provider"
+            : "Failed to load the payment provider",
         );
       }
     })();
@@ -83,7 +83,7 @@ function PaymentProviderSection() {
       setStatus(
         r.provider === "paypal"
           ? "New checkouts now use PayPal."
-          : "New checkouts now use Stripe."
+          : "New checkouts now use Stripe.",
       );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Save failed");
@@ -171,7 +171,9 @@ function StripeSection() {
       setPublishableKey(s.publishableKey ?? "");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Failed to load Stripe settings"
+        err instanceof ApiError
+          ? err.message
+          : "Failed to load Stripe settings",
       );
     }
   }
@@ -307,7 +309,7 @@ function ZoomSection() {
       setSdkKey(s.sdkKey ?? "");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Failed to load Zoom settings"
+        err instanceof ApiError ? err.message : "Failed to load Zoom settings",
       );
     }
   }
@@ -435,7 +437,9 @@ function PayPalSection() {
       setMode(s.mode ?? "sandbox");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Failed to load PayPal settings"
+        err instanceof ApiError
+          ? err.message
+          : "Failed to load PayPal settings",
       );
     }
   }
@@ -620,7 +624,7 @@ function EmailSenderSection() {
       void refreshHealth();
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Failed to load email settings"
+        err instanceof ApiError ? err.message : "Failed to load email settings",
       );
     }
   }

@@ -2,14 +2,9 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import type {
-  Audience,
-  AudienceField,
-  Contact,
-  Segment,
-} from '@prisma/client';
+} from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import type { Audience, AudienceField, Contact, Segment } from "@prisma/client";
 import type {
   AudienceDTO,
   AudienceFieldDTO,
@@ -26,8 +21,8 @@ import type {
   UpdateContactInput,
   UpdateSegmentInput,
   UpsertAudienceFieldInput,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
 
 // Admin-facing CRUD for the in-house list system (Audiences / Fields / Contacts
 // / Segments). Kept separate from the parity ContactsService so the dual-write
@@ -46,8 +41,8 @@ export class ContactsAdminService {
     const s = input
       .trim()
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
     return s || null;
   }
 
@@ -108,7 +103,7 @@ export class ContactsAdminService {
 
   async listAudiences(): Promise<AudienceDTO[]> {
     const audiences = await this.prisma.audience.findMany({
-      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
     });
     if (audiences.length === 0) return [];
 
@@ -117,20 +112,18 @@ export class ContactsAdminService {
     const ids = audiences.map((a) => a.id);
     const [totals, subscribed] = await Promise.all([
       this.prisma.contact.groupBy({
-        by: ['audienceId'],
+        by: ["audienceId"],
         where: { audienceId: { in: ids } },
         _count: { _all: true },
       }),
       this.prisma.contact.groupBy({
-        by: ['audienceId'],
-        where: { audienceId: { in: ids }, status: 'SUBSCRIBED' },
+        by: ["audienceId"],
+        where: { audienceId: { in: ids }, status: "SUBSCRIBED" },
         _count: { _all: true },
       }),
     ]);
     const totalBy = new Map(totals.map((t) => [t.audienceId, t._count._all]));
-    const subBy = new Map(
-      subscribed.map((t) => [t.audienceId, t._count._all]),
-    );
+    const subBy = new Map(subscribed.map((t) => [t.audienceId, t._count._all]));
 
     return audiences.map((a) =>
       this.toAudienceDTO(a, {
@@ -142,11 +135,11 @@ export class ContactsAdminService {
 
   async getAudience(id: string): Promise<AudienceDTO> {
     const a = await this.prisma.audience.findUnique({ where: { id } });
-    if (!a) throw new NotFoundException('Audience not found');
+    if (!a) throw new NotFoundException("Audience not found");
     const [contactCount, subscribedCount] = await Promise.all([
       this.prisma.contact.count({ where: { audienceId: id } }),
       this.prisma.contact.count({
-        where: { audienceId: id, status: 'SUBSCRIBED' },
+        where: { audienceId: id, status: "SUBSCRIBED" },
       }),
     ]);
     return this.toAudienceDTO(a, { contactCount, subscribedCount });
@@ -181,7 +174,7 @@ export class ContactsAdminService {
     input: UpdateAudienceInput,
   ): Promise<AudienceDTO> {
     const existing = await this.prisma.audience.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Audience not found');
+    if (!existing) throw new NotFoundException("Audience not found");
 
     const data: Prisma.AudienceUpdateInput = {};
     if (input.name !== undefined) data.name = input.name.trim();
@@ -203,7 +196,7 @@ export class ContactsAdminService {
 
   async deleteAudience(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.audience.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Audience not found');
+    if (!existing) throw new NotFoundException("Audience not found");
     // Contacts/fields/segments cascade via the schema's onDelete: Cascade.
     await this.prisma.audience.delete({ where: { id } });
     return { ok: true };
@@ -216,14 +209,14 @@ export class ContactsAdminService {
       where: { id: audienceId },
       select: { id: true },
     });
-    if (!a) throw new NotFoundException('Audience not found');
+    if (!a) throw new NotFoundException("Audience not found");
   }
 
   async listFields(audienceId: string): Promise<AudienceFieldDTO[]> {
     await this.assertAudience(audienceId);
     const fields = await this.prisma.audienceField.findMany({
       where: { audienceId },
-      orderBy: { tag: 'asc' },
+      orderBy: { tag: "asc" },
     });
     return fields.map((f) => this.toFieldDTO(f));
   }
@@ -234,19 +227,21 @@ export class ContactsAdminService {
   ): Promise<AudienceFieldDTO> {
     await this.assertAudience(audienceId);
     const tag = input.tag.trim().toUpperCase();
-    if (!tag) throw new BadRequestException('Tag is required');
+    if (!tag) throw new BadRequestException("Tag is required");
     const field = await this.prisma.audienceField.upsert({
       where: { audienceId_tag: { audienceId, tag } },
       create: {
         audienceId,
         tag,
         label: input.label.trim(),
-        type: input.type?.trim() || 'text',
+        type: input.type?.trim() || "text",
         required: input.required ?? false,
       },
       update: {
         label: input.label.trim(),
-        ...(input.type !== undefined ? { type: input.type.trim() || 'text' } : {}),
+        ...(input.type !== undefined
+          ? { type: input.type.trim() || "text" }
+          : {}),
         ...(input.required !== undefined ? { required: input.required } : {}),
       },
     });
@@ -261,7 +256,7 @@ export class ContactsAdminService {
         where: { audienceId_tag: { audienceId, tag: upper } },
       });
     } catch {
-      throw new NotFoundException('Field not found');
+      throw new NotFoundException("Field not found");
     }
     return { ok: true };
   }
@@ -288,9 +283,9 @@ export class ContactsAdminService {
     const q = opts.q?.trim();
     if (q) {
       where.OR = [
-        { email: { contains: q, mode: 'insensitive' } },
-        { firstName: { contains: q, mode: 'insensitive' } },
-        { lastName: { contains: q, mode: 'insensitive' } },
+        { email: { contains: q, mode: "insensitive" } },
+        { firstName: { contains: q, mode: "insensitive" } },
+        { lastName: { contains: q, mode: "insensitive" } },
       ];
     }
 
@@ -298,7 +293,7 @@ export class ContactsAdminService {
       this.prisma.contact.count({ where }),
       this.prisma.contact.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -318,7 +313,7 @@ export class ContactsAdminService {
   ): Promise<ContactDTO> {
     await this.assertAudience(audienceId);
     const email = this.norm(input.email);
-    if (!email) throw new BadRequestException('Email is required');
+    if (!email) throw new BadRequestException("Email is required");
 
     const clash = await this.prisma.contact.findUnique({
       where: { audienceId_email: { audienceId, email } },
@@ -326,11 +321,11 @@ export class ContactsAdminService {
     });
     if (clash) {
       throw new BadRequestException(
-        'A contact with this email already exists in this audience',
+        "A contact with this email already exists in this audience",
       );
     }
 
-    const status = (input.status ?? 'SUBSCRIBED') as ContactStatus;
+    const status = (input.status ?? "SUBSCRIBED") as ContactStatus;
     const created = await this.prisma.contact.create({
       data: {
         audienceId,
@@ -340,9 +335,9 @@ export class ContactsAdminService {
         lastName: input.lastName ?? null,
         attributes: (input.attributes ?? {}) as Prisma.InputJsonValue,
         tags: input.tags ?? [],
-        source: (input.source ?? 'ADMIN') as ContactSource,
-        confirmedAt: status === 'SUBSCRIBED' ? new Date() : null,
-        unsubscribedAt: status === 'UNSUBSCRIBED' ? new Date() : null,
+        source: (input.source ?? "ADMIN") as ContactSource,
+        confirmedAt: status === "SUBSCRIBED" ? new Date() : null,
+        unsubscribedAt: status === "UNSUBSCRIBED" ? new Date() : null,
       },
     });
     return this.toContactDTO(created);
@@ -353,12 +348,12 @@ export class ContactsAdminService {
     input: UpdateContactInput,
   ): Promise<ContactDTO> {
     const existing = await this.prisma.contact.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Contact not found');
+    if (!existing) throw new NotFoundException("Contact not found");
 
     const data: Prisma.ContactUpdateInput = {};
     if (input.email !== undefined) {
       const email = this.norm(input.email);
-      if (!email) throw new BadRequestException('Email is required');
+      if (!email) throw new BadRequestException("Email is required");
       if (email !== existing.email) {
         const clash = await this.prisma.contact.findUnique({
           where: {
@@ -368,7 +363,7 @@ export class ContactsAdminService {
         });
         if (clash) {
           throw new BadRequestException(
-            'Another contact in this audience already uses that email',
+            "Another contact in this audience already uses that email",
           );
         }
       }
@@ -383,10 +378,10 @@ export class ContactsAdminService {
     if (input.status !== undefined) {
       data.status = input.status;
       // Keep the timestamp columns coherent with the new status.
-      if (input.status === 'SUBSCRIBED' && !existing.confirmedAt) {
+      if (input.status === "SUBSCRIBED" && !existing.confirmedAt) {
         data.confirmedAt = new Date();
       }
-      if (input.status === 'UNSUBSCRIBED') {
+      if (input.status === "UNSUBSCRIBED") {
         data.unsubscribedAt = new Date();
       }
     }
@@ -400,7 +395,7 @@ export class ContactsAdminService {
       where: { id },
       select: { id: true },
     });
-    if (!existing) throw new NotFoundException('Contact not found');
+    if (!existing) throw new NotFoundException("Contact not found");
     await this.prisma.contact.delete({ where: { id } });
     return { ok: true };
   }
@@ -423,9 +418,9 @@ export class ContactsAdminService {
     const search = filter.search?.trim();
     if (search) {
       where.OR = [
-        { email: { contains: search, mode: 'insensitive' } },
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: "insensitive" } },
+        { firstName: { contains: search, mode: "insensitive" } },
+        { lastName: { contains: search, mode: "insensitive" } },
       ];
     }
     return where;
@@ -441,7 +436,7 @@ export class ContactsAdminService {
     if (Array.isArray(filter.allTags) && filter.allTags.length) {
       out.allTags = filter.allTags.filter(Boolean);
     }
-    if (typeof filter.search === 'string' && filter.search.trim()) {
+    if (typeof filter.search === "string" && filter.search.trim()) {
       out.search = filter.search.trim();
     }
     return out;
@@ -451,13 +446,16 @@ export class ContactsAdminService {
     await this.assertAudience(audienceId);
     const segments = await this.prisma.segment.findMany({
       where: { audienceId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
     // Resolve each segment's live size so the admin list can show counts.
     return Promise.all(
       segments.map(async (s) => {
         const count = await this.prisma.contact.count({
-          where: this.filterToWhere(audienceId, (s.filter ?? {}) as ContactFilter),
+          where: this.filterToWhere(
+            audienceId,
+            (s.filter ?? {}) as ContactFilter,
+          ),
         });
         return this.toSegmentDTO(s, count);
       }),
@@ -488,7 +486,7 @@ export class ContactsAdminService {
     input: UpdateSegmentInput,
   ): Promise<SegmentDTO> {
     const existing = await this.prisma.segment.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Segment not found');
+    if (!existing) throw new NotFoundException("Segment not found");
 
     const data: Prisma.SegmentUpdateInput = {};
     if (input.name !== undefined) data.name = input.name.trim();
@@ -510,7 +508,7 @@ export class ContactsAdminService {
       where: { id },
       select: { id: true },
     });
-    if (!existing) throw new NotFoundException('Segment not found');
+    if (!existing) throw new NotFoundException("Segment not found");
     await this.prisma.segment.delete({ where: { id } });
     return { ok: true };
   }

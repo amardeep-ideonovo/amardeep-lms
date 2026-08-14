@@ -49,9 +49,16 @@ export function Avatar({
 
 // ---------- status pill ----------
 
-export type PillTone = "success" | "warning" | "danger" | "info" | "neutral" | "teal-dark";
+export type PillTone =
+  "success" | "warning" | "danger" | "info" | "neutral" | "teal-dark";
 
-export function Pill({ tone, children }: { tone: PillTone; children: ReactNode }) {
+export function Pill({
+  tone,
+  children,
+}: {
+  tone: PillTone;
+  children: ReactNode;
+}) {
   return <span className={`pill pill-${tone}`}>{children}</span>;
 }
 
@@ -79,7 +86,13 @@ export function Bar({
 
 // ---------- health dot + label ----------
 
-export function HealthLabel({ tone, label }: { tone: "ok" | "warn" | "danger" | "none"; label: string }) {
+export function HealthLabel({
+  tone,
+  label,
+}: {
+  tone: "ok" | "warn" | "danger" | "none";
+  label: string;
+}) {
   return (
     <span className={`health health-${tone}`}>
       <span className="health-dot" />
@@ -96,8 +109,17 @@ export function Skeleton({ height = 120 }: { height?: number }) {
 
 export function PageSkeleton() {
   return (
-    <div className="page-in" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18 }}>
+    <div
+      className="page-in"
+      style={{ display: "flex", flexDirection: "column", gap: 18 }}
+    >
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4,1fr)",
+          gap: 18,
+        }}
+      >
         <Skeleton height={92} />
         <Skeleton height={92} />
         <Skeleton height={92} />
@@ -142,7 +164,12 @@ export function Modal({
       >
         <div className="modal-head">
           <span className="modal-title">{title}</span>
-          <button type="button" className="modal-x" onClick={onClose} aria-label="Close">
+          <button
+            type="button"
+            className="modal-x"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ×
           </button>
         </div>
@@ -202,14 +229,21 @@ export interface MenuItem {
   disabled?: boolean;
 }
 
-export function Kebab({ items, align = "right" }: { items: MenuItem[]; align?: "left" | "right" }) {
+export function Kebab({
+  items,
+  align = "right",
+}: {
+  items: MenuItem[];
+  align?: "left" | "right";
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
@@ -262,7 +296,7 @@ export function Kebab({ items, align = "right" }: { items: MenuItem[]; align?: "
               >
                 {item.label}
               </button>
-            )
+            ),
           )}
         </div>
       )}

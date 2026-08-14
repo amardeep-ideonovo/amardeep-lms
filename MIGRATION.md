@@ -22,17 +22,18 @@ route still works if you'd rather containerize — see [Alternative: Docker](#al
 
 ## What git carries vs. what it doesn't
 
-| In git (arrives via `git clone`) | NOT in git — must be moved by hand |
-| --- | --- |
-| All source (`apps/*`, `packages/*`) + `package-lock.json` | `./.env` and `apps/api/.env` (real secrets) |
-| `docker-compose.yml`, Prisma schema + migrations | **Database data** (native Postgres `lms` DB) |
-| `.env.example` templates | **Uploaded media** — `apps/api/src/{files,images}/**` |
-| Empty upload dirs (kept via tracked `.gitignore`) | `.mcp.json`, `.claude/settings.local.json` (dev convenience) |
+| In git (arrives via `git clone`)                          | NOT in git — must be moved by hand                           |
+| --------------------------------------------------------- | ------------------------------------------------------------ |
+| All source (`apps/*`, `packages/*`) + `package-lock.json` | `./.env` and `apps/api/.env` (real secrets)                  |
+| `docker-compose.yml`, Prisma schema + migrations          | **Database data** (native Postgres `lms` DB)                 |
+| `.env.example` templates                                  | **Uploaded media** — `apps/api/src/{files,images}/**`        |
+| Empty upload dirs (kept via tracked `.gitignore`)         | `.mcp.json`, `.claude/settings.local.json` (dev convenience) |
 
 ### Two couplings you must respect
+
 - **`SETTINGS_ENC_KEY` ↔ database.** `./.env` holds `SETTINGS_ENC_KEY`, the key
   that decrypts the Stripe secrets stored in the DB `Setting` table.
-  Move the DB without the *same* key and those settings become unreadable.
+  Move the DB without the _same_ key and those settings become unreadable.
 - **Uploaded files ↔ database.** DB rows reference uploaded files by name
   (blog/category/course/lesson images, lesson-note PDFs). Move the DB but not the
   files → broken links.
@@ -56,33 +57,38 @@ prebuilt binaries npm fetches for arm64 automatically.
 
 What each workspace pulls in (all installed by `npm ci` — listed for orientation):
 
-| Workspace | Stack / key deps | Runtime needs |
-| --- | --- | --- |
-| `apps/api` (`@lms/api`) | NestJS 10, Stripe 16, BullMQ + ioredis, passport-jwt, sanitize-html, Sentry | **Postgres + Redis** |
-| `apps/web` (`@lms/web`) | Next.js 14.2.5, React 18.2, Puck editor, Mux player | API running |
-| `apps/admin` (`@lms/admin`) | Next.js 14.2.5, React 18.2, Puck, TipTap | API running |
-| `apps/mobile` (`@lms/mobile`) | Expo SDK 51, RN 0.74.5, React Navigation, expo-av/secure-store/file-system, dev-client | see Mobile note |
-| `packages/db` (`@lms/db`) | Prisma 5.22 (+ bcryptjs) | Postgres; run `db:generate` |
-| `packages/types`, `packages/puck` | shared internal TS (no external deps) | — |
-| `packages/bdd` (`@lms/bdd`) | Cucumber.js 10 (API-level tests) | API running |
+| Workspace                         | Stack / key deps                                                                       | Runtime needs               |
+| --------------------------------- | -------------------------------------------------------------------------------------- | --------------------------- |
+| `apps/api` (`@lms/api`)           | NestJS 10, Stripe 16, BullMQ + ioredis, passport-jwt, sanitize-html, Sentry            | **Postgres + Redis**        |
+| `apps/web` (`@lms/web`)           | Next.js 14.2.5, React 18.2, Puck editor, Mux player                                    | API running                 |
+| `apps/admin` (`@lms/admin`)       | Next.js 14.2.5, React 18.2, Puck, TipTap                                               | API running                 |
+| `apps/mobile` (`@lms/mobile`)     | Expo SDK 51, RN 0.74.5, React Navigation, expo-av/secure-store/file-system, dev-client | see Mobile note             |
+| `packages/db` (`@lms/db`)         | Prisma 5.22 (+ bcryptjs)                                                               | Postgres; run `db:generate` |
+| `packages/types`, `packages/puck` | shared internal TS (no external deps)                                                  | —                           |
+| `packages/bdd` (`@lms/bdd`)       | Cucumber.js 10 (API-level tests)                                                       | API running                 |
 
 ### Mobile (Expo) — extra setup only if running on devices/simulators
+
 `apps/mobile` uses **`expo-dev-client`** (a custom dev build, not plain Expo Go)
 with native modules. Web preview (`npm run web`) needs nothing extra. For native:
+
 - **iOS:** Xcode + iOS Simulator, `watchman`, and CocoaPods (`brew install cocoapods`).
 - **Android:** Android Studio + SDK + an emulator, and JDK 17.
 - Build a dev client via EAS (`npx eas build --profile development`) or a local
   prebuild — Expo Go alone won't load the native modules.
 
 ### Node version caveat
+
 This repo runs on **Node 24.13.0** (engines: `>=20`). Expo SDK 51 predates Node
 24 and officially targets Node 18/20 LTS. The API/web/admin are fine on either;
 if Metro/Expo tooling misbehaves, switch that shell to Node 20 LTS
 (`nvm install 20 && nvm use 20`).
 
 ### Git identity
+
 Commits here fell back to an auto-derived name/email. Set it explicitly on the
 new machine so commits are attributed correctly:
+
 ```bash
 git config --global user.name  "Amardeep Singh"
 git config --global user.email "you@example.com"
@@ -203,6 +209,7 @@ npm run dev:web     # :3002     (blog/category images render → uploads+DB in s
 ```
 
 Sanity checks:
+
 - Admin lists your existing levels/members → DB restored correctly.
 - Blog/category images render in web/admin → uploads + DB are in sync.
 - BDD gate passes: `API_URL=http://localhost:3000 npm run -w @lms/bdd test`.
@@ -214,10 +221,12 @@ Sanity checks:
 The repo ships `docker-compose.yml` (Postgres 16 + Redis 7) if you prefer
 containers over native services. Install Docker Desktop, then instead of the
 native Postgres/Redis steps:
+
 ```bash
 docker compose up -d                                   # Postgres :5432 + Redis :6379
 cat ~/lms-migration/lms-dump.sql | docker compose exec -T postgres psql -U postgres -d lms
 ```
+
 Note the compose Postgres uses `postgres:postgres` creds — update `DATABASE_URL`
 in both `.env` files to `postgresql://postgres:postgres@localhost:5432/lms?schema=public`.
 
@@ -225,12 +234,14 @@ in both `.env` files to `postgresql://postgres:postgres@localhost:5432/lms?schem
 
 To start clean instead of carrying your dev data (skip the DB dump + uploads in
 Phase 1):
+
 ```bash
 createdb lms          # or: docker compose up -d
 npm ci && npm run db:generate
 npm run db:migrate     # creates schema from migrations
 npm -w packages/db run seed
 ```
+
 You still need `./.env` (for `SETTINGS_ENC_KEY`, the DB URL, and the
 Stripe keys the seed reads). Previously uploaded media will be absent.
 
@@ -238,17 +249,17 @@ Stripe keys the seed reads). Previously uploaded media will be absent.
 
 ## Tooling summary (new machine)
 
-| Tool | Why |
-| --- | --- |
-| Node (match `24.13.0`, or any `>=20`) | monorepo runtime; pin via `nvm` |
-| `postgresql@16` (Homebrew) | the database (native; `brew services start`) |
-| `redis` (Homebrew) | BullMQ job queue (native; `brew services start`) |
-| `git`, `gh` | clone + GitHub auth |
-| `stripe` CLI | forward Stripe webhooks to the local API during dev |
-| `watchman` | React Native / Expo file watching (`apps/mobile`) |
-| CocoaPods + Xcode | iOS mobile builds — only if running mobile on iOS |
-| Android Studio + JDK 17 | Android mobile builds — only if running mobile on Android |
-| Docker Desktop | optional — only if you take the Docker route above |
+| Tool                                  | Why                                                       |
+| ------------------------------------- | --------------------------------------------------------- |
+| Node (match `24.13.0`, or any `>=20`) | monorepo runtime; pin via `nvm`                           |
+| `postgresql@16` (Homebrew)            | the database (native; `brew services start`)              |
+| `redis` (Homebrew)                    | BullMQ job queue (native; `brew services start`)          |
+| `git`, `gh`                           | clone + GitHub auth                                       |
+| `stripe` CLI                          | forward Stripe webhooks to the local API during dev       |
+| `watchman`                            | React Native / Expo file watching (`apps/mobile`)         |
+| CocoaPods + Xcode                     | iOS mobile builds — only if running mobile on iOS         |
+| Android Studio + JDK 17               | Android mobile builds — only if running mobile on Android |
+| Docker Desktop                        | optional — only if you take the Docker route above        |
 
 > System tools only. All npm dependencies are restored by `npm ci` (see the
 > [Dependencies](#dependencies) section) — no manual package installs needed.

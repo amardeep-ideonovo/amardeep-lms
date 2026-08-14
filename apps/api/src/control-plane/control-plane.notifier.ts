@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from "@nestjs/common";
 
 /**
  * Best-effort, fire-and-forget signals from THIS instance up to the control
@@ -13,11 +13,11 @@ import { Injectable, Logger } from '@nestjs/common';
 @Injectable()
 export class ControlPlaneNotifier {
   private readonly logger = new Logger(ControlPlaneNotifier.name);
-  private readonly baseUrl = (process.env.CONTROL_PLANE_URL ?? '').replace(
+  private readonly baseUrl = (process.env.CONTROL_PLANE_URL ?? "").replace(
     /\/+$/,
-    '',
+    "",
   );
-  private readonly token = process.env.INSTANCE_SERVICE_TOKEN ?? '';
+  private readonly token = process.env.INSTANCE_SERVICE_TOKEN ?? "";
 
   private get enabled(): boolean {
     return !!(this.baseUrl && this.token);
@@ -37,19 +37,22 @@ export class ControlPlaneNotifier {
   async adminCredentialsChanged(adminEmail: string): Promise<void> {
     if (!this.enabled || !adminEmail) return;
     try {
-      const res = await fetch(`${this.baseUrl}/api/instance/admin-credentials`, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${this.token}`,
+      const res = await fetch(
+        `${this.baseUrl}/api/instance/admin-credentials`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${this.token}`,
+          },
+          body: JSON.stringify({
+            kind: "admin.credentials_changed",
+            adminEmail,
+            changedAt: new Date().toISOString(),
+          }),
+          signal: AbortSignal.timeout(4000),
         },
-        body: JSON.stringify({
-          kind: 'admin.credentials_changed',
-          adminEmail,
-          changedAt: new Date().toISOString(),
-        }),
-        signal: AbortSignal.timeout(4000),
-      });
+      );
       if (!res.ok) {
         this.logger.warn(
           `admin-credentials signal: control plane returned ${res.status}`,

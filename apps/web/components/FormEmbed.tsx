@@ -72,7 +72,7 @@ export default function FormEmbed({ formId }: { formId: string }) {
       setSubmitError(
         err instanceof ApiError
           ? err.message
-          : "Something went wrong. Please try again."
+          : "Something went wrong. Please try again.",
       );
     } finally {
       setSubmitting(false);
@@ -112,7 +112,7 @@ export default function FormEmbed({ formId }: { formId: string }) {
 function renderInput(
   f: FormFieldDef,
   value: string | boolean | undefined,
-  setVal: (name: string, v: string | boolean) => void
+  setVal: (name: string, v: string | boolean) => void,
 ) {
   if (f.type === "textarea") {
     return (
@@ -159,10 +159,10 @@ function renderInput(
     f.type === "email"
       ? "email"
       : f.type === "phone"
-      ? "tel"
-      : f.type === "number"
-      ? "number"
-      : "text";
+        ? "tel"
+        : f.type === "number"
+          ? "number"
+          : "text";
   return (
     <input
       className="form-embed-input"
@@ -174,4 +174,3 @@ function renderInput(
     />
   );
 }
-

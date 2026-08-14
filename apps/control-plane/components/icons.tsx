@@ -67,7 +67,14 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   database: (
     <>
-      <ellipse cx="12" cy="5" rx="9" ry="3" stroke="currentColor" strokeWidth="1.7" />
+      <ellipse
+        cx="12"
+        cy="5"
+        rx="9"
+        ry="3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
       <path
         d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"
         stroke="currentColor"
@@ -95,15 +102,44 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   "credit-card": (
     <>
-      <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.7" />
+      <rect
+        x="2"
+        y="5"
+        width="20"
+        height="14"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
       <path d="M2 10h20" stroke="currentColor" strokeWidth="1.7" />
     </>
   ),
   server: (
     <>
-      <rect x="2" y="2" width="20" height="8" rx="2" stroke="currentColor" strokeWidth="1.7" />
-      <rect x="2" y="14" width="20" height="8" rx="2" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M6 6h.01M6 18h.01" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      <rect
+        x="2"
+        y="2"
+        width="20"
+        height="8"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <rect
+        x="2"
+        y="14"
+        width="20"
+        height="8"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M6 6h.01M6 18h.01"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
     </>
   ),
   "alert-triangle": (
@@ -123,7 +159,12 @@ const PATHS: Record<IconName, ReactNode> = {
         strokeWidth="1.7"
         strokeLinejoin="round"
       />
-      <path d="M14 2v6h6M8 13h8M8 17h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path
+        d="M14 2v6h6M8 13h8M8 17h6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </>
   ),
   settings: (
@@ -141,7 +182,12 @@ const PATHS: Record<IconName, ReactNode> = {
   search: (
     <>
       <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-      <path d="m20 20-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path
+        d="m20 20-3.5-3.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
     </>
   ),
   bell: (
@@ -155,16 +201,61 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   grid: (
     <>
-      <rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
-      <rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
-      <rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
-      <rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.7" />
+      <rect
+        x="3"
+        y="3"
+        width="7"
+        height="7"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <rect
+        x="14"
+        y="3"
+        width="7"
+        height="7"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <rect
+        x="3"
+        y="14"
+        width="7"
+        height="7"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <rect
+        x="14"
+        y="14"
+        width="7"
+        height="7"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
     </>
   ),
   smartphone: (
     <>
-      <rect x="7" y="2" width="10" height="20" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M10.5 18.5h3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <rect
+        x="7"
+        y="2"
+        width="10"
+        height="20"
+        rx="2.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="M10.5 18.5h3"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </>
   ),
   lifebuoy: (
@@ -198,8 +289,21 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   video: (
     <>
-      <rect x="2" y="6" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="1.7" />
-      <path d="m16 10 6-3v10l-6-3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <rect
+        x="2"
+        y="6"
+        width="14"
+        height="12"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="1.7"
+      />
+      <path
+        d="m16 10 6-3v10l-6-3z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
     </>
   ),
   brush: (
@@ -232,7 +336,12 @@ const PATHS: Record<IconName, ReactNode> = {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M7.6 8.26h.01" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+      <path
+        d="M7.6 8.26h.01"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
     </>
   ),
   play: <path d="m8 5 12 7-12 7z" fill="currentColor" />,
@@ -240,7 +349,13 @@ const PATHS: Record<IconName, ReactNode> = {
 
 export function Icon({ name, size = 17 }: { name: IconName; size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       {PATHS[name]}
     </svg>
   );
@@ -249,7 +364,13 @@ export function Icon({ name, size = 17 }: { name: IconName; size?: number }) {
 /** Spark logo glyph — teal four-point spark (Spark brand pack). */
 export function LogoGlyph({ size = 22 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
       <path
         d="M12 1.7C12.93 7.35 16.65 11.07 22.3 12C16.65 12.93 12.93 16.65 12 22.3C11.07 16.65 7.35 12.93 1.7 12C7.35 11.07 11.07 7.35 12 1.7Z"
         fill="#34c9a2"

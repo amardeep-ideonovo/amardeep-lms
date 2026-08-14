@@ -5,7 +5,7 @@
 // No-op when SENTRY_DSN is unset: Sentry.init({}) without a DSN is a
 // documented no-op (events are dropped at the SDK boundary), so this file
 // is safe to ship in environments without observability configured.
-import * as Sentry from '@sentry/nestjs';
+import * as Sentry from "@sentry/nestjs";
 
 // Strip auth tokens from any URL/query string before it leaves for Sentry. The
 // lesson-note + certificate download routes accept a `?token=` param, so a 4xx/
@@ -15,7 +15,7 @@ function redactTokens<T extends string | undefined>(url: T): T {
   if (!url) return url;
   return url.replace(
     /([?&](?:token|access_token)=)[^&#]*/gi,
-    '$1[REDACTED]',
+    "$1[REDACTED]",
   ) as T;
 }
 
@@ -23,7 +23,7 @@ const dsn = process.env.SENTRY_DSN;
 if (dsn) {
   Sentry.init({
     dsn,
-    environment: process.env.ENV_NAME ?? 'production',
+    environment: process.env.ENV_NAME ?? "production",
     // 10% transaction sampling — adjust via Sentry dashboard, not code.
     tracesSampleRate: 0.1,
     // Stable per-instance identity, injected by the control plane (the
@@ -37,14 +37,15 @@ if (dsn) {
     // regression detection with no extra plumbing.
     release: process.env.APP_VERSION || undefined,
     beforeSend(event) {
-      if (event.request?.url) event.request.url = redactTokens(event.request.url);
-      if (typeof event.request?.query_string === 'string') {
+      if (event.request?.url)
+        event.request.url = redactTokens(event.request.url);
+      if (typeof event.request?.query_string === "string") {
         event.request.query_string = redactTokens(event.request.query_string);
       }
       return event;
     },
     beforeBreadcrumb(crumb) {
-      if (crumb.data?.url && typeof crumb.data.url === 'string') {
+      if (crumb.data?.url && typeof crumb.data.url === "string") {
         crumb.data.url = redactTokens(crumb.data.url);
       }
       return crumb;

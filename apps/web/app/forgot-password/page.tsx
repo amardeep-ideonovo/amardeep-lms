@@ -24,7 +24,7 @@ export default function ForgotPasswordPage() {
     } catch (err) {
       // Only transport/rate-limit failures land here — never "no such account".
       setError(
-        err instanceof Error ? err.message : "Something went wrong. Try again."
+        err instanceof Error ? err.message : "Something went wrong. Try again.",
       );
     } finally {
       setLoading(false);
@@ -35,7 +35,9 @@ export default function ForgotPasswordPage() {
     <div className="dark-page">
       <div className="dp-wrap">
         <div className="form-card">
-          <h1>Forgot your <span className="t-gradient">password?</span></h1>
+          <h1>
+            Forgot your <span className="t-gradient">password?</span>
+          </h1>
 
           {sent ? (
             <>

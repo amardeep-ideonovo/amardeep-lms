@@ -41,8 +41,8 @@ export default function DeleteAccountPage() {
               keep before deleting.
             </li>
             <li>
-              Active subscriptions, which are canceled immediately with no refund
-              of the remaining paid period.
+              Active subscriptions, which are canceled immediately with no
+              refund of the remaining paid period.
             </li>
             <li>
               Lifetime course and class purchases, which are destroyed and would
@@ -55,13 +55,13 @@ export default function DeleteAccountPage() {
             What is retained
           </h2>
           <p style={{ fontSize: 14, margin: "0 0 8px" }}>
-            For legal and accounting reasons, anonymized financial and compliance
-            records are retained by our payment processor, and only for as long
-            as the law requires (financial records are typically kept for up to
-            seven years) — after which they are deleted. We also keep your email
-            address only on a do-not-contact suppression list, so we don’t email
-            you again by mistake. Neither is used to re-identify you or restore
-            your account.
+            For legal and accounting reasons, anonymized financial and
+            compliance records are retained by our payment processor, and only
+            for as long as the law requires (financial records are typically
+            kept for up to seven years) — after which they are deleted. We also
+            keep your email address only on a do-not-contact suppression list,
+            so we don’t email you again by mistake. Neither is used to
+            re-identify you or restore your account.
           </p>
 
           <h2 style={{ fontSize: 16, margin: "16px 0 6px" }}>
@@ -81,10 +81,10 @@ export default function DeleteAccountPage() {
             </li>
             <li>
               If you still can’t get in, reply to any email you’ve received from
-              us (a welcome email, receipt, or notification) and ask us to delete
-              your account, or use the contact details in the site footer. We
-              will verify it’s you and remove your account and data on your
-              behalf — you don’t need an account to make the request.
+              us (a welcome email, receipt, or notification) and ask us to
+              delete your account, or use the contact details in the site
+              footer. We will verify it’s you and remove your account and data
+              on your behalf — you don’t need an account to make the request.
             </li>
           </ol>
 

@@ -21,11 +21,7 @@ import type { Data } from "@puckeditor/core";
 import { createPuckConfig } from "@lms/puck";
 import type { PageProps, RootProps } from "@lms/puck";
 import "@lms/puck/styles.css";
-import type {
-  PopupContext,
-  PopupPosition,
-  PopupPublicDTO,
-} from "@lms/types";
+import type { PopupContext, PopupPosition, PopupPublicDTO } from "@lms/types";
 import FormEmbed from "@/components/FormEmbed";
 import PageMenu from "@/components/PageMenu";
 import { fetchActivePopups, recordPopupEvent } from "@/lib/api";
@@ -46,7 +42,11 @@ function isDarkBg(color: string | undefined): boolean {
   const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
   if (!m) return false;
   let hex = m[1];
-  if (hex.length === 3) hex = hex.split("").map((c) => c + c).join("");
+  if (hex.length === 3)
+    hex = hex
+      .split("")
+      .map((c) => c + c)
+      .join("");
   const r = parseInt(hex.slice(0, 2), 16);
   const g = parseInt(hex.slice(2, 4), 16);
   const b = parseInt(hex.slice(4, 6), 16);
@@ -226,7 +226,9 @@ function PopupCard({
               height: 28,
               borderRadius: 999,
               border: "none",
-              background: darkBg ? "rgba(255,255,255,0.14)" : "rgba(23, 23, 29,0.08)",
+              background: darkBg
+                ? "rgba(255,255,255,0.14)"
+                : "rgba(23, 23, 29,0.08)",
               color: darkBg ? "#ffffff" : "#17171d",
               fontSize: 16,
               lineHeight: 1,
@@ -331,7 +333,14 @@ export default function PopupHost({ context }: { context: PopupContext }) {
   if (visible.length === 0) return null;
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 4000, pointerEvents: "none" }}>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 4000,
+        pointerEvents: "none",
+      }}
+    >
       {visible.map((p) => (
         <TriggerGate
           key={p.id}

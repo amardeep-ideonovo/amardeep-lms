@@ -7,7 +7,7 @@ now; a cloud driver swaps in later behind the same idea.
 ## Model
 
 - **One image set, many instances.** Build `lms-api`, `lms-web`, `lms-admin`
-  **once** (`build-images.sh`). Each instance just *runs* those images with its
+  **once** (`build-images.sh`). Each instance just _runs_ those images with its
   own env — no per-client rebuild. This works because the web/admin API/web
   origins are resolved at **runtime** (`RUNTIME_API_URL` → `/__env.js` →
   `window.__ENV__`), not baked at build time.

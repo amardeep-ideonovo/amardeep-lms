@@ -34,7 +34,9 @@ function visibilitySummary(p: PopupListItem): string {
 // Compact analytics summary for the list (views · clicks · closed [+ CTR]).
 function perfSummary(p: PopupListItem): string {
   if (!p.views && !p.clicks && !p.dismissals) return "No activity yet";
-  const ctr = p.views ? ` (${Math.round((p.clicks / p.views) * 100)}% CTR)` : "";
+  const ctr = p.views
+    ? ` (${Math.round((p.clicks / p.views) * 100)}% CTR)`
+    : "";
   return `${p.views} views · ${p.clicks} clicks · ${p.dismissals} closed${ctr}`;
 }
 
@@ -124,7 +126,9 @@ export default function PopupsPage() {
       applyPopup(popup);
     } catch (err) {
       if (win) win.close();
-      setError(err instanceof ApiError ? err.message : "Failed to create popup");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to create popup",
+      );
     } finally {
       setBusy(false);
     }
@@ -141,7 +145,9 @@ export default function PopupsPage() {
     try {
       applyPopup(await api.updatePopup(p.id, { name: name.trim() }));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to rename popup");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to rename popup",
+      );
     }
   }
 
@@ -186,7 +192,9 @@ export default function PopupsPage() {
       await api.deletePopup(p.id);
       setPopups((prev) => prev.filter((x) => x.id !== p.id));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to delete popup");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to delete popup",
+      );
     } finally {
       setRowBusy(null);
     }
@@ -235,77 +243,81 @@ export default function PopupsPage() {
         {loading ? (
           <p className="muted">Loading…</p>
         ) : popups.length === 0 ? (
-          <p className="muted">No popups yet. Click “Add new popup” to start.</p>
+          <p className="muted">
+            No popups yet. Click “Add new popup” to start.
+          </p>
         ) : (
-          <div className="table-wrap"><table className="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Shows on</th>
-                <th>Position</th>
-                <th>Performance</th>
-                <th>Updated</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {popups.map((p) => (
-                <tr key={p.id}>
-                  <td>{p.name}</td>
-                  <td className="muted">{visibilitySummary(p)}</td>
-                  <td className="muted">{POSITION_LABEL[p.position]}</td>
-                  <td className="muted">{perfSummary(p)}</td>
-                  <td className="muted">{fmtDate(p.updatedAt)}</td>
-                  <td>
-                    <span
-                      className={
-                        p.status === "ACTIVE"
-                          ? "badge badge--published"
-                          : "badge badge--draft"
-                      }
-                    >
-                      {p.status === "ACTIVE" ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="row-actions">
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => openEditor(p.id)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => rename(p)}
-                      >
-                        Rename
-                      </button>
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => toggleActive(p)}
-                        disabled={rowBusy === p.id}
-                      >
-                        {rowBusy === p.id
-                          ? "Saving…"
-                          : p.status === "ACTIVE"
-                            ? "Deactivate"
-                            : "Activate"}
-                      </button>
-                      <button
-                        className="btn btn--danger btn--sm"
-                        onClick={() => remove(p)}
-                        disabled={rowBusy === p.id}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Shows on</th>
+                  <th>Position</th>
+                  <th>Performance</th>
+                  <th>Updated</th>
+                  <th>Status</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table></div>
+              </thead>
+              <tbody>
+                {popups.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.name}</td>
+                    <td className="muted">{visibilitySummary(p)}</td>
+                    <td className="muted">{POSITION_LABEL[p.position]}</td>
+                    <td className="muted">{perfSummary(p)}</td>
+                    <td className="muted">{fmtDate(p.updatedAt)}</td>
+                    <td>
+                      <span
+                        className={
+                          p.status === "ACTIVE"
+                            ? "badge badge--published"
+                            : "badge badge--draft"
+                        }
+                      >
+                        {p.status === "ACTIVE" ? "Active" : "Inactive"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="row-actions">
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => openEditor(p.id)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => rename(p)}
+                        >
+                          Rename
+                        </button>
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => toggleActive(p)}
+                          disabled={rowBusy === p.id}
+                        >
+                          {rowBusy === p.id
+                            ? "Saving…"
+                            : p.status === "ACTIVE"
+                              ? "Deactivate"
+                              : "Activate"}
+                        </button>
+                        <button
+                          className="btn btn--danger btn--sm"
+                          onClick={() => remove(p)}
+                          disabled={rowBusy === p.id}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

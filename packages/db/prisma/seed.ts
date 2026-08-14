@@ -70,8 +70,7 @@ const WIPE = process.env.SEED_WIPE === "1";
 // Provisioning knobs (see header). Admin login lower-cases the email before
 // the lookup (auth.service.ts loginAdmin), so the stored row must be lowercase
 // or the disclosed credentials would never match.
-const OWNER_EMAIL =
-  process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase() || null;
+const OWNER_EMAIL = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase() || null;
 const OWNER_PASSWORD = process.env.SEED_ADMIN_PASSWORD || null;
 const demoRaw = (process.env.SEED_DEMO_CONTENT || "").trim();
 const SEED_DEMO = demoRaw ? demoRaw !== "false" : !OWNER_EMAIL;
@@ -113,10 +112,9 @@ const DEMO_VIDEO =
 // every start, so a changed origin self-heals; on instances (SEED_DEMO_ONCE)
 // the URLs keep their provision-time origin — safe, because the fleet -api
 // subdomain stays routed for the instance's lifetime, custom domain or not.
-const MEDIA_BASE = (process.env.PUBLIC_API_URL || "http://localhost:3000").replace(
-  /\/$/,
-  "",
-);
+const MEDIA_BASE = (
+  process.env.PUBLIC_API_URL || "http://localhost:3000"
+).replace(/\/$/, "");
 const artUrl = (key: string) => `${MEDIA_BASE}/media/${key}.png`;
 
 type ArtTheme = "music" | "food" | "technology" | "sports";
@@ -279,7 +277,8 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
     where: { id: "seed-course-pro" },
     update: {
       title: "Locked Pro Course", // asserted by access_control.feature
-      description: "Gated course used by the access-control tests (QA fixture).",
+      description:
+        "Gated course used by the access-control tests (QA fixture).",
       order: 101,
       thumbnailUrl: generalArt(1),
       coverImageUrl: generalArt(1),
@@ -287,7 +286,8 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
     create: {
       id: "seed-course-pro",
       title: "Locked Pro Course",
-      description: "Gated course used by the access-control tests (QA fixture).",
+      description:
+        "Gated course used by the access-control tests (QA fixture).",
       order: 101,
       thumbnailUrl: generalArt(1),
       coverImageUrl: generalArt(1),
@@ -295,7 +295,10 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
   });
   await prisma.courseLevel.upsert({
     where: {
-      courseId_levelId: { courseId: "seed-course-pro", levelId: "seed-level-pro" },
+      courseId_levelId: {
+        courseId: "seed-course-pro",
+        levelId: "seed-level-pro",
+      },
     },
     update: {},
     create: { courseId: "seed-course-pro", levelId: "seed-level-pro" },
@@ -453,7 +456,11 @@ type ClassSeed = {
   trailerUrl: string; // Vimeo trailer URL
   categories: string[]; // LevelCategory ids
   skills: Array<{ title: string; imageUrl: string }>; // "Skills You'll Learn"
-  prices: Array<{ interval: "month" | "year"; amount: number; installments?: number }>;
+  prices: Array<{
+    interval: "month" | "year";
+    amount: number;
+    installments?: number;
+  }>;
   courses: CourseSeed[];
 };
 
@@ -463,15 +470,28 @@ const CLASSES: ClassSeed[] = [
     name: "Cooking",
     slug: "cooking",
     type: "PAID",
-    description: "<p>Master the culinary arts in this dynamic cooking course. Develop a diverse range of professional kitchen expertise, from high-heat wok techniques and perfecting pasta to delicate fine-dining plating and precise sushi preparation.</p>",
+    description:
+      "<p>Master the culinary arts in this dynamic cooking course. Develop a diverse range of professional kitchen expertise, from high-heat wok techniques and perfecting pasta to delicate fine-dining plating and precise sushi preparation.</p>",
     imageUrl: media("1786529778843-lvu8oo.jpg"),
     trailerUrl: "https://vimeo.com/365588945?fl=pl&fe=sh",
     categories: ["seed-lvlcat-food"],
     skills: [
-      { title: "High-Heat Cooking & Flambé", imageUrl: media("1786529805566-swee0b.jpg") },
-      { title: "Pasta Mastery & Tossing Techniques", imageUrl: media("1786529821864-ngio1m.jpg") },
-      { title: "Precision Plating & Presentation", imageUrl: media("1786529832875-sy9l1g.jpg") },
-      { title: "Sushi Rolling & Advanced Knife Skills", imageUrl: media("1786529843366-zzxyfl.jpg") },
+      {
+        title: "High-Heat Cooking & Flambé",
+        imageUrl: media("1786529805566-swee0b.jpg"),
+      },
+      {
+        title: "Pasta Mastery & Tossing Techniques",
+        imageUrl: media("1786529821864-ngio1m.jpg"),
+      },
+      {
+        title: "Precision Plating & Presentation",
+        imageUrl: media("1786529832875-sy9l1g.jpg"),
+      },
+      {
+        title: "Sushi Rolling & Advanced Knife Skills",
+        imageUrl: media("1786529843366-zzxyfl.jpg"),
+      },
     ],
     prices: [
       { interval: "month", amount: 1900 },
@@ -482,14 +502,16 @@ const CLASSES: ClassSeed[] = [
         key: "high-heat-wok-mastery",
         title: "High-Heat & Wok Mastery",
         slug: "high-heat-wok-mastery",
-        description: "<p>Dedicated to the intense, fast-paced techniques of stir-frying and open-flame cooking.</p>",
+        description:
+          "<p>Dedicated to the intense, fast-paced techniques of stir-frying and open-flame cooking.</p>",
         thumbnailUrl: media("1786535057364-yo9yb0.jpg"),
         coverImageUrl: media("1786535049845-owtxjo.jpg"),
         lessons: [
           {
             title: "Wok Selection, Seasoning, and Care",
             durationSeconds: 620,
-            content: "<p>Understand the different types of woks, how to properly season a carbon steel pan, and the maintenance required to build a non-stick patina.</p>",
+            content:
+              "<p>Understand the different types of woks, how to properly season a carbon steel pan, and the maintenance required to build a non-stick patina.</p>",
             videoUrl: "https://vimeo.com/365588945?fl=pl&fe=sh",
             thumbnailUrl: media("1786535108094-clcrpd.jpg"),
           },
@@ -502,15 +524,28 @@ const CLASSES: ClassSeed[] = [
     name: "Dance and Yoga",
     slug: "dance-and-yoga",
     type: "PAID",
-    description: "<h2><strong>Dance and Yoga</strong><br /><br />Experience the perfect synergy of movement and mindfulness in Dance and Yoga. This holistic course blends expressive dance techniques with grounding yoga postures to improve your flexibility, core strength, and overall well-being through solo and group exercises.</h2><p></p>",
+    description:
+      "<h2><strong>Dance and Yoga</strong><br /><br />Experience the perfect synergy of movement and mindfulness in Dance and Yoga. This holistic course blends expressive dance techniques with grounding yoga postures to improve your flexibility, core strength, and overall well-being through solo and group exercises.</h2><p></p>",
     imageUrl: media("1786530076565-jc9a33.jpg"),
     trailerUrl: "https://vimeo.com/158767648?fl=pl&fe=sh",
     categories: ["seed-lvlcat-fitness"],
     skills: [
-      { title: "Foundational Dance Postures & Alignment", imageUrl: media("1786530095281-o2k6uk.jpg") },
-      { title: "Group Flexibility & Mindfulness", imageUrl: media("1786530103556-mrez9l.jpg") },
-      { title: "Partner Movement & Connection", imageUrl: media("1786530112205-6cysbf.jpg") },
-      { title: "Deep Conditioning & Balance", imageUrl: media("1786530120749-8rnwr6.jpg") },
+      {
+        title: "Foundational Dance Postures & Alignment",
+        imageUrl: media("1786530095281-o2k6uk.jpg"),
+      },
+      {
+        title: "Group Flexibility & Mindfulness",
+        imageUrl: media("1786530103556-mrez9l.jpg"),
+      },
+      {
+        title: "Partner Movement & Connection",
+        imageUrl: media("1786530112205-6cysbf.jpg"),
+      },
+      {
+        title: "Deep Conditioning & Balance",
+        imageUrl: media("1786530120749-8rnwr6.jpg"),
+      },
     ],
     prices: [
       { interval: "month", amount: 2900 },
@@ -521,35 +556,40 @@ const CLASSES: ClassSeed[] = [
         key: "foundations-of-mindful-movement",
         title: "Foundations of Mindful Movement",
         slug: "foundations-of-mindful-movement",
-        description: "<p>Ideal for beginners looking to build a strong base in solo movement, flexibility, and mind-muscle connection.</p>",
+        description:
+          "<p>Ideal for beginners looking to build a strong base in solo movement, flexibility, and mind-muscle connection.</p>",
         thumbnailUrl: media("1786534061234-oyir0l.jpg"),
         coverImageUrl: media("1786534052102-z5qz99.jpg"),
         lessons: [
           {
             title: "Fundamental Yoga Postures & Alignment",
             durationSeconds: 620,
-            content: "<p>Master the proper form and alignment for essential yoga poses to improve flexibility, balance, and mind-body awareness.</p>",
+            content:
+              "<p>Master the proper form and alignment for essential yoga poses to improve flexibility, balance, and mind-body awareness.</p>",
             videoUrl: "https://vimeo.com/1435227?fl=pl&fe=sh",
             thumbnailUrl: media("1786534291606-3td8b4.jpg"),
           },
           {
             title: "Breathwork and Core Activation",
             durationSeconds: 620,
-            content: "<p> Learn to synchronize your breath with movement, engaging your deep core muscles to build a stable foundation for both dance and yoga practices.</p>",
+            content:
+              "<p> Learn to synchronize your breath with movement, engaging your deep core muscles to build a stable foundation for both dance and yoga practices.</p>",
             videoUrl: "https://vimeo.com/1435227?fl=pl&fe=sh",
             thumbnailUrl: media("1786534254330-0ytaj6.jpg"),
           },
           {
             title: "Basic Dance Rhythms & Weight Transfer",
             durationSeconds: 620,
-            content: "<p>Explore basic rhythmic patterns and practice shifting your body weight smoothly, an essential skill for fluid dance transitions.</p>",
+            content:
+              "<p>Explore basic rhythmic patterns and practice shifting your body weight smoothly, an essential skill for fluid dance transitions.</p>",
             videoUrl: "https://vimeo.com/1435227?fl=pl&fe=sh",
             thumbnailUrl: media("1786534341681-t7ancn.jpg"),
           },
           {
             title: "Solo Flexibility & Deep Tissue Stretching",
             durationSeconds: 620,
-            content: "<p>Focus on restorative, floor-based stretches designed to release tension, lengthen muscles, and improve overall joint mobility.</p>",
+            content:
+              "<p>Focus on restorative, floor-based stretches designed to release tension, lengthen muscles, and improve overall joint mobility.</p>",
             videoUrl: "https://vimeo.com/1435227?fl=pl&fe=sh",
             thumbnailUrl: media("1786534377241-azcvok.jpg"),
           },
@@ -559,14 +599,16 @@ const CLASSES: ClassSeed[] = [
         key: "partner-dynamics-collaborative-flow",
         title: "Partner Dynamics & Collaborative Flow",
         slug: "partner-dynamics-collaborative-flow",
-        description: "<p>Focused on the social and collaborative aspects of movement, mirroring the group and partner exercises.</p>",
+        description:
+          "<p>Focused on the social and collaborative aspects of movement, mirroring the group and partner exercises.</p>",
         thumbnailUrl: media("1786534919724-xgwvnv.jpg"),
         coverImageUrl: media("1786534914162-5feq7l.jpg"),
         lessons: [
           {
             title: "Trust and Weight Sharing Fundamentals",
             durationSeconds: 620,
-            content: "<p>Learn safe techniques for supporting a partner and relying on their support, building the trust necessary for collaborative movement.</p>",
+            content:
+              "<p>Learn safe techniques for supporting a partner and relying on their support, building the trust necessary for collaborative movement.</p>",
             videoUrl: "https://vimeo.com/1435227?fl=pl&fe=sh",
             thumbnailUrl: media("1786534997384-pyrtgz.jpg"),
           },
@@ -579,15 +621,28 @@ const CLASSES: ClassSeed[] = [
     name: "Music Production",
     slug: "music-production",
     type: "PAID",
-    description: "<p>Immerse yourself in the world of audio engineering and music creation. This comprehensive course covers a wide spectrum of production techniques, taking you from intimate acoustic recording and complex modular synthesis to professional mixing and large-scale orchestral scoring.</p>",
+    description:
+      "<p>Immerse yourself in the world of audio engineering and music creation. This comprehensive course covers a wide spectrum of production techniques, taking you from intimate acoustic recording and complex modular synthesis to professional mixing and large-scale orchestral scoring.</p>",
     imageUrl: media("1786531916168-llykh3.jpg"),
     trailerUrl: "https://vimeo.com/102457644?fl=pl&fe=sh",
     categories: ["seed-lvlcat-music"],
     skills: [
-      { title: "Acoustic Recording & Microphone Placement", imageUrl: media("1786532148864-00y2t9.jpg") },
-      { title: "Modular Synthesis & Sound Design", imageUrl: media("1786532156061-be2poy.jpg") },
-      { title: "Mixing, Mastering & Studio Monitoring", imageUrl: media("1786532164494-mgem14.jpg") },
-      { title: "Orchestral Recording & Film Scoring", imageUrl: media("1786532172970-1fip9e.jpg") },
+      {
+        title: "Acoustic Recording & Microphone Placement",
+        imageUrl: media("1786532148864-00y2t9.jpg"),
+      },
+      {
+        title: "Modular Synthesis & Sound Design",
+        imageUrl: media("1786532156061-be2poy.jpg"),
+      },
+      {
+        title: "Mixing, Mastering & Studio Monitoring",
+        imageUrl: media("1786532164494-mgem14.jpg"),
+      },
+      {
+        title: "Orchestral Recording & Film Scoring",
+        imageUrl: media("1786532172970-1fip9e.jpg"),
+      },
     ],
     prices: [
       { interval: "month", amount: 1900 },
@@ -598,14 +653,16 @@ const CLASSES: ClassSeed[] = [
         key: "the-modern-beatmaker-synthesis-design",
         title: "The Modern Beatmaker: Synthesis & Design",
         slug: "the-modern-beatmaker-synthesis-design",
-        description: "<p>Geared toward electronic producers focusing on sound creation using modular setups.</p>",
+        description:
+          "<p>Geared toward electronic producers focusing on sound creation using modular setups.</p>",
         thumbnailUrl: media("1786535162914-uirqy7.jpg"),
         coverImageUrl: media("1786535159022-axa07m.jpg"),
         lessons: [
           {
             title: "Introduction to Oscillators and Waveforms",
             durationSeconds: 620,
-            content: "<p>Dive into the building blocks of sound synthesis, learning how different wave shapes (sine, square, sawtooth) produce distinct tones.</p>",
+            content:
+              "<p>Dive into the building blocks of sound synthesis, learning how different wave shapes (sine, square, sawtooth) produce distinct tones.</p>",
             videoUrl: "https://vimeo.com/926367759?fl=pl&fe=sh",
             thumbnailUrl: media("1786535219554-5fsuy4.jpg"),
           },
@@ -618,15 +675,28 @@ const CLASSES: ClassSeed[] = [
     name: "Strength and Conditioning",
     slug: "strength-and-conditioning",
     type: "PAID",
-    description: "<p>Elevate your fitness with this intensive Strength and Conditioning course. Designed to build explosive power, cardiovascular endurance, and functional muscle, this program guides you through dynamic plyometrics, high-intensity training, and comprehensive full-body resistance exercises to help you achieve peak physical performance.</p>",
+    description:
+      "<p>Elevate your fitness with this intensive Strength and Conditioning course. Designed to build explosive power, cardiovascular endurance, and functional muscle, this program guides you through dynamic plyometrics, high-intensity training, and comprehensive full-body resistance exercises to help you achieve peak physical performance.</p>",
     imageUrl: media("1786533360736-olom2p.jpg"),
     trailerUrl: "https://vimeo.com/1211662437?fl=pl&fe=sh",
     categories: ["seed-lvlcat-fitness"],
     skills: [
-      { title: "Plyometrics & Explosive Power", imageUrl: media("1786533388558-1v1ojb.jpg") },
-      { title: "High-Intensity Endurance Training", imageUrl: media("1786533399748-flrii9.jpg") },
-      { title: "Upper Body Strength & Functional Pulling", imageUrl: media("1786533408180-6nglhi.jpg") },
-      { title: "Lower Body Conditioning & Resistance", imageUrl: media("1786533416000-stf0qd.jpg") },
+      {
+        title: "Plyometrics & Explosive Power",
+        imageUrl: media("1786533388558-1v1ojb.jpg"),
+      },
+      {
+        title: "High-Intensity Endurance Training",
+        imageUrl: media("1786533399748-flrii9.jpg"),
+      },
+      {
+        title: "Upper Body Strength & Functional Pulling",
+        imageUrl: media("1786533408180-6nglhi.jpg"),
+      },
+      {
+        title: "Lower Body Conditioning & Resistance",
+        imageUrl: media("1786533416000-stf0qd.jpg"),
+      },
     ],
     prices: [
       { interval: "month", amount: 1700 },
@@ -637,14 +707,16 @@ const CLASSES: ClassSeed[] = [
         key: "explosive-power-plyometrics",
         title: "Explosive Power & Plyometrics",
         slug: "explosive-power-plyometrics",
-        description: "<p>Designed to increase fast-twitch muscle response and vertical/horizontal power.</p>",
+        description:
+          "<p>Designed to increase fast-twitch muscle response and vertical/horizontal power.</p>",
         thumbnailUrl: media("1786535260009-a5f91x.jpg"),
         coverImageUrl: media("1786535254320-wym8j2.jpg"),
         lessons: [
           {
             title: "Landing Mechanics and Joint Protection",
             durationSeconds: 620,
-            content: "<p>Before learning to jump, master the essential skill of absorbing impact safely to protect your knees, ankles, and lower back.</p>",
+            content:
+              "<p>Before learning to jump, master the essential skill of absorbing impact safely to protect your knees, ankles, and lower back.</p>",
             videoUrl: "https://vimeo.com/184409791?fl=pl&fe=sh",
             thumbnailUrl: media("1786535335988-6qnymd.jpg"),
           },
@@ -691,7 +763,10 @@ async function seedCatalog() {
 
     await prisma.level.upsert({
       where: { id: levelId },
-      update: { ...levelData, categories: { set: cls.categories.map((id) => ({ id })) } },
+      update: {
+        ...levelData,
+        categories: { set: cls.categories.map((id) => ({ id })) },
+      },
       create: {
         id: levelId,
         ...levelData,
@@ -815,25 +890,37 @@ async function retireStaleSeedRows() {
   await stale(
     "lesson(s)",
     prisma.lesson.deleteMany({
-      where: { id: { startsWith: "seed-lesson-" }, NOT: { id: { in: keepLessons } } },
+      where: {
+        id: { startsWith: "seed-lesson-" },
+        NOT: { id: { in: keepLessons } },
+      },
     }),
   );
   await stale(
     "course(s)",
     prisma.course.deleteMany({
-      where: { id: { startsWith: "seed-course-" }, NOT: { id: { in: keepCourses } } },
+      where: {
+        id: { startsWith: "seed-course-" },
+        NOT: { id: { in: keepCourses } },
+      },
     }),
   );
   await stale(
     "price(s)",
     prisma.price.deleteMany({
-      where: { id: { startsWith: "seed-price-" }, NOT: { id: { in: keepPrices } } },
+      where: {
+        id: { startsWith: "seed-price-" },
+        NOT: { id: { in: keepPrices } },
+      },
     }),
   );
   await stale(
     "class(es)",
     prisma.level.deleteMany({
-      where: { id: { startsWith: "seed-class-" }, NOT: { id: { in: keepLevels } } },
+      where: {
+        id: { startsWith: "seed-class-" },
+        NOT: { id: { in: keepLevels } },
+      },
     }),
   );
   await stale(
@@ -848,7 +935,10 @@ async function retireStaleSeedRows() {
   await stale(
     "post(s)",
     prisma.post.deleteMany({
-      where: { id: { startsWith: "seed-post-" }, NOT: { id: { in: POST_IDS } } },
+      where: {
+        id: { startsWith: "seed-post-" },
+        NOT: { id: { in: POST_IDS } },
+      },
     }),
   );
   await stale(
@@ -888,15 +978,27 @@ async function purgeDemoDebris() {
 
   // Explicit child→parent order, independent of cascade settings (the same
   // philosophy as wipeDatabase above).
-  await purge(prisma.formSubmission.deleteMany({ where: { formId: { startsWith: "seed-form-" } } }));
-  await purge(prisma.lesson.deleteMany({ where: { id: { startsWith: "seed-lesson-" } } }));
-  await purge(prisma.course.deleteMany({ where: { id: { startsWith: "seed-course-" } } }));
+  await purge(
+    prisma.formSubmission.deleteMany({
+      where: { formId: { startsWith: "seed-form-" } },
+    }),
+  );
+  await purge(
+    prisma.lesson.deleteMany({ where: { id: { startsWith: "seed-lesson-" } } }),
+  );
+  await purge(
+    prisma.course.deleteMany({ where: { id: { startsWith: "seed-course-" } } }),
+  );
   await purge(
     prisma.price.deleteMany({
       where: {
         OR: [
           { id: { startsWith: "seed-price-" } },
-          { id: { in: ["cmpshpddz0003mtv6j4e4i1lz", "cmputofx10005kzsobri0mddw"] } },
+          {
+            id: {
+              in: ["cmpshpddz0003mtv6j4e4i1lz", "cmputofx10005kzsobri0mddw"],
+            },
+          },
         ],
       },
     }),
@@ -912,16 +1014,44 @@ async function purgeDemoDebris() {
       },
     }),
   );
-  await purge(prisma.levelCategory.deleteMany({ where: { id: { startsWith: "seed-lvlcat-" } } }));
-  await purge(prisma.post.deleteMany({ where: { id: { startsWith: "seed-post-" } } }));
-  await purge(prisma.postCategory.deleteMany({ where: { id: { startsWith: "seed-postcat-" } } }));
-  await purge(prisma.page.deleteMany({ where: { id: { startsWith: "seed-page-" } } }));
-  await purge(prisma.popup.deleteMany({ where: { id: { startsWith: "seed-popup-" } } }));
-  await purge(prisma.form.deleteMany({ where: { id: { startsWith: "seed-form-" } } }));
-  await purge(prisma.menuItem.deleteMany({ where: { menuId: { startsWith: "seed-menu-" } } }));
-  await purge(prisma.menu.deleteMany({ where: { id: { startsWith: "seed-menu-" } } }));
-  await purge(prisma.header.deleteMany({ where: { id: { startsWith: "seed-header-" } } }));
-  await purge(prisma.certificateTemplate.deleteMany({ where: { id: { startsWith: "seed-cert-template-" } } }));
+  await purge(
+    prisma.levelCategory.deleteMany({
+      where: { id: { startsWith: "seed-lvlcat-" } },
+    }),
+  );
+  await purge(
+    prisma.post.deleteMany({ where: { id: { startsWith: "seed-post-" } } }),
+  );
+  await purge(
+    prisma.postCategory.deleteMany({
+      where: { id: { startsWith: "seed-postcat-" } },
+    }),
+  );
+  await purge(
+    prisma.page.deleteMany({ where: { id: { startsWith: "seed-page-" } } }),
+  );
+  await purge(
+    prisma.popup.deleteMany({ where: { id: { startsWith: "seed-popup-" } } }),
+  );
+  await purge(
+    prisma.form.deleteMany({ where: { id: { startsWith: "seed-form-" } } }),
+  );
+  await purge(
+    prisma.menuItem.deleteMany({
+      where: { menuId: { startsWith: "seed-menu-" } },
+    }),
+  );
+  await purge(
+    prisma.menu.deleteMany({ where: { id: { startsWith: "seed-menu-" } } }),
+  );
+  await purge(
+    prisma.header.deleteMany({ where: { id: { startsWith: "seed-header-" } } }),
+  );
+  await purge(
+    prisma.certificateTemplate.deleteMany({
+      where: { id: { startsWith: "seed-cert-template-" } },
+    }),
+  );
 
   // Seeded media: remove the copied files (key = filename in MEDIA_DIR), then
   // the gallery rows. Best-effort on disk — a missing file is already gone.
@@ -931,7 +1061,8 @@ async function purgeDemoDebris() {
   });
   if (seedMedia.length) {
     const apiSrc = path.resolve(__dirname, "../../../apps/api/src");
-    const mediaRoot = process.env.MEDIA_DIR || path.join(apiSrc, "media-uploads");
+    const mediaRoot =
+      process.env.MEDIA_DIR || path.join(apiSrc, "media-uploads");
     for (const { key } of seedMedia) {
       try {
         fs.unlinkSync(path.join(mediaRoot, key));
@@ -939,10 +1070,16 @@ async function purgeDemoDebris() {
         /* not on disk — nothing to remove */
       }
     }
-    await purge(prisma.mediaAsset.deleteMany({ where: { id: { startsWith: "seed-media-" } } }));
+    await purge(
+      prisma.mediaAsset.deleteMany({
+        where: { id: { startsWith: "seed-media-" } },
+      }),
+    );
   }
 
-  await purge(prisma.user.deleteMany({ where: { email: "member@example.com" } }));
+  await purge(
+    prisma.user.deleteMany({ where: { email: "member@example.com" } }),
+  );
 
   // Singletons, by exact seeded fingerprint only.
   const footer = await prisma.footer.findUnique({ where: { id: "singleton" } });
@@ -954,7 +1091,9 @@ async function purgeDemoDebris() {
   ) {
     await purge(prisma.footer.deleteMany({ where: { id: "singleton" } }));
   }
-  const appCfg = await prisma.appConfig.findUnique({ where: { id: "singleton" } });
+  const appCfg = await prisma.appConfig.findUnique({
+    where: { id: "singleton" },
+  });
   if (appCfg) {
     const cfg = appCfg.config as { title?: string; tagline?: string } | null;
     if (
@@ -1126,8 +1265,10 @@ const POSTS: PostSeed[] = [
     id: "seed-post-kitchen-tools",
     slug: "essential-kitchen-tools-every-home-chef-needs",
     title: "Essential Kitchen Tools Every Home Chef Needs",
-    excerpt: "Whether you are just starting to explore the culinary arts or you're looking to upgrade your high-heat wok techniques, having the right equipment is just as important as having the right ingredients. You don't need a kitchen packed with single-use gadgets to create restaurant-quality meals at home. In fact, most professional chefs rely on a core set of durable, high-quality tools.",
-    content: "<p>If you are ready to elevate your cooking, here are the five essential tools you need in your arsenal:</p><h3>1. A High-Quality 8-Inch Chef’s Knife</h3><p>If you only invest in one kitchen tool, make it a chef’s knife. A sharp, well-balanced knife is the workhorse of the kitchen, essential for everything from achieving the perfect brunoise cut to slicing proteins.</p><ul><li><p><strong>Pro Tip:</strong> Look for a knife with a full tang (the metal extends through the handle) for better balance and durability. Keep it honed and sharpened regularly!</p></li></ul><h3>2. A Large, Sturdy Cutting Board</h3><p>A tiny, slippery cutting board is a recipe for frustration and accidents. You need a large surface area to chop ingredients efficiently without them rolling off the edges.</p><ul><li><p><strong>Pro Tip:</strong> Heavy wooden or thick plastic boards are best. To prevent your board from slipping on the counter, place a damp paper towel underneath it before you start chopping.</p></li></ul><h3>3. A Cast Iron Skillet</h3><p>When it comes to heat retention and searing, nothing beats a cast iron skillet. It’s perfect for getting a hard crust on a steak, baking cornbread, or even deep-frying. With proper seasoning and care, a cast iron skillet will last for generations.</p><ul><li><p><strong>Pro Tip:</strong> Never soak your cast iron in soapy water. Simply wipe it out while it's still warm, scrub any stubborn bits with coarse salt, and apply a very light coat of oil before storing.</p></li></ul><h3>4. An Instant-Read Thermometer</h3><p>Guessing when meat is done based on touch or time is a gamble. An instant-read thermometer completely removes the guesswork, ensuring your chicken is safe to eat and your steak is a perfect medium-rare every single time.</p><ul><li><p><strong>Pro Tip:</strong> Always insert the probe into the thickest part of the meat, avoiding any bones, to get the most accurate reading.</p></li></ul><h3>5. A Set of Stainless Steel Mixing Bowls</h3><p>A nested set of stainless steel mixing bowls is incredibly versatile. Use them for tossing salads, marinating meats, mixing fresh pasta dough, or acting as a double boiler for melting chocolate.</p><ul><li><p><strong>Pro Tip:</strong> Stainless steel is lightweight, durable, and won't retain odors or stains like plastic bowls often do.</p></li></ul><p><strong>Ready to put these tools to work?</strong> Mastering your kitchen equipment is the first step toward culinary excellence.</p>",
+    excerpt:
+      "Whether you are just starting to explore the culinary arts or you're looking to upgrade your high-heat wok techniques, having the right equipment is just as important as having the right ingredients. You don't need a kitchen packed with single-use gadgets to create restaurant-quality meals at home. In fact, most professional chefs rely on a core set of durable, high-quality tools.",
+    content:
+      "<p>If you are ready to elevate your cooking, here are the five essential tools you need in your arsenal:</p><h3>1. A High-Quality 8-Inch Chef’s Knife</h3><p>If you only invest in one kitchen tool, make it a chef’s knife. A sharp, well-balanced knife is the workhorse of the kitchen, essential for everything from achieving the perfect brunoise cut to slicing proteins.</p><ul><li><p><strong>Pro Tip:</strong> Look for a knife with a full tang (the metal extends through the handle) for better balance and durability. Keep it honed and sharpened regularly!</p></li></ul><h3>2. A Large, Sturdy Cutting Board</h3><p>A tiny, slippery cutting board is a recipe for frustration and accidents. You need a large surface area to chop ingredients efficiently without them rolling off the edges.</p><ul><li><p><strong>Pro Tip:</strong> Heavy wooden or thick plastic boards are best. To prevent your board from slipping on the counter, place a damp paper towel underneath it before you start chopping.</p></li></ul><h3>3. A Cast Iron Skillet</h3><p>When it comes to heat retention and searing, nothing beats a cast iron skillet. It’s perfect for getting a hard crust on a steak, baking cornbread, or even deep-frying. With proper seasoning and care, a cast iron skillet will last for generations.</p><ul><li><p><strong>Pro Tip:</strong> Never soak your cast iron in soapy water. Simply wipe it out while it's still warm, scrub any stubborn bits with coarse salt, and apply a very light coat of oil before storing.</p></li></ul><h3>4. An Instant-Read Thermometer</h3><p>Guessing when meat is done based on touch or time is a gamble. An instant-read thermometer completely removes the guesswork, ensuring your chicken is safe to eat and your steak is a perfect medium-rare every single time.</p><ul><li><p><strong>Pro Tip:</strong> Always insert the probe into the thickest part of the meat, avoiding any bones, to get the most accurate reading.</p></li></ul><h3>5. A Set of Stainless Steel Mixing Bowls</h3><p>A nested set of stainless steel mixing bowls is incredibly versatile. Use them for tossing salads, marinating meats, mixing fresh pasta dough, or acting as a double boiler for melting chocolate.</p><ul><li><p><strong>Pro Tip:</strong> Stainless steel is lightweight, durable, and won't retain odors or stains like plastic bowls often do.</p></li></ul><p><strong>Ready to put these tools to work?</strong> Mastering your kitchen equipment is the first step toward culinary excellence.</p>",
     status: "PUBLISHED",
     publishedAt: "2026-08-12T12:00:00Z",
     categoryIds: [],
@@ -1163,7 +1304,10 @@ async function seedBlog(adminId: string) {
     };
     await prisma.post.upsert({
       where: { id: p.id },
-      update: { ...data, categories: { set: p.categoryIds.map((id) => ({ id })) } },
+      update: {
+        ...data,
+        categories: { set: p.categoryIds.map((id) => ({ id })) },
+      },
       create: {
         id: p.id,
         ...data,
@@ -1307,7 +1451,12 @@ function aboutPageDoc(): Prisma.InputJsonValue {
       },
       {
         type: "Heading",
-        props: { id: "about-story-h", text: "Why we exist", level: "2", align: "center" },
+        props: {
+          id: "about-story-h",
+          text: "Why we exist",
+          level: "2",
+          align: "center",
+        },
       },
       {
         type: "RichText",
@@ -1371,7 +1520,13 @@ function aboutPageDoc(): Prisma.InputJsonValue {
           author: "Dana M.",
           role: "Member since 2025",
           avatarUrl: avatarArt(),
-          design: { background: "#18181b", textColor: "#fafafa", radius: 16, paddingY: 24, paddingX: 24 },
+          design: {
+            background: "#18181b",
+            textColor: "#fafafa",
+            radius: 16,
+            paddingY: 24,
+            paddingX: 24,
+          },
         },
       },
       {
@@ -1407,7 +1562,8 @@ function aboutPageDoc(): Prisma.InputJsonValue {
         props: {
           id: "about-cta",
           title: "Pick your skill.",
-          subtitle: "Start free with Music Production & Songwriting — today counts.",
+          subtitle:
+            "Start free with Music Production & Songwriting — today counts.",
           buttonLabel: "Start learning",
           buttonHref: "/classes/music-production-songwriting",
           background: "brand",
@@ -1456,7 +1612,12 @@ function startHerePageDoc(): Prisma.InputJsonValue {
           content: [
             {
               type: "Heading",
-              props: { id: "sh-week1-h", text: "Your first week", level: "2", align: "left" },
+              props: {
+                id: "sh-week1-h",
+                text: "Your first week",
+                level: "2",
+                align: "left",
+              },
             },
             {
               type: "RichText",
@@ -1474,11 +1635,21 @@ function startHerePageDoc(): Prisma.InputJsonValue {
                 columns: "1",
                 iconColor: "",
                 items: [
-                  { text: "Day 1: Pick ONE class (you can switch anytime — but start with one)" },
-                  { text: "Day 2: Watch the first two lessons of its first course (~15 minutes)" },
-                  { text: "Day 3–4: Do the lesson assignment — make something small and bad, on purpose" },
-                  { text: "Day 5: Book your practice slot: 20 minutes, same time, most days" },
-                  { text: "Weekend: Finish the first course and tell one person what you made" },
+                  {
+                    text: "Day 1: Pick ONE class (you can switch anytime — but start with one)",
+                  },
+                  {
+                    text: "Day 2: Watch the first two lessons of its first course (~15 minutes)",
+                  },
+                  {
+                    text: "Day 3–4: Do the lesson assignment — make something small and bad, on purpose",
+                  },
+                  {
+                    text: "Day 5: Book your practice slot: 20 minutes, same time, most days",
+                  },
+                  {
+                    text: "Weekend: Finish the first course and tell one person what you made",
+                  },
                 ],
               },
             },
@@ -1513,7 +1684,13 @@ function startHerePageDoc(): Prisma.InputJsonValue {
       },
       {
         type: "Divider",
-        props: { id: "sh-div", width: "narrow", thickness: 1, style: "solid", color: "" },
+        props: {
+          id: "sh-div",
+          width: "narrow",
+          thickness: 1,
+          style: "solid",
+          color: "",
+        },
       },
       {
         type: "CTA",
@@ -1545,7 +1722,12 @@ function contactPageDoc(): Prisma.InputJsonValue {
     content: [
       {
         type: "Heading",
-        props: { id: "ct-h", text: "Get in touch", level: "1", align: "center" },
+        props: {
+          id: "ct-h",
+          text: "Get in touch",
+          level: "1",
+          align: "center",
+        },
       },
       {
         type: "RichText",
@@ -1558,13 +1740,19 @@ function contactPageDoc(): Prisma.InputJsonValue {
       { type: "Form", props: { id: "ct-form", formId: "seed-form-contact" } },
       {
         type: "Divider",
-        props: { id: "ct-div", width: "narrow", thickness: 1, style: "solid", color: "" },
+        props: {
+          id: "ct-div",
+          width: "narrow",
+          thickness: 1,
+          style: "solid",
+          color: "",
+        },
       },
       {
         type: "RichText",
         props: {
           id: "ct-alt",
-          html: "<p>Prefer email? Write to <a href=\"mailto:hello@spotlightacademy.example\">hello@spotlightacademy.example</a>.</p>",
+          html: '<p>Prefer email? Write to <a href="mailto:hello@spotlightacademy.example">hello@spotlightacademy.example</a>.</p>',
           align: "center",
         },
       },
@@ -1617,7 +1805,12 @@ async function seedPages(adminId: string) {
         content: [
           {
             type: "Heading",
-            props: { id: "cs-h", text: "Coming soon", level: "1", align: "center" },
+            props: {
+              id: "cs-h",
+              text: "Coming soon",
+              level: "1",
+              align: "center",
+            },
           },
         ],
         zones: {},
@@ -1826,15 +2019,76 @@ async function seedNav() {
     visibility?: "ALL" | "GUEST" | "AUTHED" | "LEVEL";
   };
   const items: ItemSeed[] = [
-    { id: "seed-mi-h-classes", menuId: "seed-menu-header", order: 0, label: "Classes", type: "CLASS_INDEX" },
-    { id: "seed-mi-h-start", menuId: "seed-menu-header", order: 1, label: "Start Here", type: "PAGE", pageId: "seed-page-start-here" },
-    { id: "seed-mi-h-blog", menuId: "seed-menu-header", order: 2, label: "Blog", type: "BLOG_INDEX" },
-    { id: "seed-mi-h-about", menuId: "seed-menu-header", order: 3, label: "About", type: "PAGE", pageId: "seed-page-about" },
-    { id: "seed-mi-h-contact", menuId: "seed-menu-header", order: 4, label: "Contact", type: "PAGE", pageId: "seed-page-contact" },
-    { id: "seed-mi-f-about", menuId: "seed-menu-footer", order: 0, label: "About", type: "PAGE", pageId: "seed-page-about" },
-    { id: "seed-mi-f-blog", menuId: "seed-menu-footer", order: 1, label: "Blog", type: "BLOG_INDEX" },
-    { id: "seed-mi-f-contact", menuId: "seed-menu-footer", order: 2, label: "Contact", type: "PAGE", pageId: "seed-page-contact" },
-    { id: "seed-mi-f-dashboard", menuId: "seed-menu-footer", order: 3, label: "My Dashboard", type: "ROUTE", url: "/dashboard", visibility: "AUTHED" },
+    {
+      id: "seed-mi-h-classes",
+      menuId: "seed-menu-header",
+      order: 0,
+      label: "Classes",
+      type: "CLASS_INDEX",
+    },
+    {
+      id: "seed-mi-h-start",
+      menuId: "seed-menu-header",
+      order: 1,
+      label: "Start Here",
+      type: "PAGE",
+      pageId: "seed-page-start-here",
+    },
+    {
+      id: "seed-mi-h-blog",
+      menuId: "seed-menu-header",
+      order: 2,
+      label: "Blog",
+      type: "BLOG_INDEX",
+    },
+    {
+      id: "seed-mi-h-about",
+      menuId: "seed-menu-header",
+      order: 3,
+      label: "About",
+      type: "PAGE",
+      pageId: "seed-page-about",
+    },
+    {
+      id: "seed-mi-h-contact",
+      menuId: "seed-menu-header",
+      order: 4,
+      label: "Contact",
+      type: "PAGE",
+      pageId: "seed-page-contact",
+    },
+    {
+      id: "seed-mi-f-about",
+      menuId: "seed-menu-footer",
+      order: 0,
+      label: "About",
+      type: "PAGE",
+      pageId: "seed-page-about",
+    },
+    {
+      id: "seed-mi-f-blog",
+      menuId: "seed-menu-footer",
+      order: 1,
+      label: "Blog",
+      type: "BLOG_INDEX",
+    },
+    {
+      id: "seed-mi-f-contact",
+      menuId: "seed-menu-footer",
+      order: 2,
+      label: "Contact",
+      type: "PAGE",
+      pageId: "seed-page-contact",
+    },
+    {
+      id: "seed-mi-f-dashboard",
+      menuId: "seed-menu-footer",
+      order: 3,
+      label: "My Dashboard",
+      type: "ROUTE",
+      url: "/dashboard",
+      visibility: "AUTHED",
+    },
   ];
   for (const it of items) {
     const data = {
@@ -1891,7 +2145,13 @@ async function seedNav() {
   } as Prisma.InputJsonValue;
   await prisma.header.upsert({
     where: { id: "seed-header-main" },
-    update: { name: "Main header", config: headerConfig, conditions: headerConditions, priority: 10, enabled: true },
+    update: {
+      name: "Main header",
+      config: headerConfig,
+      conditions: headerConditions,
+      priority: 10,
+      enabled: true,
+    },
     create: {
       id: "seed-header-main",
       name: "Main header",
@@ -1963,7 +2223,10 @@ async function seedDemoMedia() {
   fs.mkdirSync(mediaRoot, { recursive: true });
 
   const srcDir = path.join(__dirname, "assets", "demo");
-  const files = fs.readdirSync(srcDir).filter((f) => f.endsWith(".png")).sort();
+  const files = fs
+    .readdirSync(srcDir)
+    .filter((f) => f.endsWith(".png"))
+    .sort();
   for (const file of files) {
     const src = path.join(srcDir, file);
     fs.copyFileSync(src, path.join(mediaRoot, file));
@@ -1986,7 +2249,9 @@ async function seedDemoMedia() {
       create: { id: `seed-media-${file.replace(/\.png$/, "")}`, ...data },
     });
   }
-  console.log(`✓ demo artwork (${files.length} generated panels → ${MEDIA_BASE}/media)`);
+  console.log(
+    `✓ demo artwork (${files.length} generated panels → ${MEDIA_BASE}/media)`,
+  );
 }
 
 // Minimal JPEG dimension reader (SOF marker). @lms/db keeps no image library, so
@@ -2004,9 +2269,18 @@ function jpegSize(buf: Buffer): { width: number; height: number } {
       (marker >= 0xc5 && marker <= 0xc7) ||
       (marker >= 0xc9 && marker <= 0xcb) ||
       (marker >= 0xcd && marker <= 0xcf);
-    if (isSOF) return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+    if (isSOF)
+      return {
+        height: buf.readUInt16BE(i + 5),
+        width: buf.readUInt16BE(i + 7),
+      };
     // Standalone markers (SOI/EOI/RSTn) carry no length field; others do.
-    if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7)) i += 2;
+    if (
+      marker === 0xd8 ||
+      marker === 0xd9 ||
+      (marker >= 0xd0 && marker <= 0xd7)
+    )
+      i += 2;
     else i += 2 + buf.readUInt16BE(i + 2);
   }
   return { width: 0, height: 0 };
@@ -2023,10 +2297,15 @@ async function seedUploadedMedia() {
 
   const srcDir = path.join(__dirname, "assets", "demo-media");
   if (!fs.existsSync(srcDir)) {
-    console.log("• demo uploads: assets/demo-media absent — skipped (catalog images will 404)");
+    console.log(
+      "• demo uploads: assets/demo-media absent — skipped (catalog images will 404)",
+    );
     return;
   }
-  const files = fs.readdirSync(srcDir).filter((f) => f.endsWith(".jpg")).sort();
+  const files = fs
+    .readdirSync(srcDir)
+    .filter((f) => f.endsWith(".jpg"))
+    .sort();
   for (const file of files) {
     const src = path.join(srcDir, file);
     fs.copyFileSync(src, path.join(mediaRoot, file));
@@ -2049,7 +2328,9 @@ async function seedUploadedMedia() {
     });
   }
   if (files.length)
-    console.log(`✓ demo uploads (${files.length} admin images → ${MEDIA_BASE}/media)`);
+    console.log(
+      `✓ demo uploads (${files.length} admin images → ${MEDIA_BASE}/media)`,
+    );
 }
 
 // ---------- certificate templates ----------
@@ -2103,10 +2384,55 @@ async function seedCertificateTemplates() {
   // Shared placement: script name above a serif class title, date + serial in
   // the bottom corners (inside the artwork's frame).
   const fieldsFor = (text: string, soft: string) => [
-    { kind: "memberName", enabled: true, xPct: 10, yPct: 40, widthPct: 80, align: "center", fontFamily: "greatvibes", fontSizePct: 7, color: text, uppercase: false },
-    { kind: "className", enabled: true, xPct: 10, yPct: 57, widthPct: 80, align: "center", fontFamily: "playfair", fontSizePct: 3.4, color: text, uppercase: false },
-    { kind: "issueDate", enabled: true, xPct: 9, yPct: 87, widthPct: 30, align: "left", fontFamily: "inter", fontSizePct: 1.5, color: soft, uppercase: false },
-    { kind: "serial", enabled: true, xPct: 61, yPct: 87, widthPct: 30, align: "right", fontFamily: "inter", fontSizePct: 1.3, color: soft, uppercase: false, letterSpacing: 0.06 },
+    {
+      kind: "memberName",
+      enabled: true,
+      xPct: 10,
+      yPct: 40,
+      widthPct: 80,
+      align: "center",
+      fontFamily: "greatvibes",
+      fontSizePct: 7,
+      color: text,
+      uppercase: false,
+    },
+    {
+      kind: "className",
+      enabled: true,
+      xPct: 10,
+      yPct: 57,
+      widthPct: 80,
+      align: "center",
+      fontFamily: "playfair",
+      fontSizePct: 3.4,
+      color: text,
+      uppercase: false,
+    },
+    {
+      kind: "issueDate",
+      enabled: true,
+      xPct: 9,
+      yPct: 87,
+      widthPct: 30,
+      align: "left",
+      fontFamily: "inter",
+      fontSizePct: 1.5,
+      color: soft,
+      uppercase: false,
+    },
+    {
+      kind: "serial",
+      enabled: true,
+      xPct: 61,
+      yPct: 87,
+      widthPct: 30,
+      align: "right",
+      fontFamily: "inter",
+      fontSizePct: 1.3,
+      color: soft,
+      uppercase: false,
+      letterSpacing: 0.06,
+    },
   ];
 
   const templates = [
@@ -2240,9 +2566,7 @@ async function seedFirstAdmin(): Promise<Admin> {
       },
     });
     console.log(`First admin created from SEED_ADMIN_*: ${OWNER_EMAIL}`);
-  } else if (
-    await bcrypt.compare(DEMO_ADMIN.password, existing.passwordHash)
-  ) {
+  } else if (await bcrypt.compare(DEMO_ADMIN.password, existing.passwordHash)) {
     owner = await prisma.admin.update({
       where: { id: existing.id },
       data: {
@@ -2265,7 +2589,10 @@ async function seedFirstAdmin(): Promise<Admin> {
     const demo = await prisma.admin.findUnique({
       where: { email: DEMO_ADMIN.email },
     });
-    if (demo && (await bcrypt.compare(DEMO_ADMIN.password, demo.passwordHash))) {
+    if (
+      demo &&
+      (await bcrypt.compare(DEMO_ADMIN.password, demo.passwordHash))
+    ) {
       await prisma.admin.update({
         where: { id: demo.id },
         data: {
@@ -2316,8 +2643,14 @@ async function backfillSlugs(): Promise<void> {
       const cand = n === 1 ? base : `${base}-${n}`;
       const clash =
         kind === "level"
-          ? await prisma.level.findFirst({ where: { slug: cand }, select: { id: true } })
-          : await prisma.course.findFirst({ where: { slug: cand }, select: { id: true } });
+          ? await prisma.level.findFirst({
+              where: { slug: cand },
+              select: { id: true },
+            })
+          : await prisma.course.findFirst({
+              where: { slug: cand },
+              select: { id: true },
+            });
       if (!clash) return cand;
     }
   };
@@ -2386,7 +2719,9 @@ async function main() {
     // historical incident of retired demo content (and the well-known demo
     // member login) left behind by pre-marker images.
     if (await contentPackImported()) {
-      console.log("Seed complete — baseline; content pack present, purge skipped.");
+      console.log(
+        "Seed complete — baseline; content pack present, purge skipped.",
+      );
     } else if (
       DEMO_ONCE &&
       (await prisma.seedState.findUnique({ where: { id: SEED_STATE_ID } }))
@@ -2468,11 +2803,17 @@ async function main() {
   console.log(
     `  Blog:    ${POSTS.filter((p) => p.status === "PUBLISHED").length} published posts + ${POSTS.filter((p) => p.status === "DRAFT").length} draft · ${POST_CATEGORIES.length} categories`,
   );
-  console.log("  Pages:   /about · /start-here · /contact (+ coming-soon draft)");
+  console.log(
+    "  Pages:   /about · /start-here · /contact (+ coming-soon draft)",
+  );
   console.log("  Popups:  welcome (dashboard) + promo (class pages)");
   console.log("  Nav:     header menu + CTA · footer with newsletter");
-  console.log("  App:     'Spotlight Academy' branding (dark, matches the web)");
-  console.log("  Certs:   2 templates (Classic Cream default + Spotlight Dark)");
+  console.log(
+    "  App:     'Spotlight Academy' branding (dark, matches the web)",
+  );
+  console.log(
+    "  Certs:   2 templates (Classic Cream default + Spotlight Dark)",
+  );
   console.log(`  Video:   ${DEMO_VIDEO} (override with SEED_DEMO_VIDEO_URL)`);
 }
 

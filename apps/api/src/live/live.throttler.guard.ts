@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { Injectable } from "@nestjs/common";
+import { ThrottlerGuard } from "@nestjs/throttler";
 
 // Throttle credential releases PER MEMBER, not per IP — otherwise a shared
 // office/NAT egress IP would rate-limit everyone together, and a single
@@ -9,6 +9,6 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 export class LiveThrottlerGuard extends ThrottlerGuard {
   protected async getTracker(req: Record<string, unknown>): Promise<string> {
     const user = req.user as { sub?: string } | undefined;
-    return user?.sub ?? (req.ip as string) ?? 'anon';
+    return user?.sub ?? (req.ip as string) ?? "anon";
   }
 }

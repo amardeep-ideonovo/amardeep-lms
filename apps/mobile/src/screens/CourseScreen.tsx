@@ -108,7 +108,12 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
       <ScrollView style={styles.list} contentContainerStyle={styles.content}>
         {header}
         {[0, 1, 2, 3].map((i) => (
-          <Skeleton key={i} height={76} radius={12} style={styles.skeletonRow} />
+          <Skeleton
+            key={i}
+            height={76}
+            radius={12}
+            style={styles.skeletonRow}
+          />
         ))}
       </ScrollView>
     );
@@ -143,7 +148,10 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
               <Text style={styles.numberText}>{index + 1}</Text>
             </View>
             {item.thumbnailUrl ? (
-              <Image source={{ uri: item.thumbnailUrl }} style={styles.rowThumb} />
+              <Image
+                source={{ uri: item.thumbnailUrl }}
+                style={styles.rowThumb}
+              />
             ) : (
               <View style={[styles.rowThumb, styles.rowThumbEmpty]}>
                 <Text style={styles.rowThumbGlyph}>▶</Text>
@@ -160,68 +168,93 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  list: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md, ...contentColumn },
-  skeletonRow: { marginBottom: spacing.sm },
-  hero: {
-    borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: spacing.sm,
-  },
-  cover: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-    backgroundColor: colors.surfaceMuted,
-  },
-  heroTitle: {
-    position: "absolute",
-    left: spacing.md,
-    right: spacing.md,
-    bottom: spacing.md,
-    color: colors.heroText,
-    fontSize: 24,
-    fontWeight: "800",
-    fontFamily: fonts.display,
-  },
-  progressHeader: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: 14,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  progressTitle: { color: colors.text, fontSize: 14, fontWeight: "700", fontFamily: fonts.bold },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  numberBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.chipBg,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: spacing.sm,
-  },
-  numberText: { color: colors.text, fontWeight: "700", fontFamily: fonts.bold },
-  rowThumb: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    marginRight: spacing.md,
-    backgroundColor: colors.surfaceMuted,
-  },
-  rowThumbEmpty: { alignItems: "center", justifyContent: "center" },
-  rowThumbGlyph: { color: colors.textMuted, fontSize: 16, fontFamily: fonts.regular },
-  rowTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "500", fontFamily: fonts.medium },
-  check: { color: colors.success, fontSize: 18, fontWeight: "700", fontFamily: fonts.bold },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    list: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: spacing.md, ...contentColumn },
+    skeletonRow: { marginBottom: spacing.sm },
+    hero: {
+      borderRadius: 12,
+      overflow: "hidden",
+      marginBottom: spacing.sm,
+    },
+    cover: {
+      width: "100%",
+      aspectRatio: 16 / 9,
+      backgroundColor: colors.surfaceMuted,
+    },
+    heroTitle: {
+      position: "absolute",
+      left: spacing.md,
+      right: spacing.md,
+      bottom: spacing.md,
+      color: colors.heroText,
+      fontSize: 24,
+      fontWeight: "800",
+      fontFamily: fonts.display,
+    },
+    progressHeader: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 14,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    progressTitle: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    numberBadge: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: colors.chipBg,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: spacing.sm,
+    },
+    numberText: {
+      color: colors.text,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    rowThumb: {
+      width: 44,
+      height: 44,
+      borderRadius: 8,
+      marginRight: spacing.md,
+      backgroundColor: colors.surfaceMuted,
+    },
+    rowThumbEmpty: { alignItems: "center", justifyContent: "center" },
+    rowThumbGlyph: {
+      color: colors.textMuted,
+      fontSize: 16,
+      fontFamily: fonts.regular,
+    },
+    rowTitle: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: "500",
+      fontFamily: fonts.medium,
+    },
+    check: {
+      color: colors.success,
+      fontSize: 18,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+  });

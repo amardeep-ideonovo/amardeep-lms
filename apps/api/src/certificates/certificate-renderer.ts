@@ -1,9 +1,13 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { PDFDocument, PDFFont, rgb } from 'pdf-lib';
-import fontkit from '@pdf-lib/fontkit';
-import type { CertificateFieldKind, CertificateFieldLayout, CertificateFontId } from '@lms/types';
-import { CERT_FONTS_DIR, CERT_FONT_FILES } from './certificates.config';
+import * as fs from "fs";
+import * as path from "path";
+import { PDFDocument, PDFFont, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
+import type {
+  CertificateFieldKind,
+  CertificateFieldLayout,
+  CertificateFontId,
+} from "@lms/types";
+import { CERT_FONTS_DIR, CERT_FONT_FILES } from "./certificates.config";
 
 // Renders a certificate PDF from admin-uploaded artwork + the template's
 // normalized field layout. The math here MUST mirror the admin editor preview
@@ -42,38 +46,59 @@ function loadFontBytes(id: CertificateFontId): Buffer {
   return bytes;
 }
 
-function sniffImage(bytes: Buffer): 'png' | 'jpg' | null {
-  if (bytes.length > 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
-    return 'png';
+function sniffImage(bytes: Buffer): "png" | "jpg" | null {
+  if (
+    bytes.length > 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return "png";
   }
-  if (bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8) return 'jpg';
+  if (bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8) return "jpg";
   return null;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const m = /^#([0-9a-f]{6})$/i.exec(hex);
   const n = m ? parseInt(m[1], 16) : 0x101828;
-  return { r: ((n >> 16) & 255) / 255, g: ((n >> 8) & 255) / 255, b: (n & 255) / 255 };
+  return {
+    r: ((n >> 16) & 255) / 255,
+    g: ((n >> 8) & 255) / 255,
+    b: (n & 255) / 255,
+  };
 }
 
 // Width of `text` at `size` including optional letter-spacing (em units).
-function measure(font: PDFFont, text: string, size: number, letterSpacing?: number): number {
+function measure(
+  font: PDFFont,
+  text: string,
+  size: number,
+  letterSpacing?: number,
+): number {
   const base = font.widthOfTextAtSize(text, size);
   if (!letterSpacing || text.length < 2) return base;
   return base + letterSpacing * size * (text.length - 1);
 }
 
-export async function renderCertificatePdf(input: RenderCertificateInput): Promise<Buffer> {
+export async function renderCertificatePdf(
+  input: RenderCertificateInput,
+): Promise<Buffer> {
   const kind = sniffImage(input.artwork);
-  if (!kind) throw new Error('Certificate artwork must be a PNG or JPEG image');
+  if (!kind) throw new Error("Certificate artwork must be a PNG or JPEG image");
 
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
 
-  const pageHeight = (PAGE_WIDTH * input.imageHeight) / Math.max(1, input.imageWidth);
+  const pageHeight =
+    (PAGE_WIDTH * input.imageHeight) / Math.max(1, input.imageWidth);
   const page = doc.addPage([PAGE_WIDTH, pageHeight]);
 
-  const image = kind === 'png' ? await doc.embedPng(input.artwork) : await doc.embedJpg(input.artwork);
+  const image =
+    kind === "png"
+      ? await doc.embedPng(input.artwork)
+      : await doc.embedJpg(input.artwork);
   page.drawImage(image, { x: 0, y: 0, width: PAGE_WIDTH, height: pageHeight });
 
   // Embed each used font once — WHOLE, not subset: fontkit's subsetter drops
@@ -90,7 +115,7 @@ export async function renderCertificatePdf(input: RenderCertificateInput): Promi
       // Fall back to Inter. If CERT_FONTS_DIR itself is wrong this throws too
       // — by design: boot already logged the bad path (see storage-dirs.ts),
       // and a certificate with substituted glyphs is worse than a loud failure.
-      bytes = loadFontBytes('inter');
+      bytes = loadFontBytes("inter");
     }
     fonts.set(field.fontFamily, await doc.embedFont(bytes));
   }
@@ -117,8 +142,8 @@ export async function renderCertificatePdf(input: RenderCertificateInput): Promi
 
     const textWidth = measure(font, text, size, field.letterSpacing);
     let x = boxLeft;
-    if (field.align === 'center') x = boxLeft + (boxWidth - textWidth) / 2;
-    if (field.align === 'right') x = boxLeft + boxWidth - textWidth;
+    if (field.align === "center") x = boxLeft + (boxWidth - textWidth) / 2;
+    if (field.align === "right") x = boxLeft + boxWidth - textWidth;
 
     // Editor boxes render at line-height:1 → glyph tops sit ~ascent below the
     // box top. pdf-lib's y is the BASELINE in bottom-left coordinates.
@@ -146,9 +171,9 @@ export async function renderCertificatePdf(input: RenderCertificateInput): Promi
 
 // "June 12, 2026" — fixed locale so certificates are stable across servers.
 export function formatIssueDate(d: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   }).format(d);
 }

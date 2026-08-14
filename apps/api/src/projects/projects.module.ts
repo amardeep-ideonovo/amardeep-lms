@@ -1,18 +1,18 @@
-import { Module } from '@nestjs/common';
-import { ChannelsService } from './channels.service';
-import { DmsService } from './dms.service';
-import { MessagesService } from './messages.service';
-import { ListsService } from './lists.service';
-import { WorkflowsService } from './workflows.service';
-import { CanvasService } from './canvas.service';
-import { ChannelsController } from './channels.controller';
-import { DmsController } from './dms.controller';
-import { MessagesController } from './messages.controller';
-import { ListsController } from './lists.controller';
-import { WorkflowsController } from './workflows.controller';
-import { CanvasController } from './canvas.controller';
-import { ProjectsGateway } from './projects.gateway';
-import { AuthModule } from '../auth/auth.module';
+import { Module } from "@nestjs/common";
+import { ChannelsService } from "./channels.service";
+import { DmsService } from "./dms.service";
+import { MessagesService } from "./messages.service";
+import { ListsService } from "./lists.service";
+import { WorkflowsService } from "./workflows.service";
+import { CanvasService } from "./canvas.service";
+import { ChannelsController } from "./channels.controller";
+import { DmsController } from "./dms.controller";
+import { MessagesController } from "./messages.controller";
+import { ListsController } from "./lists.controller";
+import { WorkflowsController } from "./workflows.controller";
+import { CanvasController } from "./canvas.controller";
+import { ProjectsGateway } from "./projects.gateway";
+import { AuthModule } from "../auth/auth.module";
 
 // Projects: an internal-staff (admin-only) Slack-style team tool — channels,
 // messages (threads/reactions/mentions/unread), and task lists.

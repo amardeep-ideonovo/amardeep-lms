@@ -10,13 +10,7 @@
 // Blocks nested in slots (Section/Columns) live in props.content and render
 // recursively. Unknown block types are skipped (forward-compatible).
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { WebView } from "react-native-webview";
 import type {
   PagePublicDTO,
@@ -72,7 +66,10 @@ function asNativeColor(v: unknown): string | undefined {
 
 // `ownBackground` mirrors the web wrapper: the band blocks (Hero/CTA/Section)
 // paint design.background on their own band, so the wrapper must not.
-function designViewStyle(d?: BlockDesign, ownBackground = false): object | null {
+function designViewStyle(
+  d?: BlockDesign,
+  ownBackground = false,
+): object | null {
   if (!d || typeof d !== "object") return null;
   const s: Record<string, unknown> = {};
   const bg = ownBackground ? undefined : asNativeColor(d.background);
@@ -125,21 +122,28 @@ function alignItems(align?: string): "flex-start" | "center" | "flex-end" {
   return align === "center"
     ? "center"
     : align === "right"
-    ? "flex-end"
-    : "flex-start";
+      ? "flex-end"
+      : "flex-start";
 }
 function textAlign(align?: string): "left" | "center" | "right" {
   return align === "center" ? "center" : align === "right" ? "right" : "left";
 }
-function toEmbed(url?: string): { kind: "iframe" | "video"; src: string } | null {
+function toEmbed(
+  url?: string,
+): { kind: "iframe" | "video"; src: string } | null {
   if (!url) return null;
   const u = url.trim();
   const yt = u.match(
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{6,})/
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([\w-]{6,})/,
   );
-  if (yt) return { kind: "iframe", src: `https://www.youtube.com/embed/${yt[1]}` };
+  if (yt)
+    return { kind: "iframe", src: `https://www.youtube.com/embed/${yt[1]}` };
   const vimeo = u.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-  if (vimeo) return { kind: "iframe", src: `https://player.vimeo.com/video/${vimeo[1]}` };
+  if (vimeo)
+    return {
+      kind: "iframe",
+      src: `https://player.vimeo.com/video/${vimeo[1]}`,
+    };
   if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(u)) return { kind: "video", src: u };
   // No fallthrough: only KNOWN embed hosts (YouTube/Vimeo) or a direct video
   // file are rendered. An arbitrary CMS-authored URL must NOT load in a
@@ -159,7 +163,7 @@ function BlockImage({ uri, rounded }: { uri: string; rounded?: boolean }) {
       (w, h) => {
         if (alive && w && h) setRatio(w / h);
       },
-      () => {}
+      () => {},
     );
     return () => {
       alive = false;
@@ -169,7 +173,11 @@ function BlockImage({ uri, rounded }: { uri: string; rounded?: boolean }) {
   return (
     <Image
       source={{ uri }}
-      style={[styles.img, { aspectRatio: ratio }, rounded ? styles.imgRounded : null]}
+      style={[
+        styles.img,
+        { aspectRatio: ratio },
+        rounded ? styles.imgRounded : null,
+      ]}
       resizeMode="cover"
     />
   );
@@ -182,14 +190,14 @@ function BlockButton(p: Props) {
     p.variant === "secondary"
       ? styles.btnSecondary
       : p.variant === "outline"
-      ? styles.btnOutline
-      : styles.btnPrimary;
+        ? styles.btnOutline
+        : styles.btnPrimary;
   const textStyle =
     p.variant === "outline"
       ? styles.btnTextOutline
       : p.variant === "secondary"
-      ? styles.btnTextSecondary
-      : styles.btnText;
+        ? styles.btnTextSecondary
+        : styles.btnText;
   return (
     <View style={{ alignItems: alignItems(p.align) }}>
       <TouchableOpacity
@@ -231,7 +239,8 @@ function HeroBlock(p: Props) {
   const d = (p.design ?? {}) as Props;
   const customBg =
     p.background === "custom" ? asNativeColor(p.backgroundColor) : undefined;
-  const bg = customBg ?? asNativeColor(d.background) ?? bgColor(colors, p.background);
+  const bg =
+    customBg ?? asNativeColor(d.background) ?? bgColor(colors, p.background);
   const band = asNativeColor(d.textColor) ?? bandText(colors, p.background);
   return (
     <View
@@ -242,7 +251,9 @@ function HeroBlock(p: Props) {
       ]}
     >
       {p.eyebrow ? (
-        <Text style={[styles.eyebrow, band ? { color: band, opacity: 0.8 } : null]}>
+        <Text
+          style={[styles.eyebrow, band ? { color: band, opacity: 0.8 } : null]}
+        >
           {String(p.eyebrow).toUpperCase()}
         </Text>
       ) : null}
@@ -268,7 +279,12 @@ function HeroBlock(p: Props) {
       ) : null}
       {p.buttonLabel ? (
         <View style={{ marginTop: spacing.md, alignSelf: "stretch" }}>
-          <BlockButton label={p.buttonLabel} href={p.buttonHref} variant="primary" align={p.align} />
+          <BlockButton
+            label={p.buttonLabel}
+            href={p.buttonHref}
+            variant="primary"
+            align={p.align}
+          />
         </View>
       ) : null}
     </View>
@@ -277,8 +293,18 @@ function HeroBlock(p: Props) {
 
 function HeadingBlock(p: Props) {
   const styles = useScopedStyles(makeStyles);
-  const size = p.level === "1" ? 28 : p.level === "2" ? 24 : p.level === "3" ? 20 : 18;
-  return <Text style={[styles.heading, { fontSize: size, textAlign: textAlign(p.align) }]}>{p.text}</Text>;
+  const size =
+    p.level === "1" ? 28 : p.level === "2" ? 24 : p.level === "3" ? 20 : 18;
+  return (
+    <Text
+      style={[
+        styles.heading,
+        { fontSize: size, textAlign: textAlign(p.align) },
+      ]}
+    >
+      {p.text}
+    </Text>
+  );
 }
 
 function RichTextBlock(p: Props) {
@@ -311,14 +337,22 @@ function ImageBlock(p: Props) {
 function SectionBlock(p: Props) {
   const { colors } = useScopedTheme();
   const bg =
-    (p.background === "custom" ? asNativeColor(p.backgroundColor) : undefined) ??
+    (p.background === "custom"
+      ? asNativeColor(p.backgroundColor)
+      : undefined) ??
     asNativeColor((p.design as Props | undefined)?.background) ??
     bgColor(colors, p.background);
   return (
     <View
       style={[
         { paddingVertical: Number(p.paddingY) || spacing.md, gap: spacing.md },
-        bg ? { backgroundColor: bg, borderRadius: 14, paddingHorizontal: spacing.md } : null,
+        bg
+          ? {
+              backgroundColor: bg,
+              borderRadius: 14,
+              paddingHorizontal: spacing.md,
+            }
+          : null,
       ]}
     >
       {renderItems(p.content)}
@@ -328,7 +362,11 @@ function SectionBlock(p: Props) {
 
 function ColumnsBlock(p: Props) {
   // On phones, columns stack vertically.
-  return <View style={{ gap: Number(p.gap) || spacing.md }}>{renderItems(p.content)}</View>;
+  return (
+    <View style={{ gap: Number(p.gap) || spacing.md }}>
+      {renderItems(p.content)}
+    </View>
+  );
 }
 
 function VideoBlock(p: Props) {
@@ -401,7 +439,9 @@ function CtaBlock(p: Props) {
   const { colors } = useScopedTheme();
   const d = (p.design ?? {}) as Props;
   const bg =
-    (p.background === "custom" ? asNativeColor(p.backgroundColor) : undefined) ??
+    (p.background === "custom"
+      ? asNativeColor(p.backgroundColor)
+      : undefined) ??
     asNativeColor(d.background) ??
     bgColor(colors, p.background) ??
     colors.primary;
@@ -411,16 +451,38 @@ function CtaBlock(p: Props) {
     asNativeColor(d.textColor) ??
     (p.background === "muted"
       ? colors.text
-      : bandText(colors, p.background) ?? colors.onPrimary);
+      : (bandText(colors, p.background) ?? colors.onPrimary));
   return (
-    <View style={[styles.bandPad, { backgroundColor: bg, borderRadius: 14, alignItems: alignItems(p.align) }]}>
-      <Text style={[styles.ctaTitle, { color: txt, textAlign: textAlign(p.align) }]}>{p.title}</Text>
+    <View
+      style={[
+        styles.bandPad,
+        {
+          backgroundColor: bg,
+          borderRadius: 14,
+          alignItems: alignItems(p.align),
+        },
+      ]}
+    >
+      <Text
+        style={[styles.ctaTitle, { color: txt, textAlign: textAlign(p.align) }]}
+      >
+        {p.title}
+      </Text>
       {p.subtitle ? (
-        <Text style={[styles.ctaSub, { color: txt, textAlign: textAlign(p.align) }]}>{p.subtitle}</Text>
+        <Text
+          style={[styles.ctaSub, { color: txt, textAlign: textAlign(p.align) }]}
+        >
+          {p.subtitle}
+        </Text>
       ) : null}
       {p.buttonLabel ? (
         <View style={{ marginTop: spacing.md, alignSelf: "stretch" }}>
-          <BlockButton label={p.buttonLabel} href={p.buttonHref} variant="secondary" align={p.align} />
+          <BlockButton
+            label={p.buttonLabel}
+            href={p.buttonHref}
+            variant="secondary"
+            align={p.align}
+          />
         </View>
       ) : null}
     </View>
@@ -444,7 +506,9 @@ function TestimonialBlock(p: Props) {
     <View style={styles.quote}>
       <Text style={styles.quoteText}>“{p.quote}”</Text>
       <View style={styles.quoteByRow}>
-        {p.avatarUrl ? <Image source={{ uri: p.avatarUrl }} style={styles.quoteAvatar} /> : null}
+        {p.avatarUrl ? (
+          <Image source={{ uri: p.avatarUrl }} style={styles.quoteAvatar} />
+        ) : null}
         <View>
           <Text style={styles.quoteAuthor}>{p.author}</Text>
           {p.role ? <Text style={styles.quoteRole}>{p.role}</Text> : null}
@@ -456,14 +520,17 @@ function TestimonialBlock(p: Props) {
 
 function DividerBlock(p: Props) {
   const { colors } = useScopedTheme();
-  const style = p.style === "dashed" ? "dashed" : p.style === "dotted" ? "dotted" : "solid";
+  const style =
+    p.style === "dashed" ? "dashed" : p.style === "dotted" ? "dotted" : "solid";
   return (
     <View
       style={{
         borderBottomWidth: Math.max(1, Number(p.thickness) || 1),
         borderStyle: style,
         borderColor:
-          typeof p.color === "string" && p.color.trim() ? p.color : colors.border,
+          typeof p.color === "string" && p.color.trim()
+            ? p.color
+            : colors.border,
       }}
     />
   );
@@ -535,7 +602,7 @@ function EmbedBlock(p: Props) {
 // menu items render as one indented list.
 function flattenMenu(
   items: ResolvedMenuItem[],
-  depth = 0
+  depth = 0,
 ): { item: ResolvedMenuItem; depth: number }[] {
   const out: { item: ResolvedMenuItem; depth: number }[] = [];
   for (const it of items) {
@@ -570,7 +637,10 @@ function MenuBlock({ menuId }: { menuId: string }) {
       {flattenMenu(menu.items).map(({ item, depth }) => (
         <TouchableOpacity
           key={item.id}
-          style={[styles.menuLink, depth ? { marginLeft: depth * spacing.md } : null]}
+          style={[
+            styles.menuLink,
+            depth ? { marginLeft: depth * spacing.md } : null,
+          ]}
           activeOpacity={0.7}
           onPress={() => {
             onInteract?.();
@@ -585,7 +655,10 @@ function MenuBlock({ menuId }: { menuId: string }) {
 }
 
 // ---------- dispatcher ----------
-function blockBody(item: PuckComponentData, p: Props): React.ReactElement | null {
+function blockBody(
+  item: PuckComponentData,
+  p: Props,
+): React.ReactElement | null {
   switch (item?.type) {
     case "Hero":
       return <HeroBlock {...p} />;
@@ -648,7 +721,9 @@ function Block({ item }: { item: PuckComponentData }) {
 
 function renderItems(items?: PuckComponentData[]) {
   if (!Array.isArray(items)) return null;
-  return items.map((it, i) => <Block key={(it?.props?.id as string) ?? i} item={it} />);
+  return items.map((it, i) => (
+    <Block key={(it?.props?.id as string) ?? i} item={it} />
+  ));
 }
 
 // ---------- public API ----------
@@ -697,136 +772,228 @@ export function PageEmbed({
   return <PageRenderer data={data} />;
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  page: { padding: spacing.md, gap: spacing.md },
-  bandPad: { padding: spacing.lg },
-  eyebrow: {
-    color: colors.primary,
-    fontSize: 12,
-    fontWeight: "700",
-    fontFamily: fonts.bold,
-    letterSpacing: 1,
-    marginBottom: spacing.xs,
-  },
-  heroTitle: {
-    color: colors.text,
-    fontSize: 28,
-    fontWeight: "800",
-    fontFamily: fonts.display,
-    lineHeight: 34,
-  },
-  heroSub: {
-    color: colors.textMuted,
-    fontSize: 16,
-    lineHeight: 24,
-    marginTop: spacing.sm,
-    fontFamily: fonts.regular,
-  },
-  heading: { color: colors.text, fontWeight: "800", fontFamily: fonts.extrabold },
-  caption: {
-    color: colors.textMuted,
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: spacing.xs,
-    fontFamily: fonts.regular,
-  },
-  img: { width: "100%", borderRadius: 0, backgroundColor: colors.surfaceMuted },
-  imgRounded: { borderRadius: 12 },
-  btn: { borderRadius: 999, paddingVertical: 12, paddingHorizontal: 22, alignItems: "center" },
-  btnPrimary: { backgroundColor: colors.primary },
-  btnSecondary: { backgroundColor: colors.surfaceMuted },
-  btnOutline: { borderWidth: 2, borderColor: colors.primary },
-  btnText: { color: colors.onPrimary, fontWeight: "700", fontSize: 15, fontFamily: fonts.bold },
-  // Secondary sits on the muted surface, so it follows the theme text (the old
-  // hardcoded white was invisible on the light palette's gray).
-  btnTextSecondary: { color: colors.text, fontWeight: "700", fontSize: 15, fontFamily: fonts.bold },
-  btnTextOutline: { color: colors.primary, fontWeight: "700", fontSize: 15, fontFamily: fonts.bold },
-  video: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "#000",
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  cardTitle: { color: colors.text, fontSize: 17, fontWeight: "700", fontFamily: fonts.bold },
-  cardText: { color: colors.textMuted, fontSize: 14, lineHeight: 20, fontFamily: fonts.regular },
-  ctaTitle: { color: colors.text, fontSize: 22, fontWeight: "800", fontFamily: fonts.display },
-  ctaSub: {
-    color: colors.text,
-    opacity: 0.9,
-    fontSize: 15,
-    marginTop: spacing.xs,
-    fontFamily: fonts.regular,
-  },
-  faqItem: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
-  },
-  faqHead: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: spacing.md,
-  },
-  faqQ: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: "600",
-    fontFamily: fonts.semibold,
-    flex: 1,
-    paddingRight: spacing.sm,
-  },
-  faqToggle: { color: colors.textMuted, fontSize: 20, fontWeight: "700", fontFamily: fonts.bold },
-  faqA: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    paddingBottom: spacing.md,
-    fontFamily: fonts.regular,
-  },
-  quote: {
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-    paddingLeft: spacing.md,
-  },
-  quoteText: {
-    color: colors.text,
-    fontSize: 18,
-    fontStyle: "italic",
-    lineHeight: 26,
-    marginBottom: spacing.md,
-    fontFamily: fonts.regular,
-  },
-  quoteByRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  quoteAvatar: { width: 44, height: 44, borderRadius: 999, backgroundColor: colors.surfaceMuted },
-  quoteAuthor: { color: colors.text, fontWeight: "700", fontFamily: fonts.bold },
-  quoteRole: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.regular },
-  menu: { gap: spacing.xs },
-  menuLink: { paddingVertical: spacing.sm, paddingHorizontal: 10, borderRadius: 8 },
-  menuLinkText: { color: colors.text, fontSize: 15, fontWeight: "500", fontFamily: fonts.medium },
-  iconRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-  iconGlyph: { fontSize: 16, fontWeight: "800", fontFamily: fonts.extrabold, lineHeight: 22, width: 20 },
-  iconText: { color: colors.text, fontSize: 15, lineHeight: 22, flex: 1, fontFamily: fonts.regular },
-  statsWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: spacing.md,
-  },
-  stat: { alignItems: "center", minWidth: "42%", flexGrow: 1 },
-  statValue: { color: colors.text, fontSize: 28, fontWeight: "800", fontFamily: fonts.display },
-  statLabel: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: 2,
-    textAlign: "center",
-    fontFamily: fonts.regular,
-  },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    page: { padding: spacing.md, gap: spacing.md },
+    bandPad: { padding: spacing.lg },
+    eyebrow: {
+      color: colors.primary,
+      fontSize: 12,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+      letterSpacing: 1,
+      marginBottom: spacing.xs,
+    },
+    heroTitle: {
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: "800",
+      fontFamily: fonts.display,
+      lineHeight: 34,
+    },
+    heroSub: {
+      color: colors.textMuted,
+      fontSize: 16,
+      lineHeight: 24,
+      marginTop: spacing.sm,
+      fontFamily: fonts.regular,
+    },
+    heading: {
+      color: colors.text,
+      fontWeight: "800",
+      fontFamily: fonts.extrabold,
+    },
+    caption: {
+      color: colors.textMuted,
+      fontSize: 13,
+      textAlign: "center",
+      marginTop: spacing.xs,
+      fontFamily: fonts.regular,
+    },
+    img: {
+      width: "100%",
+      borderRadius: 0,
+      backgroundColor: colors.surfaceMuted,
+    },
+    imgRounded: { borderRadius: 12 },
+    btn: {
+      borderRadius: 999,
+      paddingVertical: 12,
+      paddingHorizontal: 22,
+      alignItems: "center",
+    },
+    btnPrimary: { backgroundColor: colors.primary },
+    btnSecondary: { backgroundColor: colors.surfaceMuted },
+    btnOutline: { borderWidth: 2, borderColor: colors.primary },
+    btnText: {
+      color: colors.onPrimary,
+      fontWeight: "700",
+      fontSize: 15,
+      fontFamily: fonts.bold,
+    },
+    // Secondary sits on the muted surface, so it follows the theme text (the old
+    // hardcoded white was invisible on the light palette's gray).
+    btnTextSecondary: {
+      color: colors.text,
+      fontWeight: "700",
+      fontSize: 15,
+      fontFamily: fonts.bold,
+    },
+    btnTextOutline: {
+      color: colors.primary,
+      fontWeight: "700",
+      fontSize: 15,
+      fontFamily: fonts.bold,
+    },
+    video: {
+      width: "100%",
+      aspectRatio: 16 / 9,
+      borderRadius: 12,
+      overflow: "hidden",
+      backgroundColor: "#000",
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: spacing.md,
+      gap: spacing.sm,
+    },
+    cardTitle: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    cardText: {
+      color: colors.textMuted,
+      fontSize: 14,
+      lineHeight: 20,
+      fontFamily: fonts.regular,
+    },
+    ctaTitle: {
+      color: colors.text,
+      fontSize: 22,
+      fontWeight: "800",
+      fontFamily: fonts.display,
+    },
+    ctaSub: {
+      color: colors.text,
+      opacity: 0.9,
+      fontSize: 15,
+      marginTop: spacing.xs,
+      fontFamily: fonts.regular,
+    },
+    faqItem: {
+      backgroundColor: colors.surface,
+      borderRadius: 10,
+      paddingHorizontal: spacing.md,
+    },
+    faqHead: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: spacing.md,
+    },
+    faqQ: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+      flex: 1,
+      paddingRight: spacing.sm,
+    },
+    faqToggle: {
+      color: colors.textMuted,
+      fontSize: 20,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    faqA: {
+      color: colors.textMuted,
+      fontSize: 14,
+      lineHeight: 20,
+      paddingBottom: spacing.md,
+      fontFamily: fonts.regular,
+    },
+    quote: {
+      borderLeftWidth: 4,
+      borderLeftColor: colors.primary,
+      paddingLeft: spacing.md,
+    },
+    quoteText: {
+      color: colors.text,
+      fontSize: 18,
+      fontStyle: "italic",
+      lineHeight: 26,
+      marginBottom: spacing.md,
+      fontFamily: fonts.regular,
+    },
+    quoteByRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    quoteAvatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 999,
+      backgroundColor: colors.surfaceMuted,
+    },
+    quoteAuthor: {
+      color: colors.text,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    quoteRole: {
+      color: colors.textMuted,
+      fontSize: 13,
+      fontFamily: fonts.regular,
+    },
+    menu: { gap: spacing.xs },
+    menuLink: {
+      paddingVertical: spacing.sm,
+      paddingHorizontal: 10,
+      borderRadius: 8,
+    },
+    menuLinkText: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: "500",
+      fontFamily: fonts.medium,
+    },
+    iconRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: spacing.sm,
+    },
+    iconGlyph: {
+      fontSize: 16,
+      fontWeight: "800",
+      fontFamily: fonts.extrabold,
+      lineHeight: 22,
+      width: 20,
+    },
+    iconText: {
+      color: colors.text,
+      fontSize: 15,
+      lineHeight: 22,
+      flex: 1,
+      fontFamily: fonts.regular,
+    },
+    statsWrap: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      gap: spacing.md,
+    },
+    stat: { alignItems: "center", minWidth: "42%", flexGrow: 1 },
+    statValue: {
+      color: colors.text,
+      fontSize: 28,
+      fontWeight: "800",
+      fontFamily: fonts.display,
+    },
+    statLabel: {
+      color: colors.textMuted,
+      fontSize: 13,
+      marginTop: 2,
+      textAlign: "center",
+      fontFamily: fonts.regular,
+    },
+  });

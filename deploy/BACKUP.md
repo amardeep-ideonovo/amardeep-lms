@@ -9,11 +9,11 @@
 
 ## 1. What gets backed up
 
-| Data | Source | Frequency | Retention |
-|---|---|---|---|
-| Postgres DB | `postgres` container in `deploy/docker-compose.yml` | Daily 02:00 server time | 30 days |
-| Uploads | `uploads` Docker volume (`/data/images`, `/data/files`) | Daily 02:30 server time | 30 days |
-| Settings encryption key | Plain env var `SETTINGS_ENC_KEY` in `deploy/.env` | One-time, kept offline | Forever |
+| Data                    | Source                                                  | Frequency               | Retention |
+| ----------------------- | ------------------------------------------------------- | ----------------------- | --------- |
+| Postgres DB             | `postgres` container in `deploy/docker-compose.yml`     | Daily 02:00 server time | 30 days   |
+| Uploads                 | `uploads` Docker volume (`/data/images`, `/data/files`) | Daily 02:30 server time | 30 days   |
+| Settings encryption key | Plain env var `SETTINGS_ENC_KEY` in `deploy/.env`       | One-time, kept offline  | Forever   |
 
 > The Settings encryption key is **not** a regular backup target. Store it in
 > your password manager.
@@ -32,7 +32,7 @@
 > On the **fleet**, an instance's `SETTINGS_ENC_KEY` is not hand-managed — the
 > control plane stores it inside `Instance.secretsEnc` and injects it at
 > container start, so it is captured by the nightly control-plane DB backup.
-> The one key that must survive offline is therefore the *control plane's* own
+> The one key that must survive offline is therefore the _control plane's_ own
 > `SETTINGS_ENC_KEY` (in `/opt/licensing-dashboard/deploy/host/.env`), which is
 > the root of that chain and is NOT in any database backup.
 
@@ -115,6 +115,7 @@ restore drill at least once per quarter.**
 Drill procedure (~20 min):
 
 1. Spin up a scratch Postgres container:
+
    ```bash
    docker run -d --name lms-restore-test \
      -e POSTGRES_PASSWORD=test \
@@ -123,18 +124,21 @@ Drill procedure (~20 min):
    ```
 
 2. Restore the latest backup into it:
+
    ```bash
    gunzip -c /opt/backups/lms-db-$(date +%Y-%m-%d)*.sql.gz | \
      docker exec -i lms-restore-test psql -U postgres -d postgres
    ```
 
 3. Confirm row counts look right:
+
    ```bash
    docker exec -it lms-restore-test psql -U postgres -d lms \
      -c 'SELECT count(*) FROM "User";'
    docker exec -it lms-restore-test psql -U postgres -d lms \
      -c 'SELECT count(*) FROM "UserLevel" WHERE status = '\''ACTIVE'\'';'
    ```
+
    Compare against production. If they differ by more than 1 day's churn,
    investigate.
 
@@ -154,11 +158,13 @@ Record the drill date + outcome in a `deploy/BACKUP-DRILLS.md` log file.
 > rows you need into production.
 
 1. **Stop the API** so it can't write to the half-restored DB:
+
    ```bash
    docker compose -f /opt/lms/deploy/docker-compose.yml stop api
    ```
 
 2. **Drop and recreate the DB** (this destroys current data — be sure):
+
    ```bash
    docker compose -f /opt/lms/deploy/docker-compose.yml exec postgres \
      psql -U postgres -c 'DROP DATABASE IF EXISTS lms;'
@@ -167,6 +173,7 @@ Record the drill date + outcome in a `deploy/BACKUP-DRILLS.md` log file.
    ```
 
 3. **Restore from the chosen backup**:
+
    ```bash
    gunzip -c /opt/backups/lms-db-YYYY-MM-DD_HH-MM.sql.gz | \
      docker compose -f /opt/lms/deploy/docker-compose.yml exec -T postgres \
@@ -174,6 +181,7 @@ Record the drill date + outcome in a `deploy/BACKUP-DRILLS.md` log file.
    ```
 
 4. **Restore uploads** (if needed):
+
    ```bash
    # Wipe the existing volume contents
    docker run --rm -v lms_uploads:/target alpine sh -c 'rm -rf /target/*'
@@ -183,6 +191,7 @@ Record the drill date + outcome in a `deploy/BACKUP-DRILLS.md` log file.
    ```
 
 5. **Restart the API** and verify `/health`:
+
    ```bash
    docker compose -f /opt/lms/deploy/docker-compose.yml start api
    curl -s https://api.<your-domain>/health | jq .

@@ -65,7 +65,9 @@ function LiveInner() {
         if (err.status === 410) return setScreen("canceled");
         if (err.status === 404) return setScreen("notfound");
       }
-      setErrorMsg(err instanceof Error ? err.message : "Failed to load session.");
+      setErrorMsg(
+        err instanceof Error ? err.message : "Failed to load session.",
+      );
       setScreen("error");
     }
   }, [id, router]);
@@ -139,7 +141,12 @@ function LiveInner() {
     );
   }
   if (screen === "notfound") {
-    return <StatusCard title="Session not found" body="This live session doesn’t exist." />;
+    return (
+      <StatusCard
+        title="Session not found"
+        body="This live session doesn’t exist."
+      />
+    );
   }
   if (screen === "canceled") {
     return (
@@ -164,7 +171,9 @@ function LiveInner() {
       </p>
       <h1 className="live-title">{session.title}</h1>
       <p className="live-meta">{session.audienceLabel}</p>
-      {session.description && <p className="live-desc">{session.description}</p>}
+      {session.description && (
+        <p className="live-desc">{session.description}</p>
+      )}
 
       {ended ? (
         <div className="live-panel">

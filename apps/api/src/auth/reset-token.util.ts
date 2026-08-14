@@ -1,5 +1,5 @@
-import { createHash, createHmac, timingSafeEqual } from 'crypto';
-import { isProduction } from '../common/env.util';
+import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { isProduction } from "../common/env.util";
 
 // Signed, self-contained password-reset tokens. Mirrors the crypto in
 // email/unsubscribe.util.ts and contacts/confirm-token.util.ts: a token is
@@ -28,44 +28,44 @@ function resetSecret(): string {
   if (configured) return configured;
   if (isProduction()) {
     throw new Error(
-      'No JWT_SECRET/SETTINGS_ENC_KEY set. Refusing to sign password-reset ' +
-        'tokens with the insecure dev fallback (set one, or ENV_NAME=development).',
+      "No JWT_SECRET/SETTINGS_ENC_KEY set. Refusing to sign password-reset " +
+        "tokens with the insecure dev fallback (set one, or ENV_NAME=development).",
     );
   }
-  return 'dev-insecure-secret';
+  return "dev-insecure-secret";
 }
 
 // Domain-separation prefix mixed into every MAC. The unsubscribe and confirm
 // utils HMAC their raw payloads with the SAME secret, so without this a token
 // minted by one flow could verify under another (cross-protocol replay). The
 // prefix never appears in the token itself — only in the MAC input.
-const MAC_DOMAIN = 'lms.password-reset.v1\n';
+const MAC_DOMAIN = "lms.password-reset.v1\n";
 
 // Field separator inside the decoded payload: a NUL byte, same convention as
 // confirm-token.util.ts. It can never appear in a cuid user id, an integer
 // timestamp or a hex fingerprint, so the payload round-trips unambiguously.
 // (Beware: editors render the NUL as an invisible blank — it is NOT a space.)
-const SEP = '\0';
+const SEP = "\0";
 
 function b64url(buf: Buffer): string {
   return buf
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 function fromB64url(s: string): Buffer {
   // Restore padding and the standard alphabet, then decode.
-  const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4));
-  return Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/') + pad, 'base64');
+  const pad = s.length % 4 === 0 ? "" : "=".repeat(4 - (s.length % 4));
+  return Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/") + pad, "base64");
 }
 
 // HMAC-SHA256 of the domain-prefixed payload, hex-encoded.
 function sign(payload: string): string {
-  return createHmac('sha256', resetSecret())
+  return createHmac("sha256", resetSecret())
     .update(MAC_DOMAIN + payload)
-    .digest('hex');
+    .digest("hex");
 }
 
 // Short fingerprint of a bcrypt password hash. NOT the hash itself — the
@@ -75,7 +75,7 @@ function sign(payload: string): string {
 // "password changed since this token was minted"; it reveals nothing useful
 // about the hash, let alone the password.
 export function passwordHashFingerprint(passwordHash: string): string {
-  return createHash('sha256').update(passwordHash).digest('hex').slice(0, 16);
+  return createHash("sha256").update(passwordHash).digest("hex").slice(0, 16);
 }
 
 // What a structurally-valid, authentic, unexpired token decodes to. The
@@ -96,7 +96,7 @@ export function makePasswordResetToken(
   const raw = [userId, expiresAtMs, passwordHashFingerprint(passwordHash)].join(
     SEP,
   );
-  return `${b64url(Buffer.from(raw, 'utf8'))}.${sign(raw)}`;
+  return `${b64url(Buffer.from(raw, "utf8"))}.${sign(raw)}`;
 }
 
 // Verify a token's structure, signature and expiry, recovering
@@ -108,15 +108,15 @@ export function makePasswordResetToken(
 export function verifyPasswordResetToken(
   token: string | undefined | null,
 ): ResetTokenData | null {
-  if (!token || typeof token !== 'string' || token.length > 512) return null;
-  const dot = token.lastIndexOf('.');
+  if (!token || typeof token !== "string" || token.length > 512) return null;
+  const dot = token.lastIndexOf(".");
   if (dot <= 0 || dot === token.length - 1) return null;
   const payload = token.slice(0, dot);
   const mac = token.slice(dot + 1);
 
   let raw: string;
   try {
-    raw = fromB64url(payload).toString('utf8');
+    raw = fromB64url(payload).toString("utf8");
   } catch {
     return null;
   }

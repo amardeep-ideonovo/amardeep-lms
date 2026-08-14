@@ -90,7 +90,7 @@ export function FormEmbed({ formId }: { formId: string }) {
       setSubmitError(
         err instanceof ApiError
           ? err.message
-          : "Something went wrong. Please try again."
+          : "Something went wrong. Please try again.",
       );
     } finally {
       setSubmitting(false);
@@ -221,10 +221,10 @@ function FieldInput({
         f.type === "email"
           ? "email-address"
           : f.type === "phone"
-          ? "phone-pad"
-          : f.type === "number"
-          ? "numeric"
-          : "default"
+            ? "phone-pad"
+            : f.type === "number"
+              ? "numeric"
+              : "default"
       }
       autoCapitalize={f.type === "email" ? "none" : "sentences"}
       autoCorrect={f.type !== "email"}
@@ -233,77 +233,121 @@ function FieldInput({
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  form: { gap: spacing.md },
-  field: { gap: 6 },
-  note: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
-  label: { color: colors.text, fontSize: 14, fontWeight: "600", fontFamily: fonts.semibold },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: colors.text,
-    fontSize: 15,
-    fontFamily: fonts.regular,
-  },
-  textarea: { minHeight: 90, textAlignVertical: "top" },
-  selectRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  selectValue: { color: colors.text, fontSize: 15, fontFamily: fonts.regular },
-  selectPlaceholder: { color: colors.textMuted, fontSize: 15, fontFamily: fonts.regular },
-  selectCaret: { color: colors.textMuted, fontSize: 12, fontFamily: fonts.regular },
-  options: {
-    marginTop: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
-    overflow: "hidden",
-  },
-  option: { paddingHorizontal: 12, paddingVertical: 10 },
-  optionText: { color: colors.text, fontSize: 15, fontFamily: fonts.regular },
-  optionTextActive: { color: colors.primary, fontWeight: "700", fontFamily: fonts.bold },
-  checkboxRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
-  checkboxMark: {
-    color: colors.onPrimary,
-    fontSize: 14,
-    fontWeight: "700",
-    fontFamily: fonts.bold,
-    lineHeight: 16,
-  },
-  checkboxLabel: { color: colors.text, fontSize: 14, flex: 1, fontFamily: fonts.regular },
-  submit: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    alignItems: "center",
-    alignSelf: "flex-start",
-  },
-  submitDisabled: { opacity: 0.6 },
-  submitText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700", fontFamily: fonts.bold },
-  error: { color: colors.danger, fontSize: 14, fontFamily: fonts.regular },
-  success: {
-    padding: spacing.md,
-    borderRadius: 10,
-    backgroundColor: colors.successBg,
-    borderWidth: 1,
-    borderColor: `${colors.primary}66`,
-  },
-  successText: { color: colors.text, fontSize: 14, lineHeight: 20, fontFamily: fonts.regular },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    form: { gap: spacing.md },
+    field: { gap: 6 },
+    note: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
+    label: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      color: colors.text,
+      fontSize: 15,
+      fontFamily: fonts.regular,
+    },
+    textarea: { minHeight: 90, textAlignVertical: "top" },
+    selectRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+    },
+    selectValue: {
+      color: colors.text,
+      fontSize: 15,
+      fontFamily: fonts.regular,
+    },
+    selectPlaceholder: {
+      color: colors.textMuted,
+      fontSize: 15,
+      fontFamily: fonts.regular,
+    },
+    selectCaret: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontFamily: fonts.regular,
+    },
+    options: {
+      marginTop: spacing.xs,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      backgroundColor: colors.surface,
+      overflow: "hidden",
+    },
+    option: { paddingHorizontal: 12, paddingVertical: 10 },
+    optionText: { color: colors.text, fontSize: 15, fontFamily: fonts.regular },
+    optionTextActive: {
+      color: colors.primary,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    checkboxRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    checkbox: {
+      width: 22,
+      height: 22,
+      borderRadius: 6,
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    checkboxChecked: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    checkboxMark: {
+      color: colors.onPrimary,
+      fontSize: 14,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+      lineHeight: 16,
+    },
+    checkboxLabel: {
+      color: colors.text,
+      fontSize: 14,
+      flex: 1,
+      fontFamily: fonts.regular,
+    },
+    submit: {
+      backgroundColor: colors.primary,
+      borderRadius: 999,
+      paddingVertical: 12,
+      paddingHorizontal: 22,
+      alignItems: "center",
+      alignSelf: "flex-start",
+    },
+    submitDisabled: { opacity: 0.6 },
+    submitText: {
+      color: colors.onPrimary,
+      fontSize: 15,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    error: { color: colors.danger, fontSize: 14, fontFamily: fonts.regular },
+    success: {
+      padding: spacing.md,
+      borderRadius: 10,
+      backgroundColor: colors.successBg,
+      borderWidth: 1,
+      borderColor: `${colors.primary}66`,
+    },
+    successText: {
+      color: colors.text,
+      fontSize: 14,
+      lineHeight: 20,
+      fontFamily: fonts.regular,
+    },
+  });

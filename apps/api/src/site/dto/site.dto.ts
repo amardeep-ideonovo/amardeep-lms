@@ -12,8 +12,8 @@ import {
   MaxLength,
   Min,
   ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+} from "class-validator";
+import { Type } from "class-transformer";
 import type {
   AppColorScheme,
   AppConfig,
@@ -31,7 +31,7 @@ import type {
   HeaderSection,
   HeaderWidth,
   MenuItemType,
-} from '@lms/types';
+} from "@lms/types";
 
 // Strict, fully-nested validation — the global pipe runs with
 // whitelist + forbidNonWhitelisted + transform, so every property the client
@@ -82,10 +82,14 @@ class HeaderConditionsDto implements HeaderConditions {
   @IsString() audience!: HeaderAudience;
   @IsOptional() @IsString() @MaxLength(80) audienceLevelId?: string | null;
   @IsString() pageMode!: HeaderPageMode;
-  @IsArray() @IsString({ each: true }) @MaxLength(80, { each: true })
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
   includePageIds!: string[];
   @IsArray() @IsString({ each: true }) includeSections!: HeaderSection[];
-  @IsArray() @IsString({ each: true }) @MaxLength(80, { each: true })
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
   excludePageIds!: string[];
   @IsArray() @IsString({ each: true }) excludeSections!: HeaderSection[];
 }
@@ -97,9 +101,13 @@ export class CreateHeaderDto {
 export class UpdateHeaderDto {
   @IsOptional() @IsString() @MaxLength(120) name?: string;
   @IsOptional() @IsBoolean() enabled?: boolean;
-  @IsOptional() @ValidateNested() @Type(() => HeaderConfigDto)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => HeaderConfigDto)
   config?: HeaderConfigDto;
-  @IsOptional() @ValidateNested() @Type(() => HeaderConditionsDto)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => HeaderConditionsDto)
   conditions?: HeaderConditionsDto;
 }
 
@@ -144,7 +152,9 @@ class FooterConfigDto implements FooterConfig {
 export class UpdateFooterDto {
   // @IsDefined: @ValidateNested alone skips a missing value, so `{}` would
   // silently reset the singleton to defaults instead of failing with a 400.
-  @IsDefined() @ValidateNested() @Type(() => FooterConfigDto)
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => FooterConfigDto)
   footer!: FooterConfigDto;
 }
 export class FooterSubscribeDto {
@@ -169,7 +179,7 @@ class AppConfigDto implements AppConfig {
   @IsOptional() @IsString() @MaxLength(2000) logoUrl?: string | null;
   @IsOptional() @IsString() @MaxLength(2000) iconUrl?: string | null;
   @IsOptional() @IsString() @MaxLength(2000) splashUrl?: string | null;
-  @IsIn(['light', 'dark', 'system']) colorScheme!: AppColorScheme;
+  @IsIn(["light", "dark", "system"]) colorScheme!: AppColorScheme;
   @ValidateNested() @Type(() => AppThemePaletteDto) light!: AppThemePaletteDto;
   @ValidateNested() @Type(() => AppThemePaletteDto) dark!: AppThemePaletteDto;
   // Runtime-only version-handshake fields the PUBLIC GET /app/config echoes
@@ -182,6 +192,8 @@ class AppConfigDto implements AppConfig {
 export class UpdateAppConfigDto {
   // @IsDefined: same rationale as UpdateFooterDto — an empty body must 400,
   // not blank the config.
-  @IsDefined() @ValidateNested() @Type(() => AppConfigDto)
+  @IsDefined()
+  @ValidateNested()
+  @Type(() => AppConfigDto)
   appConfig!: AppConfigDto;
 }

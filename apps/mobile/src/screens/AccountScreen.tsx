@@ -70,7 +70,9 @@ const USERNAME_RE = /^[a-zA-Z0-9_]{3,30}$/;
 // Avatar fallback initials from the member's name, else username/email.
 function initialsOf(u: AuthUser): string {
   const src =
-    [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email;
+    [u.firstName, u.lastName].filter(Boolean).join(" ") ||
+    u.username ||
+    u.email;
   const parts = src.split(/[\s@._-]+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "M") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
@@ -90,7 +92,11 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
 
   // Your details card: exactly one of view / edit / change-password is visible.
   const [mode, setMode] = useState<DetailsMode>("view");
-  const [form, setForm] = useState({ firstName: "", lastName: "", username: "" });
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    username: "",
+  });
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
@@ -99,7 +105,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const [pwOk, setPwOk] = useState(false);
 
   // Member self-cancel (period end). `cancelFor` drives the confirm modal.
-  const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(null);
+  const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(
+    null,
+  );
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
@@ -140,7 +148,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       loadedOnce.current = true;
     } catch (e) {
       if (!loadedOnce.current) {
-        setError(e instanceof Error ? e.message : "Could not load your account.");
+        setError(
+          e instanceof Error ? e.message : "Could not load your account.",
+        );
       }
     } finally {
       setLoading(false);
@@ -151,7 +161,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
   function startEdit() {
@@ -254,7 +264,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       setMode("view");
     } catch (e) {
       // ApiError.message surfaces server checks, e.g. "Username is already taken".
-      setEditError(e instanceof Error ? e.message : "Couldn't save your changes.");
+      setEditError(
+        e instanceof Error ? e.message : "Couldn't save your changes.",
+      );
     } finally {
       setSaving(false);
     }
@@ -286,7 +298,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       setMode("view");
       setPwOk(true);
     } catch (e) {
-      setPwError(e instanceof Error ? e.message : "Couldn't change your password.");
+      setPwError(
+        e instanceof Error ? e.message : "Couldn't change your password.",
+      );
     } finally {
       setPwSaving(false);
     }
@@ -301,7 +315,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       setCancelFor(null);
     } catch (e) {
       setCancelError(
-        e instanceof Error ? e.message : "Couldn't cancel the membership."
+        e instanceof Error ? e.message : "Couldn't cancel the membership.",
       );
     } finally {
       setCancelBusy(false);
@@ -316,7 +330,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       await Linking.openURL(url);
     } catch (e) {
       setPortalError(
-        e instanceof Error ? e.message : "Couldn't open the billing portal."
+        e instanceof Error ? e.message : "Couldn't open the billing portal.",
       );
     } finally {
       setPortalBusy(false);
@@ -333,7 +347,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       setDeleteSummary(await api.deleteAccountSummary());
     } catch (e) {
       setDeleteLoadError(
-        e instanceof Error ? e.message : "Couldn't load your account details."
+        e instanceof Error ? e.message : "Couldn't load your account details.",
       );
     } finally {
       setDeleteLoading(false);
@@ -373,7 +387,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       // exists — surface the server message inline and keep the modal open
       // (do NOT sign out).
       setDeleteError(
-        e instanceof Error ? e.message : "Couldn't delete your account."
+        e instanceof Error ? e.message : "Couldn't delete your account.",
       );
       setDeleteBusy(false);
       return;
@@ -513,7 +527,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       onPress={startPwEdit}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.btnSecondaryText}>Change password</Text>
+                      <Text style={styles.btnSecondaryText}>
+                        Change password
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -526,7 +542,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                   <TextInput
                     style={styles.input}
                     value={form.firstName}
-                    onChangeText={(v) => setForm((f) => ({ ...f, firstName: v }))}
+                    onChangeText={(v) =>
+                      setForm((f) => ({ ...f, firstName: v }))
+                    }
                     maxLength={80}
                     editable={!saving}
                   />
@@ -534,7 +552,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                   <TextInput
                     style={styles.input}
                     value={form.lastName}
-                    onChangeText={(v) => setForm((f) => ({ ...f, lastName: v }))}
+                    onChangeText={(v) =>
+                      setForm((f) => ({ ...f, lastName: v }))
+                    }
                     maxLength={80}
                     editable={!saving}
                   />
@@ -542,7 +562,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                   <TextInput
                     style={styles.input}
                     value={form.username}
-                    onChangeText={(v) => setForm((f) => ({ ...f, username: v }))}
+                    onChangeText={(v) =>
+                      setForm((f) => ({ ...f, username: v }))
+                    }
                     maxLength={30}
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -590,7 +612,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                   <TextInput
                     style={styles.input}
                     value={pwForm.current}
-                    onChangeText={(v) => setPwForm((f) => ({ ...f, current: v }))}
+                    onChangeText={(v) =>
+                      setPwForm((f) => ({ ...f, current: v }))
+                    }
                     secureTextEntry
                     maxLength={72}
                     autoCapitalize="none"
@@ -610,7 +634,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                   <TextInput
                     style={styles.input}
                     value={pwForm.confirm}
-                    onChangeText={(v) => setPwForm((f) => ({ ...f, confirm: v }))}
+                    onChangeText={(v) =>
+                      setPwForm((f) => ({ ...f, confirm: v }))
+                    }
                     secureTextEntry
                     maxLength={72}
                     autoCapitalize="none"
@@ -878,28 +904,30 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                           </Text>
                           {deleteSummary.certificates.map((c) => (
                             <Text key={c.id} style={styles.deleteItem}>
-                              {c.className} ({c.serial}) — verification link stops
-                              working
+                              {c.className} ({c.serial}) — verification link
+                              stops working
                             </Text>
                           ))}
                           <Text style={styles.deleteHint}>
-                            Download any certificates you want to keep first from
-                            "My certificates" in the More section above.
+                            Download any certificates you want to keep first
+                            from "My certificates" in the More section above.
                           </Text>
                         </View>
                       ) : null}
 
                       {deleteSummary.subscriptions.length > 0 ? (
                         <View style={styles.deleteGroup}>
-                          <Text style={styles.deleteGroupLabel}>Memberships</Text>
+                          <Text style={styles.deleteGroupLabel}>
+                            Memberships
+                          </Text>
                           {deleteSummary.subscriptions.map((sub) => (
                             <View
                               key={sub.stripeSubId}
                               style={styles.deleteItemBlock}
                             >
                               <Text style={styles.deleteItem}>
-                                {sub.levelName} — {money(sub.amount, sub.currency)}
-                                /{sub.interval}
+                                {sub.levelName} —{" "}
+                                {money(sub.amount, sub.currency)}/{sub.interval}
                               </Text>
                               <Text style={styles.deleteDanger}>
                                 Canceled immediately, no refund
@@ -943,7 +971,8 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                         <View style={styles.deleteGroup}>
                           <Text style={styles.deleteGroupLabel}>Progress</Text>
                           <Text style={styles.deleteItem}>
-                            All progress ({deleteSummary.completedLessons} lessons)
+                            All progress ({deleteSummary.completedLessons}{" "}
+                            lessons)
                           </Text>
                         </View>
                       ) : null}
@@ -1029,276 +1058,348 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md, paddingBottom: spacing.lg, ...contentColumn },
-  brandHeader: {
-    alignItems: "center",
-    paddingVertical: spacing.md,
-  },
-  logo: {
-    height: 40,
-    width: 180,
-  },
-  brandTitle: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: "800",
-    fontFamily: fonts.extrabold,
-  },
-  brandDesc: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-    textAlign: "center",
-    marginTop: spacing.xs,
-    fontFamily: fonts.regular,
-  },
-  skeleton: { marginBottom: spacing.md },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: 14,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  heading: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "800",
-    marginBottom: spacing.md,
-    fontFamily: fonts.extrabold,
-  },
-  successBanner: {
-    backgroundColor: colors.successBg,
-    borderRadius: 10,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.md,
-  },
-  successText: { color: colors.success, fontSize: 14, fontWeight: "600", fontFamily: fonts.semibold },
-  detailRow: { marginBottom: spacing.md },
-  detailLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 2,
-    fontFamily: fonts.bold,
-  },
-  detailValue: { color: colors.text, fontSize: 15, fontFamily: fonts.regular },
-  formError: { color: colors.danger, fontSize: 14, marginBottom: spacing.sm, fontFamily: fonts.regular },
-  inputLabel: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: "600",
-    marginBottom: spacing.xs,
-    fontFamily: fonts.semibold,
-  },
-  input: {
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 10,
-    color: colors.text,
-    fontSize: 15,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    marginBottom: spacing.md,
-    fontFamily: fonts.regular,
-  },
-  readonlyBox: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-  },
-  readonlyText: { color: colors.textMuted, fontSize: 15, fontFamily: fonts.regular },
-  hint: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: spacing.xs,
-    marginBottom: spacing.sm,
-    fontFamily: fonts.regular,
-  },
-  actionsRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  grow: { flex: 1 },
-  avatarBlock: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.md,
-  },
-  avatarImg: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.surfaceMuted,
-  },
-  avatarFallback: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarInitials: { color: colors.onPrimary, fontSize: 26, fontFamily: fonts.bold },
-  avatarActions: { flex: 1, flexDirection: "row", gap: spacing.sm },
-  btnPrimary: {
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  btnPrimaryText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700", fontFamily: fonts.bold },
-  btnSecondary: {
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  btnSecondaryText: { color: colors.text, fontSize: 15, fontWeight: "600", fontFamily: fonts.semibold },
-  btnDisabled: { opacity: 0.6 },
-  empty: { color: colors.textMuted, fontSize: 15, lineHeight: 22, fontFamily: fonts.regular },
-  planRow: { paddingVertical: spacing.sm },
-  planRowDivider: {
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSoft,
-    marginTop: spacing.xs,
-    paddingTop: spacing.md,
-  },
-  planTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  planName: { color: colors.text, fontSize: 16, fontWeight: "700", flexShrink: 1, fontFamily: fonts.bold },
-  planMeta: { color: colors.textMuted, fontSize: 13, lineHeight: 19, fontFamily: fonts.regular },
-  cancelLink: {
-    color: colors.danger,
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: spacing.sm,
-    fontFamily: fonts.semibold,
-  },
-  moreRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: spacing.sm + 2,
-  },
-  moreRowDivider: {
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSoft,
-  },
-  moreText: { color: colors.text, fontSize: 15, fontWeight: "600", fontFamily: fonts.semibold },
-  moreChevron: { color: colors.textMuted, fontSize: 18, fontFamily: fonts.regular },
-  note: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: spacing.md,
-    fontFamily: fonts.regular,
-  },
-  storeNote: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 17,
-    textAlign: "center",
-    marginTop: spacing.xs,
-    fontFamily: fonts.regular,
-  },
-  signOut: {
-    marginTop: spacing.lg,
-    alignItems: "center",
-    paddingVertical: spacing.md,
-  },
-  signOutText: { color: colors.danger, fontSize: 16, fontWeight: "600", fontFamily: fonts.semibold },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: colors.overlayMid,
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: 14,
-    padding: spacing.lg,
-    ...formColumn,
-  },
-  modalTitle: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: "800",
-    marginBottom: spacing.sm,
-    fontFamily: fonts.extrabold,
-  },
-  modalBody: {
-    color: colors.textMuted,
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: spacing.md,
-    fontFamily: fonts.regular,
-  },
-  btnDanger: {
-    backgroundColor: colors.danger,
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  btnDangerText: { color: "#ffffff", fontSize: 15, fontWeight: "700", fontFamily: fonts.bold },
-  modalKeep: { marginTop: spacing.sm },
-  deleteScroll: { maxHeight: 300, marginBottom: spacing.md },
-  deleteGroup: { marginBottom: spacing.md },
-  deleteGroupLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: spacing.xs,
-    fontFamily: fonts.bold,
-  },
-  deleteItemBlock: { marginBottom: spacing.sm },
-  deleteItem: {
-    color: colors.text,
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 2,
-    fontFamily: fonts.regular,
-  },
-  deleteDanger: {
-    color: colors.danger,
-    fontSize: 13,
-    lineHeight: 18,
-    fontFamily: fonts.semibold,
-  },
-  deleteHint: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: spacing.xs,
-    fontFamily: fonts.regular,
-  },
-  deleteClosing: {
-    color: colors.textMuted,
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: spacing.xs,
-    fontFamily: fonts.regular,
-  },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    flex: { flex: 1, backgroundColor: colors.bg },
+    content: {
+      padding: spacing.md,
+      paddingBottom: spacing.lg,
+      ...contentColumn,
+    },
+    brandHeader: {
+      alignItems: "center",
+      paddingVertical: spacing.md,
+    },
+    logo: {
+      height: 40,
+      width: 180,
+    },
+    brandTitle: {
+      color: colors.text,
+      fontSize: 22,
+      fontWeight: "800",
+      fontFamily: fonts.extrabold,
+    },
+    brandDesc: {
+      color: colors.textMuted,
+      fontSize: 13,
+      lineHeight: 18,
+      textAlign: "center",
+      marginTop: spacing.xs,
+      fontFamily: fonts.regular,
+    },
+    skeleton: { marginBottom: spacing.md },
+    card: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 14,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    heading: {
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: "800",
+      marginBottom: spacing.md,
+      fontFamily: fonts.extrabold,
+    },
+    successBanner: {
+      backgroundColor: colors.successBg,
+      borderRadius: 10,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.md,
+    },
+    successText: {
+      color: colors.success,
+      fontSize: 14,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
+    detailRow: { marginBottom: spacing.md },
+    detailLabel: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginBottom: 2,
+      fontFamily: fonts.bold,
+    },
+    detailValue: {
+      color: colors.text,
+      fontSize: 15,
+      fontFamily: fonts.regular,
+    },
+    formError: {
+      color: colors.danger,
+      fontSize: 14,
+      marginBottom: spacing.sm,
+      fontFamily: fonts.regular,
+    },
+    inputLabel: {
+      color: colors.textMuted,
+      fontSize: 13,
+      fontWeight: "600",
+      marginBottom: spacing.xs,
+      fontFamily: fonts.semibold,
+    },
+    input: {
+      backgroundColor: colors.bg,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: 10,
+      color: colors.text,
+      fontSize: 15,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 2,
+      marginBottom: spacing.md,
+      fontFamily: fonts.regular,
+    },
+    readonlyBox: {
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: 10,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm + 2,
+    },
+    readonlyText: {
+      color: colors.textMuted,
+      fontSize: 15,
+      fontFamily: fonts.regular,
+    },
+    hint: {
+      color: colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+      marginTop: spacing.xs,
+      marginBottom: spacing.sm,
+      fontFamily: fonts.regular,
+    },
+    actionsRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    grow: { flex: 1 },
+    avatarBlock: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      marginBottom: spacing.md,
+    },
+    avatarImg: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.surfaceMuted,
+    },
+    avatarFallback: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarInitials: {
+      color: colors.onPrimary,
+      fontSize: 26,
+      fontFamily: fonts.bold,
+    },
+    avatarActions: { flex: 1, flexDirection: "row", gap: spacing.sm },
+    btnPrimary: {
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingVertical: 12,
+      alignItems: "center",
+    },
+    btnPrimaryText: {
+      color: colors.onPrimary,
+      fontSize: 15,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    btnSecondary: {
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 10,
+      paddingVertical: 12,
+      alignItems: "center",
+    },
+    btnSecondaryText: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
+    btnDisabled: { opacity: 0.6 },
+    empty: {
+      color: colors.textMuted,
+      fontSize: 15,
+      lineHeight: 22,
+      fontFamily: fonts.regular,
+    },
+    planRow: { paddingVertical: spacing.sm },
+    planRowDivider: {
+      borderTopWidth: 1,
+      borderTopColor: colors.borderSoft,
+      marginTop: spacing.xs,
+      paddingTop: spacing.md,
+    },
+    planTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+      marginBottom: spacing.xs,
+    },
+    planName: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: "700",
+      flexShrink: 1,
+      fontFamily: fonts.bold,
+    },
+    planMeta: {
+      color: colors.textMuted,
+      fontSize: 13,
+      lineHeight: 19,
+      fontFamily: fonts.regular,
+    },
+    cancelLink: {
+      color: colors.danger,
+      fontSize: 14,
+      fontWeight: "600",
+      marginTop: spacing.sm,
+      fontFamily: fonts.semibold,
+    },
+    moreRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: spacing.sm + 2,
+    },
+    moreRowDivider: {
+      borderTopWidth: 1,
+      borderTopColor: colors.borderSoft,
+    },
+    moreText: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
+    moreChevron: {
+      color: colors.textMuted,
+      fontSize: 18,
+      fontFamily: fonts.regular,
+    },
+    note: {
+      color: colors.textMuted,
+      fontSize: 14,
+      lineHeight: 20,
+      marginBottom: spacing.md,
+      fontFamily: fonts.regular,
+    },
+    storeNote: {
+      color: colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+      textAlign: "center",
+      marginTop: spacing.xs,
+      fontFamily: fonts.regular,
+    },
+    signOut: {
+      marginTop: spacing.lg,
+      alignItems: "center",
+      paddingVertical: spacing.md,
+    },
+    signOutText: {
+      color: colors.danger,
+      fontSize: 16,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: colors.overlayMid,
+      justifyContent: "center",
+      padding: spacing.lg,
+    },
+    modalCard: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 14,
+      padding: spacing.lg,
+      ...formColumn,
+    },
+    modalTitle: {
+      color: colors.text,
+      fontSize: 18,
+      fontWeight: "800",
+      marginBottom: spacing.sm,
+      fontFamily: fonts.extrabold,
+    },
+    modalBody: {
+      color: colors.textMuted,
+      fontSize: 14,
+      lineHeight: 21,
+      marginBottom: spacing.md,
+      fontFamily: fonts.regular,
+    },
+    btnDanger: {
+      backgroundColor: colors.danger,
+      borderRadius: 10,
+      paddingVertical: 12,
+      alignItems: "center",
+    },
+    btnDangerText: {
+      color: "#ffffff",
+      fontSize: 15,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    modalKeep: { marginTop: spacing.sm },
+    deleteScroll: { maxHeight: 300, marginBottom: spacing.md },
+    deleteGroup: { marginBottom: spacing.md },
+    deleteGroupLabel: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+      marginBottom: spacing.xs,
+      fontFamily: fonts.bold,
+    },
+    deleteItemBlock: { marginBottom: spacing.sm },
+    deleteItem: {
+      color: colors.text,
+      fontSize: 14,
+      lineHeight: 20,
+      marginBottom: 2,
+      fontFamily: fonts.regular,
+    },
+    deleteDanger: {
+      color: colors.danger,
+      fontSize: 13,
+      lineHeight: 18,
+      fontFamily: fonts.semibold,
+    },
+    deleteHint: {
+      color: colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+      marginTop: spacing.xs,
+      fontFamily: fonts.regular,
+    },
+    deleteClosing: {
+      color: colors.textMuted,
+      fontSize: 13,
+      lineHeight: 19,
+      marginTop: spacing.xs,
+      fontFamily: fonts.regular,
+    },
+  });

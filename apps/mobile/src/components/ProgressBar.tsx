@@ -28,19 +28,24 @@ export function ProgressBar({
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  wrap: { marginTop: spacing.sm },
-  track: {
-    height: 6,
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 999,
-    overflow: "hidden",
-  },
-  fill: { height: "100%", backgroundColor: colors.primary, borderRadius: 999 },
-  label: {
-    color: colors.textMuted,
-    fontSize: 12,
-    marginTop: 4,
-    fontFamily: fonts.regular,
-  },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    wrap: { marginTop: spacing.sm },
+    track: {
+      height: 6,
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: 999,
+      overflow: "hidden",
+    },
+    fill: {
+      height: "100%",
+      backgroundColor: colors.primary,
+      borderRadius: 999,
+    },
+    label: {
+      color: colors.textMuted,
+      fontSize: 12,
+      marginTop: 4,
+      fontFamily: fonts.regular,
+    },
+  });

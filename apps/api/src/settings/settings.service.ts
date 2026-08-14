@@ -1,44 +1,44 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../prisma/prisma.service';
-import { decryptSecret, encryptSecret } from '../common/crypto.util';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PrismaService } from "../prisma/prisma.service";
+import { decryptSecret, encryptSecret } from "../common/crypto.util";
 
 // Setting keys stored (encrypted) in the Setting table.
 export const SETTING_KEYS = {
-  stripeSecretKey: 'stripe.secretKey',
-  stripeWebhookSecret: 'stripe.webhookSecret',
-  stripePublishableKey: 'stripe.publishableKey',
-  paypalClientId: 'paypal.clientId',
-  paypalClientSecret: 'paypal.clientSecret',
-  paypalWebhookId: 'paypal.webhookId',
-  paypalMode: 'paypal.mode',
+  stripeSecretKey: "stripe.secretKey",
+  stripeWebhookSecret: "stripe.webhookSecret",
+  stripePublishableKey: "stripe.publishableKey",
+  paypalClientId: "paypal.clientId",
+  paypalClientSecret: "paypal.clientSecret",
+  paypalWebhookId: "paypal.webhookId",
+  paypalMode: "paypal.mode",
   // Which processor NEW checkouts use ("stripe" | "paypal"). Existing
   // subscriptions keep billing on the provider that created them.
-  paymentProvider: 'payments.provider',
+  paymentProvider: "payments.provider",
   // Outbound email / SMTP sender (the in-house email platform). `emailPass`
   // is the only secret; the rest are config (host/port/from), stored the same
   // way for a single source of truth + per-key env fallback.
-  emailProvider: 'email.provider',
-  emailHost: 'email.host',
-  emailPort: 'email.port',
-  emailUser: 'email.user',
-  emailPass: 'email.pass',
+  emailProvider: "email.provider",
+  emailHost: "email.host",
+  emailPort: "email.port",
+  emailUser: "email.user",
+  emailPass: "email.pass",
   // Resend REST API key (the only Resend secret — provider="resend" sends via the
   // Resend HTTP API instead of SMTP). Write-only, encrypted, exactly like emailPass.
-  emailResendApiKey: 'email.resendApiKey',
-  emailFromEmail: 'email.fromEmail',
-  emailFromName: 'email.fromName',
-  emailSecure: 'email.secure',
+  emailResendApiKey: "email.resendApiKey",
+  emailFromEmail: "email.fromEmail",
+  emailFromName: "email.fromName",
+  emailSecure: "email.secure",
   // Shared secret for the public provider feedback webhook (bounce/complaint
   // ingestion). The webhook is unauthenticated at the route level (providers
   // can't carry our JWT), so a request must present this secret (header or
   // ?key=) before it's allowed to suppress addresses. Write-only like emailPass.
-  emailWebhookSecret: 'email.webhookSecret',
+  emailWebhookSecret: "email.webhookSecret",
   // Zoom Meeting SDK (in-page live-session embed). The SDK key is public (it
   // ships to the browser to join); the SDK secret signs the join signature
   // server-side and is write-only, exactly like the Stripe secret key.
-  zoomSdkKey: 'zoom.sdkKey',
-  zoomSdkSecret: 'zoom.sdkSecret',
+  zoomSdkKey: "zoom.sdkKey",
+  zoomSdkSecret: "zoom.sdkSecret",
 } as const;
 
 @Injectable()
@@ -74,7 +74,7 @@ export class SettingsService {
 
   /** Encrypt & upsert a secret. Empty/undefined values are skipped (no-op). */
   async setSecret(key: string, plaintext: string | undefined): Promise<void> {
-    if (plaintext === undefined || plaintext === '') return;
+    if (plaintext === undefined || plaintext === "") return;
     const value = encryptSecret(plaintext);
     await this.prisma.setting.upsert({
       where: { key },
@@ -158,61 +158,64 @@ export class SettingsService {
   // --- Convenience accessors used by integration services ---
 
   getStripeSecretKey(): Promise<string | null> {
-    return this.getSecret(SETTING_KEYS.stripeSecretKey, 'STRIPE_SECRET_KEY');
+    return this.getSecret(SETTING_KEYS.stripeSecretKey, "STRIPE_SECRET_KEY");
   }
   getStripeWebhookSecret(): Promise<string | null> {
     return this.getSecret(
       SETTING_KEYS.stripeWebhookSecret,
-      'STRIPE_WEBHOOK_SECRET',
+      "STRIPE_WEBHOOK_SECRET",
     );
   }
   // Publishable key is public (safe to expose to the browser for Stripe Elements).
   getStripePublishableKey(): Promise<string | null> {
     return this.getSecret(
       SETTING_KEYS.stripePublishableKey,
-      'STRIPE_PUBLISHABLE_KEY',
+      "STRIPE_PUBLISHABLE_KEY",
     );
   }
   // Client id is public (ships to the browser for the PayPal JS SDK).
   getPayPalClientId(): Promise<string | null> {
-    return this.getSecret(SETTING_KEYS.paypalClientId, 'PAYPAL_CLIENT_ID');
+    return this.getSecret(SETTING_KEYS.paypalClientId, "PAYPAL_CLIENT_ID");
   }
   getPayPalClientSecret(): Promise<string | null> {
     return this.getSecret(
       SETTING_KEYS.paypalClientSecret,
-      'PAYPAL_CLIENT_SECRET',
+      "PAYPAL_CLIENT_SECRET",
     );
   }
   getPayPalWebhookId(): Promise<string | null> {
-    return this.getSecret(SETTING_KEYS.paypalWebhookId, 'PAYPAL_WEBHOOK_ID');
+    return this.getSecret(SETTING_KEYS.paypalWebhookId, "PAYPAL_WEBHOOK_ID");
   }
-  async getPayPalMode(): Promise<'sandbox' | 'live'> {
-    const v = await this.getSecret(SETTING_KEYS.paypalMode, 'PAYPAL_MODE');
-    return v === 'live' ? 'live' : 'sandbox'; // default + unknown → sandbox
+  async getPayPalMode(): Promise<"sandbox" | "live"> {
+    const v = await this.getSecret(SETTING_KEYS.paypalMode, "PAYPAL_MODE");
+    return v === "live" ? "live" : "sandbox"; // default + unknown → sandbox
   }
   /** The processor NEW checkouts use. Default + unknown values → stripe. */
-  async getPaymentProvider(): Promise<'stripe' | 'paypal'> {
+  async getPaymentProvider(): Promise<"stripe" | "paypal"> {
     const v = await this.getSecret(SETTING_KEYS.paymentProvider);
-    return v === 'paypal' ? 'paypal' : 'stripe';
+    return v === "paypal" ? "paypal" : "stripe";
   }
 
   // --- Zoom Meeting SDK accessors (consumed by the live-session embed) ---
 
   /** Zoom SDK key — public (ships to the browser). Env fallback: ZOOM_SDK_KEY. */
   getZoomSdkKey(): Promise<string | null> {
-    return this.getSecret(SETTING_KEYS.zoomSdkKey, 'ZOOM_SDK_KEY');
+    return this.getSecret(SETTING_KEYS.zoomSdkKey, "ZOOM_SDK_KEY");
   }
   /** Zoom SDK secret — server-only (signs the join signature). */
   getZoomSdkSecret(): Promise<string | null> {
-    return this.getSecret(SETTING_KEYS.zoomSdkSecret, 'ZOOM_SDK_SECRET');
+    return this.getSecret(SETTING_KEYS.zoomSdkSecret, "ZOOM_SDK_SECRET");
   }
 
   // --- Outbound email / SMTP accessors (consumed by the email sender) ---
 
   /** The active mail sender id. Default + unknown values → smtp. */
-  async getEmailProvider(): Promise<'smtp' | 'resend'> {
-    const v = await this.getSecret(SETTING_KEYS.emailProvider, 'EMAIL_PROVIDER');
-    return v === 'resend' ? 'resend' : 'smtp';
+  async getEmailProvider(): Promise<"smtp" | "resend"> {
+    const v = await this.getSecret(
+      SETTING_KEYS.emailProvider,
+      "EMAIL_PROVIDER",
+    );
+    return v === "resend" ? "resend" : "smtp";
   }
   /**
    * Resend REST API key (re_…). Write-only secret consumed by the Resend mail
@@ -220,36 +223,33 @@ export class SettingsService {
    * can configure it without touching the DB.
    */
   getEmailResendApiKey(): Promise<string | null> {
-    return this.getSecret(
-      SETTING_KEYS.emailResendApiKey,
-      'RESEND_API_KEY',
-    );
+    return this.getSecret(SETTING_KEYS.emailResendApiKey, "RESEND_API_KEY");
   }
   getEmailHost(): Promise<string | null> {
-    return this.getSecret(SETTING_KEYS.emailHost, 'SMTP_HOST');
+    return this.getSecret(SETTING_KEYS.emailHost, "SMTP_HOST");
   }
   /** SMTP port as a number (default 587 — STARTTLS submission). */
   async getEmailPort(): Promise<number> {
-    const v = await this.getSecret(SETTING_KEYS.emailPort, 'SMTP_PORT');
+    const v = await this.getSecret(SETTING_KEYS.emailPort, "SMTP_PORT");
     const n = v ? Number(v) : NaN;
     return Number.isFinite(n) && n > 0 ? n : 587;
   }
   getEmailUser(): Promise<string | null> {
-    return this.getSecret(SETTING_KEYS.emailUser, 'SMTP_USER');
+    return this.getSecret(SETTING_KEYS.emailUser, "SMTP_USER");
   }
   getEmailPass(): Promise<string | null> {
-    return this.getSecret(SETTING_KEYS.emailPass, 'SMTP_PASS');
+    return this.getSecret(SETTING_KEYS.emailPass, "SMTP_PASS");
   }
   getEmailFromEmail(): Promise<string | null> {
-    return this.getSecret(SETTING_KEYS.emailFromEmail, 'EMAIL_FROM');
+    return this.getSecret(SETTING_KEYS.emailFromEmail, "EMAIL_FROM");
   }
   getEmailFromName(): Promise<string | null> {
-    return this.getSecret(SETTING_KEYS.emailFromName, 'EMAIL_FROM_NAME');
+    return this.getSecret(SETTING_KEYS.emailFromName, "EMAIL_FROM_NAME");
   }
   /** Implicit-TLS flag (true ≈ port 465). Default false (STARTTLS on 587). */
   async getEmailSecure(): Promise<boolean> {
-    const v = await this.getSecret(SETTING_KEYS.emailSecure, 'SMTP_SECURE');
-    return v === 'true' || v === '1';
+    const v = await this.getSecret(SETTING_KEYS.emailSecure, "SMTP_SECURE");
+    return v === "true" || v === "1";
   }
   /**
    * Shared secret guarding the public provider feedback webhook. Returns null
@@ -260,7 +260,7 @@ export class SettingsService {
   getEmailWebhookSecret(): Promise<string | null> {
     return this.getSecret(
       SETTING_KEYS.emailWebhookSecret,
-      'EMAIL_WEBHOOK_SECRET',
+      "EMAIL_WEBHOOK_SECRET",
     );
   }
 }

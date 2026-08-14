@@ -35,7 +35,7 @@ function ResetPasswordForm() {
       setError(
         err instanceof ApiError
           ? err.message
-          : "Something went wrong. Try again."
+          : "Something went wrong. Try again.",
       );
     } finally {
       setLoading(false);
@@ -47,7 +47,9 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <>
-        <h1>Reset your <span className="t-gradient">password</span></h1>
+        <h1>
+          Reset your <span className="t-gradient">password</span>
+        </h1>
         <p className="sub">
           This reset link is missing its token. Request a new one and use the
           link from the email.
@@ -64,10 +66,12 @@ function ResetPasswordForm() {
   if (done) {
     return (
       <>
-        <h1>Password <span className="t-gradient">updated</span></h1>
+        <h1>
+          Password <span className="t-gradient">updated</span>
+        </h1>
         <p className="sub">
-          Your password has been changed. Sign in with your new password to
-          get back to your courses.
+          Your password has been changed. Sign in with your new password to get
+          back to your courses.
         </p>
         <p className="sub" style={{ marginTop: 16 }}>
           <Link href="/login" className="link">
@@ -80,7 +84,9 @@ function ResetPasswordForm() {
 
   return (
     <>
-      <h1>Choose a new <span className="t-gradient">password</span></h1>
+      <h1>
+        Choose a new <span className="t-gradient">password</span>
+      </h1>
       <p className="sub">At least 10 characters.</p>
 
       {error && (

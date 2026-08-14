@@ -1,7 +1,7 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import type { ExecutionContext } from '@nestjs/common';
-import { GlobalThrottlerGuard } from './global-throttler.guard';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import type { ExecutionContext } from "@nestjs/common";
+import { GlobalThrottlerGuard } from "./global-throttler.guard";
 
 // Regression guard for the WebSocket crash: registered as a global APP_GUARD,
 // this throttler is also attached to WebSocket gateway (@SubscribeMessage)
@@ -24,14 +24,14 @@ function shouldSkip(context: ExecutionContext): Promise<boolean> {
   return g.shouldSkip(context);
 }
 
-test('shouldSkip: skips websocket contexts (no res.header crash)', async () => {
-  assert.equal(await shouldSkip(ctx('ws')), true);
+test("shouldSkip: skips websocket contexts (no res.header crash)", async () => {
+  assert.equal(await shouldSkip(ctx("ws")), true);
 });
 
-test('shouldSkip: skips rpc/microservice contexts', async () => {
-  assert.equal(await shouldSkip(ctx('rpc')), true);
+test("shouldSkip: skips rpc/microservice contexts", async () => {
+  assert.equal(await shouldSkip(ctx("rpc")), true);
 });
 
-test('shouldSkip: still throttles http requests', async () => {
-  assert.equal(await shouldSkip(ctx('http')), false);
+test("shouldSkip: still throttles http requests", async () => {
+  assert.equal(await shouldSkip(ctx("http")), false);
 });

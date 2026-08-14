@@ -1,12 +1,16 @@
- 
-import { ConflictException, Injectable, Logger } from '@nestjs/common';
-import { AdminRole, Prisma } from '@prisma/client';
-import * as fs from 'fs';
-import * as path from 'path';
-import { PrismaService } from '../prisma/prisma.service';
-import { MEDIA_ROOT, resolveMediaExt, isSvg, sanitizeSvg } from '../media/media.config';
-import { IMAGES_ROOT, imageExt } from '../blog/upload.config';
-import { LESSON_NOTES_DIR, noteFileExt } from '../lms/upload.config';
+import { ConflictException, Injectable, Logger } from "@nestjs/common";
+import { AdminRole, Prisma } from "@prisma/client";
+import * as fs from "fs";
+import * as path from "path";
+import { PrismaService } from "../prisma/prisma.service";
+import {
+  MEDIA_ROOT,
+  resolveMediaExt,
+  isSvg,
+  sanitizeSvg,
+} from "../media/media.config";
+import { IMAGES_ROOT, imageExt } from "../blog/upload.config";
+import { LESSON_NOTES_DIR, noteFileExt } from "../lms/upload.config";
 import {
   deserializePack,
   isSafeRelPath,
@@ -17,7 +21,7 @@ import {
   serializePack,
   PACK_FORMAT,
   PACK_FORMAT_VERSION,
-} from './content-pack.transform';
+} from "./content-pack.transform";
 import type {
   ContentPack,
   ImportResult,
@@ -26,10 +30,10 @@ import type {
   PackFileStore,
   PackRow,
   PackStatus,
-} from './content-pack.types';
+} from "./content-pack.types";
 
 // The single row that records an imported pack (see the ContentPackState model).
-const STATE_ID = 'singleton';
+const STATE_ID = "singleton";
 
 // Refuse to build a pack whose file payloads exceed this — the whole archive is
 // held in memory (base64 in JSON). Demo content is single-digit MB; a much
@@ -42,7 +46,7 @@ const EXPORT_MAX_FILE_BYTES = 128 * 1024 * 1024;
 const STORE_ROOTS: Record<PackFileStore, string> = {
   media: MEDIA_ROOT,
   images: IMAGES_ROOT,
-  'lesson-notes': LESSON_NOTES_DIR,
+  "lesson-notes": LESSON_NOTES_DIR,
 };
 
 // Capture the key/path a URL points at within a store, stopping at the first
@@ -54,7 +58,7 @@ const IMAGES_REF = /\/images\/([^"'\\\s)<>?#]+)/g;
 
 @Injectable()
 export class ContentPackService {
-  private readonly log = new Logger('ContentPack');
+  private readonly log = new Logger("ContentPack");
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -152,8 +156,8 @@ export class ContentPackService {
       this.prisma.form.findMany(),
       this.prisma.popup.findMany(),
       this.prisma.header.findMany(),
-      this.prisma.footer.findUnique({ where: { id: 'singleton' } }),
-      this.prisma.appConfig.findUnique({ where: { id: 'singleton' } }),
+      this.prisma.footer.findUnique({ where: { id: "singleton" } }),
+      this.prisma.appConfig.findUnique({ where: { id: "singleton" } }),
     ]);
 
     // Flatten the implicit many-to-many into a plain id array so the pack rows
@@ -205,7 +209,7 @@ export class ContentPackService {
       const root = STORE_ROOTS[store];
       const want = wanted[store];
       for (const abs of walkFiles(root)) {
-        const rel = path.relative(root, abs).split(path.sep).join('/');
+        const rel = path.relative(root, abs).split(path.sep).join("/");
         if (!want.has(rel)) continue; // unreferenced (avatars, orphans) — skip
         const buf = fs.readFileSync(abs);
         totalBytes += buf.length;
@@ -215,7 +219,7 @@ export class ContentPackService {
               `trim large uploads (host videos on Vimeo/YouTube) before publishing`,
           );
         }
-        files.push({ store, relpath: rel, b64: buf.toString('base64') });
+        files.push({ store, relpath: rel, b64: buf.toString("base64") });
       }
     }
     return files;
@@ -235,7 +239,9 @@ export class ContentPackService {
       where: { id: STATE_ID },
     });
     if (existing) {
-      this.log.log(`import skipped — pack v${existing.packVersion} already imported`);
+      this.log.log(
+        `import skipped — pack v${existing.packVersion} already imported`,
+      );
       return {
         imported: false,
         alreadyImported: true,
@@ -269,7 +275,9 @@ export class ContentPackService {
       // the idempotent result rather than a 500. (The CP pushes serially, so this
       // is a belt-and-suspenders path.)
       if (isUniqueViolation(e)) {
-        const now = await this.prisma.contentPackState.findUnique({ where: { id: STATE_ID } });
+        const now = await this.prisma.contentPackState.findUnique({
+          where: { id: STATE_ID },
+        });
         if (now) {
           return {
             imported: false,
@@ -283,12 +291,17 @@ export class ContentPackService {
     }
 
     this.log.log(
-      `imported content pack${opts.version ? ` v${opts.version}` : ''}: ` +
+      `imported content pack${opts.version ? ` v${opts.version}` : ""}: ` +
         Object.entries(counts)
           .map(([k, v]) => `${v} ${k}`)
-          .join(', '),
+          .join(", "),
     );
-    return { imported: true, alreadyImported: false, packVersion: opts.version ?? 0, counts };
+    return {
+      imported: true,
+      alreadyImported: false,
+      packVersion: opts.version ?? 0,
+      counts,
+    };
   }
 
   private async assertEmpty(): Promise<void> {
@@ -310,7 +323,7 @@ export class ContentPackService {
     ]);
     if (counts.reduce((a, b) => a + b, 0) > 0) {
       throw new ConflictException(
-        'instance already has content — refusing to import a content pack over it',
+        "instance already has content — refusing to import a content pack over it",
       );
     }
   }
@@ -320,7 +333,7 @@ export class ContentPackService {
   private async resolveOwnerAdminId(): Promise<string | null> {
     const owner = await this.prisma.admin.findFirst({
       where: { role: AdminRole.SUPER_ADMIN },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
       select: { id: true },
     });
     return owner?.id ?? null;
@@ -350,11 +363,11 @@ export class ContentPackService {
         this.log.warn(`skipping disallowed file type "${f.relpath}"`);
         continue;
       }
-      let bytes = Buffer.from(f.b64, 'base64');
+      let bytes = Buffer.from(f.b64, "base64");
       // SVGs are served publicly and can carry script — sanitize like the upload
       // path does (defense in depth alongside the /media nosniff header).
-      if (f.store === 'media' && isSvg('', ext)) {
-        bytes = Buffer.from(sanitizeSvg(bytes.toString('utf8')), 'utf8');
+      if (f.store === "media" && isSvg("", ext)) {
+        bytes = Buffer.from(sanitizeSvg(bytes.toString("utf8")), "utf8");
       }
       fs.mkdirSync(path.dirname(abs), { recursive: true });
       fs.writeFileSync(abs, bytes);
@@ -366,55 +379,83 @@ export class ContentPackService {
     from: string,
     to: string,
     ownerAdminId: string | null,
-    marker: { version: number; label: string | null; sourceOrigin: string | null },
+    marker: {
+      version: number;
+      label: string | null;
+      sourceOrigin: string | null;
+    },
   ): Promise<Record<string, number>> {
     // rewrite the demo origin, then apply the per-model scrub/remap/reset rules.
     const norm = (model: string, rows: PackRow[]): PackRow[] =>
       rows.map((r) =>
-        normalizeRowForImport(model, rewriteRowOrigin(r, from, to), ownerAdminId),
+        normalizeRowForImport(
+          model,
+          rewriteRowOrigin(r, from, to),
+          ownerAdminId,
+        ),
       );
 
-    const levelCategories = norm('levelCategory', content.levelCategories);
-    const certificateTemplates = norm('certificateTemplate', content.certificateTemplates);
-    const courses = norm('course', content.courses);
+    const levelCategories = norm("levelCategory", content.levelCategories);
+    const certificateTemplates = norm(
+      "certificateTemplate",
+      content.certificateTemplates,
+    );
+    const courses = norm("course", content.courses);
 
     // Levels carry categoryIds for the implicit m2m — pull it out for a 2nd pass.
-    const levels = norm('level', content.levels);
-    const levelCats = levels.map((l) => ({ id: l.id, categoryIds: (l.categoryIds ?? []) as string[] }));
+    const levels = norm("level", content.levels);
+    const levelCats = levels.map((l) => ({
+      id: l.id,
+      categoryIds: (l.categoryIds ?? []) as string[],
+    }));
     levels.forEach((l) => delete l.categoryIds);
 
-    const prices = norm('price', content.prices);
-    const courseLevels = norm('courseLevel', content.courseLevels);
-    const lessons = norm('lesson', content.lessons);
-    const lessonNotes = norm('lessonNote', content.lessonNotes);
-    const mediaAssets = norm('mediaAsset', content.mediaAssets);
-    const menus = norm('menu', content.menus);
-    const menuLocs = norm('menuLocationAssignment', content.menuLocationAssignments);
+    const prices = norm("price", content.prices);
+    const courseLevels = norm("courseLevel", content.courseLevels);
+    const lessons = norm("lesson", content.lessons);
+    const lessonNotes = norm("lessonNote", content.lessonNotes);
+    const mediaAssets = norm("mediaAsset", content.mediaAssets);
+    const menus = norm("menu", content.menus);
+    const menuLocs = norm(
+      "menuLocationAssignment",
+      content.menuLocationAssignments,
+    );
 
     // Menu items self-reference via parentId; insert with parentId cleared, then
     // re-link — avoids ordering a non-deferrable self-FK inside one createMany.
-    const menuItems = norm('menuItem', content.menuItems);
+    const menuItems = norm("menuItem", content.menuItems);
     const menuLinks = menuItems
       .filter((m) => m.parentId)
       .map((m) => ({ id: m.id as string, parentId: m.parentId as string }));
     menuItems.forEach((m) => (m.parentId = null));
 
-    const postCategories = norm('postCategory', content.postCategories);
-    const posts = norm('post', content.posts);
-    const postCats = posts.map((p) => ({ id: p.id, categoryIds: (p.categoryIds ?? []) as string[] }));
+    const postCategories = norm("postCategory", content.postCategories);
+    const posts = norm("post", content.posts);
+    const postCats = posts.map((p) => ({
+      id: p.id,
+      categoryIds: (p.categoryIds ?? []) as string[],
+    }));
     posts.forEach((p) => delete p.categoryIds);
 
-    const pages = norm('page', content.pages);
-    const forms = norm('form', content.forms);
-    const popups = norm('popup', content.popups);
-    const headers = norm('header', content.headers);
+    const pages = norm("page", content.pages);
+    const forms = norm("form", content.forms);
+    const popups = norm("popup", content.popups);
+    const headers = norm("header", content.headers);
 
     const footer = content.footer
-      ? normalizeRowForImport('footer', rewriteRowOrigin(content.footer, from, to), ownerAdminId)
+      ? normalizeRowForImport(
+          "footer",
+          rewriteRowOrigin(content.footer, from, to),
+          ownerAdminId,
+        )
       : null;
     if (footer) footer.config = scrubFooterAudience(footer.config);
     const appConfig = content.appConfig
-      ? normalizeRowForImport('appConfig', rewriteRowOrigin(content.appConfig, from, to), ownerAdminId)
+      ? normalizeRowForImport(
+          "appConfig",
+          rewriteRowOrigin(content.appConfig, from, to),
+          ownerAdminId,
+        )
       : null;
 
     await this.prisma.$transaction(
@@ -428,7 +469,11 @@ export class ContentPackService {
           if (categoryIds.length) {
             await tx.level.update({
               where: { id },
-              data: { categories: { connect: categoryIds.map((cid) => ({ id: cid })) } },
+              data: {
+                categories: {
+                  connect: categoryIds.map((cid) => ({ id: cid })),
+                },
+              },
             });
           }
         }
@@ -449,7 +494,11 @@ export class ContentPackService {
           if (categoryIds.length) {
             await tx.post.update({
               where: { id },
-              data: { categories: { connect: categoryIds.map((cid) => ({ id: cid })) } },
+              data: {
+                categories: {
+                  connect: categoryIds.map((cid) => ({ id: cid })),
+                },
+              },
             });
           }
         }
@@ -460,17 +509,17 @@ export class ContentPackService {
         if (footer) {
           const cfg = jsonOrNull(footer.config);
           await tx.footer.upsert({
-            where: { id: 'singleton' },
+            where: { id: "singleton" },
             update: { config: cfg },
-            create: { id: 'singleton', config: cfg },
+            create: { id: "singleton", config: cfg },
           });
         }
         if (appConfig) {
           const cfg = jsonOrNull(appConfig.config);
           await tx.appConfig.upsert({
-            where: { id: 'singleton' },
+            where: { id: "singleton" },
             update: { config: cfg },
-            create: { id: 'singleton', config: cfg },
+            create: { id: "singleton", config: cfg },
           });
         }
         // The marker lands INSIDE the transaction: content + marker commit
@@ -513,8 +562,9 @@ function referencedFilePaths(
   for (const m of content.mediaAssets) if (m.key) media.add(m.key as string);
   const images = collectRefs(blob, IMAGES_REF);
   const notes = new Set<string>();
-  for (const n of content.lessonNotes) if (n.filename) notes.add(n.filename as string);
-  return { media, images, 'lesson-notes': notes };
+  for (const n of content.lessonNotes)
+    if (n.filename) notes.add(n.filename as string);
+  return { media, images, "lesson-notes": notes };
 }
 
 function collectRefs(blob: string, re: RegExp): Set<string> {
@@ -533,18 +583,20 @@ function jsonOrNull(v: unknown): Prisma.InputJsonValue {
 }
 
 function isUniqueViolation(e: unknown): boolean {
-  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002';
+  return (
+    e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002"
+  );
 }
 
 // The upload path's per-store type allow-list, re-applied on import.
 function validateFileExt(store: PackFileStore, relpath: string): string | null {
   switch (store) {
-    case 'media':
-      return resolveMediaExt(relpath, '');
-    case 'images':
-      return imageExt('', relpath);
-    case 'lesson-notes':
-      return noteFileExt('', relpath);
+    case "media":
+      return resolveMediaExt(relpath, "");
+    case "images":
+      return imageExt("", relpath);
+    case "lesson-notes":
+      return noteFileExt("", relpath);
     default:
       return null;
   }
@@ -561,7 +613,7 @@ function walkFiles(root: string): string[] {
     return out; // missing store dir — nothing to ship
   }
   for (const e of entries) {
-    if (e.name.startsWith('.')) continue;
+    if (e.name.startsWith(".")) continue;
     const abs = path.join(root, e.name);
     if (e.isDirectory()) out.push(...walkFiles(abs));
     else if (e.isFile()) out.push(abs);

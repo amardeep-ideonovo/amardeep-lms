@@ -10,7 +10,11 @@ type MediaKindPick = "image" | "video" | "audio";
 // Formats we can't (or shouldn't) redraw through a canvas cropper: animated
 // GIFs would lose their animation, SVGs are vector. These upload as-is.
 function isCroppable(f: File) {
-  return f.type.startsWith("image/") && f.type !== "image/gif" && f.type !== "image/svg+xml";
+  return (
+    f.type.startsWith("image/") &&
+    f.type !== "image/gif" &&
+    f.type !== "image/svg+xml"
+  );
 }
 
 // Give the cropped blob a sensible filename + extension for the upload.
@@ -314,8 +318,8 @@ function MediaLibraryModal({
                 kind === "video"
                   ? "video/*"
                   : kind === "audio"
-                  ? "audio/*"
-                  : "image/*"
+                    ? "audio/*"
+                    : "image/*"
               }
               hidden
               onChange={(e) => onFile(e.target.files)}

@@ -1,10 +1,10 @@
-import { Global, Module } from '@nestjs/common';
-import { ThrottlerModule } from '@nestjs/throttler';
-import { EmailModule } from '../email/email.module';
-import { ContactsService } from './contacts.service';
-import { ContactsAdminService } from './contacts-admin.service';
-import { ContactsController } from './contacts.controller';
-import { ContactsConfirmController } from './contacts-confirm.controller';
+import { Global, Module } from "@nestjs/common";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { EmailModule } from "../email/email.module";
+import { ContactsService } from "./contacts.service";
+import { ContactsAdminService } from "./contacts-admin.service";
+import { ContactsController } from "./contacts.controller";
+import { ContactsConfirmController } from "./contacts-confirm.controller";
 
 // Global so Auth, Members, Billing, Levels, Forms & Footer can write contacts
 // directly (DB-backed, synchronous — no queue needed).
@@ -22,7 +22,7 @@ import { ContactsConfirmController } from './contacts-confirm.controller';
 @Module({
   imports: [
     EmailModule,
-    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 1000 }]),
+    ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 1000 }]),
   ],
   providers: [ContactsService, ContactsAdminService],
   controllers: [ContactsController, ContactsConfirmController],

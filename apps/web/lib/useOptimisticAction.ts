@@ -26,7 +26,7 @@ export function useOptimisticAction() {
   const inFlight = useRef(new Set<string>());
 
   const run = useCallback(
-    async <T,>(
+    async <T>(
       key: string,
       steps: {
         /** Capture the exact slice `apply` is about to change. */

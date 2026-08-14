@@ -40,7 +40,9 @@ export function ClassTile({
             end={{ x: 0.8, y: 1 }}
             style={[StyleSheet.absoluteFill, styles.letterWrap]}
           >
-            <Text style={styles.letter}>{cls.name.slice(0, 1).toUpperCase()}</Text>
+            <Text style={styles.letter}>
+              {cls.name.slice(0, 1).toUpperCase()}
+            </Text>
           </LinearGradient>
         )}
         {cls.owned ? (
@@ -90,7 +92,17 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
     },
     badge: { position: "absolute", top: spacing.sm, left: spacing.sm },
     body: { padding: spacing.sm + 4, gap: 6 },
-    name: { color: colors.text, fontSize: 16, fontWeight: "700", fontFamily: fonts.bold },
+    name: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
     chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-    cta: { color: colors.textMuted, fontSize: 13, fontWeight: "700", fontFamily: fonts.bold },
+    cta: {
+      color: colors.textMuted,
+      fontSize: 13,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
   });

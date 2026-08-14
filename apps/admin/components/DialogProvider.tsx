@@ -74,7 +74,9 @@ export const dialog: DialogContextValue = {
   prompt: (o) => {
     if (registry) return registry.prompt(o);
     const opts = normalize(o);
-    return Promise.resolve(window.prompt(opts.message, opts.defaultValue ?? ""));
+    return Promise.resolve(
+      window.prompt(opts.message, opts.defaultValue ?? ""),
+    );
   },
 };
 
@@ -85,7 +87,10 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   const okRef = useRef<HTMLButtonElement>(null);
 
   const open = useCallback(
-    (kind: Kind, raw: ConfirmOptions | PromptOptions | NotifyOptions | string) =>
+    (
+      kind: Kind,
+      raw: ConfirmOptions | PromptOptions | NotifyOptions | string,
+    ) =>
       new Promise<boolean | string | null | void>((resolve) => {
         const opts = normalize(raw);
         setValue(opts.defaultValue ?? "");
@@ -109,27 +114,24 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
 
   // Resolve the pending promise and close. `cancelled` picks the right "no"
   // value per kind (false / null / void).
-  const finish = useCallback(
-    (cancelled: boolean) => {
-      setState((s) => {
-        if (!s) return null;
-        if (cancelled)
-          s.resolve(
-            s.kind === "confirm" ? false : s.kind === "prompt" ? null : undefined,
-          );
-        else
-          s.resolve(
-            s.kind === "confirm"
-              ? true
-              : s.kind === "prompt"
-                ? valueRef.current
-                : undefined,
-          );
-        return null;
-      });
-    },
-    [],
-  );
+  const finish = useCallback((cancelled: boolean) => {
+    setState((s) => {
+      if (!s) return null;
+      if (cancelled)
+        s.resolve(
+          s.kind === "confirm" ? false : s.kind === "prompt" ? null : undefined,
+        );
+      else
+        s.resolve(
+          s.kind === "confirm"
+            ? true
+            : s.kind === "prompt"
+              ? valueRef.current
+              : undefined,
+        );
+      return null;
+    });
+  }, []);
 
   // Keep the latest input value readable from finish() without re-creating it.
   const valueRef = useRef(value);
@@ -171,7 +173,9 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
         >
           <div className="modal modal--confirm">
             <div className="modal-body">
-              <h2 className="dialog-title">{o.title ?? defaultTitle(state.kind)}</h2>
+              <h2 className="dialog-title">
+                {o.title ?? defaultTitle(state.kind)}
+              </h2>
               <p className="dialog-message">{o.message}</p>
               {state.kind === "prompt" && (
                 <input
@@ -219,7 +223,11 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
 }
 
 function defaultTitle(kind: Kind): string {
-  return kind === "notify" ? "Notice" : kind === "prompt" ? "Enter a value" : "Are you sure?";
+  return kind === "notify"
+    ? "Notice"
+    : kind === "prompt"
+      ? "Enter a value"
+      : "Are you sure?";
 }
 function defaultOk(kind: Kind): string {
   return kind === "notify" ? "OK" : kind === "prompt" ? "Save" : "Confirm";

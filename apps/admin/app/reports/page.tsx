@@ -145,7 +145,8 @@ export default function ReportsPage() {
     if (s.amount == null) return sum;
     return sum + (s.interval === "year" ? s.amount / 12 : s.amount);
   }, 0);
-  const currency = activeSubRows.find((s) => s.amount != null)?.currency ?? "USD";
+  const currency =
+    activeSubRows.find((s) => s.amount != null)?.currency ?? "USD";
   const mrr = (mrrCents / 100).toLocaleString(undefined, {
     style: "currency",
     currency: currency.toUpperCase(),
@@ -178,7 +179,11 @@ export default function ReportsPage() {
   const mixMap = new Map<string, number>();
   for (const s of activeSubRows) {
     const label = `${s.levelName}${
-      s.interval === "year" ? " · Annual" : s.interval === "month" ? " · Monthly" : ""
+      s.interval === "year"
+        ? " · Annual"
+        : s.interval === "month"
+          ? " · Monthly"
+          : ""
     }`;
     mixMap.set(label, (mixMap.get(label) ?? 0) + 1);
   }
@@ -197,7 +202,12 @@ export default function ReportsPage() {
   let acc = 0;
   const slices = mix.map((s, i) => {
     const frac = mixTotal ? s.count / mixTotal : 0;
-    const seg = { ...s, color: MIX_COLORS[i % MIX_COLORS.length], dash: frac * C, offset: -acc };
+    const seg = {
+      ...s,
+      color: MIX_COLORS[i % MIX_COLORS.length],
+      dash: frac * C,
+      offset: -acc,
+    };
     acc += frac * C;
     return seg;
   });
@@ -206,7 +216,8 @@ export default function ReportsPage() {
   const topClasses = [...levels]
     .map((l, idx) => ({
       l,
-      accent: CLASS_ACCENTS[classAccentIndex(l.name, idx) % CLASS_ACCENTS.length],
+      accent:
+        CLASS_ACCENTS[classAccentIndex(l.name, idx) % CLASS_ACCENTS.length],
     }))
     .sort((a, b) => b.l.memberCount - a.l.memberCount)
     .slice(0, 5);
@@ -242,7 +253,8 @@ export default function ReportsPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: mixTotal > 0 && showTopClasses ? "1fr 1.4fr" : "1fr",
+            gridTemplateColumns:
+              mixTotal > 0 && showTopClasses ? "1fr 1.4fr" : "1fr",
             gap: 18,
             marginBottom: 18,
           }}
@@ -251,8 +263,21 @@ export default function ReportsPage() {
             <div className="card" style={{ marginBottom: 0 }}>
               <h2 style={{ marginBottom: 10 }}>Plan mix</h2>
               <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-                <svg width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Active subscriptions by plan">
-                  <circle cx="75" cy="75" r={R} fill="none" stroke="#f0ede4" strokeWidth="16" />
+                <svg
+                  width="150"
+                  height="150"
+                  viewBox="0 0 150 150"
+                  role="img"
+                  aria-label="Active subscriptions by plan"
+                >
+                  <circle
+                    cx="75"
+                    cy="75"
+                    r={R}
+                    fill="none"
+                    stroke="#f0ede4"
+                    strokeWidth="16"
+                  />
                   {slices.map((s) => (
                     <circle
                       key={s.label}
@@ -267,19 +292,46 @@ export default function ReportsPage() {
                       transform="rotate(-90 75 75)"
                     />
                   ))}
-                  <text x="75" y="72" textAnchor="middle" fontSize="20" fontWeight="700" fill="#17171d" fontFamily="inherit">
+                  <text
+                    x="75"
+                    y="72"
+                    textAnchor="middle"
+                    fontSize="20"
+                    fontWeight="700"
+                    fill="#17171d"
+                    fontFamily="inherit"
+                  >
                     {mixTotal.toLocaleString()}
                   </text>
-                  <text x="75" y="88" textAnchor="middle" fontSize="10" fill="#8b8a87" fontFamily="inherit">
+                  <text
+                    x="75"
+                    y="88"
+                    textAnchor="middle"
+                    fontSize="10"
+                    fill="#8b8a87"
+                    fontFamily="inherit"
+                  >
                     active subs
                   </text>
                 </svg>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 10,
+                  }}
+                >
                   {slices.map((s) => (
                     <span className="legend-row" key={s.label}>
-                      <span className="legend-swatch" style={{ background: s.color }} />
+                      <span
+                        className="legend-swatch"
+                        style={{ background: s.color }}
+                      />
                       <span style={{ flex: 1 }}>{s.label}</span>
-                      <b>{mixTotal ? Math.round((s.count / mixTotal) * 100) : 0}%</b>
+                      <b>
+                        {mixTotal ? Math.round((s.count / mixTotal) * 100) : 0}%
+                      </b>
                     </span>
                   ))}
                 </div>
@@ -290,14 +342,23 @@ export default function ReportsPage() {
           {showTopClasses && (
             <div className="card" style={{ marginBottom: 0 }}>
               <h2 style={{ marginBottom: 14 }}>Top classes by enrollment</h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 12 }}
+              >
                 {topClasses.map(({ l, accent }) => (
                   <div className="hbar-row" key={l.id}>
                     {l.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={l.imageUrl} alt="" className="row-thumb row-thumb--sm" />
+                      <img
+                        src={l.imageUrl}
+                        alt=""
+                        className="row-thumb row-thumb--sm"
+                      />
                     ) : (
-                      <span className="row-thumb row-thumb--sm row-thumb--empty" aria-hidden="true" />
+                      <span
+                        className="row-thumb row-thumb--sm row-thumb--empty"
+                        aria-hidden="true"
+                      />
                     )}
                     <span className="hbar-name">{l.name}</span>
                     <span className="hbar-track">
@@ -372,8 +433,8 @@ export default function ReportsPage() {
           style={{ fontSize: 12, marginTop: 10, marginBottom: 0 }}
         >
           Date range filters Members by signup, Subscriptions by start date, and
-          Course engagement by lesson-completion date; Class scopes each report to
-          that class. Leave blank to export everything.
+          Course engagement by lesson-completion date; Class scopes each report
+          to that class. Leave blank to export everything.
         </p>
       </div>
 
@@ -410,7 +471,9 @@ export default function ReportsPage() {
           <button
             className="btn"
             disabled={!!busy.all}
-            onClick={() => download("all", () => api.downloadAllReports(filter))}
+            onClick={() =>
+              download("all", () => api.downloadAllReports(filter))
+            }
           >
             {busy.all ? "Preparing…" : "Export all (.xlsx)"}
           </button>

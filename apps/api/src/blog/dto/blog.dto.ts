@@ -5,10 +5,10 @@ import {
   IsOptional,
   IsString,
   MinLength,
-} from 'class-validator';
-import type { PostStatus } from '@lms/types';
+} from "class-validator";
+import type { PostStatus } from "@lms/types";
 
-const STATUSES: PostStatus[] = ['DRAFT', 'PUBLISHED'];
+const STATUSES: PostStatus[] = ["DRAFT", "PUBLISHED"];
 
 export class CreatePostDto {
   @IsString()

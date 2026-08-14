@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { SettingsService } from '../settings/settings.service';
-import { AppConfigService } from '../site/app-config.service';
-import type { MailSender, OutboundMail } from './mail-sender.interface';
+import { Injectable, Logger } from "@nestjs/common";
+import { SettingsService } from "../settings/settings.service";
+import { AppConfigService } from "../site/app-config.service";
+import type { MailSender, OutboundMail } from "./mail-sender.interface";
 
 // API-based mail transport: Resend's REST endpoint (POST /emails), called with
 // the native global `fetch` (Node 18+) so it adds no dependency — mirroring the
@@ -13,7 +13,7 @@ import type { MailSender, OutboundMail } from './mail-sender.interface';
 @Injectable()
 export class ResendMailSender implements MailSender {
   private readonly logger = new Logger(ResendMailSender.name);
-  private static readonly ENDPOINT = 'https://api.resend.com/emails';
+  private static readonly ENDPOINT = "https://api.resend.com/emails";
 
   constructor(
     private readonly settings: SettingsService,
@@ -41,10 +41,10 @@ export class ResendMailSender implements MailSender {
       this.settings.getEmailResendApiKey(),
       this.settings.getEmailFromEmail(),
     ]);
-    const domain = (fromEmail || '').split('@')[1]?.toLowerCase();
+    const domain = (fromEmail || "").split("@")[1]?.toLowerCase();
     if (!apiKey || !domain) return null;
     try {
-      const res = await fetch('https://api.resend.com/domains', {
+      const res = await fetch("https://api.resend.com/domains", {
         headers: { Authorization: `Bearer ${apiKey}` },
         signal: AbortSignal.timeout(8000),
       });
@@ -55,7 +55,7 @@ export class ResendMailSender implements MailSender {
       const match = (data.data ?? []).find(
         (d) => d.name?.toLowerCase() === domain,
       );
-      return match ? match.status === 'verified' : false;
+      return match ? match.status === "verified" : false;
     } catch {
       return null;
     }
@@ -69,7 +69,7 @@ export class ResendMailSender implements MailSender {
       this.settings.getEmailFromEmail(),
       this.settings.getEmailFromName(),
     ]);
-    const fromEmail = fromEmailRaw || '';
+    const fromEmail = fromEmailRaw || "";
     let fromName = fromNameRaw;
     if (!fromName) {
       const cfg = await this.appConfig.read();
@@ -89,18 +89,18 @@ export class ResendMailSender implements MailSender {
     const headers: Record<string, string> = {
       ...(msg.listUnsubscribe
         ? {
-            'List-Unsubscribe': `<${msg.listUnsubscribe}>`,
-            'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+            "List-Unsubscribe": `<${msg.listUnsubscribe}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
           }
         : {}),
       ...(msg.headers ?? {}),
     };
 
     const res = await fetch(ResendMailSender.ENDPOINT, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        Authorization: `Bearer ${apiKey ?? ''}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey ?? ""}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         from,
@@ -119,7 +119,7 @@ export class ResendMailSender implements MailSender {
       const body = (await res.json().catch(() => null)) as {
         message?: string;
       } | null;
-      const message = body?.message || res.statusText || 'unknown error';
+      const message = body?.message || res.statusText || "unknown error";
       this.logger.warn(`Resend send failed: ${res.status} ${message}`);
       throw new Error(`Resend ${res.status}: ${message}`);
     }
@@ -128,8 +128,8 @@ export class ResendMailSender implements MailSender {
     if (!body?.id) {
       // A 2xx with no id means we can't correlate later webhooks (bounce/
       // complaint) — treat it as a failure rather than logging a SENT we can't track.
-      this.logger.warn('Resend send succeeded but returned no message id');
-      throw new Error('Resend: missing message id in response');
+      this.logger.warn("Resend send succeeded but returned no message id");
+      throw new Error("Resend: missing message id in response");
     }
     return { providerId: body.id };
   }

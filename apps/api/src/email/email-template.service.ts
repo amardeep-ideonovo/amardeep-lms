@@ -3,17 +3,17 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import type { EmailTemplate } from '@prisma/client';
-import Handlebars from 'handlebars';
-import mjml2html from 'mjml';
+} from "@nestjs/common";
+import type { EmailTemplate } from "@prisma/client";
+import Handlebars from "handlebars";
+import mjml2html from "mjml";
 import type {
   CreateEmailTemplateInput,
   EmailTemplateDTO,
   EmailTemplateSummaryDTO,
   UpdateEmailTemplateInput,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
 
 // The rendered output of a template: a plain-text subject and both an HTML and
 // a derived text body, ready to hand straight to EmailService.send().
@@ -48,11 +48,11 @@ export class EmailTemplateService {
     const subject = this.compile(tpl.subject, vars).trim();
     const compiledMjml = this.compile(tpl.mjml, vars);
 
-    let html = '';
+    let html = "";
     let errors: { message: string }[] = [];
     try {
-      const out = mjml2html(compiledMjml, { validationLevel: 'soft' });
-      html = out.html ?? '';
+      const out = mjml2html(compiledMjml, { validationLevel: "soft" });
+      html = out.html ?? "";
       errors = out.errors ?? [];
     } catch (err) {
       // A throw from mjml2html (malformed markup it can't even parse) leaves
@@ -62,13 +62,13 @@ export class EmailTemplateService {
 
     if (!html || !html.trim()) {
       const detail = errors.length
-        ? errors.map((e) => e.message).join('; ')
-        : 'no HTML output';
+        ? errors.map((e) => e.message).join("; ")
+        : "no HTML output";
       throw new BadRequestException(`MJML render failed: ${detail}`);
     }
     if (errors.length) {
       this.logger.debug(
-        `MJML soft warnings: ${errors.map((e) => e.message).join('; ')}`,
+        `MJML soft warnings: ${errors.map((e) => e.message).join("; ")}`,
       );
     }
 
@@ -91,7 +91,7 @@ export class EmailTemplateService {
     vars: Record<string, unknown>,
   ): Promise<RenderedEmail> {
     const tpl = await this.prisma.emailTemplate.findUnique({ where: { id } });
-    if (!tpl) throw new NotFoundException('Email template not found');
+    if (!tpl) throw new NotFoundException("Email template not found");
     return this.render(tpl, vars);
   }
 
@@ -99,7 +99,7 @@ export class EmailTemplateService {
 
   async list(): Promise<EmailTemplateDTO[]> {
     const rows = await this.prisma.emailTemplate.findMany({
-      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+      orderBy: [{ category: "asc" }, { name: "asc" }],
     });
     return rows.map((t) => this.toDTO(t));
   }
@@ -108,7 +108,7 @@ export class EmailTemplateService {
   // mjml/subject/variables. The editor keeps list() (full shape).
   async listSummary(): Promise<EmailTemplateSummaryDTO[]> {
     const rows = await this.prisma.emailTemplate.findMany({
-      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+      orderBy: [{ category: "asc" }, { name: "asc" }],
       select: { id: true, key: true, name: true, category: true },
     });
     return rows.map((t) => ({
@@ -122,7 +122,7 @@ export class EmailTemplateService {
 
   async get(id: string): Promise<EmailTemplateDTO> {
     const tpl = await this.prisma.emailTemplate.findUnique({ where: { id } });
-    if (!tpl) throw new NotFoundException('Email template not found');
+    if (!tpl) throw new NotFoundException("Email template not found");
     return this.toDTO(tpl);
   }
 
@@ -148,7 +148,7 @@ export class EmailTemplateService {
     const existing = await this.prisma.emailTemplate.findUnique({
       where: { id },
     });
-    if (!existing) throw new NotFoundException('Email template not found');
+    if (!existing) throw new NotFoundException("Email template not found");
 
     const tpl = await this.prisma.emailTemplate.update({
       where: { id },
@@ -172,7 +172,7 @@ export class EmailTemplateService {
   // Custom templates delete freely.
   async deleteTemplate(id: string): Promise<{ ok: true }> {
     const tpl = await this.prisma.emailTemplate.findUnique({ where: { id } });
-    if (!tpl) throw new NotFoundException('Email template not found');
+    if (!tpl) throw new NotFoundException("Email template not found");
     if (tpl.key) {
       throw new BadRequestException(
         `"${tpl.name}" is a system template and can't be deleted (it's sent automatically). You can still edit its content.`,
@@ -190,20 +190,20 @@ export class EmailTemplateService {
   async ensureSystemTemplates(): Promise<void> {
     try {
       await this.upsertSystemTemplate({
-        key: 'welcome',
-        name: 'Welcome email',
-        subject: 'Welcome to {{brand}}',
+        key: "welcome",
+        name: "Welcome email",
+        subject: "Welcome to {{brand}}",
         mjml: WELCOME_MJML,
-        variables: ['firstName', 'brand', 'url', 'unsubscribeUrl'],
-        category: 'system',
+        variables: ["firstName", "brand", "url", "unsubscribeUrl"],
+        category: "system",
       });
       await this.upsertSystemTemplate({
-        key: 'password-reset',
-        name: 'Password reset',
-        subject: 'Reset your {{brand}} password',
+        key: "password-reset",
+        name: "Password reset",
+        subject: "Reset your {{brand}} password",
         mjml: PASSWORD_RESET_MJML,
-        variables: ['firstName', 'brand', 'resetUrl', 'expiresMinutes'],
-        category: 'system',
+        variables: ["firstName", "brand", "resetUrl", "expiresMinutes"],
+        category: "system",
       });
     } catch (err) {
       // Never let a bootstrap-time DB hiccup take down app startup.
@@ -256,27 +256,29 @@ export class EmailTemplateService {
   //     very end; with no tag-strip running afterward they stay inert characters,
   //     which also preserves legitimate uses like `5 &lt; 10`.
   private htmlToText(html: string): string {
-    return html
-      .replace(/<!--[\s\S]*?-->/g, ' ')
-      .replace(/<(style|head|script)[\s\S]*?<\/\1>/gi, ' ')
-      // Strip structural/real tags while brackets still mean "tag".
-      .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, '\n')
-      .replace(/<br\s*\/?>(?:\s*)/gi, '\n')
-      .replace(/<[^>]+>/g, ' ')
-      // Text-only entities first; bracket + ampersand entities decoded last (and
-      // &amp; the very last) so escaped markup can't be reassembled into a tag.
-      .replace(/&nbsp;/gi, ' ')
-      .replace(/&#39;/gi, "'")
-      .replace(/&quot;/gi, '"')
-      .replace(/&lt;/gi, '<')
-      .replace(/&gt;/gi, '>')
-      .replace(/&amp;/gi, '&')
-      .replace(/[ \t]+/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .split('\n')
-      .map((l) => l.trim())
-      .join('\n')
-      .trim();
+    return (
+      html
+        .replace(/<!--[\s\S]*?-->/g, " ")
+        .replace(/<(style|head|script)[\s\S]*?<\/\1>/gi, " ")
+        // Strip structural/real tags while brackets still mean "tag".
+        .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, "\n")
+        .replace(/<br\s*\/?>(?:\s*)/gi, "\n")
+        .replace(/<[^>]+>/g, " ")
+        // Text-only entities first; bracket + ampersand entities decoded last (and
+        // &amp; the very last) so escaped markup can't be reassembled into a tag.
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&#39;/gi, "'")
+        .replace(/&quot;/gi, '"')
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&amp;/gi, "&")
+        .replace(/[ \t]+/g, " ")
+        .replace(/\n{3,}/g, "\n\n")
+        .split("\n")
+        .map((l) => l.trim())
+        .join("\n")
+        .trim()
+    );
   }
 
   // Normalize declared var names: trim, drop blanks, dedupe, cap length.
@@ -285,7 +287,7 @@ export class EmailTemplateService {
     const seen = new Set<string>();
     const out: string[] = [];
     for (const raw of vars) {
-      const v = typeof raw === 'string' ? raw.trim() : '';
+      const v = typeof raw === "string" ? raw.trim() : "";
       if (!v || seen.has(v)) continue;
       seen.add(v);
       out.push(v);

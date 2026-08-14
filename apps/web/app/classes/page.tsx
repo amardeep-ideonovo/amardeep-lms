@@ -44,7 +44,8 @@ function ClassCard({
       : cls.progress && cls.progress.total > 0
         ? `${cls.progress.total} lesson${cls.progress.total === 1 ? "" : "s"}`
         : cls.categories?.map((c) => c.name).join(" · ") || "";
-  const meta = cls.owned && notStarted && counts ? `${counts} · Not started` : counts;
+  const meta =
+    cls.owned && notStarted && counts ? `${counts} · Not started` : counts;
   const style: React.CSSProperties = cls.imageUrl
     ? ({ "--card-img": `url(${cls.imageUrl})` } as React.CSSProperties)
     : {};
@@ -67,7 +68,11 @@ function ClassCard({
             <div className="ik-class-fill" style={{ width: `${pct}%` }} />
           </div>
           <span className="ik-class-btn">
-            {bucket === "done" ? "Review Class" : notStarted ? "Start Class" : "Continue Class"}
+            {bucket === "done"
+              ? "Review Class"
+              : notStarted
+                ? "Start Class"
+                : "Continue Class"}
           </span>
         </>
       ) : (
@@ -100,7 +105,9 @@ function ClassesInner() {
           router.replace("/login");
           return;
         }
-        setError(err instanceof Error ? err.message : "Failed to load classes.");
+        setError(
+          err instanceof Error ? err.message : "Failed to load classes.",
+        );
       }
     }
     void load();
@@ -133,11 +140,21 @@ function ClassesInner() {
       <div className="ink-page">
         <div className="ik-band">
           <div className="ik-band-inner">
-            <div className="ik-skel ik-skel--ink" style={{ width: 220, height: 34 }} />
-            <div className="ik-skel ik-skel--ink" style={{ width: 340, height: 16, marginTop: 12 }} />
+            <div
+              className="ik-skel ik-skel--ink"
+              style={{ width: 220, height: 34 }}
+            />
+            <div
+              className="ik-skel ik-skel--ink"
+              style={{ width: 340, height: 16, marginTop: 12 }}
+            />
             <div className="ik-chips">
               {[76, 110, 104, 100].map((w, i) => (
-                <div key={i} className="ik-skel ik-skel--ink" style={{ width: w, height: 33, borderRadius: 999 }} />
+                <div
+                  key={i}
+                  className="ik-skel ik-skel--ink"
+                  style={{ width: w, height: 33, borderRadius: 999 }}
+                />
               ))}
             </div>
           </div>
@@ -145,7 +162,11 @@ function ClassesInner() {
         <div className="ik-main">
           <div className="ik-class-grid ik-class-grid--3">
             {[0, 1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="ik-skel" style={{ height: 218, borderRadius: 18 }} />
+              <div
+                key={i}
+                className="ik-skel"
+                style={{ height: 218, borderRadius: 18 }}
+              />
             ))}
           </div>
         </div>
@@ -184,7 +205,11 @@ function ClassesInner() {
               : "No classes in your membership yet — explore what's available below."}
           </p>
           {owned.length > 0 && (
-            <div className="ik-chips" role="tablist" aria-label="Filter classes">
+            <div
+              className="ik-chips"
+              role="tablist"
+              aria-label="Filter classes"
+            >
               {chips.map((c) => (
                 <button
                   key={c.key}
@@ -215,7 +240,10 @@ function ClassesInner() {
             ))}
           </div>
         ) : owned.length > 0 ? (
-          <div className="ik-panel" style={{ textAlign: "center", color: "var(--text-muted)" }}>
+          <div
+            className="ik-panel"
+            style={{ textAlign: "center", color: "var(--text-muted)" }}
+          >
             No classes match this filter yet.
           </div>
         ) : null}
@@ -223,7 +251,12 @@ function ClassesInner() {
         {/* ---- Explore (unowned) — same language, View Class ---- */}
         {explore.length > 0 && (
           <section>
-            <div className="ik-section-head" style={{ marginTop: shown.length > 0 || owned.length > 0 ? 30 : 0 }}>
+            <div
+              className="ik-section-head"
+              style={{
+                marginTop: shown.length > 0 || owned.length > 0 ? 30 : 0,
+              }}
+            >
               <h2 className="ik-section-title">Explore More Classes</h2>
             </div>
             <div className="ik-class-grid ik-class-grid--3">
@@ -239,7 +272,9 @@ function ClassesInner() {
           </section>
         )}
 
-        {classes.length === 0 && <p className="empty">No classes are available yet.</p>}
+        {classes.length === 0 && (
+          <p className="empty">No classes are available yet.</p>
+        )}
       </div>
     </div>
   );

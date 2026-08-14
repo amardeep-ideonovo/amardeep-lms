@@ -1,5 +1,5 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
-import type { AuthenticatedPrincipal } from './jwt-payload.interface';
+import { createParamDecorator, ExecutionContext } from "@nestjs/common";
+import type { AuthenticatedPrincipal } from "./jwt-payload.interface";
 
 // Pulls the authenticated principal off the request (set by JwtStrategy).
 export const CurrentUser = createParamDecorator(

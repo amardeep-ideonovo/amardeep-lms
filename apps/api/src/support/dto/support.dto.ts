@@ -1,14 +1,23 @@
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from "class-validator";
 
-const PRIORITIES = ['LOW', 'NORMAL', 'HIGH', 'URGENT'] as const;
+const PRIORITIES = ["LOW", "NORMAL", "HIGH", "URGENT"] as const;
 const CATEGORIES = [
-  'BILLING',
-  'TECHNICAL',
-  'BUG',
-  'HOWTO',
-  'FEATURE_REQUEST',
-  'ACCOUNT',
-  'OTHER',
+  "BILLING",
+  "TECHNICAL",
+  "BUG",
+  "HOWTO",
+  "FEATURE_REQUEST",
+  "ACCOUNT",
+  "OTHER",
 ] as const;
 
 export class RaiseTicketDto {

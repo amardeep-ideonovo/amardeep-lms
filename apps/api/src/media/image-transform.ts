@@ -1,4 +1,4 @@
-import sharp from 'sharp';
+import sharp from "sharp";
 
 // Photos land in the media library as multi-megabyte originals (a phone camera
 // PNG is easily 8 MB) yet render at a few hundred pixels. We downscale to a sane
@@ -40,15 +40,15 @@ export type OptimizedImage = {
  * image, so this doubles as content validation.
  */
 export async function optimizeImage(input: Buffer): Promise<OptimizedImage> {
-  const meta = await sharp(input, { failOn: 'error' }).metadata();
+  const meta = await sharp(input, { failOn: "error" }).metadata();
   const hasAlpha = meta.hasAlpha === true;
 
-  const pipeline = sharp(input, { failOn: 'error' })
+  const pipeline = sharp(input, { failOn: "error" })
     .rotate() // apply EXIF orientation, then drop the metadata
     .resize({
       width: MAX_DIMENSION,
       height: MAX_DIMENSION,
-      fit: 'inside',
+      fit: "inside",
       withoutEnlargement: true,
     });
 
@@ -58,8 +58,8 @@ export async function optimizeImage(input: Buffer): Promise<OptimizedImage> {
       .toBuffer({ resolveWithObject: true });
     return {
       buffer: data,
-      ext: '.png',
-      mimeType: 'image/png',
+      ext: ".png",
+      mimeType: "image/png",
       width: info.width,
       height: info.height,
     };
@@ -70,8 +70,8 @@ export async function optimizeImage(input: Buffer): Promise<OptimizedImage> {
     .toBuffer({ resolveWithObject: true });
   return {
     buffer: data,
-    ext: '.jpg',
-    mimeType: 'image/jpeg',
+    ext: ".jpg",
+    mimeType: "image/jpeg",
     width: info.width,
     height: info.height,
   };

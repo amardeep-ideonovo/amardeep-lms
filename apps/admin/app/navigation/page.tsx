@@ -74,7 +74,11 @@ function locate(
   items: MenuItemDTO[],
   id: string,
   parent: MenuItemDTO | null = null,
-): { siblings: MenuItemDTO[]; index: number; parent: MenuItemDTO | null } | null {
+): {
+  siblings: MenuItemDTO[];
+  index: number;
+  parent: MenuItemDTO | null;
+} | null {
   const idx = items.findIndex((i) => i.id === id);
   if (idx >= 0) return { siblings: items, index: idx, parent };
   for (const it of items) {
@@ -267,7 +271,8 @@ export default function MenusPage() {
     if (type === "PAGE") return pages.find((p) => p.id === id)?.title ?? "";
     if (type === "CLASS") return levels.find((l) => l.id === id)?.name ?? "";
     if (type === "COURSE") return courses.find((c) => c.id === id)?.title ?? "";
-    if (type === "BLOG_POST") return posts.find((p) => p.id === id)?.title ?? "";
+    if (type === "BLOG_POST")
+      return posts.find((p) => p.id === id)?.title ?? "";
     return "";
   }
 
@@ -347,7 +352,9 @@ export default function MenusPage() {
     const tree = cloneTree(menu.items);
     mutate(tree);
     const setItems = (items: MenuItemDTO[]) =>
-      setMenu((prev) => (prev && prev.id === menuId ? { ...prev, items } : prev));
+      setMenu((prev) =>
+        prev && prev.id === menuId ? { ...prev, items } : prev,
+      );
     await optimistic.run({
       // One reorder per menu in flight: a second drag while the first is still
       // saving would otherwise be able to revert on top of it.
@@ -362,9 +369,7 @@ export default function MenusPage() {
       onError: () => {
         api
           .getMenu(menuId)
-          .then((m) =>
-            setMenu((prev) => (prev && prev.id === m.id ? m : prev)),
-          )
+          .then((m) => setMenu((prev) => (prev && prev.id === m.id ? m : prev)))
           .catch(() => {});
       },
       // Toast rather than the page-top error strip: the item list is long and
@@ -413,7 +418,10 @@ export default function MenusPage() {
 
   async function deleteItem(id: string) {
     if (
-      !(await dialog.confirm({ message: "Remove this menu item?", danger: true }))
+      !(await dialog.confirm({
+        message: "Remove this menu item?",
+        danger: true,
+      }))
     )
       return;
     try {
@@ -506,7 +514,11 @@ export default function MenusPage() {
                 </div>
                 <div className="field" style={{ flex: 1 }}>
                   <label>Locations</label>
-                  <div className="check-row" role="group" aria-label="Locations">
+                  <div
+                    className="check-row"
+                    role="group"
+                    aria-label="Locations"
+                  >
                     {MENU_LOCATIONS.map((loc) => (
                       <label key={loc} className="check-pill">
                         <input
@@ -528,9 +540,10 @@ export default function MenusPage() {
                 </div>
               </div>
               <span className="muted profile-hint">
-                A location shows one menu, but a menu can occupy several. Checking
-                a location here moves it off whatever menu had it. Leave all
-                unchecked to keep this menu embed-only (placed inside a page).
+                A location shows one menu, but a menu can occupy several.
+                Checking a location here moves it off whatever menu had it.
+                Leave all unchecked to keep this menu embed-only (placed inside
+                a page).
               </span>
               <div className="row-actions" style={{ marginTop: 14 }}>
                 {canEdit && (
@@ -631,7 +644,9 @@ export default function MenusPage() {
                         onChange={(e) => {
                           setAddTarget(e.target.value);
                           if (!addLabel)
-                            setAddLabel(targetTitle("BLOG_POST", e.target.value));
+                            setAddLabel(
+                              targetTitle("BLOG_POST", e.target.value),
+                            );
                         }}
                       >
                         <option value="">— Select a post —</option>
@@ -659,10 +674,16 @@ export default function MenusPage() {
                       <input value="/dashboard" disabled />
                     )}
                     {addType === "ROUTE_DASHBOARD" && (
-                      <input value={BUILTIN_ROUTES.ROUTE_DASHBOARD.url} disabled />
+                      <input
+                        value={BUILTIN_ROUTES.ROUTE_DASHBOARD.url}
+                        disabled
+                      />
                     )}
                     {addType === "ROUTE_ACCOUNT" && (
-                      <input value={BUILTIN_ROUTES.ROUTE_ACCOUNT.url} disabled />
+                      <input
+                        value={BUILTIN_ROUTES.ROUTE_ACCOUNT.url}
+                        disabled
+                      />
                     )}
                   </div>
                 </div>
@@ -682,11 +703,7 @@ export default function MenusPage() {
                     style={{ flex: 1, justifyContent: "flex-end" }}
                   >
                     <label>&nbsp;</label>
-                    <button
-                      className="btn"
-                      onClick={addItem}
-                      disabled={busy}
-                    >
+                    <button className="btn" onClick={addItem} disabled={busy}>
                       + Add to menu
                     </button>
                   </div>

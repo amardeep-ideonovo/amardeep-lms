@@ -27,7 +27,11 @@ export function LockedPanel({
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.message}>{message}</Text>
       {ctaLabel && onPress ? (
-        <TouchableOpacity style={styles.cta} activeOpacity={0.85} onPress={onPress}>
+        <TouchableOpacity
+          style={styles.cta}
+          activeOpacity={0.85}
+          onPress={onPress}
+        >
           <Text style={styles.ctaText}>{ctaLabel}</Text>
         </TouchableOpacity>
       ) : null}
@@ -69,7 +73,12 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       paddingVertical: 10,
       paddingHorizontal: 18,
     },
-    ctaText: { color: colors.text, fontSize: 14, fontWeight: "700", fontFamily: fonts.bold },
+    ctaText: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
     note: {
       color: colors.textMuted,
       fontSize: 12.5,

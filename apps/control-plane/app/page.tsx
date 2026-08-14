@@ -24,26 +24,22 @@ const FEATURES = [
   {
     icon: "package" as const,
     title: "Isolated by design",
-    copy:
-      "Every license runs its own containers — database, media storage, and job queue included. Your data never shares a table with anyone.",
+    copy: "Every license runs its own containers — database, media storage, and job queue included. Your data never shares a table with anyone.",
   },
   {
     icon: "credit-card" as const,
     title: "Billing built in",
-    copy:
-      "Stripe subscriptions, coupons, and a hosted customer portal. Your members pay you directly — we never touch your revenue.",
+    copy: "Stripe subscriptions, coupons, and a hosted customer portal. Your members pay you directly — we never touch your revenue.",
   },
   {
     icon: "video" as const,
     title: "Courses & live sessions",
-    copy:
-      "Classes, courses, video lessons with signed playback, live sessions, quizzes, and completion certificates out of the box.",
+    copy: "Classes, courses, video lessons with signed playback, live sessions, quizzes, and completion certificates out of the box.",
   },
   {
     icon: "smartphone" as const,
     title: "Mobile apps included",
-    copy:
-      "Hand members a connect code for the shared Spotlight app, or go white-label with your own store listings on the top plan.",
+    copy: "Hand members a connect code for the shared Spotlight app, or go white-label with your own store listings on the top plan.",
   },
   {
     icon: "brush" as const,
@@ -53,8 +49,7 @@ const FEATURES = [
   {
     icon: "database" as const,
     title: "Backed up, kept current",
-    copy:
-      "Daily database and media backups with quarterly restore drills. Version updates roll out in waves, handled by our operators.",
+    copy: "Daily database and media backups with quarterly restore drills. Version updates roll out in waves, handled by our operators.",
   },
 ];
 
@@ -103,15 +98,18 @@ export default function SalesPage() {
 
         <div className="hero">
           <div className="hero-left">
-            <span className="badge-pill">1 LICENSE = YOUR OWN ISOLATED INSTANCES</span>
+            <span className="badge-pill">
+              1 LICENSE = YOUR OWN ISOLATED INSTANCES
+            </span>
             <h1 className="hero-h1">
               Your own academy.
               <br />
               Your own everything.
             </h1>
             <p className="hero-sub">
-              One license gives you a complete learning platform — member site, admin panel, and mobile
-              apps — running on <b>your domain</b> with <b>your own database</b>. No shared anything.
+              One license gives you a complete learning platform — member site,
+              admin panel, and mobile apps — running on <b>your domain</b> with{" "}
+              <b>your own database</b>. No shared anything.
             </p>
             <div className="hero-ctas">
               <Link href="/signup" className="btn btn-primary btn-lg">
@@ -122,7 +120,9 @@ export default function SalesPage() {
                 See it live
               </Link>
             </div>
-            <div className="hero-fine">Provisioned in minutes · daily backups · updates handled for you</div>
+            <div className="hero-fine">
+              Provisioned in minutes · daily backups · updates handled for you
+            </div>
           </div>
 
           {/* ---- browser mock ---- */}
@@ -143,12 +143,26 @@ export default function SalesPage() {
                 <span className="bmock-av" />
               </div>
               <div className="bmock-greet">Good evening, Maya</div>
-              <div className="bmock-streak">You are 72% through your teacher training.</div>
+              <div className="bmock-streak">
+                You are 72% through your teacher training.
+              </div>
             </div>
             <div className="bmock-body">
               <div className="bmock-card">
-                <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
-                  <circle cx="17" cy="17" r="13" fill="none" stroke="#eeecf5" strokeWidth="4" />
+                <svg
+                  width="34"
+                  height="34"
+                  viewBox="0 0 34 34"
+                  aria-hidden="true"
+                >
+                  <circle
+                    cx="17"
+                    cy="17"
+                    r="13"
+                    fill="none"
+                    stroke="#eeecf5"
+                    strokeWidth="4"
+                  />
                   <circle
                     cx="17"
                     cy="17"
@@ -161,9 +175,13 @@ export default function SalesPage() {
                     transform="rotate(-90 17 17)"
                   />
                 </svg>
-                <span style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <span
+                  style={{ display: "flex", flexDirection: "column", gap: 1 }}
+                >
                   <span className="bmock-card-title">My Learning Overview</span>
-                  <span className="bmock-card-sub">3 active courses · 12 hours this month</span>
+                  <span className="bmock-card-sub">
+                    3 active courses · 12 hours this month
+                  </span>
                 </span>
                 <span style={{ flex: 1 }} />
                 <span className="bmock-resume">Resume</span>
@@ -184,7 +202,10 @@ export default function SalesPage() {
                     <span className="bmock-class-spacer" />
                     <span className="bmock-pct">{c.pct}%</span>
                     <span className="bmock-track">
-                      <span className="bmock-fill" style={{ width: `${c.pct}%` }} />
+                      <span
+                        className="bmock-fill"
+                        style={{ width: `${c.pct}%` }}
+                      />
                     </span>
                   </div>
                 ))}
@@ -216,8 +237,8 @@ export default function SalesPage() {
             <div className="eyebrow">EVERYTHING IN THE BOX</div>
             <h2 className="box-h2">Stop stitching plugins together.</h2>
             <p className="box-sub">
-              Spotlight LMS replaces the WordPress + WooCommerce + LMS-plugin stack with one product that
-              already works as one.
+              Spotlight LMS replaces the WordPress + WooCommerce + LMS-plugin
+              stack with one product that already works as one.
             </p>
             <div className="box-checks">
               {CHECKLIST.map((item) => (
@@ -232,14 +253,20 @@ export default function SalesPage() {
           </div>
           <div className="box-visual">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={COVER_TECH} alt="An academy lesson in progress" className="box-photo" />
+            <img
+              src={COVER_TECH}
+              alt="An academy lesson in progress"
+              className="box-photo"
+            />
             <div className="float-chip">
               <span className="float-chip-icon">
                 <Icon name="award" size={16} />
               </span>
               <span style={{ display: "flex", flexDirection: "column" }}>
                 <span className="float-chip-big">312 certificates</span>
-                <span className="float-chip-sub">issued by one academy last quarter</span>
+                <span className="float-chip-sub">
+                  issued by one academy last quarter
+                </span>
               </span>
             </div>
             <div className="float-chip-ink">
@@ -257,12 +284,16 @@ export default function SalesPage() {
             <div className="eyebrow">PRICING</div>
             <h2 className="pricing-h2">One license. Your whole platform.</h2>
             <p className="pricing-sub">
-              Every plan runs fully isolated instances — pick the size that fits your academy.
+              Every plan runs fully isolated instances — pick the size that fits
+              your academy.
             </p>
           </div>
           <div className="tier-grid">
             {tiers.map((tier) => (
-              <div key={tier.id} className={`tier${tier.featured ? " tier-featured" : ""}`}>
+              <div
+                key={tier.id}
+                className={`tier${tier.featured ? " tier-featured" : ""}`}
+              >
                 {tier.featured && <span className="ribbon">MOST POPULAR</span>}
                 <div className="tier-name">{tier.name}</div>
                 <div className="tier-price-row">
@@ -270,7 +301,9 @@ export default function SalesPage() {
                   <span className="tier-per">/month</span>
                 </div>
                 <div className="tier-desc">{tier.blurb}</div>
-                <span className={`pill tier-track ${tier.featured ? "pill-teal-dark" : "pill-info"}`}>
+                <span
+                  className={`pill tier-track ${tier.featured ? "pill-teal-dark" : "pill-info"}`}
+                >
                   {trackChipLabel(tier.appTrack)}
                 </span>
                 <div className="tier-divider" />
@@ -297,7 +330,8 @@ export default function SalesPage() {
           <div className="cta-copy">
             <h2 className="cta-h2">Launch your academy this week.</h2>
             <div className="cta-sub">
-              Provisioning takes minutes. Migration from WordPress? We have a runbook for that.
+              Provisioning takes minutes. Migration from WordPress? We have a
+              runbook for that.
             </div>
           </div>
           <Link href="/signup" className="btn btn-primary btn-lg">
@@ -316,7 +350,8 @@ export default function SalesPage() {
             <span className="footer-copy">© 2026</span>
             <div className="footer-spacer" />
             <span className="footer-links">
-              <Link href="/">Docs</Link> · <Link href="/portal?demo=1">Status</Link> ·{" "}
+              <Link href="/">Docs</Link> ·{" "}
+              <Link href="/portal?demo=1">Status</Link> ·{" "}
               <Link href="/">Privacy</Link> · <Link href="/">Terms</Link> ·{" "}
               <Link href="/operator/login">Operator sign-in</Link>
             </span>

@@ -20,10 +20,7 @@
 "use client";
 
 import { io, type Socket } from "socket.io-client";
-import type {
-  ChatMessageDTO,
-  ChatReactionGroupDTO,
-} from "@lms/types";
+import type { ChatMessageDTO, ChatReactionGroupDTO } from "@lms/types";
 import { API_BASE_URL, getToken } from "./api";
 
 // ----- Event payloads (mirror the gateway's emit signatures) -----

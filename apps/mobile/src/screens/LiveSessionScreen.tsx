@@ -4,7 +4,14 @@
 // blocked/forced to the app). Mirrors the web join page's states: locked / 404 /
 // canceled / countdown-before-window / ready-to-join / ended.
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import type { LiveJoinCredentialsDTO, LiveSessionBarDTO } from "@lms/types";
 
 import { ApiError, api } from "../api";
@@ -59,7 +66,9 @@ export function LiveSessionScreen({ route }: ScreenProps<"LiveSession">) {
         if (err.status === 410) return setStatus("canceled");
         if (err.status === 404) return setStatus("notfound");
       }
-      setErrorMsg(err instanceof Error ? err.message : "Failed to load session.");
+      setErrorMsg(
+        err instanceof Error ? err.message : "Failed to load session.",
+      );
       setStatus("error");
     }
   }, [sessionId]);
@@ -202,8 +211,16 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     },
     status: { color: colors.text, fontSize: 15, fontFamily: fonts.bold },
     statusGo: { color: colors.success },
-    countdown: { color: colors.text, fontSize: 40, fontFamily: fonts.extrabold },
-    hint: { color: colors.textMuted, fontSize: 13.5, fontFamily: fonts.regular },
+    countdown: {
+      color: colors.text,
+      fontSize: 40,
+      fontFamily: fonts.extrabold,
+    },
+    hint: {
+      color: colors.textMuted,
+      fontSize: 13.5,
+      fontFamily: fonts.regular,
+    },
     btn: {
       backgroundColor: colors.primary,
       borderRadius: 12,

@@ -1,6 +1,6 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import { isProduction } from '../common/env.util';
+import * as fs from "fs";
+import * as path from "path";
+import { isProduction } from "../common/env.util";
 
 // ---------- Every path the API keeps files at, in ONE table ----------
 //
@@ -28,19 +28,19 @@ import { isProduction } from '../common/env.util';
 // deploy-pins.spec.ts fails the build if you forget either one.
 
 export type StorageDirId =
-  | 'MEDIA_DIR'
-  | 'BLOG_IMAGES_DIR'
-  | 'LESSON_FILES_DIR'
-  | 'CERT_FILES_DIR'
-  | 'CERT_FONTS_DIR';
+  | "MEDIA_DIR"
+  | "BLOG_IMAGES_DIR"
+  | "LESSON_FILES_DIR"
+  | "CERT_FILES_DIR"
+  | "CERT_FONTS_DIR";
 
 export type StorageDirKind =
   // Member-generated files. Must land on a persistent volume, so production
   // demands an explicit path — the cwd fallback would eat them.
-  | 'writable'
+  | "writable"
   // Read-only assets shipped inside the image. Losing the path breaks a
   // feature but destroys nothing, so a bad one is logged, not fatal.
-  | 'readonly';
+  | "readonly";
 
 type StorageDirSpec = {
   kind: StorageDirKind;
@@ -52,36 +52,36 @@ type StorageDirSpec = {
 
 export const STORAGE_DIRS: Record<StorageDirId, StorageDirSpec> = {
   MEDIA_DIR: {
-    kind: 'writable',
-    what: 'media-library uploads',
-    devFallback: ['src', 'media-uploads'],
+    kind: "writable",
+    what: "media-library uploads",
+    devFallback: ["src", "media-uploads"],
   },
   BLOG_IMAGES_DIR: {
-    kind: 'writable',
-    what: 'blog, page, course and lesson images',
-    devFallback: ['src', 'images'],
+    kind: "writable",
+    what: "blog, page, course and lesson images",
+    devFallback: ["src", "images"],
   },
   LESSON_FILES_DIR: {
-    kind: 'writable',
-    what: 'lesson note attachments',
-    devFallback: ['src', 'files'],
+    kind: "writable",
+    what: "lesson note attachments",
+    devFallback: ["src", "files"],
   },
   CERT_FILES_DIR: {
-    kind: 'writable',
-    what: 'rendered certificate PDFs',
-    devFallback: ['src', 'files', 'certificates'],
+    kind: "writable",
+    what: "rendered certificate PDFs",
+    devFallback: ["src", "files", "certificates"],
   },
   CERT_FONTS_DIR: {
-    kind: 'readonly',
-    what: 'bundled certificate TTFs',
-    devFallback: ['src', 'certificates', 'fonts'],
+    kind: "readonly",
+    what: "bundled certificate TTFs",
+    devFallback: ["src", "certificates", "fonts"],
   },
 };
 
 export const STORAGE_DIR_IDS = Object.keys(STORAGE_DIRS) as StorageDirId[];
 
 export const WRITABLE_STORAGE_DIR_IDS = STORAGE_DIR_IDS.filter(
-  (id) => STORAGE_DIRS[id].kind === 'writable',
+  (id) => STORAGE_DIRS[id].kind === "writable",
 );
 
 /**
@@ -101,7 +101,7 @@ export type StorageDirProblem = {
   id: StorageDirId;
   path: string;
   /** 'unpinned' = fatal in production; 'missing' = logged. */
-  reason: 'unpinned' | 'missing';
+  reason: "unpinned" | "missing";
   message: string;
 };
 
@@ -128,14 +128,14 @@ export function findStorageDirProblems({
     const explicit = Boolean(env[id]?.trim());
     const dir = resolveStorageDir(id, env, cwd);
 
-    if (spec.kind === 'writable') {
+    if (spec.kind === "writable") {
       // Only the fallback is a problem. An explicit path is the operator's
       // call — we're catching "nobody chose", not "somebody chose badly".
       if (production && !explicit) {
         problems.push({
           id,
           path: dir,
-          reason: 'unpinned',
+          reason: "unpinned",
           message:
             `${id} is not set, so ${spec.what} would be written to ${dir} — ` +
             `a cwd-relative fallback meant for local dev. Under Docker (cwd=/app) ` +
@@ -151,7 +151,7 @@ export function findStorageDirProblems({
       problems.push({
         id,
         path: dir,
-        reason: 'missing',
+        reason: "missing",
         message:
           `${id} resolves to ${dir}, which does not exist — ${spec.what} ` +
           `cannot be read. Anything that depends on them will fail at use time.`,
@@ -173,17 +173,17 @@ export function assertStorageDirsConfigured(
   const problems = findStorageDirProblems();
 
   for (const p of problems) {
-    if (p.reason === 'missing') log.error(p.message);
+    if (p.reason === "missing") log.error(p.message);
   }
 
-  const fatal = problems.filter((p) => p.reason === 'unpinned');
+  const fatal = problems.filter((p) => p.reason === "unpinned");
   if (!fatal.length) return;
 
   throw new Error(
     `Refusing to start: ${fatal.length} storage ` +
-      `${fatal.length === 1 ? 'directory is' : 'directories are'} unconfigured.\n` +
-      fatal.map((p) => `  - ${p.message}`).join('\n') +
-      `\nSet ${fatal.map((p) => p.id).join(', ')} to a path on a persistent ` +
+      `${fatal.length === 1 ? "directory is" : "directories are"} unconfigured.\n` +
+      fatal.map((p) => `  - ${p.message}`).join("\n") +
+      `\nSet ${fatal.map((p) => p.id).join(", ")} to a path on a persistent ` +
       `volume (see deploy/instance/docker-compose.instance.yml), or set ` +
       `ENV_NAME=development for local work.`,
   );

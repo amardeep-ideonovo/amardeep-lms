@@ -1,6 +1,6 @@
-import { Global, Module } from '@nestjs/common';
-import { ControlPlaneNotifier } from './control-plane.notifier';
-import { WhiteLabelStatusService } from './white-label-status.service';
+import { Global, Module } from "@nestjs/common";
+import { ControlPlaneNotifier } from "./control-plane.notifier";
+import { WhiteLabelStatusService } from "./white-label-status.service";
 
 // @Global so any service (auth, admins, …) can emit a cross-plane signal by
 // just injecting ControlPlaneNotifier — without importing the support module

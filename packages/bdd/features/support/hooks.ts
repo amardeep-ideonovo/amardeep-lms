@@ -27,7 +27,9 @@ Before({ tags: "@email-capture" }, async function (this: LmsWorld) {
     },
   });
   if (r.status !== 200) {
-    throw new Error(`could not point email settings at the catcher (${r.status})`);
+    throw new Error(
+      `could not point email settings at the catcher (${r.status})`,
+    );
   }
 });
 

@@ -27,7 +27,12 @@ import {
   useMyCertificates,
   useRefreshOnFocus,
 } from "../queries";
-import { ACCENT_TINT_LOCATIONS, accentIndexMap, accentTint, classAccent } from "../class-colors";
+import {
+  ACCENT_TINT_LOCATIONS,
+  accentIndexMap,
+  accentTint,
+  classAccent,
+} from "../class-colors";
 import { BrandHeaderTitle } from "../components/BrandHeaderTitle";
 import { ClassTile } from "../components/ClassTile";
 import { CtaButton } from "../components/CtaButton";
@@ -39,7 +44,11 @@ import { Skeleton } from "../components/Skeleton";
 import { Press } from "../components/Press";
 import { classSeed } from "../navigation";
 import type { TabScreenProps } from "../navigation";
-import { contentColumn, exploreTileWidth, useContentLayout } from "../responsive";
+import {
+  contentColumn,
+  exploreTileWidth,
+  useContentLayout,
+} from "../responsive";
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -68,7 +77,9 @@ const pctOf = (p: ClassTileDTO["progress"]): number | null =>
 // Avatar fallback initials (same rule as the Profile screen).
 function initialsOf(u: AuthUser): string {
   const src =
-    [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username || u.email;
+    [u.firstName, u.lastName].filter(Boolean).join(" ") ||
+    u.username ||
+    u.email;
   const parts = src.split(/[\s@._-]+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "M") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
@@ -163,7 +174,8 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
 
   const incomplete = (p: ClassTileDTO["progress"]) =>
     !!p && p.total > 0 && p.completed < p.total;
-  const featured = owned.find((c) => incomplete(c.progress)) ?? owned[0] ?? null;
+  const featured =
+    owned.find((c) => incomplete(c.progress)) ?? owned[0] ?? null;
   const featuredComplete =
     !!featured?.progress &&
     featured.progress.total > 0 &&
@@ -175,7 +187,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
       done: acc.done + (c.progress?.completed ?? 0),
       total: acc.total + (c.progress?.total ?? 0),
     }),
-    { done: 0, total: 0 }
+    { done: 0, total: 0 },
   );
   const overall =
     totals.total > 0 ? Math.round((totals.done / totals.total) * 100) : 0;
@@ -286,7 +298,10 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
                     return (
                       <View key={c.id} style={styles.dotItem}>
                         <View
-                          style={[styles.dot, { backgroundColor: accent.color }]}
+                          style={[
+                            styles.dot,
+                            { backgroundColor: accent.color },
+                          ]}
                         />
                         <Text style={styles.dotLabel} numberOfLines={1}>
                           {c.name.split(" ")[0]} {pct}%
@@ -577,8 +592,16 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       marginBottom: -6,
       marginTop: 2,
     },
-    sectionTitle: { color: colors.text, fontSize: 14, fontFamily: fonts.semibold },
-    sectionLink: { color: colors.textMuted, fontSize: 11, fontFamily: fonts.medium },
+    sectionTitle: {
+      color: colors.text,
+      fontSize: 14,
+      fontFamily: fonts.semibold,
+    },
+    sectionLink: {
+      color: colors.textMuted,
+      fontSize: 11,
+      fontFamily: fonts.medium,
+    },
     exploreTitle: { marginHorizontal: 4, marginBottom: -6, marginTop: 2 },
 
     continueRow: {

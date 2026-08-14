@@ -25,19 +25,23 @@ async function fetchBuffer(url) {
 
 async function syncOne(label, url, files) {
   if (!url) {
-    console.log(`[brand-assets] ${label}: not set — keeping checked-in file(s)`);
+    console.log(
+      `[brand-assets] ${label}: not set — keeping checked-in file(s)`,
+    );
     return;
   }
   const buf = await fetchBuffer(url);
   if (!buf.subarray(0, 4).equals(PNG_MAGIC)) {
     throw new Error(
       `${label} at ${url} is not a PNG. Upload a PNG in Admin → App Customization ` +
-        `(icon 1024x1024 opaque, splash >=1242x2436).`
+        `(icon 1024x1024 opaque, splash >=1242x2436).`,
     );
   }
   for (const f of files) {
     fs.writeFileSync(path.join(ASSETS, f), buf);
-    console.log(`[brand-assets] ${label}: wrote assets/${f} (${buf.length} bytes)`);
+    console.log(
+      `[brand-assets] ${label}: wrote assets/${f} (${buf.length} bytes)`,
+    );
   }
 }
 
@@ -54,7 +58,7 @@ async function syncOne(label, url, files) {
   } catch (e) {
     console.warn(
       `[brand-assets] could not reach ${API}/app/config (${e.message}) — ` +
-        "keeping checked-in assets"
+        "keeping checked-in assets",
     );
     return;
   }

@@ -69,7 +69,9 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
       style={[
         styles.overlay,
         { backgroundColor: colors.bg },
-        { opacity: out.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
+        {
+          opacity: out.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+        },
       ]}
     >
       <Animated.View
@@ -79,7 +81,12 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
           {
             opacity: tile,
             transform: [
-              { scale: tile.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] }) },
+              {
+                scale: tile.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.82, 1],
+                }),
+              },
             ],
           },
         ]}
@@ -92,7 +99,12 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
               opacity: spark,
               transform: [
                 { rotate: "45deg" },
-                { scale: spark.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1] }) },
+                {
+                  scale: spark.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.2, 1],
+                  }),
+                },
               ],
             },
           ]}
@@ -102,7 +114,12 @@ export function AnimatedSplash({ onDone }: { onDone: () => void }) {
         style={{
           opacity: word,
           transform: [
-            { translateY: word.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
+            {
+              translateY: word.interpolate({
+                inputRange: [0, 1],
+                outputRange: [14, 0],
+              }),
+            },
           ],
           alignItems: "center",
         }}

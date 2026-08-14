@@ -5,7 +5,7 @@ import {
   IsString,
   Length,
   MaxLength,
-} from 'class-validator';
+} from "class-validator";
 
 // Template field layouts arrive as a JSON array matching CertificateFieldLayout
 // (@lms/types). They are deep-normalized/clamped server-side (normalizeFields)

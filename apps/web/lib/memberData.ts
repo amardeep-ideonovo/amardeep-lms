@@ -33,7 +33,9 @@ export function fmtDuration(seconds: number | null | undefined): string | null {
 }
 
 /** Total runtime as "1h 47m" / "28 min"; null when unknown. */
-export function fmtTotalMinutes(seconds: number | null | undefined): string | null {
+export function fmtTotalMinutes(
+  seconds: number | null | undefined,
+): string | null {
   if (!seconds || seconds <= 0) return null;
   const totalMin = Math.max(1, Math.round(seconds / 60));
   const h = Math.floor(totalMin / 60);
@@ -116,7 +118,11 @@ export function classIndexMap(classes: ClassTileDTO[]): Map<string, number> {
   classes.forEach((c, i) =>
     m.set(
       c.id,
-      classAccentIndex(c.name, (c.categories ?? []).map((x) => x.name), i),
+      classAccentIndex(
+        c.name,
+        (c.categories ?? []).map((x) => x.name),
+        i,
+      ),
     ),
   );
   return m;

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { EmailTemplateDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAppBrand } from "@/lib/app-brand";
@@ -84,7 +78,7 @@ function csvToList(s: string): string[] {
 // never leak another instance's brand.
 function sampleVars(
   names: string[],
-  brand: string | null
+  brand: string | null,
 ): Record<string, string> {
   const out: Record<string, string> = {};
   for (const n of names) {
@@ -499,7 +493,9 @@ export default function EmailTemplatesPage() {
               <div className="field">
                 <label>
                   Subject{" "}
-                  <span className="muted">(Handlebars — e.g. {"{{brand}}"})</span>
+                  <span className="muted">
+                    (Handlebars — e.g. {"{{brand}}"})
+                  </span>
                 </label>
                 <input
                   value={draft.subject}
@@ -545,9 +541,7 @@ export default function EmailTemplatesPage() {
                 </label>
                 <textarea
                   value={draft.mjml}
-                  onChange={(e) =>
-                    setDraft({ ...draft, mjml: e.target.value })
-                  }
+                  onChange={(e) => setDraft({ ...draft, mjml: e.target.value })}
                   rows={16}
                   spellCheck={false}
                   style={{

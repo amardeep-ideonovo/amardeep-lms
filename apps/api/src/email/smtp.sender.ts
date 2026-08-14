@@ -1,8 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
-import { SettingsService } from '../settings/settings.service';
-import { AppConfigService } from '../site/app-config.service';
-import type { MailSender, OutboundMail } from './mail-sender.interface';
+import { Injectable, Logger } from "@nestjs/common";
+import * as nodemailer from "nodemailer";
+import { SettingsService } from "../settings/settings.service";
+import { AppConfigService } from "../site/app-config.service";
+import type { MailSender, OutboundMail } from "./mail-sender.interface";
 
 // Default mail transport: SMTP via nodemailer, configured entirely from the
 // stored email settings (host/port/user/pass/secure) with the From header
@@ -36,7 +36,7 @@ export class SmtpMailSender implements MailSender {
       this.settings.getEmailFromName(),
       this.settings.getEmailUser(),
     ]);
-    const fromEmail = fromEmailRaw || user || '';
+    const fromEmail = fromEmailRaw || user || "";
     let fromName = fromNameRaw;
     if (!fromName) {
       const cfg = await this.appConfig.read();
@@ -77,7 +77,7 @@ export class SmtpMailSender implements MailSender {
     // ahead of any caller-supplied headers so callers can still override.
     const headers: Record<string, string> = {
       ...(msg.listUnsubscribe
-        ? { 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
+        ? { "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }
         : {}),
       ...(msg.headers ?? {}),
     };

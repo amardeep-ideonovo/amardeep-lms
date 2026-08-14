@@ -1,5 +1,5 @@
-import sanitizeHtml from 'sanitize-html';
-import { ALLOWED_STYLES } from './sanitize-styles';
+import sanitizeHtml from "sanitize-html";
+import { ALLOWED_STYLES } from "./sanitize-styles";
 
 // Canonical rich-text sanitizer options. Kept identical to the blog/pages/
 // popups/canvas allow-list (they each still hold a copy today — a follow-up can
@@ -7,23 +7,51 @@ import { ALLOWED_STYLES } from './sanitize-styles';
 // site, so it MUST be sanitized server-side to prevent stored XSS.
 export const RICH_TEXT_OPTS: sanitizeHtml.IOptions = {
   allowedTags: [
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'blockquote', 'a', 'ul', 'ol',
-    'li', 'b', 'i', 'strong', 'em', 's', 'strike', 'code', 'pre', 'hr', 'br',
-    'span', 'img', 'figure', 'figcaption', 'table', 'thead', 'tbody', 'tr',
-    'th', 'td',
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "p",
+    "blockquote",
+    "a",
+    "ul",
+    "ol",
+    "li",
+    "b",
+    "i",
+    "strong",
+    "em",
+    "s",
+    "strike",
+    "code",
+    "pre",
+    "hr",
+    "br",
+    "span",
+    "img",
+    "figure",
+    "figcaption",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
   ],
   allowedAttributes: {
-    a: ['href', 'name', 'target', 'rel'],
-    img: ['src', 'alt', 'title', 'width', 'height'],
-    '*': ['style'],
+    a: ["href", "name", "target", "rel"],
+    img: ["src", "alt", "title", "width", "height"],
+    "*": ["style"],
   },
   allowedStyles: ALLOWED_STYLES,
-  allowedSchemes: ['http', 'https', 'mailto'],
-  allowedSchemesByTag: { img: ['http', 'https', 'data'] },
+  allowedSchemes: ["http", "https", "mailto"],
+  allowedSchemesByTag: { img: ["http", "https", "data"] },
   transformTags: {
     a: sanitizeHtml.simpleTransform(
-      'a',
-      { rel: 'noopener noreferrer', target: '_blank' },
+      "a",
+      { rel: "noopener noreferrer", target: "_blank" },
       true,
     ),
   },
@@ -36,10 +64,11 @@ export function sanitizeRichText(html: string): string {
 
 // Block-level tags a rich-text value would carry. Used to tell a value that is
 // already HTML (from the editor) apart from a legacy plain-text value.
-const HTML_MARKER = /<(?:p|h[1-6]|ul|ol|li|blockquote|div|br|img|table|pre|a|strong|em|b|i|span)\b|<\/(?:p|h[1-6]|ul|ol|li|blockquote|div|table|pre|a|span)>/i;
+const HTML_MARKER =
+  /<(?:p|h[1-6]|ul|ol|li|blockquote|div|br|img|table|pre|a|strong|em|b|i|span)\b|<\/(?:p|h[1-6]|ul|ol|li|blockquote|div|table|pre|a|span)>/i;
 
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // Turn legacy plain text into safe paragraph HTML: escape entities, split on
@@ -50,8 +79,8 @@ function plainToHtml(text: string): string {
   return text
     .trim()
     .split(/\n{2,}/)
-    .map((block) => `<p>${escapeHtml(block).replace(/\n/g, '<br />')}</p>`)
-    .join('');
+    .map((block) => `<p>${escapeHtml(block).replace(/\n/g, "<br />")}</p>`)
+    .join("");
 }
 
 /**
@@ -85,9 +114,9 @@ export function sanitizeRichTextForStore(
   if (normalized == null) return null;
   // Strip tags to check for any real text/media content.
   const textOnly = normalized
-    .replace(/<(img|hr)\b[^>]*>/gi, 'x') // media counts as content
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/gi, ' ')
+    .replace(/<(img|hr)\b[^>]*>/gi, "x") // media counts as content
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
     .trim();
   return textOnly ? normalized : null;
 }

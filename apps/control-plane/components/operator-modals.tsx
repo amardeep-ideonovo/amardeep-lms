@@ -58,7 +58,12 @@ function TrackRadios({
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {extra && (
         <label className={`radio-row${value === null ? " checked" : ""}`}>
-          <input type="radio" name={name} checked={value === null} onChange={() => onChange(null)} />
+          <input
+            type="radio"
+            name={name}
+            checked={value === null}
+            onChange={() => onChange(null)}
+          />
           <span className="radio-main">
             <span className="radio-title">{extra.title}</span>
             <span className="radio-sub">{extra.sub}</span>
@@ -66,7 +71,10 @@ function TrackRadios({
         </label>
       )}
       {TRACK_OPTIONS.map((opt) => (
-        <label key={opt.value} className={`radio-row${value === opt.value ? " checked" : ""}`}>
+        <label
+          key={opt.value}
+          className={`radio-row${value === opt.value ? " checked" : ""}`}
+        >
           <input
             type="radio"
             name={name}
@@ -85,7 +93,13 @@ function TrackRadios({
 
 // ---------- plan editor (create + edit) ----------
 
-export function PlanEditorModal({ plan, onClose }: { plan: Plan | null; onClose: () => void }) {
+export function PlanEditorModal({
+  plan,
+  onClose,
+}: {
+  plan: Plan | null;
+  onClose: () => void;
+}) {
   const [name, setName] = useState(plan?.name ?? "");
   const [blurb, setBlurb] = useState(plan?.blurb ?? "");
   const [price, setPrice] = useState(plan ? String(plan.priceMonthly) : "");
@@ -124,7 +138,11 @@ export function PlanEditorModal({ plan, onClose }: { plan: Plan | null; onClose:
   };
 
   return (
-    <Modal title={plan ? `Edit plan — ${plan.name}` : "New plan"} onClose={onClose} width={520}>
+    <Modal
+      title={plan ? `Edit plan — ${plan.name}` : "New plan"}
+      onClose={onClose}
+      width={520}
+    >
       <form onSubmit={submit}>
         <div className="modal-body">
           <div className="wizard-two-col">
@@ -137,7 +155,10 @@ export function PlanEditorModal({ plan, onClose }: { plan: Plan | null; onClose:
                 autoFocus={!plan}
               />
             </Field>
-            <Field label="Blurb" hint="One line under the name on the pricing cards.">
+            <Field
+              label="Blurb"
+              hint="One line under the name on the pricing cards."
+            >
               <input
                 className="input"
                 placeholder="For a growing academy"
@@ -156,7 +177,10 @@ export function PlanEditorModal({ plan, onClose }: { plan: Plan | null; onClose:
                 onChange={(e) => setPrice(e.target.value)}
               />
             </Field>
-            <Field label="Instance cap" hint="How many instances a license may run.">
+            <Field
+              label="Instance cap"
+              hint="How many instances a license may run."
+            >
               <input
                 className="input mono"
                 inputMode="numeric"
@@ -167,9 +191,16 @@ export function PlanEditorModal({ plan, onClose }: { plan: Plan | null; onClose:
             </Field>
           </div>
           <Field label="Mobile app track">
-            <TrackRadios name="plan-track" value={track} onChange={(t) => setTrack(t ?? "none")} />
+            <TrackRadios
+              name="plan-track"
+              value={track}
+              onChange={(t) => setTrack(t ?? "none")}
+            />
           </Field>
-          <Field label="Features" hint="One per line — rendered verbatim on sales, signup and billing.">
+          <Field
+            label="Features"
+            hint="One per line — rendered verbatim on sales, signup and billing."
+          >
             <textarea
               className="input"
               placeholder={"1 instance · your domain\nUp to 5,000 members"}
@@ -178,10 +209,16 @@ export function PlanEditorModal({ plan, onClose }: { plan: Plan | null; onClose:
             />
           </Field>
           <label className={`radio-row${featured ? " checked" : ""}`}>
-            <input type="checkbox" checked={featured} onChange={(e) => setFeatured(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={featured}
+              onChange={(e) => setFeatured(e.target.checked)}
+            />
             <span className="radio-main">
               <span className="radio-title">Featured</span>
-              <span className="radio-sub">Dark card + “MOST POPULAR” ribbon on sales and signup.</span>
+              <span className="radio-sub">
+                Dark card + “MOST POPULAR” ribbon on sales and signup.
+              </span>
             </span>
           </label>
           {error && <p className="form-error">{error}</p>}
@@ -213,12 +250,19 @@ export function ChangeLicensePlanModal({
   const current = getPlan(fleet, client.license.planId);
   const owned = clientInstances(fleet, client.id).length;
   const choices = activePlans(fleet);
-  const list = current && !choices.some((p) => p.id === current.id) ? [current, ...choices] : choices;
+  const list =
+    current && !choices.some((p) => p.id === current.id)
+      ? [current, ...choices]
+      : choices;
   const [planId, setPlanId] = useState(client.license.planId);
   const [busy, setBusy] = useState(false);
 
   return (
-    <Modal title={`Change plan — ${client.academyName}`} onClose={onClose} width={460}>
+    <Modal
+      title={`Change plan — ${client.academyName}`}
+      onClose={onClose}
+      width={460}
+    >
       <div className="modal-body">
         {list.map((p) => {
           const capAfter = client.license.instanceCapOverride ?? p.instanceCap;
@@ -238,7 +282,8 @@ export function ChangeLicensePlanModal({
               />
               <span className="radio-main">
                 <span className="radio-title">
-                  {p.name} — ${p.priceMonthly}/mo{p.id === client.license.planId ? " (current)" : ""}
+                  {p.name} — ${p.priceMonthly}/mo
+                  {p.id === client.license.planId ? " (current)" : ""}
                   {!p.active ? " · off sale" : ""}
                 </span>
                 <span className="radio-sub">
@@ -251,8 +296,8 @@ export function ChangeLicensePlanModal({
           );
         })}
         <p className="modal-note">
-          Repricing lands on the next invoice. Cap and app track follow the new plan (per-license
-          overrides stay).
+          Repricing lands on the next invoice. Cap and app track follow the new
+          plan (per-license overrides stay).
         </p>
       </div>
       <div className="modal-actions">
@@ -269,7 +314,9 @@ export function ChangeLicensePlanModal({
             onClose();
           }}
         >
-          {busy ? "Updating…" : `Switch to ${list.find((p) => p.id === planId)?.name ?? "plan"}`}
+          {busy
+            ? "Updating…"
+            : `Switch to ${list.find((p) => p.id === planId)?.name ?? "plan"}`}
         </button>
       </div>
     </Modal>
@@ -293,7 +340,7 @@ export function CapOverrideModal({
   const [value, setValue] = useState(
     typeof client.license.instanceCapOverride === "number"
       ? String(client.license.instanceCapOverride)
-      : ""
+      : "",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -305,11 +352,15 @@ export function CapOverrideModal({
     if (trimmed !== "") {
       const n = Number(trimmed);
       if (!Number.isInteger(n) || n < 1) {
-        setError("Enter a whole number of 1 or more, or leave blank to clear the override.");
+        setError(
+          "Enter a whole number of 1 or more, or leave blank to clear the override.",
+        );
         return;
       }
       if (n < owned) {
-        setError(`The client already runs ${owned} instances — the cap can't go below that.`);
+        setError(
+          `The client already runs ${owned} instances — the cap can't go below that.`,
+        );
         return;
       }
       cap = n;
@@ -320,14 +371,22 @@ export function CapOverrideModal({
   };
 
   return (
-    <Modal title={`Instance cap — ${client.academyName}`} onClose={onClose} width={420}>
+    <Modal
+      title={`Instance cap — ${client.academyName}`}
+      onClose={onClose}
+      width={420}
+    >
       <form onSubmit={submit}>
         <div className="modal-body">
           <p className="modal-note">
-            Plan default ({plan?.name ?? client.license.planId}): <b>{planCap}</b> instance
+            Plan default ({plan?.name ?? client.license.planId}):{" "}
+            <b>{planCap}</b> instance
             {planCap === 1 ? "" : "s"} · currently using {owned}.
           </p>
-          <Field label="Cap override" hint="Leave blank to clear the override and use the plan default.">
+          <Field
+            label="Cap override"
+            hint="Leave blank to clear the override and use the plan default."
+          >
             <input
               className="input mono"
               inputMode="numeric"
@@ -364,11 +423,17 @@ export function TrackOverrideModal({
   onClose: () => void;
 }) {
   const plan = getPlan(fleet, client.license.planId);
-  const [track, setTrack] = useState<AppTrack | null>(client.license.appTrackOverride ?? null);
+  const [track, setTrack] = useState<AppTrack | null>(
+    client.license.appTrackOverride ?? null,
+  );
   const [busy, setBusy] = useState(false);
 
   return (
-    <Modal title={`App track — ${client.academyName}`} onClose={onClose} width={460}>
+    <Modal
+      title={`App track — ${client.academyName}`}
+      onClose={onClose}
+      width={460}
+    >
       <div className="modal-body">
         <TrackRadios
           name="track-override"
@@ -423,9 +488,16 @@ export function ProvisionForClientModal({
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return setError("Give the instance a name — it appears on the member site.");
+    if (!name.trim())
+      return setError(
+        "Give the instance a name — it appears on the member site.",
+      );
     setBusy(true);
-    const result = await provisionOwnInstance(client.id, { name, domain }, "operator");
+    const result = await provisionOwnInstance(
+      client.id,
+      { name, domain },
+      "operator",
+    );
     if (!result.ok) {
       setBusy(false);
       setError(result.error);
@@ -435,21 +507,28 @@ export function ProvisionForClientModal({
   };
 
   return (
-    <Modal title={`Provision for ${client.academyName}`} onClose={onClose} width={460}>
+    <Modal
+      title={`Provision for ${client.academyName}`}
+      onClose={onClose}
+      width={460}
+    >
       <form onSubmit={submit}>
         <div className="modal-body">
           <p className="modal-note">
-            Uses {client.academyName}'s license slot {Math.min(owned + 1, cap)} of {cap} (
-            {trackLabel(effectiveTrack(fleet, client.license))} track). Same pipeline as the portal
-            onboarding — isolated stack, seeded first admin for {client.email}.
+            Uses {client.academyName}'s license slot {Math.min(owned + 1, cap)}{" "}
+            of {cap} ({trackLabel(effectiveTrack(fleet, client.license))}{" "}
+            track). Same pipeline as the portal onboarding — isolated stack,
+            seeded first admin for {client.email}.
           </p>
           {suspended && (
-            <div className="danger-box">License suspended — resume it before provisioning.</div>
+            <div className="danger-box">
+              License suspended — resume it before provisioning.
+            </div>
           )}
           {!suspended && atCap && (
             <div className="warn-box">
-              Instance limit reached — {owned} of {cap} used. Change the plan or override the cap
-              first.
+              Instance limit reached — {owned} of {cap} used. Change the plan or
+              override the cap first.
             </div>
           )}
           <Field label="Academy / site name">
@@ -461,7 +540,10 @@ export function ProvisionForClientModal({
               autoFocus
             />
           </Field>
-          <Field label="Domain" hint="Optional — a spotlightlms.site subdomain is used until DNS points over.">
+          <Field
+            label="Domain"
+            hint="Optional — a spotlightlms.site subdomain is used until DNS points over."
+          >
             <input
               className="input mono"
               placeholder="berlin.harboryoga.com"
@@ -475,7 +557,11 @@ export function ProvisionForClientModal({
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={busy || atCap || suspended}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={busy || atCap || suspended}
+          >
             {busy ? "Provisioning…" : "Provision instance"}
           </button>
         </div>

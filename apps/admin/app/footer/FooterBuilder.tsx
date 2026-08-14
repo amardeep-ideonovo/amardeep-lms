@@ -121,7 +121,9 @@ export default function FooterBuilder({
     }
   }
 
-  const labels = menuLabels.length ? menuLabels : ["About", "Pricing", "Contact"];
+  const labels = menuLabels.length
+    ? menuLabels
+    : ["About", "Pricing", "Contact"];
   const copyrightText = cfg.copyright.replace(/\{year\}/g, String(year));
 
   return (
@@ -167,7 +169,11 @@ export default function FooterBuilder({
                 {cfg.menuHeading || "Links"}
               </div>
               {labels.map((l, i) => (
-                <div key={i} className="ftr-link" style={{ color: cfg.linkColor }}>
+                <div
+                  key={i}
+                  className="ftr-link"
+                  style={{ color: cfg.linkColor }}
+                >
                   {l}
                 </div>
               ))}
@@ -176,10 +182,15 @@ export default function FooterBuilder({
               <div className="ftr-heading" style={{ color: cfg.headingColor }}>
                 {cfg.email.heading}
               </div>
-              {cfg.email.text && <p className="ftr-tagline">{cfg.email.text}</p>}
+              {cfg.email.text && (
+                <p className="ftr-tagline">{cfg.email.text}</p>
+              )}
               <div className="ftr-emailrow">
                 <input disabled placeholder={cfg.email.placeholder} />
-                <span className="ftr-emailbtn" style={{ background: cfg.linkColor }}>
+                <span
+                  className="ftr-emailbtn"
+                  style={{ background: cfg.linkColor }}
+                >
                   {cfg.email.buttonText}
                 </span>
               </div>
@@ -202,10 +213,30 @@ export default function FooterBuilder({
       <div className="card">
         <h2>Style</h2>
         <div className="form-row">
-          <ColorField label="Background" value={cfg.bgColor} disabled={ro} onChange={(v) => upd({ bgColor: v })} />
-          <ColorField label="Text" value={cfg.textColor} disabled={ro} onChange={(v) => upd({ textColor: v })} />
-          <ColorField label="Headings" value={cfg.headingColor} disabled={ro} onChange={(v) => upd({ headingColor: v })} />
-          <ColorField label="Links" value={cfg.linkColor} disabled={ro} onChange={(v) => upd({ linkColor: v })} />
+          <ColorField
+            label="Background"
+            value={cfg.bgColor}
+            disabled={ro}
+            onChange={(v) => upd({ bgColor: v })}
+          />
+          <ColorField
+            label="Text"
+            value={cfg.textColor}
+            disabled={ro}
+            onChange={(v) => upd({ textColor: v })}
+          />
+          <ColorField
+            label="Headings"
+            value={cfg.headingColor}
+            disabled={ro}
+            onChange={(v) => upd({ headingColor: v })}
+          />
+          <ColorField
+            label="Links"
+            value={cfg.linkColor}
+            disabled={ro}
+            onChange={(v) => upd({ linkColor: v })}
+          />
           <div className="field">
             <label>Vertical padding (px)</label>
             <input
@@ -214,7 +245,9 @@ export default function FooterBuilder({
               max={120}
               value={cfg.paddingY}
               disabled={ro}
-              onChange={(e) => upd({ paddingY: clampInt(e.target.value, 0, 120) })}
+              onChange={(e) =>
+                upd({ paddingY: clampInt(e.target.value, 0, 120) })
+              }
             />
           </div>
         </div>
@@ -225,9 +258,14 @@ export default function FooterBuilder({
         <h2>Column 1 — Logo</h2>
         <div className="field">
           <label>
-            Logo image <span className="muted">(blank = “{previewBrand}” text)</span>
+            Logo image{" "}
+            <span className="muted">(blank = “{previewBrand}” text)</span>
           </label>
-          <MediaPicker value={cfg.logoUrl ?? ""} disabled={ro} onChange={(url) => upd({ logoUrl: url || null })} />
+          <MediaPicker
+            value={cfg.logoUrl ?? ""}
+            disabled={ro}
+            onChange={(url) => upd({ logoUrl: url || null })}
+          />
         </div>
         <div className="field">
           <label>
@@ -248,11 +286,19 @@ export default function FooterBuilder({
         <div className="form-row">
           <div className="field" style={{ flex: 1 }}>
             <label>Column heading</label>
-            <input value={cfg.menuHeading} disabled={ro} onChange={(e) => upd({ menuHeading: e.target.value })} />
+            <input
+              value={cfg.menuHeading}
+              disabled={ro}
+              onChange={(e) => upd({ menuHeading: e.target.value })}
+            />
           </div>
           <div className="field" style={{ flex: 2 }}>
             <label>Menu</label>
-            <select value={cfg.menuId ?? ""} disabled={ro} onChange={(e) => upd({ menuId: e.target.value || null })}>
+            <select
+              value={cfg.menuId ?? ""}
+              disabled={ro}
+              onChange={(e) => upd({ menuId: e.target.value || null })}
+            >
               <option value="">— Use the menu assigned to “Footer” —</option>
               {menus.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -273,7 +319,11 @@ export default function FooterBuilder({
         <div className="form-row">
           <div className="field" style={{ flex: 1 }}>
             <label>Heading</label>
-            <input value={cfg.email.heading} disabled={ro} onChange={(e) => updEmail({ heading: e.target.value })} />
+            <input
+              value={cfg.email.heading}
+              disabled={ro}
+              onChange={(e) => updEmail({ heading: e.target.value })}
+            />
           </div>
           <div className="field" style={{ flex: 2 }}>
             <label>Audience</label>
@@ -298,7 +348,8 @@ export default function FooterBuilder({
               {cfg.email.audienceId &&
                 !audiences.some((a) => a.id === cfg.email.audienceId) && (
                   <option value={cfg.email.audienceId}>
-                    {cfg.email.audienceName || cfg.email.audienceId} (unavailable)
+                    {cfg.email.audienceName || cfg.email.audienceId}{" "}
+                    (unavailable)
                   </option>
                 )}
             </select>
@@ -308,20 +359,36 @@ export default function FooterBuilder({
           <label>
             Intro text <span className="muted">(optional)</span>
           </label>
-          <textarea value={cfg.email.text ?? ""} disabled={ro} onChange={(e) => updEmail({ text: e.target.value || null })} />
+          <textarea
+            value={cfg.email.text ?? ""}
+            disabled={ro}
+            onChange={(e) => updEmail({ text: e.target.value || null })}
+          />
         </div>
         <div className="form-row">
           <div className="field">
             <label>Placeholder</label>
-            <input value={cfg.email.placeholder} disabled={ro} onChange={(e) => updEmail({ placeholder: e.target.value })} />
+            <input
+              value={cfg.email.placeholder}
+              disabled={ro}
+              onChange={(e) => updEmail({ placeholder: e.target.value })}
+            />
           </div>
           <div className="field">
             <label>Button text</label>
-            <input value={cfg.email.buttonText} disabled={ro} onChange={(e) => updEmail({ buttonText: e.target.value })} />
+            <input
+              value={cfg.email.buttonText}
+              disabled={ro}
+              onChange={(e) => updEmail({ buttonText: e.target.value })}
+            />
           </div>
           <div className="field">
             <label>Success message</label>
-            <input value={cfg.email.successMessage} disabled={ro} onChange={(e) => updEmail({ successMessage: e.target.value })} />
+            <input
+              value={cfg.email.successMessage}
+              disabled={ro}
+              onChange={(e) => updEmail({ successMessage: e.target.value })}
+            />
           </div>
         </div>
         <label className="menu-checkbox">
@@ -353,9 +420,14 @@ export default function FooterBuilder({
         </div>
         <div className="field">
           <label>
-            Copyright <span className="muted">(use {"{year}"} for the current year)</span>
+            Copyright{" "}
+            <span className="muted">(use {"{year}"} for the current year)</span>
           </label>
-          <input value={cfg.copyright} disabled={ro} onChange={(e) => upd({ copyright: e.target.value })} />
+          <input
+            value={cfg.copyright}
+            disabled={ro}
+            onChange={(e) => upd({ copyright: e.target.value })}
+          />
         </div>
         {cfg.bottomLinks.length === 0 ? (
           <p className="muted">No links yet. Click “Add link”.</p>
@@ -365,16 +437,28 @@ export default function FooterBuilder({
               <div key={l.id} className="form-row">
                 <div className="field" style={{ flex: 1 }}>
                   <label>Label</label>
-                  <input value={l.label} disabled={ro} onChange={(e) => updLink(l.id, { label: e.target.value })} />
+                  <input
+                    value={l.label}
+                    disabled={ro}
+                    onChange={(e) => updLink(l.id, { label: e.target.value })}
+                  />
                 </div>
                 <div className="field" style={{ flex: 2 }}>
                   <label>URL</label>
-                  <input value={l.url} disabled={ro} placeholder="/privacy or https://…" onChange={(e) => updLink(l.id, { url: e.target.value })} />
+                  <input
+                    value={l.url}
+                    disabled={ro}
+                    placeholder="/privacy or https://…"
+                    onChange={(e) => updLink(l.id, { url: e.target.value })}
+                  />
                 </div>
                 {canEdit && (
                   <div className="field" style={{ justifyContent: "flex-end" }}>
                     <label>&nbsp;</label>
-                    <button className="btn btn--danger btn--sm" onClick={() => removeLink(l.id)}>
+                    <button
+                      className="btn btn--danger btn--sm"
+                      onClick={() => removeLink(l.id)}
+                    >
                       Remove
                     </button>
                   </div>

@@ -45,20 +45,25 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
   // `loadedOnce` extends that to every other path (house pattern — see
   // DashboardScreen), so a refetch that FAILS leaves the article on screen
   // instead of swapping it for an error page.
-  const load = useCallback(async (silent = false) => {
-    if (!silent && !loadedOnce.current) setLoading(true);
-    setError(null);
-    try {
-      setPost(await api.post(slug));
-      loadedOnce.current = true;
-    } catch (e) {
-      if (!loadedOnce.current) {
-        setError(e instanceof Error ? e.message : "Could not load this post.");
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent && !loadedOnce.current) setLoading(true);
+      setError(null);
+      try {
+        setPost(await api.post(slug));
+        loadedOnce.current = true;
+      } catch (e) {
+        if (!loadedOnce.current) {
+          setError(
+            e instanceof Error ? e.message : "Could not load this post.",
+          );
+        }
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [slug]);
+    },
+    [slug],
+  );
 
   useEffect(() => {
     load();
@@ -131,49 +136,54 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md, ...contentColumn },
-  cover: {
-    width: "100%",
-    height: 200,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceMuted,
-    marginBottom: spacing.md,
-  },
-  catRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 24,
-    fontWeight: "800",
-    marginBottom: spacing.sm,
-    fontFamily: fonts.display,
-  },
-  metaRow: { flexDirection: "row", flexWrap: "wrap", marginBottom: spacing.md },
-  meta: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.regular },
-  htmlBase: { color: colors.text },
-  tags: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-    marginTop: spacing.md,
-  },
-  tag: {
-    color: colors.textMuted,
-    fontSize: 12,
-    backgroundColor: colors.chipBg,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: 999,
-    overflow: "hidden",
-    fontFamily: fonts.regular,
-  },
-  spacer: { height: spacing.lg },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    scroll: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: spacing.md, ...contentColumn },
+    cover: {
+      width: "100%",
+      height: 200,
+      borderRadius: 14,
+      backgroundColor: colors.surfaceMuted,
+      marginBottom: spacing.md,
+    },
+    catRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.xs,
+      marginBottom: spacing.sm,
+    },
+    title: {
+      color: colors.text,
+      fontSize: 24,
+      fontWeight: "800",
+      marginBottom: spacing.sm,
+      fontFamily: fonts.display,
+    },
+    metaRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      marginBottom: spacing.md,
+    },
+    meta: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.regular },
+    htmlBase: { color: colors.text },
+    tags: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.xs,
+      marginTop: spacing.md,
+    },
+    tag: {
+      color: colors.textMuted,
+      fontSize: 12,
+      backgroundColor: colors.chipBg,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      borderRadius: 999,
+      overflow: "hidden",
+      fontFamily: fonts.regular,
+    },
+    spacer: { height: spacing.lg },
+  });

@@ -1,5 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
-import type { AppWhiteLabelStatus } from '@lms/types';
+import { Injectable, Logger } from "@nestjs/common";
+import type { AppWhiteLabelStatus } from "@lms/types";
 
 // How long a successful answer stays fresh. The mode flips rarely (an operator
 // fulfilling a paid add-on), so a short TTL is purely about not hammering the
@@ -24,11 +24,11 @@ const RETRY_COOLDOWN_MS = 30_000;
 @Injectable()
 export class WhiteLabelStatusService {
   private readonly logger = new Logger(WhiteLabelStatusService.name);
-  private readonly baseUrl = (process.env.CONTROL_PLANE_URL ?? '').replace(
+  private readonly baseUrl = (process.env.CONTROL_PLANE_URL ?? "").replace(
     /\/+$/,
-    '',
+    "",
   );
-  private readonly token = process.env.INSTANCE_SERVICE_TOKEN ?? '';
+  private readonly token = process.env.INSTANCE_SERVICE_TOKEN ?? "";
 
   private cached: AppWhiteLabelStatus | null = null;
   private freshUntil = 0;
@@ -64,13 +64,13 @@ export class WhiteLabelStatusService {
       // Re-validate the wire shape; an unknown mode string degrades to UNKNOWN
       // (fail open), never to a guess.
       const appMode =
-        body.appMode === 'WHITE_LABEL' || body.appMode === 'SHARED'
+        body.appMode === "WHITE_LABEL" || body.appMode === "SHARED"
           ? body.appMode
           : null;
       this.cached = {
         appMode,
         whiteLabelRequestedAt:
-          typeof body.whiteLabelRequestedAt === 'string'
+          typeof body.whiteLabelRequestedAt === "string"
             ? body.whiteLabelRequestedAt
             : null,
       };

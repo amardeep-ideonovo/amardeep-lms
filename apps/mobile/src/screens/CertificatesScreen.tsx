@@ -20,11 +20,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import type { MyCertificateDTO } from "@lms/types";
 
 import { certificateDownloadUrl } from "../api";
-import {
-  useMyCertificates,
-  useMyClasses,
-  useRefreshOnFocus,
-} from "../queries";
+import { useMyCertificates, useMyClasses, useRefreshOnFocus } from "../queries";
 import { accentIndexMap, classAccent } from "../class-colors";
 import { CtaButton } from "../components/CtaButton";
 import { Press } from "../components/Press";
@@ -127,7 +123,10 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
   const owned = classes.filter((c) => c.owned);
   const accentIndex = accentIndexMap(classes);
   const inProgress = owned.filter(
-    (c) => c.progress && c.progress.total > 0 && c.progress.completed < c.progress.total
+    (c) =>
+      c.progress &&
+      c.progress.total > 0 &&
+      c.progress.completed < c.progress.total,
   );
 
   return (
@@ -195,7 +194,9 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
         </View>
       )}
 
-      {actionError ? <Text style={styles.actionError}>{actionError}</Text> : null}
+      {actionError ? (
+        <Text style={styles.actionError}>{actionError}</Text>
+      ) : null}
 
       {rest.map((c) => (
         <TouchableOpacity
@@ -386,7 +387,11 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       justifyContent: "center",
     },
     certRowInfo: { flex: 1, gap: 1 },
-    certRowName: { color: colors.text, fontSize: 13, fontFamily: fonts.semibold },
+    certRowName: {
+      color: colors.text,
+      fontSize: 13,
+      fontFamily: fonts.semibold,
+    },
     certRowMeta: {
       color: colors.textMuted,
       fontSize: 10.5,

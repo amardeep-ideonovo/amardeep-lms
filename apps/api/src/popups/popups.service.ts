@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from "@nestjs/common";
 import type {
   PopupAdminRow,
   PopupAnimation,
@@ -14,12 +14,12 @@ import type {
   PopupTrigger,
   PuckComponentData,
   PuckDocument,
-} from '@lms/types';
-import type { Prisma } from '@prisma/client';
-import sanitizeHtml from 'sanitize-html';
-import { ALLOWED_STYLES } from '../common/sanitize-styles';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreatePopupDto, UpdatePopupDto } from './dto/popup.dto';
+} from "@lms/types";
+import type { Prisma } from "@prisma/client";
+import sanitizeHtml from "sanitize-html";
+import { ALLOWED_STYLES } from "../common/sanitize-styles";
+import { PrismaService } from "../prisma/prisma.service";
+import { CreatePopupDto, UpdatePopupDto } from "./dto/popup.dto";
 
 // Popups render on PUBLIC surfaces (member areas + CMS pages), so — exactly
 // like Pages — any rich-text HTML embedded in the Puck document is sanitized on
@@ -27,23 +27,51 @@ import { CreatePopupDto, UpdatePopupDto } from './dto/popup.dto';
 // so their text props need no sanitization (React escapes them at render time).
 const SANITIZE_OPTS: sanitizeHtml.IOptions = {
   allowedTags: [
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'blockquote', 'a', 'ul', 'ol',
-    'li', 'b', 'i', 'strong', 'em', 's', 'strike', 'code', 'pre', 'hr', 'br',
-    'span', 'img', 'figure', 'figcaption', 'table', 'thead', 'tbody', 'tr',
-    'th', 'td',
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "p",
+    "blockquote",
+    "a",
+    "ul",
+    "ol",
+    "li",
+    "b",
+    "i",
+    "strong",
+    "em",
+    "s",
+    "strike",
+    "code",
+    "pre",
+    "hr",
+    "br",
+    "span",
+    "img",
+    "figure",
+    "figcaption",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
   ],
   allowedAttributes: {
-    a: ['href', 'name', 'target', 'rel'],
-    img: ['src', 'alt', 'title', 'width', 'height'],
-    '*': ['style'],
+    a: ["href", "name", "target", "rel"],
+    img: ["src", "alt", "title", "width", "height"],
+    "*": ["style"],
   },
   allowedStyles: ALLOWED_STYLES,
-  allowedSchemes: ['http', 'https', 'mailto'],
-  allowedSchemesByTag: { img: ['http', 'https', 'data'] },
+  allowedSchemes: ["http", "https", "mailto"],
+  allowedSchemesByTag: { img: ["http", "https", "data"] },
   transformTags: {
     a: sanitizeHtml.simpleTransform(
-      'a',
-      { rel: 'noopener noreferrer', target: '_blank' },
+      "a",
+      { rel: "noopener noreferrer", target: "_blank" },
       true,
     ),
   },
@@ -94,13 +122,13 @@ export class PopupsService {
     string,
     keyof Pick<
       PopupRow,
-      'showOnDashboard' | 'showOnClasses' | 'showOnCourses' | 'showOnLessons'
+      "showOnDashboard" | "showOnClasses" | "showOnCourses" | "showOnLessons"
     >
   > = {
-    dashboard: 'showOnDashboard',
-    classes: 'showOnClasses',
-    courses: 'showOnCourses',
-    lessons: 'showOnLessons',
+    dashboard: "showOnDashboard",
+    classes: "showOnClasses",
+    courses: "showOnCourses",
+    lessons: "showOnLessons",
   };
 
   // Return the ACTIVE popups that should show in a given context. The server
@@ -112,20 +140,20 @@ export class PopupsService {
     pageId?: string,
   ): Promise<PopupPublicDTO[]> {
     const active = (await this.prisma.popup.findMany({
-      where: { status: 'ACTIVE' },
-      orderBy: { updatedAt: 'desc' },
+      where: { status: "ACTIVE" },
+      orderBy: { updatedAt: "desc" },
     })) as PopupRow[];
 
     const matched = active.filter((p) => {
       const flag = context ? PopupsService.SURFACE_FLAG[context] : undefined;
       if (flag) return p[flag];
-      if (context === 'page') {
+      if (context === "page") {
         switch (p.pageMode) {
-          case 'ALL':
+          case "ALL":
             return true;
-          case 'INCLUDE':
+          case "INCLUDE":
             return !!pageId && p.pageIds.includes(pageId);
-          case 'EXCLUDE':
+          case "EXCLUDE":
             return !!pageId && !p.pageIds.includes(pageId);
           default:
             return false; // NONE
@@ -141,7 +169,7 @@ export class PopupsService {
 
   async adminList(): Promise<PopupListItem[]> {
     const popups = (await this.prisma.popup.findMany({
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { updatedAt: "desc" },
     })) as PopupRow[];
     return popups.map((p) => this.toListItem(p));
   }
@@ -150,7 +178,7 @@ export class PopupsService {
     const popup = (await this.prisma.popup.findUnique({
       where: { id },
     })) as PopupRow | null;
-    if (!popup) throw new NotFoundException('Popup not found');
+    if (!popup) throw new NotFoundException("Popup not found");
     return this.toAdminRow(popup);
   }
 
@@ -186,7 +214,7 @@ export class PopupsService {
 
   async adminUpdate(id: string, dto: UpdatePopupDto): Promise<PopupAdminRow> {
     const existing = await this.prisma.popup.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Popup not found');
+    if (!existing) throw new NotFoundException("Popup not found");
 
     const popup = (await this.prisma.popup.update({
       where: { id },
@@ -221,7 +249,7 @@ export class PopupsService {
 
   async adminDelete(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.popup.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Popup not found');
+    if (!existing) throw new NotFoundException("Popup not found");
     await this.prisma.popup.delete({ where: { id } });
     return { ok: true };
   }
@@ -230,12 +258,9 @@ export class PopupsService {
 
   // Increment a counter. `updateMany` so an unknown/deleted id is a silent no-op
   // (the renderer never blocks on this), and a spammed event can't 500.
-  async recordEvent(
-    id: string,
-    type: PopupEventType,
-  ): Promise<{ ok: true }> {
+  async recordEvent(id: string, type: PopupEventType): Promise<{ ok: true }> {
     const field =
-      type === 'view' ? 'views' : type === 'click' ? 'clicks' : 'dismissals';
+      type === "view" ? "views" : type === "click" ? "clicks" : "dismissals";
     await this.prisma.popup.updateMany({
       where: { id },
       data: { [field]: { increment: 1 } },
@@ -251,11 +276,11 @@ export class PopupsService {
     if (Array.isArray(value)) {
       return value.map((v) => this.sanitizeHtmlDeep(v));
     }
-    if (value && typeof value === 'object') {
+    if (value && typeof value === "object") {
       const out: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
         out[k] =
-          k === 'html' && typeof v === 'string'
+          k === "html" && typeof v === "string"
             ? sanitizeHtml(v, SANITIZE_OPTS)
             : this.sanitizeHtmlDeep(v);
       }
@@ -266,34 +291,34 @@ export class PopupsService {
 
   private sanitizeDoc(input: unknown): Prisma.InputJsonValue {
     const doc = (
-      input && typeof input === 'object' ? input : EMPTY_DOC
+      input && typeof input === "object" ? input : EMPTY_DOC
     ) as PuckDocument;
     const cleaned = this.sanitizeHtmlDeep(doc) as Partial<PuckDocument>;
     return {
       root:
-        cleaned.root && typeof cleaned.root === 'object'
+        cleaned.root && typeof cleaned.root === "object"
           ? cleaned.root
           : { props: {} },
       content: Array.isArray(cleaned.content) ? cleaned.content : [],
       zones:
-        cleaned.zones && typeof cleaned.zones === 'object' ? cleaned.zones : {},
+        cleaned.zones && typeof cleaned.zones === "object" ? cleaned.zones : {},
     } as unknown as Prisma.InputJsonValue;
   }
 
   // Normalize whatever JSON is in the column back into a valid Puck envelope.
   private asDoc(data: Prisma.JsonValue): PuckDocument {
-    if (data && typeof data === 'object' && !Array.isArray(data)) {
+    if (data && typeof data === "object" && !Array.isArray(data)) {
       const d = data as { content?: unknown; root?: unknown; zones?: unknown };
       return {
         content: Array.isArray(d.content)
           ? (d.content as PuckComponentData[])
           : [],
-        root: (d.root && typeof d.root === 'object'
+        root: (d.root && typeof d.root === "object"
           ? d.root
-          : { props: {} }) as PuckDocument['root'],
-        zones: (d.zones && typeof d.zones === 'object'
+          : { props: {} }) as PuckDocument["root"],
+        zones: (d.zones && typeof d.zones === "object"
           ? d.zones
-          : {}) as PuckDocument['zones'],
+          : {}) as PuckDocument["zones"],
       };
     }
     return { content: [], root: { props: {} } };

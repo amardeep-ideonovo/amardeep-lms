@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
-import type { ConsentKind, ContactStatus } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, Logger } from "@nestjs/common";
+import type { ConsentKind, ContactStatus } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
 
 // Suppression engine shared by the public unsubscribe page and the provider
 // webhook. Both end in the same place: every Contact on an email address moves
@@ -17,10 +17,13 @@ export class UnsubscribeService {
   // A member clicked "unsubscribe" (or one-click List-Unsubscribe). Soft opt-out:
   // status → UNSUBSCRIBED, unsubscribedAt set, User.emailOptOut=true, one
   // UNSUBSCRIBE consent row per contact. Returns how many contacts changed.
-  async unsubscribeEmail(email: string, source = 'unsubscribe-link'): Promise<number> {
+  async unsubscribeEmail(
+    email: string,
+    source = "unsubscribe-link",
+  ): Promise<number> {
     return this.suppress(email, {
-      status: 'UNSUBSCRIBED',
-      consentKind: 'UNSUBSCRIBE',
+      status: "UNSUBSCRIBED",
+      consentKind: "UNSUBSCRIBE",
       source,
       setUnsubscribedAt: true,
     });
@@ -31,12 +34,12 @@ export class UnsubscribeService {
   // contact. Returns how many contacts changed.
   async suppressFromEvent(
     email: string,
-    reason: 'bounce' | 'complaint',
-    source = 'webhook',
+    reason: "bounce" | "complaint",
+    source = "webhook",
   ): Promise<number> {
     return this.suppress(email, {
-      status: 'CLEANED',
-      consentKind: reason === 'complaint' ? 'COMPLAINT' : 'CLEANED',
+      status: "CLEANED",
+      consentKind: reason === "complaint" ? "COMPLAINT" : "CLEANED",
       // A complaint is also an unsubscribe at heart — stamp the timestamp too.
       setUnsubscribedAt: true,
       source,
@@ -55,7 +58,7 @@ export class UnsubscribeService {
       setUnsubscribedAt: boolean;
     },
   ): Promise<number> {
-    const email = (rawEmail || '').trim().toLowerCase();
+    const email = (rawEmail || "").trim().toLowerCase();
     if (!email) return 0;
 
     const now = new Date();
@@ -82,7 +85,11 @@ export class UnsubscribeService {
       // One consent event per contact for compliance history.
       ...contacts.map((c) =>
         this.prisma.consentEvent.create({
-          data: { contactId: c.id, kind: opts.consentKind, source: opts.source },
+          data: {
+            contactId: c.id,
+            kind: opts.consentKind,
+            source: opts.source,
+          },
         }),
       ),
     ]);

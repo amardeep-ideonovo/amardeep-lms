@@ -115,12 +115,16 @@ export function LiveScreen({ navigation }: TabScreenProps<"Live">) {
       {visible.length === 0 ? (
         <View style={styles.emptyCard}>
           <View style={styles.emptyIcon}>
-            <Ionicons name="videocam-outline" size={22} color={colors.primarySoft} />
+            <Ionicons
+              name="videocam-outline"
+              size={22}
+              color={colors.primarySoft}
+            />
           </View>
           <Text style={styles.emptyTitle}>No live sessions right now</Text>
           <Text style={styles.emptyBody}>
-            When an instructor schedules a session for your classes, it shows
-            up here with a join button.
+            When an instructor schedules a session for your classes, it shows up
+            here with a join button.
           </Text>
         </View>
       ) : (
@@ -131,7 +135,12 @@ export function LiveScreen({ navigation }: TabScreenProps<"Live">) {
           return (
             <Press key={s.id} style={styles.card} onPress={() => open(s)}>
               <View style={styles.topRow}>
-                <View style={[styles.chip, isLive ? styles.chipLive : styles.chipSoon]}>
+                <View
+                  style={[
+                    styles.chip,
+                    isLive ? styles.chipLive : styles.chipSoon,
+                  ]}
+                >
                   {isLive ? <View style={styles.liveDot} /> : null}
                   <Text
                     style={[
@@ -204,7 +213,12 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     },
     chipLive: { backgroundColor: "rgba(234,79,79,0.2)" },
     chipSoon: { backgroundColor: `${colors.primary}33` },
-    liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.danger },
+    liveDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: colors.danger,
+    },
     chipText: { fontSize: 10, fontFamily: fonts.bold, letterSpacing: 0.8 },
     chipTextLive: { color: "#ff9d9d" },
     chipTextSoon: { color: colors.primaryOnDark },
@@ -214,7 +228,12 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontFamily: fonts.regular,
       flexShrink: 1,
     },
-    title: { color: "#ffffff", fontSize: 15, fontFamily: fonts.bold, lineHeight: 20 },
+    title: {
+      color: "#ffffff",
+      fontSize: 15,
+      fontFamily: fonts.bold,
+      lineHeight: 20,
+    },
     meta: {
       color: "rgba(255,255,255,0.55)",
       fontSize: 11.5,

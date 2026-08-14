@@ -97,7 +97,10 @@ export function clearToken(): Promise<void> {
 
 // ---------- error type so screens can branch on status (e.g. 403 locked) ----------
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
     super(message);
     this.name = "ApiError";
   }
@@ -136,7 +139,10 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError(0, "Network error. Check your connection and try again.");
+    throw new ApiError(
+      0,
+      "Network error. Check your connection and try again.",
+    );
   }
 
   if (!res.ok) {
@@ -147,7 +153,9 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     try {
       const data = await res.json();
       if (data?.message) {
-        message = Array.isArray(data.message) ? data.message.join(", ") : data.message;
+        message = Array.isArray(data.message)
+          ? data.message.join(", ")
+          : data.message;
       }
     } catch {
       // non-JSON error body; keep default message

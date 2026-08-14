@@ -58,39 +58,44 @@ export function CourseRow({
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  cardRow: { flexDirection: "row", alignItems: "center" },
-  thumb: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    marginRight: spacing.sm,
-    backgroundColor: colors.surfaceMuted,
-  },
-  cardLocked: { opacity: 0.6 },
-  cardText: { flex: 1, paddingRight: spacing.sm },
-  titleRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-  cardTitle: {
-    flex: 1,
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: fonts.semibold,
-  },
-  cardDesc: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: spacing.xs,
-    fontFamily: fonts.regular,
-  },
-  indicator: { color: colors.text, fontSize: 18, fontFamily: fonts.regular },
-  lockedText: { color: colors.locked },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    cardRow: { flexDirection: "row", alignItems: "center" },
+    thumb: {
+      width: 48,
+      height: 48,
+      borderRadius: 8,
+      marginRight: spacing.sm,
+      backgroundColor: colors.surfaceMuted,
+    },
+    cardLocked: { opacity: 0.6 },
+    cardText: { flex: 1, paddingRight: spacing.sm },
+    titleRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: spacing.sm,
+    },
+    cardTitle: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
+    cardDesc: {
+      color: colors.textMuted,
+      fontSize: 13,
+      marginTop: spacing.xs,
+      fontFamily: fonts.regular,
+    },
+    indicator: { color: colors.text, fontSize: 18, fontFamily: fonts.regular },
+    lockedText: { color: colors.locked },
+  });

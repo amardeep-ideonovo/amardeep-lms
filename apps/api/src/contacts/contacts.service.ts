@@ -1,22 +1,17 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  forwardRef,
-} from '@nestjs/common';
-import { Prisma, type Contact, type ContactSource } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { EmailService } from '../email/email.service';
-import { makeConfirmToken, verifyConfirmToken } from './confirm-token.util';
+import { Inject, Injectable, Logger, forwardRef } from "@nestjs/common";
+import { Prisma, type Contact, type ContactSource } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { EmailService } from "../email/email.service";
+import { makeConfirmToken, verifyConfirmToken } from "./confirm-token.util";
 
 // Absolute base for the public confirm link. Same precedence as
 // email.service.ts apiBaseUrl(): PUBLIC_API_URL (prod), then API_BASE_URL (email
 // spec), then localhost for dev — trailing slash stripped.
 function apiBaseUrl(): string {
   return (
-    process.env.PUBLIC_API_URL?.replace(/\/$/, '') ||
-    process.env.API_BASE_URL?.replace(/\/$/, '') ||
-    'http://localhost:3000'
+    process.env.PUBLIC_API_URL?.replace(/\/$/, "") ||
+    process.env.API_BASE_URL?.replace(/\/$/, "") ||
+    "http://localhost:3000"
   );
 }
 
@@ -57,8 +52,8 @@ export class ContactsService {
     });
     if (existing) return existing;
     return this.prisma.audience.upsert({
-      where: { slug: 'members' },
-      create: { name: 'Members', slug: 'members', isDefault: true },
+      where: { slug: "members" },
+      create: { name: "Members", slug: "members", isDefault: true },
       // A concurrent caller that won the create already set the flag; a no-op
       // update just returns the surviving row.
       update: {},
@@ -127,14 +122,14 @@ export class ContactsService {
       data: {
         audienceId,
         email: e,
-        status: 'SUBSCRIBED',
-        source: opts.source ?? 'SIGNUP',
+        status: "SUBSCRIBED",
+        source: opts.source ?? "SIGNUP",
         userId: opts.userId ?? null,
         confirmedAt: new Date(),
       },
     });
     // New member contact = a fresh opt-in; record the consent trail.
-    await this.recordConsent(created.id, 'OPTIN', opts.source);
+    await this.recordConsent(created.id, "OPTIN", opts.source);
     return created;
   }
 
@@ -145,7 +140,7 @@ export class ContactsService {
   // column when the caller can supply it cheaply (e.g. the confirm endpoint).
   private async recordConsent(
     contactId: string,
-    kind: 'OPTIN' | 'CONFIRM' | 'UNSUBSCRIBE' | 'COMPLAINT' | 'CLEANED',
+    kind: "OPTIN" | "CONFIRM" | "UNSUBSCRIBE" | "COMPLAINT" | "CLEANED",
     source?: string,
     ip?: string | null,
   ): Promise<void> {
@@ -170,21 +165,21 @@ export class ContactsService {
    * auto-unsubscribe.
    */
   async syncTags(
-    type: 'add' | 'remove',
+    type: "add" | "remove",
     email: string,
     tags: string[],
     audienceRef?: string | null,
     opts: { userId?: string; source?: ContactSource } = {},
   ): Promise<void> {
     const clean = (tags ?? []).map((t) => t.trim()).filter(Boolean);
-    if (type === 'remove' && clean.length === 0) return;
+    if (type === "remove" && clean.length === 0) return;
     const audienceId = await this.resolveAudienceId(audienceRef, {
-      create: type === 'add',
+      create: type === "add",
     });
     if (!audienceId) return;
     const e = this.norm(email);
 
-    if (type === 'add') {
+    if (type === "add") {
       const contact = await this.upsertContact(audienceId, e, opts);
       const next = Array.from(new Set([...contact.tags, ...clean]));
       if (next.length !== contact.tags.length) {
@@ -274,17 +269,17 @@ export class ContactsService {
   // SUBSCRIBED > PENDING, and any suppressed state (UNSUBSCRIBED/CLEANED) wins
   // over an active one so a merge can never resurrect an opt-out.
   private moreSubscribed(
-    a: Contact['status'],
-    b: Contact['status'],
-  ): Contact['status'] {
-    const suppressed: Contact['status'][] = ['UNSUBSCRIBED', 'CLEANED'];
+    a: Contact["status"],
+    b: Contact["status"],
+  ): Contact["status"] {
+    const suppressed: Contact["status"][] = ["UNSUBSCRIBED", "CLEANED"];
     // If either side opted out, the survivor stays opted out (CLEANED is the
     // hardest, so it wins over UNSUBSCRIBED).
-    if (a === 'CLEANED' || b === 'CLEANED') return 'CLEANED';
+    if (a === "CLEANED" || b === "CLEANED") return "CLEANED";
     if (suppressed.includes(a)) return a;
     if (suppressed.includes(b)) return b;
     // Neither suppressed → prefer the fully-subscribed over a pending opt-in.
-    if (a === 'SUBSCRIBED' || b === 'SUBSCRIBED') return 'SUBSCRIBED';
+    if (a === "SUBSCRIBED" || b === "SUBSCRIBED") return "SUBSCRIBED";
     return a;
   }
 
@@ -313,21 +308,21 @@ export class ContactsService {
       source?: ContactSource;
       userId?: string;
     },
-  ): Promise<'subscribed' | 'pending' | 'existing' | 'suppressed'> {
+  ): Promise<"subscribed" | "pending" | "existing" | "suppressed"> {
     const audienceId = (await this.resolveAudienceId(audienceRef))!;
     const e = this.norm(email);
     const attrs = Object.fromEntries(
       Object.entries(attributes ?? {}).filter(
-        ([, v]) => v !== undefined && v !== null && v !== '',
+        ([, v]) => v !== undefined && v !== null && v !== "",
       ),
     );
-    const status = opts.doubleOptIn ? 'PENDING' : 'SUBSCRIBED';
+    const status = opts.doubleOptIn ? "PENDING" : "SUBSCRIBED";
     const existing = await this.prisma.contact.findUnique({
       where: { audienceId_email: { audienceId, email: e } },
     });
 
     if (existing) {
-      if (!opts.updateExisting) return 'existing';
+      if (!opts.updateExisting) return "existing";
 
       const mergedAttrs = {
         ...(existing.attributes as Record<string, unknown>),
@@ -340,19 +335,19 @@ export class ContactsService {
       // CLEANED is a hard suppression (hard bounce / complaint) — never
       // resurrect it. Update attributes/tags for record-keeping but leave the
       // status suppressed and report it honestly.
-      if (existing.status === 'CLEANED') {
+      if (existing.status === "CLEANED") {
         await this.prisma.contact.update({
           where: { id: existing.id },
           data: { attributes: mergedAttrs, tags: mergedTags },
         });
-        return 'suppressed';
+        return "suppressed";
       }
 
       // UNSUBSCRIBED → a genuine re-opt-in. Transition back to SUBSCRIBED (or
       // PENDING under double opt-in) AND record a fresh OPTIN consent so the
       // trail shows the re-subscribe. (Previously this silently kept the
       // UNSUBSCRIBED row while returning 'subscribed' — the resurrection bug.)
-      if (existing.status === 'UNSUBSCRIBED') {
+      if (existing.status === "UNSUBSCRIBED") {
         const reactivated = await this.prisma.contact.update({
           where: { id: existing.id },
           data: {
@@ -362,14 +357,14 @@ export class ContactsService {
             // Clear the old unsubscribe marker; set confirmedAt only when this
             // immediately re-subscribes (double opt-in waits for confirm()).
             unsubscribedAt: null,
-            confirmedAt: status === 'SUBSCRIBED' ? new Date() : null,
+            confirmedAt: status === "SUBSCRIBED" ? new Date() : null,
           },
         });
-        await this.recordConsent(reactivated.id, 'OPTIN', opts.source);
+        await this.recordConsent(reactivated.id, "OPTIN", opts.source);
         if (opts.doubleOptIn) {
           await this.sendConfirmationEmail(e, audienceId);
         }
-        return opts.doubleOptIn ? 'pending' : 'subscribed';
+        return opts.doubleOptIn ? "pending" : "subscribed";
       }
 
       // Already SUBSCRIBED or PENDING → just merge attributes/tags. Don't
@@ -379,8 +374,8 @@ export class ContactsService {
         where: { id: existing.id },
         data: { attributes: mergedAttrs, tags: mergedTags },
       });
-      if (existing.status === 'PENDING') return 'pending';
-      return 'subscribed';
+      if (existing.status === "PENDING") return "pending";
+      return "subscribed";
     }
 
     const created = await this.prisma.contact.create({
@@ -390,20 +385,20 @@ export class ContactsService {
         status,
         attributes: attrs as Prisma.InputJsonValue,
         tags: opts.tags ?? [],
-        source: opts.source ?? 'FORM',
+        source: opts.source ?? "FORM",
         userId: opts.userId ?? null,
-        firstName: typeof attrs.FNAME === 'string' ? attrs.FNAME : null,
-        lastName: typeof attrs.LNAME === 'string' ? attrs.LNAME : null,
-        confirmedAt: status === 'SUBSCRIBED' ? new Date() : null,
+        firstName: typeof attrs.FNAME === "string" ? attrs.FNAME : null,
+        lastName: typeof attrs.LNAME === "string" ? attrs.LNAME : null,
+        confirmedAt: status === "SUBSCRIBED" ? new Date() : null,
       },
     });
-    await this.recordConsent(created.id, 'OPTIN', opts.source);
+    await this.recordConsent(created.id, "OPTIN", opts.source);
     // A PENDING contact is NOT suppressed (suppression only covers
     // UNSUBSCRIBED/CLEANED), so the confirmation email is deliverable.
     if (opts.doubleOptIn) {
       await this.sendConfirmationEmail(e, audienceId);
     }
-    return opts.doubleOptIn ? 'pending' : 'subscribed';
+    return opts.doubleOptIn ? "pending" : "subscribed";
   }
 
   // ───────────────────────── double opt-in ─────────────────────────
@@ -426,7 +421,7 @@ export class ContactsService {
       const html = this.confirmEmailHtml(confirmUrl);
       await this.email.send({
         to: email,
-        subject: 'Confirm your subscription',
+        subject: "Confirm your subscription",
         html,
         // One confirm mail per (audience, email) — a re-trigger is idempotent.
         dedupeKey: `confirm:${audienceId}:${email}`,
@@ -478,33 +473,33 @@ export class ContactsService {
     token: string | undefined | null,
     ip?: string | null,
   ): Promise<{
-    result: 'confirmed' | 'already' | 'suppressed' | 'invalid';
+    result: "confirmed" | "already" | "suppressed" | "invalid";
     email?: string;
   }> {
     const data = verifyConfirmToken(token);
-    if (!data) return { result: 'invalid' };
+    if (!data) return { result: "invalid" };
 
     const e = this.norm(data.email);
     const contact = await this.prisma.contact.findUnique({
       where: { audienceId_email: { audienceId: data.audienceId, email: e } },
     });
-    if (!contact) return { result: 'invalid' };
+    if (!contact) return { result: "invalid" };
 
-    if (contact.status === 'SUBSCRIBED') {
+    if (contact.status === "SUBSCRIBED") {
       // Idempotent: a second click on the same link is a no-op success.
-      return { result: 'already', email: e };
+      return { result: "already", email: e };
     }
-    if (contact.status === 'UNSUBSCRIBED' || contact.status === 'CLEANED') {
+    if (contact.status === "UNSUBSCRIBED" || contact.status === "CLEANED") {
       // A confirm link must never re-open an opt-out.
-      return { result: 'suppressed', email: e };
+      return { result: "suppressed", email: e };
     }
 
     // PENDING → confirmed.
     await this.prisma.contact.update({
       where: { id: contact.id },
-      data: { status: 'SUBSCRIBED', confirmedAt: new Date() },
+      data: { status: "SUBSCRIBED", confirmedAt: new Date() },
     });
-    await this.recordConsent(contact.id, 'CONFIRM', 'confirm-link', ip);
-    return { result: 'confirmed', email: e };
+    await this.recordConsent(contact.id, "CONFIRM", "confirm-link", ip);
+    return { result: "confirmed", email: e };
   }
 }

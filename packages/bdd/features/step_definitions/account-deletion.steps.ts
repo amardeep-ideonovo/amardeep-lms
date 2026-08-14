@@ -31,7 +31,10 @@ Given(
     assert.equal(r.status, 200, `signup failed: ${JSON.stringify(r.body)}`);
     this.delToken = r.body?.token ?? null;
     this.delId = r.body?.user?.id ?? null;
-    assert.ok(this.delToken && this.delId, "signup did not return token + user id");
+    assert.ok(
+      this.delToken && this.delId,
+      "signup did not return token + user id",
+    );
     this.disposableMemberIds.push(this.delId);
   },
 );
@@ -44,7 +47,10 @@ Given(
       token,
       body: { levelId },
     });
-    assert.ok(r.status < 300, `grant failed: ${r.status} ${JSON.stringify(r.body)}`);
+    assert.ok(
+      r.status < 300,
+      `grant failed: ${r.status} ${JSON.stringify(r.body)}`,
+    );
   },
 );
 
@@ -55,7 +61,10 @@ Given(
       token: this.delToken,
       body: {},
     });
-    assert.ok(r.status < 300, `complete failed: ${r.status} ${JSON.stringify(r.body)}`);
+    assert.ok(
+      r.status < 300,
+      `complete failed: ${r.status} ${JSON.stringify(r.body)}`,
+    );
   },
 );
 
@@ -66,7 +75,10 @@ Given(
       token: this.delToken,
       body: { levelId },
     });
-    assert.ok(r.status < 300, `claim failed: ${r.status} ${JSON.stringify(r.body)}`);
+    assert.ok(
+      r.status < 300,
+      `claim failed: ${r.status} ${JSON.stringify(r.body)}`,
+    );
     this.delSerial = r.body?.serial ?? null;
     assert.ok(this.delSerial, "claim did not return a serial");
   },
@@ -87,7 +99,11 @@ Given(
         permissions: { members: { read: true, edit: true, delete: false } },
       },
     });
-    assert.equal(r.status, 201, `admin create failed: ${JSON.stringify(r.body)}`);
+    assert.equal(
+      r.status,
+      201,
+      `admin create failed: ${JSON.stringify(r.body)}`,
+    );
     this.restrictedAdminId = r.body?.id ?? null;
     const login = await this.request("POST", "/auth/admin/login", {
       body: { email, password },
@@ -103,7 +119,9 @@ Given(
 When(
   "that member requests their account-deletion summary",
   async function (this: LmsWorld) {
-    await this.request("GET", "/auth/me/delete-summary", { token: this.delToken });
+    await this.request("GET", "/auth/me/delete-summary", {
+      token: this.delToken,
+    });
   },
 );
 
@@ -142,31 +160,45 @@ When(
 );
 
 // Re-registering the freed email creates a NEW member; track it for cleanup.
-When("I register a new account with that email", async function (this: LmsWorld) {
-  const r = await this.request("POST", "/auth/signup", {
-    token: null,
-    body: {
-      email: this.delEmail,
-      password: "delete-test-pass-456",
-      firstName: "Reused",
-      lastName: "Email",
-    },
-  });
-  if (r.body?.user?.id) this.disposableMemberIds.push(r.body.user.id);
-});
+When(
+  "I register a new account with that email",
+  async function (this: LmsWorld) {
+    const r = await this.request("POST", "/auth/signup", {
+      token: null,
+      body: {
+        email: this.delEmail,
+        password: "delete-test-pass-456",
+        firstName: "Reused",
+        lastName: "Email",
+      },
+    });
+    if (r.body?.user?.id) this.disposableMemberIds.push(r.body.user.id);
+  },
+);
 
 // ---------- assertions ----------
 
-Then("that member's session should be rejected", async function (this: LmsWorld) {
-  const r = await this.request("GET", "/auth/me", { token: this.delToken });
-  assert.equal(r.status, 401, `expected 401 for a purged member's token, got ${r.status}`);
-});
+Then(
+  "that member's session should be rejected",
+  async function (this: LmsWorld) {
+    const r = await this.request("GET", "/auth/me", { token: this.delToken });
+    assert.equal(
+      r.status,
+      401,
+      `expected 401 for a purged member's token, got ${r.status}`,
+    );
+  },
+);
 
 Then(
   "that member should no longer be able to log in",
   async function (this: LmsWorld) {
     const r = await this.login(this.delEmail!, this.delPassword!);
-    assert.equal(r.status, 401, `expected login to fail (401), got ${r.status}`);
+    assert.equal(
+      r.status,
+      401,
+      `expected login to fail (401), got ${r.status}`,
+    );
   },
 );
 
@@ -174,14 +206,22 @@ Then(
   "that member should still be able to log in",
   async function (this: LmsWorld) {
     const r = await this.login(this.delEmail!, this.delPassword!);
-    assert.equal(r.status, 200, `expected login to still work (200), got ${r.status}`);
+    assert.equal(
+      r.status,
+      200,
+      `expected login to still work (200), got ${r.status}`,
+    );
   },
 );
 
 Then("an admin should not find that member", async function (this: LmsWorld) {
   const token = await this.adminToken();
   const r = await this.request("GET", `/members/${this.delId}`, { token });
-  assert.equal(r.status, 404, `expected member to be gone (404), got ${r.status}`);
+  assert.equal(
+    r.status,
+    404,
+    `expected member to be gone (404), got ${r.status}`,
+  );
 });
 
 Then(
@@ -197,7 +237,11 @@ Then(
         lastName: "Start",
       },
     });
-    assert.equal(r.status, 200, `expected re-signup to succeed (200), got ${r.status} ${JSON.stringify(r.body)}`);
+    assert.equal(
+      r.status,
+      200,
+      `expected re-signup to succeed (200), got ${r.status} ${JSON.stringify(r.body)}`,
+    );
     if (r.body?.user?.id) this.disposableMemberIds.push(r.body.user.id);
   },
 );
@@ -213,7 +257,10 @@ Then(
   "the deletion summary should report at least {int} completed lesson",
   function (this: LmsWorld, n: number) {
     const c = this.last.body?.completedLessons;
-    assert.ok(typeof c === "number" && c >= n, `expected completedLessons >= ${n}, got ${c}`);
+    assert.ok(
+      typeof c === "number" && c >= n,
+      `expected completedLessons >= ${n}, got ${c}`,
+    );
   },
 );
 
@@ -221,7 +268,10 @@ Then(
   "the deletion summary should list at least {int} certificate",
   function (this: LmsWorld, n: number) {
     const certs = this.last.body?.certificates;
-    assert.ok(Array.isArray(certs) && certs.length >= n, `expected >= ${n} certificates, got ${JSON.stringify(certs)}`);
+    assert.ok(
+      Array.isArray(certs) && certs.length >= n,
+      `expected >= ${n} certificates, got ${JSON.stringify(certs)}`,
+    );
   },
 );
 
@@ -234,7 +284,11 @@ Then(
       { token: null },
     );
     // Verify always 200s; the cascade makes the row (and its serial) unknown.
-    assert.equal(r.body?.valid, false, `expected the serial to stop verifying, got ${JSON.stringify(r.body)}`);
+    assert.equal(
+      r.body?.valid,
+      false,
+      `expected the serial to stop verifying, got ${JSON.stringify(r.body)}`,
+    );
   },
 );
 
@@ -256,8 +310,19 @@ Then(
     const contact = (list.body?.items ?? []).find(
       (c: any) => c.email === this.delEmail,
     );
-    assert.ok(contact, "the member's contact was DELETED — it must survive as a suppression tombstone");
-    assert.equal(contact.status, "UNSUBSCRIBED", `expected UNSUBSCRIBED, got ${contact.status}`);
-    assert.equal(contact.userId, null, "tombstoned contact should have its member link cleared");
+    assert.ok(
+      contact,
+      "the member's contact was DELETED — it must survive as a suppression tombstone",
+    );
+    assert.equal(
+      contact.status,
+      "UNSUBSCRIBED",
+      `expected UNSUBSCRIBED, got ${contact.status}`,
+    );
+    assert.equal(
+      contact.userId,
+      null,
+      "tombstoned contact should have its member link cleared",
+    );
   },
 );

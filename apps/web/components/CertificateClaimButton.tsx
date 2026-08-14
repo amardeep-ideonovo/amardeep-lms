@@ -44,7 +44,11 @@ export default function CertificateClaimButton({
       if (err instanceof ApiError && err.message === "NAME_REQUIRED") {
         setAskName(true);
       } else {
-        setError(err instanceof Error ? err.message : "Could not issue the certificate.");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not issue the certificate.",
+        );
       }
     } finally {
       setClaiming(false);
@@ -89,7 +93,10 @@ export default function CertificateClaimButton({
           {serial && (
             <span style={{ fontSize: 12.5, opacity: 0.75 }}>
               {serial} ·{" "}
-              <Link href={`/verify/${serial}`} style={{ textDecoration: "underline" }}>
+              <Link
+                href={`/verify/${serial}`}
+                style={{ textDecoration: "underline" }}
+              >
                 verify
               </Link>
             </span>
@@ -153,7 +160,9 @@ export default function CertificateClaimButton({
         </button>
       )}
       {error && (
-        <span style={{ color: "var(--danger, #ea4f4f)", fontSize: 13 }}>{error}</span>
+        <span style={{ color: "var(--danger, #ea4f4f)", fontSize: 13 }}>
+          {error}
+        </span>
       )}
     </div>
   );

@@ -3,8 +3,8 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
-} from '@nestjs/common';
-import { SettingsService } from '../settings/settings.service';
+} from "@nestjs/common";
+import { SettingsService } from "../settings/settings.service";
 
 // Thin fetch-based client for the PayPal REST APIs we use (Catalog Products v1,
 // Subscriptions v1, webhook signature verification). Deliberately not the
@@ -17,19 +17,19 @@ import { SettingsService } from '../settings/settings.service';
 
 // Narrow response shapes (only the fields we consume).
 export interface PayPalCycleExecution {
-  tenure_type: 'REGULAR' | 'TRIAL';
+  tenure_type: "REGULAR" | "TRIAL";
   cycles_completed: number;
   total_cycles: number;
 }
 export interface PayPalSubscription {
   id: string; // I-…
   status:
-    | 'APPROVAL_PENDING'
-    | 'APPROVED'
-    | 'ACTIVE'
-    | 'SUSPENDED'
-    | 'CANCELLED'
-    | 'EXPIRED';
+    | "APPROVAL_PENDING"
+    | "APPROVED"
+    | "ACTIVE"
+    | "SUSPENDED"
+    | "CANCELLED"
+    | "EXPIRED";
   plan_id: string;
   custom_id?: string; // our userId, stamped at Buttons createSubscription
   start_time?: string;
@@ -55,12 +55,12 @@ export interface PayPalTransaction {
 
 // Currencies PayPal treats as zero-decimal — our cents→"x.xx" conversion would
 // be wrong for them, so plan creation refuses (the site bills in USD today).
-const ZERO_DECIMAL = new Set(['JPY', 'HUF', 'TWD']);
+const ZERO_DECIMAL = new Set(["JPY", "HUF", "TWD"]);
 
 type HeaderBag = Record<string, string | string[] | undefined>;
 const header = (h: HeaderBag, name: string): string => {
   const v = h[name];
-  return Array.isArray(v) ? (v[0] ?? '') : (v ?? '');
+  return Array.isArray(v) ? (v[0] ?? "") : (v ?? "");
 };
 
 @Injectable()
@@ -74,10 +74,10 @@ export class PayPalService {
 
   constructor(private readonly settings: SettingsService) {}
 
-  private baseUrl(mode: 'sandbox' | 'live'): string {
-    return mode === 'live'
-      ? 'https://api-m.paypal.com'
-      : 'https://api-m.sandbox.paypal.com';
+  private baseUrl(mode: "sandbox" | "live"): string {
+    return mode === "live"
+      ? "https://api-m.paypal.com"
+      : "https://api-m.sandbox.paypal.com";
   }
 
   /** True when a client id + secret are configured (Setting table or env). */
@@ -94,7 +94,7 @@ export class PayPalService {
   // can't complete a subscription), mirroring getElementsPublishableKey.
   async getClientConfig(): Promise<{
     clientId: string;
-    mode: 'sandbox' | 'live';
+    mode: "sandbox" | "live";
   } | null> {
     const [clientId, secret, mode] = await Promise.all([
       this.settings.getPayPalClientId(),
@@ -107,7 +107,7 @@ export class PayPalService {
   private async creds(): Promise<{
     clientId: string;
     secret: string;
-    mode: 'sandbox' | 'live';
+    mode: "sandbox" | "live";
   }> {
     const [clientId, secret, mode] = await Promise.all([
       this.settings.getPayPalClientId(),
@@ -115,7 +115,7 @@ export class PayPalService {
       this.settings.getPayPalMode(),
     ]);
     if (!clientId || !secret) {
-      throw new InternalServerErrorException('PayPal is not configured');
+      throw new InternalServerErrorException("PayPal is not configured");
     }
     return { clientId, secret, mode };
   }
@@ -132,15 +132,15 @@ export class PayPalService {
       return { token: this.token.value, base };
     }
     const res = await fetch(`${base}/v1/oauth2/token`, {
-      method: 'POST',
+      method: "POST",
       headers: {
         Authorization:
-          'Basic ' + Buffer.from(`${clientId}:${secret}`).toString('base64'),
-        'Content-Type': 'application/x-www-form-urlencoded',
+          "Basic " + Buffer.from(`${clientId}:${secret}`).toString("base64"),
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: 'grant_type=client_credentials',
+      body: "grant_type=client_credentials",
     });
-    if (!res.ok) throw await this.asError('oauth token', res);
+    if (!res.ok) throw await this.asError("oauth token", res);
     const data = (await res.json()) as {
       access_token: string;
       expires_in: number;
@@ -160,7 +160,7 @@ export class PayPalService {
     what: string,
     res: Response,
   ): Promise<InternalServerErrorException> {
-    const body = await res.text().catch(() => '');
+    const body = await res.text().catch(() => "");
     this.logger.error(`PayPal ${what} failed (${res.status}): ${body}`);
     return new InternalServerErrorException(
       `PayPal request failed (${res.status})`,
@@ -168,7 +168,7 @@ export class PayPalService {
   }
 
   private async request<T>(
-    method: 'GET' | 'POST' | 'PATCH',
+    method: "GET" | "POST" | "PATCH",
     path: string,
     body?: unknown,
   ): Promise<T> {
@@ -177,7 +177,7 @@ export class PayPalService {
       method,
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
@@ -190,9 +190,9 @@ export class PayPalService {
 
   async ensureProduct(name: string): Promise<string> {
     const product = await this.request<{ id: string }>(
-      'POST',
-      '/v1/catalogs/products',
-      { name, type: 'SERVICE' },
+      "POST",
+      "/v1/catalogs/products",
+      { name, type: "SERVICE" },
     );
     return product.id;
   }
@@ -200,8 +200,8 @@ export class PayPalService {
   // Keep the catalog product name in step with a level rename (best-effort at
   // the call site — a failed rename must not block the level save).
   async updateProduct(productId: string, name: string): Promise<void> {
-    await this.request('PATCH', `/v1/catalogs/products/${productId}`, [
-      { op: 'replace', path: '/name', value: name },
+    await this.request("PATCH", `/v1/catalogs/products/${productId}`, [
+      { op: "replace", path: "/name", value: name },
     ]);
   }
 
@@ -211,7 +211,7 @@ export class PayPalService {
   async createPlan(input: {
     productId: string;
     name: string;
-    interval: 'month' | 'year';
+    interval: "month" | "year";
     amount: number; // minor units
     currency: string;
     installments: number | null;
@@ -222,53 +222,57 @@ export class PayPalService {
         `Currency ${currency} is not supported for PayPal plans`,
       );
     }
-    const plan = await this.request<{ id: string }>('POST', '/v1/billing/plans', {
-      product_id: input.productId,
-      name: input.name,
-      status: 'ACTIVE',
-      billing_cycles: [
-        {
-          frequency: {
-            interval_unit: input.interval === 'year' ? 'YEAR' : 'MONTH',
-            interval_count: 1,
-          },
-          tenure_type: 'REGULAR',
-          sequence: 1,
-          total_cycles: input.installments ?? 0,
-          pricing_scheme: {
-            fixed_price: {
-              value: (input.amount / 100).toFixed(2),
-              currency_code: currency,
+    const plan = await this.request<{ id: string }>(
+      "POST",
+      "/v1/billing/plans",
+      {
+        product_id: input.productId,
+        name: input.name,
+        status: "ACTIVE",
+        billing_cycles: [
+          {
+            frequency: {
+              interval_unit: input.interval === "year" ? "YEAR" : "MONTH",
+              interval_count: 1,
+            },
+            tenure_type: "REGULAR",
+            sequence: 1,
+            total_cycles: input.installments ?? 0,
+            pricing_scheme: {
+              fixed_price: {
+                value: (input.amount / 100).toFixed(2),
+                currency_code: currency,
+              },
             },
           },
+        ],
+        payment_preferences: {
+          auto_bill_outstanding: true,
+          payment_failure_threshold: 3,
         },
-      ],
-      payment_preferences: {
-        auto_bill_outstanding: true,
-        payment_failure_threshold: 3,
       },
-    });
+    );
     return plan.id;
   }
 
   // Parity with Stripe's archivePrice: existing subscriptions keep billing, but
   // the plan can't back a new checkout.
   async deactivatePlan(planId: string): Promise<void> {
-    await this.request('POST', `/v1/billing/plans/${planId}/deactivate`);
+    await this.request("POST", `/v1/billing/plans/${planId}/deactivate`);
   }
 
   // --- Subscriptions ---
 
   async getSubscription(subId: string): Promise<PayPalSubscription> {
     return this.request<PayPalSubscription>(
-      'GET',
+      "GET",
       `/v1/billing/subscriptions/${encodeURIComponent(subId)}`,
     );
   }
 
   async suspendSubscription(subId: string, reason: string): Promise<void> {
     await this.request(
-      'POST',
+      "POST",
       `/v1/billing/subscriptions/${encodeURIComponent(subId)}/suspend`,
       { reason },
     );
@@ -276,7 +280,7 @@ export class PayPalService {
 
   async activateSubscription(subId: string, reason: string): Promise<void> {
     await this.request(
-      'POST',
+      "POST",
       `/v1/billing/subscriptions/${encodeURIComponent(subId)}/activate`,
       { reason },
     );
@@ -286,7 +290,7 @@ export class PayPalService {
   // mirror's cancelAtPeriodEnd + UserLevel.expiresAt keep access until then).
   async cancelSubscription(subId: string, reason: string): Promise<void> {
     await this.request(
-      'POST',
+      "POST",
       `/v1/billing/subscriptions/${encodeURIComponent(subId)}/cancel`,
       { reason },
     );
@@ -300,7 +304,7 @@ export class PayPalService {
   ): Promise<PayPalTransaction[]> {
     const qs = `start_time=${encodeURIComponent(startIso)}&end_time=${encodeURIComponent(endIso)}`;
     const res = await this.request<{ transactions?: PayPalTransaction[] }>(
-      'GET',
+      "GET",
       `/v1/billing/subscriptions/${encodeURIComponent(subId)}/transactions?${qs}`,
     );
     return res.transactions ?? [];
@@ -318,40 +322,43 @@ export class PayPalService {
     const webhookId = await this.settings.getPayPalWebhookId();
     if (!webhookId) {
       this.logger.warn(
-        'PayPal webhook received but no webhook id is configured — rejecting',
+        "PayPal webhook received but no webhook id is configured — rejecting",
       );
       return false;
     }
     const payload =
-      '{' +
-      `"auth_algo":${JSON.stringify(header(headers, 'paypal-auth-algo'))},` +
-      `"cert_url":${JSON.stringify(header(headers, 'paypal-cert-url'))},` +
-      `"transmission_id":${JSON.stringify(header(headers, 'paypal-transmission-id'))},` +
-      `"transmission_sig":${JSON.stringify(header(headers, 'paypal-transmission-sig'))},` +
-      `"transmission_time":${JSON.stringify(header(headers, 'paypal-transmission-time'))},` +
+      "{" +
+      `"auth_algo":${JSON.stringify(header(headers, "paypal-auth-algo"))},` +
+      `"cert_url":${JSON.stringify(header(headers, "paypal-cert-url"))},` +
+      `"transmission_id":${JSON.stringify(header(headers, "paypal-transmission-id"))},` +
+      `"transmission_sig":${JSON.stringify(header(headers, "paypal-transmission-sig"))},` +
+      `"transmission_time":${JSON.stringify(header(headers, "paypal-transmission-time"))},` +
       `"webhook_id":${JSON.stringify(webhookId)},` +
-      `"webhook_event":${rawBody.toString('utf8')}` +
-      '}';
+      `"webhook_event":${rawBody.toString("utf8")}` +
+      "}";
     try {
       const { token, base } = await this.getAccessToken();
-      const res = await fetch(`${base}/v1/notifications/verify-webhook-signature`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+      const res = await fetch(
+        `${base}/v1/notifications/verify-webhook-signature`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: payload,
         },
-        body: payload,
-      });
+      );
       if (!res.ok) {
         this.logger.error(
           `PayPal verify-webhook-signature HTTP ${res.status}: ${await res
             .text()
-            .catch(() => '')}`,
+            .catch(() => "")}`,
         );
         return false;
       }
       const data = (await res.json()) as { verification_status?: string };
-      return data.verification_status === 'SUCCESS';
+      return data.verification_status === "SUCCESS";
     } catch (err) {
       this.logger.error(`PayPal webhook verification errored: ${String(err)}`);
       return false;

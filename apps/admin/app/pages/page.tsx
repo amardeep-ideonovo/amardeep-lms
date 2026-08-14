@@ -189,8 +189,9 @@ export default function PagesPage() {
         <div>
           <h1>Pages</h1>
           <p className="subtitle">
-            Build marketing &amp; content pages with the visual editor. Published
-            pages are live at <code>/your-slug</code>; drafts stay private.
+            Build marketing &amp; content pages with the visual editor.
+            Published pages are live at <code>/your-slug</code>; drafts stay
+            private.
           </p>
         </div>
         <button className="btn" onClick={addNewPage} disabled={busy}>
@@ -209,79 +210,81 @@ export default function PagesPage() {
         ) : pages.length === 0 ? (
           <p className="muted">No pages yet. Click “Add new page” to start.</p>
         ) : (
-          <div className="table-wrap"><table className="table">
-            <thead>
-              <tr>
-                <th>Title</th>
-                <th>URL</th>
-                <th>Updated</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {pages.map((p) => (
-                <tr key={p.id}>
-                  <td>{p.title}</td>
-                  <td className="muted">/{p.slug}</td>
-                  <td className="muted">{fmtDate(p.updatedAt)}</td>
-                  <td>
-                    <span
-                      className={
-                        p.status === "PUBLISHED"
-                          ? "badge badge--published"
-                          : "badge badge--draft"
-                      }
-                    >
-                      {p.status === "PUBLISHED" ? "Published" : "Draft"}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="row-actions">
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => openEditor(p.id)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => rename(p)}
-                      >
-                        Rename
-                      </button>
-                      <a
-                        className="btn btn--ghost btn--sm"
-                        href={`${webUrl()}/${p.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        View
-                      </a>
-                      <button
-                        className="btn btn--ghost btn--sm"
-                        onClick={() => togglePublish(p)}
-                        disabled={rowBusy === p.id}
-                      >
-                        {rowBusy === p.id
-                          ? "Saving…"
-                          : p.status === "PUBLISHED"
-                            ? "Unpublish"
-                            : "Publish"}
-                      </button>
-                      <button
-                        className="btn btn--danger btn--sm"
-                        onClick={() => remove(p)}
-                        disabled={rowBusy === p.id}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>URL</th>
+                  <th>Updated</th>
+                  <th>Status</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table></div>
+              </thead>
+              <tbody>
+                {pages.map((p) => (
+                  <tr key={p.id}>
+                    <td>{p.title}</td>
+                    <td className="muted">/{p.slug}</td>
+                    <td className="muted">{fmtDate(p.updatedAt)}</td>
+                    <td>
+                      <span
+                        className={
+                          p.status === "PUBLISHED"
+                            ? "badge badge--published"
+                            : "badge badge--draft"
+                        }
+                      >
+                        {p.status === "PUBLISHED" ? "Published" : "Draft"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="row-actions">
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => openEditor(p.id)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => rename(p)}
+                        >
+                          Rename
+                        </button>
+                        <a
+                          className="btn btn--ghost btn--sm"
+                          href={`${webUrl()}/${p.slug}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          View
+                        </a>
+                        <button
+                          className="btn btn--ghost btn--sm"
+                          onClick={() => togglePublish(p)}
+                          disabled={rowBusy === p.id}
+                        >
+                          {rowBusy === p.id
+                            ? "Saving…"
+                            : p.status === "PUBLISHED"
+                              ? "Unpublish"
+                              : "Publish"}
+                        </button>
+                        <button
+                          className="btn btn--danger btn--sm"
+                          onClick={() => remove(p)}
+                          disabled={rowBusy === p.id}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>

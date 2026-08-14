@@ -17,7 +17,13 @@ import {
 } from "@/components/operator-modals";
 import { RolloutCard } from "@/components/RolloutCard";
 import { Icon } from "@/components/icons";
-import { Avatar, ConfirmModal, Kebab, PageSkeleton, Pill } from "@/components/ui";
+import {
+  Avatar,
+  ConfirmModal,
+  Kebab,
+  PageSkeleton,
+  Pill,
+} from "@/components/ui";
 import {
   clientInstances,
   clientsOnPlan,
@@ -37,10 +43,20 @@ import {
   updateSettings,
 } from "@/lib/provisioner";
 import { useFleet } from "@/lib/useFleet";
-import type { AppTrack, ClientAccount, FleetState, Instance, Plan } from "@/lib/types";
+import type {
+  AppTrack,
+  ClientAccount,
+  FleetState,
+  Instance,
+  Plan,
+} from "@/lib/types";
 import { SECTIONS, type Section } from "./sections";
 
-export default function OperatorSection({ section: sectionParam }: { section: string }) {
+export default function OperatorSection({
+  section: sectionParam,
+}: {
+  section: string;
+}) {
   const fleet = useFleet();
   if (!SECTIONS.includes(sectionParam as Section)) notFound();
   if (!fleet) return <PageSkeleton />;
@@ -103,7 +119,7 @@ function filtered(fleet: FleetState): Instance[] {
       i.clientName.toLowerCase().includes(q) ||
       i.domain.toLowerCase().includes(q) ||
       i.id.includes(q) ||
-      i.owner.toLowerCase().includes(q)
+      i.owner.toLowerCase().includes(q),
   );
 }
 
@@ -117,32 +133,42 @@ function filteredClients(fleet: FleetState): ClientAccount[] {
       c.name.toLowerCase().includes(q) ||
       c.email.toLowerCase().includes(q) ||
       planName(fleet, c.license.planId).toLowerCase().includes(q) ||
-      clientInstances(fleet, c.id).some((i) => i.id.includes(q) || i.domain.toLowerCase().includes(q))
+      clientInstances(fleet, c.id).some(
+        (i) => i.id.includes(q) || i.domain.toLowerCase().includes(q),
+      ),
   );
 }
 
 // ---------- provisioning ----------
 
 function ProvisioningView({ fleet }: { fleet: FleetState }) {
-  const provisioning = fleet.instances.filter((i) => i.status === "Provisioning");
+  const provisioning = fleet.instances.filter(
+    (i) => i.status === "Provisioning",
+  );
   return (
     <>
       <div className="card">
         <div className="card-head" style={{ marginBottom: 10 }}>
           <span className="card-title">Provisioning jobs</span>
           <span className="card-sub">
-            {provisioning.length === 0 ? "none running" : `${provisioning.length} booting`}
+            {provisioning.length === 0
+              ? "none running"
+              : `${provisioning.length} booting`}
           </span>
         </div>
         {provisioning.map((inst) => (
           <div key={inst.id} className="brow">
             <span className="brow-icon">
-              <span className="wave-dot active pulse" style={{ background: "var(--info-text)" }} />
+              <span
+                className="wave-dot active pulse"
+                style={{ background: "var(--info-text)" }}
+              />
             </span>
             <span className="brow-body">
               <span className="brow-title">{inst.clientName}</span>
               <span className="brow-meta mono">
-                {inst.dbName} · {inst.domain} · ports {inst.ports.api}/{inst.ports.web}/{inst.ports.admin}
+                {inst.dbName} · {inst.domain} · ports {inst.ports.api}/
+                {inst.ports.web}/{inst.ports.admin}
               </span>
             </span>
             <Pill tone="info">Provisioning</Pill>
@@ -150,8 +176,8 @@ function ProvisioningView({ fleet }: { fleet: FleetState }) {
         ))}
         {provisioning.length === 0 && (
           <div className="empty-note">
-            Nothing booting right now — use “+ Provision instance” in the top bar to bring up a new
-            isolated stack.
+            Nothing booting right now — use “+ Provision instance” in the top
+            bar to bring up a new isolated stack.
           </div>
         )}
       </div>
@@ -207,7 +233,8 @@ function UpdatesView({ fleet }: { fleet: FleetState }) {
                       <Pill tone="warning">Scheduled tonight</Pill>
                     ) : inst.updateQueued ? (
                       <Pill tone="warning">Update queued</Pill>
-                    ) : inst.status === "Suspended" || inst.status === "Stopped" ? (
+                    ) : inst.status === "Suspended" ||
+                      inst.status === "Stopped" ? (
                       <Pill tone="neutral">On hold</Pill>
                     ) : (
                       <Pill tone="info">Waiting on wave</Pill>
@@ -227,12 +254,16 @@ function UpdatesView({ fleet }: { fleet: FleetState }) {
 // ---------- backups ----------
 
 function BackupsView({ fleet }: { fleet: FleetState }) {
-  const failedAlert = fleet.alerts.find((a) => a.id === "a-backup-luthier" && !a.resolved);
+  const failedAlert = fleet.alerts.find(
+    (a) => a.id === "a-backup-luthier" && !a.resolved,
+  );
   return (
     <div className="card">
       <div className="card-head" style={{ marginBottom: 6 }}>
         <span className="card-title">Fleet backups</span>
-        <span className="card-sub">pg_dump + uploads volume, verified after every run</span>
+        <span className="card-sub">
+          pg_dump + uploads volume, verified after every run
+        </span>
       </div>
       <table className="itable">
         <thead>
@@ -254,10 +285,20 @@ function BackupsView({ fleet }: { fleet: FleetState }) {
                 </td>
                 <td>{inst.backups.schedule}</td>
                 <td>{inst.backups.lastRunAt}</td>
-                <td>{inst.backups.sizeMb > 0 ? `${(inst.backups.sizeMb / 1024).toFixed(1)} GB` : "—"}</td>
+                <td>
+                  {inst.backups.sizeMb > 0
+                    ? `${(inst.backups.sizeMb / 1024).toFixed(1)} GB`
+                    : "—"}
+                </td>
                 <td>
                   {failed ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
                       <Pill tone="danger">Failed</Pill>
                       <button
                         type="button"
@@ -338,7 +379,10 @@ function PlansView({ fleet }: { fleet: FleetState }) {
             {plans.map((plan, idx) => {
               const clients = clientsOnPlan(fleet, plan.id);
               return (
-                <tr key={plan.id} style={plan.active ? undefined : { opacity: 0.6 }}>
+                <tr
+                  key={plan.id}
+                  style={plan.active ? undefined : { opacity: 0.6 }}
+                >
                   <td>
                     <span className="order-btns">
                       <button
@@ -374,17 +418,30 @@ function PlansView({ fleet }: { fleet: FleetState }) {
                   </td>
                   <td>${plan.priceMonthly}/mo</td>
                   <td>
-                    {plan.instanceCap} instance{plan.instanceCap === 1 ? "" : "s"}
+                    {plan.instanceCap} instance
+                    {plan.instanceCap === 1 ? "" : "s"}
                   </td>
                   <td>
-                    <Pill tone={trackTone(plan.appTrack)}>{trackLabel(plan.appTrack)}</Pill>
+                    <Pill tone={trackTone(plan.appTrack)}>
+                      {trackLabel(plan.appTrack)}
+                    </Pill>
                   </td>
                   <td>{clients}</td>
                   <td>
-                    {plan.active ? <Pill tone="success">Active</Pill> : <Pill tone="neutral">Off sale</Pill>}
+                    {plan.active ? (
+                      <Pill tone="success">Active</Pill>
+                    ) : (
+                      <Pill tone="neutral">Off sale</Pill>
+                    )}
                   </td>
                   <td style={{ textAlign: "right", overflow: "visible" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
                       <button
                         type="button"
                         className="chip-action"
@@ -428,7 +485,10 @@ function PlansView({ fleet }: { fleet: FleetState }) {
       </div>
 
       {editor.open && (
-        <PlanEditorModal plan={editor.plan} onClose={() => setEditor({ open: false, plan: null })} />
+        <PlanEditorModal
+          plan={editor.plan}
+          onClose={() => setEditor({ open: false, plan: null })}
+        />
       )}
       {deactivateTarget && (
         <ConfirmModal
@@ -436,9 +496,13 @@ function PlansView({ fleet }: { fleet: FleetState }) {
           body={
             <>
               <div className="warn-box">
-                {deactivateTarget.name} disappears from the sales page, signup and the portal upgrade
-                dialog. Nothing changes for the {clientsOnPlan(fleet, deactivateTarget.id)} client
-                {clientsOnPlan(fleet, deactivateTarget.id) === 1 ? "" : "s"} already on it.
+                {deactivateTarget.name} disappears from the sales page, signup
+                and the portal upgrade dialog. Nothing changes for the{" "}
+                {clientsOnPlan(fleet, deactivateTarget.id)} client
+                {clientsOnPlan(fleet, deactivateTarget.id) === 1
+                  ? ""
+                  : "s"}{" "}
+                already on it.
               </div>
             </>
           }
@@ -504,7 +568,8 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
               const owned = clientInstances(fleet, client.id);
               const cap = effectiveCap(fleet, client.license);
               const track = effectiveTrack(fleet, client.license);
-              const capOverridden = typeof client.license.instanceCapOverride === "number";
+              const capOverridden =
+                typeof client.license.instanceCapOverride === "number";
               const trackOverridden = client.license.appTrackOverride != null;
               const suspended = client.license.status === "suspended";
               const atCap = owned.length >= cap;
@@ -517,20 +582,31 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
                   <td>${plan?.priceMonthly ?? 0}/mo</td>
                   <td>
                     {owned.length} / {cap}
-                    {capOverridden && <span className="override-mark"> · override</span>}
+                    {capOverridden && (
+                      <span className="override-mark"> · override</span>
+                    )}
                   </td>
                   <td>
                     <Pill tone={trackTone(track)}>{trackLabel(track)}</Pill>
-                    {trackOverridden && <span className="override-mark"> · override</span>}
+                    {trackOverridden && (
+                      <span className="override-mark"> · override</span>
+                    )}
                   </td>
                   <td>
-                    {suspended ? <Pill tone="warning">Suspended</Pill> : <Pill tone="success">Active</Pill>}
+                    {suspended ? (
+                      <Pill tone="warning">Suspended</Pill>
+                    ) : (
+                      <Pill tone="success">Active</Pill>
+                    )}
                   </td>
                   <td>{client.createdAt}</td>
                   <td style={{ overflow: "visible", textAlign: "right" }}>
                     <Kebab
                       items={[
-                        { label: "Change plan…", onSelect: () => setDialog({ kind: "plan", client }) },
+                        {
+                          label: "Change plan…",
+                          onSelect: () => setDialog({ kind: "plan", client }),
+                        },
                         {
                           label: "Override instance cap…",
                           onSelect: () => setDialog({ kind: "cap", client }),
@@ -544,14 +620,20 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
                             ? `Provision instance (at cap ${owned.length}/${cap})`
                             : "Provision instance for client…",
                           disabled: atCap || suspended,
-                          onSelect: () => setDialog({ kind: "provision", client }),
+                          onSelect: () =>
+                            setDialog({ kind: "provision", client }),
                         },
                         suspended
-                          ? { label: "Resume license", onSelect: () => setDialog({ kind: "resume", client }) }
+                          ? {
+                              label: "Resume license",
+                              onSelect: () =>
+                                setDialog({ kind: "resume", client }),
+                            }
                           : {
                               label: "Suspend license",
                               danger: true,
-                              onSelect: () => setDialog({ kind: "suspend", client }),
+                              onSelect: () =>
+                                setDialog({ kind: "suspend", client }),
                             },
                       ]}
                     />
@@ -562,7 +644,9 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
             {clients.length === 0 && (
               <tr>
                 <td colSpan={8}>
-                  <span className="empty-note">No licenses match — clear the search.</span>
+                  <span className="empty-note">
+                    No licenses match — clear the search.
+                  </span>
                 </td>
               </tr>
             )}
@@ -571,16 +655,32 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
       </div>
 
       {dialog?.kind === "plan" && (
-        <ChangeLicensePlanModal fleet={fleet} client={dialog.client} onClose={() => setDialog(null)} />
+        <ChangeLicensePlanModal
+          fleet={fleet}
+          client={dialog.client}
+          onClose={() => setDialog(null)}
+        />
       )}
       {dialog?.kind === "cap" && (
-        <CapOverrideModal fleet={fleet} client={dialog.client} onClose={() => setDialog(null)} />
+        <CapOverrideModal
+          fleet={fleet}
+          client={dialog.client}
+          onClose={() => setDialog(null)}
+        />
       )}
       {dialog?.kind === "track" && (
-        <TrackOverrideModal fleet={fleet} client={dialog.client} onClose={() => setDialog(null)} />
+        <TrackOverrideModal
+          fleet={fleet}
+          client={dialog.client}
+          onClose={() => setDialog(null)}
+        />
       )}
       {dialog?.kind === "provision" && (
-        <ProvisionForClientModal fleet={fleet} client={dialog.client} onClose={() => setDialog(null)} />
+        <ProvisionForClientModal
+          fleet={fleet}
+          client={dialog.client}
+          onClose={() => setDialog(null)}
+        />
       )}
       {dialog?.kind === "suspend" && (
         <ConfirmModal
@@ -589,14 +689,19 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
           body={
             <>
               <div className="warn-box">
-                The portal shows a “License suspended” banner and every mutating action is disabled.
-                Their {clientInstances(fleet, dialog.client.id).length} instance
-                {clientInstances(fleet, dialog.client.id).length === 1 ? " keeps" : "s keep"} running —
-                members are not interrupted.
+                The portal shows a “License suspended” banner and every mutating
+                action is disabled. Their{" "}
+                {clientInstances(fleet, dialog.client.id).length} instance
+                {clientInstances(fleet, dialog.client.id).length === 1
+                  ? " keeps"
+                  : "s keep"}{" "}
+                running — members are not interrupted.
               </div>
               <p className="modal-note">
-                MRR drops by ${getPlan(fleet, dialog.client.license.planId)?.priceMonthly ?? 0}/mo until
-                you resume.
+                MRR drops by $
+                {getPlan(fleet, dialog.client.license.planId)?.priceMonthly ??
+                  0}
+                /mo until you resume.
               </p>
             </>
           }
@@ -610,8 +715,10 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
           title={`Resume ${dialog.client.academyName}'s license?`}
           body={
             <p className="modal-note">
-              Billing restarts at ${getPlan(fleet, dialog.client.license.planId)?.priceMonthly ?? 0}/mo,
-              the portal banner clears, and any parked instances come back up.
+              Billing restarts at $
+              {getPlan(fleet, dialog.client.license.planId)?.priceMonthly ?? 0}
+              /mo, the portal banner clears, and any parked instances come back
+              up.
             </p>
           }
           confirmLabel="Resume license"
@@ -656,8 +763,13 @@ function ClientsView({ fleet }: { fleet: FleetState }) {
           {clients.map((client) => {
             const owned = clientInstances(fleet, client.id);
             const cap = effectiveCap(fleet, client.license);
-            const members = owned.reduce((sum, i) => sum + (i.membersCount ?? 0), 0);
-            const openTickets = owned.flatMap((i) => i.tickets).filter((t) => t.status === "Open").length;
+            const members = owned.reduce(
+              (sum, i) => sum + (i.membersCount ?? 0),
+              0,
+            );
+            const openTickets = owned
+              .flatMap((i) => i.tickets)
+              .filter((t) => t.status === "Open").length;
             return (
               <tr key={client.id}>
                 <td>
@@ -673,7 +785,11 @@ function ClientsView({ fleet }: { fleet: FleetState }) {
                     owned.map((inst) => {
                       const status = displayStatus(inst);
                       return (
-                        <span key={inst.id} className="chip-inst" title={inst.domain}>
+                        <span
+                          key={inst.id}
+                          className="chip-inst"
+                          title={inst.domain}
+                        >
                           <span className={`chip-dot tone-${status.tone}`} />
                           {inst.id}
                         </span>
@@ -681,7 +797,11 @@ function ClientsView({ fleet }: { fleet: FleetState }) {
                     })
                   )}
                 </td>
-                <td>{members === 0 && owned.every((i) => i.membersCount === null) ? "—" : members.toLocaleString("en-US")}</td>
+                <td>
+                  {members === 0 && owned.every((i) => i.membersCount === null)
+                    ? "—"
+                    : members.toLocaleString("en-US")}
+                </td>
                 <td>
                   {openTickets > 0 ? (
                     <Pill tone="danger">{openTickets} open</Pill>
@@ -700,7 +820,9 @@ function ClientsView({ fleet }: { fleet: FleetState }) {
           {clients.length === 0 && (
             <tr>
               <td colSpan={6}>
-                <span className="empty-note">No clients match — clear the search.</span>
+                <span className="empty-note">
+                  No clients match — clear the search.
+                </span>
               </td>
             </tr>
           )}
@@ -716,15 +838,22 @@ function BillingView({ fleet }: { fleet: FleetState }) {
   const arr = fleet.stats.mrr * 12;
   return (
     <>
-      <div className="stat-grid" style={{ gridTemplateColumns: "repeat(3,1fr)" }}>
+      <div
+        className="stat-grid"
+        style={{ gridTemplateColumns: "repeat(3,1fr)" }}
+      >
         <div className="stat-card">
           <span className="stat-icon tint-warning">
             <Icon name="credit-card" size={17} />
           </span>
           <span>
             <span className="stat-label">Fleet MRR</span>
-            <span className="stat-value">${fleet.stats.mrr.toLocaleString("en-US")}</span>
-            <span className="stat-note tone-success">{fleet.stats.mrrNote}</span>
+            <span className="stat-value">
+              ${fleet.stats.mrr.toLocaleString("en-US")}
+            </span>
+            <span className="stat-note tone-success">
+              {fleet.stats.mrrNote}
+            </span>
           </span>
         </div>
         <div className="stat-card">
@@ -734,7 +863,9 @@ function BillingView({ fleet }: { fleet: FleetState }) {
           <span>
             <span className="stat-label">Annual run rate</span>
             <span className="stat-value">${arr.toLocaleString("en-US")}</span>
-            <span className="stat-note tone-success">{fleet.stats.licenses} licenses</span>
+            <span className="stat-note tone-success">
+              {fleet.stats.licenses} licenses
+            </span>
           </span>
         </div>
         <div className="stat-card">
@@ -753,7 +884,9 @@ function BillingView({ fleet }: { fleet: FleetState }) {
       <div className="card">
         <div className="card-head" style={{ marginBottom: 6 }}>
           <span className="card-title">Subscriptions</span>
-          <span className="card-sub">billed by the platform Stripe account · one per license</span>
+          <span className="card-sub">
+            billed by the platform Stripe account · one per license
+          </span>
         </div>
         <table className="itable">
           <thead>
@@ -768,7 +901,8 @@ function BillingView({ fleet }: { fleet: FleetState }) {
           <tbody>
             {filteredClients(fleet).map((client) => {
               const suspended = client.license.status === "suspended";
-              const price = getPlan(fleet, client.license.planId)?.priceMonthly ?? 0;
+              const price =
+                getPlan(fleet, client.license.planId)?.priceMonthly ?? 0;
               return (
                 <tr key={client.id}>
                   <td>
@@ -777,7 +911,13 @@ function BillingView({ fleet }: { fleet: FleetState }) {
                   <td>{planName(fleet, client.license.planId)}</td>
                   <td>${suspended ? 0 : price}</td>
                   <td>{client.license.renewsAt}</td>
-                  <td>{suspended ? <Pill tone="warning">Past due</Pill> : <Pill tone="success">Paid</Pill>}</td>
+                  <td>
+                    {suspended ? (
+                      <Pill tone="warning">Past due</Pill>
+                    ) : (
+                      <Pill tone="success">Paid</Pill>
+                    )}
+                  </td>
                 </tr>
               );
             })}
@@ -797,20 +937,40 @@ function HostsView({ fleet }: { fleet: FleetState }) {
       <div className="card">
         <div className="card-head baseline" style={{ marginBottom: 6 }}>
           <span className="card-title">Hosts</span>
-          <span className="card-sub">{fleet.hosts.length} VPS in the fleet</span>
+          <span className="card-sub">
+            {fleet.hosts.length} VPS in the fleet
+          </span>
           <div className="card-head-spacer" />
-          <button type="button" className="link-teal" onClick={() => setAddOpen(true)}>
+          <button
+            type="button"
+            className="link-teal"
+            onClick={() => setAddOpen(true)}
+          >
             + Add host
           </button>
         </div>
         {fleet.hosts.map((host) => (
-          <div key={host.name} style={{ padding: "12px 0", borderBottom: "1px solid var(--row-divider)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <div
+            key={host.name}
+            style={{
+              padding: "12px 0",
+              borderBottom: "1px solid var(--row-divider)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                marginBottom: 4,
+              }}
+            >
               <span className="host-name" style={{ width: "auto" }}>
                 {host.name}
               </span>
               <span className="card-sub">
-                {host.region} · {host.instanceCount} instance{host.instanceCount === 1 ? "" : "s"}
+                {host.region} · {host.instanceCount} instance
+                {host.instanceCount === 1 ? "" : "s"}
               </span>
             </div>
             {(
@@ -828,7 +988,8 @@ function HostsView({ fleet }: { fleet: FleetState }) {
                     style={{
                       width: `${pct}%`,
                       height: 8,
-                      background: pct >= 80 ? "var(--warning)" : "var(--success)",
+                      background:
+                        pct >= 80 ? "var(--warning)" : "var(--success)",
                     }}
                   />
                 </span>
@@ -863,12 +1024,18 @@ function AlertsView({ fleet }: { fleet: FleetState }) {
             <span className="alert-title">{alert.title}</span>
             <span className="alert-meta">{alert.meta}</span>
           </span>
-          <button type="button" className="chip-action" onClick={() => resolveAlert(alert.id)}>
+          <button
+            type="button"
+            className="chip-action"
+            onClick={() => resolveAlert(alert.id)}
+          >
             {alert.action}
           </button>
         </div>
       ))}
-      {open.length === 0 && <div className="empty-note">No open alerts — the fleet is quiet.</div>}
+      {open.length === 0 && (
+        <div className="empty-note">No open alerts — the fleet is quiet.</div>
+      )}
       {resolved.map((alert) => (
         <div key={alert.id} className="alert-row alert-resolved">
           <span className="alert-bar resolved" />
@@ -890,7 +1057,9 @@ function AuditView({ fleet }: { fleet: FleetState }) {
     <div className="card">
       <div className="card-head" style={{ marginBottom: 6 }}>
         <span className="card-title">Audit log</span>
-        <span className="card-sub">every operator + client action on the fleet</span>
+        <span className="card-sub">
+          every operator + client action on the fleet
+        </span>
       </div>
       {fleet.activity.map((entry) => (
         <div key={entry.id} className="act-row">
@@ -917,8 +1086,12 @@ function AuditView({ fleet }: { fleet: FleetState }) {
 
 function SettingsView({ fleet }: { fleet: FleetState }) {
   const [backupWindow, setBackupWindow] = useState(fleet.settings.backupWindow);
-  const [canarySize, setCanarySize] = useState(String(fleet.settings.canarySize));
-  const [portBase, setPortBase] = useState(String(fleet.settings.portRangeBase));
+  const [canarySize, setCanarySize] = useState(
+    String(fleet.settings.canarySize),
+  );
+  const [portBase, setPortBase] = useState(
+    String(fleet.settings.portRangeBase),
+  );
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -931,18 +1104,36 @@ function SettingsView({ fleet }: { fleet: FleetState }) {
         <div className="modal-body" style={{ maxWidth: 460 }}>
           <label className="field">
             <span className="field-label">Backup window</span>
-            <input className="input mono" value={backupWindow} onChange={(e) => setBackupWindow(e.target.value)} />
-            <span className="field-hint">Nightly pg_dump + uploads snapshot, per instance.</span>
+            <input
+              className="input mono"
+              value={backupWindow}
+              onChange={(e) => setBackupWindow(e.target.value)}
+            />
+            <span className="field-hint">
+              Nightly pg_dump + uploads snapshot, per instance.
+            </span>
           </label>
           <label className="field">
             <span className="field-label">Canary size</span>
-            <input className="input mono" value={canarySize} onChange={(e) => setCanarySize(e.target.value)} />
-            <span className="field-hint">Instances updated first in every rollout, with a 24h soak.</span>
+            <input
+              className="input mono"
+              value={canarySize}
+              onChange={(e) => setCanarySize(e.target.value)}
+            />
+            <span className="field-hint">
+              Instances updated first in every rollout, with a 24h soak.
+            </span>
           </label>
           <label className="field">
             <span className="field-label">Port range base</span>
-            <input className="input mono" value={portBase} onChange={(e) => setPortBase(e.target.value)} />
-            <span className="field-hint">Each instance gets three host ports (API/WEB/ADMIN) above this.</span>
+            <input
+              className="input mono"
+              value={portBase}
+              onChange={(e) => setPortBase(e.target.value)}
+            />
+            <span className="field-hint">
+              Each instance gets three host ports (API/WEB/ADMIN) above this.
+            </span>
           </label>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button
@@ -954,7 +1145,8 @@ function SettingsView({ fleet }: { fleet: FleetState }) {
                 await updateSettings({
                   backupWindow,
                   canarySize: Number(canarySize) || fleet.settings.canarySize,
-                  portRangeBase: Number(portBase) || fleet.settings.portRangeBase,
+                  portRangeBase:
+                    Number(portBase) || fleet.settings.portRangeBase,
                 });
                 setBusy(false);
                 setSaved(true);
@@ -972,8 +1164,9 @@ function SettingsView({ fleet }: { fleet: FleetState }) {
           Image set
         </div>
         <p className="modal-note" style={{ marginBottom: 12 }}>
-          Built once by <span className="mono">deploy/instance/build-images.sh</span>; every instance runs
-          these images with its own env — no per-client rebuild.
+          Built once by{" "}
+          <span className="mono">deploy/instance/build-images.sh</span>; every
+          instance runs these images with its own env — no per-client rebuild.
         </p>
         <div className="kv-grid" style={{ gridTemplateColumns: "1fr" }}>
           <div className="kv">

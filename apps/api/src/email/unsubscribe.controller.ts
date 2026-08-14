@@ -1,7 +1,14 @@
-import { Controller, Get, Header, Post, Query, UseGuards } from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import { UnsubscribeService } from './unsubscribe.service';
-import { verifyUnsubscribeToken } from './unsubscribe.util';
+import {
+  Controller,
+  Get,
+  Header,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
+import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import { UnsubscribeService } from "./unsubscribe.service";
+import { verifyUnsubscribeToken } from "./unsubscribe.util";
 
 // PUBLIC, no auth. The target of every email's unsubscribe link and the URL form
 // of the List-Unsubscribe header.
@@ -18,7 +25,7 @@ import { verifyUnsubscribeToken } from './unsubscribe.util';
 //
 // Both routes are IP rate-limited (public, unauthenticated) — mirrors the
 // @Throttle pattern in auth.controller.ts.
-@Controller('unsubscribe')
+@Controller("unsubscribe")
 @UseGuards(ThrottlerGuard)
 @Throttle({ default: { limit: 30, ttl: 60_000 } })
 export class UnsubscribeController {
@@ -27,11 +34,11 @@ export class UnsubscribeController {
   // Render-only. Verifies the token to choose which page to show, but performs
   // NO suppression. A valid token → a confirm page whose button POSTs the token.
   @Get()
-  @Header('Content-Type', 'text/html; charset=utf-8')
+  @Header("Content-Type", "text/html; charset=utf-8")
   // Never let an unsubscribe page get cached/indexed.
-  @Header('Cache-Control', 'no-store')
-  @Header('X-Robots-Tag', 'noindex')
-  async page(@Query('token') token?: string): Promise<string> {
+  @Header("Cache-Control", "no-store")
+  @Header("X-Robots-Tag", "noindex")
+  async page(@Query("token") token?: string): Promise<string> {
     const email = verifyUnsubscribeToken(token);
     if (!email) return errorPage();
     // token is non-empty here (verify returned an email), so it's safe to echo.
@@ -43,13 +50,13 @@ export class UnsubscribeController {
   // token is a no-op success-shaped 200 so we never leak which addresses are
   // real to an automated prefetcher.
   @Post()
-  @Header('Content-Type', 'text/html; charset=utf-8')
-  @Header('Cache-Control', 'no-store')
-  @Header('X-Robots-Tag', 'noindex')
-  async oneClick(@Query('token') token?: string): Promise<string> {
+  @Header("Content-Type", "text/html; charset=utf-8")
+  @Header("Cache-Control", "no-store")
+  @Header("X-Robots-Tag", "noindex")
+  async oneClick(@Query("token") token?: string): Promise<string> {
     const email = verifyUnsubscribeToken(token);
     if (email) await this.unsubscribe.unsubscribeEmail(email);
-    return successPage(email ?? '');
+    return successPage(email ?? "");
   }
 }
 
@@ -61,11 +68,11 @@ export class UnsubscribeController {
 
 function escapeHtml(s: string): string {
   return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function shell(title: string, body: string): string {
@@ -115,7 +122,7 @@ function shell(title: string, body: string): string {
 // escape it anyway as defense-in-depth. Email is escaped before display.
 function confirmPage(email: string, token: string): string {
   return shell(
-    'Confirm unsubscribe',
+    "Confirm unsubscribe",
     `<div class="badge" aria-hidden="true">✉</div>
      <h1>Unsubscribe from emails?</h1>
      <p>This will stop marketing emails to <span class="email">${escapeHtml(
@@ -149,7 +156,7 @@ function successPage(email: string): string {
 
 function errorPage(): string {
   return shell(
-    'Unsubscribe link not valid',
+    "Unsubscribe link not valid",
     `<div class="badge" aria-hidden="true">!</div>
      <h1>This link isn't valid</h1>
      <p>The unsubscribe link looks incomplete or has expired. Please use the link from your most recent email.</p>

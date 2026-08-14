@@ -9,7 +9,7 @@ import {
   Max,
   Min,
   MinLength,
-} from 'class-validator';
+} from "class-validator";
 import type {
   PopupAnimation,
   PopupEventType,
@@ -19,9 +19,9 @@ import type {
   PopupStatus,
   PopupTrigger,
   PuckDocument,
-} from '@lms/types';
+} from "@lms/types";
 
-const EVENT_TYPES: PopupEventType[] = ['view', 'click', 'dismiss'];
+const EVENT_TYPES: PopupEventType[] = ["view", "click", "dismiss"];
 
 // Public analytics ping (fire-and-forget from the renderer).
 export class PopupEventDto {
@@ -29,25 +29,30 @@ export class PopupEventDto {
   type!: PopupEventType;
 }
 
-const STATUSES: PopupStatus[] = ['ACTIVE', 'INACTIVE'];
+const STATUSES: PopupStatus[] = ["ACTIVE", "INACTIVE"];
 const POSITIONS: PopupPosition[] = [
-  'CENTER',
-  'TOP',
-  'BOTTOM',
-  'TOP_LEFT',
-  'TOP_RIGHT',
-  'BOTTOM_LEFT',
-  'BOTTOM_RIGHT',
+  "CENTER",
+  "TOP",
+  "BOTTOM",
+  "TOP_LEFT",
+  "TOP_RIGHT",
+  "BOTTOM_LEFT",
+  "BOTTOM_RIGHT",
 ];
-const PAGE_MODES: PopupPageMode[] = ['NONE', 'ALL', 'INCLUDE', 'EXCLUDE'];
-const TRIGGERS: PopupTrigger[] = ['IMMEDIATE', 'DELAY', 'SCROLL', 'EXIT_INTENT'];
+const PAGE_MODES: PopupPageMode[] = ["NONE", "ALL", "INCLUDE", "EXCLUDE"];
+const TRIGGERS: PopupTrigger[] = [
+  "IMMEDIATE",
+  "DELAY",
+  "SCROLL",
+  "EXIT_INTENT",
+];
 const FREQUENCIES: PopupFrequency[] = [
-  'EVERY_VISIT',
-  'ONCE_PER_SESSION',
-  'ONCE_PER_DAYS',
-  'ONCE',
+  "EVERY_VISIT",
+  "ONCE_PER_SESSION",
+  "ONCE_PER_DAYS",
+  "ONCE",
 ];
-const ANIMATIONS: PopupAnimation[] = ['NONE', 'FADE', 'SLIDE_UP', 'ZOOM'];
+const ANIMATIONS: PopupAnimation[] = ["NONE", "FADE", "SLIDE_UP", "ZOOM"];
 
 export class CreatePopupDto {
   @IsString()

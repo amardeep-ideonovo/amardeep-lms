@@ -34,7 +34,7 @@ export default function LoginPage() {
       router.replace("/dashboard");
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Unable to sign in. Try again."
+        err instanceof Error ? err.message : "Unable to sign in. Try again.",
       );
     } finally {
       setLoading(false);
@@ -49,59 +49,62 @@ export default function LoginPage() {
       </div>
       <div className="dp-wrap">
         <div className="form-card">
-      <h1>Welcome back</h1>
-      <p className="sub">Sign in to access your courses.</p>
+          <h1>Welcome back</h1>
+          <p className="sub">Sign in to access your courses.</p>
 
-      <Suspense fallback={null}>
-        <DeletedBanner />
-      </Suspense>
+          <Suspense fallback={null}>
+            <DeletedBanner />
+          </Suspense>
 
-      {error && <div className="alert alert-error">{error}</div>}
+          {error && <div className="alert alert-error">{error}</div>}
 
-      <form onSubmit={onSubmit}>
-        <div className="field">
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
-        <div className="field">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-        <p className="sub" style={{ textAlign: "right", marginTop: -6, marginBottom: 14 }}>
-          <Link href="/forgot-password" className="link">
-            Forgot password?
-          </Link>
-        </p>
-        <button
-          type="submit"
-          className="btn btn-primary btn-block press"
-          disabled={loading}
-          aria-busy={loading}
-        >
-          {loading ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
+          <form onSubmit={onSubmit}>
+            <div className="field">
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+            <p
+              className="sub"
+              style={{ textAlign: "right", marginTop: -6, marginBottom: 14 }}
+            >
+              <Link href="/forgot-password" className="link">
+                Forgot password?
+              </Link>
+            </p>
+            <button
+              type="submit"
+              className="btn btn-primary btn-block press"
+              disabled={loading}
+              aria-busy={loading}
+            >
+              {loading ? "Signing in…" : "Sign in"}
+            </button>
+          </form>
 
-      <p className="sub" style={{ marginTop: 16 }}>
-        New here?{" "}
-        <Link href="/signup" className="link">
-          Create an account
-        </Link>
-      </p>
+          <p className="sub" style={{ marginTop: 16 }}>
+            New here?{" "}
+            <Link href="/signup" className="link">
+              Create an account
+            </Link>
+          </p>
         </div>
       </div>
     </div>

@@ -5,10 +5,10 @@
 // tricky bits (URL rewriting, provider-id scrubbing, Date-safety) without a
 // database.
 
-import * as zlib from 'zlib';
-import type { ContentPack, PackRow } from './content-pack.types';
+import * as zlib from "zlib";
+import type { ContentPack, PackRow } from "./content-pack.types";
 
-export const PACK_FORMAT = 'lms-content-pack' as const;
+export const PACK_FORMAT = "lms-content-pack" as const;
 export const PACK_FORMAT_VERSION = 1;
 
 // Upper bound on the gunzipped archive. The import channel is service-token
@@ -25,8 +25,8 @@ export const MAX_PACK_JSON_BYTES = 512 * 1024 * 1024;
 // a no-op and content is kept verbatim (also the local round-trip case where
 // source and target share an origin).
 export function normalizeOrigin(raw: string | undefined | null): string {
-  const s = (raw || '').trim().replace(/\/+$/, '');
-  return /^https?:\/\/[^/\s]+$/.test(s) ? s : '';
+  const s = (raw || "").trim().replace(/\/+$/, "");
+  return /^https?:\/\/[^/\s]+$/.test(s) ? s : "";
 }
 
 // Swap every occurrence of the source instance's public origin for the target's.
@@ -51,16 +51,16 @@ export function rewriteOrigin(value: string, from: string, to: string): string {
 // replace the date with `{}`. That is exactly why the import path rewrites AFTER
 // deserialization (where Dates are already ISO strings), never on export.
 export function rewriteJson(value: unknown, from: string, to: string): unknown {
-  if (typeof value === 'string') return rewriteOrigin(value, from, to);
+  if (typeof value === "string") return rewriteOrigin(value, from, to);
   if (Array.isArray(value)) return value.map((v) => rewriteJson(v, from, to));
-  if (value !== null && typeof value === 'object') {
+  if (value !== null && typeof value === "object") {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
       const rv = rewriteJson(v, from, to);
       // JSON.parse yields a literal "__proto__" as an OWN enumerable key; a plain
       // out[k] = rv would set the prototype (and could pollute) instead of storing
       // the value. Define it as a real own property — lossless and safe.
-      if (k === '__proto__') {
+      if (k === "__proto__") {
         Object.defineProperty(out, k, {
           value: rv,
           enumerable: true,
@@ -78,7 +78,11 @@ export function rewriteJson(value: unknown, from: string, to: string): unknown {
 
 // Apply the origin rewrite across an entire deserialized row (all string columns
 // + every nested JSON value), returning a new object.
-export function rewriteRowOrigin(row: PackRow, from: string, to: string): PackRow {
+export function rewriteRowOrigin(
+  row: PackRow,
+  from: string,
+  to: string,
+): PackRow {
   return rewriteJson(row, from, to) as PackRow;
 }
 
@@ -89,29 +93,29 @@ export function rewriteRowOrigin(row: PackRow, from: string, to: string): PackRo
 // demo's own in-house lists — tenant state we never export — so they fall back
 // to the target's default "Members" audience.
 const SCRUB_NULL: Record<string, string[]> = {
-  level: ['stripeProductId', 'paypalProductId', 'audienceId'],
-  price: ['stripePriceId', 'paypalPlanId'],
-  form: ['audienceId'],
+  level: ["stripeProductId", "paypalProductId", "audienceId"],
+  price: ["stripePriceId", "paypalPlanId"],
+  form: ["audienceId"],
 };
 
 // Author/uploader FKs remapped to the TARGET's owner admin. A raw insert with
 // the demo's admin id would violate the FK (Admin rows are not exported), and
 // SetNull only fires on delete — not on a bad insert.
 const REMAP_OWNER: Record<string, string[]> = {
-  post: ['authorId'],
-  page: ['authorId'],
-  mediaAsset: ['uploadedById'],
+  post: ["authorId"],
+  page: ["authorId"],
+  mediaAsset: ["uploadedById"],
 };
 
 // Per-visitor analytics counters reset to 0 — a fresh instance starts from zero
 // impressions, not the demo's accumulated ones.
 const RESET_ZERO: Record<string, string[]> = {
-  popup: ['views', 'clicks', 'dismissals'],
+  popup: ["views", "clicks", "dismissals"],
 };
 
 // Server-managed columns stripped from every create payload: @updatedAt cannot
 // be set on create, and re-supplying it errors on some Prisma versions.
-const MANAGED_FIELDS = ['updatedAt'];
+const MANAGED_FIELDS = ["updatedAt"];
 
 // Normalize one row for insertion into the target: strip managed columns, null
 // scrub fields, remap author/uploader FKs to the owner admin, and zero analytics
@@ -133,11 +137,14 @@ export function normalizeRowForImport(
 // (tenant state we never export). Null it in place, leaving the rest of the
 // footer config — including its rewritten logo URL — intact.
 export function scrubFooterAudience(config: unknown): unknown {
-  if (!config || typeof config !== 'object') return config;
+  if (!config || typeof config !== "object") return config;
   const c = config as Record<string, unknown>;
   const email = c.email;
-  if (email && typeof email === 'object' && 'audienceId' in email) {
-    return { ...c, email: { ...(email as Record<string, unknown>), audienceId: null } };
+  if (email && typeof email === "object" && "audienceId" in email) {
+    return {
+      ...c,
+      email: { ...(email as Record<string, unknown>), audienceId: null },
+    };
   }
   return config;
 }
@@ -145,7 +152,7 @@ export function scrubFooterAudience(config: unknown): unknown {
 // ---------- archive (de)serialization ----------
 
 export function serializePack(pack: ContentPack): Buffer {
-  return zlib.gzipSync(Buffer.from(JSON.stringify(pack), 'utf8'));
+  return zlib.gzipSync(Buffer.from(JSON.stringify(pack), "utf8"));
 }
 
 export function deserializePack(gz: Buffer): ContentPack {
@@ -160,18 +167,18 @@ export function deserializePack(gz: Buffer): ContentPack {
   }
   let pack: ContentPack;
   try {
-    pack = JSON.parse(json.toString('utf8'));
+    pack = JSON.parse(json.toString("utf8"));
   } catch (e) {
     const why = e instanceof Error ? e.message : String(e);
     throw new Error(`content pack payload is not valid JSON: ${why}`);
   }
   if (!pack?.manifest || pack.manifest.format !== PACK_FORMAT) {
     throw new Error(
-      'not an LMS content pack (missing or unrecognized manifest.format)',
+      "not an LMS content pack (missing or unrecognized manifest.format)",
     );
   }
   if (!pack.content || !Array.isArray(pack.files)) {
-    throw new Error('content pack is missing its content or files section');
+    throw new Error("content pack is missing its content or files section");
   }
   return pack;
 }
@@ -181,9 +188,9 @@ export function deserializePack(gz: Buffer): ContentPack {
 // A pack file's relpath must be a plain relative path within its store — no
 // absolute paths, no "..", no NUL. Returns true when safe to join onto a root.
 export function isSafeRelPath(relpath: string): boolean {
-  if (!relpath || relpath.includes('\0')) return false;
-  if (relpath.startsWith('/') || relpath.startsWith('\\')) return false;
+  if (!relpath || relpath.includes("\0")) return false;
+  if (relpath.startsWith("/") || relpath.startsWith("\\")) return false;
   if (/^[a-zA-Z]:[\\/]/.test(relpath)) return false; // windows drive
   const parts = relpath.split(/[\\/]/);
-  return !parts.some((p) => p === '..' || p === '.' || p === '');
+  return !parts.some((p) => p === ".." || p === "." || p === "");
 }

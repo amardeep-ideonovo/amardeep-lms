@@ -26,7 +26,12 @@ export function WelcomeScreen({ onStart }: { onStart: () => void }) {
         {/* Small spark accent — brand cue without repeating the splash logo */}
         <View style={styles.sparkRow}>
           <View style={[styles.spark, { backgroundColor: colors.primary }]} />
-          <View style={[styles.sparkSmall, { backgroundColor: colors.primaryOnDark }]} />
+          <View
+            style={[
+              styles.sparkSmall,
+              { backgroundColor: colors.primaryOnDark },
+            ]}
+          />
         </View>
         <Text style={styles.headline}>
           Experience the best{"\n"}of learning.

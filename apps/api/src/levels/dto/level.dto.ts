@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Type } from "class-transformer";
 import {
   IsArray,
   IsBoolean,
@@ -10,12 +10,12 @@ import {
   Min,
   MinLength,
   ValidateNested,
-} from 'class-validator';
-import type { LevelType } from '@lms/types';
+} from "class-validator";
+import type { LevelType } from "@lms/types";
 
 export class PriceInputDto {
-  @IsIn(['month', 'year'])
-  interval!: 'month' | 'year';
+  @IsIn(["month", "year"])
+  interval!: "month" | "year";
 
   @IsInt()
   @Min(0)
@@ -59,7 +59,7 @@ export class CreateLevelDto {
   @IsBoolean()
   published?: boolean;
 
-  @IsIn(['PAID', 'FREE', 'MANUAL'])
+  @IsIn(["PAID", "FREE", "MANUAL"])
   type!: LevelType;
 
   // Tag names applied within the in-house audience on grant.
@@ -129,7 +129,7 @@ export class UpdateLevelDto {
   published?: boolean;
 
   @IsOptional()
-  @IsIn(['PAID', 'FREE', 'MANUAL'])
+  @IsIn(["PAID", "FREE", "MANUAL"])
   type?: LevelType;
 
   // Tag names applied within the in-house audience on grant.

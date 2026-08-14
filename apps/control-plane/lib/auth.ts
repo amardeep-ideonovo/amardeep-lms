@@ -39,12 +39,15 @@ export function isOperator(): boolean {
   return !!window.localStorage.getItem(OPERATOR_TOKEN_KEY);
 }
 
-export async function operatorSignIn(email: string, _password: string): Promise<void> {
+export async function operatorSignIn(
+  email: string,
+  _password: string,
+): Promise<void> {
   await latency();
   if (typeof window === "undefined") return;
   window.localStorage.setItem(
     OPERATOR_TOKEN_KEY,
-    `op.${btoa(email || "operator").replace(/=+$/, "")}.${Date.now()}`
+    `op.${btoa(email || "operator").replace(/=+$/, "")}.${Date.now()}`,
   );
 }
 
@@ -71,7 +74,11 @@ export function getClientSession(): ClientSession | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as ClientSession;
-    if (parsed && typeof parsed.clientId === "string" && typeof parsed.email === "string") {
+    if (
+      parsed &&
+      typeof parsed.clientId === "string" &&
+      typeof parsed.email === "string"
+    ) {
       return parsed;
     }
   } catch {
@@ -101,14 +108,15 @@ export interface ClientSignUpInput {
 }
 
 export type ClientAuthResult =
-  | { ok: true; session: ClientSession }
-  | { ok: false; error: string };
+  { ok: true; session: ClientSession } | { ok: false; error: string };
 
 /**
  * Creates the account (client + license records in the store — the operator
  * console picks the new license up immediately) and signs the browser in.
  */
-export async function clientSignUp(input: ClientSignUpInput): Promise<ClientAuthResult> {
+export async function clientSignUp(
+  input: ClientSignUpInput,
+): Promise<ClientAuthResult> {
   const result = await createClientAccount({
     name: input.name,
     academyName: input.academyName,
@@ -129,11 +137,17 @@ export async function clientSignUp(input: ClientSignUpInput): Promise<ClientAuth
  * Looks the account up by email (case-insensitive) in the persisted store.
  * Any password is accepted — preview build.
  */
-export async function clientSignIn(email: string, _password: string): Promise<ClientAuthResult> {
+export async function clientSignIn(
+  email: string,
+  _password: string,
+): Promise<ClientAuthResult> {
   await latency();
   const account = findClientByEmail(email);
   if (!account) {
-    return { ok: false, error: "No account for that email — create one on the sales page." };
+    return {
+      ok: false,
+      error: "No account for that email — create one on the sales page.",
+    };
   }
   const session: ClientSession = {
     clientId: account.id,
@@ -149,7 +163,9 @@ export async function clientSignIn(email: string, _password: string): Promise<Cl
  * so "See it live" works without an account.
  */
 export function startDemoSession(): ClientSession {
-  const demoClient = getFleetSnapshot().clients.find((c) => c.id === DEMO_CLIENT_ID);
+  const demoClient = getFleetSnapshot().clients.find(
+    (c) => c.id === DEMO_CLIENT_ID,
+  );
   const session: ClientSession = {
     clientId: DEMO_CLIENT_ID,
     email: demoClient?.email ?? "priya@harboryoga.com",

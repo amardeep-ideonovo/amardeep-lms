@@ -1,11 +1,11 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import type {
   ChatList,
   ChatListField,
   ChatListItem,
   ChatWorkflow,
-} from '@prisma/client';
+} from "@prisma/client";
 import type {
   ChatFieldType,
   ChatMessageDTO,
@@ -16,10 +16,10 @@ import type {
   ChatWorkflowTrigger,
   CreateWorkflowInput,
   UpdateWorkflowInput,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { ChannelsService } from './channels.service';
-import { ProjectsGateway } from './projects.gateway';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { ChannelsService } from "./channels.service";
+import { ProjectsGateway } from "./projects.gateway";
 
 // ----------------------------------------------------------------------------
 // Workflows: the Slack "Web Queue Workflow" — WHEN a list item is created or
@@ -74,14 +74,14 @@ export class WorkflowsService {
         where: { id: listId },
         select: { id: true, channelId: true },
       });
-      if (!list) throw new NotFoundException('List not found');
+      if (!list) throw new NotFoundException("List not found");
       if (list.channelId) {
         await this.channels.assertVisible(adminId, list.channelId);
       }
     }
     const rows = await this.prisma.chatWorkflow.findMany({
       where: listId ? { listId } : {},
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
     return rows.map((w) => this.toDTO(w));
   }
@@ -94,8 +94,9 @@ export class WorkflowsService {
       where: { id: input.listId },
       select: { id: true, channelId: true },
     });
-    if (!list) throw new NotFoundException('List not found');
-    if (list.channelId) await this.channels.assertVisible(adminId, list.channelId);
+    if (!list) throw new NotFoundException("List not found");
+    if (list.channelId)
+      await this.channels.assertVisible(adminId, list.channelId);
 
     // If an explicit post target is given, the admin must be able to see it.
     if (input.channelId) {
@@ -128,7 +129,9 @@ export class WorkflowsService {
       where: { id: wf.id },
       data: {
         ...(input.name !== undefined ? { name: input.name.trim() } : {}),
-        ...(input.channelId !== undefined ? { channelId: input.channelId } : {}),
+        ...(input.channelId !== undefined
+          ? { channelId: input.channelId }
+          : {}),
         ...(input.trigger !== undefined ? { trigger: input.trigger } : {}),
         ...(input.config !== undefined
           ? { config: input.config as unknown as Prisma.InputJsonValue }
@@ -154,7 +157,7 @@ export class WorkflowsService {
       where: { id },
       include: { list: { select: { channelId: true } } },
     });
-    if (!wf) throw new NotFoundException('Workflow not found');
+    if (!wf) throw new NotFoundException("Workflow not found");
     if (wf.list.channelId) {
       await this.channels.assertVisible(adminId, wf.list.channelId);
     }
@@ -174,7 +177,7 @@ export class WorkflowsService {
     const item = await this.prisma.chatListItem.findUnique({
       where: { id: itemId },
       include: {
-        list: { include: { fields: { orderBy: { position: 'asc' } } } },
+        list: { include: { fields: { orderBy: { position: "asc" } } } },
       },
     });
     if (!item) return; // item gone (deleted in the same breath) — nothing to do.
@@ -235,8 +238,8 @@ export class WorkflowsService {
     const assigneeField = this.resolveAssigneeField(fields, config);
     const rawAssignee = assigneeField ? values[assigneeField.id] : null;
     const assigneeAdminIds: string[] = Array.isArray(rawAssignee)
-      ? (rawAssignee.filter((v) => typeof v === 'string') as string[])
-      : typeof rawAssignee === 'string'
+      ? (rawAssignee.filter((v) => typeof v === "string") as string[])
+      : typeof rawAssignee === "string"
         ? [rawAssignee]
         : [];
     const assigneeAdminId = assigneeAdminIds[0] ?? null;
@@ -294,7 +297,7 @@ export class WorkflowsService {
           itemId: item.id,
           dedupeKey,
           messageId: message.id,
-          status: 'OK',
+          status: "OK",
         },
       });
     } catch (err) {
@@ -302,7 +305,7 @@ export class WorkflowsService {
       // we don't double-post, then bail.
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2002'
+        err.code === "P2002"
       ) {
         await this.prisma.chatMessage
           .delete({ where: { id: message.id } })
@@ -333,12 +336,10 @@ export class WorkflowsService {
   // messages, load the item cards + workflow names in two queries. Returns maps
   // the message serializer merges in. Centralizing this here keeps Messages
   // Service free of list/workflow query logic and avoids N+1s.
-  async loadMessageEnrichments(
-    refs: {
-      listItemIds: string[];
-      workflowIds: string[];
-    },
-  ): Promise<{
+  async loadMessageEnrichments(refs: {
+    listItemIds: string[];
+    workflowIds: string[];
+  }): Promise<{
     cards: Map<string, ChatMessageListItemCardDTO>;
     workflowNames: Map<string, string>;
   }> {
@@ -352,7 +353,7 @@ export class WorkflowsService {
       const items = await this.prisma.chatListItem.findMany({
         where: { id: { in: itemIds } },
         include: {
-          list: { include: { fields: { orderBy: { position: 'asc' } } } },
+          list: { include: { fields: { orderBy: { position: "asc" } } } },
         },
       });
       for (const it of items) {
@@ -409,7 +410,7 @@ export class WorkflowsService {
     }
 
     // Default template — built line by line so absent fields drop cleanly.
-    const lines: string[] = ['*Project Added to Queue*'];
+    const lines: string[] = ["*Project Added to Queue*"];
     lines.push(`Assigned by: ${this.mention(actorAdminId)}`);
     if (assigneeAdminId) {
       lines.push(`Assigned to: ${this.mention(assigneeAdminId)}`);
@@ -417,20 +418,20 @@ export class WorkflowsService {
     lines.push(`Name: ${title}`);
 
     // Category: the SELECT field named "Category" -> its option label.
-    const category = this.findField(fields, 'Category');
+    const category = this.findField(fields, "Category");
     if (category) {
       const rendered = this.renderValue(category, values[category.id]);
       if (rendered) lines.push(`Category: ${rendered}`);
     }
     // Due: the DATE field named "Due" / "Due date" -> a readable date.
     const due =
-      this.findField(fields, 'Due') ?? this.findField(fields, 'Due date');
+      this.findField(fields, "Due") ?? this.findField(fields, "Due date");
     if (due) {
       const rendered = this.renderValue(due, values[due.id]);
       if (rendered) lines.push(`Due: ${rendered}`);
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   // Substitute {actor} {assignee} {title} {field:Name} in a custom template.
@@ -449,17 +450,17 @@ export class WorkflowsService {
   ): string {
     return template.replace(/\{([^}]+)\}/g, (_m, rawKey: string) => {
       const key = rawKey.trim();
-      if (key === 'actor') return this.mention(ctx.actorAdminId);
-      if (key === 'assignee')
-        return ctx.assigneeAdminId ? this.mention(ctx.assigneeAdminId) : '';
-      if (key === 'title') return ctx.title;
-      if (key.startsWith('field:')) {
-        const name = key.slice('field:'.length).trim();
+      if (key === "actor") return this.mention(ctx.actorAdminId);
+      if (key === "assignee")
+        return ctx.assigneeAdminId ? this.mention(ctx.assigneeAdminId) : "";
+      if (key === "title") return ctx.title;
+      if (key.startsWith("field:")) {
+        const name = key.slice("field:".length).trim();
         const field = this.findField(ctx.fields, name);
-        if (!field) return '';
-        return this.renderValue(field, ctx.values[field.id]) ?? '';
+        if (!field) return "";
+        return this.renderValue(field, ctx.values[field.id]) ?? "";
       }
-      return '';
+      return "";
     });
   }
 
@@ -467,39 +468,39 @@ export class WorkflowsService {
   // PERSON -> a <@id> mention; DATE -> a readable date; others -> their string.
   // Returns null for absent/empty values (so the caller can drop the line).
   private renderValue(field: ChatListField, value: unknown): string | null {
-    if (value === null || value === undefined || value === '') return null;
+    if (value === null || value === undefined || value === "") return null;
     const type = field.type as ChatFieldType;
     switch (type) {
-      case 'SELECT': {
+      case "SELECT": {
         const opt = this.readOptions(field.options).find((o) => o.id === value);
         return opt ? opt.label : null;
       }
-      case 'MULTI_SELECT': {
+      case "MULTI_SELECT": {
         if (!Array.isArray(value)) return null;
         const opts = this.readOptions(field.options);
         const labels = value
           .map((id) => opts.find((o) => o.id === id)?.label)
           .filter((l): l is string => !!l);
-        return labels.length ? labels.join(', ') : null;
+        return labels.length ? labels.join(", ") : null;
       }
-      case 'PERSON':
-        return typeof value === 'string' ? this.mention(value) : null;
-      case 'DATE': {
-        if (typeof value !== 'string') return null;
+      case "PERSON":
+        return typeof value === "string" ? this.mention(value) : null;
+      case "DATE": {
+        if (typeof value !== "string") return null;
         const d = new Date(value);
         if (Number.isNaN(d.getTime())) return null;
-        return d.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
+        return d.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
         });
       }
-      case 'CHECKBOX':
-        return value === true ? 'Yes' : 'No';
-      case 'SECRET':
+      case "CHECKBOX":
+        return value === true ? "Yes" : "No";
+      case "SECRET":
         return null; // never render a secret into a channel message.
       default:
-        return typeof value === 'string' || typeof value === 'number'
+        return typeof value === "string" || typeof value === "number"
           ? String(value)
           : null;
     }
@@ -525,9 +526,9 @@ export class WorkflowsService {
   }): ChatMessageListItemCardDTO {
     const cardFields: ChatMessageListItemFieldDTO[] = [];
     for (const f of args.fields) {
-      if (f.type === 'SECRET') continue;
+      if (f.type === "SECRET") continue;
       const raw = args.values[f.id];
-      if (raw === null || raw === undefined || raw === '') continue;
+      if (raw === null || raw === undefined || raw === "") continue;
       if (Array.isArray(raw) && raw.length === 0) continue;
       const type = f.type as ChatFieldType;
       const cardField: ChatMessageListItemFieldDTO = {
@@ -535,7 +536,7 @@ export class WorkflowsService {
         type,
         value: raw,
       };
-      if (type === 'SELECT') {
+      if (type === "SELECT") {
         const opt = this.readOptions(f.options).find((o) => o.id === raw);
         if (opt) {
           cardField.label = opt.label;
@@ -631,8 +632,8 @@ export class WorkflowsService {
     return (
       fields.find(
         (f) =>
-          (f.type === 'PERSON' || f.type === 'MULTI_PERSON') &&
-          f.name.trim().toLowerCase() === 'assignee',
+          (f.type === "PERSON" || f.type === "MULTI_PERSON") &&
+          f.name.trim().toLowerCase() === "assignee",
       ) ?? null
     );
   }
@@ -648,20 +649,21 @@ export class WorkflowsService {
   // ----- JSON readers -----
 
   private readConfig(value: Prisma.JsonValue): ChatWorkflowConfig {
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
       const o = value as Record<string, unknown>;
       const config: ChatWorkflowConfig = {};
-      if (typeof o.assigneeFieldId === 'string')
+      if (typeof o.assigneeFieldId === "string")
         config.assigneeFieldId = o.assigneeFieldId;
-      if (typeof o.template === 'string') config.template = o.template;
-      if (typeof o.includeCard === 'boolean') config.includeCard = o.includeCard;
+      if (typeof o.template === "string") config.template = o.template;
+      if (typeof o.includeCard === "boolean")
+        config.includeCard = o.includeCard;
       return config;
     }
     return {};
   }
 
   private readObject(value: Prisma.JsonValue): Record<string, unknown> {
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
       return value as Record<string, unknown>;
     }
     return {};
@@ -673,13 +675,13 @@ export class WorkflowsService {
     if (!Array.isArray(value)) return [];
     const out: { id: string; label: string; color: string | null }[] = [];
     for (const entry of value) {
-      if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      if (entry && typeof entry === "object" && !Array.isArray(entry)) {
         const o = entry as Record<string, unknown>;
-        if (typeof o.id === 'string' && typeof o.label === 'string') {
+        if (typeof o.id === "string" && typeof o.label === "string") {
           out.push({
             id: o.id,
             label: o.label,
-            color: typeof o.color === 'string' ? o.color : null,
+            color: typeof o.color === "string" ? o.color : null,
           });
         }
       }

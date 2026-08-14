@@ -21,7 +21,12 @@ const ascii = (s: string): Uint8Array =>
 
 /** Big-endian uint32. */
 function u32(n: number): Uint8Array {
-  return new Uint8Array([(n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff]);
+  return new Uint8Array([
+    (n >>> 24) & 0xff,
+    (n >>> 16) & 0xff,
+    (n >>> 8) & 0xff,
+    n & 0xff,
+  ]);
 }
 
 function concat(parts: Uint8Array[]): Uint8Array {
@@ -50,7 +55,8 @@ const CRC_TABLE = (() => {
 
 function crc32(buf: Uint8Array): number {
   let c = -1;
-  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
+  for (let i = 0; i < buf.length; i++)
+    c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
   return (c ^ -1) >>> 0;
 }
 
@@ -113,7 +119,9 @@ export function encodePng(rgb: Uint8Array, w: number, h: number): Uint8Array {
       0, // no interlace
     ]),
   ]);
-  const idat = new Uint8Array(zlib.deflateSync(filterScanlines(rgb, w, h), { level: 9 }));
+  const idat = new Uint8Array(
+    zlib.deflateSync(filterScanlines(rgb, w, h), { level: 9 }),
+  );
   return concat([
     sig,
     chunk("IHDR", ihdr),
@@ -212,7 +220,9 @@ export class Canvas {
     const dx = Math.cos(angle);
     const dy = Math.sin(angle);
     // Project every corner to normalise t into [0,1] whatever the angle.
-    const projs = [0, this.w].flatMap((x) => [0, this.h].map((y) => x * dx + y * dy));
+    const projs = [0, this.w].flatMap((x) =>
+      [0, this.h].map((y) => x * dx + y * dy),
+    );
     const lo = Math.min(...projs);
     const hi = Math.max(...projs);
     const span = hi - lo || 1;
@@ -255,7 +265,14 @@ export class Canvas {
   }
 
   /** Anti-aliased ring (stroked circle) of the given thickness. */
-  ring(cx: number, cy: number, r: number, thickness: number, c: RGB, a = 1): void {
+  ring(
+    cx: number,
+    cy: number,
+    r: number,
+    thickness: number,
+    c: RGB,
+    a = 1,
+  ): void {
     const outer = r + thickness / 2;
     const r0 = Math.max(0, Math.floor(cy - outer - 1));
     const r1 = Math.min(this.h - 1, Math.ceil(cy + outer + 1));
@@ -271,10 +288,26 @@ export class Canvas {
   }
 
   /** Axis-aligned rounded rect (radius 0 = square corners). */
-  roundRect(x: number, y: number, w: number, h: number, radius: number, c: RGB, a = 1): void {
+  roundRect(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    radius: number,
+    c: RGB,
+    a = 1,
+  ): void {
     const r = Math.min(radius, w / 2, h / 2);
-    for (let py = Math.max(0, Math.floor(y)); py <= Math.min(this.h - 1, Math.ceil(y + h)); py++) {
-      for (let px = Math.max(0, Math.floor(x)); px <= Math.min(this.w - 1, Math.ceil(x + w)); px++) {
+    for (
+      let py = Math.max(0, Math.floor(y));
+      py <= Math.min(this.h - 1, Math.ceil(y + h));
+      py++
+    ) {
+      for (
+        let px = Math.max(0, Math.floor(x));
+        px <= Math.min(this.w - 1, Math.ceil(x + w));
+        px++
+      ) {
         // Distance to the rounded-rect boundary, via the inset-corner trick.
         const qx = Math.max(x + r - px, 0, px - (x + w - r));
         const qy = Math.max(y + r - py, 0, py - (y + h - r));
@@ -286,7 +319,15 @@ export class Canvas {
   }
 
   /** Thick line segment with round caps. */
-  line(x0: number, y0: number, x1: number, y1: number, thickness: number, c: RGB, a = 1): void {
+  line(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    thickness: number,
+    c: RGB,
+    a = 1,
+  ): void {
     const minX = Math.max(0, Math.floor(Math.min(x0, x1) - thickness));
     const maxX = Math.min(this.w - 1, Math.ceil(Math.max(x0, x1) + thickness));
     const minY = Math.max(0, Math.floor(Math.min(y0, y1) - thickness));

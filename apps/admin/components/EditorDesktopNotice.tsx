@@ -38,9 +38,28 @@ export function EditorDesktopNotice({
   return (
     <div className={fixed ? "editor-gate editor-gate--fixed" : "editor-gate"}>
       <div className="editor-gate-card">
-        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="2" y="4" width="20" height="13" rx="2" stroke="currentColor" strokeWidth="1.6" />
-          <path d="M8 20h8M12 17v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        <svg
+          width="42"
+          height="42"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <rect
+            x="2"
+            y="4"
+            width="20"
+            height="13"
+            rx="2"
+            stroke="currentColor"
+            strokeWidth="1.6"
+          />
+          <path
+            d="M8 20h8M12 17v3"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
         </svg>
         <h2>Best edited on a larger screen</h2>
         <p>

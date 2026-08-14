@@ -85,38 +85,43 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   // `loadedOnce` extends that to every other path (house pattern — see
   // DashboardScreen): once the lesson is on screen nothing blanks it, and a
   // refetch that FAILS keeps the player instead of replacing it with an error.
-  const load = useCallback(async (silent = false) => {
-    const first = !loadedOnce.current;
-    if (!silent && first) {
-      setLoading(true);
-      setSiblings(null);
-    }
-    setError(null);
-    try {
-      const data = await api.lesson(lessonId);
-      setLesson(data);
-      // Access is the server's call, so `locked` is only cleared by a response
-      // that actually granted the lesson — never optimistically up front.
-      setLocked(false);
-      loadedOnce.current = true;
-      // Course siblings drive the "Lesson x of y" line and the Up-next rows —
-      // decorative, so a failure never blocks the player.
-      api
-        .courseLessons(data.courseId)
-        .then((ls) => setSiblings([...ls].sort((a, b) => a.order - b.order)))
-        .catch(() => {});
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 403) {
-        // Entitlement can be revoked mid-session — a 403 always wins, whether
-        // or not we already had content rendered.
-        setLocked(true);
-      } else if (first) {
-        setError(e instanceof Error ? e.message : "Could not load this lesson.");
+  const load = useCallback(
+    async (silent = false) => {
+      const first = !loadedOnce.current;
+      if (!silent && first) {
+        setLoading(true);
+        setSiblings(null);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, [lessonId]);
+      setError(null);
+      try {
+        const data = await api.lesson(lessonId);
+        setLesson(data);
+        // Access is the server's call, so `locked` is only cleared by a response
+        // that actually granted the lesson — never optimistically up front.
+        setLocked(false);
+        loadedOnce.current = true;
+        // Course siblings drive the "Lesson x of y" line and the Up-next rows —
+        // decorative, so a failure never blocks the player.
+        api
+          .courseLessons(data.courseId)
+          .then((ls) => setSiblings([...ls].sort((a, b) => a.order - b.order)))
+          .catch(() => {});
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 403) {
+          // Entitlement can be revoked mid-session — a 403 always wins, whether
+          // or not we already had content rendered.
+          setLocked(true);
+        } else if (first) {
+          setError(
+            e instanceof Error ? e.message : "Could not load this lesson.",
+          );
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [lessonId],
+  );
 
   useEffect(() => {
     load();
@@ -163,7 +168,8 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
       // right: the course's lesson list ticks THIS lesson instantly, and
       // progress counts + certificate grants revalidate server-truthed in the
       // background. Only on the 200 — never on the optimistic tap above.
-      if (lesson) propagateLessonComplete(queryClient, lesson.courseId, lessonId);
+      if (lesson)
+        propagateLessonComplete(queryClient, lesson.courseId, lessonId);
     } catch (e) {
       // Put the exact pre-tap lesson back before anything else, so a 403 can't
       // leave a phantom "completed" behind: `load()` clears `locked` on a
@@ -174,7 +180,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
         setLocked(true);
       } else {
         setCompleteError(
-          e instanceof Error ? e.message : "Could not mark complete."
+          e instanceof Error ? e.message : "Could not mark complete.",
         );
       }
     } finally {
@@ -197,7 +203,9 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
       try {
         await Linking.openURL(await noteDownloadUrl(note));
       } catch (e) {
-        setNoteError(e instanceof Error ? e.message : "Could not open the file.");
+        setNoteError(
+          e instanceof Error ? e.message : "Could not open the file.",
+        );
       } finally {
         setSavingNoteId(null);
       }
@@ -209,7 +217,8 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
       const token = await getToken();
       const dot = note.originalName.lastIndexOf(".");
       const ext = dot > 0 ? note.originalName.slice(dot) : "";
-      const base = dot > 0 ? note.originalName.slice(0, dot) : note.originalName;
+      const base =
+        dot > 0 ? note.originalName.slice(0, dot) : note.originalName;
 
       // 1) Download to the app cache (auth via header). Non-2xx throws.
       const tmp = new File(Paths.cache, `note-${note.id}${ext}`);
@@ -219,7 +228,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
         {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           idempotent: true,
-        }
+        },
       );
       const bytes = await dl.bytes();
 
@@ -228,7 +237,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
       const writeInto = (dirUri: string) => {
         const dest = new Directory(dirUri).createFile(
           base,
-          note.mimeType || "application/octet-stream"
+          note.mimeType || "application/octet-stream",
         );
         dest.write(bytes);
       };
@@ -319,19 +328,24 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   // Vimeo/YouTube play in a WebView and a direct MP4/HLS URL plays in the
   // native expo-video player. lastPositionSeconds resumes the YouTube embed.
   const vimeo = vimeoEmbed(lesson.videoUrl);
-  const youtube = youtubeEmbed(lesson.videoUrl, lesson.lastPositionSeconds ?? 0);
+  const youtube = youtubeEmbed(
+    lesson.videoUrl,
+    lesson.lastPositionSeconds ?? 0,
+  );
   const audioUrl = lesson.audioUrl ?? null;
   // A provider link we couldn't parse must NOT reach the native player (dead
   // box); only a genuine direct file URL plays there.
   const videoUri =
     vimeo || youtube || isProviderVideoUrl(lesson.videoUrl)
       ? null
-      : lesson.videoUrl ?? null;
+      : (lesson.videoUrl ?? null);
   const notes = lesson.notes ?? [];
 
   const idx = siblings?.findIndex((l) => l.id === lesson.id) ?? -1;
   const metaBits = [
-    lesson.durationSeconds ? `Duration ${fmtClock(lesson.durationSeconds)}` : null,
+    lesson.durationSeconds
+      ? `Duration ${fmtClock(lesson.durationSeconds)}`
+      : null,
     siblings && idx >= 0 ? `Lesson ${idx + 1} of ${siblings.length}` : null,
   ].filter(Boolean);
   const upNext = siblings
@@ -407,7 +421,9 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
             <View
               style={[
                 styles.statusDot,
-                { backgroundColor: completed ? colors.success : colors.primary },
+                {
+                  backgroundColor: completed ? colors.success : colors.primary,
+                },
               ]}
             />
             <Text style={styles.statusText}>
@@ -447,7 +463,9 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
           </View>
         ) : null}
 
-        {completeError ? <Text style={styles.error}>{completeError}</Text> : null}
+        {completeError ? (
+          <Text style={styles.error}>{completeError}</Text>
+        ) : null}
 
         {completed ? (
           <View style={styles.doneBanner}>
@@ -552,152 +570,202 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md, ...contentColumn },
-  video: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-    borderRadius: 16,
-    backgroundColor: colors.inkCard,
-    overflow: "hidden",
-  },
-  // Audio bar sits under the thumbnail (when present) instead of over the
-  // 16/9 block, so both stay visible.
-  audioBelow: { marginTop: 10 },
-  title: {
-    color: colors.text,
-    fontSize: 16.5,
-    fontFamily: fonts.semibold,
-    lineHeight: 22,
-    marginTop: spacing.md,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.sm,
-    marginTop: 7,
-  },
-  meta: {
-    color: colors.textMuted,
-    fontSize: 11.5,
-    fontFamily: fonts.regular,
-    flexShrink: 1,
-  },
-  statusWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
-  statusDot: { width: 7, height: 7, borderRadius: 3.5 },
-  statusText: {
-    color: colors.primarySoft,
-    fontSize: 11.5,
-    fontFamily: fonts.semibold,
-  },
-  seedSkeleton: { marginTop: spacing.lg },
-  body: { color: colors.text, fontSize: 15, lineHeight: 23, fontFamily: fonts.regular },
-  bodyMuted: { color: colors.textMuted, fontSize: 14, fontStyle: "italic", fontFamily: fonts.regular },
-  bodyBelow: { marginTop: spacing.lg },
-  error: { color: colors.danger, marginTop: spacing.md, fontFamily: fonts.regular },
-  savedMsg: { color: colors.success, marginBottom: spacing.sm, fontSize: 13.5, fontFamily: fonts.regular },
-  lockedWrap: { ...formColumn },
-  notes: {
-    marginTop: spacing.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: 12,
-    padding: spacing.md,
-  },
-  notesTitle: {
-    color: colors.text,
-    fontSize: 14,
-    fontFamily: fonts.semibold,
-    marginBottom: spacing.sm,
-  },
-  noteRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.surfaceMuted,
-  },
-  noteName: { flex: 1, color: colors.text, fontSize: 13.5, fontFamily: fonts.medium },
-  noteSize: { color: colors.textMuted, fontSize: 12, marginHorizontal: spacing.sm, fontFamily: fonts.regular },
-  noteIcon: { color: colors.primarySoft, fontSize: 16, fontFamily: fonts.bold },
-  completeBtn: { marginTop: spacing.lg },
-  completeText: {
-    fontSize: 12.5,
-    fontFamily: fonts.bold,
-    letterSpacing: 0.6,
-  },
-  // Neutral in-flight row for a terminal lesson's certificate — deliberately
-  // NOT the teal CTA, so it can't read as "your certificate is ready".
-  certChecking: {
-    marginTop: spacing.md,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    paddingVertical: 13,
-    borderRadius: 11,
-    backgroundColor: colors.surfaceMuted,
-  },
-  certCheckingText: {
-    color: colors.textMuted,
-    fontSize: 14,
-    fontFamily: fonts.medium,
-  },
-  doneBanner: {
-    marginTop: spacing.lg,
-    backgroundColor: colors.successBg,
-    borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: "center",
-  },
-  doneBannerText: {
-    color: colors.success,
-    fontSize: 12.5,
-    fontFamily: fonts.bold,
-    letterSpacing: 0.6,
-  },
-  upNextTitle: {
-    color: colors.text,
-    fontSize: 13,
-    fontFamily: fonts.semibold,
-    marginTop: spacing.lg,
-    marginBottom: 9,
-    marginHorizontal: 4,
-  },
-  upNextRow: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    borderRadius: 12,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 11,
-    marginBottom: 9,
-  },
-  upNextThumb: {
-    width: 56,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceMuted,
-  },
-  upNextThumbEmpty: { alignItems: "center", justifyContent: "center" },
-  upNextGlyph: { color: colors.textMuted, fontSize: 12, fontFamily: fonts.regular },
-  upNextInfo: { flex: 1, gap: 1 },
-  upNextName: { color: colors.text, fontSize: 12, fontFamily: fonts.semibold },
-  upNextMeta: { color: colors.textMuted, fontSize: 10.5, fontFamily: fonts.regular },
-  upNextPlay: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  upNextPlayGlyph: { color: colors.textMuted, fontSize: 9, fontFamily: fonts.regular },
-  spacer: { height: spacing.lg },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    scroll: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: spacing.md, ...contentColumn },
+    video: {
+      width: "100%",
+      aspectRatio: 16 / 9,
+      borderRadius: 16,
+      backgroundColor: colors.inkCard,
+      overflow: "hidden",
+    },
+    // Audio bar sits under the thumbnail (when present) instead of over the
+    // 16/9 block, so both stay visible.
+    audioBelow: { marginTop: 10 },
+    title: {
+      color: colors.text,
+      fontSize: 16.5,
+      fontFamily: fonts.semibold,
+      lineHeight: 22,
+      marginTop: spacing.md,
+    },
+    metaRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+      marginTop: 7,
+    },
+    meta: {
+      color: colors.textMuted,
+      fontSize: 11.5,
+      fontFamily: fonts.regular,
+      flexShrink: 1,
+    },
+    statusWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
+    statusDot: { width: 7, height: 7, borderRadius: 3.5 },
+    statusText: {
+      color: colors.primarySoft,
+      fontSize: 11.5,
+      fontFamily: fonts.semibold,
+    },
+    seedSkeleton: { marginTop: spacing.lg },
+    body: {
+      color: colors.text,
+      fontSize: 15,
+      lineHeight: 23,
+      fontFamily: fonts.regular,
+    },
+    bodyMuted: {
+      color: colors.textMuted,
+      fontSize: 14,
+      fontStyle: "italic",
+      fontFamily: fonts.regular,
+    },
+    bodyBelow: { marginTop: spacing.lg },
+    error: {
+      color: colors.danger,
+      marginTop: spacing.md,
+      fontFamily: fonts.regular,
+    },
+    savedMsg: {
+      color: colors.success,
+      marginBottom: spacing.sm,
+      fontSize: 13.5,
+      fontFamily: fonts.regular,
+    },
+    lockedWrap: { ...formColumn },
+    notes: {
+      marginTop: spacing.lg,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 12,
+      padding: spacing.md,
+    },
+    notesTitle: {
+      color: colors.text,
+      fontSize: 14,
+      fontFamily: fonts.semibold,
+      marginBottom: spacing.sm,
+    },
+    noteRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: colors.surfaceMuted,
+    },
+    noteName: {
+      flex: 1,
+      color: colors.text,
+      fontSize: 13.5,
+      fontFamily: fonts.medium,
+    },
+    noteSize: {
+      color: colors.textMuted,
+      fontSize: 12,
+      marginHorizontal: spacing.sm,
+      fontFamily: fonts.regular,
+    },
+    noteIcon: {
+      color: colors.primarySoft,
+      fontSize: 16,
+      fontFamily: fonts.bold,
+    },
+    completeBtn: { marginTop: spacing.lg },
+    completeText: {
+      fontSize: 12.5,
+      fontFamily: fonts.bold,
+      letterSpacing: 0.6,
+    },
+    // Neutral in-flight row for a terminal lesson's certificate — deliberately
+    // NOT the teal CTA, so it can't read as "your certificate is ready".
+    certChecking: {
+      marginTop: spacing.md,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      paddingVertical: 13,
+      borderRadius: 11,
+      backgroundColor: colors.surfaceMuted,
+    },
+    certCheckingText: {
+      color: colors.textMuted,
+      fontSize: 14,
+      fontFamily: fonts.medium,
+    },
+    doneBanner: {
+      marginTop: spacing.lg,
+      backgroundColor: colors.successBg,
+      borderRadius: 12,
+      paddingVertical: 15,
+      alignItems: "center",
+    },
+    doneBannerText: {
+      color: colors.success,
+      fontSize: 12.5,
+      fontFamily: fonts.bold,
+      letterSpacing: 0.6,
+    },
+    upNextTitle: {
+      color: colors.text,
+      fontSize: 13,
+      fontFamily: fonts.semibold,
+      marginTop: spacing.lg,
+      marginBottom: 9,
+      marginHorizontal: 4,
+    },
+    upNextRow: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 12,
+      paddingVertical: 11,
+      paddingHorizontal: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 11,
+      marginBottom: 9,
+    },
+    upNextThumb: {
+      width: 56,
+      height: 38,
+      borderRadius: 8,
+      backgroundColor: colors.surfaceMuted,
+    },
+    upNextThumbEmpty: { alignItems: "center", justifyContent: "center" },
+    upNextGlyph: {
+      color: colors.textMuted,
+      fontSize: 12,
+      fontFamily: fonts.regular,
+    },
+    upNextInfo: { flex: 1, gap: 1 },
+    upNextName: {
+      color: colors.text,
+      fontSize: 12,
+      fontFamily: fonts.semibold,
+    },
+    upNextMeta: {
+      color: colors.textMuted,
+      fontSize: 10.5,
+      fontFamily: fonts.regular,
+    },
+    upNextPlay: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.surfaceMuted,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    upNextPlayGlyph: {
+      color: colors.textMuted,
+      fontSize: 9,
+      fontFamily: fonts.regular,
+    },
+    spacer: { height: spacing.lg },
+  });

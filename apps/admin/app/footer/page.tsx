@@ -48,8 +48,8 @@ export default function FooterPage() {
       <div className="page-header">
         <h1>Footer</h1>
         <p className="subtitle">
-          The site footer — logo, a menu, and an email opt-in, plus a bottom bar.
-          Shown on every page when enabled.
+          The site footer — logo, a menu, and an email opt-in, plus a bottom
+          bar. Shown on every page when enabled.
         </p>
       </div>
       {error && <p className="error">{error}</p>}

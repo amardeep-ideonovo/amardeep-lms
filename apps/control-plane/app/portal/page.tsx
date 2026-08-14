@@ -41,16 +41,15 @@ import {
   uptimeLabel,
 } from "@/lib/provisioner";
 import { useFleet } from "@/lib/useFleet";
-import type { AppTrack, ClientAccount, FleetState, Instance } from "@/lib/types";
+import type {
+  AppTrack,
+  ClientAccount,
+  FleetState,
+  Instance,
+} from "@/lib/types";
 
 type PortalDialog =
-  | "restore"
-  | "ticket"
-  | "build"
-  | "billing"
-  | "upgrade"
-  | "changelog"
-  | null;
+  "restore" | "ticket" | "build" | "billing" | "upgrade" | "changelog" | null;
 
 export default function PortalOverview() {
   const session = useClientSession();
@@ -64,21 +63,37 @@ export default function PortalOverview() {
   const suspended = client.license.status === "suspended";
 
   if (owned.length === 0 || !selected) {
-    return <LaunchAcademyCard fleet={fleet} client={client} suspended={suspended} />;
+    return (
+      <LaunchAcademyCard fleet={fleet} client={client} suspended={suspended} />
+    );
   }
 
   return (
     <div className="stack page-in">
       {owned.length > 1 && (
-        <InstanceSwitcher instances={owned} selectedId={selected.id} onSelect={setSelected} />
+        <InstanceSwitcher
+          instances={owned}
+          selectedId={selected.id}
+          onSelect={setSelected}
+        />
       )}
       {selected.status === "Provisioning" ? (
         <ProvisioningCard instance={selected} bootSteps={fleet.bootSteps} />
       ) : (
-        <InstanceDashboard fleet={fleet} client={client} instance={selected} suspended={suspended} />
+        <InstanceDashboard
+          fleet={fleet}
+          client={client}
+          instance={selected}
+          suspended={suspended}
+        />
       )}
 
-      <ProvisionSlots fleet={fleet} client={client} owned={owned} suspended={suspended} />
+      <ProvisionSlots
+        fleet={fleet}
+        client={client}
+        owned={owned}
+        suspended={suspended}
+      />
     </div>
   );
 }
@@ -108,7 +123,10 @@ function LaunchAcademyCard({
     }
     setError(null);
     setBusy(true);
-    const result = await provisionOwnInstance(client.id, { name: academy, domain });
+    const result = await provisionOwnInstance(client.id, {
+      name: academy,
+      domain,
+    });
     if (!result.ok) {
       setBusy(false);
       setError(result.error);
@@ -120,23 +138,37 @@ function LaunchAcademyCard({
     <div className="stack page-in">
       <div className="card onboard-card">
         <div className="card-head" style={{ marginBottom: 4 }}>
-          <span className="hero-tile">{initialsOf(academy || client.academyName)}</span>
+          <span className="hero-tile">
+            {initialsOf(academy || client.academyName)}
+          </span>
           <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <span className="hero-name">Launch {academy.trim() || client.academyName}</span>
+            <span className="hero-name">
+              Launch {academy.trim() || client.academyName}
+            </span>
             <span className="card-sub">
               Your {plan?.name ?? "current"} license is active — one step left.
             </span>
           </span>
           <div className="card-head-spacer" />
           <Pill tone={suspended ? "warning" : "success"}>
-            {suspended ? "License suspended" : `${plan?.name ?? "Active"} license`}
+            {suspended
+              ? "License suspended"
+              : `${plan?.name ?? "Active"} license`}
           </Pill>
         </div>
-        <p className="modal-note" style={{ margin: "10px 0 16px", maxWidth: 480 }}>
-          Provisioning brings up your own fully isolated stack — database, media storage, admin
-          panel, member site and job queue — with a first admin account for {client.email}.
+        <p
+          className="modal-note"
+          style={{ margin: "10px 0 16px", maxWidth: 480 }}
+        >
+          Provisioning brings up your own fully isolated stack — database, media
+          storage, admin panel, member site and job queue — with a first admin
+          account for {client.email}.
         </p>
-        <form onSubmit={submit} className="modal-body" style={{ maxWidth: 480 }}>
+        <form
+          onSubmit={submit}
+          className="modal-body"
+          style={{ maxWidth: 480 }}
+        >
           <Field label="Academy name">
             <input
               className="input"
@@ -146,7 +178,10 @@ function LaunchAcademyCard({
               autoFocus
             />
           </Field>
-          <Field label="Domain" hint="Optional for now — point DNS whenever you're ready.">
+          <Field
+            label="Domain"
+            hint="Optional for now — point DNS whenever you're ready."
+          >
             <input
               className="input mono"
               placeholder="youracademy.com"
@@ -162,7 +197,11 @@ function LaunchAcademyCard({
             disabled={busy || suspended}
             style={{ padding: "12px 18px", alignSelf: "flex-start" }}
           >
-            {suspended ? "License suspended" : busy ? "Starting the boot…" : "Provision my instance"}
+            {suspended
+              ? "License suspended"
+              : busy
+                ? "Starting the boot…"
+                : "Provision my instance"}
           </button>
         </form>
       </div>
@@ -172,7 +211,13 @@ function LaunchAcademyCard({
 
 // ---------- onboarding: instance booting ----------
 
-function ProvisioningCard({ instance, bootSteps }: { instance: Instance; bootSteps: string[] }) {
+function ProvisioningCard({
+  instance,
+  bootSteps,
+}: {
+  instance: Instance;
+  bootSteps: string[];
+}) {
   return (
     <div className="card onboard-card">
       <div className="card-head" style={{ marginBottom: 10 }}>
@@ -185,7 +230,10 @@ function ProvisioningCard({ instance, bootSteps }: { instance: Instance; bootSte
         </span>
         <div className="card-head-spacer" />
         <Pill tone="info">
-          <span className="wave-dot active pulse" style={{ background: "currentColor" }} />
+          <span
+            className="wave-dot active pulse"
+            style={{ background: "currentColor" }}
+          />
           Provisioning
         </Pill>
       </div>
@@ -201,8 +249,8 @@ function ProvisioningCard({ instance, bootSteps }: { instance: Instance; bootSte
         ))}
       </div>
       <p className="modal-note" style={{ marginTop: 10 }}>
-        Usually under a minute. This page flips to your dashboard the moment the health checks
-        pass — no refresh needed.
+        Usually under a minute. This page flips to your dashboard the moment the
+        health checks pass — no refresh needed.
       </p>
     </div>
   );
@@ -242,14 +290,25 @@ function InstanceDashboard({
             <Pill tone={status.tone}>● {status.label}</Pill>
           </span>
           <span className="hero-meta">
-            {instance.domain} · {instance.dbName} · {instance.version} · {uptimeLabel(instance)}
+            {instance.domain} · {instance.dbName} · {instance.version} ·{" "}
+            {uptimeLabel(instance)}
           </span>
         </span>
         <span className="hero-actions">
-          <a href={instance.urls.admin} target="_blank" rel="noreferrer" className="btn btn-primary">
+          <a
+            href={instance.urls.admin}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary"
+          >
             Open admin
           </a>
-          <a href={instance.urls.web} target="_blank" rel="noreferrer" className="btn btn-ghost">
+          <a
+            href={instance.urls.web}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-ghost"
+          >
             <Icon name="external-link" size={13} />
             Member site
           </a>
@@ -257,11 +316,17 @@ function InstanceDashboard({
             items={[
               {
                 label: "Copy member URL",
-                onSelect: () => void navigator.clipboard?.writeText(instance.urls.web).catch(() => {}),
+                onSelect: () =>
+                  void navigator.clipboard
+                    ?.writeText(instance.urls.web)
+                    .catch(() => {}),
               },
               {
                 label: "Copy admin URL",
-                onSelect: () => void navigator.clipboard?.writeText(instance.urls.admin).catch(() => {}),
+                onSelect: () =>
+                  void navigator.clipboard
+                    ?.writeText(instance.urls.admin)
+                    .catch(() => {}),
               },
               {
                 label: "View instance details",
@@ -283,7 +348,10 @@ function InstanceDashboard({
                 <span className="quota-limit">{quota.limitNote}</span>
               </div>
               <div className="quota-bar">
-                <span className="quota-fill" style={{ width: `${quota.pct}%` }} />
+                <span
+                  className="quota-fill"
+                  style={{ width: `${quota.pct}%` }}
+                />
               </div>
             </div>
           ))}
@@ -314,7 +382,10 @@ function InstanceDashboard({
                 <div key={label} className="meter-row">
                   <span className="meter-name">{label}</span>
                   <span className="bar" style={{ height: 8 }}>
-                    <span className="bar-fill" style={{ width: `${pct}%`, height: 8 }} />
+                    <span
+                      className="bar-fill"
+                      style={{ width: `${pct}%`, height: 8 }}
+                    />
                   </span>
                   <span className="meter-pct">{pct}%</span>
                 </div>
@@ -325,7 +396,9 @@ function InstanceDashboard({
               </div>
             </>
           ) : (
-            <div className="empty-note">Metrics appear after the first health sweep.</div>
+            <div className="empty-note">
+              Metrics appear after the first health sweep.
+            </div>
           )}
         </div>
 
@@ -336,8 +409,12 @@ function InstanceDashboard({
             <Pill tone="neutral">{instance.backups.schedule}</Pill>
           </div>
           {instance.restoreInProgress && (
-            <div className="info-banner" style={{ marginTop: 0, marginBottom: 8 }}>
-              Restoring “{instance.restoreInProgress.entryLabel}” — maintenance mode is on.
+            <div
+              className="info-banner"
+              style={{ marginTop: 0, marginBottom: 8 }}
+            >
+              Restoring “{instance.restoreInProgress.entryLabel}” — maintenance
+              mode is on.
             </div>
           )}
           {backupsPreview.map((entry) => (
@@ -358,7 +435,9 @@ function InstanceDashboard({
               </span>
               <span className="brow-body">
                 <span className="brow-title">No snapshots yet</span>
-                <span className="brow-meta">{instance.backups.retentionNote}</span>
+                <span className="brow-meta">
+                  {instance.backups.retentionNote}
+                </span>
               </span>
             </div>
           )}
@@ -378,7 +457,9 @@ function InstanceDashboard({
             <button
               type="button"
               className="btn-line"
-              disabled={!!instance.restoreInProgress || !hasBackups || suspended}
+              disabled={
+                !!instance.restoreInProgress || !hasBackups || suspended
+              }
               onClick={() => setDialog("restore")}
             >
               Restore…
@@ -393,7 +474,9 @@ function InstanceDashboard({
             {instance.updateScheduled ? (
               <Pill tone="warning">Scheduled</Pill>
             ) : instance.updateAvailable ? (
-              <Pill tone="info">{instance.updateAvailable.version} available</Pill>
+              <Pill tone="info">
+                {instance.updateAvailable.version} available
+              </Pill>
             ) : (
               <Pill tone="success">Up to date</Pill>
             )}
@@ -402,8 +485,8 @@ function InstanceDashboard({
             You are on <b>{instance.version}</b>.{" "}
             {instance.updateAvailable ? (
               <>
-                {instance.updateAvailable.notes} Updates are applied by the platform team in rollout waves
-                — or update now.
+                {instance.updateAvailable.notes} Updates are applied by the
+                platform team in rollout waves — or update now.
               </>
             ) : (
               "You're on the latest release — updates are applied by the platform team in rollout waves."
@@ -413,12 +496,22 @@ function InstanceDashboard({
             <button
               type="button"
               className="btn-line btn-line-ink"
-              disabled={!instance.updateAvailable || instance.updateScheduled || suspended}
+              disabled={
+                !instance.updateAvailable ||
+                instance.updateScheduled ||
+                suspended
+              }
               onClick={() => scheduleUpdate(instance.id)}
             >
-              {instance.updateScheduled ? "Scheduled for tonight ✓" : "Update tonight"}
+              {instance.updateScheduled
+                ? "Scheduled for tonight ✓"
+                : "Update tonight"}
             </button>
-            <button type="button" className="btn-line" onClick={() => setDialog("changelog")}>
+            <button
+              type="button"
+              className="btn-line"
+              onClick={() => setDialog("changelog")}
+            >
               Changelog
             </button>
           </div>
@@ -444,8 +537,8 @@ function InstanceDashboard({
             <span className="price-per">/month</span>
           </div>
           <div className="license-copy">
-            {suspended ? "Suspended" : `Renews ${client.license.renewsAt}`} · {client.license.cardBrand}{" "}
-            •••• {client.license.cardLast4}
+            {suspended ? "Suspended" : `Renews ${client.license.renewsAt}`} ·{" "}
+            {client.license.cardBrand} •••• {client.license.cardLast4}
             <br />
             Includes {licenseSummary(fleet, client.license)}
           </div>
@@ -474,7 +567,10 @@ function InstanceDashboard({
             <span className="card-title">Support</span>
             <div className="card-head-spacer" />
             {instance.tickets.filter((t) => t.status === "Open").length > 0 ? (
-              <Pill tone="danger">{instance.tickets.filter((t) => t.status === "Open").length} open</Pill>
+              <Pill tone="danger">
+                {instance.tickets.filter((t) => t.status === "Open").length}{" "}
+                open
+              </Pill>
             ) : (
               <Pill tone="neutral">all clear</Pill>
             )}
@@ -492,7 +588,9 @@ function InstanceDashboard({
               </div>
             ))}
             {instance.tickets.length === 0 && (
-              <div className="empty-note">No tickets yet — we're here when you need us.</div>
+              <div className="empty-note">
+                No tickets yet — we're here when you need us.
+              </div>
             )}
           </div>
           <button
@@ -507,16 +605,35 @@ function InstanceDashboard({
         </div>
       </div>
 
-      {dialog === "restore" && <RestoreModal instance={instance} onClose={() => setDialog(null)} />}
-      {dialog === "ticket" && <NewTicketModal instance={instance} onClose={() => setDialog(null)} />}
-      {dialog === "build" && <RequestBuildModal instance={instance} onClose={() => setDialog(null)} />}
+      {dialog === "restore" && (
+        <RestoreModal instance={instance} onClose={() => setDialog(null)} />
+      )}
+      {dialog === "ticket" && (
+        <NewTicketModal instance={instance} onClose={() => setDialog(null)} />
+      )}
+      {dialog === "build" && (
+        <RequestBuildModal
+          instance={instance}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog === "billing" && (
-        <ManageBillingModal fleet={fleet} client={client} onClose={() => setDialog(null)} />
+        <ManageBillingModal
+          fleet={fleet}
+          client={client}
+          onClose={() => setDialog(null)}
+        />
       )}
       {dialog === "upgrade" && (
-        <UpgradeModal fleet={fleet} client={client} onClose={() => setDialog(null)} />
+        <UpgradeModal
+          fleet={fleet}
+          client={client}
+          onClose={() => setDialog(null)}
+        />
       )}
-      {dialog === "changelog" && <ChangelogModal onClose={() => setDialog(null)} />}
+      {dialog === "changelog" && (
+        <ChangelogModal onClose={() => setDialog(null)} />
+      )}
     </>
   );
 }
@@ -548,8 +665,8 @@ function MobileOverviewCard({
           <Pill tone="neutral">Web only</Pill>
         </div>
         <p className="modal-note" style={{ marginTop: 10 }}>
-          Your plan is web-only — upgrade to put {shortName} in your members' pockets with the shared
-          Spotlight app or your own white-label apps.
+          Your plan is web-only — upgrade to put {shortName} in your members'
+          pockets with the shared Spotlight app or your own white-label apps.
         </p>
         <button
           type="button"
@@ -587,8 +704,8 @@ function MobileOverviewCard({
           </button>
         </div>
         <p className="modal-note" style={{ marginTop: 10 }}>
-          Members install the shared Spotlight app and enter this connect code — your branding and
-          content load automatically.
+          Members install the shared Spotlight app and enter this connect code —
+          your branding and content load automatically.
         </p>
       </div>
     );
@@ -599,7 +716,12 @@ function MobileOverviewCard({
       <div className="card-head baseline">
         <span className="card-title">Mobile apps</span>
         <div className="card-head-spacer" />
-        <button type="button" className="link-teal" disabled={suspended} onClick={onRequestBuild}>
+        <button
+          type="button"
+          className="link-teal"
+          disabled={suspended}
+          onClick={onRequestBuild}
+        >
           Request build
         </button>
       </div>
@@ -609,7 +731,11 @@ function MobileOverviewCard({
           ["Android", instance.mobileBuilds.android],
         ] as const
       ).map(([platform, build]) => (
-        <div key={platform} className="mrow" style={platform === "iOS" ? { marginTop: 10 } : undefined}>
+        <div
+          key={platform}
+          className="mrow"
+          style={platform === "iOS" ? { marginTop: 10 } : undefined}
+        >
           <span className="mrow-icon">
             <Icon name="smartphone" size={15} />
           </span>

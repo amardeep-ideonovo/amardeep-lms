@@ -10,15 +10,13 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 
-const STATUS_META: Record<
-  SupportTicketStatus,
-  { label: string; cls: string }
-> = {
-  OPEN: { label: "Open", cls: "badge--info" },
-  PENDING: { label: "Pending", cls: "badge--warn" },
-  RESOLVED: { label: "Resolved", cls: "badge--ok" },
-  CLOSED: { label: "Closed", cls: "badge--neutral" },
-};
+const STATUS_META: Record<SupportTicketStatus, { label: string; cls: string }> =
+  {
+    OPEN: { label: "Open", cls: "badge--info" },
+    PENDING: { label: "Pending", cls: "badge--warn" },
+    RESOLVED: { label: "Resolved", cls: "badge--ok" },
+    CLOSED: { label: "Closed", cls: "badge--neutral" },
+  };
 
 const PRIORITY_LABEL: Record<SupportTicketPriority, string> = {
   LOW: "Low",
@@ -58,7 +56,9 @@ export default function SupportPage() {
       setItems(res.items);
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Failed to load support tickets",
+        err instanceof ApiError
+          ? err.message
+          : "Failed to load support tickets",
       );
     } finally {
       setLoading(false);
@@ -80,11 +80,7 @@ export default function SupportPage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button
-            className="btn btn--ghost"
-            onClick={load}
-            disabled={loading}
-          >
+          <button className="btn btn--ghost" onClick={load} disabled={loading}>
             {loading ? "Refreshing…" : "Refresh"}
           </button>
           <Link href="/support/new" className="btn">
@@ -121,7 +117,9 @@ export default function SupportPage() {
                     <tr
                       key={t.id}
                       style={
-                        t.unread ? { background: "var(--surface-2)" } : undefined
+                        t.unread
+                          ? { background: "var(--surface-2)" }
+                          : undefined
                       }
                     >
                       <td>

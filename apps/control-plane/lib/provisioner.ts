@@ -188,7 +188,8 @@ export function getSeededPlans(): Plan[] {
 // ---------- seed: fleet ----------
 
 function baseInstance(
-  partial: Pick<Instance, "id" | "clientId" | "clientName" | "domain"> & Partial<Instance>
+  partial: Pick<Instance, "id" | "clientId" | "clientName" | "domain"> &
+    Partial<Instance>,
 ): Instance {
   return {
     dbName: `lms_${partial.id}`,
@@ -225,8 +226,11 @@ function baseInstance(
 }
 
 function seedClient(
-  partial: Pick<ClientAccount, "id" | "name" | "academyName" | "email" | "createdAt"> &
-    Partial<ClientAccount> & { license: License }
+  partial: Pick<
+    ClientAccount,
+    "id" | "name" | "academyName" | "email" | "createdAt"
+  > &
+    Partial<ClientAccount> & { license: License },
 ): ClientAccount {
   return {
     avatarSeed: `client-${partial.id}`,
@@ -295,8 +299,16 @@ function seedState(): FleetState {
         entries: [],
       },
       mobileBuilds: {
-        ios: { status: "Live", version: "v1.3", detail: "App Store · 640 installs" },
-        android: { status: "Live", version: "v1.3", detail: "Google Play · 890 installs" },
+        ios: {
+          status: "Live",
+          version: "v1.3",
+          detail: "App Store · 640 installs",
+        },
+        android: {
+          status: "Live",
+          version: "v1.3",
+          detail: "Google Play · 890 installs",
+        },
       },
       tickets: [
         {
@@ -386,8 +398,18 @@ function seedState(): FleetState {
       usage: [
         { name: "Members", value: "412", limitNote: "of 5,000", pct: 8 },
         { name: "Storage", value: "18.2 GB", limitNote: "of 50 GB", pct: 36 },
-        { name: "Video minutes", value: "640", limitNote: "of 2,000 / mo", pct: 32 },
-        { name: "Visits (30d)", value: "9.4k", limitNote: "bandwidth 38%", pct: 47 },
+        {
+          name: "Video minutes",
+          value: "640",
+          limitNote: "of 2,000 / mo",
+          pct: 32,
+        },
+        {
+          name: "Visits (30d)",
+          value: "9.4k",
+          limitNote: "bandwidth 38%",
+          pct: 47,
+        },
       ],
       metrics: {
         cpuPct: 34,
@@ -627,9 +649,30 @@ function seedState(): FleetState {
       },
     ],
     hosts: [
-      { name: "vps-1", region: "Frankfurt", instanceCount: 14, cpuPct: 41, memPct: 68, diskPct: 55 },
-      { name: "vps-2", region: "Frankfurt", instanceCount: 10, cpuPct: 47, memPct: 63, diskPct: 82 },
-      { name: "vps-3", region: "Amsterdam", instanceCount: 2, cpuPct: 8, memPct: 18, diskPct: 12 },
+      {
+        name: "vps-1",
+        region: "Frankfurt",
+        instanceCount: 14,
+        cpuPct: 41,
+        memPct: 68,
+        diskPct: 55,
+      },
+      {
+        name: "vps-2",
+        region: "Frankfurt",
+        instanceCount: 10,
+        cpuPct: 47,
+        memPct: 63,
+        diskPct: 82,
+      },
+      {
+        name: "vps-3",
+        region: "Amsterdam",
+        instanceCount: 2,
+        cpuPct: 8,
+        memPct: 18,
+        diskPct: 12,
+      },
     ],
     activity: [
       {
@@ -666,8 +709,16 @@ function seedState(): FleetState {
       mrr: 12880,
       mrrNote: "↑ 2 new licenses in Jun",
     },
-    operator: { name: "Marcus Reed", role: "Platform operator", avatarSeed: "marcus-av" },
-    portalUser: { name: "Priya Sharma", role: "Owner · Harbor Yoga School", avatarSeed: "priya-av" },
+    operator: {
+      name: "Marcus Reed",
+      role: "Platform operator",
+      avatarSeed: "marcus-av",
+    },
+    portalUser: {
+      name: "Priya Sharma",
+      role: "Owner · Harbor Yoga School",
+      avatarSeed: "priya-av",
+    },
     settings: {
       apiImage: "lms-api:local",
       webImage: "lms-web:local",
@@ -770,7 +821,9 @@ function hydrateState(): FleetState {
     plans: saved.plans,
     clients: saved.clients,
     // A restore timer never survives a reload — clear the in-progress flag.
-    instances: saved.instances.map((i) => (i.restoreInProgress ? { ...i, restoreInProgress: null } : i)),
+    instances: saved.instances.map((i) =>
+      i.restoreInProgress ? { ...i, restoreInProgress: null } : i,
+    ),
     rollout: saved.rollout,
     alerts: saved.alerts,
     hosts: saved.hosts,
@@ -841,14 +894,23 @@ function patchInstance(id: string, patch: (i: Instance) => Instance) {
 function patchLicense(clientId: string, patch: (l: License) => License) {
   mutate((s) => ({
     ...s,
-    clients: s.clients.map((c) => (c.id === clientId ? { ...c, license: patch(c.license) } : c)),
+    clients: s.clients.map((c) =>
+      c.id === clientId ? { ...c, license: patch(c.license) } : c,
+    ),
   }));
 }
 
 function prependActivity(entry: Omit<ActivityEntry, "id" | "ago">) {
   mutate((s) => ({
     ...s,
-    activity: [{ ...entry, id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, ago: "just now" }, ...s.activity],
+    activity: [
+      {
+        ...entry,
+        id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        ago: "just now",
+      },
+      ...s.activity,
+    ],
   }));
 }
 
@@ -911,13 +973,16 @@ export function activePlans(s: FleetState): Plan[] {
 
 /** How many instances this license may run — override ?? plan cap. */
 export function effectiveCap(s: FleetState, license: License): number {
-  if (typeof license.instanceCapOverride === "number") return license.instanceCapOverride;
+  if (typeof license.instanceCapOverride === "number")
+    return license.instanceCapOverride;
   return getPlan(s, license.planId)?.instanceCap ?? 1;
 }
 
 /** Which app track this license is on — override ?? plan track. */
 export function effectiveTrack(s: FleetState, license: License): AppTrack {
-  return license.appTrackOverride ?? getPlan(s, license.planId)?.appTrack ?? "none";
+  return (
+    license.appTrackOverride ?? getPlan(s, license.planId)?.appTrack ?? "none"
+  );
 }
 
 export function trackLabel(track: AppTrack): string {
@@ -950,7 +1015,10 @@ export function clientInstances(s: FleetState, clientId: string): Instance[] {
   return s.instances.filter((i) => i.clientId === clientId);
 }
 
-export function clientForInstance(s: FleetState, instance: Instance): ClientAccount | undefined {
+export function clientForInstance(
+  s: FleetState,
+  instance: Instance,
+): ClientAccount | undefined {
   return s.clients.find((c) => c.id === instance.clientId);
 }
 
@@ -968,7 +1036,7 @@ export function getClient(id: string): ClientAccount | undefined {
 /** Resolves a client session (demo or real) to its account record. */
 export function portalClient(
   s: FleetState,
-  session: { clientId: string } | null | undefined
+  session: { clientId: string } | null | undefined,
 ): ClientAccount | undefined {
   if (!session) return undefined;
   return s.clients.find((c) => c.id === session.clientId);
@@ -992,7 +1060,8 @@ export function initialsOf(name: string): string {
 }
 
 export function displayStatus(i: Instance): StatusPillInfo {
-  if (i.status === "Provisioning") return { label: "Provisioning", tone: "info" };
+  if (i.status === "Provisioning")
+    return { label: "Provisioning", tone: "info" };
   if (i.status === "Suspended") return { label: "Suspended", tone: "neutral" };
   if (i.status === "Stopped") return { label: "Stopped", tone: "neutral" };
   if (i.status === "Failed") return { label: "Failed", tone: "danger" };
@@ -1010,7 +1079,10 @@ export function uptimeLabel(i: Instance): string {
   const created = new Date(`${i.createdAt}T00:00:00`);
   const ageDays = (Date.now() - created.getTime()) / 86_400_000;
   if (Number.isFinite(ageDays) && ageDays < 30) {
-    const since = created.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const since = created.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
     return `uptime ${i.uptimePct}% since ${since}`;
   }
   return `uptime ${i.uptimePct}% (30d)`;
@@ -1021,7 +1093,8 @@ export function openAlertCount(s: FleetState): number {
 }
 
 export function criticalAlertCount(s: FleetState): number {
-  return s.alerts.filter((a) => !a.resolved && a.severity === "critical").length;
+  return s.alerts.filter((a) => !a.resolved && a.severity === "critical")
+    .length;
 }
 
 export function awaitingUpdateCount(s: FleetState): number {
@@ -1035,11 +1108,16 @@ export function activeWaveName(s: FleetState): string {
 
 export function openTicketCount(s: FleetState, instanceId?: string): number {
   const all = s.instances.flatMap((i) => i.tickets);
-  return all.filter((t) => t.status === "Open" && (!instanceId || t.instanceId === instanceId)).length;
+  return all.filter(
+    (t) => t.status === "Open" && (!instanceId || t.instanceId === instanceId),
+  ).length;
 }
 
 /** Open tickets across every instance a client owns. */
-export function openTicketCountForClient(s: FleetState, clientId: string): number {
+export function openTicketCountForClient(
+  s: FleetState,
+  clientId: string,
+): number {
   return clientInstances(s, clientId)
     .flatMap((i) => i.tickets)
     .filter((t) => t.status === "Open").length;
@@ -1057,7 +1135,10 @@ export function hostWorstMetric(h: Host): { pct: number; label: string } {
 }
 
 function nextPortBase(s: FleetState): number {
-  const maxApi = s.instances.reduce((m, i) => Math.max(m, i.ports.api), s.settings.portRangeBase);
+  const maxApi = s.instances.reduce(
+    (m, i) => Math.max(m, i.ports.api),
+    s.settings.portRangeBase,
+  );
   return maxApi + 10;
 }
 
@@ -1091,14 +1172,22 @@ function uniqueId(base: string, taken: (candidate: string) => boolean): string {
 function renewalDateLabel(): string {
   const d = new Date();
   d.setMonth(d.getMonth() + 1);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 /** Fresh-instance usage quotas — near-zero values against the plan's caps. */
 function zeroUsage(plan: Plan | undefined): UsageQuota[] {
   const memberLine = plan?.features.find((f) => /member/i.test(f)) ?? "";
   const capMatch = memberLine.match(/up to ([\d,]+)/i);
-  const members = capMatch ? `of ${capMatch[1]}` : /unlimited/i.test(memberLine) ? "unlimited" : "plan limit";
+  const members = capMatch
+    ? `of ${capMatch[1]}`
+    : /unlimited/i.test(memberLine)
+      ? "unlimited"
+      : "plan limit";
   return [
     { name: "Members", value: "0", limitNote: members, pct: 0 },
     { name: "Storage", value: "0.0 GB", limitNote: "of 50 GB", pct: 0 },
@@ -1111,7 +1200,16 @@ function zeroUsage(plan: Plan | undefined): UsageQuota[] {
 
 function leastLoadedHost(s: FleetState): Host {
   const sorted = [...s.hosts].sort((a, b) => a.instanceCount - b.instanceCount);
-  return sorted[0] ?? { name: "vps-1", region: "Frankfurt", instanceCount: 0, cpuPct: 0, memPct: 0, diskPct: 0 };
+  return (
+    sorted[0] ?? {
+      name: "vps-1",
+      region: "Frankfurt",
+      instanceCount: 0,
+      cpuPct: 0,
+      memPct: 0,
+      diskPct: 0,
+    }
+  );
 }
 
 /**
@@ -1144,7 +1242,7 @@ function completeBoot(id: string): void {
   mutate((s) => ({
     ...s,
     hosts: s.hosts.map((h) =>
-      h.name === host.name ? { ...h, instanceCount: h.instanceCount + 1 } : h
+      h.name === host.name ? { ...h, instanceCount: h.instanceCount + 1 } : h,
     ),
     stats: { ...s.stats, running: s.stats.running + 1 },
   }));
@@ -1157,7 +1255,10 @@ function completeBoot(id: string): void {
   });
 }
 
-function scheduleBootCompletion(id: string, delayMs: number = PROVISION_BOOT_MS): void {
+function scheduleBootCompletion(
+  id: string,
+  delayMs: number = PROVISION_BOOT_MS,
+): void {
   if (typeof window === "undefined") return;
   setTimeout(() => completeBoot(id), delayMs);
 }
@@ -1199,14 +1300,17 @@ function buildProvisioningInstance(input: {
 
 // ---------- operator provisioning (creates a client + license + instance) ----------
 
-export type ProvisionResult = { ok: true; instance: Instance } | { ok: false; error: string };
+export type ProvisionResult =
+  { ok: true; instance: Instance } | { ok: false; error: string };
 
 /**
  * Operator "+ Provision instance": brings up a stack for a NEW license
  * holder — creates the client account + license (counted into stats/MRR
  * immediately, like a signup) and boots the instance.
  */
-export async function provisionInstance(input: ProvisionInput): Promise<ProvisionResult> {
+export async function provisionInstance(
+  input: ProvisionInput,
+): Promise<ProvisionResult> {
   await latency();
   const id = input.id.trim().toLowerCase();
   if (state.instances.some((i) => i.id === id)) {
@@ -1219,7 +1323,9 @@ export async function provisionInstance(input: ProvisionInput): Promise<Provisio
   const email = input.adminEmail.trim().toLowerCase();
   const ownerName =
     clientNameFromId(slugify(email.split("@")[0] ?? "")) || clientName;
-  const clientId = uniqueId(id, (candidate) => state.clients.some((c) => c.id === candidate));
+  const clientId = uniqueId(id, (candidate) =>
+    state.clients.some((c) => c.id === candidate),
+  );
   const client: ClientAccount = {
     id: clientId,
     name: ownerName,
@@ -1276,8 +1382,7 @@ export interface CreateClientInput {
 }
 
 export type CreateClientResult =
-  | { ok: true; client: ClientAccount }
-  | { ok: false; error: string };
+  { ok: true; client: ClientAccount } | { ok: false; error: string };
 
 /**
  * Self-serve purchase: creates the client account + license records and
@@ -1285,20 +1390,30 @@ export type CreateClientResult =
  * shows the signup immediately. Instances are provisioned separately from
  * the portal (provisionOwnInstance), up to effectiveCap(license).
  */
-export async function createClientAccount(input: CreateClientInput): Promise<CreateClientResult> {
+export async function createClientAccount(
+  input: CreateClientInput,
+): Promise<CreateClientResult> {
   await latency();
   const email = input.email.trim().toLowerCase();
   if (findClientByEmail(email)) {
-    return { ok: false, error: "An academy is already registered to that email — sign in instead." };
+    return {
+      ok: false,
+      error:
+        "An academy is already registered to that email — sign in instead.",
+    };
   }
   const plan = getPlan(state, input.planId);
   if (!plan || !plan.active) {
-    return { ok: false, error: "That plan is no longer available — pick another." };
+    return {
+      ok: false,
+      error: "That plan is no longer available — pick another.",
+    };
   }
   const id = uniqueId(
     slugify(input.academyName),
     (candidate) =>
-      state.clients.some((c) => c.id === candidate) || state.instances.some((i) => i.id === candidate)
+      state.clients.some((c) => c.id === candidate) ||
+      state.instances.some((i) => i.id === candidate),
   );
   const client: ClientAccount = {
     id,
@@ -1318,7 +1433,11 @@ export async function createClientAccount(input: CreateClientInput): Promise<Cre
   mutate((s) => ({
     ...s,
     clients: [...s.clients, client],
-    stats: { ...s.stats, licenses: s.stats.licenses + 1, mrr: s.stats.mrr + plan.priceMonthly },
+    stats: {
+      ...s.stats,
+      licenses: s.stats.licenses + 1,
+      mrr: s.stats.mrr + plan.priceMonthly,
+    },
   }));
   prependActivity({
     actor: client.name,
@@ -1339,13 +1458,16 @@ export async function createClientAccount(input: CreateClientInput): Promise<Cre
 export async function provisionOwnInstance(
   clientId: string,
   input: { name: string; domain: string },
-  by: "client" | "operator" = "client"
+  by: "client" | "operator" = "client",
 ): Promise<ProvisionResult> {
   await latency();
   const client = state.clients.find((c) => c.id === clientId);
   if (!client) return { ok: false, error: "Account not found." };
   if (client.license.status === "suspended") {
-    return { ok: false, error: "License suspended — provisioning is disabled. Contact support." };
+    return {
+      ok: false,
+      error: "License suspended — provisioning is disabled. Contact support.",
+    };
   }
   const owned = clientInstances(state, clientId);
   const cap = effectiveCap(state, client.license);
@@ -1363,8 +1485,9 @@ export async function provisionOwnInstance(
     .replace(/^https?:\/\//, "")
     .replace(/^www\./, "")
     .replace(/\/.*$/, "");
-  const id = uniqueId(slugify(domainInput.split(".")[0] || academyName), (candidate) =>
-    state.instances.some((i) => i.id === candidate)
+  const id = uniqueId(
+    slugify(domainInput.split(".")[0] || academyName),
+    (candidate) => state.instances.some((i) => i.id === candidate),
   );
   const domain = domainInput || `${id}.spotlightlms.site`;
   const inst = buildProvisioningInstance({
@@ -1400,7 +1523,7 @@ export async function provisionOwnInstance(
           prefix: "Provisioned ",
           target: academyName,
           suffix: ` (${owned.length + 1} of ${cap}) — self-serve, boot in progress`,
-        }
+        },
   );
   scheduleBootCompletion(id);
 
@@ -1413,8 +1536,16 @@ export async function startInstance(id: string): Promise<void> {
   await latency();
   const inst = state.instances.find((i) => i.id === id);
   if (!inst) return;
-  patchInstance(id, (i) => ({ ...i, status: "Running", health: HEALTHY, uptimePct: i.uptimePct ?? 100 }));
-  mutate((s) => ({ ...s, stats: { ...s.stats, running: s.stats.running + 1 } }));
+  patchInstance(id, (i) => ({
+    ...i,
+    status: "Running",
+    health: HEALTHY,
+    uptimePct: i.uptimePct ?? 100,
+  }));
+  mutate((s) => ({
+    ...s,
+    stats: { ...s.stats, running: s.stats.running + 1 },
+  }));
   prependActivity({
     actor: state.operator.name,
     avatarSeed: state.operator.avatarSeed,
@@ -1429,10 +1560,18 @@ export async function stopInstance(id: string): Promise<void> {
   const inst = state.instances.find((i) => i.id === id);
   if (!inst) return;
   const wasRunning = inst.status === "Running";
-  patchInstance(id, (i) => ({ ...i, status: "Stopped", health: UNKNOWN_HEALTH, uptimePct: null }));
+  patchInstance(id, (i) => ({
+    ...i,
+    status: "Stopped",
+    health: UNKNOWN_HEALTH,
+    uptimePct: null,
+  }));
   mutate((s) => ({
     ...s,
-    stats: { ...s.stats, running: wasRunning ? Math.max(0, s.stats.running - 1) : s.stats.running },
+    stats: {
+      ...s.stats,
+      running: wasRunning ? Math.max(0, s.stats.running - 1) : s.stats.running,
+    },
   }));
   prependActivity({
     actor: state.operator.name,
@@ -1455,7 +1594,9 @@ export async function destroyInstance(id: string): Promise<void> {
     instances: s.instances.filter((i) => i.id !== id),
     hosts: hostName
       ? s.hosts.map((h) =>
-          h.name === hostName ? { ...h, instanceCount: Math.max(0, h.instanceCount - 1) } : h
+          h.name === hostName
+            ? { ...h, instanceCount: Math.max(0, h.instanceCount - 1) }
+            : h,
         )
       : s.hosts,
     stats: {
@@ -1485,7 +1626,10 @@ export async function suspendLicense(clientId: string): Promise<void> {
   if (!client || client.license.status === "suspended") return;
   const price = planPrice(state, client.license.planId);
   patchLicense(clientId, (l) => ({ ...l, status: "suspended" }));
-  mutate((s) => ({ ...s, stats: { ...s.stats, mrr: Math.max(0, s.stats.mrr - price) } }));
+  mutate((s) => ({
+    ...s,
+    stats: { ...s.stats, mrr: Math.max(0, s.stats.mrr - price) },
+  }));
   prependActivity({
     actor: state.operator.name,
     avatarSeed: state.operator.avatarSeed,
@@ -1504,18 +1648,27 @@ export async function resumeLicense(clientId: string): Promise<void> {
   const client = state.clients.find((c) => c.id === clientId);
   if (!client || client.license.status === "active") return;
   const price = planPrice(state, client.license.planId);
-  const revived = clientInstances(state, clientId).filter((i) => i.status === "Suspended");
+  const revived = clientInstances(state, clientId).filter(
+    (i) => i.status === "Suspended",
+  );
   mutate((s) => ({
     ...s,
     clients: s.clients.map((c) =>
       c.id === clientId
-        ? { ...c, license: { ...c.license, status: "active", renewsAt: renewalDateLabel() } }
-        : c
+        ? {
+            ...c,
+            license: {
+              ...c.license,
+              status: "active",
+              renewsAt: renewalDateLabel(),
+            },
+          }
+        : c,
     ),
     instances: s.instances.map((i) =>
       i.clientId === clientId && i.status === "Suspended"
         ? { ...i, status: "Running", health: HEALTHY, uptimePct: 99.9 }
-        : i
+        : i,
     ),
     stats: {
       ...s.stats,
@@ -1540,24 +1693,26 @@ export async function resumeLicense(clientId: string): Promise<void> {
 export async function changeLicensePlan(
   clientId: string,
   planId: string,
-  by: "operator" | "client" = "client"
+  by: "operator" | "client" = "client",
 ): Promise<void> {
   await latency();
   const client = state.clients.find((c) => c.id === clientId);
   const plan = getPlan(state, planId);
   if (!client || !plan || client.license.planId === planId) return;
   const oldPrice = planPrice(state, client.license.planId);
-  const delta = client.license.status === "active" ? plan.priceMonthly - oldPrice : 0;
+  const delta =
+    client.license.status === "active" ? plan.priceMonthly - oldPrice : 0;
   mutate((s) => ({
     ...s,
     clients: s.clients.map((c) =>
-      c.id === clientId ? { ...c, license: { ...c.license, planId } } : c
+      c.id === clientId ? { ...c, license: { ...c.license, planId } } : c,
     ),
     stats: { ...s.stats, mrr: Math.max(0, s.stats.mrr + delta) },
   }));
   prependActivity({
     actor: by === "operator" ? state.operator.name : client.name,
-    avatarSeed: by === "operator" ? state.operator.avatarSeed : client.avatarSeed,
+    avatarSeed:
+      by === "operator" ? state.operator.avatarSeed : client.avatarSeed,
     prefix: "Changed the license for ",
     target: client.academyName,
     suffix: ` to ${plan.name} ($${plan.priceMonthly}/mo)`,
@@ -1565,30 +1720,47 @@ export async function changeLicensePlan(
 }
 
 /** Operator override of the instance cap; null clears back to the plan value. */
-export async function setLicenseCapOverride(clientId: string, cap: number | null): Promise<void> {
+export async function setLicenseCapOverride(
+  clientId: string,
+  cap: number | null,
+): Promise<void> {
   await latency();
   const client = state.clients.find((c) => c.id === clientId);
   if (!client) return;
   const before = effectiveCap(state, client.license);
   patchLicense(clientId, (l) => ({ ...l, instanceCapOverride: cap }));
-  const after = effectiveCap(state, state.clients.find((c) => c.id === clientId)!.license);
+  const after = effectiveCap(
+    state,
+    state.clients.find((c) => c.id === clientId)!.license,
+  );
   prependActivity({
     actor: state.operator.name,
     avatarSeed: state.operator.avatarSeed,
-    prefix: cap === null ? "Cleared the instance-cap override for " : "Overrode the instance cap for ",
+    prefix:
+      cap === null
+        ? "Cleared the instance-cap override for "
+        : "Overrode the instance cap for ",
     target: client.academyName,
     suffix: ` — ${before} → ${after}${cap === null ? " (plan default)" : ""}`,
   });
 }
 
 /** Operator override of the app track; null clears back to the plan value. */
-export async function setLicenseTrackOverride(clientId: string, track: AppTrack | null): Promise<void> {
+export async function setLicenseTrackOverride(
+  clientId: string,
+  track: AppTrack | null,
+): Promise<void> {
   await latency();
   const client = state.clients.find((c) => c.id === clientId);
   if (!client) return;
   const before = trackLabel(effectiveTrack(state, client.license));
   patchLicense(clientId, (l) => ({ ...l, appTrackOverride: track }));
-  const after = trackLabel(effectiveTrack(state, state.clients.find((c) => c.id === clientId)!.license));
+  const after = trackLabel(
+    effectiveTrack(
+      state,
+      state.clients.find((c) => c.id === clientId)!.license,
+    ),
+  );
   prependActivity({
     actor: state.operator.name,
     avatarSeed: state.operator.avatarSeed,
@@ -1598,7 +1770,11 @@ export async function setLicenseTrackOverride(clientId: string, track: AppTrack 
   });
 }
 
-export async function updateCard(clientId: string, brand: string, last4: string): Promise<void> {
+export async function updateCard(
+  clientId: string,
+  brand: string,
+  last4: string,
+): Promise<void> {
   await latency();
   patchLicense(clientId, (l) => ({ ...l, cardBrand: brand, cardLast4: last4 }));
 }
@@ -1618,7 +1794,7 @@ export interface PlanInput {
 export async function createPlan(input: PlanInput): Promise<Plan> {
   await latency();
   const id = uniqueId(slugify(input.name) || "plan", (candidate) =>
-    state.plans.some((p) => p.id === candidate)
+    state.plans.some((p) => p.id === candidate),
   );
   const plan: Plan = {
     id,
@@ -1637,7 +1813,10 @@ export async function createPlan(input: PlanInput): Promise<Plan> {
   return plan;
 }
 
-export async function updatePlan(planId: string, patch: PlanInput): Promise<void> {
+export async function updatePlan(
+  planId: string,
+  patch: PlanInput,
+): Promise<void> {
   await latency();
   const before = state.plans.find((p) => p.id === planId);
   if (!before) return;
@@ -1645,17 +1824,22 @@ export async function updatePlan(planId: string, patch: PlanInput): Promise<void
   // Live catalog repricing: active licenses on this plan follow the new price.
   const priceDelta = patch.priceMonthly - before.priceMonthly;
   const activeLicenses = state.clients.filter(
-    (c) => c.license.planId === planId && c.license.status === "active"
+    (c) => c.license.planId === planId && c.license.status === "active",
   ).length;
 
   const changes: string[] = [];
-  if (before.name !== patch.name) changes.push(`renamed ${before.name} → ${patch.name}`);
-  if (priceDelta !== 0) changes.push(`$${before.priceMonthly} → $${patch.priceMonthly}`);
+  if (before.name !== patch.name)
+    changes.push(`renamed ${before.name} → ${patch.name}`);
+  if (priceDelta !== 0)
+    changes.push(`$${before.priceMonthly} → $${patch.priceMonthly}`);
   if (before.instanceCap !== patch.instanceCap)
     changes.push(`cap ${before.instanceCap} → ${patch.instanceCap}`);
   if (before.appTrack !== patch.appTrack)
-    changes.push(`${trackLabel(before.appTrack)} → ${trackLabel(patch.appTrack)}`);
-  if (before.featured !== patch.featured) changes.push(patch.featured ? "featured" : "unfeatured");
+    changes.push(
+      `${trackLabel(before.appTrack)} → ${trackLabel(patch.appTrack)}`,
+    );
+  if (before.featured !== patch.featured)
+    changes.push(patch.featured ? "featured" : "unfeatured");
   if (
     before.blurb !== patch.blurb ||
     before.features.join("\n") !== patch.features.join("\n")
@@ -1665,7 +1849,10 @@ export async function updatePlan(planId: string, patch: PlanInput): Promise<void
   mutate((s) => ({
     ...s,
     plans: s.plans.map((p) => (p.id === planId ? { ...p, ...patch } : p)),
-    stats: { ...s.stats, mrr: Math.max(0, s.stats.mrr + priceDelta * activeLicenses) },
+    stats: {
+      ...s.stats,
+      mrr: Math.max(0, s.stats.mrr + priceDelta * activeLicenses),
+    },
   }));
   prependActivity({
     actor: state.operator.name,
@@ -1682,19 +1869,26 @@ export async function togglePlanActive(planId: string): Promise<void> {
   if (!plan) return;
   mutate((s) => ({
     ...s,
-    plans: s.plans.map((p) => (p.id === planId ? { ...p, active: !p.active } : p)),
+    plans: s.plans.map((p) =>
+      p.id === planId ? { ...p, active: !p.active } : p,
+    ),
   }));
   prependActivity({
     actor: state.operator.name,
     avatarSeed: state.operator.avatarSeed,
     prefix: plan.active ? "Deactivated plan " : "Activated plan ",
     target: plan.name,
-    suffix: plan.active ? " — hidden from sales & signup, licenses keep it" : " — back on sale",
+    suffix: plan.active
+      ? " — hidden from sales & signup, licenses keep it"
+      : " — back on sale",
   });
 }
 
 /** Moves a plan up (-1) or down (+1) in every plan list. */
-export async function reorderPlan(planId: string, direction: -1 | 1): Promise<void> {
+export async function reorderPlan(
+  planId: string,
+  direction: -1 | 1,
+): Promise<void> {
   await latency();
   const ordered = sortedPlans(state);
   const idx = ordered.findIndex((p) => p.id === planId);
@@ -1704,7 +1898,11 @@ export async function reorderPlan(planId: string, direction: -1 | 1): Promise<vo
   mutate((s) => ({
     ...s,
     plans: s.plans.map((p) =>
-      p.id === a.id ? { ...p, order: swapWith.order } : p.id === swapWith.id ? { ...p, order: a.order } : p
+      p.id === a.id
+        ? { ...p, order: swapWith.order }
+        : p.id === swapWith.id
+          ? { ...p, order: a.order }
+          : p,
     ),
   }));
 }
@@ -1753,7 +1951,10 @@ export async function resumeRollout(): Promise<void> {
 // ---------- alerts ----------
 
 /** Side effects mirroring what the real resolution action would do. */
-function applyAlertResolutionEffects(s: FleetState, alertId: string): FleetState {
+function applyAlertResolutionEffects(
+  s: FleetState,
+  alertId: string,
+): FleetState {
   if (alertId !== "a-backup-luthier") return s;
   return {
     ...s,
@@ -1762,9 +1963,13 @@ function applyAlertResolutionEffects(s: FleetState, alertId: string): FleetState
         ? {
             ...i,
             health: { ...HEALTHY, lastCheck: new Date().toISOString() },
-            backups: { ...i.backups, lastRunAt: "Just now — re-run", verified: true },
+            backups: {
+              ...i.backups,
+              lastRunAt: "Just now — re-run",
+              verified: true,
+            },
           }
-        : i
+        : i,
     ),
   };
 }
@@ -1775,9 +1980,14 @@ export async function resolveAlert(id: string): Promise<void> {
   if (!alert || alert.resolved) return;
   mutate((s) =>
     applyAlertResolutionEffects(
-      { ...s, alerts: s.alerts.map((a) => (a.id === id ? { ...a, resolved: true } : a)) },
-      id
-    )
+      {
+        ...s,
+        alerts: s.alerts.map((a) =>
+          a.id === id ? { ...a, resolved: true } : a,
+        ),
+      },
+      id,
+    ),
   );
   if (alert.id === "a-backup-luthier") {
     prependActivity({
@@ -1794,7 +2004,7 @@ export async function resolveAlert(id: string): Promise<void> {
 
 export async function downloadBackup(
   instanceId: string,
-  entryId?: string
+  entryId?: string,
 ): Promise<{ filename: string; contents: string } | null> {
   await latency();
   const inst = state.instances.find((i) => i.id === instanceId);
@@ -1806,7 +2016,10 @@ export async function downloadBackup(
     instance: inst.id,
     composeProject: inst.dbName,
     domain: inst.domain,
-    backup: entry ?? { label: inst.backups.lastRunAt, sizeMb: inst.backups.sizeMb },
+    backup: entry ?? {
+      label: inst.backups.lastRunAt,
+      sizeMb: inst.backups.sizeMb,
+    },
     contents: ["pg_dump (postgres volume)", "uploads.tar.gz (uploads volume)"],
     note: "Mock manifest — the real endpoint streams the archive itself.",
   };
@@ -1818,14 +2031,20 @@ export async function downloadBackup(
 
 const RESTORE_MS = 6000;
 
-export async function restoreBackup(instanceId: string, entryId: string): Promise<void> {
+export async function restoreBackup(
+  instanceId: string,
+  entryId: string,
+): Promise<void> {
   await latency();
   const inst = state.instances.find((i) => i.id === instanceId);
   if (!inst) return;
   const owner = clientForInstance(state, inst);
   const entry = inst.backups.entries.find((e) => e.id === entryId);
   const label = entry?.label ?? "latest backup";
-  patchInstance(instanceId, (i) => ({ ...i, restoreInProgress: { entryLabel: label } }));
+  patchInstance(instanceId, (i) => ({
+    ...i,
+    restoreInProgress: { entryLabel: label },
+  }));
   prependActivity({
     actor: owner?.name ?? inst.owner,
     avatarSeed: owner?.avatarSeed ?? "fleet-bot",
@@ -1847,12 +2066,19 @@ export async function restoreBackup(instanceId: string, entryId: string): Promis
 
 // ---------- tickets ----------
 
-export async function createTicket(instanceId: string, subject: string): Promise<void> {
+export async function createTicket(
+  instanceId: string,
+  subject: string,
+): Promise<void> {
   await latency();
   const inst = state.instances.find((i) => i.id === instanceId);
   if (!inst) return;
   const owner = clientForInstance(state, inst);
-  const nextId = Math.max(482, ...state.instances.flatMap((i) => i.tickets.map((t) => t.id))) + 1;
+  const nextId =
+    Math.max(
+      482,
+      ...state.instances.flatMap((i) => i.tickets.map((t) => t.id)),
+    ) + 1;
   const ticket: Ticket = {
     id: nextId,
     instanceId,
@@ -1868,7 +2094,7 @@ export async function createTicket(instanceId: string, subject: string): Promise
 
 export async function requestMobileBuilds(
   instanceId: string,
-  platforms: { ios: boolean; android: boolean }
+  platforms: { ios: boolean; android: boolean },
 ): Promise<void> {
   await latency();
   const inst = state.instances.find((i) => i.id === instanceId);
@@ -1878,10 +2104,18 @@ export async function requestMobileBuilds(
     ...i,
     mobileBuilds: {
       ios: platforms.ios
-        ? { ...i.mobileBuilds.ios, status: "Building", detail: "build queued · just now" }
+        ? {
+            ...i.mobileBuilds.ios,
+            status: "Building",
+            detail: "build queued · just now",
+          }
         : i.mobileBuilds.ios,
       android: platforms.android
-        ? { ...i.mobileBuilds.android, status: "Building", detail: "build queued · just now" }
+        ? {
+            ...i.mobileBuilds.android,
+            status: "Building",
+            detail: "build queued · just now",
+          }
         : i.mobileBuilds.android,
     },
   }));
@@ -1900,7 +2134,10 @@ export async function addHost(name: string, region: string): Promise<void> {
   await latency();
   mutate((s) => ({
     ...s,
-    hosts: [...s.hosts, { name, region, instanceCount: 0, cpuPct: 2, memPct: 6, diskPct: 3 }],
+    hosts: [
+      ...s.hosts,
+      { name, region, instanceCount: 0, cpuPct: 2, memPct: 6, diskPct: 3 },
+    ],
   }));
   prependActivity({
     actor: state.operator.name,
@@ -1911,7 +2148,9 @@ export async function addHost(name: string, region: string): Promise<void> {
   });
 }
 
-export async function updateSettings(patch: Partial<OpsSettings>): Promise<void> {
+export async function updateSettings(
+  patch: Partial<OpsSettings>,
+): Promise<void> {
   await latency();
   mutate((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
 }

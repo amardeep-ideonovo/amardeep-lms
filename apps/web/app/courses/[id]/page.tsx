@@ -95,7 +95,9 @@ function CourseInner() {
           setLocked(true);
           return;
         }
-        setError(err instanceof Error ? err.message : "Failed to load lessons.");
+        setError(
+          err instanceof Error ? err.message : "Failed to load lessons.",
+        );
       }
     }
     void run();
@@ -166,7 +168,10 @@ function CourseInner() {
         <h2>This course is locked</h2>
         {price ? (
           <>
-            <p>Buy this course for lifetime access — or unlock it with a membership.</p>
+            <p>
+              Buy this course for lifetime access — or unlock it with a
+              membership.
+            </p>
             <div className="locked-actions">
               <button
                 type="button"

@@ -80,7 +80,10 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
     return (
       // Scrollable: the seeded hero uses the real hero's tall 5:7 frame, which
       // on its own is most of the viewport.
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.skeletonWrap}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.skeletonWrap}
+      >
         {seed ? (
           // Carry the tapped card's cover + title straight through, so the
           // hero is continuous instead of flashing an empty block. Everything
@@ -234,7 +237,8 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
             ) : null}
             {owned &&
             ownership.certificate &&
-            (ownership.certificate.eligible || ownership.certificate.claimed) ? (
+            (ownership.certificate.eligible ||
+              ownership.certificate.claimed) ? (
               <CertificateClaim status={ownership.certificate} />
             ) : null}
             {cls.description ? (
@@ -247,7 +251,8 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
               <View style={styles.heroProgress}>
                 <View style={styles.heroProgressLabels}>
                   <Text style={styles.heroProgressLabel}>
-                    {Math.round((progress.done / progress.total) * 100)}% complete
+                    {Math.round((progress.done / progress.total) * 100)}%
+                    complete
                   </Text>
                   <Text style={styles.heroProgressLabel}>
                     {progress.done} / {progress.total} lessons
@@ -292,31 +297,35 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
 
         {owned ? (
           <>
-          <View style={styles.section}>
-            <Text style={styles.eyebrow}>Your library</Text>
-            <Text style={styles.sectionTitle}>Your Courses</Text>
-            <Text style={styles.sectionSub}>Continue where you left off.</Text>
-            <View style={styles.courseList}>
-              {courses.length === 0 ? (
-                <Text style={styles.empty}>No courses in this class yet.</Text>
-              ) : (
-                courses.map((c) => (
-                  <CourseRow
-                    key={c.id}
-                    course={c}
-                    onPress={() =>
-                      navigation.navigate("Course", {
-                        courseId: c.id,
-                        title: c.title,
-                        seed: courseSeed(c),
-                      })
-                    }
-                  />
-                ))
-              )}
+            <View style={styles.section}>
+              <Text style={styles.eyebrow}>Your library</Text>
+              <Text style={styles.sectionTitle}>Your Courses</Text>
+              <Text style={styles.sectionSub}>
+                Continue where you left off.
+              </Text>
+              <View style={styles.courseList}>
+                {courses.length === 0 ? (
+                  <Text style={styles.empty}>
+                    No courses in this class yet.
+                  </Text>
+                ) : (
+                  courses.map((c) => (
+                    <CourseRow
+                      key={c.id}
+                      course={c}
+                      onPress={() =>
+                        navigation.navigate("Course", {
+                          courseId: c.id,
+                          title: c.title,
+                          seed: courseSeed(c),
+                        })
+                      }
+                    />
+                  ))
+                )}
+              </View>
             </View>
-          </View>
-          {skillsSection}
+            {skillsSection}
           </>
         ) : (
           <>
@@ -353,11 +362,16 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
             <View style={styles.closing}>
               <Text style={styles.closingEyebrow}>Start today</Text>
               <Text style={styles.closingTitle}>Begin {cls.name}</Text>
-              <Press style={[styles.buyBtn, styles.closingBtn]} onPress={openCheckout}>
+              <Press
+                style={[styles.buyBtn, styles.closingBtn]}
+                onPress={openCheckout}
+              >
                 <Text style={styles.buyBtnText}>Get Class</Text>
               </Press>
               {priceLabel ? (
-                <Text style={styles.closingPrice}>Starting at {priceLabel}</Text>
+                <Text style={styles.closingPrice}>
+                  Starting at {priceLabel}
+                </Text>
               ) : null}
             </View>
           </>
@@ -428,7 +442,10 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
     heroContent: { padding: spacing.md, gap: spacing.sm },
     heroContentWide: { flex: 1, justifyContent: "center", padding: spacing.lg },
     heroProgress: { gap: 6, marginTop: spacing.xs },
-    heroProgressLabels: { flexDirection: "row", justifyContent: "space-between" },
+    heroProgressLabels: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
     heroProgressLabel: {
       color: colors.textMuted,
       fontSize: 12,
@@ -441,9 +458,23 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       backgroundColor: colors.surfaceMuted,
       overflow: "hidden",
     },
-    heroFill: { height: "100%", backgroundColor: colors.primary, borderRadius: 999 },
-    heroDesc: { color: colors.text, fontSize: 15, lineHeight: 22, fontFamily: fonts.regular },
-    heroMeta: { color: colors.textMuted, fontSize: 13, fontWeight: "600", fontFamily: fonts.semibold },
+    heroFill: {
+      height: "100%",
+      backgroundColor: colors.primary,
+      borderRadius: 999,
+    },
+    heroDesc: {
+      color: colors.text,
+      fontSize: 15,
+      lineHeight: 22,
+      fontFamily: fonts.regular,
+    },
+    heroMeta: {
+      color: colors.textMuted,
+      fontSize: 13,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
     section: { gap: spacing.xs },
     eyebrow: {
       color: colors.primarySoft,
@@ -453,7 +484,12 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       textTransform: "uppercase",
       letterSpacing: 1.6,
     },
-    sectionTitle: { color: colors.text, fontSize: 22, fontWeight: "800", fontFamily: fonts.display },
+    sectionTitle: {
+      color: colors.text,
+      fontSize: 22,
+      fontWeight: "800",
+      fontFamily: fonts.display,
+    },
     sectionSub: {
       color: colors.textMuted,
       fontSize: 14,
@@ -487,12 +523,22 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    skillNumText: { color: colors.onPrimary, fontSize: 13, fontWeight: "800", fontFamily: fonts.extrabold },
+    skillNumText: {
+      color: colors.onPrimary,
+      fontSize: 13,
+      fontWeight: "800",
+      fontFamily: fonts.extrabold,
+    },
     skillTitleWrap: {
       padding: spacing.sm,
       backgroundColor: colors.overlayMid,
     },
-    skillTitle: { color: colors.heroText, fontSize: 14, fontWeight: "700", fontFamily: fonts.bold },
+    skillTitle: {
+      color: colors.heroText,
+      fontSize: 14,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
     courseList: { gap: spacing.sm, marginTop: spacing.xs },
     empty: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
     // Buy card on the hero (web .cc-buy parity) — sits on the scrim, so its
@@ -514,16 +560,34 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       paddingVertical: 12,
       alignItems: "center",
     },
-    buyBtnText: { color: colors.onPrimary, fontSize: 15, fontWeight: "700", fontFamily: fonts.bold },
-    buySub: { color: colors.textMuted, fontSize: 13, textAlign: "center", fontFamily: fonts.regular },
-    buyStrong: { color: colors.text, fontWeight: "700", fontFamily: fonts.bold },
+    buyBtnText: {
+      color: colors.onPrimary,
+      fontSize: 15,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    buySub: {
+      color: colors.textMuted,
+      fontSize: 13,
+      textAlign: "center",
+      fontFamily: fonts.regular,
+    },
+    buyStrong: {
+      color: colors.text,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
     buyLink: {
       color: colors.primarySoft,
       fontSize: 13,
       textDecorationLine: "underline",
       fontFamily: fonts.regular,
     },
-    closing: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.lg },
+    closing: {
+      alignItems: "center",
+      gap: spacing.sm,
+      paddingVertical: spacing.lg,
+    },
     closingEyebrow: {
       color: colors.primarySoft,
       fontSize: 12,
@@ -540,7 +604,11 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       textAlign: "center",
     },
     closingBtn: { alignSelf: "center", paddingHorizontal: 28 },
-    closingPrice: { color: colors.textMuted, fontSize: 13, fontFamily: fonts.regular },
+    closingPrice: {
+      color: colors.textMuted,
+      fontSize: 13,
+      fontFamily: fonts.regular,
+    },
     trailer: {
       borderRadius: 14,
       overflow: "hidden",

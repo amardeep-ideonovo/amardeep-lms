@@ -8,21 +8,21 @@ import {
   MaxLength,
   Min,
   MinLength,
-} from 'class-validator';
+} from "class-validator";
 import type {
   AutomationInput,
   AutomationTrigger,
   CampaignCadence,
   CampaignInput,
-} from '@lms/types';
+} from "@lms/types";
 
-const CADENCES: CampaignCadence[] = ['ONCE', 'WEEKLY', 'MONTHLY', 'CRON'];
+const CADENCES: CampaignCadence[] = ["ONCE", "WEEKLY", "MONTHLY", "CRON"];
 const TRIGGERS: AutomationTrigger[] = [
-  'SIGNUP',
-  'SUBSCRIPTION_ACTIVE',
-  'SUBSCRIPTION_CANCELED',
-  'LESSON_COMPLETED',
-  'CERTIFICATE_ISSUED',
+  "SIGNUP",
+  "SUBSCRIPTION_ACTIVE",
+  "SUBSCRIPTION_CANCELED",
+  "LESSON_COMPLETED",
+  "CERTIFICATE_ISSUED",
 ];
 
 // ---------- Campaigns ----------

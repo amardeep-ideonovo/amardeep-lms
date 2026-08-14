@@ -4,7 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import type {
   CheckoutLevelDTO,
   ClassExtrasDTO,
@@ -17,22 +17,19 @@ import type {
   MyClassCoursesDTO,
   PublicClassListItem,
   SkillDTO,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { AccessService } from '../lms/access.service';
-import { CertificatesService } from '../certificates/certificates.service';
-import { StripeService } from '../billing/stripe.service';
-import { PayPalService } from '../billing/paypal.service';
-import { ContactsService } from '../contacts/contacts.service';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { AccessService } from "../lms/access.service";
+import { CertificatesService } from "../certificates/certificates.service";
+import { StripeService } from "../billing/stripe.service";
+import { PayPalService } from "../billing/paypal.service";
+import { ContactsService } from "../contacts/contacts.service";
 import {
   CreateLevelCategoryDto,
   CreateLevelDto,
   UpdateLevelDto,
-} from './dto/level.dto';
-import {
-  toRichHtml,
-  sanitizeRichTextForStore,
-} from '../common/sanitize-html';
+} from "./dto/level.dto";
+import { toRichHtml, sanitizeRichTextForStore } from "../common/sanitize-html";
 
 type LevelWithPrices = {
   id: string;
@@ -96,7 +93,7 @@ export class LevelsService {
       prices: level.prices.map((p) => ({
         id: p.id,
         stripePriceId: p.stripePriceId,
-        interval: p.interval as 'month' | 'year',
+        interval: p.interval as "month" | "year",
         amount: p.amount,
         currency: p.currency,
         installments: p.installments,
@@ -115,7 +112,7 @@ export class LevelsService {
   // than counting UserLevel rows.
   private async activeMemberCounts(): Promise<Map<string, number>> {
     const rows = await this.prisma.userLevel.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: "ACTIVE" },
       select: { userId: true, levelId: true },
     });
     const byLevel = new Map<string, Set<string>>();
@@ -124,7 +121,9 @@ export class LevelsService {
       set.add(r.userId);
       byLevel.set(r.levelId, set);
     }
-    return new Map([...byLevel].map(([levelId, users]) => [levelId, users.size]));
+    return new Map(
+      [...byLevel].map(([levelId, users]) => [levelId, users.size]),
+    );
   }
 
   // Same rule as activeMemberCounts (dedupe on userId — a member can hold one
@@ -132,9 +131,9 @@ export class LevelsService {
   // report the real count without scanning every grant in the system.
   private async activeMemberCount(levelId: string): Promise<number> {
     const rows = await this.prisma.userLevel.findMany({
-      where: { levelId, status: 'ACTIVE' },
+      where: { levelId, status: "ACTIVE" },
       select: { userId: true },
-      distinct: ['userId'],
+      distinct: ["userId"],
     });
     return rows.length;
   }
@@ -146,10 +145,10 @@ export class LevelsService {
       // subscribers but must never resurface on /pricing or the admin form.
       include: {
         prices: { where: { active: true } },
-        categories: { orderBy: { order: 'asc' } },
+        categories: { orderBy: { order: "asc" } },
         audience: { select: { name: true } },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
     const counts = includeCounts
       ? await this.activeMemberCounts()
@@ -163,11 +162,11 @@ export class LevelsService {
   // Returns only what checkout needs; 404 when missing or without active prices.
   async checkoutBySlugOrId(slugOrId: string): Promise<CheckoutLevelDTO> {
     const level = await this.prisma.level.findFirst({
-      where: { type: 'PAID', OR: [{ slug: slugOrId }, { id: slugOrId }] },
+      where: { type: "PAID", OR: [{ slug: slugOrId }, { id: slugOrId }] },
       include: { prices: { where: { active: true } } },
     });
     if (!level || level.prices.length === 0) {
-      throw new NotFoundException('Checkout not found');
+      throw new NotFoundException("Checkout not found");
     }
     return {
       id: level.id,
@@ -176,7 +175,7 @@ export class LevelsService {
       prices: level.prices.map((p) => ({
         id: p.id,
         stripePriceId: p.stripePriceId,
-        interval: p.interval as 'month' | 'year',
+        interval: p.interval as "month" | "year",
         amount: p.amount,
         currency: p.currency,
         installments: p.installments,
@@ -192,11 +191,11 @@ export class LevelsService {
       where: { OR: [{ slug: slugOrId }, { id: slugOrId }] },
       include: {
         prices: { where: { active: true } },
-        categories: { orderBy: { order: 'asc' } },
+        categories: { orderBy: { order: "asc" } },
         featuredCourse: {
           include: {
             lessons: {
-              orderBy: { order: 'asc' },
+              orderBy: { order: "asc" },
               select: {
                 title: true,
                 durationSeconds: true,
@@ -208,7 +207,7 @@ export class LevelsService {
         },
       },
     });
-    if (!level) throw new NotFoundException('Class not found');
+    if (!level) throw new NotFoundException("Class not found");
     // Curriculum PREVIEW = the featured course's lessons (a teaser for guests).
     const lessons = (level.featuredCourse?.lessons ?? []).map((l) => ({
       title: l.title,
@@ -248,7 +247,7 @@ export class LevelsService {
       prices: level.prices.map((p) => ({
         id: p.id,
         stripePriceId: p.stripePriceId,
-        interval: p.interval as 'month' | 'year',
+        interval: p.interval as "month" | "year",
         amount: p.amount,
         currency: p.currency,
         installments: p.installments,
@@ -260,7 +259,7 @@ export class LevelsService {
   async listPublicClasses(): Promise<PublicClassListItem[]> {
     const levels = await this.prisma.level.findMany({
       where: { published: true },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
       select: { id: true, name: true, slug: true },
     });
     return levels.map((l) => ({ id: l.id, name: l.name, slug: l.slug }));
@@ -279,8 +278,8 @@ export class LevelsService {
           { id: { in: [...owned] } }, // always surface classes the member owns
         ],
       },
-      include: { categories: { orderBy: { order: 'asc' } } },
-      orderBy: { name: 'asc' },
+      include: { categories: { orderBy: { order: "asc" } } },
+      orderBy: { name: "asc" },
     });
 
     // Per-class lesson progress, computed only for the classes the member owns
@@ -288,7 +287,10 @@ export class LevelsService {
     // total is the sum of lessons across ALL its courses, and a course shared by
     // several owned classes counts toward each. Lets the dashboard pick the next
     // *incomplete* class for the hero and label its CTA correctly.
-    const progressByLevel = new Map<string, { completed: number; total: number }>();
+    const progressByLevel = new Map<
+      string,
+      { completed: number; total: number }
+    >();
     if (owned.size > 0) {
       const [courses, completedByCourse] = await Promise.all([
         this.prisma.course.findMany({
@@ -301,7 +303,8 @@ export class LevelsService {
         }),
         this.access.completedCountByCourse(userId),
       ]);
-      for (const id of owned) progressByLevel.set(id, { completed: 0, total: 0 });
+      for (const id of owned)
+        progressByLevel.set(id, { completed: 0, total: 0 });
       for (const c of courses) {
         const total = c._count.lessons;
         const done = completedByCourse.get(c.id) ?? 0;
@@ -325,7 +328,7 @@ export class LevelsService {
         name: c.name,
         order: c.order,
       })),
-      progress: owned.has(l.id) ? progressByLevel.get(l.id) ?? null : null,
+      progress: owned.has(l.id) ? (progressByLevel.get(l.id) ?? null) : null,
     }));
   }
 
@@ -356,7 +359,7 @@ export class LevelsService {
     const [courses, completedByCourse] = await Promise.all([
       this.prisma.course.findMany({
         where: { courseLevels: { some: { levelId: { in: levelIds } } } },
-        orderBy: { order: 'asc' },
+        orderBy: { order: "asc" },
         select: {
           id: true,
           title: true,
@@ -390,17 +393,25 @@ export class LevelsService {
 
     // One lessons query + one progress query for every resume target at once —
     // this is what the client was paying a round trip per class for.
-    const targetIds = [...new Set([...targetByLevel.values()].map((c) => c.id))];
+    const targetIds = [
+      ...new Set([...targetByLevel.values()].map((c) => c.id)),
+    ];
     const lessonsByCourse = new Map<
       string,
-      { id: string; courseId: string; title: string; thumbnailUrl: string | null; durationSeconds: number | null }[]
+      {
+        id: string;
+        courseId: string;
+        title: string;
+        thumbnailUrl: string | null;
+        durationSeconds: number | null;
+      }[]
     >();
     const completedLessonIds = new Set<string>();
     if (targetIds.length > 0) {
       const [lessons, progress] = await Promise.all([
         this.prisma.lesson.findMany({
           where: { courseId: { in: targetIds } },
-          orderBy: { order: 'asc' },
+          orderBy: { order: "asc" },
           select: {
             id: true,
             courseId: true,
@@ -431,10 +442,12 @@ export class LevelsService {
         0,
       );
       const target = targetByLevel.get(levelId);
-      const lessons = target ? lessonsByCourse.get(target.id) ?? [] : [];
+      const lessons = target ? (lessonsByCourse.get(target.id) ?? []) : [];
       // Same rule the client used: first incomplete, else the first lesson.
       const lesson =
-        lessons.find((l) => !completedLessonIds.has(l.id)) ?? lessons[0] ?? null;
+        lessons.find((l) => !completedLessonIds.has(l.id)) ??
+        lessons[0] ??
+        null;
 
       out[levelId] = {
         courseCount: list.length,
@@ -450,7 +463,8 @@ export class LevelsService {
             ? {
                 lesson,
                 courseTitle: target.title,
-                courseThumb: target.thumbnailUrl ?? target.coverImageUrl ?? null,
+                courseThumb:
+                  target.thumbnailUrl ?? target.coverImageUrl ?? null,
               }
             : null,
       };
@@ -470,7 +484,7 @@ export class LevelsService {
       where: { OR: [{ slug: slugOrId }, { id: slugOrId }] },
       select: { id: true, name: true, certificateTemplateId: true },
     });
-    if (!level) throw new NotFoundException('Class not found');
+    if (!level) throw new NotFoundException("Class not found");
 
     const owned = (await this.access.activeLevelIds(userId)).has(level.id);
     if (!owned) return { owned: false, courses: [] };
@@ -478,7 +492,7 @@ export class LevelsService {
     const [courses, completedByCourse, startedByCourse] = await Promise.all([
       this.prisma.course.findMany({
         where: { courseLevels: { some: { levelId: level.id } } },
-        orderBy: { order: 'asc' },
+        orderBy: { order: "asc" },
         include: {
           courseLevels: { select: { levelId: true } },
           _count: { select: { lessons: true } },
@@ -510,7 +524,11 @@ export class LevelsService {
       }),
       { total: 0, done: 0 },
     );
-    const certificate = await this.certificates.statusForLevel(userId, level, totals);
+    const certificate = await this.certificates.statusForLevel(
+      userId,
+      level,
+      totals,
+    );
 
     return {
       owned: true,
@@ -538,11 +556,11 @@ export class LevelsService {
     return raw
       .filter(
         (s): s is Record<string, unknown> =>
-          !!s && typeof s === 'object' && !Array.isArray(s),
+          !!s && typeof s === "object" && !Array.isArray(s),
       )
       .map((s) => ({
-        title: typeof s.title === 'string' ? s.title : '',
-        imageUrl: typeof s.imageUrl === 'string' ? s.imageUrl : null,
+        title: typeof s.title === "string" ? s.title : "",
+        imageUrl: typeof s.imageUrl === "string" ? s.imageUrl : null,
       }))
       .filter((s) => s.title.length > 0);
   }
@@ -552,8 +570,10 @@ export class LevelsService {
   // checkout. No-op unless the class is currently FREE + published. Idempotent
   // (skipDuplicates); audience capture per member is best-effort.
   private async grantFreeLevelToAllMembers(levelId: string): Promise<void> {
-    const level = await this.prisma.level.findUnique({ where: { id: levelId } });
-    if (!level || level.type !== 'FREE' || !level.published) return;
+    const level = await this.prisma.level.findUnique({
+      where: { id: levelId },
+    });
+    if (!level || level.type !== "FREE" || !level.published) return;
     const users = await this.prisma.user.findMany({
       select: { id: true, email: true },
     });
@@ -562,19 +582,19 @@ export class LevelsService {
       data: users.map((u) => ({
         userId: u.id,
         levelId,
-        source: 'MANUAL' as const,
-        status: 'ACTIVE' as const,
+        source: "MANUAL" as const,
+        status: "ACTIVE" as const,
       })),
       skipDuplicates: true,
     });
     for (const u of users) {
       try {
         await this.contacts.syncTags(
-          'add',
+          "add",
           u.email,
           level.audienceTags,
           level.audienceId ?? undefined,
-          { userId: u.id, source: 'SIGNUP' },
+          { userId: u.id, source: "SIGNUP" },
         );
       } catch {
         // best-effort audience capture; never block the class save
@@ -602,14 +622,14 @@ export class LevelsService {
     // (provider ids null) and get backfilled once the client connects
     // Stripe/PayPal. The checkout endpoints themselves fail closed until a
     // gateway exists, so nothing can be sold before it's set up.
-    if (dto.type === 'PAID' && dto.prices?.length) {
+    if (dto.type === "PAID" && dto.prices?.length) {
       const stripeOk = await this.stripe.isConfigured();
       if (stripeOk) {
         const product = await this.stripe.createProduct(dto.name);
         stripeProductId = product.id;
       }
       for (const price of dto.prices) {
-        const currency = price.currency ?? 'usd';
+        const currency = price.currency ?? "usd";
         let stripePriceId: string | null = null;
         if (stripeOk && stripeProductId) {
           const stripePrice = await this.stripe.createPrice({
@@ -659,7 +679,7 @@ export class LevelsService {
       },
       include: {
         prices: { where: { active: true } },
-        categories: { orderBy: { order: 'asc' } },
+        categories: { orderBy: { order: "asc" } },
         audience: { select: { name: true } },
       },
     });
@@ -668,7 +688,7 @@ export class LevelsService {
     }
     // A published FREE class is owned by everyone — enrol all members now, and
     // report the resulting count instead of a hard 0.
-    if (level.type === 'FREE' && level.published) {
+    if (level.type === "FREE" && level.published) {
       await this.grantFreeLevelToAllMembers(level.id);
       return this.toDTO(
         level as LevelWithPrices,
@@ -685,7 +705,7 @@ export class LevelsService {
       where: { id },
       include: { prices: { where: { active: true } } },
     });
-    if (!existing) throw new NotFoundException('Level not found');
+    if (!existing) throw new NotFoundException("Level not found");
 
     // Resolve the checkout slug only when the caller sends one ('' clears it).
     const slug =
@@ -761,7 +781,7 @@ export class LevelsService {
     // (archives anything left over from when it was PAID).
     if (dto.prices !== undefined) {
       const effectiveType = dto.type ?? existing.type;
-      const desired = effectiveType === 'PAID' ? dto.prices : [];
+      const desired = effectiveType === "PAID" ? dto.prices : [];
       await this.reconcilePrices(
         id,
         level.name,
@@ -795,9 +815,9 @@ export class LevelsService {
     // are owned by everyone with no checkout. Transition-only, so unrelated
     // edits don't re-run the grant + audience sync. We never revoke on a later
     // FREE → PAID flip (existing free members are grandfathered).
-    const wasFreePublished = existing.type === 'FREE' && existing.published;
+    const wasFreePublished = existing.type === "FREE" && existing.published;
     const nowFreePublished =
-      (dto.type ?? existing.type) === 'FREE' &&
+      (dto.type ?? existing.type) === "FREE" &&
       (dto.published ?? existing.published);
     if (nowFreePublished && !wasFreePublished) {
       await this.grantFreeLevelToAllMembers(id);
@@ -809,13 +829,16 @@ export class LevelsService {
       where: { id },
       include: {
         prices: { where: { active: true } },
-        categories: { orderBy: { order: 'asc' } },
+        categories: { orderBy: { order: "asc" } },
         audience: { select: { name: true } },
       },
     });
     // An existing class can hold members, and the admin list renders this
     // number — defaulting it to 0 reported every edited class as empty.
-    return this.toDTO(fresh as LevelWithPrices, await this.activeMemberCount(id));
+    return this.toDTO(
+      fresh as LevelWithPrices,
+      await this.activeMemberCount(id),
+    );
   }
 
   /**
@@ -843,7 +866,7 @@ export class LevelsService {
       installments: number | null;
     }[],
     desired: {
-      interval: 'month' | 'year';
+      interval: "month" | "year";
       amount: number;
       currency?: string;
       installments?: number;
@@ -856,12 +879,13 @@ export class LevelsService {
       amount: number;
       currency: string;
       installments: number | null;
-    }) => `${p.interval}:${p.amount}:${p.currency.toLowerCase()}:${p.installments ?? ''}`;
+    }) =>
+      `${p.interval}:${p.amount}:${p.currency.toLowerCase()}:${p.installments ?? ""}`;
 
     const desiredNorm = desired.map((d) => ({
       interval: d.interval,
       amount: d.amount,
-      currency: (d.currency ?? 'usd').toLowerCase(),
+      currency: (d.currency ?? "usd").toLowerCase(),
       installments: d.installments ?? null,
     }));
     const existingKeys = new Set(existingActive.map(key));
@@ -953,7 +977,7 @@ export class LevelsService {
     removed: string[],
   ): Promise<void> {
     const holders = await this.prisma.userLevel.findMany({
-      where: { levelId, status: 'ACTIVE' },
+      where: { levelId, status: "ACTIVE" },
       select: { user: { select: { email: true } } },
     });
     const emails = Array.from(new Set(holders.map((h) => h.user.email)));
@@ -964,7 +988,7 @@ export class LevelsService {
           // In-house list write (best-effort; never reject the batch).
           jobs.push(
             this.contacts
-              .syncTags('add', email, added, audienceRef)
+              .syncTags("add", email, added, audienceRef)
               .catch((err) =>
                 this.logger.warn(
                   `[levels] contacts add-tags failed for ${email}: ${
@@ -978,7 +1002,7 @@ export class LevelsService {
           // In-house list write (best-effort; never reject the batch).
           jobs.push(
             this.contacts
-              .syncTags('remove', email, removed, audienceRef)
+              .syncTags("remove", email, removed, audienceRef)
               .catch((err) =>
                 this.logger.warn(
                   `[levels] contacts remove-tags failed for ${email}: ${
@@ -995,13 +1019,13 @@ export class LevelsService {
 
   async remove(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.level.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Level not found');
+    if (!existing) throw new NotFoundException("Level not found");
     // Guard: refuse to hard-delete a class that still has paying/paused members.
     // Deleting cascade-revokes their UserLevel access WITHOUT canceling their
     // subscription (they'd keep being billed with no access). Cancel their subs
     // or archive the class instead.
     const active = await this.prisma.userLevel.count({
-      where: { levelId: id, status: { in: ['ACTIVE', 'PAST_DUE', 'PAUSED'] } },
+      where: { levelId: id, status: { in: ["ACTIVE", "PAST_DUE", "PAUSED"] } },
     });
     if (active > 0) {
       throw new ConflictException(
@@ -1023,7 +1047,7 @@ export class LevelsService {
    */
   async archive(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.level.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Level not found');
+    if (!existing) throw new NotFoundException("Level not found");
     await this.prisma.level.update({
       where: { id },
       data: { archivedAt: new Date(), published: false },
@@ -1033,7 +1057,7 @@ export class LevelsService {
 
   async unarchive(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.level.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Level not found');
+    if (!existing) throw new NotFoundException("Level not found");
     await this.prisma.level.update({
       where: { id },
       data: { archivedAt: null },
@@ -1051,7 +1075,7 @@ export class LevelsService {
       where: { id: value },
       select: { id: true },
     });
-    if (!row) throw new BadRequestException('Certificate template not found');
+    if (!row) throw new BadRequestException("Certificate template not found");
     return row.id;
   }
 
@@ -1059,7 +1083,7 @@ export class LevelsService {
 
   async listCategories(): Promise<LevelCategoryDTO[]> {
     const cats = await this.prisma.levelCategory.findMany({
-      orderBy: { order: 'asc' },
+      orderBy: { order: "asc" },
     });
     return cats.map((c) => ({ id: c.id, name: c.name, order: c.order }));
   }
@@ -1076,7 +1100,7 @@ export class LevelsService {
     const existing = await this.prisma.levelCategory.findUnique({
       where: { id },
     });
-    if (!existing) throw new NotFoundException('Category not found');
+    if (!existing) throw new NotFoundException("Category not found");
     // The implicit M2M join rows are removed automatically; levels are kept.
     await this.prisma.levelCategory.delete({ where: { id } });
     return { ok: true };
@@ -1087,12 +1111,12 @@ export class LevelsService {
   private slugify(input: string): string {
     return input
       .toLowerCase()
-      .normalize('NFKD')
-      .replace(/[̀-ͯ]/g, '') // strip diacritics
-      .replace(/[^a-z0-9\s-]/g, '')
+      .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "") // strip diacritics
+      .replace(/[^a-z0-9\s-]/g, "")
       .trim()
-      .replace(/[\s_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+      .replace(/[\s_-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   }
 
   // Resolve a class's URL slug. An explicit admin-typed slug must be unique
@@ -1105,19 +1129,19 @@ export class LevelsService {
     ignoreId?: string,
     fallbackName?: string,
   ): Promise<string | null> {
-    const explicit = raw !== undefined ? this.slugify(raw) : '';
+    const explicit = raw !== undefined ? this.slugify(raw) : "";
     if (explicit) {
       const clash = await this.prisma.level.findFirst({
         where: { slug: explicit, NOT: ignoreId ? { id: ignoreId } : undefined },
         select: { id: true },
       });
       if (clash) {
-        throw new ConflictException('That URL slug is already in use');
+        throw new ConflictException("That URL slug is already in use");
       }
       return explicit;
     }
     // No explicit slug — derive one from the name (auto, uniqueness-suffixed).
-    const base = fallbackName ? this.slugify(fallbackName) : '';
+    const base = fallbackName ? this.slugify(fallbackName) : "";
     if (!base) return null;
     return this.ensureUniqueLevelSlug(base, ignoreId);
   }
@@ -1130,7 +1154,10 @@ export class LevelsService {
     for (let n = 1; ; n += 1) {
       const candidate = n === 1 ? base : `${base}-${n}`;
       const clash = await this.prisma.level.findFirst({
-        where: { slug: candidate, NOT: ignoreId ? { id: ignoreId } : undefined },
+        where: {
+          slug: candidate,
+          NOT: ignoreId ? { id: ignoreId } : undefined,
+        },
         select: { id: true },
       });
       if (!clash) return candidate;

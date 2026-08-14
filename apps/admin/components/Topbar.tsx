@@ -98,7 +98,12 @@ const COMMANDS: Cmd[] = [
   { id: "go-coupons", title: "Coupons", href: "/coupons", section: "coupons" },
   { id: "go-reports", title: "Reports", href: "/reports", section: "reports" },
   { id: "go-notifications", title: "Notifications", href: "/notifications" },
-  { id: "go-settings", title: "Settings", href: "/settings", section: "settings" },
+  {
+    id: "go-settings",
+    title: "Settings",
+    href: "/settings",
+    section: "settings",
+  },
   {
     id: "go-app-customization",
     title: "App Customization",
@@ -317,7 +322,13 @@ export default function Topbar() {
         aria-expanded={navOpen}
         onClick={() => mobileNav.toggle()}
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
           <path
             d="M4 7h16M4 12h16M4 17h16"
             stroke="currentColor"

@@ -327,7 +327,10 @@ export default function ProjectsPage() {
   // this only matters when the socket is down (server restart, network blip).
   useEffect(() => {
     if (!selectedId) return;
-    const t = setInterval(() => void catchUpMessages(), MESSAGE_FALLBACK_POLL_MS);
+    const t = setInterval(
+      () => void catchUpMessages(),
+      MESSAGE_FALLBACK_POLL_MS,
+    );
     return () => clearInterval(t);
   }, [selectedId, catchUpMessages]);
 
@@ -358,20 +361,25 @@ export default function ProjectsPage() {
   );
 
   // Record a teammate as "…typing" with a short auto-expiry.
-  const noteTyping = useCallback((adminId: string) => {
-    if (adminId === myId) return; // ignore our own (server already excludes it)
-    setTypingIds((prev) => (prev.includes(adminId) ? prev : [...prev, adminId]));
-    const timers = typingTimers.current;
-    const existing = timers.get(adminId);
-    if (existing) clearTimeout(existing);
-    timers.set(
-      adminId,
-      setTimeout(() => {
-        timers.delete(adminId);
-        setTypingIds((prev) => prev.filter((id) => id !== adminId));
-      }, TYPING_TTL_MS),
-    );
-  }, [myId]);
+  const noteTyping = useCallback(
+    (adminId: string) => {
+      if (adminId === myId) return; // ignore our own (server already excludes it)
+      setTypingIds((prev) =>
+        prev.includes(adminId) ? prev : [...prev, adminId],
+      );
+      const timers = typingTimers.current;
+      const existing = timers.get(adminId);
+      if (existing) clearTimeout(existing);
+      timers.set(
+        adminId,
+        setTimeout(() => {
+          timers.delete(adminId);
+          setTypingIds((prev) => prev.filter((id) => id !== adminId));
+        }, TYPING_TTL_MS),
+      );
+    },
+    [myId],
+  );
 
   // ---- Socket lifecycle: subscribe ONCE while permitted; handlers read the
   // open channel via selectedIdRef so they never need to re-subscribe. On
@@ -395,9 +403,7 @@ export default function ProjectsPage() {
       }),
       onChatMessageUpdate((dto) => {
         if (dto.channelId !== selectedIdRef.current) return;
-        setMessages((prev) =>
-          prev.map((m) => (m.id === dto.id ? dto : m)),
-        );
+        setMessages((prev) => prev.map((m) => (m.id === dto.id ? dto : m)));
         setThreadParent((p) => (p && p.id === dto.id ? dto : p));
       }),
       onChatReaction((evt) => mergeReaction(evt.messageId, evt.reactions)),
@@ -417,7 +423,15 @@ export default function ProjectsPage() {
       offs.forEach((off) => off());
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, myId, upsertMessages, mergeReaction, noteTyping, catchUpMessages, refreshUnread]);
+  }, [
+    authLoading,
+    myId,
+    upsertMessages,
+    mergeReaction,
+    noteTyping,
+    catchUpMessages,
+    refreshUnread,
+  ]);
 
   // ---- Join/leave the open channel's room as the selection changes. (The
   // connect handler also (re)joins on reconnect; this covers the in-session
@@ -528,7 +542,9 @@ export default function ProjectsPage() {
     });
     if (!title || !title.trim()) return;
     try {
-      const created = await api.createCanvas(selectedId, { title: title.trim() });
+      const created = await api.createCanvas(selectedId, {
+        title: title.trim(),
+      });
       await refreshDetail();
       setActiveTab(`canvas:${created.id}`);
     } catch (err) {
@@ -591,7 +607,9 @@ export default function ProjectsPage() {
   // Replace a message with the server's version wherever it is rendered.
   const applyServerMessage = useCallback(
     (updated: ChatMessageDTO, patchLocal?: LocalPatch) => {
-      setMessages((prev) => prev.map((m) => (m.id === updated.id ? updated : m)));
+      setMessages((prev) =>
+        prev.map((m) => (m.id === updated.id ? updated : m)),
+      );
       setThreadParent((p) => (p && p.id === updated.id ? updated : p));
       patchLocal?.(updated.id, updated);
     },
@@ -705,9 +723,7 @@ export default function ProjectsPage() {
       } else if (lists.length > 1) {
         // Multiple lists: ask which one (by name); default to the first.
         const pick = await dialog.prompt({
-          message: `Add to which list? ${lists
-            .map((l) => l.name)
-            .join(", ")}`,
+          message: `Add to which list? ${lists.map((l) => l.name).join(", ")}`,
           defaultValue: lists[0].name,
           confirmLabel: "Add task",
         });
@@ -816,8 +832,8 @@ export default function ProjectsPage() {
       <div className="page-header">
         <h1>Projects</h1>
         <p className="subtitle">
-          Internal team chat for back-office staff — channels, threads, reactions
-          and tasks. Mention a teammate with <code>@name</code>.
+          Internal team chat for back-office staff — channels, threads,
+          reactions and tasks. Mention a teammate with <code>@name</code>.
         </p>
       </div>
 
@@ -996,7 +1012,10 @@ export default function ProjectsPage() {
                       </>
                     )}
                     {onlineHere > 0 && (
-                      <span className="pj-online" title={`${onlineHere} online`}>
+                      <span
+                        className="pj-online"
+                        title={`${onlineHere} online`}
+                      >
                         <span className="pj-online-dot" aria-hidden="true" />
                         {onlineHere} online
                       </span>
@@ -1037,9 +1056,7 @@ export default function ProjectsPage() {
                     {loadingMessages ? (
                       <p className="muted">Loading…</p>
                     ) : rootMessages.length === 0 ? (
-                      <p className="muted">
-                        No messages yet. Say hello below.
-                      </p>
+                      <p className="muted">No messages yet. Say hello below.</p>
                     ) : (
                       rootMessages.map((m) => (
                         <MessageRow
@@ -1404,7 +1421,10 @@ function MessageRow({
         )}
 
         {pickerOpen && !deleted && (
-          <div className="pj-emoji-picker" onMouseLeave={() => setPickerOpen(false)}>
+          <div
+            className="pj-emoji-picker"
+            onMouseLeave={() => setPickerOpen(false)}
+          >
             {EMOJI_PALETTE.map((e) => (
               <button
                 key={e}
@@ -1538,7 +1558,9 @@ function ThreadPanel({
   // Replies live in this panel's own list, so the page's optimistic handlers
   // paint through here as well as into the page's message list.
   const patchReply = useCallback<LocalPatch>((id, patch) => {
-    setReplies((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    setReplies((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    );
   }, []);
 
   useEffect(() => {
@@ -1665,8 +1687,7 @@ function Composer({
     return roster
       .filter(
         (a) =>
-          a.name.toLowerCase().includes(q) ||
-          a.email.toLowerCase().includes(q),
+          a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q),
       )
       .slice(0, 6);
   }, [mentionQuery, roster]);
@@ -1903,7 +1924,9 @@ function renderCardValue(
             const name = resolveName(id);
             return (
               <span className="pj-tbl-person" key={id}>
-                <span className="pj-avatar pj-avatar--sm">{initials(name)}</span>
+                <span className="pj-avatar pj-avatar--sm">
+                  {initials(name)}
+                </span>
                 <span className="pj-tbl-personname">{name}</span>
               </span>
             );
@@ -2023,10 +2046,7 @@ function ChannelTabBar({
       })}
 
       {canCreate && (
-        <div
-          className="pj-tab-addwrap"
-          onMouseLeave={() => setMenuOpen(false)}
-        >
+        <div className="pj-tab-addwrap" onMouseLeave={() => setMenuOpen(false)}>
           <button
             className="pj-tab pj-tab--add"
             title="Add a list or canvas"
@@ -2156,7 +2176,9 @@ function CanvasEditor({
       await api.deleteCanvas(canvas.id);
       await onDeleted();
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Failed to delete canvas");
+      onError(
+        err instanceof ApiError ? err.message : "Failed to delete canvas",
+      );
     }
   }
 

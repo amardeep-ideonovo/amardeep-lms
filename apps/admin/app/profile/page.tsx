@@ -136,7 +136,9 @@ export default function ProfilePage() {
       setConfirmPw("");
     } catch (err) {
       setPwErr(
-        err instanceof ApiError ? err.message : "Couldn't change your password.",
+        err instanceof ApiError
+          ? err.message
+          : "Couldn't change your password.",
       );
     } finally {
       setSavingPw(false);

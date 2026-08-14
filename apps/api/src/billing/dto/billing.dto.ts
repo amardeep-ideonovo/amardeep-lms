@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsIn, IsOptional, IsString, MinLength } from "class-validator";
 
 export class CheckoutDto {
   @IsString()
@@ -30,8 +30,8 @@ export class CouponValidateDto {
 
 // Admin cancel of a member's subscription: end access now or at period end.
 export class CancelSubDto {
-  @IsIn(['immediate', 'period_end'])
-  mode!: 'immediate' | 'period_end';
+  @IsIn(["immediate", "period_end"])
+  mode!: "immediate" | "period_end";
 }
 
 // Start a one-off (one-time) course purchase — Stripe mode=payment checkout.

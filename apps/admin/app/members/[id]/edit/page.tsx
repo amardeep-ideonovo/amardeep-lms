@@ -47,9 +47,10 @@ export default function EditMemberPage() {
           phone: m.phone ?? "",
         });
       })
-      .catch((e) =>
-        active &&
-        setError(e instanceof ApiError ? e.message : "Failed to load member")
+      .catch(
+        (e) =>
+          active &&
+          setError(e instanceof ApiError ? e.message : "Failed to load member"),
       )
       .finally(() => active && setLoading(false));
     return () => {
@@ -158,8 +159,8 @@ export default function EditMemberPage() {
               />
               {form.email.trim().toLowerCase() !== member.email && (
                 <p className="muted" style={{ marginTop: 6, fontSize: 12 }}>
-                  Changing the email updates the member’s login, Stripe receipts,
-                  and contact record. You’ll confirm before saving.
+                  Changing the email updates the member’s login, Stripe
+                  receipts, and contact record. You’ll confirm before saving.
                 </p>
               )}
             </div>

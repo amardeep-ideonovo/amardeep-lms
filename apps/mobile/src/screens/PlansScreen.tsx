@@ -26,7 +26,10 @@ import { useStyles } from "../theme-provider";
 
 function lowestPrice(prices: PriceDTO[]): PriceDTO | null {
   if (prices.length === 0) return null;
-  return prices.reduce((min, p) => (p.amount < min.amount ? p : min), prices[0]);
+  return prices.reduce(
+    (min, p) => (p.amount < min.amount ? p : min),
+    prices[0],
+  );
 }
 
 export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
@@ -52,7 +55,7 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [load])
+    }, [load]),
   );
 
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -99,7 +102,9 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
                   </Text>
                 ) : null}
                 <TouchableOpacity
-                  onPress={() => navigation.navigate("Main", { screen: "Profile" })}
+                  onPress={() =>
+                    navigation.navigate("Main", { screen: "Profile" })
+                  }
                 >
                   <Text style={styles.link}>Manage subscription →</Text>
                 </TouchableOpacity>
@@ -153,8 +158,18 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       padding: spacing.md,
       gap: spacing.sm,
     },
-    h1: { color: colors.text, fontSize: 24, fontWeight: "800", fontFamily: fonts.display },
-    sub: { color: colors.textMuted, fontSize: 14, marginBottom: spacing.sm, fontFamily: fonts.regular },
+    h1: {
+      color: colors.text,
+      fontSize: 24,
+      fontWeight: "800",
+      fontFamily: fonts.display,
+    },
+    sub: {
+      color: colors.textMuted,
+      fontSize: 14,
+      marginBottom: spacing.sm,
+      fontFamily: fonts.regular,
+    },
     sectionTitle: {
       color: colors.text,
       fontSize: 18,
@@ -177,9 +192,19 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       justifyContent: "space-between",
       gap: spacing.sm,
     },
-    name: { color: colors.text, fontSize: 16, fontWeight: "700", fontFamily: fonts.bold },
+    name: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
     meta: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
-    link: { color: colors.primarySoft, fontSize: 14, fontWeight: "700", fontFamily: fonts.bold },
+    link: {
+      color: colors.primarySoft,
+      fontSize: 14,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
     note: {
       color: colors.textMuted,
       fontSize: 12.5,

@@ -37,7 +37,7 @@ export default function LoginPage() {
       router.replace("/");
     } catch (err) {
       setError(
-        err instanceof ApiError ? err.message : "Login failed. Try again."
+        err instanceof ApiError ? err.message : "Login failed. Try again.",
       );
     } finally {
       setLoading(false);
@@ -49,7 +49,13 @@ export default function LoginPage() {
       <form className="card login-card" onSubmit={onSubmit}>
         <div className="page-header">
           <div className="login-brand">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
               <path
                 d="M12 1.7C12.93 7.35 16.65 11.07 22.3 12C16.65 12.93 12.93 16.65 12 22.3C11.07 16.65 7.35 12.93 1.7 12C7.35 11.07 11.07 7.35 12 1.7Z"
                 fill="#34c9a2"

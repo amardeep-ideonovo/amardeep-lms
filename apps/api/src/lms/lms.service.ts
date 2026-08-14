@@ -5,33 +5,30 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
+} from "@nestjs/common";
+import * as fs from "fs";
+import * as path from "path";
 import type {
   CompleteLessonResponse,
   CourseCard,
   LessonDTO,
   LessonNoteDTO,
-} from '@lms/types';
-import type { LessonNote } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { AccessService } from './access.service';
-import { isCourseLocked } from '../common/access.util';
-import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
-import { LESSON_NOTES_DIR } from './upload.config';
-import { CertificatesService } from '../certificates/certificates.service';
-import { AutomationService } from '../email/automation.service';
+} from "@lms/types";
+import type { LessonNote } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { AccessService } from "./access.service";
+import { isCourseLocked } from "../common/access.util";
+import type { AuthenticatedPrincipal } from "../auth/jwt-payload.interface";
+import { LESSON_NOTES_DIR } from "./upload.config";
+import { CertificatesService } from "../certificates/certificates.service";
+import { AutomationService } from "../email/automation.service";
 import {
   CreateCourseDto,
   CreateLessonDto,
   UpdateCourseDto,
   UpdateLessonDto,
-} from './dto/lms.dto';
-import {
-  toRichHtml,
-  sanitizeRichTextForStore,
-} from '../common/sanitize-html';
+} from "./dto/lms.dto";
+import { toRichHtml, sanitizeRichTextForStore } from "../common/sanitize-html";
 
 @Injectable()
 export class LmsService {
@@ -86,7 +83,9 @@ export class LmsService {
   ): CourseCard {
     const assigned = c.courseLevels.map((cl) => cl.levelId);
     const owns = ctx?.purchased.has(c.id) ?? false;
-    const locked = ctx ? isCourseLocked(assigned, ctx.activeLevels, owns) : false;
+    const locked = ctx
+      ? isCourseLocked(assigned, ctx.activeLevels, owns)
+      : false;
     // "Buy this course" is offered only to a member for whom the course is
     // LOCKED and a one-off price is configured + active. Admin view (no ctx →
     // locked false) never flags purchasable.
@@ -122,7 +121,7 @@ export class LmsService {
       // `order` alone left the list free to reshuffle equal-order courses
       // between reads. With a total order the sequence is stable, which also
       // lets a client place a newly created row without refetching.
-      orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       include: LmsService.COURSE_CARD_INCLUDE,
     });
 
@@ -149,12 +148,12 @@ export class LmsService {
   private slugify(input: string): string {
     return input
       .toLowerCase()
-      .normalize('NFKD')
-      .replace(/[̀-ͯ]/g, '') // strip diacritics
-      .replace(/[^a-z0-9\s-]/g, '')
+      .normalize("NFKD")
+      .replace(/[̀-ͯ]/g, "") // strip diacritics
+      .replace(/[^a-z0-9\s-]/g, "")
       .trim()
-      .replace(/[\s_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
+      .replace(/[\s_-]+/g, "-")
+      .replace(/^-+|-+$/g, "");
   }
 
   private async courseSlugFor(
@@ -166,7 +165,10 @@ export class LmsService {
     for (let n = 1; ; n += 1) {
       const candidate = n === 1 ? base : `${base}-${n}`;
       const clash = await this.prisma.course.findFirst({
-        where: { slug: candidate, NOT: ignoreId ? { id: ignoreId } : undefined },
+        where: {
+          slug: candidate,
+          NOT: ignoreId ? { id: ignoreId } : undefined,
+        },
         select: { id: true },
       });
       if (!clash) return candidate;
@@ -197,7 +199,7 @@ export class LmsService {
 
   async updateCourse(id: string, dto: UpdateCourseDto): Promise<CourseCard> {
     const existing = await this.prisma.course.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Course not found');
+    if (!existing) throw new NotFoundException("Course not found");
 
     // Backfill a URL slug for courses created before slugs existed; keep an
     // existing slug stable across title edits so bookmarked URLs don't break.
@@ -258,13 +260,13 @@ export class LmsService {
         lessons: { include: { notes: { select: { filename: true } } } },
       },
     });
-    if (!existing) throw new NotFoundException('Course not found');
+    if (!existing) throw new NotFoundException("Course not found");
     // Guard: refuse to hard-delete a course that members still own. UserCourse
     // is Cascade, so deleting wipes lifetime one-off purchases along with their
     // Stripe payment-correlation fields (breaking refund/chargeback handling).
     // Archive it instead.
     const active = await this.prisma.userCourse.count({
-      where: { courseId: id, status: 'ACTIVE' },
+      where: { courseId: id, status: "ACTIVE" },
     });
     if (active > 0) {
       throw new ConflictException(
@@ -287,7 +289,7 @@ export class LmsService {
    */
   async archiveCourse(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.course.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Course not found');
+    if (!existing) throw new NotFoundException("Course not found");
     await this.prisma.course.update({
       where: { id },
       data: { archivedAt: new Date() },
@@ -297,7 +299,7 @@ export class LmsService {
 
   async unarchiveCourse(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.course.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Course not found');
+    if (!existing) throw new NotFoundException("Course not found");
     await this.prisma.course.update({
       where: { id },
       data: { archivedAt: null },
@@ -318,12 +320,12 @@ export class LmsService {
       include: {
         courseLevels: { select: { levelId: true } },
         lessons: {
-          orderBy: { order: 'asc' },
-          include: { notes: { orderBy: { order: 'asc' } } },
+          orderBy: { order: "asc" },
+          include: { notes: { orderBy: { order: "asc" } } },
         },
       },
     });
-    if (!course) throw new NotFoundException('Course not found');
+    if (!course) throw new NotFoundException("Course not found");
 
     // Access gate (member context only; admins pass through). Mirrors getLesson
     // so a locked course never leaks its lesson list or content.
@@ -334,7 +336,7 @@ export class LmsService {
         this.access.ownsCourse(userId, course.id),
       ]);
       if (isCourseLocked(assigned, activeLevels, owns)) {
-        throw new ForbiddenException('You do not have access to this course');
+        throw new ForbiddenException("You do not have access to this course");
       }
     }
 
@@ -345,7 +347,11 @@ export class LmsService {
     if (userId) {
       const progress = await this.prisma.lessonProgress.findMany({
         where: { userId, lesson: { courseId: course.id } },
-        select: { lessonId: true, completedAt: true, lastPositionSeconds: true },
+        select: {
+          lessonId: true,
+          completedAt: true,
+          lastPositionSeconds: true,
+        },
       });
       for (const p of progress) {
         progressByLesson.set(p.lessonId, {
@@ -370,7 +376,9 @@ export class LmsService {
       audioUrl: l.audioUrl,
       durationSeconds: l.durationSeconds,
       order: l.order,
-      completed: userId ? (progressByLesson.get(l.id)?.completed ?? false) : undefined,
+      completed: userId
+        ? (progressByLesson.get(l.id)?.completed ?? false)
+        : undefined,
       started: userId ? progressByLesson.has(l.id) : undefined,
       lastPositionSeconds: userId
         ? (progressByLesson.get(l.id)?.lastPositionSeconds ?? 0)
@@ -386,8 +394,11 @@ export class LmsService {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
     });
-    if (!course) throw new NotFoundException('Course not found');
-    const { videoUrl, audioUrl } = this.resolveMedia(dto.videoUrl, dto.audioUrl);
+    if (!course) throw new NotFoundException("Course not found");
+    const { videoUrl, audioUrl } = this.resolveMedia(
+      dto.videoUrl,
+      dto.audioUrl,
+    );
     const lesson = await this.prisma.lesson.create({
       data: {
         courseId,
@@ -423,16 +434,23 @@ export class LmsService {
   private resolveMedia(
     videoRaw: string | null | undefined,
     audioRaw: string | null | undefined,
-  ): { videoUrl: string | null | undefined; audioUrl: string | null | undefined } {
+  ): {
+    videoUrl: string | null | undefined;
+    audioUrl: string | null | undefined;
+  } {
     // undefined => field absent (leave as-is on update); null or "" => clear;
     // else set. Null-safe so an explicit JSON `null` clears rather than crashes.
     const norm = (v: string | null | undefined) =>
-      v === undefined ? undefined : v === null || v.trim() === '' ? null : v.trim();
+      v === undefined
+        ? undefined
+        : v === null || v.trim() === ""
+          ? null
+          : v.trim();
     let video = norm(videoRaw);
     let audio = norm(audioRaw);
     if (video && audio) {
       throw new BadRequestException(
-        'A lesson can have a video or an audio source, not both.',
+        "A lesson can have a video or an audio source, not both.",
       );
     }
     // Mutual exclusivity is a DB invariant, not merely a per-payload one:
@@ -446,12 +464,15 @@ export class LmsService {
 
   async updateLesson(id: string, dto: UpdateLessonDto): Promise<LessonDTO> {
     const existing = await this.prisma.lesson.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Lesson not found');
+    if (!existing) throw new NotFoundException("Lesson not found");
     // undefined => field absent => Prisma leaves it unchanged; null => clear.
     // The admin sends BOTH media fields on a save (active + "" for the other),
     // so a video<->audio switch clears the counterpart here. A partial update
     // that omits both (e.g. a thumbnail-only save) touches neither.
-    const { videoUrl, audioUrl } = this.resolveMedia(dto.videoUrl, dto.audioUrl);
+    const { videoUrl, audioUrl } = this.resolveMedia(
+      dto.videoUrl,
+      dto.audioUrl,
+    );
     const lesson = await this.prisma.lesson.update({
       where: { id },
       data: {
@@ -470,7 +491,7 @@ export class LmsService {
         durationSeconds: dto.durationSeconds ?? undefined,
         order: dto.order ?? undefined,
       },
-      include: { notes: { orderBy: { order: 'asc' } } },
+      include: { notes: { orderBy: { order: "asc" } } },
     });
     return {
       id: lesson.id,
@@ -491,7 +512,7 @@ export class LmsService {
       where: { id },
       include: { notes: { select: { filename: true } } },
     });
-    if (!existing) throw new NotFoundException('Lesson not found');
+    if (!existing) throw new NotFoundException("Lesson not found");
     await this.prisma.lesson.delete({ where: { id } });
     this.unlinkNoteFiles(existing.notes.map((n) => n.filename));
     return { ok: true };
@@ -508,10 +529,10 @@ export class LmsService {
         course: {
           include: { courseLevels: { select: { levelId: true } } },
         },
-        notes: { orderBy: { order: 'asc' } },
+        notes: { orderBy: { order: "asc" } },
       },
     });
-    if (!lesson) throw new NotFoundException('Lesson not found');
+    if (!lesson) throw new NotFoundException("Lesson not found");
 
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
     const [activeLevels, owns] = await Promise.all([
@@ -519,7 +540,7 @@ export class LmsService {
       this.access.ownsCourse(userId, lesson.courseId),
     ]);
     if (isCourseLocked(assigned, activeLevels, owns)) {
-      throw new ForbiddenException('You do not have access to this lesson');
+      throw new ForbiddenException("You do not have access to this lesson");
     }
 
     const [progressRow, certificates] = await Promise.all([
@@ -529,7 +550,12 @@ export class LmsService {
       }),
       // Present only when this lesson is the terminal lesson of an actively
       // held class with certificates configured — drives "Get certificate".
-      this.certificates.statusForLesson(userId, lessonId, assigned, activeLevels),
+      this.certificates.statusForLesson(
+        userId,
+        lessonId,
+        assigned,
+        activeLevels,
+      ),
     ]);
 
     return {
@@ -562,7 +588,7 @@ export class LmsService {
         },
       },
     });
-    if (!lesson) throw new NotFoundException('Lesson not found');
+    if (!lesson) throw new NotFoundException("Lesson not found");
 
     // Same access gate as viewing.
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
@@ -571,7 +597,7 @@ export class LmsService {
       this.access.ownsCourse(userId, lesson.courseId),
     ]);
     if (isCourseLocked(assigned, activeLevels, owns)) {
-      throw new ForbiddenException('You do not have access to this lesson');
+      throw new ForbiddenException("You do not have access to this lesson");
     }
 
     // Detect a GENUINE first completion: only fire the LESSON_COMPLETED
@@ -595,11 +621,7 @@ export class LmsService {
       // break the lesson-complete response. lesson/course titles are already
       // loaded above, so no extra query for vars; we only look up the member's
       // email (this method only carries userId).
-      void this.fireLessonCompleted(
-        userId,
-        lesson.title,
-        lesson.course.title,
-      );
+      void this.fireLessonCompleted(userId, lesson.title, lesson.course.title);
     }
     // Completing the FINAL lesson of a class returns the fresh certificate
     // state so clients can surface "Get certificate" without a refetch.
@@ -629,8 +651,8 @@ export class LmsService {
       });
       if (!user?.email) return;
       const brand = await this.brandTitle();
-      const firstName = user.firstName?.trim() || 'there';
-      await this.automations.fire('LESSON_COMPLETED', {
+      const firstName = user.firstName?.trim() || "there";
+      await this.automations.fire("LESSON_COMPLETED", {
         email: user.email,
         vars: { firstName, brand, lessonTitle, courseTitle },
       });
@@ -649,14 +671,14 @@ export class LmsService {
   private async brandTitle(): Promise<string> {
     try {
       const row = await this.prisma.appConfig.findUnique({
-        where: { id: 'singleton' },
+        where: { id: "singleton" },
       });
       const title = (row?.config as { title?: unknown } | null)?.title;
-      return typeof title === 'string' && title.trim()
+      return typeof title === "string" && title.trim()
         ? title
-        : 'Spotlight Academy';
+        : "Spotlight Academy";
     } catch {
-      return 'Spotlight Academy';
+      return "Spotlight Academy";
     }
   }
 
@@ -665,8 +687,10 @@ export class LmsService {
     lessonId: string,
     userId: string,
   ): Promise<{ ok: true }> {
-    const lesson = await this.prisma.lesson.findUnique({ where: { id: lessonId } });
-    if (!lesson) throw new NotFoundException('Lesson not found');
+    const lesson = await this.prisma.lesson.findUnique({
+      where: { id: lessonId },
+    });
+    if (!lesson) throw new NotFoundException("Lesson not found");
     // Clear the completion but KEEP the row's started + position state, so the
     // lesson stays "in progress" and resumable after an un-complete.
     await this.prisma.lessonProgress.updateMany({
@@ -692,14 +716,14 @@ export class LmsService {
         course: { include: { courseLevels: { select: { levelId: true } } } },
       },
     });
-    if (!lesson) throw new NotFoundException('Lesson not found');
+    if (!lesson) throw new NotFoundException("Lesson not found");
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
     const [activeLevels, owns] = await Promise.all([
       this.access.activeLevelIds(userId),
       this.access.ownsCourse(userId, lesson.courseId),
     ]);
     if (isCourseLocked(assigned, activeLevels, owns)) {
-      throw new ForbiddenException('You do not have access to this lesson');
+      throw new ForbiddenException("You do not have access to this lesson");
     }
     const pos = Math.max(0, Math.floor(positionSeconds));
     await this.prisma.lessonProgress.upsert({
@@ -737,10 +761,10 @@ export class LmsService {
     if (!lesson) {
       // Don't leave orphaned uploads on disk if the lesson is gone.
       this.unlinkNoteFiles((files ?? []).map((f) => f.filename));
-      throw new NotFoundException('Lesson not found');
+      throw new NotFoundException("Lesson not found");
     }
     if (!files?.length) {
-      throw new BadRequestException('No files provided');
+      throw new BadRequestException("No files provided");
     }
     const existing = await this.prisma.lessonNote.count({
       where: { lessonId },
@@ -761,7 +785,7 @@ export class LmsService {
     );
     const notes = await this.prisma.lessonNote.findMany({
       where: { lessonId },
-      orderBy: { order: 'asc' },
+      orderBy: { order: "asc" },
     });
     return notes.map((n) => this.toNoteDTO(n));
   }
@@ -772,7 +796,7 @@ export class LmsService {
       where: { id: noteId },
     });
     if (!note || note.lessonId !== lessonId) {
-      throw new NotFoundException('Note not found');
+      throw new NotFoundException("Note not found");
     }
     await this.prisma.lessonNote.delete({ where: { id: noteId } });
     this.unlinkNoteFiles([note.filename]);
@@ -789,12 +813,14 @@ export class LmsService {
       where: { id: noteId },
     });
     if (!note || note.lessonId !== lessonId) {
-      throw new NotFoundException('Note not found');
+      throw new NotFoundException("Note not found");
     }
     // Sanitize: strip CR/LF/quotes (Content-Disposition safety) + cap length.
     const clean =
-      originalName.trim().replace(/[\r\n"]/g, '').slice(0, 200) ||
-      note.originalName;
+      originalName
+        .trim()
+        .replace(/[\r\n"]/g, "")
+        .slice(0, 200) || note.originalName;
     const updated = await this.prisma.lessonNote.update({
       where: { id: noteId },
       data: { originalName: clean },
@@ -826,7 +852,7 @@ export class LmsService {
       },
     });
     if (!note || note.lessonId !== lessonId) {
-      throw new NotFoundException('Note not found');
+      throw new NotFoundException("Note not found");
     }
     if (!principal.isAdmin) {
       const assigned = note.lesson.course.courseLevels.map((cl) => cl.levelId);
@@ -835,14 +861,18 @@ export class LmsService {
         this.access.ownsCourse(principal.sub, note.lesson.courseId),
       ]);
       if (isCourseLocked(assigned, activeLevels, owns)) {
-        throw new ForbiddenException('You do not have access to this lesson');
+        throw new ForbiddenException("You do not have access to this lesson");
       }
     }
     const absPath = path.join(LESSON_NOTES_DIR, note.filename);
     if (!fs.existsSync(absPath)) {
-      throw new NotFoundException('File missing on server');
+      throw new NotFoundException("File missing on server");
     }
-    return { absPath, originalName: note.originalName, mimeType: note.mimeType };
+    return {
+      absPath,
+      originalName: note.originalName,
+      mimeType: note.mimeType,
+    };
   }
 
   // Best-effort removal of note files from disk (DB rows are handled by the

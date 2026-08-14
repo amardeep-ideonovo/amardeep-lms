@@ -83,7 +83,8 @@ const config = (): ExpoConfig => ({
     // Universal app: iPhone + iPad. Apple reviews on iPad and the store
     // listing needs 13" iPad screenshots (see SHIPPING.md).
     supportsTablet: true,
-    bundleIdentifier: process.env.INSTANCE_IOS_BUNDLE_ID ?? "com.thewebpaanda.lms",
+    bundleIdentifier:
+      process.env.INSTANCE_IOS_BUNDLE_ID ?? "com.thewebpaanda.lms",
     config: {
       usesNonExemptEncryption: false,
     },

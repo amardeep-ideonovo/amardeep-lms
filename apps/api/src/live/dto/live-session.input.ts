@@ -12,15 +12,15 @@ import {
   Min,
   MinLength,
   ValidateIf,
-} from 'class-validator';
-import type { LiveAudience, LiveProvider } from '@lms/types';
+} from "class-validator";
+import type { LiveAudience, LiveProvider } from "@lms/types";
 
-const PROVIDERS: LiveProvider[] = ['ZOOM', 'GOOGLE_MEET'];
-const AUDIENCES: LiveAudience[] = ['ALL_ACTIVE', 'LEVELS'];
+const PROVIDERS: LiveProvider[] = ["ZOOM", "GOOGLE_MEET"];
+const AUDIENCES: LiveAudience[] = ["ALL_ACTIVE", "LEVELS"];
 // Naive wall-time "YYYY-MM-DDTHH:mm" (what <input type="datetime-local"> emits);
 // the SERVER converts this against `timezone` to a UTC instant.
 const LOCAL_DT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
-const URL_OPTS = { protocols: ['https'], require_protocol: true };
+const URL_OPTS = { protocols: ["https"], require_protocol: true };
 
 export class CreateLiveSessionDto {
   @IsString()
@@ -40,7 +40,7 @@ export class CreateLiveSessionDto {
   audience!: LiveAudience;
 
   // Required and non-empty only when targeting specific classes.
-  @ValidateIf((o) => o.audience === 'LEVELS')
+  @ValidateIf((o) => o.audience === "LEVELS")
   @IsArray()
   @ArrayNotEmpty()
   @IsString({ each: true })

@@ -5,8 +5,8 @@ import {
   IsOptional,
   IsString,
   MinLength,
-} from 'class-validator';
-import type { AdminPermissions } from '@lms/types';
+} from "class-validator";
+import type { AdminPermissions } from "@lms/types";
 
 export class CreateAdminDto {
   @IsEmail()
