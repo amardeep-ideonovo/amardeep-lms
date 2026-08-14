@@ -135,7 +135,7 @@ export function ConnectScreen({
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.body}>
-        <Text style={styles.title}>Connect your academy</Text>
+        <Text style={styles.title}>Connect Your Academy</Text>
         <Text style={styles.subtitle}>
           {advanced
             ? "Enter your academy's server address."

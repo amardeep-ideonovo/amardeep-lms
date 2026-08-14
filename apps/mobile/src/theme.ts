@@ -334,24 +334,24 @@ export const spacing = {
   lg: 24,
 };
 
-// Space Grotesk everywhere (Spark), loaded via expo-font in App.tsx.
+// Plus Jakarta Sans everywhere (Spark; owner's call over the pack's Space
+// Grotesk — matches the member website), loaded via expo-font in App.tsx.
 // RN doesn't synthesize custom-font weights, so each weight is its own family
-// — use fontFamily(weight) or theme.fonts.* instead of bare fontWeight. Space
-// Grotesk ships no 800 cut, so the extrabold/displayBlack aliases resolve to
-// the 700 face. The display aliases remain so existing call sites keep
-// working: headings are simply heavier Grotesk cuts (700/600).
+// — use fontFamily(weight) or theme.fonts.* instead of bare fontWeight. The
+// display aliases remain so existing call sites keep working: headings are
+// simply heavier Jakarta cuts (700/600/800).
 export const fonts = {
-  regular: "SpaceGrotesk_400Regular",
-  medium: "SpaceGrotesk_500Medium",
-  semibold: "SpaceGrotesk_600SemiBold",
-  bold: "SpaceGrotesk_700Bold",
-  extrabold: "SpaceGrotesk_700Bold",
-  display: "SpaceGrotesk_700Bold",
-  displaySemi: "SpaceGrotesk_600SemiBold",
-  displayBlack: "SpaceGrotesk_700Bold",
+  regular: "PlusJakartaSans_400Regular",
+  medium: "PlusJakartaSans_500Medium",
+  semibold: "PlusJakartaSans_600SemiBold",
+  bold: "PlusJakartaSans_700Bold",
+  extrabold: "PlusJakartaSans_800ExtraBold",
+  display: "PlusJakartaSans_700Bold",
+  displaySemi: "PlusJakartaSans_600SemiBold",
+  displayBlack: "PlusJakartaSans_800ExtraBold",
 } as const;
 
-// Map a fontWeight to the matching Grotesk family (so existing `fontWeight`
+// Map a fontWeight to the matching Jakarta family (so existing `fontWeight`
 // values pick the right loaded face rather than synthetic bold).
 export function fontFamily(weight?: string | number): string {
   const w = typeof weight === "string" ? parseInt(weight, 10) || 400 : weight ?? 400;
