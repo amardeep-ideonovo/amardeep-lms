@@ -3,12 +3,12 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import type Stripe from 'stripe';
-import type { CouponDTO } from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { StripeService } from '../billing/stripe.service';
-import { CreateCouponDto } from './dto/coupon.dto';
+} from "@nestjs/common";
+import type Stripe from "stripe";
+import type { CouponDTO } from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { StripeService } from "../billing/stripe.service";
+import { CreateCouponDto } from "./dto/coupon.dto";
 
 // Coupons live in Stripe (no local mirror): create = Coupon + Promotion Code;
 // list/deactivate read/toggle the promotion codes. Redemption counts + status
@@ -25,20 +25,24 @@ export class CouponsService {
     // Hide soft-deleted codes (see delete()) — promotion codes are permanent in
     // Stripe, so a deleted one lingers in the list with a metadata flag.
     return codes
-      .filter((pc) => pc.metadata?.deleted !== 'true')
+      .filter((pc) => pc.metadata?.deleted !== "true")
       .map((pc) => this.toDTO(pc));
   }
 
   async create(dto: CreateCouponDto): Promise<CouponDTO> {
-    if (dto.discountType === 'percent' && dto.percentOff == null) {
-      throw new BadRequestException('percentOff is required for a percent coupon');
-    }
-    if (dto.discountType === 'amount' && dto.amountOff == null) {
-      throw new BadRequestException('amountOff is required for an amount coupon');
-    }
-    if (dto.duration === 'repeating' && dto.durationInMonths == null) {
+    if (dto.discountType === "percent" && dto.percentOff == null) {
       throw new BadRequestException(
-        'durationInMonths is required for a repeating coupon',
+        "percentOff is required for a percent coupon",
+      );
+    }
+    if (dto.discountType === "amount" && dto.amountOff == null) {
+      throw new BadRequestException(
+        "amountOff is required for an amount coupon",
+      );
+    }
+    if (dto.duration === "repeating" && dto.durationInMonths == null) {
+      throw new BadRequestException(
+        "durationInMonths is required for a repeating coupon",
       );
     }
 
@@ -53,10 +57,10 @@ export class CouponsService {
         where: { id: dto.levelId },
         select: { id: true, name: true, stripeProductId: true },
       });
-      if (!level) throw new NotFoundException('Level not found');
+      if (!level) throw new NotFoundException("Level not found");
       if (!level.stripeProductId) {
         throw new BadRequestException(
-          'That level has no paid plan yet, so it can’t back a coupon',
+          "That level has no paid plan yet, so it can’t back a coupon",
         );
       }
       appliesToProducts = [level.stripeProductId];
@@ -72,8 +76,8 @@ export class CouponsService {
       : undefined;
 
     const coupon = await this.stripe.createCoupon({
-      percentOff: dto.discountType === 'percent' ? dto.percentOff : undefined,
-      amountOff: dto.discountType === 'amount' ? dto.amountOff : undefined,
+      percentOff: dto.discountType === "percent" ? dto.percentOff : undefined,
+      amountOff: dto.discountType === "amount" ? dto.amountOff : undefined,
       currency: dto.currency,
       duration: dto.duration,
       durationInMonths: dto.durationInMonths,
@@ -96,9 +100,9 @@ export class CouponsService {
       // The coupon is created first; if the code is taken, roll it back so we
       // don't leak an orphaned coupon, then surface a clean error.
       await this.stripe.deleteCoupon(coupon.id).catch(() => undefined);
-      const msg = (err as { message?: string })?.message ?? '';
+      const msg = (err as { message?: string })?.message ?? "";
       if (/already exists/i.test(msg)) {
-        throw new ConflictException('That code is already in use');
+        throw new ConflictException("That code is already in use");
       }
       throw err;
     }
@@ -118,7 +122,7 @@ export class CouponsService {
   async delete(id: string): Promise<{ ok: true }> {
     const promo = await this.stripe.retrievePromotionCode(id);
     const couponId =
-      typeof promo.coupon === 'string' ? promo.coupon : promo.coupon?.id;
+      typeof promo.coupon === "string" ? promo.coupon : promo.coupon?.id;
     if (couponId) {
       try {
         await this.stripe.deleteCoupon(couponId);
@@ -128,7 +132,7 @@ export class CouponsService {
     }
     await this.stripe.updatePromotionCode(id, {
       active: false,
-      metadata: { deleted: 'true' },
+      metadata: { deleted: "true" },
     });
     return { ok: true };
   }
@@ -140,11 +144,11 @@ export class CouponsService {
       id: pc.id,
       code: pc.code,
       active: pc.active,
-      discountType: coupon.percent_off != null ? 'percent' : 'amount',
+      discountType: coupon.percent_off != null ? "percent" : "amount",
       percentOff: coupon.percent_off ?? null,
       amountOff: coupon.amount_off ?? null,
       currency: coupon.currency ?? null,
-      duration: coupon.duration as 'once' | 'repeating' | 'forever',
+      duration: coupon.duration as "once" | "repeating" | "forever",
       durationInMonths: coupon.duration_in_months ?? null,
       maxRedemptions: pc.max_redemptions ?? coupon.max_redemptions ?? null,
       timesRedeemed: pc.times_redeemed,

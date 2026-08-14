@@ -1,4 +1,4 @@
-import type { PrismaService } from '../prisma/prisma.service';
+import type { PrismaService } from "../prisma/prisma.service";
 
 // Shared target -> href resolution, used by both the menu resolver
 // (MenusService.resolveMenu) and the header CTA resolver (SiteService). Keeping
@@ -30,22 +30,22 @@ export async function buildHrefMaps(
   targets: HrefTarget[],
 ): Promise<HrefMaps> {
   const pageIds = targets
-    .filter((t) => t.type === 'PAGE' && t.pageId)
+    .filter((t) => t.type === "PAGE" && t.pageId)
     .map((t) => t.pageId as string);
   const levelIds = targets
-    .filter((t) => t.type === 'CLASS' && t.levelId)
+    .filter((t) => t.type === "CLASS" && t.levelId)
     .map((t) => t.levelId as string);
   const postIds = targets
-    .filter((t) => t.type === 'BLOG_POST' && t.postId)
+    .filter((t) => t.type === "BLOG_POST" && t.postId)
     .map((t) => t.postId as string);
   const courseIds = targets
-    .filter((t) => t.type === 'COURSE' && t.courseId)
+    .filter((t) => t.type === "COURSE" && t.courseId)
     .map((t) => t.courseId as string);
 
   const [pages, levels, posts, courses] = await Promise.all([
     pageIds.length
       ? prisma.page.findMany({
-          where: { id: { in: pageIds }, status: 'PUBLISHED' },
+          where: { id: { in: pageIds }, status: "PUBLISHED" },
           select: { id: true, slug: true },
         })
       : Promise.resolve([]),
@@ -81,31 +81,31 @@ export async function buildHrefMaps(
 // Pure: a target + the prefetched maps -> href (or null if unresolvable).
 export function resolveHref(t: HrefTarget, maps: HrefMaps): string | null {
   switch (t.type) {
-    case 'PAGE': {
+    case "PAGE": {
       const s = t.pageId ? maps.pageSlug.get(t.pageId) : undefined;
       return s ? `/${s}` : null;
     }
-    case 'CLASS': {
+    case "CLASS": {
       if (!t.levelId || !maps.levelExists.has(t.levelId)) return null;
       const s = maps.levelSlug.get(t.levelId);
       return s ? `/classes/${s}` : `/classes/${t.levelId}`;
     }
-    case 'COURSE':
+    case "COURSE":
       return t.courseId && maps.courseExists.has(t.courseId)
         ? `/courses/${t.courseId}`
         : null;
-    case 'CLASS_INDEX':
-      return '/pricing/all';
-    case 'COURSE_INDEX':
-      return '/dashboard';
-    case 'BLOG_INDEX':
-      return '/blog';
-    case 'BLOG_POST': {
+    case "CLASS_INDEX":
+      return "/pricing/all";
+    case "COURSE_INDEX":
+      return "/dashboard";
+    case "BLOG_INDEX":
+      return "/blog";
+    case "BLOG_POST": {
       const s = t.postId ? maps.postSlug.get(t.postId) : undefined;
       return s ? `/blog/${s}` : null;
     }
-    case 'ROUTE':
-    case 'CUSTOM':
+    case "ROUTE":
+    case "CUSTOM":
       return t.url || null;
     default:
       return null;

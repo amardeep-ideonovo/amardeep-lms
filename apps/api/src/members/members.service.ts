@@ -5,26 +5,28 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import type {
   MemberListDTO,
   MemberRow,
   MemberStatsDTO,
   MemberStatusFilter,
-} from '@lms/types';
-import { Prisma, type UserLevelStatus } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
-import { PrismaService } from '../prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
+} from "@lms/types";
+import { Prisma, type UserLevelStatus } from "@prisma/client";
+import * as bcrypt from "bcryptjs";
+import { PrismaService } from "../prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
 
 type ActorContext = { adminId?: string | null; ip?: string | null };
-import { ContactsService } from '../contacts/contacts.service';
-import { StripeService } from '../billing/stripe.service';
-import { ListMembersQueryDto, UpdateMemberDto } from './dto/member.dto';
+import { ContactsService } from "../contacts/contacts.service";
+import { StripeService } from "../billing/stripe.service";
+import { ListMembersQueryDto, UpdateMemberDto } from "./dto/member.dto";
 
 // A member row with its levels joined — the shape both list() and update() map.
 type MemberWithLevels = Prisma.UserGetPayload<{
-  include: { levels: { include: { level: { select: { id: true; name: true } } } } };
+  include: {
+    levels: { include: { level: { select: { id: true; name: true } } } };
+  };
 }>;
 
 @Injectable()
@@ -47,7 +49,7 @@ export class MembersService {
   private static readonly WITH_LEVELS = {
     levels: {
       include: { level: { select: { id: true, name: true } } },
-      orderBy: [{ grantedAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ grantedAt: "desc" }, { id: "desc" }],
     },
   } satisfies Prisma.UserInclude;
 
@@ -60,12 +62,12 @@ export class MembersService {
     // grants got a non-deterministic answer. That is also what makes the status
     // filter in list() expressible as a WHERE — you cannot filter on a
     // non-deterministic function.
-    const stripeLevels = u.levels.filter((ul) => ul.source === 'STRIPE');
+    const stripeLevels = u.levels.filter((ul) => ul.source === "STRIPE");
     const summary = MembersService.SUB_STATUS_ORDER.map((s) =>
       stripeLevels.find((ul) => ul.status === s),
     ).find(Boolean);
     const activePaid =
-      summary && (summary.status === 'ACTIVE' || summary.status === 'PAST_DUE')
+      summary && (summary.status === "ACTIVE" || summary.status === "PAST_DUE")
         ? summary
         : undefined;
     return {
@@ -79,7 +81,7 @@ export class MembersService {
       // Only classes the member CURRENTLY holds (ACTIVE). Canceled/expired/paused
       // grants are history — the Subscription column still surfaces paid status.
       levels: u.levels
-        .filter((ul) => ul.status === 'ACTIVE')
+        .filter((ul) => ul.status === "ACTIVE")
         .map((ul) => ({
           id: ul.level.id,
           name: ul.level.name,
@@ -101,11 +103,11 @@ export class MembersService {
   // status. Highest first; ties inside a status fall back to the pinned
   // grantedAt-desc relation order.
   private static readonly SUB_STATUS_ORDER = [
-    'ACTIVE',
-    'PAST_DUE',
-    'PAUSED',
-    'CANCELED',
-    'EXPIRED',
+    "ACTIVE",
+    "PAST_DUE",
+    "PAUSED",
+    "CANCELED",
+    "EXPIRED",
   ] as const;
 
   // Translate a rendered status pill into a WHERE over STRIPE grants, using the
@@ -113,11 +115,11 @@ export class MembersService {
   // that outrank it.
   private statusWhere(status: MemberStatusFilter): Prisma.UserWhereInput {
     const has = (s: string): Prisma.UserWhereInput => ({
-      levels: { some: { source: 'STRIPE', status: s as UserLevelStatus } },
+      levels: { some: { source: "STRIPE", status: s as UserLevelStatus } },
     });
     const hasNoneOf = (ss: readonly string[]): Prisma.UserWhereInput => ({
       levels: {
-        none: { source: 'STRIPE', status: { in: ss as UserLevelStatus[] } },
+        none: { source: "STRIPE", status: { in: ss as UserLevelStatus[] } },
       },
     });
     const outranking = (s: string) =>
@@ -128,23 +130,20 @@ export class MembersService {
         ),
       );
     switch (status) {
-      case 'active':
+      case "active":
         // A member with NO paid grant renders as "Active" too — they
         // registered. Missing this would drop most of the table.
         return {
-          OR: [
-            { levels: { none: { source: 'STRIPE' } } },
-            has('ACTIVE'),
-          ],
+          OR: [{ levels: { none: { source: "STRIPE" } } }, has("ACTIVE")],
         };
-      case 'past_due':
-        return { AND: [has('PAST_DUE'), hasNoneOf(outranking('PAST_DUE'))] };
-      case 'paused':
-        return { AND: [has('PAUSED'), hasNoneOf(outranking('PAUSED'))] };
-      case 'canceled':
-        return { AND: [has('CANCELED'), hasNoneOf(outranking('CANCELED'))] };
-      case 'expired':
-        return { AND: [has('EXPIRED'), hasNoneOf(outranking('EXPIRED'))] };
+      case "past_due":
+        return { AND: [has("PAST_DUE"), hasNoneOf(outranking("PAST_DUE"))] };
+      case "paused":
+        return { AND: [has("PAUSED"), hasNoneOf(outranking("PAUSED"))] };
+      case "canceled":
+        return { AND: [has("CANCELED"), hasNoneOf(outranking("CANCELED"))] };
+      case "expired":
+        return { AND: [has("EXPIRED"), hasNoneOf(outranking("EXPIRED"))] };
     }
   }
 
@@ -158,10 +157,10 @@ export class MembersService {
     if (q) {
       and.push({
         OR: [
-          { email: { contains: q, mode: 'insensitive' } },
-          { firstName: { contains: q, mode: 'insensitive' } },
-          { lastName: { contains: q, mode: 'insensitive' } },
-          { username: { contains: q, mode: 'insensitive' } },
+          { email: { contains: q, mode: "insensitive" } },
+          { firstName: { contains: q, mode: "insensitive" } },
+          { lastName: { contains: q, mode: "insensitive" } },
+          { username: { contains: q, mode: "insensitive" } },
         ],
       });
     }
@@ -169,9 +168,9 @@ export class MembersService {
       // Scoped to ACTIVE grants to match MemberRow.levels (and the chips the
       // admin sees) — a canceled grant must not make a member match a class.
       and.push(
-        query.levelId === '__none__'
-          ? { levels: { none: { status: 'ACTIVE' } } }
-          : { levels: { some: { levelId: query.levelId, status: 'ACTIVE' } } },
+        query.levelId === "__none__"
+          ? { levels: { none: { status: "ACTIVE" } } }
+          : { levels: { some: { levelId: query.levelId, status: "ACTIVE" } } },
       );
     }
     if (query.status) and.push(this.statusWhere(query.status));
@@ -189,7 +188,7 @@ export class MembersService {
         where,
         // id is the tiebreaker: createdAt is neither unique nor indexed, so on
         // its own rows could repeat or vanish between pages.
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: MembersService.WITH_LEVELS,
@@ -210,11 +209,11 @@ export class MembersService {
       this.prisma.user.count({
         where: {
           levels: {
-            some: { source: 'STRIPE', status: { in: ['ACTIVE', 'PAST_DUE'] } },
+            some: { source: "STRIPE", status: { in: ["ACTIVE", "PAST_DUE"] } },
           },
         },
       }),
-      this.prisma.user.count({ where: this.statusWhere('past_due') }),
+      this.prisma.user.count({ where: this.statusWhere("past_due") }),
       this.prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
     ]);
     return { total, activeSubs, pastDue, newThisWeek };
@@ -225,7 +224,7 @@ export class MembersService {
       where: { id },
       include: MembersService.WITH_LEVELS,
     });
-    if (!u) throw new NotFoundException('Member not found');
+    if (!u) throw new NotFoundException("Member not found");
     return this.toRow(u);
   }
 
@@ -242,7 +241,7 @@ export class MembersService {
    */
   async update(id: string, dto: UpdateMemberDto): Promise<MemberRow> {
     const existing = await this.prisma.user.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Member not found');
+    if (!existing) throw new NotFoundException("Member not found");
 
     const norm = (v?: string) =>
       v === undefined ? undefined : v.trim() || null;
@@ -250,7 +249,7 @@ export class MembersService {
     const newEmail =
       dto.email === undefined ? undefined : dto.email.trim().toLowerCase();
     const emailChanging =
-      newEmail !== undefined && newEmail !== '' && newEmail !== existing.email;
+      newEmail !== undefined && newEmail !== "" && newEmail !== existing.email;
 
     if (emailChanging) {
       // Fast-path uniqueness check; a P2002 backstop below covers the race.
@@ -259,7 +258,7 @@ export class MembersService {
       });
       if (taken && taken.id !== id) {
         throw new ConflictException(
-          'Another member already uses that email address',
+          "Another member already uses that email address",
         );
       }
       // Sync Stripe first — payments are keyed on the customer id, but receipts
@@ -277,7 +276,7 @@ export class MembersService {
             }`,
           );
           throw new BadGatewayException(
-            'Could not sync the new email to Stripe; email was not changed.',
+            "Could not sync the new email to Stripe; email was not changed.",
           );
         }
       }
@@ -300,7 +299,7 @@ export class MembersService {
       if (
         emailChanging &&
         err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2002'
+        err.code === "P2002"
       ) {
         if (existing.stripeCustomerId) {
           try {
@@ -313,7 +312,7 @@ export class MembersService {
           }
         }
         throw new ConflictException(
-          'Another member already uses that email address',
+          "Another member already uses that email address",
         );
       }
       throw err;
@@ -354,7 +353,7 @@ export class MembersService {
       where: { id },
       select: { id: true },
     });
-    if (!user) throw new NotFoundException('Member not found');
+    if (!user) throw new NotFoundException("Member not found");
     const passwordHash = await bcrypt.hash(newPassword, 10);
     await this.prisma.user.update({
       where: { id },
@@ -362,8 +361,8 @@ export class MembersService {
     });
     await this.audit.write({
       actorAdminId: actor?.adminId,
-      action: 'member.password_reset',
-      targetType: 'user',
+      action: "member.password_reset",
+      targetType: "user",
       targetId: id,
       ip: actor?.ip,
     });
@@ -380,15 +379,15 @@ export class MembersService {
       this.prisma.user.findUnique({ where: { id: userId } }),
       this.prisma.level.findUnique({ where: { id: levelId } }),
     ]);
-    if (!user) throw new NotFoundException('Member not found');
-    if (!level) throw new NotFoundException('Level not found');
+    if (!user) throw new NotFoundException("Member not found");
+    if (!level) throw new NotFoundException("Level not found");
 
     await this.prisma.userLevel.upsert({
       where: {
-        userId_levelId_source: { userId, levelId, source: 'MANUAL' },
+        userId_levelId_source: { userId, levelId, source: "MANUAL" },
       },
-      create: { userId, levelId, source: 'MANUAL', status: 'ACTIVE' },
-      update: { status: 'ACTIVE' },
+      create: { userId, levelId, source: "MANUAL", status: "ACTIVE" },
+      update: { status: "ACTIVE" },
     });
 
     // ALWAYS capture the granted member into the class's in-house audience
@@ -398,11 +397,11 @@ export class MembersService {
     // Best-effort: a contacts blip must not fail the grant.
     try {
       await this.contacts.syncTags(
-        'add',
+        "add",
         user.email,
         level.audienceTags,
         level.audienceId ?? undefined,
-        { userId: user.id ?? userId, source: 'ADMIN' },
+        { userId: user.id ?? userId, source: "ADMIN" },
       );
     } catch (err) {
       this.logger.warn(
@@ -413,8 +412,8 @@ export class MembersService {
     }
     await this.audit.write({
       actorAdminId: actor?.adminId,
-      action: 'member.level_grant',
-      targetType: 'user',
+      action: "member.level_grant",
+      targetType: "user",
       targetId: userId,
       metadata: { levelId },
       ip: actor?.ip,
@@ -428,23 +427,23 @@ export class MembersService {
       this.prisma.user.findUnique({ where: { id: userId } }),
       this.prisma.level.findUnique({ where: { id: levelId } }),
     ]);
-    if (!user) throw new NotFoundException('Member not found');
-    if (!level) throw new NotFoundException('Level not found');
+    if (!user) throw new NotFoundException("Member not found");
+    if (!level) throw new NotFoundException("Level not found");
 
     const existing = await this.prisma.userLevel.findUnique({
       where: {
-        userId_levelId_source: { userId, levelId, source: 'MANUAL' },
+        userId_levelId_source: { userId, levelId, source: "MANUAL" },
       },
     });
     if (!existing) {
-      throw new BadRequestException('No manual grant to remove for this level');
+      throw new BadRequestException("No manual grant to remove for this level");
     }
     await this.prisma.userLevel.delete({ where: { id: existing.id } });
 
     // Only drop the tag if the user has no OTHER active grant for this level
     // (e.g. a Stripe-sourced one).
     const stillActive = await this.prisma.userLevel.count({
-      where: { userId, levelId, status: 'ACTIVE' },
+      where: { userId, levelId, status: "ACTIVE" },
     });
     // Deactivate the tags on the level's in-house audience (membership is left
     // intact — we never auto-unsubscribe). A level with no tags has nothing to
@@ -454,7 +453,7 @@ export class MembersService {
       // audience (null → default "Members" audience).
       try {
         await this.contacts.syncTags(
-          'remove',
+          "remove",
           user.email,
           level.audienceTags,
           level.audienceId ?? undefined,

@@ -1,12 +1,12 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
- 
-import type { PrismaClient } from '@prisma/client';
+import { Injectable, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
+
+import type { PrismaClient } from "@prisma/client";
 
 // The shared @lms/db package exports a singleton PrismaClient. Reusing it keeps
 // a single connection pool across the monorepo and respects the dev hot-reload
 // guard defined there.
- 
-const { prisma } = require('@lms/db') as { prisma: PrismaClient };
+
+const { prisma } = require("@lms/db") as { prisma: PrismaClient };
 
 @Injectable()
 export class PrismaService implements OnModuleInit, OnModuleDestroy {

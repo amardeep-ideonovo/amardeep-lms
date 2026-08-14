@@ -1,13 +1,13 @@
-import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
-import { NotificationsModule } from '../notifications/notifications.module';
-import { AppConfigService } from '../site/app-config.service';
-import { CertificateTemplatesService } from './certificate-templates.service';
-import { CertificateTemplatesController } from './certificate-templates.controller';
-import { CertificatesService } from './certificates.service';
-import { CertificatesController } from './certificates.controller';
-import { jwtSecret } from '../common/env.util';
+import { Module } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { JwtModule } from "@nestjs/jwt";
+import { NotificationsModule } from "../notifications/notifications.module";
+import { AppConfigService } from "../site/app-config.service";
+import { CertificateTemplatesService } from "./certificate-templates.service";
+import { CertificateTemplatesController } from "./certificate-templates.controller";
+import { CertificatesService } from "./certificates.service";
+import { CertificatesController } from "./certificates.controller";
+import { jwtSecret } from "../common/env.util";
 
 // Class-completion certificates: admin-designed templates (artwork + visual
 // field layout) + member claim/download flows. PrismaModule is global.
@@ -23,11 +23,15 @@ import { jwtSecret } from '../common/env.util';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: jwtSecret(config.get<string>('JWT_SECRET')),
+        secret: jwtSecret(config.get<string>("JWT_SECRET")),
       }),
     }),
   ],
-  providers: [CertificateTemplatesService, CertificatesService, AppConfigService],
+  providers: [
+    CertificateTemplatesService,
+    CertificatesService,
+    AppConfigService,
+  ],
   controllers: [CertificateTemplatesController, CertificatesController],
   exports: [CertificatesService],
 })

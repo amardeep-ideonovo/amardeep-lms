@@ -3,13 +3,13 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import * as bcrypt from 'bcryptjs';
-import { AdminRole, Prisma } from '@prisma/client';
-import type { AdminDTO, AdminPermissions } from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { ControlPlaneNotifier } from '../control-plane/control-plane.notifier';
-import { CreateAdminDto, UpdateAdminDto } from './dto/admins.dto';
+} from "@nestjs/common";
+import * as bcrypt from "bcryptjs";
+import { AdminRole, Prisma } from "@prisma/client";
+import type { AdminDTO, AdminPermissions } from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { ControlPlaneNotifier } from "../control-plane/control-plane.notifier";
+import { CreateAdminDto, UpdateAdminDto } from "./dto/admins.dto";
 
 const ADMIN_SELECT = {
   id: true,
@@ -49,12 +49,12 @@ export class AdminsService {
   // @lms/types stay the source of truth for the UI + guards; we don't import the
   // runtime VALUES here because the API consumes @lms/types as types only.
   private sanitize(perms?: AdminPermissions): AdminPermissions {
-    const actionKeys = ['create', 'read', 'edit', 'delete'] as const;
+    const actionKeys = ["create", "read", "edit", "delete"] as const;
     const out: AdminPermissions = {};
-    if (!perms || typeof perms !== 'object') return out;
+    if (!perms || typeof perms !== "object") return out;
     for (const section of Object.keys(perms)) {
       const actions = (perms as Record<string, unknown>)[section];
-      if (!actions || typeof actions !== 'object') continue;
+      if (!actions || typeof actions !== "object") continue;
       const cleaned: Record<string, boolean> = {};
       for (const action of actionKeys) {
         if ((actions as Record<string, unknown>)[action] === true) {
@@ -70,7 +70,7 @@ export class AdminsService {
 
   async list(): Promise<AdminDTO[]> {
     const admins = await this.prisma.admin.findMany({
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
       select: ADMIN_SELECT,
     });
     return admins.map((a) => this.toDTO(a));
@@ -80,7 +80,7 @@ export class AdminsService {
     const email = dto.email.toLowerCase().trim();
     const existing = await this.prisma.admin.findUnique({ where: { email } });
     if (existing) {
-      throw new ConflictException('An admin with this email already exists');
+      throw new ConflictException("An admin with this email already exists");
     }
     const admin = await this.prisma.admin.create({
       data: {
@@ -98,7 +98,7 @@ export class AdminsService {
 
   async update(id: string, dto: UpdateAdminDto): Promise<AdminDTO> {
     const target = await this.prisma.admin.findUnique({ where: { id } });
-    if (!target) throw new NotFoundException('Admin not found');
+    if (!target) throw new NotFoundException("Admin not found");
 
     const data: Prisma.AdminUpdateInput = {};
     if (dto.superAdmin !== undefined) {
@@ -127,7 +127,7 @@ export class AdminsService {
       where: { id },
       select: { id: true, email: true },
     });
-    if (!target) throw new NotFoundException('Admin not found');
+    if (!target) throw new NotFoundException("Admin not found");
     // Bump tokenVersion so the target admin's existing sessions are revoked —
     // a super-admin reset must lock the target out of any live session.
     await this.prisma.admin.update({
@@ -168,9 +168,9 @@ export class AdminsService {
         : null) ??
       (await this.prisma.admin.findFirst({
         where: { role: AdminRole.SUPER_ADMIN },
-        orderBy: { createdAt: 'asc' },
+        orderBy: { createdAt: "asc" },
       }));
-    if (!target) throw new NotFoundException('No admin account to reset');
+    if (!target) throw new NotFoundException("No admin account to reset");
     await this.prisma.admin.update({
       where: { id: target.id },
       data: {
@@ -183,10 +183,10 @@ export class AdminsService {
 
   async remove(actingAdminId: string, id: string): Promise<{ ok: true }> {
     if (id === actingAdminId) {
-      throw new BadRequestException('You cannot delete your own account');
+      throw new BadRequestException("You cannot delete your own account");
     }
     const target = await this.prisma.admin.findUnique({ where: { id } });
-    if (!target) throw new NotFoundException('Admin not found');
+    if (!target) throw new NotFoundException("Admin not found");
     if (target.role === AdminRole.SUPER_ADMIN) {
       await this.assertNotLastSuperAdmin(id);
     }
@@ -200,7 +200,7 @@ export class AdminsService {
       where: { role: AdminRole.SUPER_ADMIN, id: { not: excludingId } },
     });
     if (others === 0) {
-      throw new BadRequestException('Cannot remove the last super admin');
+      throw new BadRequestException("Cannot remove the last super admin");
     }
   }
 }

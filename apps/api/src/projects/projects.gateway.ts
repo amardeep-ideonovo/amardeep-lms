@@ -1,5 +1,5 @@
-import { Logger } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { Logger } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
 import {
   ConnectedSocket,
   MessageBody,
@@ -8,13 +8,10 @@ import {
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
-} from '@nestjs/websockets';
-import type { Server, Socket } from 'socket.io';
-import type {
-  ChatMessageDTO,
-  ChatReactionGroupDTO,
-} from '@lms/types';
-import { ChannelsService } from './channels.service';
+} from "@nestjs/websockets";
+import type { Server, Socket } from "socket.io";
+import type { ChatMessageDTO, ChatReactionGroupDTO } from "@lms/types";
+import { ChannelsService } from "./channels.service";
 
 // The realtime transport for Projects (Phase 3). Internal-staff only — the
 // handshake JWT must be an admin token (payload.isAdmin === true), otherwise the
@@ -30,7 +27,7 @@ import { ChannelsService } from './channels.service';
 // dependency edges are: gateway -> ChannelsService, MessagesService -> gateway,
 // MessagesService -> ChannelsService. All acyclic, so no forwardRef is needed.
 @WebSocketGateway({
-  namespace: '/projects',
+  namespace: "/projects",
   cors: { origin: true, credentials: true },
 })
 export class ProjectsGateway
@@ -62,7 +59,7 @@ export class ProjectsGateway
   async handleConnection(client: Socket): Promise<void> {
     const token = this.extractToken(client);
     if (!token) {
-      this.logger.debug('Rejecting socket: no token');
+      this.logger.debug("Rejecting socket: no token");
       client.disconnect(true);
       return;
     }
@@ -73,7 +70,7 @@ export class ProjectsGateway
         isAdmin?: boolean;
       }>(token);
       if (!payload || payload.isAdmin !== true || !payload.sub) {
-        this.logger.debug('Rejecting socket: not an admin token');
+        this.logger.debug("Rejecting socket: not an admin token");
         client.disconnect(true);
         return;
       }
@@ -81,7 +78,7 @@ export class ProjectsGateway
       this.addPresence(payload.sub);
       this.broadcastPresence();
     } catch {
-      this.logger.debug('Rejecting socket: invalid token');
+      this.logger.debug("Rejecting socket: invalid token");
       client.disconnect(true);
     }
   }
@@ -96,25 +93,25 @@ export class ProjectsGateway
 
   // ----- Room membership -----
 
-  @SubscribeMessage('channel:join')
+  @SubscribeMessage("channel:join")
   async onJoin(
     @ConnectedSocket() client: Socket,
     @MessageBody() body: { channelId?: string },
   ): Promise<{ ok: boolean; channelId?: string; error?: string }> {
     const adminId = client.data.adminId as string | undefined;
     const channelId = body?.channelId;
-    if (!adminId || !channelId) return { ok: false, error: 'bad request' };
+    if (!adminId || !channelId) return { ok: false, error: "bad request" };
     try {
       // Same visibility gate as REST (public OR a member of the private channel).
       await this.channels.assertVisible(adminId, channelId);
       await client.join(this.room(channelId));
       return { ok: true, channelId };
     } catch {
-      return { ok: false, channelId, error: 'forbidden' };
+      return { ok: false, channelId, error: "forbidden" };
     }
   }
 
-  @SubscribeMessage('channel:leave')
+  @SubscribeMessage("channel:leave")
   async onLeave(
     @ConnectedSocket() client: Socket,
     @MessageBody() body: { channelId?: string },
@@ -126,7 +123,7 @@ export class ProjectsGateway
 
   // ----- Typing indicator (ephemeral; not persisted) -----
 
-  @SubscribeMessage('typing')
+  @SubscribeMessage("typing")
   onTyping(
     @ConnectedSocket() client: Socket,
     @MessageBody() body: { channelId?: string },
@@ -135,21 +132,19 @@ export class ProjectsGateway
     const channelId = body?.channelId;
     if (!adminId || !channelId) return;
     // Broadcast to everyone else in the room (not the sender).
-    client
-      .to(this.room(channelId))
-      .emit('chat:typing', { channelId, adminId });
+    client.to(this.room(channelId)).emit("chat:typing", { channelId, adminId });
   }
 
   // ----- Public emit API (called by MessagesService after it persists) -----
 
   // A brand-new message (top-level or thread reply) was created.
   emitMessage(dto: ChatMessageDTO): void {
-    this.server?.to(this.room(dto.channelId)).emit('chat:message', dto);
+    this.server?.to(this.room(dto.channelId)).emit("chat:message", dto);
   }
 
   // An existing message changed (edit or soft-delete).
   emitMessageUpdate(dto: ChatMessageDTO): void {
-    this.server?.to(this.room(dto.channelId)).emit('chat:message:update', dto);
+    this.server?.to(this.room(dto.channelId)).emit("chat:message:update", dto);
   }
 
   // A message's reactions changed. Sends the recomputed grouped reactions so the
@@ -161,7 +156,7 @@ export class ProjectsGateway
   ): void {
     this.server
       ?.to(this.room(channelId))
-      .emit('chat:reaction', { messageId, reactions });
+      .emit("chat:reaction", { messageId, reactions });
   }
 
   // A list's fields or items changed (custom-field edit, value merge, comment).
@@ -171,7 +166,7 @@ export class ProjectsGateway
     if (!channelId) return;
     this.server
       ?.to(this.room(channelId))
-      .emit('chat:list:update', { channelId, listId });
+      .emit("chat:list:update", { channelId, listId });
   }
 
   // ----- Internals -----
@@ -182,10 +177,10 @@ export class ProjectsGateway
 
   private extractToken(client: Socket): string | null {
     const fromAuth = client.handshake.auth?.token;
-    if (typeof fromAuth === 'string' && fromAuth) return fromAuth;
+    if (typeof fromAuth === "string" && fromAuth) return fromAuth;
     const header = client.handshake.headers?.authorization;
-    if (typeof header === 'string' && header.startsWith('Bearer ')) {
-      return header.slice('Bearer '.length).trim() || null;
+    if (typeof header === "string" && header.startsWith("Bearer ")) {
+      return header.slice("Bearer ".length).trim() || null;
     }
     return null;
   }
@@ -202,6 +197,6 @@ export class ProjectsGateway
 
   private broadcastPresence(): void {
     const online = [...this.presence.keys()];
-    this.server?.emit('chat:presence', { online });
+    this.server?.emit("chat:presence", { online });
   }
 }

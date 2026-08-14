@@ -1,7 +1,7 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import type { ChatChannelDTO, ChatDmDTO } from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
+import { BadRequestException, Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import type { ChatChannelDTO, ChatDmDTO } from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
 
 // Direct messages (DMs) for Projects — the "Direct messages" people list in the
 // admin's Slack-style sidebar. A DM is just a ChatChannel with kind=DM/GROUP_DM,
@@ -23,16 +23,19 @@ export class DmsService {
   // Build the canonical member set (actor always included) + the dmKey for it.
   private resolveMembers(actorAdminId: string, adminIds: string[]) {
     const members = Array.from(
-      new Set([actorAdminId, ...adminIds.map((id) => id.trim()).filter(Boolean)]),
+      new Set([
+        actorAdminId,
+        ...adminIds.map((id) => id.trim()).filter(Boolean),
+      ]),
     );
     if (members.length < 2) {
       throw new BadRequestException(
-        'A direct message needs at least one other person.',
+        "A direct message needs at least one other person.",
       );
     }
     // Sorted so the key is identical no matter who opens it or in what order.
     const sorted = [...members].sort();
-    return { members: sorted, dmKey: sorted.join(':') };
+    return { members: sorted, dmKey: sorted.join(":") };
   }
 
   // ----- Open-or-get a DM -----
@@ -41,7 +44,7 @@ export class DmsService {
     adminIds: string[],
   ): Promise<ChatChannelDTO> {
     const { members, dmKey } = this.resolveMembers(actorAdminId, adminIds);
-    const kind = members.length === 2 ? 'DM' : 'GROUP_DM';
+    const kind = members.length === 2 ? "DM" : "GROUP_DM";
 
     // Already exists? Return it.
     const existing = await this.prisma.chatChannel.findUnique({
@@ -53,7 +56,7 @@ export class DmsService {
     try {
       const created = await this.prisma.chatChannel.create({
         data: {
-          name: '',
+          name: "",
           kind,
           dmKey,
           isPrivate: true,
@@ -66,7 +69,7 @@ export class DmsService {
       // Race: another request created the same dmKey first — re-read it.
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2002'
+        err.code === "P2002"
       ) {
         const raced = await this.prisma.chatChannel.findUnique({
           where: { dmKey },
@@ -85,7 +88,7 @@ export class DmsService {
   ): Promise<ChatChannelDTO> {
     const channel = await this.prisma.chatChannel.findUniqueOrThrow({
       where: { id: channelId },
-      include: { members: { orderBy: { joinedAt: 'asc' } } },
+      include: { members: { orderBy: { joinedAt: "asc" } } },
     });
     const memberAdminIds = channel.members.map((m) => m.adminId);
     const myMembership = channel.members.find((m) => m.adminId === adminId);
@@ -130,7 +133,7 @@ export class DmsService {
     const myMemberships = await this.prisma.chatMember.findMany({
       where: {
         adminId,
-        channel: { kind: { in: ['DM', 'GROUP_DM'] } },
+        channel: { kind: { in: ["DM", "GROUP_DM"] } },
       },
       select: {
         lastReadSeq: true,
@@ -165,7 +168,7 @@ export class DmsService {
           }),
           this.prisma.chatMessage.findFirst({
             where: { channelId, deletedAt: null },
-            orderBy: { seq: 'desc' },
+            orderBy: { seq: "desc" },
             select: { createdAt: true },
           }),
         ]);

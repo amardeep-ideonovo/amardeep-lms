@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import type { AppColorScheme, AppConfig, AppThemePalette } from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import type { AppColorScheme, AppConfig, AppThemePalette } from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
-const SCHEMES: AppColorScheme[] = ['light', 'dark', 'system'];
+const SCHEMES: AppColorScheme[] = ["light", "dark", "system"];
 
 // Defaults mirror the member WEBSITE's "Spark" theme (cream content with ink
 // #101014 chrome and a teal #34c9a2 accent), so web, app, and admin preview
@@ -12,33 +12,33 @@ const SCHEMES: AppColorScheme[] = ['light', 'dark', 'system'];
 // dark scheme. MUST stay in sync with apps/mobile/src/theme.ts (the offline
 // fallback) and seedAppConfig() in packages/db/prisma/seed.ts.
 const DARK: AppThemePalette = {
-  bg: '#101014',
-  surface: '#17171d',
-  surfaceMuted: '#1e1e26',
-  border: '#2a2a33',
-  text: '#ffffff',
-  textMuted: '#a4a3a9',
-  primary: '#34c9a2',
-  danger: '#ea4f4f',
+  bg: "#101014",
+  surface: "#17171d",
+  surfaceMuted: "#1e1e26",
+  border: "#2a2a33",
+  text: "#ffffff",
+  textMuted: "#a4a3a9",
+  primary: "#34c9a2",
+  danger: "#ea4f4f",
 };
 const LIGHT: AppThemePalette = {
-  bg: '#f5f2ec',
-  surface: '#ffffff',
-  surfaceMuted: '#f0ede4',
-  border: '#e6e2d7',
-  text: '#17171d',
-  textMuted: '#8b8a87',
-  primary: '#34c9a2',
-  danger: '#e04848',
+  bg: "#f5f2ec",
+  surface: "#ffffff",
+  surfaceMuted: "#f0ede4",
+  border: "#e6e2d7",
+  text: "#17171d",
+  textMuted: "#8b8a87",
+  primary: "#34c9a2",
+  danger: "#e04848",
 };
 const DEFAULT_APP_CONFIG: AppConfig = {
-  title: 'Spotlight Academy',
+  title: "Spotlight Academy",
   tagline: null,
   description: null,
   logoUrl: null,
   iconUrl: null,
   splashUrl: null,
-  colorScheme: 'light',
+  colorScheme: "light",
   light: LIGHT,
   dark: DARK,
 };
@@ -50,24 +50,24 @@ const DEFAULT_APP_CONFIG: AppConfig = {
 // rebrand to already-provisioned instances. A palette where even one key
 // differs was touched by an admin and is left exactly as stored.
 const LEGACY_DARK: AppThemePalette = {
-  bg: '#221c3d',
-  surface: '#272144',
-  surfaceMuted: '#322b52',
-  border: '#3a3460',
-  text: '#ffffff',
-  textMuted: '#a7a3bd',
-  primary: '#3cc4b2',
-  danger: '#ea4f4f',
+  bg: "#221c3d",
+  surface: "#272144",
+  surfaceMuted: "#322b52",
+  border: "#3a3460",
+  text: "#ffffff",
+  textMuted: "#a7a3bd",
+  primary: "#3cc4b2",
+  danger: "#ea4f4f",
 };
 const LEGACY_LIGHT: AppThemePalette = {
-  bg: '#f4f3f8',
-  surface: '#ffffff',
-  surfaceMuted: '#f1eff7',
-  border: '#e4e1ee',
-  text: '#272144',
-  textMuted: '#8b87a3',
-  primary: '#3cc4b2',
-  danger: '#e04848',
+  bg: "#f4f3f8",
+  surface: "#ffffff",
+  surfaceMuted: "#f1eff7",
+  border: "#e4e1ee",
+  text: "#272144",
+  textMuted: "#8b87a3",
+  primary: "#3cc4b2",
+  danger: "#e04848",
 };
 
 // Single global mobile-app branding, mirroring FooterService: a singleton row,
@@ -79,28 +79,28 @@ export class AppConfigService {
   constructor(private readonly prisma: PrismaService) {}
 
   private color(v: unknown, fb: string): string {
-    return typeof v === 'string' && HEX.test(v) ? v : fb;
+    return typeof v === "string" && HEX.test(v) ? v : fb;
   }
-  private str(v: unknown, max: number, fb = ''): string {
-    return typeof v === 'string' ? v.slice(0, max) : fb;
+  private str(v: unknown, max: number, fb = ""): string {
+    return typeof v === "string" ? v.slice(0, max) : fb;
   }
   private strOrNull(v: unknown, max: number): string | null {
-    return typeof v === 'string' && v ? v.slice(0, max) : null;
+    return typeof v === "string" && v ? v.slice(0, max) : null;
   }
   // True when every key of a stored palette equals the legacy stock verbatim
   // (case-insensitive) — i.e. the palette was materialized from the old
   // defaults and never customized.
   private isLegacyStock(raw: any, legacy: AppThemePalette): boolean {
-    if (!raw || typeof raw !== 'object') return false;
+    if (!raw || typeof raw !== "object") return false;
     return (Object.keys(legacy) as (keyof AppThemePalette)[]).every(
       (k) =>
-        typeof raw[k] === 'string' &&
+        typeof raw[k] === "string" &&
         (raw[k] as string).toLowerCase() === legacy[k],
     );
   }
 
   private palette(raw: any, fb: AppThemePalette): AppThemePalette {
-    const r = raw && typeof raw === 'object' ? raw : {};
+    const r = raw && typeof raw === "object" ? raw : {};
     return {
       bg: this.color(r.bg, fb.bg),
       surface: this.color(r.surface, fb.surface),
@@ -114,7 +114,7 @@ export class AppConfigService {
   }
 
   private sanitize(raw: any): AppConfig {
-    const r = raw && typeof raw === 'object' ? raw : {};
+    const r = raw && typeof raw === "object" ? raw : {};
     const scheme = SCHEMES.includes(r.colorScheme)
       ? (r.colorScheme as AppColorScheme)
       : DEFAULT_APP_CONFIG.colorScheme;
@@ -142,7 +142,7 @@ export class AppConfigService {
   /** Default-merged + sanitized. Same shape for admin and public (no secrets). */
   async read(): Promise<AppConfig> {
     const row = await this.prisma.appConfig.findUnique({
-      where: { id: 'singleton' },
+      where: { id: "singleton" },
     });
     return this.sanitize(row?.config);
   }
@@ -150,9 +150,9 @@ export class AppConfigService {
   async write(cfg: AppConfig): Promise<AppConfig> {
     const clean = this.sanitize(cfg);
     await this.prisma.appConfig.upsert({
-      where: { id: 'singleton' },
+      where: { id: "singleton" },
       create: {
-        id: 'singleton',
+        id: "singleton",
         config: clean as unknown as Prisma.InputJsonValue,
       },
       update: { config: clean as unknown as Prisma.InputJsonValue },

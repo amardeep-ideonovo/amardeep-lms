@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString } from "class-validator";
 
 export class UpdateStripeSettingsDto {
   @IsOptional()
@@ -34,13 +34,13 @@ export class UpdatePayPalSettingsDto {
   webhookId?: string;
 
   @IsOptional()
-  @IsIn(['sandbox', 'live'])
-  mode?: 'sandbox' | 'live';
+  @IsIn(["sandbox", "live"])
+  mode?: "sandbox" | "live";
 }
 
 export class UpdatePaymentProviderDto {
-  @IsIn(['stripe', 'paypal'])
-  provider!: 'stripe' | 'paypal';
+  @IsIn(["stripe", "paypal"])
+  provider!: "stripe" | "paypal";
 }
 
 export class UpdateZoomSettingsDto {

@@ -1,4 +1,4 @@
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { IsString, MaxLength, MinLength } from "class-validator";
 
 // Member changes their own password (POST /auth/change-password). The current
 // password is required to authorize the change; the new-password match ("verify

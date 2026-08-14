@@ -4,26 +4,26 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
-import { Prisma } from '@prisma/client';
+} from "@nestjs/common";
+import * as fs from "fs";
+import * as path from "path";
+import { Prisma } from "@prisma/client";
 import type {
   AdminCertificateListDTO,
   CertificateFieldKind,
   CertificateVerifyDTO,
   ClassCertificateStatusDTO,
   MyCertificateDTO,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsService } from '../notifications/notifications.service';
-import { AutomationService } from '../email/automation.service';
-import { AppConfigService } from '../site/app-config.service';
-import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
-import { MEDIA_ROOT, MEDIA_ROUTE } from '../media/media.config';
-import { CERT_FILES_DIR, newSerial } from './certificates.config';
-import { formatIssueDate, renderCertificatePdf } from './certificate-renderer';
-import type { CertificateFieldLayout } from '@lms/types';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
+import { AutomationService } from "../email/automation.service";
+import { AppConfigService } from "../site/app-config.service";
+import type { AuthenticatedPrincipal } from "../auth/jwt-payload.interface";
+import { MEDIA_ROOT, MEDIA_ROUTE } from "../media/media.config";
+import { CERT_FILES_DIR, newSerial } from "./certificates.config";
+import { formatIssueDate, renderCertificatePdf } from "./certificate-renderer";
+import type { CertificateFieldLayout } from "@lms/types";
 
 // Eligibility + claim/issue flows for class-completion certificates.
 //
@@ -61,7 +61,9 @@ export class CertificatesService {
   // ---------- completion math ----------
 
   // One query: every course (with lesson ids, ordered) of every given level.
-  private async levelCompletionData(levelIds: string[]): Promise<Map<string, LevelCompletion>> {
+  private async levelCompletionData(
+    levelIds: string[],
+  ): Promise<Map<string, LevelCompletion>> {
     const map = new Map<string, LevelCompletion>();
     if (!levelIds.length) return map;
     const joins = await this.prisma.courseLevel.findMany({
@@ -75,7 +77,7 @@ export class CertificatesService {
             createdAt: true,
             lessons: {
               select: { id: true },
-              orderBy: [{ order: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }],
+              orderBy: [{ order: "asc" }, { createdAt: "asc" }, { id: "asc" }],
             },
           },
         },
@@ -92,7 +94,9 @@ export class CertificatesService {
             a.id.localeCompare(b.id),
         );
       const lessonIds = courses.flatMap((c) => c.lessons.map((l) => l.id));
-      const lastWithLessons = [...courses].reverse().find((c) => c.lessons.length > 0);
+      const lastWithLessons = [...courses]
+        .reverse()
+        .find((c) => c.lessons.length > 0);
       map.set(levelId, {
         levelId,
         totalLessons: lessonIds.length,
@@ -118,13 +122,18 @@ export class CertificatesService {
     });
     const done = new Set(rows.map((r) => r.lessonId));
     for (const c of completions) {
-      out.set(c.levelId, c.lessonIds.reduce((n, id) => n + (done.has(id) ? 1 : 0), 0));
+      out.set(
+        c.levelId,
+        c.lessonIds.reduce((n, id) => n + (done.has(id) ? 1 : 0), 0),
+      );
     }
     return out;
   }
 
   // Level override else the default template. null => feature dormant.
-  private async resolveTemplateId(certificateTemplateId: string | null): Promise<string | null> {
+  private async resolveTemplateId(
+    certificateTemplateId: string | null,
+  ): Promise<string | null> {
     if (certificateTemplateId) {
       const row = await this.prisma.certificateTemplate.findUnique({
         where: { id: certificateTemplateId },
@@ -145,7 +154,7 @@ export class CertificatesService {
       where: { id: userId },
       select: { firstName: true, lastName: true },
     });
-    return !`${user?.firstName ?? ''}${user?.lastName ?? ''}`.trim();
+    return !`${user?.firstName ?? ""}${user?.lastName ?? ""}`.trim();
   }
 
   // ---------- member surfaces ----------
@@ -170,20 +179,25 @@ export class CertificatesService {
     );
     if (!terminalHere.length) return [];
 
-    const [counts, levels, certs, defaultExists, needsName] = await Promise.all([
-      this.completedCounts(userId, terminalHere),
-      this.prisma.level.findMany({
-        where: { id: { in: terminalHere.map((c) => c.levelId) } },
-        select: { id: true, name: true, certificateTemplateId: true },
-      }),
-      this.prisma.certificate.findMany({
-        where: { userId, levelId: { in: terminalHere.map((c) => c.levelId) } },
-      }),
-      this.prisma.certificateTemplate
-        .findFirst({ where: { isDefault: true }, select: { id: true } })
-        .then((r) => !!r),
-      this.needsName(userId),
-    ]);
+    const [counts, levels, certs, defaultExists, needsName] = await Promise.all(
+      [
+        this.completedCounts(userId, terminalHere),
+        this.prisma.level.findMany({
+          where: { id: { in: terminalHere.map((c) => c.levelId) } },
+          select: { id: true, name: true, certificateTemplateId: true },
+        }),
+        this.prisma.certificate.findMany({
+          where: {
+            userId,
+            levelId: { in: terminalHere.map((c) => c.levelId) },
+          },
+        }),
+        this.prisma.certificateTemplate
+          .findFirst({ where: { isDefault: true }, select: { id: true } })
+          .then((r) => !!r),
+        this.needsName(userId),
+      ],
+    );
 
     const out: ClassCertificateStatusDTO[] = [];
     for (const completion of terminalHere) {
@@ -191,7 +205,8 @@ export class CertificatesService {
       if (!level) continue;
       // Inline template resolution using the prefetched default flag (avoids a
       // query per level); stale overrides are caught at claim time anyway.
-      const templateResolves = level.certificateTemplateId !== null || defaultExists;
+      const templateResolves =
+        level.certificateTemplateId !== null || defaultExists;
       if (!templateResolves) continue;
       const cert = certs.find((c) => c.levelId === level.id) ?? null;
       out.push({
@@ -219,7 +234,9 @@ export class CertificatesService {
     level: { id: string; name: string; certificateTemplateId: string | null },
     totals: { total: number; done: number },
   ): Promise<ClassCertificateStatusDTO | null> {
-    const templateId = await this.resolveTemplateId(level.certificateTemplateId);
+    const templateId = await this.resolveTemplateId(
+      level.certificateTemplateId,
+    );
     if (!templateId) return null;
     const [cert, needsName] = await Promise.all([
       this.prisma.certificate.findUnique({
@@ -254,32 +271,41 @@ export class CertificatesService {
       where: { id: dto.levelId },
       select: { id: true, name: true, certificateTemplateId: true },
     });
-    if (!level) throw new NotFoundException('Class not found');
+    if (!level) throw new NotFoundException("Class not found");
 
     // Must currently hold the class.
     const active = await this.prisma.userLevel.findFirst({
-      where: { userId, levelId: level.id, status: 'ACTIVE' },
+      where: { userId, levelId: level.id, status: "ACTIVE" },
       select: { id: true },
     });
-    if (!active) throw new NotFoundException('Class not found');
+    if (!active) throw new NotFoundException("Class not found");
 
     // Server-side completion revalidation — the button is UX, this is the gate.
-    const completion = (await this.levelCompletionData([level.id])).get(level.id);
+    const completion = (await this.levelCompletionData([level.id])).get(
+      level.id,
+    );
     const done = completion
       ? ((await this.completedCounts(userId, [completion])).get(level.id) ?? 0)
       : 0;
-    if (!completion || completion.totalLessons < 1 || done !== completion.totalLessons) {
-      throw new ConflictException('Class is not fully complete');
+    if (
+      !completion ||
+      completion.totalLessons < 1 ||
+      done !== completion.totalLessons
+    ) {
+      throw new ConflictException("Class is not fully complete");
     }
 
-    const templateId = await this.resolveTemplateId(level.certificateTemplateId);
+    const templateId = await this.resolveTemplateId(
+      level.certificateTemplateId,
+    );
     if (!templateId) {
-      throw new ConflictException('No certificate template is configured');
+      throw new ConflictException("No certificate template is configured");
     }
     const template = await this.prisma.certificateTemplate.findUnique({
       where: { id: templateId },
     });
-    if (!template) throw new ConflictException('No certificate template is configured');
+    if (!template)
+      throw new ConflictException("No certificate template is configured");
 
     // Name: profile first, claim-supplied fallback (NEVER written back).
     const user = await this.prisma.user.findUnique({
@@ -288,10 +314,10 @@ export class CertificatesService {
     });
     const profileName = [user?.firstName, user?.lastName]
       .filter((p) => p && p.trim())
-      .join(' ')
+      .join(" ")
       .trim();
-    const memberName = profileName || dto.name?.trim() || '';
-    if (!memberName) throw new BadRequestException('NAME_REQUIRED');
+    const memberName = profileName || dto.name?.trim() || "";
+    if (!memberName) throw new BadRequestException("NAME_REQUIRED");
 
     // Render BEFORE any row exists — artwork problems abort with nothing persisted.
     const issuedAt = new Date();
@@ -299,7 +325,7 @@ export class CertificatesService {
       memberName,
       className: level.name,
       issueDate: formatIssueDate(issuedAt),
-      serial: '', // re-rendered below once the serial survives the unique check
+      serial: "", // re-rendered below once the serial survives the unique check
     });
 
     // Serial collisions are ~impossible (30^6/year) but retried anyway; the
@@ -331,9 +357,9 @@ export class CertificatesService {
         });
         this.notifications
           .record({
-            type: 'CERTIFICATE_ISSUED',
-            severity: 'INFO',
-            title: 'Certificate issued',
+            type: "CERTIFICATE_ISSUED",
+            severity: "INFO",
+            title: "Certificate issued",
             body: `${user?.email ?? memberName} earned "${level.name}" (${serial})`,
             userId,
             dedupeKey: `certificate:${userId}:${level.id}`,
@@ -345,11 +371,11 @@ export class CertificatesService {
         // this is a no-op until an admin wires one up — it proves the hook. We
         // need an email to send to; skip silently if the user has none.
         if (user?.email) {
-          const firstName = user.firstName?.trim() || 'there';
+          const firstName = user.firstName?.trim() || "there";
           void this.appConfig
             .read()
             .then((cfg) =>
-              this.automations.fire('CERTIFICATE_ISSUED', {
+              this.automations.fire("CERTIFICATE_ISSUED", {
                 email: user.email,
                 vars: { firstName, brand: cfg.title, className: level.name },
               }),
@@ -365,9 +391,12 @@ export class CertificatesService {
         return this.toMyDTO(row);
       } catch (err) {
         await fs.promises.unlink(absPath).catch(() => undefined);
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        if (
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          err.code === "P2002"
+        ) {
           const target = (err.meta?.target as string[] | undefined) ?? [];
-          if (target.includes('serial')) continue; // regenerate and retry
+          if (target.includes("serial")) continue; // regenerate and retry
           // (userId, levelId) race — another request won; return its row.
           const winner = await this.prisma.certificate.findUnique({
             where: { userId_levelId: { userId, levelId: level.id } },
@@ -377,28 +406,37 @@ export class CertificatesService {
         throw err;
       }
     }
-    throw new ConflictException('Could not allocate a certificate serial — try again');
+    throw new ConflictException(
+      "Could not allocate a certificate serial — try again",
+    );
   }
 
   // pdf bytes for a template row + values; artwork is re-read from the media
   // store every render (immutable once written; missing file -> 409).
   private async renderForTemplate(
-    template: { artworkUrl: string; imageWidth: number; imageHeight: number; fields: unknown },
+    template: {
+      artworkUrl: string;
+      imageWidth: number;
+      imageHeight: number;
+      fields: unknown;
+    },
     values: Partial<Record<CertificateFieldKind, string>>,
   ): Promise<Buffer> {
     const prefix = `${MEDIA_ROUTE}/`;
     if (!template.artworkUrl.startsWith(prefix)) {
-      throw new ConflictException('Certificate template artwork is invalid');
+      throw new ConflictException("Certificate template artwork is invalid");
     }
     const key = template.artworkUrl.slice(prefix.length);
     if (!/^[A-Za-z0-9._-]+$/.test(key)) {
-      throw new ConflictException('Certificate template artwork is invalid');
+      throw new ConflictException("Certificate template artwork is invalid");
     }
     let artwork: Buffer;
     try {
       artwork = await fs.promises.readFile(path.join(MEDIA_ROOT, key));
     } catch {
-      throw new ConflictException('Certificate template artwork file is missing');
+      throw new ConflictException(
+        "Certificate template artwork file is missing",
+      );
     }
     try {
       return await renderCertificatePdf({
@@ -412,7 +450,7 @@ export class CertificatesService {
       });
     } catch (err) {
       this.logger.error(`certificate render failed: ${(err as Error).message}`);
-      throw new ConflictException('Certificate could not be rendered');
+      throw new ConflictException("Certificate could not be rendered");
     }
   }
 
@@ -433,7 +471,7 @@ export class CertificatesService {
   async mine(userId: string): Promise<MyCertificateDTO[]> {
     const rows = await this.prisma.certificate.findMany({
       where: { userId },
-      orderBy: { issuedAt: 'desc' },
+      orderBy: { issuedAt: "desc" },
     });
     return rows.map((r) => this.toMyDTO(r));
   }
@@ -444,13 +482,15 @@ export class CertificatesService {
     certificateId: string,
     principal: AuthenticatedPrincipal,
   ): Promise<{ absPath: string; filename: string }> {
-    const row = await this.prisma.certificate.findUnique({ where: { id: certificateId } });
+    const row = await this.prisma.certificate.findUnique({
+      where: { id: certificateId },
+    });
     if (!row || (row.userId !== principal.sub && !principal.isAdmin)) {
-      throw new NotFoundException('Certificate not found');
+      throw new NotFoundException("Certificate not found");
     }
     const absPath = path.join(CERT_FILES_DIR, row.fileKey);
     if (!fs.existsSync(absPath)) {
-      throw new NotFoundException('File missing on server');
+      throw new NotFoundException("File missing on server");
     }
     return { absPath, filename: `Certificate - ${row.className}.pdf` };
   }
@@ -472,23 +512,27 @@ export class CertificatesService {
 
   // ---------- admin ----------
 
-  async adminList(q?: string, page = 1, pageSize = 20): Promise<AdminCertificateListDTO> {
+  async adminList(
+    q?: string,
+    page = 1,
+    pageSize = 20,
+  ): Promise<AdminCertificateListDTO> {
     const take = Math.min(100, Math.max(1, pageSize));
     const skip = (Math.max(1, page) - 1) * take;
     const where: Prisma.CertificateWhereInput = q?.trim()
       ? {
           OR: [
-            { serial: { contains: q.trim(), mode: 'insensitive' } },
-            { memberName: { contains: q.trim(), mode: 'insensitive' } },
-            { className: { contains: q.trim(), mode: 'insensitive' } },
-            { user: { email: { contains: q.trim(), mode: 'insensitive' } } },
+            { serial: { contains: q.trim(), mode: "insensitive" } },
+            { memberName: { contains: q.trim(), mode: "insensitive" } },
+            { className: { contains: q.trim(), mode: "insensitive" } },
+            { user: { email: { contains: q.trim(), mode: "insensitive" } } },
           ],
         }
       : {};
     const [rows, total] = await Promise.all([
       this.prisma.certificate.findMany({
         where,
-        orderBy: { issuedAt: 'desc' },
+        orderBy: { issuedAt: "desc" },
         skip,
         take,
         include: {
@@ -518,7 +562,7 @@ export class CertificatesService {
   // with it). Used by admins and the BDD cleanup hook.
   async adminRemove(id: string): Promise<{ ok: true }> {
     const row = await this.prisma.certificate.findUnique({ where: { id } });
-    if (!row) throw new NotFoundException('Certificate not found');
+    if (!row) throw new NotFoundException("Certificate not found");
     await this.prisma.certificate.delete({ where: { id } });
     await fs.promises
       .unlink(path.join(CERT_FILES_DIR, row.fileKey))
@@ -548,7 +592,9 @@ export class CertificatesService {
     });
     await Promise.all(
       rows.map((r) =>
-        fs.promises.unlink(path.join(CERT_FILES_DIR, r.fileKey)).catch(() => undefined),
+        fs.promises
+          .unlink(path.join(CERT_FILES_DIR, r.fileKey))
+          .catch(() => undefined),
       ),
     );
   }

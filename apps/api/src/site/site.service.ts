@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import type {
   HeaderAudience,
   HeaderConditions,
@@ -13,76 +13,76 @@ import type {
   ResolvedHeader,
   ResolvedHeaderCta,
   UpdateHeaderInput,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
 import {
   buildHrefMaps,
   resolveHref,
   type HrefTarget,
-} from '../menus/menu-href.util';
+} from "../menus/menu-href.util";
 
 // Canonical value sets (the API consumes @lms/types as TYPES only).
-const LAYOUTS = ['TWO_COL', 'THREE_COL'] as const;
-const WIDTHS = ['BOXED', 'FULL'] as const;
+const LAYOUTS = ["TWO_COL", "THREE_COL"] as const;
+const WIDTHS = ["BOXED", "FULL"] as const;
 const ITEM_TYPES = [
-  'PAGE',
-  'CLASS',
-  'CLASS_INDEX',
-  'COURSE',
-  'COURSE_INDEX',
-  'BLOG_INDEX',
-  'BLOG_POST',
-  'ROUTE',
-  'CUSTOM',
+  "PAGE",
+  "CLASS",
+  "CLASS_INDEX",
+  "COURSE",
+  "COURSE_INDEX",
+  "BLOG_INDEX",
+  "BLOG_POST",
+  "ROUTE",
+  "CUSTOM",
 ] as const;
-const AUDIENCES = ['ALL', 'AUTHED', 'GUEST', 'LEVEL'] as const;
+const AUDIENCES = ["ALL", "AUTHED", "GUEST", "LEVEL"] as const;
 const SECTIONS = [
-  'HOME',
-  'DASHBOARD',
-  'BLOG',
-  'PRICING',
-  'CLASSES',
-  'COURSES',
+  "HOME",
+  "DASHBOARD",
+  "BLOG",
+  "PRICING",
+  "CLASSES",
+  "COURSES",
 ] as const;
-const PAGE_MODES = ['ALL', 'INCLUDE'] as const;
+const PAGE_MODES = ["ALL", "INCLUDE"] as const;
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
 // Top-level web path segments that are NOT CMS pages (so `/{slug}` only maps to
 // a CMS page when the first segment isn't one of these). Mirrors apps/web/app/*.
 const RESERVED_SEGMENTS = new Set([
-  'account',
-  'blog',
-  'checkout',
-  'classes',
-  'courses',
-  'dashboard',
-  'forms',
-  'lessons',
-  'login',
-  'pricing',
-  'signup',
+  "account",
+  "blog",
+  "checkout",
+  "classes",
+  "courses",
+  "dashboard",
+  "forms",
+  "lessons",
+  "login",
+  "pricing",
+  "signup",
 ]);
 
 // Defaults equal the pre-feature header look, so an unconfigured (or partial)
 // config renders identically to before this feature.
 const DEFAULT_HEADER: HeaderConfig = {
-  layout: 'TWO_COL',
-  width: 'BOXED',
+  layout: "TWO_COL",
+  width: "BOXED",
   maxWidth: 1080,
-  bgColor: '#ffffff',
+  bgColor: "#ffffff",
   paddingX: 24,
   paddingY: 0,
   logoUrl: null,
   menuId: null,
-  linkColor: '#475569',
-  menuActiveColor: '#4f46e5',
+  linkColor: "#475569",
+  menuActiveColor: "#4f46e5",
   ctas: [],
 };
 
 const DEFAULT_CONDITIONS: HeaderConditions = {
-  audience: 'ALL',
+  audience: "ALL",
   audienceLevelId: null,
-  pageMode: 'ALL',
+  pageMode: "ALL",
   includePageIds: [],
   includeSections: [],
   excludePageIds: [],
@@ -96,19 +96,19 @@ export class SiteService {
   // --- sanitizers (also re-applied on read, so a hand-edited row can't inject
   // bad CSS values that would reach the browser) ---
   private clampInt(v: unknown, min: number, max: number, fb: number): number {
-    const n = typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : fb;
+    const n = typeof v === "number" && Number.isFinite(v) ? Math.round(v) : fb;
     return Math.min(max, Math.max(min, n));
   }
   private color(v: unknown, fb: string): string {
-    return typeof v === 'string' && HEX.test(v) ? v : fb;
+    return typeof v === "string" && HEX.test(v) ? v : fb;
   }
   private str(v: unknown, max: number): string | null {
-    return typeof v === 'string' && v ? v.slice(0, max) : null;
+    return typeof v === "string" && v ? v.slice(0, max) : null;
   }
   private idArray(v: unknown): string[] {
     return Array.isArray(v)
       ? v
-          .filter((x): x is string => typeof x === 'string' && !!x)
+          .filter((x): x is string => typeof x === "string" && !!x)
           .map((x) => x.slice(0, 80))
           .slice(0, 200)
       : [];
@@ -122,7 +122,7 @@ export class SiteService {
   }
 
   private sanitizeCta(raw: any): HeaderCta | null {
-    if (!raw || typeof raw !== 'object') return null;
+    if (!raw || typeof raw !== "object") return null;
     const link = raw.link ?? {};
     const type = (ITEM_TYPES as readonly string[]).includes(link.type)
       ? (link.type as MenuItemType)
@@ -131,9 +131,9 @@ export class SiteService {
     if (!type || !id) return null;
     return {
       id,
-      label: typeof raw.label === 'string' ? raw.label.slice(0, 120) : '',
-      bgColor: this.color(raw.bgColor, '#4f46e5'),
-      textColor: this.color(raw.textColor, '#ffffff'),
+      label: typeof raw.label === "string" ? raw.label.slice(0, 120) : "",
+      bgColor: this.color(raw.bgColor, "#4f46e5"),
+      textColor: this.color(raw.textColor, "#ffffff"),
       paddingX: this.clampInt(raw.paddingX, 0, 200, 16),
       paddingY: this.clampInt(raw.paddingY, 0, 200, 8),
       borderRadius: this.clampInt(raw.borderRadius, 0, 100, 8),
@@ -150,12 +150,12 @@ export class SiteService {
   }
 
   private sanitizeConfig(raw: any): HeaderConfig {
-    const r = raw && typeof raw === 'object' ? raw : {};
+    const r = raw && typeof raw === "object" ? raw : {};
     const layout = (LAYOUTS as readonly string[]).includes(r.layout)
-      ? (r.layout as HeaderConfig['layout'])
+      ? (r.layout as HeaderConfig["layout"])
       : DEFAULT_HEADER.layout;
     const width = (WIDTHS as readonly string[]).includes(r.width)
-      ? (r.width as HeaderConfig['width'])
+      ? (r.width as HeaderConfig["width"])
       : DEFAULT_HEADER.width;
     const ctas = Array.isArray(r.ctas)
       ? r.ctas
@@ -187,7 +187,7 @@ export class SiteService {
   }
 
   private sanitizeConditions(raw: any): HeaderConditions {
-    const r = raw && typeof raw === 'object' ? raw : {};
+    const r = raw && typeof raw === "object" ? raw : {};
     const audience = (AUDIENCES as readonly string[]).includes(r.audience)
       ? (r.audience as HeaderAudience)
       : DEFAULT_CONDITIONS.audience;
@@ -228,7 +228,7 @@ export class SiteService {
 
   async listHeaders(): Promise<HeaderSummary[]> {
     const rows = await this.prisma.header.findMany({
-      orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
+      orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
     });
     return rows.map((r) => {
       const c = this.sanitizeConditions(r.conditions);
@@ -245,15 +245,17 @@ export class SiteService {
 
   async getHeader(id: string): Promise<HeaderDTO> {
     const row = await this.prisma.header.findUnique({ where: { id } });
-    if (!row) throw new NotFoundException('Header not found');
+    if (!row) throw new NotFoundException("Header not found");
     return this.toDTO(row);
   }
 
   async createHeader(name: string): Promise<HeaderDTO> {
-    const max = await this.prisma.header.aggregate({ _max: { priority: true } });
+    const max = await this.prisma.header.aggregate({
+      _max: { priority: true },
+    });
     const row = await this.prisma.header.create({
       data: {
-        name: (name || 'Untitled header').slice(0, 120),
+        name: (name || "Untitled header").slice(0, 120),
         config: this.sanitizeConfig({}) as unknown as Prisma.InputJsonValue,
         conditions: this.sanitizeConditions(
           {},
@@ -267,10 +269,10 @@ export class SiteService {
 
   async updateHeader(id: string, input: UpdateHeaderInput): Promise<HeaderDTO> {
     const existing = await this.prisma.header.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Header not found');
+    if (!existing) throw new NotFoundException("Header not found");
     const data: Prisma.HeaderUpdateInput = {};
     if (input.name !== undefined)
-      data.name = (String(input.name) || 'Untitled header').slice(0, 120);
+      data.name = (String(input.name) || "Untitled header").slice(0, 120);
     if (input.enabled !== undefined) data.enabled = !!input.enabled;
     if (input.config !== undefined)
       data.config = this.sanitizeConfig(
@@ -305,19 +307,19 @@ export class SiteService {
 
   // ---------- public matching ----------
   private sectionForPath(path: string): HeaderSection | null {
-    const p = (path || '/').split('?')[0].split('#')[0];
-    if (p === '/' || p === '') return 'HOME';
-    if (p.startsWith('/dashboard')) return 'DASHBOARD';
-    if (p.startsWith('/blog')) return 'BLOG';
-    if (p.startsWith('/pricing')) return 'PRICING';
-    if (p.startsWith('/classes')) return 'CLASSES';
-    if (p.startsWith('/courses')) return 'COURSES';
+    const p = (path || "/").split("?")[0].split("#")[0];
+    if (p === "/" || p === "") return "HOME";
+    if (p.startsWith("/dashboard")) return "DASHBOARD";
+    if (p.startsWith("/blog")) return "BLOG";
+    if (p.startsWith("/pricing")) return "PRICING";
+    if (p.startsWith("/classes")) return "CLASSES";
+    if (p.startsWith("/courses")) return "COURSES";
     return null;
   }
 
   private cmsSlugForPath(path: string): string | null {
-    const p = (path || '/').split('?')[0].split('#')[0].replace(/\/+$/, '');
-    const segs = p.split('/').filter(Boolean);
+    const p = (path || "/").split("?")[0].split("#")[0].replace(/\/+$/, "");
+    const segs = p.split("/").filter(Boolean);
     if (segs.length !== 1) return null;
     const slug = segs[0];
     return RESERVED_SEGMENTS.has(slug) ? null : slug;
@@ -325,7 +327,7 @@ export class SiteService {
 
   private async ownedLevels(userId: string): Promise<Set<string>> {
     const uls = await this.prisma.userLevel.findMany({
-      where: { userId, status: 'ACTIVE' },
+      where: { userId, status: "ACTIVE" },
       select: { levelId: true },
     });
     return new Set(uls.map((u) => u.levelId));
@@ -374,7 +376,7 @@ export class SiteService {
   ): Promise<ResolvedHeader | null> {
     const rows = await this.prisma.header.findMany({
       where: { enabled: true },
-      orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
+      orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
     });
     if (rows.length === 0) return null;
 
@@ -395,9 +397,9 @@ export class SiteService {
     for (const row of rows) {
       const c = this.sanitizeConditions(row.conditions);
       // audience
-      if (c.audience === 'AUTHED' && !authed) continue;
-      if (c.audience === 'GUEST' && authed) continue;
-      if (c.audience === 'LEVEL') {
+      if (c.audience === "AUTHED" && !authed) continue;
+      if (c.audience === "GUEST" && authed) continue;
+      if (c.audience === "LEVEL") {
         if (!authed || !c.audienceLevelId) continue;
         if (!owned) owned = await this.ownedLevels(userId as string);
         if (!owned.has(c.audienceLevelId)) continue;
@@ -406,7 +408,7 @@ export class SiteService {
       if (section && c.excludeSections.includes(section)) continue;
       if (pageId && c.excludePageIds.includes(pageId)) continue;
       // page include
-      if (c.pageMode === 'INCLUDE') {
+      if (c.pageMode === "INCLUDE") {
         const included =
           (!!section && c.includeSections.includes(section)) ||
           (!!pageId && c.includePageIds.includes(pageId));
@@ -421,13 +423,13 @@ export class SiteService {
   async guestDefault(): Promise<ResolvedHeader | null> {
     const rows = await this.prisma.header.findMany({
       where: { enabled: true },
-      orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
+      orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
     });
     for (const row of rows) {
       const c = this.sanitizeConditions(row.conditions);
       if (
-        (c.audience === 'ALL' || c.audience === 'GUEST') &&
-        c.pageMode === 'ALL'
+        (c.audience === "ALL" || c.audience === "GUEST") &&
+        c.pageMode === "ALL"
       ) {
         return this.resolveConfig(this.sanitizeConfig(row.config));
       }

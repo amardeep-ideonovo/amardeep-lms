@@ -6,8 +6,8 @@ import {
   NotFoundException,
   ServiceUnavailableException,
   UnprocessableEntityException,
-} from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+} from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 import type {
   AdminLiveRevealDTO,
   AdminLiveSessionDTO,
@@ -15,19 +15,22 @@ import type {
   LiveProvider,
   LiveSessionBarDTO,
   LiveZoomEmbedDTO,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { AccessService } from '../lms/access.service';
-import { SettingsService } from '../settings/settings.service';
-import { decryptSecret, encryptSecret } from '../common/crypto.util';
-import { utcFromLocalInput } from '../common/wallclock.util';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { AccessService } from "../lms/access.service";
+import { SettingsService } from "../settings/settings.service";
+import { decryptSecret, encryptSecret } from "../common/crypto.util";
+import { utcFromLocalInput } from "../common/wallclock.util";
 import {
   parseZoomMeetingNumber,
   providerHostAllowed,
   providerLabel,
   zoomSdkSignature,
-} from './live.util';
-import { CreateLiveSessionDto, UpdateLiveSessionDto } from './dto/live-session.input';
+} from "./live.util";
+import {
+  CreateLiveSessionDto,
+  UpdateLiveSessionDto,
+} from "./dto/live-session.input";
 
 // Always load targets (with class names) so we can resolve the audience label.
 const withTargets = {
@@ -52,7 +55,7 @@ export class LiveService {
 
   async adminList(): Promise<AdminLiveSessionDTO[]> {
     const rows = await this.prisma.liveSession.findMany({
-      orderBy: { startsAt: 'desc' },
+      orderBy: { startsAt: "desc" },
       include: withTargets,
     });
     return rows.map((r) => this.toAdminDTO(r));
@@ -81,14 +84,14 @@ export class LiveService {
       dto.timezone ?? null,
       dto.durationMin,
     );
-    const isMeet = dto.provider === 'GOOGLE_MEET';
+    const isMeet = dto.provider === "GOOGLE_MEET";
     const created = await this.prisma.liveSession.create({
       data: {
         title: dto.title.trim(),
         description: dto.description?.trim() || null,
         provider: dto.provider,
         audience: dto.audience,
-        status: 'DRAFT', // always created as a draft; a separate publish step goes live
+        status: "DRAFT", // always created as a draft; a separate publish step goes live
         joinUrlEnc: this.crypto(() => encryptSecret(dto.joinUrl)),
         passwordEnc:
           isMeet || !dto.password
@@ -100,7 +103,7 @@ export class LiveService {
         joinLeadMin: dto.joinLeadMin ?? 10,
         timezone: dto.timezone?.trim() || null,
         targets:
-          dto.audience === 'LEVELS' && dto.levelIds
+          dto.audience === "LEVELS" && dto.levelIds
             ? { create: dedupe(dto.levelIds).map((levelId) => ({ levelId })) }
             : undefined,
       },
@@ -138,11 +141,11 @@ export class LiveService {
     }
 
     // Passcode: Meet never carries one; Zoom clears on "" and keeps on omit.
-    if (provider === 'GOOGLE_MEET') {
+    if (provider === "GOOGLE_MEET") {
       data.passwordEnc = null;
     } else if (dto.password !== undefined) {
       data.passwordEnc =
-        dto.password === ''
+        dto.password === ""
           ? null
           : this.crypto(() => encryptSecret(dto.password as string));
     }
@@ -158,18 +161,26 @@ export class LiveService {
       data.startsAt = w.startsAt;
       data.endsAt = w.endsAt;
     } else if (dto.durationMin !== undefined) {
-      data.endsAt = new Date(existing.startsAt.getTime() + durationMin * 60_000);
+      data.endsAt = new Date(
+        existing.startsAt.getTime() + durationMin * 60_000,
+      );
     }
     if (dto.durationMin !== undefined) data.durationMin = dto.durationMin;
     if (dto.joinLeadMin !== undefined) data.joinLeadMin = dto.joinLeadMin;
-    if (dto.timezone !== undefined) data.timezone = dto.timezone?.trim() || null;
+    if (dto.timezone !== undefined)
+      data.timezone = dto.timezone?.trim() || null;
 
     // Targets: rebuild when audience or the list changed.
     const audience = dto.audience ?? existing.audience;
     if (dto.audience !== undefined || dto.levelIds !== undefined) {
-      if (audience === 'LEVELS') {
-        const ids = dedupe(dto.levelIds ?? existing.targets.map((t) => t.levelId));
-        data.targets = { deleteMany: {}, create: ids.map((levelId) => ({ levelId })) };
+      if (audience === "LEVELS") {
+        const ids = dedupe(
+          dto.levelIds ?? existing.targets.map((t) => t.levelId),
+        );
+        data.targets = {
+          deleteMany: {},
+          create: ids.map((levelId) => ({ levelId })),
+        };
       } else {
         data.targets = { deleteMany: {} };
       }
@@ -187,14 +198,14 @@ export class LiveService {
   // go live so it never appears half-configured on a member dashboard.
   async publish(id: string): Promise<AdminLiveSessionDTO> {
     const s = await this.load(id);
-    if (s.audience === 'LEVELS' && s.targets.length === 0) {
+    if (s.audience === "LEVELS" && s.targets.length === 0) {
       throw new BadRequestException(
-        'Select at least one class before publishing.',
+        "Select at least one class before publishing.",
       );
     }
     if (s.endsAt.getTime() <= Date.now()) {
       throw new BadRequestException(
-        'This session ends in the past — update the start time before publishing.',
+        "This session ends in the past — update the start time before publishing.",
       );
     }
     const url = this.crypto(() => decryptSecret(s.joinUrlEnc));
@@ -205,7 +216,7 @@ export class LiveService {
     }
     const updated = await this.prisma.liveSession.update({
       where: { id },
-      data: { status: 'SCHEDULED' },
+      data: { status: "SCHEDULED" },
       include: withTargets,
     });
     return this.toAdminDTO(updated);
@@ -215,10 +226,10 @@ export class LiveService {
   // saw it get a clear "canceled" notice (410); a draft/canceled one is purged.
   async adminDelete(id: string): Promise<{ ok: true }> {
     const s = await this.load(id);
-    if (s.status === 'SCHEDULED') {
+    if (s.status === "SCHEDULED") {
       await this.prisma.liveSession.update({
         where: { id },
-        data: { status: 'CANCELED' },
+        data: { status: "CANCELED" },
       });
     } else {
       await this.prisma.liveSession.delete({ where: { id } });
@@ -235,7 +246,7 @@ export class LiveService {
       where: { id },
       include: withTargets,
     });
-    if (!row) throw new NotFoundException('Live session not found');
+    if (!row) throw new NotFoundException("Live session not found");
     return row;
   }
 
@@ -256,7 +267,7 @@ export class LiveService {
     try {
       startsAt = utcFromLocalInput(local, tz);
     } catch {
-      throw new BadRequestException('Invalid start date/time.');
+      throw new BadRequestException("Invalid start date/time.");
     }
     return {
       startsAt,
@@ -270,10 +281,10 @@ export class LiveService {
     try {
       return fn();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : '';
-      if (msg.includes('SETTINGS_ENC_KEY')) {
+      const msg = e instanceof Error ? e.message : "";
+      if (msg.includes("SETTINGS_ENC_KEY")) {
         throw new ServiceUnavailableException(
-          'Live Sessions need encryption configured (set SETTINGS_ENC_KEY).',
+          "Live Sessions need encryption configured (set SETTINGS_ENC_KEY).",
         );
       }
       throw e;
@@ -283,9 +294,9 @@ export class LiveService {
   private toAdminDTO(s: SessionRow): AdminLiveSessionDTO {
     const levelIds = s.targets.map((t) => t.levelId);
     const audienceLabel =
-      s.audience === 'ALL_ACTIVE'
-        ? 'All members'
-        : s.targets.map((t) => t.level.name).join(', ') || 'No audience';
+      s.audience === "ALL_ACTIVE"
+        ? "All members"
+        : s.targets.map((t) => t.level.name).join(", ") || "No audience";
     return {
       id: s.id,
       title: s.title,
@@ -295,7 +306,7 @@ export class LiveService {
       status: s.status,
       levelIds,
       audienceLabel,
-      targetsEmpty: s.audience === 'LEVELS' && levelIds.length === 0,
+      targetsEmpty: s.audience === "LEVELS" && levelIds.length === 0,
       hasJoinUrl: !!s.joinUrlEnc,
       hasPassword: !!s.passwordEnc,
       startsAt: s.startsAt.toISOString(),
@@ -318,9 +329,9 @@ export class LiveService {
     const now = new Date();
     const active = await this.access.activeLevelIds(userId);
     const rows = await this.prisma.liveSession.findMany({
-      where: { status: 'SCHEDULED', endsAt: { gt: now } },
+      where: { status: "SCHEDULED", endsAt: { gt: now } },
       include: withTargets,
-      orderBy: { startsAt: 'asc' },
+      orderBy: { startsAt: "asc" },
     });
     const visible = rows.filter((r) => this.entitled(active, r));
     const live = visible
@@ -340,14 +351,16 @@ export class LiveService {
       where: { id },
       include: withTargets,
     });
-    if (!s || s.status === 'DRAFT') {
-      throw new NotFoundException('Live session not found');
+    if (!s || s.status === "DRAFT") {
+      throw new NotFoundException("Live session not found");
     }
     if (!this.entitled(await this.access.activeLevelIds(userId), s)) {
-      throw new ForbiddenException('You do not have access to this live session');
+      throw new ForbiddenException(
+        "You do not have access to this live session",
+      );
     }
-    if (s.status === 'CANCELED') {
-      throw new GoneException('This live session was canceled');
+    if (s.status === "CANCELED") {
+      throw new GoneException("This live session was canceled");
     }
     return this.toBarDTO(s, new Date());
   }
@@ -363,18 +376,20 @@ export class LiveService {
       where: { id },
       include: withTargets,
     });
-    if (!s || s.status !== 'SCHEDULED') {
-      throw new NotFoundException('Live session not found');
+    if (!s || s.status !== "SCHEDULED") {
+      throw new NotFoundException("Live session not found");
     }
     if (!this.entitled(await this.access.activeLevelIds(userId), s)) {
-      throw new ForbiddenException('You do not have access to this live session');
+      throw new ForbiddenException(
+        "You do not have access to this live session",
+      );
     }
     const now = new Date();
     const joinsAt = s.startsAt.getTime() - s.joinLeadMin * 60_000;
     if (now.getTime() < joinsAt || now >= s.endsAt) {
       throw new ForbiddenException({
-        code: 'OUTSIDE_WINDOW',
-        message: 'This session is not open to join right now.',
+        code: "OUTSIDE_WINDOW",
+        message: "This session is not open to join right now.",
       });
     }
     await this.prisma.liveJoinAudit.create({
@@ -405,21 +420,23 @@ export class LiveService {
       where: { id },
       include: withTargets,
     });
-    if (!s || s.status !== 'SCHEDULED') {
-      throw new NotFoundException('Live session not found');
+    if (!s || s.status !== "SCHEDULED") {
+      throw new NotFoundException("Live session not found");
     }
-    if (s.provider !== 'ZOOM') {
-      throw new BadRequestException('This session is not a Zoom meeting.');
+    if (s.provider !== "ZOOM") {
+      throw new BadRequestException("This session is not a Zoom meeting.");
     }
     if (!this.entitled(await this.access.activeLevelIds(userId), s)) {
-      throw new ForbiddenException('You do not have access to this live session');
+      throw new ForbiddenException(
+        "You do not have access to this live session",
+      );
     }
     const now = new Date();
     const joinsAt = s.startsAt.getTime() - s.joinLeadMin * 60_000;
     if (now.getTime() < joinsAt || now >= s.endsAt) {
       throw new ForbiddenException({
-        code: 'OUTSIDE_WINDOW',
-        message: 'This session is not open to join right now.',
+        code: "OUTSIDE_WINDOW",
+        message: "This session is not open to join right now.",
       });
     }
     const [sdkKey, sdkSecret] = await Promise.all([
@@ -428,14 +445,14 @@ export class LiveService {
     ]);
     if (!sdkKey || !sdkSecret) {
       throw new ServiceUnavailableException(
-        'Zoom embedding is not configured — add the Zoom SDK key & secret in Settings.',
+        "Zoom embedding is not configured — add the Zoom SDK key & secret in Settings.",
       );
     }
     const joinUrl = this.crypto(() => decryptSecret(s.joinUrlEnc));
     const meetingNumber = parseZoomMeetingNumber(joinUrl);
     if (!meetingNumber) {
       throw new UnprocessableEntityException(
-        'This Zoom link has no numeric meeting id (a personal/vanity link can’t be embedded).',
+        "This Zoom link has no numeric meeting id (a personal/vanity link can’t be embedded).",
       );
     }
     const password = s.passwordEnc
@@ -446,10 +463,10 @@ export class LiveService {
       select: { firstName: true, lastName: true, username: true, email: true },
     });
     const userName =
-      [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
+      [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() ||
       user?.username ||
-      user?.email?.split('@')[0] ||
-      'Member';
+      user?.email?.split("@")[0] ||
+      "Member";
     const remainingSec = Math.ceil((s.endsAt.getTime() - now.getTime()) / 1000);
     const signature = zoomSdkSignature(
       sdkKey,
@@ -482,9 +499,9 @@ export class LiveService {
   private toBarDTO(s: SessionRow, now: Date): LiveSessionBarDTO {
     const joinsAt = new Date(s.startsAt.getTime() - s.joinLeadMin * 60_000);
     const audienceLabel =
-      s.audience === 'ALL_ACTIVE'
-        ? 'All members'
-        : s.targets.map((t) => t.level.name).join(', ') || 'Members';
+      s.audience === "ALL_ACTIVE"
+        ? "All members"
+        : s.targets.map((t) => t.level.name).join(", ") || "Members";
     return {
       id: s.id,
       title: s.title,

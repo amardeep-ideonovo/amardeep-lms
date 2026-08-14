@@ -1,5 +1,5 @@
-import { createHmac, timingSafeEqual } from 'crypto';
-import { isProduction } from '../common/env.util';
+import { createHmac, timingSafeEqual } from "crypto";
+import { isProduction } from "../common/env.util";
 
 // Signed, self-contained unsubscribe tokens for one-click List-Unsubscribe and
 // the public /unsubscribe page. A token is `base64url(email).HMAC` where the
@@ -20,54 +20,56 @@ function unsubscribeSecret(): string {
   if (configured) return configured;
   if (isProduction()) {
     throw new Error(
-      'No unsubscribe signing secret available (set JWT_SECRET or ' +
-        'SETTINGS_ENC_KEY). Refusing to use the insecure dev fallback in ' +
-        'production — it would let anyone forge unsubscribe tokens.',
+      "No unsubscribe signing secret available (set JWT_SECRET or " +
+        "SETTINGS_ENC_KEY). Refusing to use the insecure dev fallback in " +
+        "production — it would let anyone forge unsubscribe tokens.",
     );
   }
-  return 'dev-insecure-secret';
+  return "dev-insecure-secret";
 }
 
 function b64url(buf: Buffer): string {
   return buf
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 function fromB64url(s: string): Buffer {
   // Restore padding and the standard alphabet, then decode.
-  const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4));
-  return Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/') + pad, 'base64');
+  const pad = s.length % 4 === 0 ? "" : "=".repeat(4 - (s.length % 4));
+  return Buffer.from(s.replace(/-/g, "+").replace(/_/g, "/") + pad, "base64");
 }
 
 // HMAC-SHA256 of the (lowercased, trimmed) email, hex-encoded.
 function sign(email: string): string {
-  return createHmac('sha256', unsubscribeSecret()).update(email).digest('hex');
+  return createHmac("sha256", unsubscribeSecret()).update(email).digest("hex");
 }
 
 // Build the opaque token for an email address. Always normalizes the address
 // first so the token round-trips to the canonical form we store on Contacts.
 export function makeUnsubscribeToken(email: string): string {
   const normalized = email.trim().toLowerCase();
-  const payload = b64url(Buffer.from(normalized, 'utf8'));
+  const payload = b64url(Buffer.from(normalized, "utf8"));
   return `${payload}.${sign(normalized)}`;
 }
 
 // Verify a token and recover the email, or null if it's missing/malformed/has a
 // bad signature. Constant-time HMAC comparison so a token can't be brute-forced
 // byte-by-byte via timing.
-export function verifyUnsubscribeToken(token: string | undefined | null): string | null {
-  if (!token || typeof token !== 'string') return null;
-  const dot = token.lastIndexOf('.');
+export function verifyUnsubscribeToken(
+  token: string | undefined | null,
+): string | null {
+  if (!token || typeof token !== "string") return null;
+  const dot = token.lastIndexOf(".");
   if (dot <= 0 || dot === token.length - 1) return null;
   const payload = token.slice(0, dot);
   const mac = token.slice(dot + 1);
 
   let email: string;
   try {
-    email = fromB64url(payload).toString('utf8');
+    email = fromB64url(payload).toString("utf8");
   } catch {
     return null;
   }

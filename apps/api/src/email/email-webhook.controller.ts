@@ -9,16 +9,16 @@ import {
   Req,
   UnauthorizedException,
   UseGuards,
-} from '@nestjs/common';
-import type { RawBodyRequest } from '@nestjs/common';
-import type { Request } from 'express';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import { createHmac, timingSafeEqual } from 'crypto';
-import { Prisma, type EmailEventType } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { SettingsService } from '../settings/settings.service';
-import { isProduction } from '../common/env.util';
-import { UnsubscribeService } from './unsubscribe.service';
+} from "@nestjs/common";
+import type { RawBodyRequest } from "@nestjs/common";
+import type { Request } from "express";
+import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import { createHmac, timingSafeEqual } from "crypto";
+import { Prisma, type EmailEventType } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { SettingsService } from "../settings/settings.service";
+import { isProduction } from "../common/env.util";
+import { UnsubscribeService } from "./unsubscribe.service";
 
 // PUBLIC, no auth GUARD. Provider feedback ingestion (delivery/open/click/bounce/
 // complaint). Deliberately lenient about PAYLOAD shape: it accepts our normalized
@@ -52,7 +52,7 @@ interface NormalizedEvent {
   soft?: boolean;
 }
 
-@Controller('email')
+@Controller("email")
 export class EmailWebhookController {
   private readonly logger = new Logger(EmailWebhookController.name);
 
@@ -62,7 +62,7 @@ export class EmailWebhookController {
     private readonly unsubscribe: UnsubscribeService,
   ) {}
 
-  @Post('webhook')
+  @Post("webhook")
   @HttpCode(200)
   // Public route → rate-limit by IP (mirrors auth.controller's @Throttle pattern).
   @UseGuards(ThrottlerGuard)
@@ -70,17 +70,24 @@ export class EmailWebhookController {
   async handle(
     @Req() req: RawBodyRequest<Request>,
     @Body() body: unknown,
-    @Headers('authorization') authHeader?: string,
-    @Headers('x-webhook-secret') secretHeader?: string,
-    @Headers('svix-id') svixId?: string,
-    @Headers('svix-timestamp') svixTimestamp?: string,
-    @Headers('svix-signature') svixSignature?: string,
-    @Query('key') keyQuery?: string,
+    @Headers("authorization") authHeader?: string,
+    @Headers("x-webhook-secret") secretHeader?: string,
+    @Headers("svix-id") svixId?: string,
+    @Headers("svix-timestamp") svixTimestamp?: string,
+    @Headers("svix-signature") svixSignature?: string,
+    @Query("key") keyQuery?: string,
   ): Promise<{ ok: true; processed: number }> {
     // Authenticate BEFORE any processing so an unauthenticated caller can't
     // suppress addresses or probe which message ids exist.
     await this.authorize(
-      { authHeader, secretHeader, keyQuery, svixId, svixTimestamp, svixSignature },
+      {
+        authHeader,
+        secretHeader,
+        keyQuery,
+        svixId,
+        svixTimestamp,
+        svixSignature,
+      },
       // Svix signs the byte-exact body; main.ts stashes it on req.rawBody. The
       // parsed body is passed too so verifySvix can fall back to re-serializing
       // it if rawBody is somehow missing (logged), degrading rather than failing.
@@ -139,14 +146,14 @@ export class EmailWebhookController {
     if (!configured) {
       if (isProduction()) {
         this.logger.error(
-          'email webhook rejected: no webhook secret configured (set one in ' +
-            'admin email settings or EMAIL_WEBHOOK_SECRET).',
+          "email webhook rejected: no webhook secret configured (set one in " +
+            "admin email settings or EMAIL_WEBHOOK_SECRET).",
         );
         throw new UnauthorizedException();
       }
       this.logger.warn(
-        'email webhook accepted WITHOUT a shared secret — set one before ' +
-          'production (admin email settings / EMAIL_WEBHOOK_SECRET).',
+        "email webhook accepted WITHOUT a shared secret — set one before " +
+          "production (admin email settings / EMAIL_WEBHOOK_SECRET).",
       );
       return;
     }
@@ -167,7 +174,7 @@ export class EmailWebhookController {
     }
 
     // Shared-secret path: pull the presented secret from any accepted carrier.
-    const bearer = h.authHeader?.replace(/^Bearer\s+/i, '').trim();
+    const bearer = h.authHeader?.replace(/^Bearer\s+/i, "").trim();
     const presented =
       (bearer && bearer.length ? bearer : undefined) ??
       (h.secretHeader?.trim() || undefined) ??
@@ -199,7 +206,7 @@ export class EmailWebhookController {
     // seconds; a non-numeric/blank value is a reject.
     const ts = Number(svixTimestamp);
     if (!Number.isFinite(ts) || Math.abs(Date.now() / 1000 - ts) > 300) {
-      this.logger.warn('email webhook (svix) rejected: timestamp skew/invalid');
+      this.logger.warn("email webhook (svix) rejected: timestamp skew/invalid");
       throw new UnauthorizedException();
     }
 
@@ -208,36 +215,36 @@ export class EmailWebhookController {
     // body (works for canonically-serialized senders, but log the caveat).
     let raw: string;
     if (rawBody && rawBody.length) {
-      raw = rawBody.toString('utf8');
+      raw = rawBody.toString("utf8");
     } else {
       this.logger.warn(
-        'email webhook (svix): rawBody unavailable — falling back to ' +
-          'JSON.stringify(body); signature may fail if bytes differ.',
+        "email webhook (svix): rawBody unavailable — falling back to " +
+          "JSON.stringify(body); signature may fail if bytes differ.",
       );
       raw = JSON.stringify(parsedBody ?? {});
     }
     const signedContent = `${svixId}.${svixTimestamp}.${raw}`;
 
     // Key is the base64 payload after the "whsec_" label (Svix secret format).
-    const key = Buffer.from(secret.replace(/^whsec_/, ''), 'base64');
-    const expected = createHmac('sha256', key)
+    const key = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+    const expected = createHmac("sha256", key)
       .update(signedContent)
-      .digest('base64');
+      .digest("base64");
 
     // Header tokens look like "v1,<sigA> v2,<sigB>"; strip the scheme prefix and
     // compare each signature constant-time. Any match passes.
     const ok = svixSignature
-      .split(' ')
+      .split(" ")
       .map((tok) => tok.trim())
       .filter(Boolean)
       .some((tok) => {
-        const comma = tok.indexOf(',');
+        const comma = tok.indexOf(",");
         const sig = comma >= 0 ? tok.slice(comma + 1) : tok;
         return safeEqual(sig, expected);
       });
 
     if (!ok) {
-      this.logger.warn('email webhook (svix) rejected: bad signature');
+      this.logger.warn("email webhook (svix) rejected: bad signature");
       throw new UnauthorizedException();
     }
   }
@@ -253,7 +260,7 @@ export class EmailWebhookController {
       const log = await this.prisma.emailLog.findFirst({
         where: { providerId: event.providerId },
         select: { id: true, to: true },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
       });
       if (log) {
         emailLogId = log.id;
@@ -262,7 +269,7 @@ export class EmailWebhookController {
     }
 
     // Fall back to the log's recipient when the payload didn't carry an email.
-    const email = (event.email || logEmail || '').trim().toLowerCase() || null;
+    const email = (event.email || logEmail || "").trim().toLowerCase() || null;
 
     // Replay dedupe: providers retry, and a misbehaving sender can resend. When
     // we have a providerId, skip if an identical (providerId, type) event already
@@ -288,22 +295,22 @@ export class EmailWebhookController {
       },
     });
 
-    if (event.type === 'BOUNCE' || event.type === 'COMPLAINT') {
+    if (event.type === "BOUNCE" || event.type === "COMPLAINT") {
       // Mark the originating send so the logs view shows the outcome (even a
       // soft bounce is worth showing as BOUNCED on the log).
       if (emailLogId) {
         await this.prisma.emailLog.update({
           where: { id: emailLogId },
-          data: { status: event.type === 'BOUNCE' ? 'BOUNCED' : 'COMPLAINED' },
+          data: { status: event.type === "BOUNCE" ? "BOUNCED" : "COMPLAINED" },
         });
       }
       // ONLY hard bounces / confirmed complaints suppress the address. A
       // transient/soft bounce (mailbox full, greylisted, temporary DNS) is a
       // retryable failure — recording it is enough; permanently CLEANING the
       // contact would wrongly kill a live address.
-      if (event.type === 'BOUNCE' && event.soft) {
+      if (event.type === "BOUNCE" && event.soft) {
         this.logger.debug(
-          `soft/transient bounce for ${email ?? 'unknown'} — recorded, not suppressing`,
+          `soft/transient bounce for ${email ?? "unknown"} — recorded, not suppressing`,
         );
         return;
       }
@@ -312,7 +319,7 @@ export class EmailWebhookController {
       if (email) {
         await this.unsubscribe.suppressFromEvent(
           email,
-          event.type === 'BOUNCE' ? 'bounce' : 'complaint',
+          event.type === "BOUNCE" ? "bounce" : "complaint",
         );
       }
     }
@@ -323,8 +330,8 @@ export class EmailWebhookController {
 // itself information). Compares byte buffers of equal length only when lengths
 // match; otherwise runs a fixed dummy compare and returns false.
 function safeEqual(a: string, b: string): boolean {
-  const ab = Buffer.from(a, 'utf8');
-  const bb = Buffer.from(b, 'utf8');
+  const ab = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
   if (ab.length !== bb.length) {
     // Still do a compare to keep timing uniform, then fail.
     timingSafeEqual(ab, ab);
@@ -342,7 +349,7 @@ function safeEqual(a: string, b: string): boolean {
 //   4) generic  { event/eventType/status, message_id/messageId/id, email/recipient }
 
 function normalize(raw: unknown): NormalizedEvent | null {
-  if (!raw || typeof raw !== 'object') return null;
+  if (!raw || typeof raw !== "object") return null;
   // Resend (Svix) nests everything under `data`; flatten it onto a shape the
   // existing generic machinery understands before any further inspection.
   const o = flattenResend(raw as Record<string, unknown>);
@@ -370,7 +377,7 @@ function normalize(raw: unknown): NormalizedEvent | null {
   // meta: prefer an explicit meta object, else keep the raw payload (handy for
   // debugging bounce reasons) but only when it's a plain object.
   let meta: Record<string, unknown> | undefined;
-  if (o.meta && typeof o.meta === 'object') {
+  if (o.meta && typeof o.meta === "object") {
     meta = o.meta as Record<string, unknown>;
   } else {
     meta = o as Record<string, unknown>;
@@ -379,7 +386,7 @@ function normalize(raw: unknown): NormalizedEvent | null {
   // Soft/transient classification — only meaningful for bounces. Look at the
   // explicit type/RecordType, Postmark's `Type` field (e.g. "SoftBounce",
   // "Transient"), and any meta/type markers a provider or our own caller set.
-  const soft = type === 'BOUNCE' && isSoftBounce(o, meta);
+  const soft = type === "BOUNCE" && isSoftBounce(o, meta);
 
   return {
     type,
@@ -398,39 +405,35 @@ function normalize(raw: unknown): NormalizedEvent | null {
 // existing isSoftBounce() hard/soft logic fires unchanged. Non-Resend payloads
 // pass straight through untouched. Original keys are preserved in the returned
 // object so it still doubles as `meta` for debugging.
-function flattenResend(
-  o: Record<string, unknown>,
-): Record<string, unknown> {
+function flattenResend(o: Record<string, unknown>): Record<string, unknown> {
   const type = o.type;
   const data =
-    o.data && typeof o.data === 'object'
+    o.data && typeof o.data === "object"
       ? (o.data as Record<string, unknown>)
       : undefined;
   const isResend =
-    (typeof type === 'string' && type.startsWith('email.')) ||
-    (!!data && typeof data.email_id === 'string');
+    (typeof type === "string" && type.startsWith("email.")) ||
+    (!!data && typeof data.email_id === "string");
   if (!isResend || !data) return o;
 
   const to = data.to;
   const email = Array.isArray(to)
-    ? (to.find((t) => typeof t === 'string' && t.trim()) as string | undefined)
-    : typeof to === 'string'
+    ? (to.find((t) => typeof t === "string" && t.trim()) as string | undefined)
+    : typeof to === "string"
       ? to
       : undefined;
   const bounce =
-    data.bounce && typeof data.bounce === 'object'
+    data.bounce && typeof data.bounce === "object"
       ? (data.bounce as Record<string, unknown>)
       : undefined;
 
   // Spread the original first so our lifted scalars win on key collisions.
   return {
     ...o,
-    ...(typeof data.email_id === 'string'
-      ? { message_id: data.email_id }
-      : {}),
+    ...(typeof data.email_id === "string" ? { message_id: data.email_id } : {}),
     ...(email ? { email } : {}),
     // Feed the hard/soft signal to isSoftBounce via a key it already scans.
-    ...(bounce && typeof bounce.type === 'string'
+    ...(bounce && typeof bounce.type === "string"
       ? { bounceType: bounce.type }
       : {}),
   };
@@ -461,9 +464,9 @@ function isSoftBounce(
     meta?.bounceType,
   ];
   for (const m of markers) {
-    if (typeof m !== 'string') continue;
+    if (typeof m !== "string") continue;
     const v = m.toLowerCase();
-    if (v.includes('soft') || v.includes('transient')) return true;
+    if (v.includes("soft") || v.includes("transient")) return true;
   }
   // Explicit boolean flags some providers/our callers set.
   if (o.soft === true || o.transient === true) return true;
@@ -489,32 +492,32 @@ function mapType(o: Record<string, unknown>): EmailEventType | null {
   // `email.sent` (queued, pre-delivery) and `email.delivery_delayed` (transient
   // retry) — neither maps to a tracked outcome, and "delivery_delayed" must be
   // caught BEFORE the `deliver` substring check below or it'd look DELIVERED.
-  if (v === 'email.sent' || v.includes('delay')) return null;
+  if (v === "email.sent" || v.includes("delay")) return null;
 
   // Bounce family (Postmark also emits HardBounce/Transient via RecordType=Bounce;
   // Resend uses "email.bounced").
-  if (v.includes('bounce') || v === 'hardbounce' || v === 'softbounce') {
-    return 'BOUNCE';
+  if (v.includes("bounce") || v === "hardbounce" || v === "softbounce") {
+    return "BOUNCE";
   }
   // Complaint / spam (Resend uses "email.complained" → match the "complain" stem).
   if (
-    v.includes('complaint') ||
-    v.includes('complain') ||
-    v.includes('spam') ||
-    v === 'spamcomplaint'
+    v.includes("complaint") ||
+    v.includes("complain") ||
+    v.includes("spam") ||
+    v === "spamcomplaint"
   ) {
-    return 'COMPLAINT';
+    return "COMPLAINT";
   }
-  if (v.includes('deliver')) return 'DELIVERED';
-  if (v.includes('open')) return 'OPEN';
-  if (v.includes('click')) return 'CLICK';
+  if (v.includes("deliver")) return "DELIVERED";
+  if (v.includes("open")) return "OPEN";
+  if (v.includes("click")) return "CLICK";
   return null;
 }
 
 // First argument that is a non-empty string (after trim), else undefined.
 function firstString(...vals: unknown[]): string | undefined {
   for (const val of vals) {
-    if (typeof val === 'string' && val.trim()) return val.trim();
+    if (typeof val === "string" && val.trim()) return val.trim();
   }
   return undefined;
 }

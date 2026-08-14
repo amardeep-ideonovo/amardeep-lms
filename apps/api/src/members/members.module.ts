@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { MembersService } from './members.service';
-import { MembersController } from './members.controller';
-import { BillingModule } from '../billing/billing.module';
-import { AccountModule } from '../account/account.module';
+import { Module } from "@nestjs/common";
+import { MembersService } from "./members.service";
+import { MembersController } from "./members.controller";
+import { BillingModule } from "../billing/billing.module";
+import { AccountModule } from "../account/account.module";
 
 // BillingModule is imported for its exported StripeService — MembersService
 // keeps the Stripe Customer email in sync on an admin email change. AccountModule

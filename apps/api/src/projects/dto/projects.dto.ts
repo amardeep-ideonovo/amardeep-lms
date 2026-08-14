@@ -12,41 +12,41 @@ import {
   Min,
   MinLength,
   ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+} from "class-validator";
+import { Type } from "class-transformer";
 import type {
   ChatFieldType,
   ChatListItemStatus,
   ChatWorkflowTrigger,
-} from '@lms/types';
+} from "@lms/types";
 
 // Allowed enum values, mirrored from the Prisma enum / @lms/types.
 const LIST_ITEM_STATUSES: ChatListItemStatus[] = [
-  'TODO',
-  'IN_PROGRESS',
-  'DONE',
+  "TODO",
+  "IN_PROGRESS",
+  "DONE",
 ];
 
 // Mirrored from the Prisma `ChatWorkflowTrigger` enum / @lms/types union.
 const WORKFLOW_TRIGGERS: ChatWorkflowTrigger[] = [
-  'ITEM_CREATED',
-  'ITEM_ASSIGNED',
-  'ITEM_UPDATED',
+  "ITEM_CREATED",
+  "ITEM_ASSIGNED",
+  "ITEM_UPDATED",
 ];
 
 // Mirrored from the Prisma `ChatFieldType` enum / @lms/types union.
 const CHAT_FIELD_TYPES: ChatFieldType[] = [
-  'TEXT',
-  'LONG_TEXT',
-  'SELECT',
-  'MULTI_SELECT',
-  'PERSON',
-  'MULTI_PERSON',
-  'DATE',
-  'URL',
-  'NUMBER',
-  'CHECKBOX',
-  'SECRET',
+  "TEXT",
+  "LONG_TEXT",
+  "SELECT",
+  "MULTI_SELECT",
+  "PERSON",
+  "MULTI_PERSON",
+  "DATE",
+  "URL",
+  "NUMBER",
+  "CHECKBOX",
+  "SECRET",
 ];
 
 // ---------- Channels ----------

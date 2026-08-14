@@ -3,24 +3,24 @@ import {
   Module,
   Logger,
   type OnApplicationBootstrap,
-} from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerModule } from '@nestjs/throttler';
-import { AppConfigService } from '../site/app-config.service';
-import { EmailService } from './email.service';
-import { EmailTemplateService } from './email-template.service';
-import { CampaignService } from './campaign.service';
-import { AutomationService } from './automation.service';
-import { EmailLogService } from './email-log.service';
-import { SchedulerService } from './scheduler.service';
-import { EmailController } from './email.controller';
-import { EmailWebhookController } from './email-webhook.controller';
-import { UnsubscribeController } from './unsubscribe.controller';
-import { UnsubscribeService } from './unsubscribe.service';
-import { SmtpMailSender } from './smtp.sender';
-import { ResendMailSender } from './resend.sender';
-import { MailSenderRouter } from './mail-sender.router';
-import { MAIL_SENDER } from './mail-sender.interface';
+} from "@nestjs/common";
+import { ScheduleModule } from "@nestjs/schedule";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { AppConfigService } from "../site/app-config.service";
+import { EmailService } from "./email.service";
+import { EmailTemplateService } from "./email-template.service";
+import { CampaignService } from "./campaign.service";
+import { AutomationService } from "./automation.service";
+import { EmailLogService } from "./email-log.service";
+import { SchedulerService } from "./scheduler.service";
+import { EmailController } from "./email.controller";
+import { EmailWebhookController } from "./email-webhook.controller";
+import { UnsubscribeController } from "./unsubscribe.controller";
+import { UnsubscribeService } from "./unsubscribe.service";
+import { SmtpMailSender } from "./smtp.sender";
+import { ResendMailSender } from "./resend.sender";
+import { MailSenderRouter } from "./mail-sender.router";
+import { MAIL_SENDER } from "./mail-sender.interface";
 
 // Global so any feature (Auth welcome mail, automations, campaigns) can inject
 // EmailService / AutomationService / CampaignService without importing this
@@ -43,7 +43,7 @@ import { MAIL_SENDER } from './mail-sender.interface';
     // without depending on AuthModule's instance — its forRoot providers aren't
     // exported. A second storage instance is harmless; per-route limits live on
     // the @Throttle decorators. Default is lenient so nothing else is affected.
-    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 1000 }]),
+    ThrottlerModule.forRoot([{ name: "default", ttl: 60_000, limit: 1000 }]),
   ],
   providers: [
     EmailService,
@@ -87,9 +87,7 @@ export class EmailModule implements OnApplicationBootstrap {
       await this.automations.ensureSystemAutomations();
     } catch (err) {
       this.logger.warn(
-        `email bootstrap failed: ${
-          err instanceof Error ? err.message : err
-        }`,
+        `email bootstrap failed: ${err instanceof Error ? err.message : err}`,
       );
     }
   }

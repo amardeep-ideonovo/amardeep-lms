@@ -1,19 +1,19 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import type { EmailLog } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { EmailTemplateService } from './email-template.service';
-import { MAIL_SENDER, type MailSender } from './mail-sender.interface';
-import { makeUnsubscribeToken } from './unsubscribe.util';
+import { Inject, Injectable, Logger } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import type { EmailLog } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { EmailTemplateService } from "./email-template.service";
+import { MAIL_SENDER, type MailSender } from "./mail-sender.interface";
+import { makeUnsubscribeToken } from "./unsubscribe.util";
 
 // Absolute base for the public unsubscribe link. PUBLIC_API_URL is the
 // established prod convention (same one auth/media/lms controllers use); we also
 // honor API_BASE_URL per the email spec, then fall back to localhost for dev.
 function apiBaseUrl(): string {
   return (
-    process.env.PUBLIC_API_URL?.replace(/\/$/, '') ||
-    process.env.API_BASE_URL?.replace(/\/$/, '') ||
-    'http://localhost:3000'
+    process.env.PUBLIC_API_URL?.replace(/\/$/, "") ||
+    process.env.API_BASE_URL?.replace(/\/$/, "") ||
+    "http://localhost:3000"
   );
 }
 
@@ -86,7 +86,7 @@ export class EmailService {
       // dispatch flow; record it as a FAILED row like any other render failure.
       return this.recordRenderFailure(
         input,
-        'sendTemplate requires templateKey or templateId',
+        "sendTemplate requires templateKey or templateId",
       );
     }
 
@@ -125,7 +125,9 @@ export class EmailService {
       const which = input.templateId
         ? `id ${input.templateId}`
         : `key "${input.templateKey}"`;
-      this.logger.warn(`sendTemplate render failed (${which}): ${this.msg(err)}`);
+      this.logger.warn(
+        `sendTemplate render failed (${which}): ${this.msg(err)}`,
+      );
       return this.recordRenderFailure(
         input,
         `template render failed (${which}): ${this.msg(err)}`,
@@ -156,17 +158,17 @@ export class EmailService {
     input: SendTemplateInput,
     error: string,
   ): Promise<EmailLog> {
-    const to = (input.to ?? '').trim().toLowerCase();
+    const to = (input.to ?? "").trim().toLowerCase();
     const sendInput: SendEmailInput = {
       to,
-      subject: '',
-      html: '',
+      subject: "",
+      html: "",
       templateKey: input.templateKey,
       contactId: input.contactId,
       dedupeKey: input.dedupeKey,
     };
     try {
-      return await this.writeLog(sendInput, to, 'FAILED', {
+      return await this.writeLog(sendInput, to, "FAILED", {
         error: error.slice(0, 500),
       });
     } catch (err) {
@@ -182,14 +184,16 @@ export class EmailService {
   // a minimal in-memory-shaped failure row. The happy/expected paths live in
   // sendInner(); this wrapper is the last line of defense.
   async send(input: SendEmailInput): Promise<EmailLog> {
-    const to = (input.to ?? '').trim().toLowerCase();
+    const to = (input.to ?? "").trim().toLowerCase();
     try {
       return await this.sendInner(input, to);
     } catch (err) {
-      this.logger.error(`send() escaped its contract for ${to}: ${this.msg(err)}`);
+      this.logger.error(
+        `send() escaped its contract for ${to}: ${this.msg(err)}`,
+      );
       // Best-effort FAILED row so the failure is still auditable…
       try {
-        return await this.writeLog(input, to, 'FAILED', {
+        return await this.writeLog(input, to, "FAILED", {
           error: this.msg(err).slice(0, 500),
         });
       } catch (logErr) {
@@ -204,13 +208,16 @@ export class EmailService {
   }
 
   // The real send pipeline. May throw — send() wraps it so nothing escapes.
-  private async sendInner(input: SendEmailInput, to: string): Promise<EmailLog> {
+  private async sendInner(
+    input: SendEmailInput,
+    to: string,
+  ): Promise<EmailLog> {
     // 1) Idempotency — a prior SENT row for this dedupeKey means "already done".
     if (input.dedupeKey) {
       const prior = await this.prisma.emailLog.findUnique({
         where: { dedupeKey: input.dedupeKey },
       });
-      if (prior && prior.status === 'SENT') return prior;
+      if (prior && prior.status === "SENT") return prior;
     }
 
     // 2) Suppression — never mail an unsubscribed/cleaned contact or an
@@ -219,7 +226,7 @@ export class EmailService {
     // a marketing preference and must never lock a member out of their
     // account. Nothing else in the pipeline changes for transactional sends.
     if (!input.transactional && (await this.isSuppressed(to))) {
-      return this.writeLog(input, to, 'FAILED', { error: 'suppressed' });
+      return this.writeLog(input, to, "FAILED", { error: "suppressed" });
     }
 
     // 3) QUEUED audit row up front (reused across the dedupe-collision case so a
@@ -229,7 +236,7 @@ export class EmailService {
     // 3a) Re-check idempotency after the upsert. Under a dedupeKey race the row
     // we got back may be a concurrent writer's already-SENT row (recovered via
     // the P2002 path); in that case treat it as already-handled and don't re-send.
-    if (input.dedupeKey && log.status === 'SENT') return log;
+    if (input.dedupeKey && log.status === "SENT") return log;
 
     // 4) Not configured → record + return, never throw.
     let configured = false;
@@ -240,8 +247,8 @@ export class EmailService {
     }
     if (!configured) {
       return this.markLog(log, {
-        status: 'FAILED',
-        error: 'email sender not configured',
+        status: "FAILED",
+        error: "email sender not configured",
       });
     }
 
@@ -258,7 +265,7 @@ export class EmailService {
       // NOT throw to the caller and must NOT leave a delivered mail stuck QUEUED
       // in the audit log — markLog degrades to a best-effort in-memory row.
       return this.markLog(log, {
-        status: 'SENT',
+        status: "SENT",
         providerId,
         sentAt: new Date(),
         error: null,
@@ -266,7 +273,7 @@ export class EmailService {
     } catch (err) {
       this.logger.warn(`send failed for ${to}: ${this.msg(err)}`);
       return this.markLog(log, {
-        status: 'FAILED',
+        status: "FAILED",
         error: this.msg(err).slice(0, 500),
       });
     }
@@ -279,7 +286,7 @@ export class EmailService {
   private async markLog(
     log: EmailLog,
     data: {
-      status: 'SENT' | 'FAILED';
+      status: "SENT" | "FAILED";
       providerId?: string;
       sentAt?: Date | null;
       error?: string | null;
@@ -313,13 +320,13 @@ export class EmailService {
     error: string,
   ): EmailLog {
     return {
-      id: '',
+      id: "",
       to,
       contactId: input.contactId ?? null,
       templateKey: input.templateKey ?? null,
       campaignId: input.campaignId ?? null,
-      subject: input.subject ?? '',
-      status: 'FAILED',
+      subject: input.subject ?? "",
+      status: "FAILED",
       providerId: null,
       error,
       dedupeKey: input.dedupeKey ?? null,
@@ -333,7 +340,7 @@ export class EmailService {
   private async isSuppressed(email: string): Promise<boolean> {
     const [badContact, optedOut] = await Promise.all([
       this.prisma.contact.findFirst({
-        where: { email, status: { in: ['UNSUBSCRIBED', 'CLEANED'] } },
+        where: { email, status: { in: ["UNSUBSCRIBED", "CLEANED"] } },
         select: { id: true },
       }),
       this.prisma.user.findFirst({
@@ -360,8 +367,8 @@ export class EmailService {
       try {
         return await this.prisma.emailLog.upsert({
           where: { dedupeKey: input.dedupeKey },
-          create: this.baseData(input, to, 'QUEUED'),
-          update: { status: 'QUEUED', error: null },
+          create: this.baseData(input, to, "QUEUED"),
+          update: { status: "QUEUED", error: null },
         });
       } catch (err) {
         const existing = await this.recoverByDedupeKey(input.dedupeKey, err);
@@ -370,7 +377,7 @@ export class EmailService {
       }
     }
     return this.prisma.emailLog.create({
-      data: this.baseData(input, to, 'QUEUED'),
+      data: this.baseData(input, to, "QUEUED"),
     });
   }
 
@@ -384,7 +391,7 @@ export class EmailService {
   ): Promise<EmailLog | null> {
     const isDedupeCollision =
       err instanceof Prisma.PrismaClientKnownRequestError &&
-      err.code === 'P2002' &&
+      err.code === "P2002" &&
       this.targetsDedupeKey(err);
     if (!isDedupeCollision) return null;
     this.logger.debug(
@@ -396,19 +403,17 @@ export class EmailService {
   // P2002's meta.target identifies the violated unique. Be permissive: if the
   // target is missing/opaque we still treat it as the dedupeKey collision (the
   // only unique on EmailLog), so a race recovers rather than crashes.
-  private targetsDedupeKey(
-    err: Prisma.PrismaClientKnownRequestError,
-  ): boolean {
+  private targetsDedupeKey(err: Prisma.PrismaClientKnownRequestError): boolean {
     const target = err.meta?.target;
     if (target == null) return true;
-    const flat = Array.isArray(target) ? target.join(',') : String(target);
-    return flat.includes('dedupeKey');
+    const flat = Array.isArray(target) ? target.join(",") : String(target);
+    return flat.includes("dedupeKey");
   }
 
   private async writeLog(
     input: SendEmailInput,
     to: string,
-    status: 'FAILED' | 'SENT',
+    status: "FAILED" | "SENT",
     extra: { error?: string | null; providerId?: string },
   ): Promise<EmailLog> {
     const data = { ...this.baseData(input, to, status), ...extra };
@@ -419,7 +424,7 @@ export class EmailService {
       const prior = await this.prisma.emailLog.findUnique({
         where: { dedupeKey: input.dedupeKey },
       });
-      if (prior && prior.status === 'SENT') return prior;
+      if (prior && prior.status === "SENT") return prior;
       return this.prisma.emailLog.upsert({
         where: { dedupeKey: input.dedupeKey },
         create: data,
@@ -432,7 +437,7 @@ export class EmailService {
   private baseData(
     input: SendEmailInput,
     to: string,
-    status: 'QUEUED' | 'SENT' | 'FAILED',
+    status: "QUEUED" | "SENT" | "FAILED",
   ) {
     return {
       to,

@@ -34,4 +34,4 @@ export interface MailSender {
 
 // DI token for the active MailSender (so EmailService depends on the interface,
 // not the concrete SMTP class).
-export const MAIL_SENDER = Symbol('MAIL_SENDER');
+export const MAIL_SENDER = Symbol("MAIL_SENDER");

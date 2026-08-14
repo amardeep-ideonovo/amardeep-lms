@@ -1,6 +1,6 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import Stripe from 'stripe';
-import { SettingsService } from '../settings/settings.service';
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
+import Stripe from "stripe";
+import { SettingsService } from "../settings/settings.service";
 
 // Thin wrapper around the Stripe SDK that lazily resolves the secret key from
 // the (encrypted) Setting table, falling back to env. The client is rebuilt if
@@ -15,10 +15,12 @@ export class StripeService {
   async getClient(): Promise<Stripe> {
     const key = await this.settings.getStripeSecretKey();
     if (!key) {
-      throw new InternalServerErrorException('Stripe secret key not configured');
+      throw new InternalServerErrorException(
+        "Stripe secret key not configured",
+      );
     }
     if (!this.client || this.cachedKey !== key) {
-      this.client = new Stripe(key, { apiVersion: '2024-06-20' });
+      this.client = new Stripe(key, { apiVersion: "2024-06-20" });
       this.cachedKey = key;
     }
     return this.client;
@@ -41,7 +43,10 @@ export class StripeService {
   }
 
   // Keep the Stripe Product name in step with a level rename.
-  async updateProduct(productId: string, name: string): Promise<Stripe.Product> {
+  async updateProduct(
+    productId: string,
+    name: string,
+  ): Promise<Stripe.Product> {
     const stripe = await this.getClient();
     return stripe.products.update(productId, { name });
   }
@@ -55,7 +60,7 @@ export class StripeService {
 
   async createPrice(input: {
     productId: string;
-    interval: 'month' | 'year';
+    interval: "month" | "year";
     amount: number; // minor units
     currency: string;
   }): Promise<Stripe.Price> {
@@ -102,7 +107,7 @@ export class StripeService {
   }): Promise<Stripe.Checkout.Session> {
     const stripe = await this.getClient();
     return stripe.checkout.sessions.create({
-      mode: 'subscription',
+      mode: "subscription",
       customer: input.customerId,
       line_items: [{ price: input.priceId, quantity: 1 }],
       // Stamp the user + level onto the session AND the resulting subscription
@@ -136,7 +141,7 @@ export class StripeService {
   }): Promise<Stripe.Checkout.Session> {
     const stripe = await this.getClient();
     return stripe.checkout.sessions.create({
-      mode: 'payment',
+      mode: "payment",
       customer: input.customerId,
       line_items: [
         {
@@ -149,12 +154,16 @@ export class StripeService {
         },
       ],
       client_reference_id: input.userId,
-      metadata: { userId: input.userId, courseId: input.courseId, kind: 'course' },
+      metadata: {
+        userId: input.userId,
+        courseId: input.courseId,
+        kind: "course",
+      },
       payment_intent_data: {
         metadata: {
           userId: input.userId,
           courseId: input.courseId,
-          kind: 'course',
+          kind: "course",
         },
       },
       success_url: input.successUrl,
@@ -169,7 +178,7 @@ export class StripeService {
   ): Promise<Stripe.Checkout.Session> {
     const stripe = await this.getClient();
     return stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ['payment_intent'],
+      expand: ["payment_intent"],
     });
   }
 
@@ -237,7 +246,7 @@ export class StripeService {
     percentOff?: number;
     amountOff?: number; // minor units
     currency?: string;
-    duration: 'once' | 'repeating' | 'forever';
+    duration: "once" | "repeating" | "forever";
     durationInMonths?: number;
     maxRedemptions?: number;
     redeemBy?: number; // unix seconds
@@ -249,9 +258,9 @@ export class StripeService {
     if (input.percentOff != null) params.percent_off = input.percentOff;
     if (input.amountOff != null) {
       params.amount_off = input.amountOff;
-      params.currency = (input.currency ?? 'usd').toLowerCase();
+      params.currency = (input.currency ?? "usd").toLowerCase();
     }
-    if (input.duration === 'repeating' && input.durationInMonths != null) {
+    if (input.duration === "repeating" && input.durationInMonths != null) {
       params.duration_in_months = input.durationInMonths;
     }
     if (input.maxRedemptions != null) {
@@ -344,18 +353,18 @@ export class StripeService {
     const sub = await stripe.subscriptions.create({
       customer: input.customerId,
       items: [{ price: input.priceId }],
-      payment_behavior: 'default_incomplete',
-      payment_settings: { save_default_payment_method: 'on_subscription' },
-      expand: ['latest_invoice.payment_intent'],
+      payment_behavior: "default_incomplete",
+      payment_settings: { save_default_payment_method: "on_subscription" },
+      expand: ["latest_invoice.payment_intent"],
       metadata: { userId: input.userId, levelId: input.levelId },
       ...(input.couponId ? { coupon: input.couponId } : {}),
     });
     const invoice = sub.latest_invoice;
     const pi =
-      invoice && typeof invoice !== 'string' ? invoice.payment_intent : null;
+      invoice && typeof invoice !== "string" ? invoice.payment_intent : null;
     return {
       subscriptionId: sub.id,
-      clientSecret: pi && typeof pi !== 'string' ? pi.client_secret : null,
+      clientSecret: pi && typeof pi !== "string" ? pi.client_secret : null,
       status: sub.status,
     };
   }
@@ -366,12 +375,12 @@ export class StripeService {
   async getSubscriptionClientSecret(subId: string): Promise<string | null> {
     const stripe = await this.getClient();
     const sub = await stripe.subscriptions.retrieve(subId, {
-      expand: ['latest_invoice.payment_intent'],
+      expand: ["latest_invoice.payment_intent"],
     });
     const invoice = sub.latest_invoice;
     const pi =
-      invoice && typeof invoice !== 'string' ? invoice.payment_intent : null;
-    return pi && typeof pi !== 'string' ? pi.client_secret : null;
+      invoice && typeof invoice !== "string" ? invoice.payment_intent : null;
+    return pi && typeof pi !== "string" ? pi.client_secret : null;
   }
 
   // --- Subscription detail, payment history, admin actions ---
@@ -385,11 +394,14 @@ export class StripeService {
     // page of 20 could push an active sub out of view and leave it billing.
     // Capped at 100 as a sane backstop against a pathological customer.
     return stripe.subscriptions
-      .list({ customer: customerId, status: 'all', limit: 100 })
+      .list({ customer: customerId, status: "all", limit: 100 })
       .autoPagingToArray({ limit: 100 });
   }
 
-  async listInvoices(customerId: string, limit = 24): Promise<Stripe.Invoice[]> {
+  async listInvoices(
+    customerId: string,
+    limit = 24,
+  ): Promise<Stripe.Invoice[]> {
     const stripe = await this.getClient();
     const res = await stripe.invoices.list({ customer: customerId, limit });
     return res.data;
@@ -401,7 +413,7 @@ export class StripeService {
   async listAllSubscriptions(max = 1000): Promise<Stripe.Subscription[]> {
     const stripe = await this.getClient();
     return stripe.subscriptions
-      .list({ status: 'all', limit: 100, expand: ['data.customer'] })
+      .list({ status: "all", limit: 100, expand: ["data.customer"] })
       .autoPagingToArray({ limit: max });
   }
 
@@ -409,7 +421,9 @@ export class StripeService {
   // order date. Auto-paginated with a hard cap.
   async listAllInvoices(max = 2000): Promise<Stripe.Invoice[]> {
     const stripe = await this.getClient();
-    return stripe.invoices.list({ limit: 100 }).autoPagingToArray({ limit: max });
+    return stripe.invoices
+      .list({ limit: 100 })
+      .autoPagingToArray({ limit: max });
   }
 
   // Pause billing without canceling — access is retained (sub stays active);
@@ -417,7 +431,7 @@ export class StripeService {
   async pauseSubscription(subId: string): Promise<Stripe.Subscription> {
     const stripe = await this.getClient();
     return stripe.subscriptions.update(subId, {
-      pause_collection: { behavior: 'void' },
+      pause_collection: { behavior: "void" },
     });
   }
 
@@ -427,7 +441,7 @@ export class StripeService {
   async resumeSubscription(subId: string): Promise<Stripe.Subscription> {
     const stripe = await this.getClient();
     return stripe.subscriptions.update(subId, {
-      pause_collection: '',
+      pause_collection: "",
     });
   }
 
@@ -467,7 +481,7 @@ export class StripeService {
   // count how many installments have actually been paid.
   async listSubscriptionInvoices(
     subId: string,
-    status?: 'draft' | 'open' | 'paid' | 'uncollectible' | 'void',
+    status?: "draft" | "open" | "paid" | "uncollectible" | "void",
   ): Promise<Stripe.Invoice[]> {
     const stripe = await this.getClient();
     const res = await stripe.invoices.list({

@@ -1,11 +1,14 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import type { AdminPermissions } from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { jwtSecret } from '../common/env.util';
-import type { AuthenticatedPrincipal, JwtPayload } from './jwt-payload.interface';
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PassportStrategy } from "@nestjs/passport";
+import { ExtractJwt, Strategy } from "passport-jwt";
+import type { AdminPermissions } from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { jwtSecret } from "../common/env.util";
+import type {
+  AuthenticatedPrincipal,
+  JwtPayload,
+} from "./jwt-payload.interface";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -16,7 +19,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret(config.get<string>('JWT_SECRET')),
+      secretOrKey: jwtSecret(config.get<string>("JWT_SECRET")),
     });
   }
 
@@ -35,14 +38,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       });
       if (!admin) {
         throw new UnauthorizedException(
-          'Your session is no longer valid — please sign in again',
+          "Your session is no longer valid — please sign in again",
         );
       }
       // Revocation check: a password change/reset bumps tokenVersion, so any
       // JWT minted before it (missing tv ⇒ 0) is now stale and rejected.
       if (admin.tokenVersion !== (payload.tv ?? 0)) {
         throw new UnauthorizedException(
-          'Your session is no longer valid — please sign in again',
+          "Your session is no longer valid — please sign in again",
         );
       }
       return {
@@ -59,13 +62,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
     if (!user) {
       throw new UnauthorizedException(
-        'Your session is no longer valid — please sign in again',
+        "Your session is no longer valid — please sign in again",
       );
     }
     // Revocation check (see admin branch above): a stale tv ⇒ 401.
     if (user.tokenVersion !== (payload.tv ?? 0)) {
       throw new UnauthorizedException(
-        'Your session is no longer valid — please sign in again',
+        "Your session is no longer valid — please sign in again",
       );
     }
     return {

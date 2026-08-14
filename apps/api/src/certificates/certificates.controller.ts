@@ -9,22 +9,22 @@ import {
   Query,
   Res,
   UseGuards,
-} from '@nestjs/common';
-import type { Response } from 'express';
-import { JwtService } from '@nestjs/jwt';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { JwtDownloadGuard } from '../auth/guards/jwt-download.guard';
-import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermission } from '../auth/require-permission.decorator';
-import { CurrentUser } from '../auth/current-user.decorator';
-import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
+} from "@nestjs/common";
+import type { Response } from "express";
+import { JwtService } from "@nestjs/jwt";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { JwtDownloadGuard } from "../auth/guards/jwt-download.guard";
+import { PermissionsGuard } from "../auth/guards/permissions.guard";
+import { RequirePermission } from "../auth/require-permission.decorator";
+import { CurrentUser } from "../auth/current-user.decorator";
+import type { AuthenticatedPrincipal } from "../auth/jwt-payload.interface";
 import {
   DOWNLOAD_TOKEN_TTL_SECONDS,
   certDownloadScope,
   type DownloadTokenPayload,
-} from '../auth/download-token.util';
-import { CertificatesService } from './certificates.service';
-import { ClaimCertificateDto } from './dto/certificate.dto';
+} from "../auth/download-token.util";
+import { CertificatesService } from "./certificates.service";
+import { ClaimCertificateDto } from "./dto/certificate.dto";
 
 // Member claim/download + public verification + admin issued list. Template
 // management lives in CertificateTemplatesController.
@@ -38,18 +38,18 @@ export class CertificatesController {
   // ----- Member -----
 
   @UseGuards(JwtAuthGuard)
-  @Post('certificates/claim')
+  @Post("certificates/claim")
   claim(
     @CurrentUser() principal: AuthenticatedPrincipal,
     @Body() dto: ClaimCertificateDto,
   ) {
     // Certificates belong to members; an admin token has no member identity.
-    if (principal.isAdmin) throw new ForbiddenException('Members only');
+    if (principal.isAdmin) throw new ForbiddenException("Members only");
     return this.certificates.claim(principal.sub, dto);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('certificates/mine')
+  @Get("certificates/mine")
   mine(@CurrentUser() principal: AuthenticatedPrincipal) {
     if (principal.isAdmin) return [];
     return this.certificates.mine(principal.sub);
@@ -60,9 +60,9 @@ export class CertificatesController {
   // returned as a bare token the client puts in the ?token= download URL so the
   // session JWT never lands in a URL.
   @UseGuards(JwtAuthGuard)
-  @Get('certificates/:id/download-url')
+  @Get("certificates/:id/download-url")
   async downloadToken(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @CurrentUser() principal: AuthenticatedPrincipal,
   ): Promise<{ token: string }> {
     // Throws if this principal can't download the certificate — same gate as
@@ -71,7 +71,7 @@ export class CertificatesController {
     const payload: DownloadTokenPayload = {
       sub: principal.sub,
       isAdmin: principal.isAdmin,
-      typ: 'dl',
+      typ: "dl",
       scope: certDownloadScope(id),
     };
     const token = await this.jwt.signAsync(payload, {
@@ -83,9 +83,9 @@ export class CertificatesController {
   // Owner (or admin) download. Token via Authorization header (web) OR a
   // short-lived download token in ?token= (mobile browser open).
   @UseGuards(JwtDownloadGuard)
-  @Get('certificates/:id/download')
+  @Get("certificates/:id/download")
   async download(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @CurrentUser() principal: AuthenticatedPrincipal,
     @Res() res: Response,
   ) {
@@ -94,7 +94,7 @@ export class CertificatesController {
       principal,
     );
     // The token can ride in ?token=; no-referrer stops it leaking via Referer.
-    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader("Referrer-Policy", "no-referrer");
     res.download(absPath, filename);
   }
 
@@ -102,20 +102,20 @@ export class CertificatesController {
 
   // Serial verification (printed on every certificate). Always 200; unknown
   // serials return {valid:false} so the route leaks nothing beyond the serial.
-  @Get('certificates/verify/:serial')
-  verify(@Param('serial') serial: string) {
+  @Get("certificates/verify/:serial")
+  verify(@Param("serial") serial: string) {
     return this.certificates.verify(serial);
   }
 
   // ----- Admin: issued certificates -----
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('certificates', 'read')
-  @Get('admin/certificates')
+  @RequirePermission("certificates", "read")
+  @Get("admin/certificates")
   adminList(
-    @Query('q') q?: string,
-    @Query('page') page?: string,
-    @Query('pageSize') pageSize?: string,
+    @Query("q") q?: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
   ) {
     return this.certificates.adminList(
       q,
@@ -125,9 +125,9 @@ export class CertificatesController {
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('certificates', 'delete')
-  @Delete('admin/certificates/:id')
-  adminRemove(@Param('id') id: string) {
+  @RequirePermission("certificates", "delete")
+  @Delete("admin/certificates/:id")
+  adminRemove(@Param("id") id: string) {
     return this.certificates.adminRemove(id);
   }
 }

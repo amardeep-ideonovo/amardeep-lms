@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import * as fs from 'fs';
-import * as path from 'path';
-import { MEDIA_ROOT } from './media.config';
+import { Injectable } from "@nestjs/common";
+import * as fs from "fs";
+import * as path from "path";
+import { MEDIA_ROOT } from "./media.config";
 
 // Storage seam: the media service depends on this abstract class, so a cloud
 // (S3/R2) implementation can be swapped in later by changing the module's

@@ -1,8 +1,12 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
-import * as fs from 'fs';
-import * as path from 'path';
-import { STORAGE_DIRS, STORAGE_DIR_IDS, WRITABLE_STORAGE_DIR_IDS } from './storage-dirs';
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import * as fs from "fs";
+import * as path from "path";
+import {
+  STORAGE_DIRS,
+  STORAGE_DIR_IDS,
+  WRITABLE_STORAGE_DIR_IDS,
+} from "./storage-dirs";
 
 // Static check that the deploy actually pins what the API expects. The boot
 // guard in storage-dirs.ts only fires once an instance is starting; this fails
@@ -12,23 +16,29 @@ import { STORAGE_DIRS, STORAGE_DIR_IDS, WRITABLE_STORAGE_DIR_IDS } from './stora
 //
 // __dirname is safe here (unlike in the app): specs only ever run from src via
 // ts-node — see the "test" script in apps/api/package.json.
-const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
-const COMPOSE = path.join(REPO_ROOT, 'deploy/instance/docker-compose.instance.yml');
-const DOCKERFILE = path.join(REPO_ROOT, 'apps/api/Dockerfile');
-const MIGRATION = path.join(REPO_ROOT, 'deploy/scripts/migrate-media-to-volume.sh');
+const REPO_ROOT = path.resolve(__dirname, "..", "..", "..", "..");
+const COMPOSE = path.join(
+  REPO_ROOT,
+  "deploy/instance/docker-compose.instance.yml",
+);
+const DOCKERFILE = path.join(REPO_ROOT, "apps/api/Dockerfile");
+const MIGRATION = path.join(
+  REPO_ROOT,
+  "deploy/scripts/migrate-media-to-volume.sh",
+);
 
 /** The Dockerfile's WORKDIR — what an unpinned dir resolves its fallback against. */
-const CONTAINER_CWD = '/app';
+const CONTAINER_CWD = "/app";
 
-const read = (p: string) => fs.readFileSync(p, 'utf8');
+const read = (p: string) => fs.readFileSync(p, "utf8");
 
 /** `KEY: value` pairs. These keys are unique to the api service, so a
  *  whole-file scan can't pick up a web/admin value by accident. */
 function composePins(): Map<string, string> {
   const pins = new Map<string, string>();
-  for (const raw of read(COMPOSE).split('\n')) {
+  for (const raw of read(COMPOSE).split("\n")) {
     const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
+    if (!line || line.startsWith("#")) continue;
     const m = /^([A-Z][A-Z0-9_]*):\s*(\S.*)$/.exec(line);
     if (m) pins.set(m[1], m[2].trim());
   }
@@ -38,9 +48,9 @@ function composePins(): Map<string, string> {
 /** `ENV KEY=value` pairs from the runtime stage. */
 function dockerfilePins(): Map<string, string> {
   const pins = new Map<string, string>();
-  for (const raw of read(DOCKERFILE).split('\n')) {
+  for (const raw of read(DOCKERFILE).split("\n")) {
     const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
+    if (!line || line.startsWith("#")) continue;
     const m = /^ENV\s+([A-Z][A-Z0-9_]*)=(\S+)$/.exec(line);
     if (m) pins.set(m[1], m[2]);
   }
@@ -51,23 +61,26 @@ function dockerfilePins(): Map<string, string> {
  *  than hardcoded — move the mount and these assertions follow it. */
 function uploadsMount(): string {
   const m = /-\s*uploads:(\/\S+)/.exec(read(COMPOSE));
-  assert.ok(m, 'compose no longer mounts the `uploads` volume into the api service');
+  assert.ok(
+    m,
+    "compose no longer mounts the `uploads` volume into the api service",
+  );
   return m[1];
 }
 
-test('compose pins every writable storage dir', () => {
+test("compose pins every writable storage dir", () => {
   const pins = composePins();
   for (const id of WRITABLE_STORAGE_DIR_IDS) {
     assert.ok(
       pins.has(id),
       `${id} is not pinned in docker-compose.instance.yml. Unset, it falls back ` +
-        `to <cwd>/${STORAGE_DIRS[id].devFallback.join('/')} — inside the container ` +
+        `to <cwd>/${STORAGE_DIRS[id].devFallback.join("/")} — inside the container ` +
         `layer — and ${STORAGE_DIRS[id].what} are destroyed on the next recreate.`,
     );
   }
 });
 
-test('compose puts every writable dir on the persistent volume', () => {
+test("compose puts every writable dir on the persistent volume", () => {
   const mount = uploadsMount();
   const pins = composePins();
   for (const id of WRITABLE_STORAGE_DIR_IDS) {
@@ -80,7 +93,7 @@ test('compose puts every writable dir on the persistent volume', () => {
   }
 });
 
-test('the api image defaults every storage dir', () => {
+test("the api image defaults every storage dir", () => {
   // Instances are recreated with whatever compose file happens to be on the
   // host, so compose alone isn't enough: an image bump that lands before the
   // repo pull would boot against the fallback. The image default closes that.
@@ -95,7 +108,7 @@ test('the api image defaults every storage dir', () => {
   }
 });
 
-test('image defaults and compose pins agree', () => {
+test("image defaults and compose pins agree", () => {
   const image = dockerfilePins();
   const compose = composePins();
   for (const id of WRITABLE_STORAGE_DIR_IDS) {
@@ -111,14 +124,17 @@ test('image defaults and compose pins agree', () => {
 /** `"<src>:<dst>"` entries from the migration script's PAIRS array. */
 function migrationPairs(): Array<{ src: string; dst: string }> {
   const block = /^PAIRS=\(([\s\S]*?)^\)/m.exec(read(MIGRATION));
-  assert.ok(block, 'migrate-media-to-volume.sh no longer declares a PAIRS array');
+  assert.ok(
+    block,
+    "migrate-media-to-volume.sh no longer declares a PAIRS array",
+  );
   return [...block[1].matchAll(/"([^":]+):([^":]+)"/g)].map((m) => ({
     src: m[1],
     dst: m[2],
   }));
 }
 
-test('the migration script rescues into the paths compose actually pins', () => {
+test("the migration script rescues into the paths compose actually pins", () => {
   // The script copies files off the container layer BEFORE an upgrade recreates
   // it. If its destination and the compose pin disagree, it reports success and
   // the files are still lost — unrecoverably, since they were never on the
@@ -150,12 +166,12 @@ test('the migration script rescues into the paths compose actually pins', () => 
   }
 });
 
-test('the certificate fonts pin points at real files in the image', () => {
+test("the certificate fonts pin points at real files in the image", () => {
   // Read-only repo assets, so they belong in the image, not on the volume.
   // This is the check that would have caught the shipped bug: the cwd fallback
   // resolved to /app/src/certificates/fonts, but the TTFs are copied to
   // /app/apps/api/src/certificates/fonts and every render threw ENOENT.
-  const pinned = dockerfilePins().get('CERT_FONTS_DIR')!;
+  const pinned = dockerfilePins().get("CERT_FONTS_DIR")!;
   const mount = uploadsMount();
   assert.ok(
     !pinned.startsWith(`${mount}/`),
@@ -165,13 +181,16 @@ test('the certificate fonts pin points at real files in the image', () => {
 
   // The Dockerfile's WORKDIR is /app and it copies the repo there, so an
   // /app/... pin maps back onto a path in this checkout.
-  assert.ok(pinned.startsWith('/app/'), `expected an /app/... path, got ${pinned}`);
-  const inRepo = path.join(REPO_ROOT, pinned.slice('/app/'.length));
+  assert.ok(
+    pinned.startsWith("/app/"),
+    `expected an /app/... path, got ${pinned}`,
+  );
+  const inRepo = path.join(REPO_ROOT, pinned.slice("/app/".length));
   assert.ok(
     fs.existsSync(inRepo),
     `CERT_FONTS_DIR points at ${pinned}, which maps to ${inRepo} — not in the repo, ` +
       `so it won't be in the image either.`,
   );
-  const ttfs = fs.readdirSync(inRepo).filter((f) => f.endsWith('.ttf'));
+  const ttfs = fs.readdirSync(inRepo).filter((f) => f.endsWith(".ttf"));
   assert.ok(ttfs.length > 0, `no .ttf files at ${inRepo}`);
 });

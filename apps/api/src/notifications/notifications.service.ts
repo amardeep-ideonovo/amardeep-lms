@@ -1,11 +1,11 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import type {
   AdminNotificationDTO,
   AdminNotificationListDTO,
   AdminNotificationSeverity,
   AdminNotificationType,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
 
 // Input for emitting one notification. `dedupeKey` MUST be stable for a given
 // logical event so Stripe webhook replays / inline double-fires collapse to a
@@ -38,7 +38,7 @@ export class NotificationsService {
       update: {},
       create: {
         type: input.type,
-        severity: input.severity ?? 'INFO',
+        severity: input.severity ?? "INFO",
         title: input.title,
         body: input.body,
         userId: input.userId ?? null,
@@ -60,7 +60,7 @@ export class NotificationsService {
     const pageSize = Math.min(50, Math.max(1, opts.pageSize ?? 20));
     const [rows, total, unreadCount] = await this.prisma.$transaction([
       this.prisma.adminNotification.findMany({
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
@@ -100,7 +100,7 @@ export class NotificationsService {
       where: { id },
       select: { id: true },
     });
-    if (!exists) throw new NotFoundException('Notification not found');
+    if (!exists) throw new NotFoundException("Notification not found");
     await this.prisma.adminNotificationRead.upsert({
       where: { notificationId_adminId: { notificationId: id, adminId } },
       update: {},

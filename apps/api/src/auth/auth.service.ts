@@ -5,51 +5,51 @@ import {
   Injectable,
   Logger,
   UnauthorizedException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import * as bcrypt from 'bcryptjs';
-import { Prisma } from '@prisma/client';
-import type { Admin, User } from '@prisma/client';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import * as bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
+import type { Admin, User } from "@prisma/client";
 import type {
   AdminPermissions,
   AdminPrefs,
   AuthAdmin,
   AuthUser,
   LoginResponse,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { ContactsService } from '../contacts/contacts.service';
-import { AutomationService } from '../email/automation.service';
-import { EmailService } from '../email/email.service';
-import { AppConfigService } from '../site/app-config.service';
-import { MediaStorage } from '../media/media.storage';
-import { isOptimizableImage, optimizeImage } from '../media/image-transform';
-import { MEDIA_ROUTE } from '../media/media.config';
-import { ControlPlaneNotifier } from '../control-plane/control-plane.notifier';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { ContactsService } from "../contacts/contacts.service";
+import { AutomationService } from "../email/automation.service";
+import { EmailService } from "../email/email.service";
+import { AppConfigService } from "../site/app-config.service";
+import { MediaStorage } from "../media/media.storage";
+import { isOptimizableImage, optimizeImage } from "../media/image-transform";
+import { MEDIA_ROUTE } from "../media/media.config";
+import { ControlPlaneNotifier } from "../control-plane/control-plane.notifier";
 import {
   RESET_TOKEN_TTL_MINUTES,
   fingerprintMatches,
   makePasswordResetToken,
   passwordHashFingerprint,
   verifyPasswordResetToken,
-} from './reset-token.util';
-import type { JwtPayload } from './jwt-payload.interface';
-import type { SignupDto } from './dto/signup.dto';
-import type { UpdateProfileDto } from './dto/update-profile.dto';
-import type { ChangePasswordDto } from './dto/change-password.dto';
-import type { UpdateAdminPrefsDto } from './dto/update-admin-prefs.dto';
-import type { UpdateAdminProfileDto } from './dto/update-admin-profile.dto';
+} from "./reset-token.util";
+import type { JwtPayload } from "./jwt-payload.interface";
+import type { SignupDto } from "./dto/signup.dto";
+import type { UpdateProfileDto } from "./dto/update-profile.dto";
+import type { ChangePasswordDto } from "./dto/change-password.dto";
+import type { UpdateAdminPrefsDto } from "./dto/update-admin-prefs.dto";
+import type { UpdateAdminProfileDto } from "./dto/update-admin-profile.dto";
 
 // Avatar uploads are image-only (no SVG — we don't sanitize here) and are stored
 // directly via MediaStorage WITHOUT a MediaAsset row, so they never appear in the
 // gallery. mime -> stored-file extension.
 const AVATAR_EXT: Record<string, string> = {
-  'image/jpeg': '.jpg',
-  'image/jpg': '.jpg',
-  'image/png': '.png',
-  'image/webp': '.webp',
-  'image/gif': '.gif',
+  "image/jpeg": ".jpg",
+  "image/jpg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
 };
 const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
 
@@ -104,7 +104,7 @@ export class AuthService {
       where: { email: email.toLowerCase() },
     });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
     const payload: JwtPayload = {
       sub: user.id,
@@ -127,7 +127,7 @@ export class AuthService {
       where: { email: email.toLowerCase() },
     });
     if (!admin || !(await bcrypt.compare(password, admin.passwordHash))) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException("Invalid credentials");
     }
     const payload: JwtPayload = {
       sub: admin.id,
@@ -152,7 +152,7 @@ export class AuthService {
     // Invite-code gate (closed beta). Skipped when env var is unset.
     const requiredInvite = process.env.SIGNUP_INVITE_CODE?.trim();
     if (requiredInvite && dto.inviteCode?.trim() !== requiredInvite) {
-      throw new ForbiddenException('Invalid invite code');
+      throw new ForbiddenException("Invalid invite code");
     }
 
     const email = dto.email.toLowerCase().trim();
@@ -160,14 +160,17 @@ export class AuthService {
     // Email uniqueness — surface as 409 so the UI can show "account exists".
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
-      throw new ConflictException('An account with this email already exists');
+      throw new ConflictException("An account with this email already exists");
     }
 
     // Derive a username from the email's local part. Strip non-alphanumeric
     // chars (the schema's @unique constraint is on `username`, not `email`,
     // so we need something filesystem-safe). Suffix a number if it collides.
     const baseUsername =
-      email.split('@')[0]?.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'user';
+      email
+        .split("@")[0]
+        ?.replace(/[^a-z0-9]/gi, "")
+        .toLowerCase() || "user";
     const username = await this.ensureUniqueUsername(baseUsername);
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -218,9 +221,9 @@ export class AuthService {
       const cfg = await this.appConfig.read();
       const brand = cfg.title;
       const siteUrl =
-        this.config.get<string>('WEB_APP_URL') || 'http://localhost:3002';
-      const firstName = user.firstName?.trim() || 'there';
-      await this.automations.fire('SIGNUP', {
+        this.config.get<string>("WEB_APP_URL") || "http://localhost:3002";
+      const firstName = user.firstName?.trim() || "there";
+      await this.automations.fire("SIGNUP", {
         email: user.email,
         contactId: undefined,
         vars: { firstName, brand, url: siteUrl },
@@ -257,15 +260,20 @@ export class AuthService {
     email: string,
   ): Promise<void> {
     const freeLevels = await this.prisma.level.findMany({
-      where: { type: 'FREE', published: true },
+      where: { type: "FREE", published: true },
     });
     for (const free of freeLevels) {
       await this.prisma.userLevel.upsert({
         where: {
-          userId_levelId_source: { userId, levelId: free.id, source: 'MANUAL' },
+          userId_levelId_source: { userId, levelId: free.id, source: "MANUAL" },
         },
-        create: { userId, levelId: free.id, source: 'MANUAL', status: 'ACTIVE' },
-        update: { status: 'ACTIVE' },
+        create: {
+          userId,
+          levelId: free.id,
+          source: "MANUAL",
+          status: "ACTIVE",
+        },
+        update: { status: "ACTIVE" },
       });
       // Capture the member into the class's in-house audience (null audienceId
       // → default "Members"). syncTags upserts the contact first, so it lands
@@ -273,11 +281,11 @@ export class AuthService {
       // the signup response on a contacts blip.
       try {
         await this.contacts.syncTags(
-          'add',
+          "add",
           email,
           free.audienceTags,
           free.audienceId ?? undefined,
-          { userId, source: 'SIGNUP' },
+          { userId, source: "SIGNUP" },
         );
       } catch (err) {
         this.logger.warn(
@@ -330,11 +338,11 @@ export class AuthService {
       const clash = await this.prisma.user.findFirst({
         where: {
           id: { not: userId },
-          username: { equals: username, mode: 'insensitive' },
+          username: { equals: username, mode: "insensitive" },
         },
         select: { id: true },
       });
-      if (clash) throw new ConflictException('That username is taken');
+      if (clash) throw new ConflictException("That username is taken");
       data.username = username;
     }
 
@@ -352,9 +360,9 @@ export class AuthService {
       } catch (err) {
         if (
           err instanceof Prisma.PrismaClientKnownRequestError &&
-          err.code === 'P2002'
+          err.code === "P2002"
         ) {
-          throw new ConflictException('That username is taken');
+          throw new ConflictException("That username is taken");
         }
         throw err;
       }
@@ -386,13 +394,13 @@ export class AuthService {
       user.passwordHash,
     );
     if (!currentOk) {
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestException("Current password is incorrect");
     }
 
     const sameAsOld = await bcrypt.compare(dto.newPassword, user.passwordHash);
     if (sameAsOld) {
       throw new BadRequestException(
-        'New password must be different from the current one',
+        "New password must be different from the current one",
       );
     }
 
@@ -419,7 +427,7 @@ export class AuthService {
   // reveals WHICH check failed — the requester isn't necessarily the account
   // owner.
   private static readonly RESET_LINK_INVALID =
-    'This reset link is invalid or has expired. Please request a new one.';
+    "This reset link is invalid or has expired. Please request a new one.";
 
   /**
    * Member self-serve password reset, step 1 (POST /auth/forgot-password).
@@ -443,8 +451,8 @@ export class AuthService {
       // signing secret — caught here so the response stays a uniform 200.
       const token = makePasswordResetToken(user.id, user.passwordHash);
       const webUrl = (
-        this.config.get<string>('WEB_APP_URL') || 'http://localhost:3002'
-      ).replace(/\/$/, '');
+        this.config.get<string>("WEB_APP_URL") || "http://localhost:3002"
+      ).replace(/\/$/, "");
       const resetUrl = `${webUrl}/reset-password?token=${encodeURIComponent(token)}`;
       const cfg = await this.appConfig.read();
 
@@ -456,9 +464,9 @@ export class AuthService {
       // the token/config work above it.
       await this.email.sendTemplate({
         to: user.email,
-        templateKey: 'password-reset',
+        templateKey: "password-reset",
         vars: {
-          firstName: user.firstName?.trim() || 'there',
+          firstName: user.firstName?.trim() || "there",
           brand: cfg.title,
           resetUrl,
           expiresMinutes: RESET_TOKEN_TTL_MINUTES,
@@ -510,7 +518,7 @@ export class AuthService {
     const sameAsOld = await bcrypt.compare(newPassword, user.passwordHash);
     if (sameAsOld) {
       throw new BadRequestException(
-        'New password must be different from the current one',
+        "New password must be different from the current one",
       );
     }
 
@@ -531,7 +539,9 @@ export class AuthService {
     adminId: string,
     dto: ChangePasswordDto,
   ): Promise<{ ok: true; token: string }> {
-    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
+    const admin = await this.prisma.admin.findUnique({
+      where: { id: adminId },
+    });
     if (!admin) throw new UnauthorizedException();
 
     const currentOk = await bcrypt.compare(
@@ -539,12 +549,12 @@ export class AuthService {
       admin.passwordHash,
     );
     if (!currentOk) {
-      throw new BadRequestException('Current password is incorrect');
+      throw new BadRequestException("Current password is incorrect");
     }
     const sameAsOld = await bcrypt.compare(dto.newPassword, admin.passwordHash);
     if (sameAsOld) {
       throw new BadRequestException(
-        'New password must be different from the current one',
+        "New password must be different from the current one",
       );
     }
     const updated = await this.prisma.admin.update({
@@ -581,7 +591,9 @@ export class AuthService {
     adminId: string,
     dto: UpdateAdminPrefsDto,
   ): Promise<AuthAdmin> {
-    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
+    const admin = await this.prisma.admin.findUnique({
+      where: { id: adminId },
+    });
     if (!admin) throw new UnauthorizedException();
 
     const current = (admin.prefs as AdminPrefs) ?? {};
@@ -591,7 +603,7 @@ export class AuthService {
       const seen = new Set<string>();
       const cleaned: string[] = [];
       for (const raw of dto.menuOrder) {
-        const key = typeof raw === 'string' ? raw.trim() : '';
+        const key = typeof raw === "string" ? raw.trim() : "";
         if (!key || seen.has(key)) continue;
         seen.add(key);
         cleaned.push(key);
@@ -615,12 +627,14 @@ export class AuthService {
     adminId: string,
     dto: UpdateAdminProfileDto,
   ): Promise<AuthAdmin> {
-    const admin = await this.prisma.admin.findUnique({ where: { id: adminId } });
+    const admin = await this.prisma.admin.findUnique({
+      where: { id: adminId },
+    });
     if (!admin) throw new UnauthorizedException();
 
     const data: Prisma.AdminUpdateInput = {};
     if (dto.name !== undefined) {
-      const name = (dto.name ?? '').trim();
+      const name = (dto.name ?? "").trim();
       data.name = name ? name.slice(0, 120) : null;
     }
     if (dto.removeAvatar) {
@@ -644,15 +658,15 @@ export class AuthService {
     file: Express.Multer.File | undefined,
     baseUrl: string,
   ): Promise<AuthAdmin> {
-    if (!file) throw new BadRequestException('No file provided');
+    if (!file) throw new BadRequestException("No file provided");
     let ext = AVATAR_EXT[file.mimetype];
     if (!ext) {
       throw new BadRequestException(
-        'Please choose a JPG, PNG, WebP or GIF image.',
+        "Please choose a JPG, PNG, WebP or GIF image.",
       );
     }
     if (file.size > AVATAR_MAX_BYTES) {
-      throw new BadRequestException('Image too large (max 8 MB).');
+      throw new BadRequestException("Image too large (max 8 MB).");
     }
     const admin = await this.prisma.admin.findUnique({
       where: { id: adminId },
@@ -696,15 +710,15 @@ export class AuthService {
     file: Express.Multer.File | undefined,
     baseUrl: string,
   ): Promise<AuthUser> {
-    if (!file) throw new BadRequestException('No file provided');
+    if (!file) throw new BadRequestException("No file provided");
     let ext = AVATAR_EXT[file.mimetype];
     if (!ext) {
       throw new BadRequestException(
-        'Please choose a JPG, PNG, WebP or GIF image.',
+        "Please choose a JPG, PNG, WebP or GIF image.",
       );
     }
     if (file.size > AVATAR_MAX_BYTES) {
-      throw new BadRequestException('Image too large (max 8 MB).');
+      throw new BadRequestException("Image too large (max 8 MB).");
     }
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -746,7 +760,7 @@ export class AuthService {
     const idx = url.indexOf(marker);
     if (idx === -1) return;
     const key = url.slice(idx + marker.length);
-    if (key.startsWith('avatar-')) {
+    if (key.startsWith("avatar-")) {
       await this.storage.delete(key).catch(() => undefined);
     }
   }

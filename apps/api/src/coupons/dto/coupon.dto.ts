@@ -1,4 +1,12 @@
-import { IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+} from "class-validator";
 
 // Admin creates a coupon code. percent vs amount is chosen via `discountType`;
 // cross-field rules (percent needs percentOff, amount needs amountOff, repeating
@@ -6,12 +14,12 @@ import { IsIn, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-vali
 export class CreateCouponDto {
   @IsString()
   @Matches(/^[A-Za-z0-9_-]{3,40}$/, {
-    message: 'Code must be 3–40 chars: letters, numbers, hyphen or underscore',
+    message: "Code must be 3–40 chars: letters, numbers, hyphen or underscore",
   })
   code!: string;
 
-  @IsIn(['percent', 'amount'])
-  discountType!: 'percent' | 'amount';
+  @IsIn(["percent", "amount"])
+  discountType!: "percent" | "amount";
 
   @IsOptional()
   @IsInt()
@@ -28,8 +36,8 @@ export class CreateCouponDto {
   @IsString()
   currency?: string;
 
-  @IsIn(['once', 'repeating', 'forever'])
-  duration!: 'once' | 'repeating' | 'forever';
+  @IsIn(["once", "repeating", "forever"])
+  duration!: "once" | "repeating" | "forever";
 
   @IsOptional()
   @IsInt()

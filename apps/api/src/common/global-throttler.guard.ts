@@ -1,5 +1,5 @@
-import { ExecutionContext, Injectable } from '@nestjs/common';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { ExecutionContext, Injectable } from "@nestjs/common";
+import { ThrottlerGuard } from "@nestjs/throttler";
 
 // App-wide rate limiter (registered as a global APP_GUARD). It keys on the REAL
 // client IP — the RIGHTMOST X-Forwarded-For entry, appended by the trusted Caddy
@@ -19,21 +19,21 @@ export class GlobalThrottlerGuard extends ThrottlerGuard {
   // breaking realtime collaboration. There is no per-IP HTTP surface to limit on
   // a socket message here, so skip every non-http execution context.
   protected async shouldSkip(context: ExecutionContext): Promise<boolean> {
-    return context.getType() !== 'http';
+    return context.getType() !== "http";
   }
 
   protected async getTracker(req: Record<string, unknown>): Promise<string> {
     const headers = (req.headers ?? {}) as Record<string, unknown>;
-    const xff = headers['x-forwarded-for'];
-    if (typeof xff === 'string' && xff.length) {
+    const xff = headers["x-forwarded-for"];
+    if (typeof xff === "string" && xff.length) {
       const parts = xff
-        .split(',')
+        .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
       if (parts.length) return parts[parts.length - 1];
     }
-    const xReal = headers['x-real-ip'];
-    if (typeof xReal === 'string' && xReal.trim()) return xReal.trim();
-    return (req.ip as string) ?? 'anon';
+    const xReal = headers["x-real-ip"];
+    if (typeof xReal === "string" && xReal.trim()) return xReal.trim();
+    return (req.ip as string) ?? "anon";
   }
 }

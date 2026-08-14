@@ -1,33 +1,37 @@
 // Sentry must be loaded BEFORE any other module so it can patch
 // http/express/db at require-time. This file is a no-op when SENTRY_DSN
 // is unset, so it's safe to keep at the top in every environment.
-import './instrument';
-import 'reflect-metadata';
-import { NestFactory } from '@nestjs/core';
-import { Logger, ValidationPipe } from '@nestjs/common';
-import type { NestExpressApplication } from '@nestjs/platform-express';
-import * as express from 'express';
-import compression from 'compression';
-import helmet from 'helmet';
-import { AppModule } from './app.module';
-import { isProduction } from './common/env.util';
-import { IMAGES_ROOT, IMAGES_ROUTE, ensureUploadDirs } from './blog/upload.config';
-import { ensureLmsUploadDirs } from './lms/upload.config';
-import { MEDIA_ROOT, MEDIA_ROUTE, ensureMediaDir } from './media/media.config';
+import "./instrument";
+import "reflect-metadata";
+import { NestFactory } from "@nestjs/core";
+import { Logger, ValidationPipe } from "@nestjs/common";
+import type { NestExpressApplication } from "@nestjs/platform-express";
+import * as express from "express";
+import compression from "compression";
+import helmet from "helmet";
+import { AppModule } from "./app.module";
+import { isProduction } from "./common/env.util";
+import {
+  IMAGES_ROOT,
+  IMAGES_ROUTE,
+  ensureUploadDirs,
+} from "./blog/upload.config";
+import { ensureLmsUploadDirs } from "./lms/upload.config";
+import { MEDIA_ROOT, MEDIA_ROUTE, ensureMediaDir } from "./media/media.config";
 import {
   CERT_FONTS_DIR,
   CERT_FONTS_ROUTE,
   ensureCertificateDirs,
-} from './certificates/certificates.config';
-import { RedisIoAdapter } from './projects/redis-io.adapter';
-import { assertStorageDirsConfigured } from './storage/storage-dirs';
+} from "./certificates/certificates.config";
+import { RedisIoAdapter } from "./projects/redis-io.adapter";
+import { assertStorageDirsConfigured } from "./storage/storage-dirs";
 
 async function bootstrap() {
   // Before anything touches the disk: every writable storage dir must be an
   // explicit path in production. Left to its dev fallback the app would write
   // uploads into the container layer and lose them on the next recreate —
   // silently. Fail the boot instead, while someone is watching the deploy.
-  assertStorageDirsConfigured(new Logger('StorageDirs'));
+  assertStorageDirsConfigured(new Logger("StorageDirs"));
 
   // bodyParser disabled here so we can register a raw-body parser for the
   // Stripe webhook route (signature verification needs the untouched payload),
@@ -44,8 +48,8 @@ async function bootstrap() {
   const trustProxy = process.env.TRUST_PROXY;
   if (trustProxy) {
     app.set(
-      'trust proxy',
-      trustProxy === 'true'
+      "trust proxy",
+      trustProxy === "true"
         ? true
         : /^\d+$/.test(trustProxy)
           ? Number(trustProxy)
@@ -66,7 +70,7 @@ async function bootstrap() {
   app.use(
     helmet({
       contentSecurityPolicy: false,
-      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      crossOriginResourcePolicy: { policy: "cross-origin" },
       crossOriginEmbedderPolicy: false,
     }),
   );
@@ -82,12 +86,16 @@ async function bootstrap() {
   app.use(compression());
 
   app.use(
-    '/forms',
-    (req: express.Request, res: express.Response, next: express.NextFunction) => {
-      res.header('Access-Control-Allow-Origin', '*');
-      res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-      res.header('Access-Control-Allow-Headers', 'Content-Type');
-      if (req.method === 'OPTIONS') {
+    "/forms",
+    (
+      req: express.Request,
+      res: express.Response,
+      next: express.NextFunction,
+    ) => {
+      res.header("Access-Control-Allow-Origin", "*");
+      res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+      res.header("Access-Control-Allow-Headers", "Content-Type");
+      if (req.method === "OPTIONS") {
         res.statusCode = 204;
         return res.end();
       }
@@ -99,12 +107,11 @@ async function bootstrap() {
   // NO cross-origin browser access — reflecting any origin with credentials
   // would let an arbitrary site ride a logged-in session. Dev stays open for
   // the local clients.
-  const corsOrigins = process.env.CORS_ORIGIN?.split(',')
+  const corsOrigins = process.env.CORS_ORIGIN?.split(",")
     .map((o) => o.trim())
     .filter(Boolean);
   if (!corsOrigins?.length && isProduction()) {
-     
-    console.warn('[api] CORS_ORIGIN unset — cross-origin requests disabled');
+    console.warn("[api] CORS_ORIGIN unset — cross-origin requests disabled");
   }
   app.enableCors({
     origin: corsOrigins?.length ? corsOrigins : isProduction() ? false : true,
@@ -113,13 +120,13 @@ async function bootstrap() {
 
   // Raw body ONLY for the provider webhooks so signatures stay verifiable
   // (PayPal's verify-webhook-signature needs the byte-exact original body).
-  app.use('/billing/webhook', express.raw({ type: '*/*' }));
-  app.use('/billing/paypal/webhook', express.raw({ type: '*/*' }));
+  app.use("/billing/webhook", express.raw({ type: "*/*" }));
+  app.use("/billing/paypal/webhook", express.raw({ type: "*/*" }));
   // The content-pack import is a gzipped binary archive, not JSON — take the raw
   // bytes regardless of Content-Type (a mislabeled body must not be silently
   // parsed away, and the JSON parser below would otherwise reject/limit it). The
   // limit is generous: packs carry the demo's media inline (see content-pack).
-  app.use('/content-pack/import', express.raw({ type: '*/*', limit: '256mb' }));
+  app.use("/content-pack/import", express.raw({ type: "*/*", limit: "256mb" }));
   // JSON parsing for everything else. The `verify` hook stashes the byte-exact
   // payload on req.rawBody for routes that ALSO need the parsed body — namely the
   // email feedback webhook, whose Svix (Resend) signature is computed over the raw
@@ -127,7 +134,7 @@ async function bootstrap() {
   // ref) and global, so it never changes how any existing route reads its body.
   app.use(
     express.json({
-      limit: '1mb',
+      limit: "1mb",
       verify: (req: express.Request & { rawBody?: Buffer }, _res, buf) => {
         req.rawBody = buf;
       },
@@ -151,8 +158,8 @@ async function bootstrap() {
       // Filenames are unique per upload and never mutated, so a long immutable
       // cache is safe and eliminates re-downloads on repeat visits.
       immutable: true,
-      maxAge: '365d',
-      setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+      maxAge: "365d",
+      setHeaders: (res) => res.setHeader("X-Content-Type-Options", "nosniff"),
     }),
   );
 
@@ -164,8 +171,8 @@ async function bootstrap() {
     express.static(MEDIA_ROOT, {
       // Unique-per-upload filenames → safe to cache immutably for a year.
       immutable: true,
-      maxAge: '365d',
-      setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+      maxAge: "365d",
+      setHeaders: (res) => res.setHeader("X-Content-Type-Options", "nosniff"),
     }),
   );
 
@@ -178,8 +185,8 @@ async function bootstrap() {
     CERT_FONTS_ROUTE,
     express.static(CERT_FONTS_DIR, {
       immutable: true,
-      maxAge: '365d',
-      setHeaders: (res) => res.setHeader('X-Content-Type-Options', 'nosniff'),
+      maxAge: "365d",
+      setHeaders: (res) => res.setHeader("X-Content-Type-Options", "nosniff"),
     }),
   );
 
@@ -201,10 +208,9 @@ async function bootstrap() {
       const wsAdapter = new RedisIoAdapter(app);
       await wsAdapter.connectToRedis();
       app.useWebSocketAdapter(wsAdapter);
-       
-      console.log('[api] realtime: Redis Socket.IO adapter enabled');
+
+      console.log("[api] realtime: Redis Socket.IO adapter enabled");
     } catch (err) {
-       
       console.warn(
         `[api] realtime: Redis adapter unavailable, using in-memory adapter — ${
           err instanceof Error ? err.message : String(err)
@@ -212,15 +218,14 @@ async function bootstrap() {
       );
     }
   } else {
-     
     console.warn(
-      '[api] realtime: REDIS_URL unset — using in-memory Socket.IO adapter (single instance only)',
+      "[api] realtime: REDIS_URL unset — using in-memory Socket.IO adapter (single instance only)",
     );
   }
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
-   
+
   console.log(`[api] listening on :${port}`);
 }
 
@@ -228,6 +233,6 @@ bootstrap().catch((err) => {
   // A failed boot must exit nonzero (compose restart policy + health checks
   // depend on it) — with the error logged plainly, not as an unhandled
   // rejection stack the process reaper may swallow.
-  console.error('[api] fatal during bootstrap:', err);
+  console.error("[api] fatal during bootstrap:", err);
   process.exit(1);
 });

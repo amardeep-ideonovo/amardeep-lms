@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import type { SupportMessage, SupportTicket } from '@prisma/client';
-import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
-import { PrismaService } from '../prisma/prisma.service';
-import { SupportSyncService } from './support-sync.service';
-import { CsatDto, RaiseTicketDto, ReplyDto } from './dto/support.dto';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import type { SupportMessage, SupportTicket } from "@prisma/client";
+import type { AuthenticatedPrincipal } from "../auth/jwt-payload.interface";
+import { PrismaService } from "../prisma/prisma.service";
+import { SupportSyncService } from "./support-sync.service";
+import { CsatDto, RaiseTicketDto, ReplyDto } from "./dto/support.dto";
 
 // The instance-side mirror. Tickets are ORG-LEVEL: every admin sees every ticket
 // (raiserAdminId is a label only). Writes are pushed to the control plane
@@ -22,14 +22,14 @@ export class SupportService {
         raiserAdminId: p.sub,
         raiserAdminEmail: p.email,
         subject: dto.subject,
-        category: dto.category ?? 'OTHER',
-        priority: dto.priority ?? 'NORMAL',
-        status: 'OPEN',
+        category: dto.category ?? "OTHER",
+        priority: dto.priority ?? "NORMAL",
+        status: "OPEN",
         lastMessageAt: new Date(),
         messages: {
           create: {
-            lane: 'MAIN',
-            authorKind: 'ADMIN',
+            lane: "MAIN",
+            authorKind: "ADMIN",
             authorEmail: p.email,
             authorName: p.username ?? null,
             body: dto.body,
@@ -38,13 +38,15 @@ export class SupportService {
       },
       include: { messages: true },
     });
-    await this.sync.pushCreate(ticket, ticket.messages[0]).catch(() => undefined);
+    await this.sync
+      .pushCreate(ticket, ticket.messages[0])
+      .catch(() => undefined);
     return this.thread(ticket.id);
   }
 
   async list() {
     const tickets = await this.prisma.supportTicket.findMany({
-      orderBy: { lastMessageAt: 'desc' },
+      orderBy: { lastMessageAt: "desc" },
       take: 100,
     });
     return { items: tickets.map(toListItem) };
@@ -60,9 +62,9 @@ export class SupportService {
   async thread(id: string) {
     const ticket = await this.prisma.supportTicket.findUnique({
       where: { id },
-      include: { messages: { orderBy: { createdAt: 'asc' } } },
+      include: { messages: { orderBy: { createdAt: "asc" } } },
     });
-    if (!ticket) throw new NotFoundException('ticket not found');
+    if (!ticket) throw new NotFoundException("ticket not found");
     if (ticket.unreadForAdmins) {
       await this.prisma.supportTicket.update({
         where: { id },
@@ -73,13 +75,15 @@ export class SupportService {
   }
 
   async reply(p: AuthenticatedPrincipal, id: string, dto: ReplyDto) {
-    const ticket = await this.prisma.supportTicket.findUnique({ where: { id } });
-    if (!ticket) throw new NotFoundException('ticket not found');
+    const ticket = await this.prisma.supportTicket.findUnique({
+      where: { id },
+    });
+    if (!ticket) throw new NotFoundException("ticket not found");
     const msg = await this.prisma.supportMessage.create({
       data: {
         ticketId: id,
-        lane: 'MAIN',
-        authorKind: 'ADMIN',
+        lane: "MAIN",
+        authorKind: "ADMIN",
         authorEmail: p.email,
         authorName: p.username ?? null,
         body: dto.body,
@@ -89,8 +93,8 @@ export class SupportService {
       where: { id },
       data: {
         lastMessageAt: new Date(),
-        ...(ticket.status === 'RESOLVED' || ticket.status === 'CLOSED'
-          ? { status: 'OPEN' }
+        ...(ticket.status === "RESOLVED" || ticket.status === "CLOSED"
+          ? { status: "OPEN" }
           : {}),
       },
     });
@@ -99,15 +103,19 @@ export class SupportService {
   }
 
   async csat(p: AuthenticatedPrincipal, id: string, dto: CsatDto) {
-    const ticket = await this.prisma.supportTicket.findUnique({ where: { id } });
-    if (!ticket) throw new NotFoundException('ticket not found');
+    const ticket = await this.prisma.supportTicket.findUnique({
+      where: { id },
+    });
+    if (!ticket) throw new NotFoundException("ticket not found");
     // Optimistic local set; the control plane is authoritative (validates
     // resolved + set-once) and the next pull reconciles the true value.
     await this.prisma.supportTicket.update({
       where: { id },
       data: { csatRating: dto.rating, csatSubmittedAt: new Date() },
     });
-    await this.sync.pushCsat(ticket, dto.rating, dto.comment).catch(() => undefined);
+    await this.sync
+      .pushCsat(ticket, dto.rating, dto.comment)
+      .catch(() => undefined);
     return this.thread(id);
   }
 }

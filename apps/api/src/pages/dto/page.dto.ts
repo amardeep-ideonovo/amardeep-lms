@@ -1,7 +1,13 @@
-import { IsIn, IsObject, IsOptional, IsString, MinLength } from 'class-validator';
-import type { PageStatus, PuckDocument } from '@lms/types';
+import {
+  IsIn,
+  IsObject,
+  IsOptional,
+  IsString,
+  MinLength,
+} from "class-validator";
+import type { PageStatus, PuckDocument } from "@lms/types";
 
-const STATUSES: PageStatus[] = ['DRAFT', 'PUBLISHED'];
+const STATUSES: PageStatus[] = ["DRAFT", "PUBLISHED"];
 
 export class CreatePageDto {
   @IsString()

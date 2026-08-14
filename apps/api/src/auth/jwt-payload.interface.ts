@@ -1,4 +1,4 @@
-import type { AdminPermissions, AdminRole } from '@lms/types';
+import type { AdminPermissions, AdminRole } from "@lms/types";
 
 // Single JWT shape for both members and admins. `isAdmin` + `role` drive RBAC.
 // NOTE: the token deliberately does NOT carry permissions — those are loaded

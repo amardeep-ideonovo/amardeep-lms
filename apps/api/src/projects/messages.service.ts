@@ -2,20 +2,20 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import type { ChatMessage, ChatReaction } from '@prisma/client';
+} from "@nestjs/common";
+import type { ChatMessage, ChatReaction } from "@prisma/client";
 import type {
   ChatListItemDTO,
   ChatMessageDTO,
   MessageToTaskInput,
   SendMessageInput,
   UnreadSummaryDTO,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { ChannelsService } from './channels.service';
-import { ListsService } from './lists.service';
-import { ProjectsGateway } from './projects.gateway';
-import { WorkflowsService } from './workflows.service';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { ChannelsService } from "./channels.service";
+import { ListsService } from "./lists.service";
+import { ProjectsGateway } from "./projects.gateway";
+import { WorkflowsService } from "./workflows.service";
 
 // A ChatMessage row plus the relations the DTO needs (reactions + a reply
 // count). Loaded together so serialization is a pure function.
@@ -127,7 +127,7 @@ export class MessagesService {
       where: { id },
       include: MessagesService.messageInclude,
     });
-    if (!message) throw new NotFoundException('Message not found');
+    if (!message) throw new NotFoundException("Message not found");
     return message as MessageWithExtras;
   }
 
@@ -144,11 +144,9 @@ export class MessagesService {
       where: {
         channelId,
         deletedAt: null,
-        ...(opts.afterSeq !== undefined
-          ? { seq: { gt: opts.afterSeq } }
-          : {}),
+        ...(opts.afterSeq !== undefined ? { seq: { gt: opts.afterSeq } } : {}),
       },
-      orderBy: { seq: 'asc' },
+      orderBy: { seq: "asc" },
       take: limit,
       include: MessagesService.messageInclude,
     });
@@ -171,7 +169,7 @@ export class MessagesService {
         select: { channelId: true, deletedAt: true },
       });
       if (!parent || parent.channelId !== channelId || parent.deletedAt) {
-        throw new NotFoundException('Parent message not found in this channel');
+        throw new NotFoundException("Parent message not found in this channel");
       }
     }
 
@@ -200,7 +198,12 @@ export class MessagesService {
     // a public channel they haven't joined still tracks read state.
     await this.prisma.chatMember.upsert({
       where: { channelId_adminId: { channelId, adminId } },
-      create: { channelId, adminId, lastReadSeq: message.seq, lastReadAt: new Date() },
+      create: {
+        channelId,
+        adminId,
+        lastReadSeq: message.seq,
+        lastReadAt: new Date(),
+      },
       update: { lastReadSeq: message.seq, lastReadAt: new Date() },
     });
 
@@ -222,10 +225,10 @@ export class MessagesService {
   ): Promise<ChatMessageDTO> {
     const message = await this.loadMessage(messageId);
     if (message.authorAdminId !== adminId) {
-      throw new ForbiddenException('You can only edit your own messages');
+      throw new ForbiddenException("You can only edit your own messages");
     }
     if (message.deletedAt) {
-      throw new ForbiddenException('Cannot edit a deleted message');
+      throw new ForbiddenException("Cannot edit a deleted message");
     }
     const updated = await this.prisma.chatMessage.update({
       where: { id: messageId },
@@ -245,12 +248,12 @@ export class MessagesService {
   ): Promise<ChatMessageDTO> {
     const message = await this.loadMessage(messageId);
     if (message.authorAdminId !== adminId) {
-      throw new ForbiddenException('You can only delete your own messages');
+      throw new ForbiddenException("You can only delete your own messages");
     }
     // Soft-delete: keep the row (threads/lists may reference it) but blank body.
     const updated = await this.prisma.chatMessage.update({
       where: { id: messageId },
-      data: { deletedAt: message.deletedAt ?? new Date(), body: '' },
+      data: { deletedAt: message.deletedAt ?? new Date(), body: "" },
       include: MessagesService.messageInclude,
     });
     const dto = await this.serializeOne(updated as MessageWithExtras);
@@ -270,11 +273,11 @@ export class MessagesService {
       where: { id: messageId },
       select: { channelId: true },
     });
-    if (!parent) throw new NotFoundException('Message not found');
+    if (!parent) throw new NotFoundException("Message not found");
     await this.channels.assertVisible(adminId, parent.channelId);
     const replies = await this.prisma.chatMessage.findMany({
       where: { parentMessageId: messageId, deletedAt: null },
-      orderBy: { seq: 'asc' },
+      orderBy: { seq: "asc" },
       include: MessagesService.messageInclude,
     });
     return this.serializeMany(replies as MessageWithExtras[]);
@@ -292,7 +295,7 @@ export class MessagesService {
       select: { channelId: true, deletedAt: true },
     });
     if (!message || message.deletedAt) {
-      throw new NotFoundException('Message not found');
+      throw new NotFoundException("Message not found");
     }
     await this.channels.assertVisible(adminId, message.channelId);
     const existing = await this.prisma.chatReaction.findUnique({
@@ -327,7 +330,7 @@ export class MessagesService {
     if (targetSeq === undefined) {
       const top = await this.prisma.chatMessage.findFirst({
         where: { channelId },
-        orderBy: { seq: 'desc' },
+        orderBy: { seq: "desc" },
         select: { seq: true },
       });
       targetSeq = top?.seq ?? 0;
@@ -402,11 +405,11 @@ export class MessagesService {
       select: { id: true, channelId: true, body: true, deletedAt: true },
     });
     if (!message || message.deletedAt) {
-      throw new NotFoundException('Message not found');
+      throw new NotFoundException("Message not found");
     }
     await this.channels.assertVisible(adminId, message.channelId);
     // Title = the message body, truncated to keep list rows tidy.
-    const title = message.body.trim().slice(0, 200) || 'Untitled task';
+    const title = message.body.trim().slice(0, 200) || "Untitled task";
     return this.lists.addItem(adminId, input.listId, {
       title,
       createdFromMessageId: message.id,

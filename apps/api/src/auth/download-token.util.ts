@@ -1,4 +1,4 @@
-import type { JwtPayload } from './jwt-payload.interface';
+import type { JwtPayload } from "./jwt-payload.interface";
 
 // Short-lived, single-purpose tokens for the `?token=` file-download path.
 //
@@ -16,7 +16,10 @@ export const DOWNLOAD_TOKEN_TTL_SECONDS = 180; // 3 minutes
 
 export type DownloadScope = string; // `note:<lessonId>:<noteId>` | `cert:<id>`
 
-export function noteDownloadScope(lessonId: string, noteId: string): DownloadScope {
+export function noteDownloadScope(
+  lessonId: string,
+  noteId: string,
+): DownloadScope {
   return `note:${lessonId}:${noteId}`;
 }
 
@@ -29,14 +32,16 @@ export function certDownloadScope(certId: string): DownloadScope {
 // marker and resource scope. It deliberately OMITS member PII (email/username):
 // this token rides in a `?token=` URL that reaches browser history, the OS share
 // sheet, and server logs, so it must not leak identity.
-export interface DownloadTokenPayload
-  extends Omit<JwtPayload, 'email' | 'username'> {
-  typ: 'dl';
+export interface DownloadTokenPayload extends Omit<
+  JwtPayload,
+  "email" | "username"
+> {
+  typ: "dl";
   scope: DownloadScope;
 }
 
 export function isDownloadTokenPayload(
   p: JwtPayload | DownloadTokenPayload,
 ): p is DownloadTokenPayload {
-  return (p as DownloadTokenPayload).typ === 'dl';
+  return (p as DownloadTokenPayload).typ === "dl";
 }

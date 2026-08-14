@@ -1,16 +1,16 @@
-import { Injectable } from '@nestjs/common';
-import type { EmailLog, EmailStatus, Prisma } from '@prisma/client';
-import type { EmailLogDTO, EmailLogListDTO } from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable } from "@nestjs/common";
+import type { EmailLog, EmailStatus, Prisma } from "@prisma/client";
+import type { EmailLogDTO, EmailLogListDTO } from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
 
 // Valid EmailLog statuses (mirrors the EmailStatus enum) — used to validate the
 // optional ?status filter so a junk value is ignored rather than erroring.
 const STATUSES: EmailStatus[] = [
-  'QUEUED',
-  'SENT',
-  'FAILED',
-  'BOUNCED',
-  'COMPLAINED',
+  "QUEUED",
+  "SENT",
+  "FAILED",
+  "BOUNCED",
+  "COMPLAINED",
 ];
 
 const MAX_PAGE_SIZE = 100;
@@ -41,8 +41,8 @@ export class EmailLogService {
     const q = params.q?.trim();
     if (q) {
       where.OR = [
-        { to: { contains: q, mode: 'insensitive' } },
-        { subject: { contains: q, mode: 'insensitive' } },
+        { to: { contains: q, mode: "insensitive" } },
+        { subject: { contains: q, mode: "insensitive" } },
       ];
     }
 
@@ -50,7 +50,7 @@ export class EmailLogService {
       this.prisma.emailLog.count({ where }),
       this.prisma.emailLog.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

@@ -7,21 +7,21 @@ import {
   Ip,
   Put,
   UseGuards,
-} from '@nestjs/common';
-import { CurrentUser } from '../auth/current-user.decorator';
-import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
-import { AuditService } from '../audit/audit.service';
-import { IsOptional, IsString } from 'class-validator';
-import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermission } from '../auth/require-permission.decorator';
-import { SettingsService, SETTING_KEYS } from './settings.service';
+} from "@nestjs/common";
+import { CurrentUser } from "../auth/current-user.decorator";
+import type { AuthenticatedPrincipal } from "../auth/jwt-payload.interface";
+import { AuditService } from "../audit/audit.service";
+import { IsOptional, IsString } from "class-validator";
+import { PermissionsGuard } from "../auth/guards/permissions.guard";
+import { RequirePermission } from "../auth/require-permission.decorator";
+import { SettingsService, SETTING_KEYS } from "./settings.service";
 import {
   UpdateEmailSettingsDto,
   UpdatePaymentProviderDto,
   UpdatePayPalSettingsDto,
   UpdateStripeSettingsDto,
   UpdateZoomSettingsDto,
-} from './dto/settings.dto';
+} from "./dto/settings.dto";
 
 // The webhook shared secret lives on its own endpoint (and its own DTO, declared
 // here rather than in the shared settings.dto so it can rotate independently of
@@ -40,15 +40,15 @@ const last4 = (s: string | null): string | null => (s ? s.slice(-4) : null);
 // DELETE clears a provider's credentials entirely. Gated by the `settings`
 // permission (defaults off for new admins — sensitive section).
 @UseGuards(PermissionsGuard)
-@Controller('admin/settings')
+@Controller("admin/settings")
 export class SettingsController {
   constructor(
     private readonly settings: SettingsService,
     private readonly audit: AuditService,
   ) {}
 
-  @Get('stripe')
-  @RequirePermission('settings', 'read')
+  @Get("stripe")
+  @RequirePermission("settings", "read")
   async getStripe() {
     const [secret, webhook, publishable] = await Promise.all([
       this.settings.getSecret(SETTING_KEYS.stripeSecretKey),
@@ -63,8 +63,8 @@ export class SettingsController {
     };
   }
 
-  @Put('stripe')
-  @RequirePermission('settings', 'edit')
+  @Put("stripe")
+  @RequirePermission("settings", "edit")
   async putStripe(
     @Body() dto: UpdateStripeSettingsDto,
     @CurrentUser() principal: AuthenticatedPrincipal,
@@ -81,15 +81,15 @@ export class SettingsController {
     );
     await this.audit.write({
       actorAdminId: principal.sub,
-      action: 'settings.stripe_rotate',
-      targetType: 'setting',
+      action: "settings.stripe_rotate",
+      targetType: "setting",
       ip,
     });
     return this.getStripe();
   }
 
-  @Delete('stripe')
-  @RequirePermission('settings', 'delete')
+  @Delete("stripe")
+  @RequirePermission("settings", "delete")
   async deleteStripe(
     @CurrentUser() principal: AuthenticatedPrincipal,
     @Ip() ip: string,
@@ -97,8 +97,8 @@ export class SettingsController {
     await this.settings.clearStripe();
     await this.audit.write({
       actorAdminId: principal.sub,
-      action: 'settings.stripe_clear',
-      targetType: 'setting',
+      action: "settings.stripe_clear",
+      targetType: "setting",
       ip,
     });
     return this.getStripe();
@@ -107,8 +107,8 @@ export class SettingsController {
   // ----- Outbound email / SMTP sender (same write-only pattern; password is
   // the only secret — GET reports only whether it's stored, never the value).
 
-  @Get('email')
-  @RequirePermission('settings', 'read')
+  @Get("email")
+  @RequirePermission("settings", "read")
   async getEmail() {
     const [
       provider,
@@ -146,8 +146,8 @@ export class SettingsController {
     };
   }
 
-  @Put('email')
-  @RequirePermission('settings', 'edit')
+  @Put("email")
+  @RequirePermission("settings", "edit")
   async putEmail(@Body() dto: UpdateEmailSettingsDto) {
     await this.settings.setSecret(SETTING_KEYS.emailProvider, dto.provider);
     await this.settings.setSecret(SETTING_KEYS.emailHost, dto.host);
@@ -166,14 +166,14 @@ export class SettingsController {
     if (dto.secure !== undefined) {
       await this.settings.setSecret(
         SETTING_KEYS.emailSecure,
-        dto.secure ? 'true' : 'false',
+        dto.secure ? "true" : "false",
       );
     }
     return this.getEmail();
   }
 
-  @Delete('email')
-  @RequirePermission('settings', 'delete')
+  @Delete("email")
+  @RequirePermission("settings", "delete")
   async deleteEmail() {
     await this.settings.clearEmail();
     return this.getEmail();
@@ -184,26 +184,23 @@ export class SettingsController {
   // only whether one is stored. Kept on its own route so an admin can rotate it
   // without resending SMTP config.
 
-  @Get('email/webhook-secret')
-  @RequirePermission('settings', 'read')
+  @Get("email/webhook-secret")
+  @RequirePermission("settings", "read")
   async getEmailWebhookSecret() {
     const secret = await this.settings.getEmailWebhookSecret();
     return { secretSet: !!secret };
   }
 
-  @Put('email/webhook-secret')
-  @RequirePermission('settings', 'edit')
+  @Put("email/webhook-secret")
+  @RequirePermission("settings", "edit")
   async putEmailWebhookSecret(@Body() dto: UpdateEmailWebhookSecretDto) {
     // Blank/omitted keeps the stored one (setSecret no-ops on '').
-    await this.settings.setSecret(
-      SETTING_KEYS.emailWebhookSecret,
-      dto.secret,
-    );
+    await this.settings.setSecret(SETTING_KEYS.emailWebhookSecret, dto.secret);
     return this.getEmailWebhookSecret();
   }
 
-  @Delete('email/webhook-secret')
-  @RequirePermission('settings', 'delete')
+  @Delete("email/webhook-secret")
+  @RequirePermission("settings", "delete")
   async deleteEmailWebhookSecret() {
     await this.settings.clearEmailWebhookSecret();
     return this.getEmailWebhookSecret();
@@ -211,8 +208,8 @@ export class SettingsController {
 
   // ----- PayPal credentials (same write-only pattern as Stripe) -----
 
-  @Get('paypal')
-  @RequirePermission('settings', 'read')
+  @Get("paypal")
+  @RequirePermission("settings", "read")
   async getPayPal() {
     const [clientId, clientSecret, webhookId, mode] = await Promise.all([
       this.settings.getSecret(SETTING_KEYS.paypalClientId),
@@ -226,12 +223,12 @@ export class SettingsController {
       clientId: clientId ?? null,
       clientSecretLast4: last4(clientSecret),
       webhookId: webhookId ?? null,
-      mode: mode === 'live' ? 'live' : mode === 'sandbox' ? 'sandbox' : null,
+      mode: mode === "live" ? "live" : mode === "sandbox" ? "sandbox" : null,
     };
   }
 
-  @Put('paypal')
-  @RequirePermission('settings', 'edit')
+  @Put("paypal")
+  @RequirePermission("settings", "edit")
   async putPayPal(
     @Body() dto: UpdatePayPalSettingsDto,
     @CurrentUser() principal: AuthenticatedPrincipal,
@@ -252,25 +249,25 @@ export class SettingsController {
     await this.settings.setSecret(SETTING_KEYS.paypalMode, dto.mode);
     const clientChanged =
       dto.clientId !== undefined &&
-      dto.clientId !== '' &&
+      dto.clientId !== "" &&
       dto.clientId !== prevClientId;
     const modeChanged =
-      dto.mode !== undefined && dto.mode !== (prevMode ?? 'sandbox');
+      dto.mode !== undefined && dto.mode !== (prevMode ?? "sandbox");
     if (clientChanged || modeChanged) {
       await this.settings.clearPayPalProvisionedIds();
     }
     await this.audit.write({
       actorAdminId: principal.sub,
-      action: 'settings.paypal_rotate',
-      targetType: 'setting',
+      action: "settings.paypal_rotate",
+      targetType: "setting",
       metadata: { mode: dto.mode ?? null },
       ip,
     });
     return this.getPayPal();
   }
 
-  @Delete('paypal')
-  @RequirePermission('settings', 'delete')
+  @Delete("paypal")
+  @RequirePermission("settings", "delete")
   async deletePayPal() {
     await this.settings.clearPayPal();
     // Whatever app these ids belonged to is no longer configured.
@@ -281,8 +278,8 @@ export class SettingsController {
   // ----- Zoom Meeting SDK (in-page live-session embed) -----
   // SDK key is public (shown in full); SDK secret is write-only (last4 only).
 
-  @Get('zoom')
-  @RequirePermission('settings', 'read')
+  @Get("zoom")
+  @RequirePermission("settings", "read")
   async getZoom() {
     const [sdkKey, sdkSecret] = await Promise.all([
       this.settings.getSecret(SETTING_KEYS.zoomSdkKey),
@@ -294,8 +291,8 @@ export class SettingsController {
     };
   }
 
-  @Put('zoom')
-  @RequirePermission('settings', 'edit')
+  @Put("zoom")
+  @RequirePermission("settings", "edit")
   async putZoom(@Body() dto: UpdateZoomSettingsDto) {
     await this.settings.setSecret(SETTING_KEYS.zoomSdkKey, dto.sdkKey);
     // Blank/omitted secret keeps the stored one (setSecret no-ops on '').
@@ -303,8 +300,8 @@ export class SettingsController {
     return this.getZoom();
   }
 
-  @Delete('zoom')
-  @RequirePermission('settings', 'delete')
+  @Delete("zoom")
+  @RequirePermission("settings", "delete")
   async deleteZoom() {
     await this.settings.clearZoom();
     return this.getZoom();
@@ -312,47 +309,44 @@ export class SettingsController {
 
   // ----- Active payment provider (governs NEW checkouts only) -----
 
-  @Get('payment-provider')
-  @RequirePermission('settings', 'read')
+  @Get("payment-provider")
+  @RequirePermission("settings", "read")
   async getPaymentProvider() {
     return { provider: await this.settings.getPaymentProvider() };
   }
 
-  @Put('payment-provider')
-  @RequirePermission('settings', 'edit')
+  @Put("payment-provider")
+  @RequirePermission("settings", "edit")
   async putPaymentProvider(@Body() dto: UpdatePaymentProviderDto) {
     // Refuse to point new checkouts at an unconfigured processor.
-    if (dto.provider === 'paypal') {
+    if (dto.provider === "paypal") {
       const [clientId, secret] = await Promise.all([
         this.settings.getPayPalClientId(),
         this.settings.getPayPalClientSecret(),
       ]);
       if (!clientId || !secret) {
         throw new BadRequestException(
-          'Add the PayPal client ID and secret before making PayPal the active provider.',
+          "Add the PayPal client ID and secret before making PayPal the active provider.",
         );
       }
       const webhookId = await this.settings.getPayPalWebhookId();
-      await this.settings.setSecret(
-        SETTING_KEYS.paymentProvider,
-        dto.provider,
-      );
+      await this.settings.setSecret(SETTING_KEYS.paymentProvider, dto.provider);
       return {
-        provider: 'paypal' as const,
+        provider: "paypal" as const,
         // Checkouts work without a webhook id (the activate endpoint reconciles
         // inline), but renewals/cancellations made AT PayPal won't sync.
         warning: webhookId
           ? null
-          : 'No PayPal webhook ID saved — subscription changes made at PayPal will not sync automatically.',
+          : "No PayPal webhook ID saved — subscription changes made at PayPal will not sync automatically.",
       };
     }
     const secretKey = await this.settings.getStripeSecretKey();
     if (!secretKey) {
       throw new BadRequestException(
-        'Add the Stripe secret key before making Stripe the active provider.',
+        "Add the Stripe secret key before making Stripe the active provider.",
       );
     }
     await this.settings.setSecret(SETTING_KEYS.paymentProvider, dto.provider);
-    return { provider: 'stripe' as const, warning: null };
+    return { provider: "stripe" as const, warning: null };
   }
 }

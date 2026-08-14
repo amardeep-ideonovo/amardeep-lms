@@ -3,12 +3,16 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { Prisma, type Automation, type AutomationTrigger } from '@prisma/client';
-import type { AutomationDTO, AutomationInput } from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { EmailService } from './email.service';
+} from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import {
+  Prisma,
+  type Automation,
+  type AutomationTrigger,
+} from "@prisma/client";
+import type { AutomationDTO, AutomationInput } from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { EmailService } from "./email.service";
 
 // Context handed to fire(): who to mail, the optional Contact link, and the
 // merge vars the target template expects.
@@ -51,7 +55,9 @@ export class AutomationService {
         where: { trigger, active: true },
       });
     } catch (err) {
-      this.logger.warn(`automation lookup for ${trigger} failed: ${this.msg(err)}`);
+      this.logger.warn(
+        `automation lookup for ${trigger} failed: ${this.msg(err)}`,
+      );
       return;
     }
 
@@ -115,7 +121,7 @@ export class AutomationService {
       // A repeat of the same event already scheduled this send — fine, leave it.
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2002'
+        err.code === "P2002"
       ) {
         return;
       }
@@ -141,23 +147,25 @@ export class AutomationService {
   @Cron(CronExpression.EVERY_MINUTE)
   async drainScheduledEmails(): Promise<void> {
     if (this.draining) {
-      this.logger.debug('scheduled-email drain skipped — previous run still in progress');
+      this.logger.debug(
+        "scheduled-email drain skipped — previous run still in progress",
+      );
       return;
     }
     this.draining = true;
     try {
       const now = new Date();
       const due = await this.prisma.scheduledEmail.findMany({
-        where: { status: 'PENDING', sendAt: { lte: now } },
-        orderBy: { sendAt: 'asc' },
+        where: { status: "PENDING", sendAt: { lte: now } },
+        orderBy: { sendAt: "asc" },
         take: 200,
       });
       let sent = 0;
       for (const row of due) {
         // Atomic claim: only the worker that flips PENDING->SENT proceeds.
         const claim = await this.prisma.scheduledEmail.updateMany({
-          where: { id: row.id, status: 'PENDING' },
-          data: { status: 'SENT', sentAt: new Date() },
+          where: { id: row.id, status: "PENDING" },
+          data: { status: "SENT", sentAt: new Date() },
         });
         if (claim.count !== 1) continue; // lost the race — another worker has it
 
@@ -173,14 +181,14 @@ export class AutomationService {
           // sendTemplate never throws: a non-SENT result (suppressed / sender not
           // configured / render failure) means the deferred mail did NOT go out.
           // Reflect that on the row instead of leaving the optimistic SENT claim.
-          if (log.status === 'SENT') {
+          if (log.status === "SENT") {
             sent++;
           } else {
             await this.prisma.scheduledEmail
               .update({
                 where: { id: row.id },
                 data: {
-                  status: 'FAILED',
+                  status: "FAILED",
                   error: (log.error ?? log.status).slice(0, 500),
                 },
               })
@@ -190,7 +198,7 @@ export class AutomationService {
           await this.prisma.scheduledEmail
             .update({
               where: { id: row.id },
-              data: { status: 'FAILED', error: this.msg(err).slice(0, 500) },
+              data: { status: "FAILED", error: this.msg(err).slice(0, 500) },
             })
             .catch(() => undefined);
           this.logger.warn(
@@ -201,7 +209,9 @@ export class AutomationService {
         }
       }
       if (sent > 0) {
-        this.logger.log(`scheduled-email drain dispatched ${sent} deferred mail(s)`);
+        this.logger.log(
+          `scheduled-email drain dispatched ${sent} deferred mail(s)`,
+        );
       }
     } catch (err) {
       this.logger.error(`scheduled-email drain failed: ${this.msg(err)}`);
@@ -214,26 +224,26 @@ export class AutomationService {
 
   async list(): Promise<AutomationDTO[]> {
     const rows = await this.prisma.automation.findMany({
-      orderBy: [{ trigger: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ trigger: "asc" }, { createdAt: "asc" }],
     });
     return rows.map((a) => this.toDTO(a));
   }
 
   async create(input: AutomationInput): Promise<AutomationDTO> {
     if (!input.trigger) {
-      throw new BadRequestException('A trigger is required');
+      throw new BadRequestException("A trigger is required");
     }
     if (!input.templateId) {
-      throw new BadRequestException('A template is required');
+      throw new BadRequestException("A template is required");
     }
     const row = await this.prisma.automation.create({
       data: {
-        name: (input.name ?? '').trim() || 'Untitled automation',
+        name: (input.name ?? "").trim() || "Untitled automation",
         trigger: input.trigger as AutomationTrigger,
         templateId: input.templateId,
         active: input.active ?? true,
         delayMinutes:
-          typeof input.delayMinutes === 'number' && input.delayMinutes > 0
+          typeof input.delayMinutes === "number" && input.delayMinutes > 0
             ? Math.floor(input.delayMinutes)
             : 0,
       },
@@ -243,11 +253,11 @@ export class AutomationService {
 
   async update(id: string, input: AutomationInput): Promise<AutomationDTO> {
     const existing = await this.prisma.automation.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Automation not found');
+    if (!existing) throw new NotFoundException("Automation not found");
 
     const patch: Prisma.AutomationUpdateInput = {};
     if (input.name !== undefined) {
-      patch.name = input.name.trim() || 'Untitled automation';
+      patch.name = input.name.trim() || "Untitled automation";
     }
     if (input.trigger !== undefined) {
       patch.trigger = input.trigger as AutomationTrigger;
@@ -256,12 +266,15 @@ export class AutomationService {
     if (input.active !== undefined) patch.active = input.active;
     if (input.delayMinutes !== undefined) {
       patch.delayMinutes =
-        typeof input.delayMinutes === 'number' && input.delayMinutes > 0
+        typeof input.delayMinutes === "number" && input.delayMinutes > 0
           ? Math.floor(input.delayMinutes)
           : 0;
     }
 
-    const row = await this.prisma.automation.update({ where: { id }, data: patch });
+    const row = await this.prisma.automation.update({
+      where: { id },
+      data: patch,
+    });
     return this.toDTO(row);
   }
 
@@ -270,7 +283,7 @@ export class AutomationService {
       where: { id },
       select: { id: true },
     });
-    if (!existing) throw new NotFoundException('Automation not found');
+    if (!existing) throw new NotFoundException("Automation not found");
     await this.prisma.automation.delete({ where: { id } });
     return { ok: true };
   }
@@ -286,26 +299,26 @@ export class AutomationService {
   async ensureSystemAutomations(): Promise<void> {
     try {
       const existing = await this.prisma.automation.findFirst({
-        where: { trigger: 'SIGNUP' },
+        where: { trigger: "SIGNUP" },
         select: { id: true },
       });
       if (existing) return;
 
       const welcome = await this.prisma.emailTemplate.findUnique({
-        where: { key: 'welcome' },
+        where: { key: "welcome" },
         select: { id: true },
       });
       if (!welcome) {
         this.logger.warn(
-          'ensureSystemAutomations: welcome template missing — skipping SIGNUP seed',
+          "ensureSystemAutomations: welcome template missing — skipping SIGNUP seed",
         );
         return;
       }
 
       await this.prisma.automation.create({
         data: {
-          name: 'Welcome',
-          trigger: 'SIGNUP',
+          name: "Welcome",
+          trigger: "SIGNUP",
           templateId: welcome.id,
           active: true,
         },

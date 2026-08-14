@@ -9,28 +9,24 @@ import {
   MaxLength,
   Min,
   MinLength,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-import type {
-  ContactFilter,
-  ContactSource,
-  ContactStatus,
-} from '@lms/types';
+} from "class-validator";
+import { Type } from "class-transformer";
+import type { ContactFilter, ContactSource, ContactStatus } from "@lms/types";
 
 // Allowed enum values, mirrored from the Prisma enums / @lms/types.
 const STATUSES: ContactStatus[] = [
-  'SUBSCRIBED',
-  'PENDING',
-  'UNSUBSCRIBED',
-  'CLEANED',
+  "SUBSCRIBED",
+  "PENDING",
+  "UNSUBSCRIBED",
+  "CLEANED",
 ];
 const SOURCES: ContactSource[] = [
-  'SIGNUP',
-  'FORM',
-  'FOOTER',
-  'IMPORT',
-  'MANUAL',
-  'ADMIN',
+  "SIGNUP",
+  "FORM",
+  "FOOTER",
+  "IMPORT",
+  "MANUAL",
+  "ADMIN",
 ];
 
 // ---------- Audiences ----------

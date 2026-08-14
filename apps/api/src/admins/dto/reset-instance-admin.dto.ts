@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 
 // Body for the control-plane-only POST /instance-admin/reset-password. The
 // control plane GENERATES the new password and tells us which admin it's for

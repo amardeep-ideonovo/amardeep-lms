@@ -13,23 +13,23 @@ import {
   UploadedFiles,
   UseGuards,
   UseInterceptors,
-} from '@nestjs/common';
-import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import type { Request, Response } from 'express';
-import { JwtService } from '@nestjs/jwt';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermission } from '../auth/require-permission.decorator';
-import { JwtDownloadGuard } from '../auth/guards/jwt-download.guard';
-import { CurrentUser } from '../auth/current-user.decorator';
-import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
+} from "@nestjs/common";
+import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
+import { diskStorage } from "multer";
+import type { Request, Response } from "express";
+import { JwtService } from "@nestjs/jwt";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { PermissionsGuard } from "../auth/guards/permissions.guard";
+import { RequirePermission } from "../auth/require-permission.decorator";
+import { JwtDownloadGuard } from "../auth/guards/jwt-download.guard";
+import { CurrentUser } from "../auth/current-user.decorator";
+import type { AuthenticatedPrincipal } from "../auth/jwt-payload.interface";
 import {
   DOWNLOAD_TOKEN_TTL_SECONDS,
   noteDownloadScope,
   type DownloadTokenPayload,
-} from '../auth/download-token.util';
-import { LmsService } from './lms.service';
+} from "../auth/download-token.util";
+import { LmsService } from "./lms.service";
 import {
   CreateCourseDto,
   CreateLessonDto,
@@ -37,7 +37,7 @@ import {
   UpdateCourseDto,
   UpdateLessonDto,
   UpdateLessonNoteDto,
-} from './dto/lms.dto';
+} from "./dto/lms.dto";
 import {
   COURSE_IMG_DIR,
   COURSE_IMG_URL_PATH,
@@ -51,7 +51,7 @@ import {
   imageExt,
   noteFileExt,
   timestampName,
-} from './upload.config';
+} from "./upload.config";
 
 // Make sure the destinations exist before multer's storage engine runs.
 ensureLmsUploadDirs();
@@ -64,7 +64,7 @@ const courseImageStorage = diskStorage({
   filename: (_req, file, cb) =>
     cb(
       null,
-      timestampName(imageExt(file.mimetype, file.originalname) ?? '.img'),
+      timestampName(imageExt(file.mimetype, file.originalname) ?? ".img"),
     ),
 });
 const lessonImageStorage = diskStorage({
@@ -72,7 +72,7 @@ const lessonImageStorage = diskStorage({
   filename: (_req, file, cb) =>
     cb(
       null,
-      timestampName(imageExt(file.mimetype, file.originalname) ?? '.img'),
+      timestampName(imageExt(file.mimetype, file.originalname) ?? ".img"),
     ),
 });
 const noteStorage = diskStorage({
@@ -80,14 +80,14 @@ const noteStorage = diskStorage({
   filename: (_req, file, cb) =>
     cb(
       null,
-      timestampName(noteFileExt(file.mimetype, file.originalname) ?? '.bin'),
+      timestampName(noteFileExt(file.mimetype, file.originalname) ?? ".bin"),
     ),
 });
 // Absolute base for built URLs: PUBLIC_API_URL in prod, else the request host.
 function publicBase(req: Request): string {
   return (
-    process.env.PUBLIC_API_URL?.replace(/\/$/, '') ||
-    `${req.protocol}://${req.get('host')}`
+    process.env.PUBLIC_API_URL?.replace(/\/$/, "") ||
+    `${req.protocol}://${req.get("host")}`
   );
 }
 
@@ -108,7 +108,7 @@ export class LmsController {
   // ----- Courses -----
 
   @UseGuards(JwtAuthGuard)
-  @Get('courses')
+  @Get("courses")
   listCourses(@CurrentUser() principal: AuthenticatedPrincipal) {
     // Admins see archived courses (to badge + unarchive); members never do.
     return this.lms.listCourses(
@@ -118,49 +118,49 @@ export class LmsController {
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'create')
-  @Post('courses')
+  @RequirePermission("courses", "create")
+  @Post("courses")
   createCourse(@Body() dto: CreateCourseDto) {
     return this.lms.createCourse(dto);
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'edit')
-  @Patch('courses/:id')
-  updateCourse(@Param('id') id: string, @Body() dto: UpdateCourseDto) {
+  @RequirePermission("courses", "edit")
+  @Patch("courses/:id")
+  updateCourse(@Param("id") id: string, @Body() dto: UpdateCourseDto) {
     return this.lms.updateCourse(id, dto);
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'delete')
-  @Delete('courses/:id')
-  deleteCourse(@Param('id') id: string) {
+  @RequirePermission("courses", "delete")
+  @Delete("courses/:id")
+  deleteCourse(@Param("id") id: string) {
     return this.lms.deleteCourse(id);
   }
 
   // Soft-archive: a reversible 'edit' state change (hides the course from
   // members but keeps lifetime purchases), unlike the destructive 'delete'.
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'edit')
-  @Patch('courses/:id/archive')
-  archiveCourse(@Param('id') id: string) {
+  @RequirePermission("courses", "edit")
+  @Patch("courses/:id/archive")
+  archiveCourse(@Param("id") id: string) {
     return this.lms.archiveCourse(id);
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'edit')
-  @Patch('courses/:id/unarchive')
-  unarchiveCourse(@Param('id') id: string) {
+  @RequirePermission("courses", "edit")
+  @Patch("courses/:id/unarchive")
+  unarchiveCourse(@Param("id") id: string) {
     return this.lms.unarchiveCourse(id);
   }
 
   // Upload a course image (thumbnail or cover). Saved under the public
   // /images/course tree; returns an absolute URL to store on the course.
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'create')
-  @Post('courses/upload')
+  @RequirePermission("courses", "create")
+  @Post("courses/upload")
   @UseInterceptors(
-    FileInterceptor('file', {
+    FileInterceptor("file", {
       storage: courseImageStorage,
       limits: { fileSize: MAX_IMAGE_BYTES },
       fileFilter: (_req, file, cb) =>
@@ -173,7 +173,7 @@ export class LmsController {
   ) {
     if (!file) {
       throw new BadRequestException(
-        'No image file (allowed: jpg, png, webp, gif, avif; max 5 MB)',
+        "No image file (allowed: jpg, png, webp, gif, avif; max 5 MB)",
       );
     }
     return {
@@ -185,27 +185,27 @@ export class LmsController {
   // ----- Lessons -----
 
   @UseGuards(JwtAuthGuard)
-  @Get('courses/:id/lessons')
+  @Get("courses/:id/lessons")
   listCourseLessons(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @CurrentUser() principal: AuthenticatedPrincipal,
   ) {
     return this.lms.listCourseLessons(id, this.memberContext(principal));
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'create')
-  @Post('courses/:id/lessons')
-  createLesson(@Param('id') id: string, @Body() dto: CreateLessonDto) {
+  @RequirePermission("courses", "create")
+  @Post("courses/:id/lessons")
+  createLesson(@Param("id") id: string, @Body() dto: CreateLessonDto) {
     return this.lms.createLesson(id, dto);
   }
 
   // Upload a lesson thumbnail. Saved under the public /images/lesson tree.
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'create')
-  @Post('lessons/upload')
+  @RequirePermission("courses", "create")
+  @Post("lessons/upload")
   @UseInterceptors(
-    FileInterceptor('file', {
+    FileInterceptor("file", {
       storage: lessonImageStorage,
       limits: { fileSize: MAX_IMAGE_BYTES },
       fileFilter: (_req, file, cb) =>
@@ -218,7 +218,7 @@ export class LmsController {
   ) {
     if (!file) {
       throw new BadRequestException(
-        'No image file (allowed: jpg, png, webp, gif, avif; max 5 MB)',
+        "No image file (allowed: jpg, png, webp, gif, avif; max 5 MB)",
       );
     }
     return {
@@ -228,32 +228,32 @@ export class LmsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('lessons/:id')
+  @Get("lessons/:id")
   getLesson(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @CurrentUser() principal: AuthenticatedPrincipal,
   ) {
     return this.lms.getLesson(id, principal.sub);
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'edit')
-  @Patch('lessons/:id')
-  updateLesson(@Param('id') id: string, @Body() dto: UpdateLessonDto) {
+  @RequirePermission("courses", "edit")
+  @Patch("lessons/:id")
+  updateLesson(@Param("id") id: string, @Body() dto: UpdateLessonDto) {
     return this.lms.updateLesson(id, dto);
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'delete')
-  @Delete('lessons/:id')
-  deleteLesson(@Param('id') id: string) {
+  @RequirePermission("courses", "delete")
+  @Delete("lessons/:id")
+  deleteLesson(@Param("id") id: string) {
     return this.lms.deleteLesson(id);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('lessons/:id/complete')
+  @Post("lessons/:id/complete")
   completeLesson(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @CurrentUser() principal: AuthenticatedPrincipal,
   ) {
     return this.lms.completeLesson(id, principal.sub);
@@ -261,9 +261,9 @@ export class LmsController {
 
   // Undo a mark-complete (member self-service; also lets tests reset state).
   @UseGuards(JwtAuthGuard)
-  @Delete('lessons/:id/complete')
+  @Delete("lessons/:id/complete")
   uncompleteLesson(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @CurrentUser() principal: AuthenticatedPrincipal,
   ) {
     return this.lms.uncompleteLesson(id, principal.sub);
@@ -272,22 +272,26 @@ export class LmsController {
   // Playback heartbeat: marks the lesson "started" on first call and saves the
   // resume position. Member-only; same access gate as viewing.
   @UseGuards(JwtAuthGuard)
-  @Post('lessons/:id/progress')
+  @Post("lessons/:id/progress")
   recordProgress(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() dto: RecordProgressDto,
     @CurrentUser() principal: AuthenticatedPrincipal,
   ) {
-    return this.lms.recordLessonProgress(id, principal.sub, dto.positionSeconds);
+    return this.lms.recordLessonProgress(
+      id,
+      principal.sub,
+      dto.positionSeconds,
+    );
   }
 
   // ----- Lesson notes (downloadable attachments) -----
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'create')
-  @Post('lessons/:id/notes')
+  @RequirePermission("courses", "create")
+  @Post("lessons/:id/notes")
   @UseInterceptors(
-    FilesInterceptor('files', MAX_NOTES_PER_UPLOAD, {
+    FilesInterceptor("files", MAX_NOTES_PER_UPLOAD, {
       storage: noteStorage,
       limits: { fileSize: MAX_NOTE_BYTES },
       fileFilter: (_req, file, cb) =>
@@ -295,27 +299,27 @@ export class LmsController {
     }),
   )
   uploadNotes(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @UploadedFiles() files: Express.Multer.File[] | undefined,
   ) {
     return this.lms.addNotes(id, files ?? []);
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'edit')
-  @Patch('lessons/:id/notes/:noteId')
+  @RequirePermission("courses", "edit")
+  @Patch("lessons/:id/notes/:noteId")
   renameNote(
-    @Param('id') id: string,
-    @Param('noteId') noteId: string,
+    @Param("id") id: string,
+    @Param("noteId") noteId: string,
     @Body() dto: UpdateLessonNoteDto,
   ) {
     return this.lms.renameNote(id, noteId, dto.originalName);
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('courses', 'delete')
-  @Delete('lessons/:id/notes/:noteId')
-  deleteNote(@Param('id') id: string, @Param('noteId') noteId: string) {
+  @RequirePermission("courses", "delete")
+  @Delete("lessons/:id/notes/:noteId")
+  deleteNote(@Param("id") id: string, @Param("noteId") noteId: string) {
     return this.lms.deleteNote(id, noteId);
   }
 
@@ -324,10 +328,10 @@ export class LmsController {
   // and returned as a bare token the client puts in the ?token= download URL —
   // so the long-lived session JWT never rides in a URL. See download-token.util.
   @UseGuards(JwtAuthGuard)
-  @Get('lessons/:id/notes/:noteId/download-url')
+  @Get("lessons/:id/notes/:noteId/download-url")
   async noteDownloadToken(
-    @Param('id') id: string,
-    @Param('noteId') noteId: string,
+    @Param("id") id: string,
+    @Param("noteId") noteId: string,
     @CurrentUser() principal: AuthenticatedPrincipal,
   ): Promise<{ token: string }> {
     // Throws (403/404) if this member can't access the note — same gate the
@@ -336,7 +340,7 @@ export class LmsController {
     const payload: DownloadTokenPayload = {
       sub: principal.sub,
       isAdmin: principal.isAdmin,
-      typ: 'dl',
+      typ: "dl",
       scope: noteDownloadScope(id, noteId),
     };
     const token = await this.jwt.signAsync(payload, {
@@ -349,10 +353,10 @@ export class LmsController {
   // short-lived download token in ?token= (mobile browser open). Admins bypass
   // the lock check (see LmsService.getDownloadableNote).
   @UseGuards(JwtDownloadGuard)
-  @Get('lessons/:id/notes/:noteId/download')
+  @Get("lessons/:id/notes/:noteId/download")
   async downloadNote(
-    @Param('id') id: string,
-    @Param('noteId') noteId: string,
+    @Param("id") id: string,
+    @Param("noteId") noteId: string,
     @CurrentUser() principal: AuthenticatedPrincipal,
     @Res() res: Response,
   ) {
@@ -363,7 +367,7 @@ export class LmsController {
     );
     // The token can ride in ?token=; no-referrer stops it leaking to any third
     // party via the Referer header on downstream navigations.
-    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader("Referrer-Policy", "no-referrer");
     res.download(absPath, originalName);
   }
 }

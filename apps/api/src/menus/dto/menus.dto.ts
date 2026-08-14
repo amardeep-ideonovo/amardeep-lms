@@ -7,13 +7,13 @@ import {
   MaxLength,
   MinLength,
   ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+} from "class-validator";
+import { Type } from "class-transformer";
 import type {
   MenuItemType,
   MenuItemVisibility,
   MenuLocation,
-} from '@lms/types';
+} from "@lms/types";
 
 // Enums/targets are loosely validated here and sanitized in MenusService (the
 // API consumes @lms/types as TYPES only, so the canonical const arrays live

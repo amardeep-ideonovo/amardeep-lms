@@ -3,9 +3,9 @@ import {
   ExecutionContext,
   Injectable,
   UnauthorizedException,
-} from '@nestjs/common';
-import { timingSafeEqual } from 'node:crypto';
-import type { Request } from 'express';
+} from "@nestjs/common";
+import { timingSafeEqual } from "node:crypto";
+import type { Request } from "express";
 
 // Authenticates a server-to-server call FROM the control plane. No user, no JWT —
 // the gate is the per-instance service token, the SAME shared secret this
@@ -16,11 +16,11 @@ import type { Request } from 'express';
 @Injectable()
 export class ServiceTokenGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const expected = process.env.INSTANCE_SERVICE_TOKEN ?? '';
+    const expected = process.env.INSTANCE_SERVICE_TOKEN ?? "";
     if (!expected) throw new UnauthorizedException(); // no token → nothing to authorize
     const req = context.switchToHttp().getRequest<Request>();
-    const header = req.headers.authorization ?? '';
-    const presented = header.startsWith('Bearer ') ? header.slice(7) : '';
+    const header = req.headers.authorization ?? "";
+    const presented = header.startsWith("Bearer ") ? header.slice(7) : "";
     if (!presented || !safeEqual(presented, expected)) {
       throw new UnauthorizedException();
     }

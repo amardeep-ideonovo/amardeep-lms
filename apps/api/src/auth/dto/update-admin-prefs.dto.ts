@@ -1,4 +1,4 @@
-import { ArrayMaxSize, IsArray, IsOptional, IsString } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsOptional, IsString } from "class-validator";
 
 // Admin self-service UI preferences (PATCH /auth/admin/prefs). `menuOrder` is a
 // list of stable sidebar nav keys; AuthService.updateAdminPrefs() trims, dedupes

@@ -2,15 +2,15 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-} from '@nestjs/common';
-import type { ChatChannel, ChatMember } from '@prisma/client';
+} from "@nestjs/common";
+import type { ChatChannel, ChatMember } from "@prisma/client";
 import type {
   ChatChannelDetailDTO,
   ChatChannelDTO,
   CreateChatChannelInput,
   UpdateChatChannelInput,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
 
 // Channels: public ones everyone can see + private ones only members see. The
 // acting admin id is always passed in (controller reads it off the JWT via
@@ -47,21 +47,19 @@ export class ChannelsService {
       where: { adminId },
       select: { channelId: true, lastReadSeq: true },
     });
-    const memberByChannel = new Map(
-      myMemberships.map((m) => [m.channelId, m]),
-    );
+    const memberByChannel = new Map(myMemberships.map((m) => [m.channelId, m]));
 
     const channels = await this.prisma.chatChannel.findMany({
       where: {
         // Only regular channels here — DM/GROUP_DM channels live in their own
         // "Direct messages" rail (GET /admin/projects/dms), never this list.
-        kind: 'CHANNEL',
+        kind: "CHANNEL",
         OR: [
           { isPrivate: false },
           { id: { in: myMemberships.map((m) => m.channelId) } },
         ],
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
 
     return Promise.all(
@@ -114,25 +112,25 @@ export class ChannelsService {
     const channel = await this.prisma.chatChannel.findUnique({
       where: { id: channelId },
       include: {
-        members: { orderBy: { joinedAt: 'asc' } },
+        members: { orderBy: { joinedAt: "asc" } },
         // Tab-bar inputs: the channel's Lists (queue tabs) and Canvas docs, both
         // ordered by position. Just the id + label the UI needs to render tabs;
         // full contents load on tab-select (listLists / canvases GET).
         lists: {
-          orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+          orderBy: [{ position: "asc" }, { createdAt: "asc" }],
           select: { id: true, name: true },
         },
         canvases: {
-          orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+          orderBy: [{ position: "asc" }, { createdAt: "asc" }],
           select: { id: true, title: true },
         },
       },
     });
-    if (!channel) throw new NotFoundException('Channel not found');
+    if (!channel) throw new NotFoundException("Channel not found");
     const members = channel.members as ChatMember[];
     const myMembership = members.find((m) => m.adminId === adminId) ?? null;
     if (channel.isPrivate && !myMembership) {
-      throw new ForbiddenException('This channel is private');
+      throw new ForbiddenException("This channel is private");
     }
     const lastReadSeq = myMembership?.lastReadSeq ?? 0;
     const [unreadCount, mentionCount] = await Promise.all([
@@ -222,7 +220,7 @@ export class ChannelsService {
       where: { id: channelId },
       select: { id: true },
     });
-    if (!channel) throw new NotFoundException('Channel not found');
+    if (!channel) throw new NotFoundException("Channel not found");
     // Idempotent: the [channelId, adminId] unique makes a re-join a no-op.
     await this.prisma.chatMember.upsert({
       where: { channelId_adminId: { channelId, adminId } },
@@ -239,17 +237,20 @@ export class ChannelsService {
 
   // ----- Internal guards (shared with MessagesService via the module) -----
 
-  async assertVisible(adminId: string, channelId: string): Promise<ChatChannel> {
+  async assertVisible(
+    adminId: string,
+    channelId: string,
+  ): Promise<ChatChannel> {
     const channel = await this.prisma.chatChannel.findUnique({
       where: { id: channelId },
     });
-    if (!channel) throw new NotFoundException('Channel not found');
+    if (!channel) throw new NotFoundException("Channel not found");
     if (channel.isPrivate) {
       const membership = await this.prisma.chatMember.findUnique({
         where: { channelId_adminId: { channelId, adminId } },
         select: { id: true },
       });
-      if (!membership) throw new ForbiddenException('This channel is private');
+      if (!membership) throw new ForbiddenException("This channel is private");
     }
     return channel;
   }

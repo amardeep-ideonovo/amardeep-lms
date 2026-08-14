@@ -9,24 +9,24 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
-import type { Request } from 'express';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import { AuthService } from './auth.service';
-import { LoginDto } from './dto/login.dto';
-import { SignupDto } from './dto/signup.dto';
-import { ForgotPasswordDto } from './dto/forgot-password.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
-import { UpdateAdminPrefsDto } from './dto/update-admin-prefs.dto';
-import { UpdateAdminProfileDto } from './dto/update-admin-profile.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { AdminGuard } from './guards/admin.guard';
-import { CurrentUser } from './current-user.decorator';
-import type { AuthenticatedPrincipal } from './jwt-payload.interface';
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { memoryStorage } from "multer";
+import type { Request } from "express";
+import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import { AuthService } from "./auth.service";
+import { LoginDto } from "./dto/login.dto";
+import { SignupDto } from "./dto/signup.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
+import { UpdateProfileDto } from "./dto/update-profile.dto";
+import { ChangePasswordDto } from "./dto/change-password.dto";
+import { UpdateAdminPrefsDto } from "./dto/update-admin-prefs.dto";
+import { UpdateAdminProfileDto } from "./dto/update-admin-profile.dto";
+import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { AdminGuard } from "./guards/admin.guard";
+import { CurrentUser } from "./current-user.decorator";
+import type { AuthenticatedPrincipal } from "./jwt-payload.interface";
 
 // Rate-limit overrides via env var (see .env.example). Defaults to 5/min/IP
 // for login and admin/login, which is enough for legitimate retries without
@@ -47,18 +47,18 @@ const FORGOT_TTL_MS = 60_000;
 // Absolute base for the embeddable avatar URL. Mirrors media.controller.
 function baseUrlOf(req: Request): string {
   return (
-    process.env.PUBLIC_API_URL?.replace(/\/$/, '') ||
-    `${req.protocol}://${req.get('host')}`
+    process.env.PUBLIC_API_URL?.replace(/\/$/, "") ||
+    `${req.protocol}://${req.get("host")}`
   );
 }
 
-@Controller('auth')
+@Controller("auth")
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   // Login authenticates an existing user — it doesn't create a resource, so 200
   // (not Nest's default 201 for POST).
-  @Post('login')
+  @Post("login")
   @HttpCode(200)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
@@ -66,7 +66,7 @@ export class AuthController {
     return this.auth.loginMember(dto.email, dto.password);
   }
 
-  @Post('admin/login')
+  @Post("admin/login")
   @HttpCode(200)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
@@ -78,7 +78,7 @@ export class AuthController {
   // drop straight into the authenticated app. 409 on duplicate email, 403 on
   // invalid invite code (when SIGNUP_INVITE_CODE is set), 400 on validation.
   // No 201 because the response shape is identical to login (token + user).
-  @Post('signup')
+  @Post("signup")
   @HttpCode(200)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: SIGNUP_LIMIT, ttl: SIGNUP_TTL_MS } })
@@ -90,7 +90,7 @@ export class AuthController {
   // success and unknown-email are deliberately indistinguishable so the
   // endpoint can't enumerate accounts. Tightly throttled: each hit on a real
   // account sends an email.
-  @Post('forgot-password')
+  @Post("forgot-password")
   @HttpCode(200)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: FORGOT_LIMIT, ttl: FORGOT_TTL_MS } })
@@ -102,7 +102,7 @@ export class AuthController {
   // credential; 400 on any invalid/expired/already-used token. Rate-limited
   // like login (the token is unguessable, but there's no reason to allow
   // hammering an unauthenticated password-writing route).
-  @Post('reset-password')
+  @Post("reset-password")
   @HttpCode(200)
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
@@ -111,7 +111,7 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('me')
+  @Get("me")
   me(@CurrentUser() principal: AuthenticatedPrincipal) {
     return this.auth.me(principal);
   }
@@ -119,7 +119,7 @@ export class AuthController {
   // Member self-service: update own name + username (NOT email). Also clears
   // the profile photo when { removeAvatar: true } is sent.
   @UseGuards(JwtAuthGuard)
-  @Patch('me')
+  @Patch("me")
   updateMe(
     @CurrentUser() principal: AuthenticatedPrincipal,
     @Body() dto: UpdateProfileDto,
@@ -129,9 +129,9 @@ export class AuthController {
 
   // Member self-service: upload own profile photo (image only, max 8 MB).
   @UseGuards(JwtAuthGuard)
-  @Post('me/avatar')
+  @Post("me/avatar")
   @UseInterceptors(
-    FileInterceptor('file', {
+    FileInterceptor("file", {
       storage: memoryStorage(),
       limits: { fileSize: 8 * 1024 * 1024 },
     }),
@@ -148,7 +148,7 @@ export class AuthController {
   // to slow brute-forcing it. 200 (not 201) — no resource is created.
   @UseGuards(JwtAuthGuard, ThrottlerGuard)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
-  @Post('change-password')
+  @Post("change-password")
   @HttpCode(200)
   changePassword(
     @CurrentUser() principal: AuthenticatedPrincipal,
@@ -160,7 +160,7 @@ export class AuthController {
   // Admin self-service password change (separate table from members).
   @UseGuards(JwtAuthGuard, ThrottlerGuard)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
-  @Post('admin/change-password')
+  @Post("admin/change-password")
   @HttpCode(200)
   changeAdminPassword(
     @CurrentUser() principal: AuthenticatedPrincipal,
@@ -174,7 +174,7 @@ export class AuthController {
   // valid admin token (no per-section permission needed). Returns the refreshed
   // AuthAdmin so the client can update its cached `me` in place.
   @UseGuards(AdminGuard)
-  @Patch('admin/prefs')
+  @Patch("admin/prefs")
   updateAdminPrefs(
     @CurrentUser() principal: AuthenticatedPrincipal,
     @Body() dto: UpdateAdminPrefsDto,
@@ -184,7 +184,7 @@ export class AuthController {
 
   // Admin self-service: update display name / remove avatar.
   @UseGuards(AdminGuard)
-  @Patch('admin/profile')
+  @Patch("admin/profile")
   updateAdminProfile(
     @CurrentUser() principal: AuthenticatedPrincipal,
     @Body() dto: UpdateAdminProfileDto,
@@ -194,9 +194,9 @@ export class AuthController {
 
   // Admin self-service: upload a profile photo (image only, max 8 MB).
   @UseGuards(AdminGuard)
-  @Post('admin/avatar')
+  @Post("admin/avatar")
   @UseInterceptors(
-    FileInterceptor('file', {
+    FileInterceptor("file", {
       storage: memoryStorage(),
       limits: { fileSize: 8 * 1024 * 1024 },
     }),

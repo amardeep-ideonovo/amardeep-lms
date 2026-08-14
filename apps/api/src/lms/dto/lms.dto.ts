@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Transform } from "class-transformer";
 import {
   ArrayMinSize,
   ArrayNotEmpty,
@@ -11,7 +11,7 @@ import {
   Max,
   Min,
   MinLength,
-} from 'class-validator';
+} from "class-validator";
 
 // Stripe's hard cap on a Checkout line-item unit_amount (minor units). Bounding
 // the one-off course price here turns a pathological amount into a clean 400 at
@@ -22,7 +22,7 @@ const MAX_PRICE_MINOR = 99_999_999;
 // service lowercases it again for storage / Stripe. Leaves non-strings untouched
 // so @IsOptional short-circuits a missing value.
 const toCurrencyCode = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? value.trim().toUpperCase() : value;
+  typeof value === "string" ? value.trim().toUpperCase() : value;
 
 export class UpdateLessonNoteDto {
   @IsString()

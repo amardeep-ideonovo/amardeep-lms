@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import { SettingsService } from '../settings/settings.service';
-import { SmtpMailSender } from './smtp.sender';
-import { ResendMailSender } from './resend.sender';
-import type { MailSender, OutboundMail } from './mail-sender.interface';
+import { Injectable } from "@nestjs/common";
+import { SettingsService } from "../settings/settings.service";
+import { SmtpMailSender } from "./smtp.sender";
+import { ResendMailSender } from "./resend.sender";
+import type { MailSender, OutboundMail } from "./mail-sender.interface";
 
 // The active MailSender, chosen at call time from the email.provider setting
 // ('smtp' default | 'resend'). Bound to the MAIL_SENDER token so EmailService
@@ -19,7 +19,7 @@ export class MailSenderRouter implements MailSender {
 
   private async active(): Promise<MailSender> {
     const provider = await this.settings.getEmailProvider();
-    return provider === 'resend' ? this.resend : this.smtp;
+    return provider === "resend" ? this.resend : this.smtp;
   }
 
   async send(msg: OutboundMail): Promise<{ providerId: string }> {

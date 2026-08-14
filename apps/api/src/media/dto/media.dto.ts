@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength } from "class-validator";
 
 // Editable metadata fields (the WordPress-style attachment details panel).
 export class UpdateMediaDto {

@@ -6,13 +6,13 @@ import {
   IsString,
   MaxLength,
   MinLength,
-} from 'class-validator';
+} from "class-validator";
 import type {
   CreateEmailTemplateInput,
   RenderPreviewInput,
   TestSendInput,
   UpdateEmailTemplateInput,
-} from '@lms/types';
+} from "@lms/types";
 
 // ---------- Email template CRUD ----------
 export class CreateEmailTemplateDto implements CreateEmailTemplateInput {

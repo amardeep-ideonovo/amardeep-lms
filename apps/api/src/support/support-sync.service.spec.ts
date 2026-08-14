@@ -1,7 +1,7 @@
-import { test, before } from 'node:test';
-import assert from 'node:assert/strict';
-import { Logger } from '@nestjs/common';
-import { SupportSyncService } from './support-sync.service';
+import { test, before } from "node:test";
+import assert from "node:assert/strict";
+import { Logger } from "@nestjs/common";
+import { SupportSyncService } from "./support-sync.service";
 
 // Unit tests for the control-plane push-back entrypoint, requestSync(). Its one
 // hard contract is coalescing: a push that lands WHILE a sync is in flight must
@@ -17,8 +17,8 @@ before(() => Logger.overrideLogger(false));
 // are never touched.
 function makeService(enabled = true): SupportSyncService {
   if (enabled) {
-    process.env.CONTROL_PLANE_URL = 'http://cp.local';
-    process.env.INSTANCE_SERVICE_TOKEN = 'tok';
+    process.env.CONTROL_PLANE_URL = "http://cp.local";
+    process.env.INSTANCE_SERVICE_TOKEN = "tok";
   } else {
     delete process.env.CONTROL_PLANE_URL;
     delete process.env.INSTANCE_SERVICE_TOKEN;
@@ -43,14 +43,14 @@ function instrument(svc: SupportSyncService, hold?: Promise<void>) {
   return state;
 }
 
-test('requestSync runs exactly one pass when idle', async () => {
+test("requestSync runs exactly one pass when idle", async () => {
   const svc = makeService();
   const state = instrument(svc);
   await svc.requestSync();
   assert.equal(state.passes, 1);
 });
 
-test('a push landing mid-sync coalesces into exactly one extra pass', async () => {
+test("a push landing mid-sync coalesces into exactly one extra pass", async () => {
   const svc = makeService();
   let release!: () => void;
   const gate = new Promise<void>((r) => (release = r));
@@ -60,14 +60,18 @@ test('a push landing mid-sync coalesces into exactly one extra pass', async () =
   await Promise.resolve(); //            let it reach the await
   await svc.requestSync(); //            push #1 arrives mid-flight → coalesced
   await svc.requestSync(); //            push #2 in the same window → still one resync
-  assert.equal(state.passes, 1, 'no concurrent pull while pass 1 is in flight');
+  assert.equal(state.passes, 1, "no concurrent pull while pass 1 is in flight");
 
   release(); //                          pass 1 drains → resync flag triggers pass 2
   await inFlight;
-  assert.equal(state.passes, 2, 'a burst of pushes collapses to a single extra pass');
+  assert.equal(
+    state.passes,
+    2,
+    "a burst of pushes collapses to a single extra pass",
+  );
 });
 
-test('a pass that THROWS still honors a resync requested mid-flight', async () => {
+test("a pass that THROWS still honors a resync requested mid-flight", async () => {
   // The failure window the push-back must survive: a transient CP/DB error
   // during the very pass a push is trying to coalesce into. The thrown pass must
   // not strand the pending resync (else the reply waits for the 30s cron).
@@ -84,7 +88,7 @@ test('a pass that THROWS still honors a resync requested mid-flight', async () =
     state.passes++;
     if (state.passes === 1) {
       await gate;
-      throw new Error('transient control-plane error');
+      throw new Error("transient control-plane error");
     }
   };
 
@@ -93,10 +97,14 @@ test('a pass that THROWS still honors a resync requested mid-flight', async () =
   await svc.requestSync(); //            push arrives mid-flight → resyncRequested=true
   release(); //                          pass 1 now THROWS
   await inFlight;
-  assert.equal(state.passes, 2, 'the thrown pass must still trigger the pending resync');
+  assert.equal(
+    state.passes,
+    2,
+    "the thrown pass must still trigger the pending resync",
+  );
 });
 
-test('requestSync is inert when sync is disabled (no service token)', async () => {
+test("requestSync is inert when sync is disabled (no service token)", async () => {
   const svc = makeService(false);
   const state = instrument(svc);
   await svc.requestSync();

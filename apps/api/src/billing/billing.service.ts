@@ -5,11 +5,11 @@ import {
   Logger,
   NotFoundException,
   OnModuleInit,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { isCourseLocked } from '../common/access.util';
-import type { Prisma } from '@prisma/client';
-import type Stripe from 'stripe';
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { isCourseLocked } from "../common/access.util";
+import type { Prisma } from "@prisma/client";
+import type Stripe from "stripe";
 import type {
   BillingConfigDTO,
   CouponPreviewDTO,
@@ -20,42 +20,42 @@ import type {
   SubscribeInput,
   SubscribeResult,
   SubscriptionDetailDTO,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { StripeService } from './stripe.service';
-import { PayPalService, type PayPalSubscription } from './paypal.service';
-import { SettingsService } from '../settings/settings.service';
-import { ContactsService } from '../contacts/contacts.service';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { StripeService } from "./stripe.service";
+import { PayPalService, type PayPalSubscription } from "./paypal.service";
+import { SettingsService } from "../settings/settings.service";
+import { ContactsService } from "../contacts/contacts.service";
 import {
   NotificationsService,
   type RecordNotificationInput,
-} from '../notifications/notifications.service';
-import { AutomationService } from '../email/automation.service';
+} from "../notifications/notifications.service";
+import { AutomationService } from "../email/automation.service";
 
 // Maps Stripe subscription.status -> our SubStatus / UserLevelStatus.
 function mapSubStatus(status: Stripe.Subscription.Status): {
-  sub: 'ACTIVE' | 'TRIALING' | 'PAST_DUE' | 'CANCELED' | 'UNPAID' | 'INCOMPLETE';
-  userLevel: 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED';
+  sub:
+    "ACTIVE" | "TRIALING" | "PAST_DUE" | "CANCELED" | "UNPAID" | "INCOMPLETE";
+  userLevel: "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED";
 } {
   switch (status) {
-    case 'active':
-      return { sub: 'ACTIVE', userLevel: 'ACTIVE' };
-    case 'trialing':
-      return { sub: 'TRIALING', userLevel: 'ACTIVE' };
-    case 'past_due':
-      return { sub: 'PAST_DUE', userLevel: 'PAST_DUE' };
-    case 'unpaid':
-      return { sub: 'UNPAID', userLevel: 'PAST_DUE' };
-    case 'canceled':
-      return { sub: 'CANCELED', userLevel: 'CANCELED' };
-    case 'incomplete':
-    case 'incomplete_expired':
-    case 'paused':
+    case "active":
+      return { sub: "ACTIVE", userLevel: "ACTIVE" };
+    case "trialing":
+      return { sub: "TRIALING", userLevel: "ACTIVE" };
+    case "past_due":
+      return { sub: "PAST_DUE", userLevel: "PAST_DUE" };
+    case "unpaid":
+      return { sub: "UNPAID", userLevel: "PAST_DUE" };
+    case "canceled":
+      return { sub: "CANCELED", userLevel: "CANCELED" };
+    case "incomplete":
+    case "incomplete_expired":
+    case "paused":
     default:
-      return { sub: 'INCOMPLETE', userLevel: 'EXPIRED' };
+      return { sub: "INCOMPLETE", userLevel: "EXPIRED" };
   }
 }
-
 
 // A Price row with its Level — the shape every checkout path resolves.
 type PriceWithLevel = Prisma.PriceGetPayload<{ include: { level: true } }>;
@@ -74,19 +74,19 @@ interface NormalizedSubItem {
 // A provider subscription reduced to exactly what reconciliation needs. Built
 // by a per-provider mapper (Stripe / PayPal); applied by applySubscriptionState.
 interface NormalizedSubState {
-  provider: 'STRIPE' | 'PAYPAL'; // also the UserLevel source for grants
+  provider: "STRIPE" | "PAYPAL"; // also the UserLevel source for grants
   externalSubId: string; // sub_… | I-…
   externalCustomerId: string; // cus_… | PayPal payer id (mirror display only)
   user: { id: string; email: string };
   subStatus:
-    | 'ACTIVE'
-    | 'TRIALING'
-    | 'PAST_DUE'
-    | 'CANCELED'
-    | 'UNPAID'
-    | 'INCOMPLETE'
-    | 'PAUSED';
-  userLevelStatus: 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED' | 'PAUSED';
+    | "ACTIVE"
+    | "TRIALING"
+    | "PAST_DUE"
+    | "CANCELED"
+    | "UNPAID"
+    | "INCOMPLETE"
+    | "PAUSED";
+  userLevelStatus: "ACTIVE" | "PAST_DUE" | "CANCELED" | "EXPIRED" | "PAUSED";
   currentPeriodEnd: Date | null;
   cancelAtPeriodEnd: boolean;
   items: NormalizedSubItem[];
@@ -138,7 +138,7 @@ export class BillingService implements OnModuleInit {
 
   // Where Stripe redirects users back to (the MEMBER WEB app, not the API).
   private appUrl(): string {
-    return this.config.get<string>('WEB_APP_URL') || 'http://localhost:3002';
+    return this.config.get<string>("WEB_APP_URL") || "http://localhost:3002";
   }
 
   // Brand title for member-facing automation emails. Read straight from the
@@ -147,14 +147,14 @@ export class BillingService implements OnModuleInit {
   private async brandTitle(): Promise<string> {
     try {
       const row = await this.prisma.appConfig.findUnique({
-        where: { id: 'singleton' },
+        where: { id: "singleton" },
       });
       const title = (row?.config as { title?: unknown } | null)?.title;
-      return typeof title === 'string' && title.trim()
+      return typeof title === "string" && title.trim()
         ? title
-        : 'Spotlight Academy';
+        : "Spotlight Academy";
     } catch {
-      return 'Spotlight Academy';
+      return "Spotlight Academy";
     }
   }
 
@@ -164,7 +164,7 @@ export class BillingService implements OnModuleInit {
   // throws — but we still guard so reconcile can't break here). Mirrors the
   // SIGNUP/CERTIFICATE_ISSUED wiring in auth/certificates services.
   private async fireSubscriptionAutomation(
-    trigger: 'SUBSCRIPTION_ACTIVE' | 'SUBSCRIPTION_CANCELED',
+    trigger: "SUBSCRIPTION_ACTIVE" | "SUBSCRIPTION_CANCELED",
     user: { id: string; email: string },
     planLabel: string,
   ): Promise<void> {
@@ -176,7 +176,7 @@ export class BillingService implements OnModuleInit {
         }),
         this.brandTitle(),
       ]);
-      const firstName = member?.firstName?.trim() || 'there';
+      const firstName = member?.firstName?.trim() || "there";
       await this.automations.fire(trigger, {
         email: user.email,
         vars: { firstName, brand, plan: planLabel },
@@ -213,10 +213,10 @@ export class BillingService implements OnModuleInit {
     currency: string | null | undefined,
   ): string {
     const amt = (amountMinor ?? 0) / 100;
-    const cur = (currency || 'usd').toUpperCase();
+    const cur = (currency || "usd").toUpperCase();
     try {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
+      return new Intl.NumberFormat("en-US", {
+        style: "currency",
         currency: cur,
       }).format(amt);
     } catch {
@@ -229,12 +229,12 @@ export class BillingService implements OnModuleInit {
   // The first invoice of a new subscription is suppressed in favor of the
   // SUBSCRIPTION_CREATED notification.
   private async notifyInvoiceEvent(
-    eventType: 'invoice.paid' | 'invoice.payment_failed',
+    eventType: "invoice.paid" | "invoice.payment_failed",
     invoice: Stripe.Invoice,
     sub: Stripe.Subscription,
   ): Promise<void> {
     const customerId =
-      typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+      typeof sub.customer === "string" ? sub.customer : sub.customer.id;
     const user = await this.prisma.user.findUnique({
       where: { stripeCustomerId: customerId },
       select: { id: true, email: true },
@@ -242,12 +242,12 @@ export class BillingService implements OnModuleInit {
     // Not a local member (a Stripe-side-only customer, or a test event) — there's
     // nothing actionable to surface to admins, so don't create a notification.
     if (!user) return;
-    if (eventType === 'invoice.payment_failed') {
+    if (eventType === "invoice.payment_failed") {
       const amount = this.formatMoney(invoice.amount_due, invoice.currency);
       await this.notify({
-        type: 'PAYMENT_FAILED',
-        severity: 'CRITICAL',
-        title: 'Payment failed',
+        type: "PAYMENT_FAILED",
+        severity: "CRITICAL",
+        title: "Payment failed",
         body: `${user.email} — payment of ${amount} failed`,
         userId: user.id,
         dedupeKey: `inv:failed:${invoice.id}`,
@@ -255,12 +255,12 @@ export class BillingService implements OnModuleInit {
       return;
     }
     // invoice.paid — skip the signup invoice (covered by SUBSCRIPTION_CREATED).
-    if (invoice.billing_reason === 'subscription_create') return;
+    if (invoice.billing_reason === "subscription_create") return;
     const amount = this.formatMoney(invoice.amount_paid, invoice.currency);
     await this.notify({
-      type: 'PAYMENT_SUCCEEDED',
-      severity: 'INFO',
-      title: 'Payment received',
+      type: "PAYMENT_SUCCEEDED",
+      severity: "INFO",
+      title: "Payment received",
       body: `${user.email} — paid ${amount}`,
       userId: user.id,
       dedupeKey: `inv:paid:${invoice.id}`,
@@ -269,9 +269,12 @@ export class BillingService implements OnModuleInit {
 
   // ---------- Checkout ----------
 
-  async createCheckout(userId: string, priceId: string): Promise<{ url: string }> {
+  async createCheckout(
+    userId: string,
+    priceId: string,
+  ): Promise<{ url: string }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException("User not found");
 
     // Only ever start checkout for a price WE provisioned. This rejects stale,
     // unknown, or foreign price ids with a clean 404 (instead of forwarding
@@ -279,7 +282,7 @@ export class BillingService implements OnModuleInit {
     // us the target Level for the duplicate-subscription guard below.
     const price = await this.findPriceByWireId(priceId);
     if (!price || !price.active) {
-      throw new NotFoundException('This plan is not available');
+      throw new NotFoundException("This plan is not available");
     }
 
     // Prevent a second concurrent subscription to a level the member already
@@ -289,13 +292,13 @@ export class BillingService implements OnModuleInit {
       where: {
         userId: user.id,
         levelId: price.levelId,
-        source: { in: ['STRIPE', 'PAYPAL'] },
-        status: { in: ['ACTIVE', 'PAST_DUE'] },
+        source: { in: ["STRIPE", "PAYPAL"] },
+        status: { in: ["ACTIVE", "PAST_DUE"] },
       },
     });
     if (existingPaid) {
       throw new BadRequestException(
-        'You already have an active subscription to this class. Manage it from your account.',
+        "You already have an active subscription to this class. Manage it from your account.",
       );
     }
 
@@ -320,7 +323,7 @@ export class BillingService implements OnModuleInit {
       cancelUrl: `${this.appUrl()}/account?checkout=cancel`,
     });
     if (!session.url) {
-      throw new BadRequestException('Stripe did not return a checkout URL');
+      throw new BadRequestException("Stripe did not return a checkout URL");
     }
     return { url: session.url };
   }
@@ -335,18 +338,20 @@ export class BillingService implements OnModuleInit {
     courseId: string,
   ): Promise<{ url: string }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException("User not found");
 
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
       include: { courseLevels: { select: { levelId: true } } },
     });
-    if (!course) throw new NotFoundException('Course not found');
+    if (!course) throw new NotFoundException("Course not found");
 
     // Individually purchasable only when a one-off price is set AND active.
     const amount = course.priceAmount ?? 0;
     if (!course.priceActive || amount <= 0) {
-      throw new BadRequestException('This course is not available for purchase');
+      throw new BadRequestException(
+        "This course is not available for purchase",
+      );
     }
 
     // Never sell access the member already has: block when the course isn't
@@ -355,14 +360,14 @@ export class BillingService implements OnModuleInit {
     const assigned = course.courseLevels.map((cl) => cl.levelId);
     const [activeRows, ownedRow] = await Promise.all([
       this.prisma.userLevel.findMany({
-        where: { userId: user.id, status: 'ACTIVE' },
+        where: { userId: user.id, status: "ACTIVE" },
         select: { levelId: true },
       }),
       this.prisma.userCourse.findFirst({
         where: {
           userId: user.id,
           courseId,
-          status: 'ACTIVE',
+          status: "ACTIVE",
           OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         },
         select: { id: true },
@@ -370,7 +375,7 @@ export class BillingService implements OnModuleInit {
     ]);
     const activeLevels = new Set(activeRows.map((r) => r.levelId));
     if (!isCourseLocked(assigned, activeLevels, !!ownedRow)) {
-      throw new BadRequestException('You already have access to this course');
+      throw new BadRequestException("You already have access to this course");
     }
 
     const customerId = await this.stripe.ensureCustomer({
@@ -393,9 +398,9 @@ export class BillingService implements OnModuleInit {
       await this.stripe.listCheckoutSessionsForCustomer(customerId);
     const reusable = openSessions.find(
       (s) =>
-        s.status === 'open' &&
-        s.mode === 'payment' &&
-        s.metadata?.kind === 'course' &&
+        s.status === "open" &&
+        s.mode === "payment" &&
+        s.metadata?.kind === "course" &&
         s.metadata?.courseId === courseId &&
         !!s.url,
     );
@@ -416,7 +421,7 @@ export class BillingService implements OnModuleInit {
       cancelUrl: `${this.appUrl()}/courses/${courseId}?purchase=cancel`,
     });
     if (!session.url) {
-      throw new BadRequestException('Stripe did not return a checkout URL');
+      throw new BadRequestException("Stripe did not return a checkout URL");
     }
     return { url: session.url };
   }
@@ -434,7 +439,7 @@ export class BillingService implements OnModuleInit {
     const courseId = meta.courseId;
     const ownerId = session.client_reference_id || meta.userId;
     // Only handle our one-off course checkouts; anything else is a no-op.
-    if (session.mode !== 'payment' || meta.kind !== 'course' || !courseId) {
+    if (session.mode !== "payment" || meta.kind !== "course" || !courseId) {
       return { granted: false };
     }
     // Ownership: never let one member confirm another's checkout session.
@@ -442,14 +447,13 @@ export class BillingService implements OnModuleInit {
     // for sessions this app creates, which always stamp client_reference_id +
     // metadata.userId), reject rather than trusting the caller.
     if (!ownerId || ownerId !== userId) {
-      throw new ForbiddenException('This checkout does not belong to you');
+      throw new ForbiddenException("This checkout does not belong to you");
     }
-    if (session.payment_status !== 'paid') {
+    if (session.payment_status !== "paid") {
       return { granted: false };
     }
     const pi = session.payment_intent;
-    const paymentIntentId =
-      typeof pi === 'string' ? pi : (pi?.id ?? null);
+    const paymentIntentId = typeof pi === "string" ? pi : (pi?.id ?? null);
     await this.grantCoursePurchase({
       userId,
       courseId,
@@ -494,7 +498,7 @@ export class BillingService implements OnModuleInit {
         userId_courseId_source: {
           userId: input.userId,
           courseId: input.courseId,
-          source: 'STRIPE',
+          source: "STRIPE",
         },
       },
     });
@@ -504,21 +508,21 @@ export class BillingService implements OnModuleInit {
         userId_courseId_source: {
           userId: input.userId,
           courseId: input.courseId,
-          source: 'STRIPE',
+          source: "STRIPE",
         },
       },
       create: {
         userId: input.userId,
         courseId: input.courseId,
-        source: 'STRIPE',
-        status: 'ACTIVE',
+        source: "STRIPE",
+        status: "ACTIVE",
         stripeCheckoutSessionId: input.sessionId,
         stripePaymentIntentId: input.paymentIntentId,
         amount: input.amount,
         currency: input.currency,
       },
       update: {
-        status: 'ACTIVE',
+        status: "ACTIVE",
         stripeCheckoutSessionId: input.sessionId,
         stripePaymentIntentId: input.paymentIntentId,
         amount: input.amount,
@@ -532,17 +536,17 @@ export class BillingService implements OnModuleInit {
     // both firing for the same purchase).
     const isNewGrant =
       !prev ||
-      prev.status !== 'ACTIVE' ||
+      prev.status !== "ACTIVE" ||
       prev.stripeCheckoutSessionId !== input.sessionId;
     if (isNewGrant) {
       await this.notify({
-        type: 'PAYMENT_SUCCEEDED',
-        severity: 'INFO',
-        title: 'Course purchased',
+        type: "PAYMENT_SUCCEEDED",
+        severity: "INFO",
+        title: "Course purchased",
         body: `${user.email} bought ${course.title}${
           input.amount != null
             ? ` — ${this.formatMoney(input.amount, input.currency)}`
-            : ''
+            : ""
         }`,
         userId: input.userId,
         dedupeKey: `course:purchase:${input.sessionId}`,
@@ -556,10 +560,10 @@ export class BillingService implements OnModuleInit {
   private async handleCheckoutSessionEvent(
     session: Stripe.Checkout.Session,
   ): Promise<void> {
-    if (session.mode !== 'payment') return;
-    if (session.payment_status !== 'paid') return;
+    if (session.mode !== "payment") return;
+    if (session.payment_status !== "paid") return;
     const meta = session.metadata ?? {};
-    if (meta.kind !== 'course') return;
+    if (meta.kind !== "course") return;
     const courseId = meta.courseId;
     const userId = session.client_reference_id || meta.userId;
     if (!courseId || !userId) {
@@ -569,7 +573,7 @@ export class BillingService implements OnModuleInit {
       return;
     }
     const pi = session.payment_intent;
-    const paymentIntentId = typeof pi === 'string' ? pi : (pi?.id ?? null);
+    const paymentIntentId = typeof pi === "string" ? pi : (pi?.id ?? null);
     await this.grantCoursePurchase({
       userId,
       courseId,
@@ -588,14 +592,14 @@ export class BillingService implements OnModuleInit {
     // Only a FULL refund revokes; Stripe sets `refunded` true once fully refunded.
     if (!charge.refunded) return;
     // Subscription-backed (class/level) access — resolve charge->invoice->sub.
-    await this.revokeSubscriptionByCharge(charge, 'refund');
+    await this.revokeSubscriptionByCharge(charge, "refund");
     // One-off course access tied to the PaymentIntent.
     const pi =
-      typeof charge.payment_intent === 'string'
+      typeof charge.payment_intent === "string"
         ? charge.payment_intent
         : (charge.payment_intent?.id ?? null);
     if (!pi) return;
-    await this.revokeCoursePurchaseByPaymentIntent(pi, 'refund');
+    await this.revokeCoursePurchaseByPaymentIntent(pi, "refund");
   }
 
   private async handleChargeDisputeCreated(
@@ -605,20 +609,20 @@ export class BillingService implements OnModuleInit {
     // The Dispute object carries `charge` as a string id (not expanded), so
     // fetch it to read its invoice/subscription for the class-access revoke.
     const chargeId =
-      typeof dispute.charge === 'string'
+      typeof dispute.charge === "string"
         ? dispute.charge
         : (dispute.charge?.id ?? null);
     if (chargeId) {
       const charge = await this.stripe.retrieveCharge(chargeId);
-      await this.revokeSubscriptionByCharge(charge, 'chargeback');
+      await this.revokeSubscriptionByCharge(charge, "chargeback");
     }
     // One-off course access tied to the PaymentIntent.
     const pi =
-      typeof dispute.payment_intent === 'string'
+      typeof dispute.payment_intent === "string"
         ? dispute.payment_intent
         : (dispute.payment_intent?.id ?? null);
     if (!pi) return;
-    await this.revokeCoursePurchaseByPaymentIntent(pi, 'chargeback');
+    await this.revokeCoursePurchaseByPaymentIntent(pi, "chargeback");
   }
 
   // Revoke SUBSCRIPTION-backed (class/level) access when a subscription charge
@@ -640,24 +644,23 @@ export class BillingService implements OnModuleInit {
   // of scope for this fix.
   private async revokeSubscriptionByCharge(
     charge: Stripe.Charge,
-    reason: 'refund' | 'chargeback',
+    reason: "refund" | "chargeback",
   ): Promise<void> {
     const invoiceRef = charge.invoice;
     if (!invoiceRef) return; // not a subscription charge — course path handles one-offs
     const invoiceId =
-      typeof invoiceRef === 'string' ? invoiceRef : (invoiceRef.id ?? null);
+      typeof invoiceRef === "string" ? invoiceRef : (invoiceRef.id ?? null);
     if (!invoiceId) return;
     const invoice =
-      typeof invoiceRef === 'string'
+      typeof invoiceRef === "string"
         ? await this.stripe.retrieveInvoice(invoiceId)
         : invoiceRef;
     const subRef = invoice.subscription;
-    const subId =
-      typeof subRef === 'string' ? subRef : (subRef?.id ?? null);
+    const subId = typeof subRef === "string" ? subRef : (subRef?.id ?? null);
     if (!subId) return;
 
     let sub = await this.stripe.retrieveSubscription(subId);
-    if (sub.status !== 'canceled') {
+    if (sub.status !== "canceled") {
       try {
         sub = await this.stripe.cancelSubscription(subId);
       } catch (err) {
@@ -665,17 +668,17 @@ export class BillingService implements OnModuleInit {
         // Re-read: if it's canceled now, treat as a no-op; else rethrow so
         // Stripe retries.
         sub = await this.stripe.retrieveSubscription(subId);
-        if (sub.status !== 'canceled') throw err;
+        if (sub.status !== "canceled") throw err;
       }
     }
     await this.reconcileSubscription(sub, `revoke:${reason}:${subId}`);
     await this.notify({
-      type: 'PAYMENT_FAILED',
-      severity: 'CRITICAL',
+      type: "PAYMENT_FAILED",
+      severity: "CRITICAL",
       title:
-        reason === 'chargeback'
-          ? 'Subscription access revoked (chargeback)'
-          : 'Subscription access revoked (refund)',
+        reason === "chargeback"
+          ? "Subscription access revoked (chargeback)"
+          : "Subscription access revoked (refund)",
       body: `Subscription ${subId} canceled and class access revoked after a ${reason}.`,
       dedupeKey: `sub:revoke:${reason}:${subId}`,
     });
@@ -689,19 +692,19 @@ export class BillingService implements OnModuleInit {
   // is a no-op. Notifies admins once per (payment intent, reason).
   private async revokeCoursePurchaseByPaymentIntent(
     paymentIntentId: string,
-    reason: 'refund' | 'chargeback',
+    reason: "refund" | "chargeback",
   ): Promise<void> {
     const rows = await this.prisma.userCourse.findMany({
       where: {
         stripePaymentIntentId: paymentIntentId,
-        source: 'STRIPE',
-        status: 'ACTIVE',
+        source: "STRIPE",
+        status: "ACTIVE",
       },
     });
     for (const row of rows) {
       await this.prisma.userCourse.update({
         where: { id: row.id },
-        data: { status: 'REFUNDED' },
+        data: { status: "REFUNDED" },
       });
       const [user, course] = await Promise.all([
         this.prisma.user.findUnique({
@@ -714,12 +717,12 @@ export class BillingService implements OnModuleInit {
         }),
       ]);
       await this.notify({
-        type: 'PAYMENT_FAILED',
-        severity: 'WARNING',
+        type: "PAYMENT_FAILED",
+        severity: "WARNING",
         title:
-          reason === 'chargeback'
-            ? 'Course access revoked (chargeback)'
-            : 'Course access revoked (refund)',
+          reason === "chargeback"
+            ? "Course access revoked (chargeback)"
+            : "Course access revoked (refund)",
         body: `${user?.email ?? row.userId} — access to ${
           course?.title ?? row.courseId
         } revoked after a ${reason}`,
@@ -741,14 +744,14 @@ export class BillingService implements OnModuleInit {
     const rows = await this.prisma.userLevel.findMany({
       where: {
         userId,
-        source: { in: ['STRIPE', 'PAYPAL'] },
-        status: { in: ['ACTIVE', 'PAST_DUE'] },
+        source: { in: ["STRIPE", "PAYPAL"] },
+        status: { in: ["ACTIVE", "PAST_DUE"] },
       },
       select: { levelId: true, status: true },
     });
     return rows.map((r) => ({
       levelId: r.levelId,
-      status: r.status as MySubscriptionDTO['status'],
+      status: r.status as MySubscriptionDTO["status"],
     }));
   }
 
@@ -756,9 +759,9 @@ export class BillingService implements OnModuleInit {
 
   async createPortal(userId: string): Promise<{ url: string }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException("User not found");
     if (!user.stripeCustomerId) {
-      throw new BadRequestException('No Stripe customer for this user');
+      throw new BadRequestException("No Stripe customer for this user");
     }
     const session = await this.stripe.createPortalSession({
       customerId: user.stripeCustomerId,
@@ -795,24 +798,24 @@ export class BillingService implements OnModuleInit {
     input: SubscribeInput,
   ): Promise<SubscribeResult> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException("User not found");
 
     const price = await this.findPriceByWireId(input.priceId);
     if (!price || !price.active) {
-      throw new NotFoundException('This plan is not available');
+      throw new NotFoundException("This plan is not available");
     }
 
     const existingPaid = await this.prisma.userLevel.findFirst({
       where: {
         userId: user.id,
         levelId: price.levelId,
-        source: { in: ['STRIPE', 'PAYPAL'] },
-        status: { in: ['ACTIVE', 'PAST_DUE'] },
+        source: { in: ["STRIPE", "PAYPAL"] },
+        status: { in: ["ACTIVE", "PAST_DUE"] },
       },
     });
     if (existingPaid) {
       throw new BadRequestException(
-        'You already have an active subscription to this class. Manage it from your account.',
+        "You already have an active subscription to this class. Manage it from your account.",
       );
     }
 
@@ -850,7 +853,7 @@ export class BillingService implements OnModuleInit {
         .filter((v): v is string => !!v),
     );
     const priceOf = (it: Stripe.SubscriptionItem): string | undefined =>
-      typeof it.price === 'string' ? it.price : it.price?.id;
+      typeof it.price === "string" ? it.price : it.price?.id;
     const customerSubs =
       await this.stripe.listSubscriptionsForCustomer(customerId);
     const subsForClass = customerSubs.filter((s) =>
@@ -859,10 +862,10 @@ export class BillingService implements OnModuleInit {
         return id != null && classPriceIds.has(id);
       }),
     );
-    const liveStatuses = ['active', 'trialing', 'past_due', 'unpaid'];
+    const liveStatuses = ["active", "trialing", "past_due", "unpaid"];
     if (subsForClass.some((s) => liveStatuses.includes(s.status))) {
       throw new BadRequestException(
-        'You already have an active subscription to this class. Manage it from your account.',
+        "You already have an active subscription to this class. Manage it from your account.",
       );
     }
     // A not-yet-paid subscription from a moments-ago submit (same price): reuse
@@ -870,7 +873,7 @@ export class BillingService implements OnModuleInit {
     // ever pays once.
     const pending = subsForClass.find(
       (s) =>
-        s.status === 'incomplete' &&
+        s.status === "incomplete" &&
         s.items.data.some((it) => priceOf(it) === stripePriceId),
     );
     if (pending) {
@@ -879,7 +882,7 @@ export class BillingService implements OnModuleInit {
       );
       if (clientSecret) {
         return {
-          status: 'requires_payment',
+          status: "requires_payment",
           clientSecret,
           subscriptionId: pending.id,
         };
@@ -888,9 +891,11 @@ export class BillingService implements OnModuleInit {
 
     let couponId: string | undefined;
     if (input.couponCode?.trim()) {
-      const promo = await this.stripe.findPromotionCode(input.couponCode.trim());
+      const promo = await this.stripe.findPromotionCode(
+        input.couponCode.trim(),
+      );
       if (!promo) {
-        throw new BadRequestException('Invalid or expired coupon code');
+        throw new BadRequestException("Invalid or expired coupon code");
       }
       const restrictedProduct = promo.metadata?.levelProductId;
       if (
@@ -898,11 +903,11 @@ export class BillingService implements OnModuleInit {
         restrictedProduct !== price.level.stripeProductId
       ) {
         throw new BadRequestException(
-          'This coupon is not valid for the selected plan',
+          "This coupon is not valid for the selected plan",
         );
       }
       couponId =
-        typeof promo.coupon === 'string' ? promo.coupon : promo.coupon.id;
+        typeof promo.coupon === "string" ? promo.coupon : promo.coupon.id;
     }
 
     const result = await this.stripe.createSubscriptionIntent({
@@ -913,7 +918,7 @@ export class BillingService implements OnModuleInit {
       couponId,
     });
     return {
-      status: result.status === 'active' ? 'active' : 'requires_payment',
+      status: result.status === "active" ? "active" : "requires_payment",
       clientSecret: result.clientSecret,
       subscriptionId: result.subscriptionId,
     };
@@ -933,7 +938,7 @@ export class BillingService implements OnModuleInit {
   ): Promise<void> {
     const subs = await this.stripe.listSubscriptionsForCustomer(customerId);
     const isLive = (s: Stripe.Subscription) =>
-      ['active', 'trialing', 'past_due', 'unpaid'].includes(s.status);
+      ["active", "trialing", "past_due", "unpaid"].includes(s.status);
     subs.sort((a, b) => Number(isLive(a)) - Number(isLive(b)));
     for (const sub of subs) {
       await this.reconcileSubscription(sub, `${tag}:${sub.id}`);
@@ -943,7 +948,7 @@ export class BillingService implements OnModuleInit {
   async syncMySubscriptions(userId: string): Promise<{ ok: true }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (user?.stripeCustomerId) {
-      await this.reconcileCustomer(user.stripeCustomerId, 'sync');
+      await this.reconcileCustomer(user.stripeCustomerId, "sync");
     }
     return { ok: true };
   }
@@ -959,19 +964,22 @@ export class BillingService implements OnModuleInit {
       percentOff: null,
       message: null,
     };
-    if (!code) return { ...base, message: 'Enter a code' };
+    if (!code) return { ...base, message: "Enter a code" };
 
     const price = await this.findPriceByWireId(input.priceId);
-    if (!price) return { ...base, message: 'Plan not found' };
+    if (!price) return { ...base, message: "Plan not found" };
 
     const promo = await this.stripe.findPromotionCode(code);
-    if (!promo) return { ...base, message: 'Invalid or expired code' };
+    if (!promo) return { ...base, message: "Invalid or expired code" };
 
     // Per-level coupons carry the target product in metadata (set by the admin
     // Coupons feature). Reject the preview when it doesn't match this plan.
     const restrictedProduct = promo.metadata?.levelProductId;
-    if (restrictedProduct && restrictedProduct !== price.level.stripeProductId) {
-      return { ...base, message: 'Not valid for this plan' };
+    if (
+      restrictedProduct &&
+      restrictedProduct !== price.level.stripeProductId
+    ) {
+      return { ...base, message: "Not valid for this plan" };
     }
 
     const coupon = promo.coupon;
@@ -989,8 +997,15 @@ export class BillingService implements OnModuleInit {
           ? `${(amountOff / 100).toFixed(2)} ${(
               coupon.currency ?? price.currency
             ).toUpperCase()} off`
-          : 'Discount applied';
-    return { valid: true, code, label, amountOff: computed, percentOff, message: null };
+          : "Discount applied";
+    return {
+      valid: true,
+      code,
+      label,
+      amountOff: computed,
+      percentOff,
+      message: null,
+    };
   }
 
   // ---------- Subscription detail + payment history ----------
@@ -1005,12 +1020,12 @@ export class BillingService implements OnModuleInit {
     const subs = await this.stripe.listSubscriptionsForCustomer(customerId);
     const out: SubscriptionDetailDTO[] = [];
     for (const sub of subs) {
-      if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
+      if (sub.status === "canceled" || sub.status === "incomplete_expired") {
         continue;
       }
       for (const item of sub.items.data) {
         const stripePriceId =
-          typeof item.price === 'string' ? item.price : item.price?.id;
+          typeof item.price === "string" ? item.price : item.price?.id;
         if (!stripePriceId) continue;
         const price = await this.prisma.price.findUnique({
           where: { stripePriceId },
@@ -1022,13 +1037,13 @@ export class BillingService implements OnModuleInit {
         if (price.installments != null) {
           const paidInvoices = await this.stripe.listSubscriptionInvoices(
             sub.id,
-            'paid',
+            "paid",
           );
           installmentsPaid = paidInvoices.length;
         }
         out.push({
           stripeSubId: sub.id,
-          provider: 'stripe',
+          provider: "stripe",
           levelId: price.levelId,
           levelName: price.level.name,
           status: sub.status,
@@ -1060,7 +1075,7 @@ export class BillingService implements OnModuleInit {
       amountPaid: inv.amount_paid,
       amountDue: inv.amount_due,
       currency: inv.currency,
-      status: inv.status ?? 'unknown',
+      status: inv.status ?? "unknown",
       description: inv.lines?.data?.[0]?.description ?? null,
       hostedInvoiceUrl: inv.hosted_invoice_url ?? null,
       invoicePdf: inv.invoice_pdf ?? null,
@@ -1096,14 +1111,14 @@ export class BillingService implements OnModuleInit {
 
   async getMemberBilling(memberId: string): Promise<MemberBillingDTO> {
     const user = await this.prisma.user.findUnique({ where: { id: memberId } });
-    if (!user) throw new NotFoundException('Member not found');
+    if (!user) throw new NotFoundException("Member not found");
     // Safety net: reconcile the member's live Stripe subscriptions inline so the
     // admin always sees current grants (and the purchase notification fires) even
     // when no Stripe webhook ran and the post-checkout sync didn't fire. Wrapped
     // so a Stripe hiccup can never break the billing page.
     if (user.stripeCustomerId) {
       try {
-        await this.reconcileCustomer(user.stripeCustomerId, 'adminview');
+        await this.reconcileCustomer(user.stripeCustomerId, "adminview");
       } catch (err) {
         this.logger.warn(
           `[getMemberBilling] reconcile failed for ${memberId}: ${
@@ -1115,7 +1130,7 @@ export class BillingService implements OnModuleInit {
     // Same safety net for PayPal: re-fetch each known subscription so the page
     // is current even when webhooks can't reach this environment.
     try {
-      await this.refreshPayPalSubsForUser(user.id, 'adminview');
+      await this.refreshPayPalSubsForUser(user.id, "adminview");
     } catch (err) {
       this.logger.warn(
         `[getMemberBilling] paypal refresh failed for ${memberId}: ${
@@ -1124,17 +1139,22 @@ export class BillingService implements OnModuleInit {
       );
     }
     await this.sweepExpiredPayPalGrants(user.id);
-    const [stripeSubs, paypalSubs, stripeInvoices, paypalInvoices, lifetimeRows] =
-      await Promise.all([
-        this.detailsForCustomer(user.stripeCustomerId),
-        this.paypalDetailsForUser(user.id),
-        this.invoicesForCustomer(user.stripeCustomerId),
-        this.paypalInvoicesForUser(user.id),
-        this.prisma.userLevel.findMany({
-          where: { userId: user.id, lifetime: true },
-          include: { level: { select: { name: true } } },
-        }),
-      ]);
+    const [
+      stripeSubs,
+      paypalSubs,
+      stripeInvoices,
+      paypalInvoices,
+      lifetimeRows,
+    ] = await Promise.all([
+      this.detailsForCustomer(user.stripeCustomerId),
+      this.paypalDetailsForUser(user.id),
+      this.invoicesForCustomer(user.stripeCustomerId),
+      this.paypalInvoicesForUser(user.id),
+      this.prisma.userLevel.findMany({
+        where: { userId: user.id, lifetime: true },
+        include: { level: { select: { name: true } } },
+      }),
+    ]);
     return {
       member: {
         id: user.id,
@@ -1162,13 +1182,13 @@ export class BillingService implements OnModuleInit {
   ): Promise<Stripe.Subscription> {
     const user = await this.prisma.user.findUnique({ where: { id: memberId } });
     if (!user?.stripeCustomerId) {
-      throw new BadRequestException('Member has no Stripe customer');
+      throw new BadRequestException("Member has no Stripe customer");
     }
     const sub = await this.stripe.retrieveSubscription(subId);
     const customerId =
-      typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+      typeof sub.customer === "string" ? sub.customer : sub.customer.id;
     if (customerId !== user.stripeCustomerId) {
-      throw new NotFoundException('Subscription not found for this member');
+      throw new NotFoundException("Subscription not found for this member");
     }
     return sub;
   }
@@ -1177,9 +1197,9 @@ export class BillingService implements OnModuleInit {
   // pause_collection / PayPal suspend). Reconciling inline flips the grant to
   // PAUSED immediately (no webhook needed).
   async pauseSub(memberId: string, subId: string): Promise<MemberBillingDTO> {
-    if ((await this.providerForSub(subId)) === 'PAYPAL') {
+    if ((await this.providerForSub(subId)) === "PAYPAL") {
       await this.memberPayPalSub(memberId, subId);
-      await this.paypal.suspendSubscription(subId, 'Paused by site admin');
+      await this.paypal.suspendSubscription(subId, "Paused by site admin");
       const after = await this.paypal.getSubscription(subId);
       await this.reconcilePayPalSubscription(after, `admin:pause:${subId}`);
     } else {
@@ -1194,9 +1214,9 @@ export class BillingService implements OnModuleInit {
   // un-cancels (Stripe: only pause_collection is cleared; PayPal: activate
   // fails on a CANCELLED subscription).
   async resumeSub(memberId: string, subId: string): Promise<MemberBillingDTO> {
-    if ((await this.providerForSub(subId)) === 'PAYPAL') {
+    if ((await this.providerForSub(subId)) === "PAYPAL") {
       await this.memberPayPalSub(memberId, subId);
-      await this.paypal.activateSubscription(subId, 'Resumed by site admin');
+      await this.paypal.activateSubscription(subId, "Resumed by site admin");
       const after = await this.paypal.getSubscription(subId);
       await this.reconcilePayPalSubscription(after, `admin:resume:${subId}`);
     } else {
@@ -1214,12 +1234,12 @@ export class BillingService implements OnModuleInit {
   async cancelSub(
     memberId: string,
     subId: string,
-    mode: 'immediate' | 'period_end',
+    mode: "immediate" | "period_end",
   ): Promise<MemberBillingDTO> {
-    if ((await this.providerForSub(subId)) === 'PAYPAL') {
+    if ((await this.providerForSub(subId)) === "PAYPAL") {
       await this.memberPayPalSub(memberId, subId);
-      if (mode === 'immediate') {
-        await this.paypal.cancelSubscription(subId, 'Canceled by site admin');
+      if (mode === "immediate") {
+        await this.paypal.cancelSubscription(subId, "Canceled by site admin");
         const after = await this.paypal.getSubscription(subId);
         await this.reconcilePayPalSubscription(
           after,
@@ -1235,7 +1255,7 @@ export class BillingService implements OnModuleInit {
     } else {
       await this.memberSub(memberId, subId);
       const sub =
-        mode === 'immediate'
+        mode === "immediate"
           ? await this.stripe.cancelSubscription(subId)
           : await this.stripe.setCancelAtPeriodEnd(subId, true);
       await this.reconcileSubscription(sub, `admin:cancel:${mode}:${subId}`);
@@ -1250,7 +1270,7 @@ export class BillingService implements OnModuleInit {
     userId: string,
     subId: string,
   ): Promise<SubscriptionDetailDTO[]> {
-    if ((await this.providerForSub(subId)) === 'PAYPAL') {
+    if ((await this.providerForSub(subId)) === "PAYPAL") {
       await this.memberPayPalSub(userId, subId);
       await this.schedulePayPalPeriodEndCancel(
         userId,
@@ -1284,7 +1304,7 @@ export class BillingService implements OnModuleInit {
     userId: string,
   ): Promise<{ canceledSubIds: string[] }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('Member not found');
+    if (!user) throw new NotFoundException("Member not found");
     const canceledSubIds: string[] = [];
 
     // Stripe: cancel every non-terminal subscription on the customer.
@@ -1293,7 +1313,7 @@ export class BillingService implements OnModuleInit {
         user.stripeCustomerId,
       );
       for (const sub of subs) {
-        if (sub.status === 'canceled' || sub.status === 'incomplete_expired') {
+        if (sub.status === "canceled" || sub.status === "incomplete_expired") {
           continue;
         }
         const canceled = await this.stripe.cancelSubscription(sub.id);
@@ -1307,8 +1327,8 @@ export class BillingService implements OnModuleInit {
     const paypalSubIds = await this.paypalSubIdsForUser(userId);
     for (const subId of paypalSubIds) {
       const live = await this.paypal.getSubscription(subId);
-      if (live.status === 'CANCELLED' || live.status === 'EXPIRED') continue;
-      await this.paypal.cancelSubscription(subId, 'Account deleted by member');
+      if (live.status === "CANCELLED" || live.status === "EXPIRED") continue;
+      await this.paypal.cancelSubscription(subId, "Account deleted by member");
       const after = await this.paypal.getSubscription(subId);
       await this.reconcilePayPalSubscription(after, `delete:${subId}`);
       canceledSubIds.push(subId);
@@ -1327,16 +1347,20 @@ export class BillingService implements OnModuleInit {
   async handleWebhook(rawBody: Buffer, signature: string): Promise<void> {
     const webhookSecret = await this.stripe.getWebhookSecret();
     if (!webhookSecret) {
-      throw new BadRequestException('Stripe webhook secret not configured');
+      throw new BadRequestException("Stripe webhook secret not configured");
     }
     let event: Stripe.Event;
     try {
-      event = await this.stripe.constructEvent(rawBody, signature, webhookSecret);
+      event = await this.stripe.constructEvent(
+        rawBody,
+        signature,
+        webhookSecret,
+      );
     } catch (err) {
       this.logger.warn(
         `[stripe-webhook] signature_fail err=${err instanceof Error ? err.message : String(err)}`,
       );
-      throw new BadRequestException('Invalid signature');
+      throw new BadRequestException("Invalid signature");
     }
 
     // Single audit line per event lets ops correlate Stripe's dashboard
@@ -1346,9 +1370,9 @@ export class BillingService implements OnModuleInit {
 
     try {
       switch (event.type) {
-        case 'customer.subscription.created':
-        case 'customer.subscription.updated':
-        case 'customer.subscription.deleted':
+        case "customer.subscription.created":
+        case "customer.subscription.updated":
+        case "customer.subscription.deleted":
           await this.reconcileSubscription(
             event.data.object as Stripe.Subscription,
             event.id,
@@ -1356,26 +1380,26 @@ export class BillingService implements OnModuleInit {
           break;
         // One-off course purchase (mode=payment). async_payment_succeeded covers
         // delayed methods that settle after the initial redirect.
-        case 'checkout.session.completed':
-        case 'checkout.session.async_payment_succeeded':
+        case "checkout.session.completed":
+        case "checkout.session.async_payment_succeeded":
           await this.handleCheckoutSessionEvent(
             event.data.object as Stripe.Checkout.Session,
           );
           break;
         // Payment reversed — revoke any one-off course grant tied to the charge.
-        case 'charge.refunded':
+        case "charge.refunded":
           await this.handleChargeRefunded(event.data.object as Stripe.Charge);
           break;
-        case 'charge.dispute.created':
+        case "charge.dispute.created":
           await this.handleChargeDisputeCreated(
             event.data.object as Stripe.Dispute,
           );
           break;
-        case 'invoice.paid':
-        case 'invoice.payment_failed': {
+        case "invoice.paid":
+        case "invoice.payment_failed": {
           const invoice = event.data.object as Stripe.Invoice;
           const subId =
-            typeof invoice.subscription === 'string'
+            typeof invoice.subscription === "string"
               ? invoice.subscription
               : invoice.subscription?.id;
           if (subId) {
@@ -1386,7 +1410,7 @@ export class BillingService implements OnModuleInit {
             await this.notifyInvoiceEvent(event.type, invoice, sub);
             // On a successful payment, check whether an installment plan has now
             // been paid in full -> convert to lifetime + stop billing.
-            if (event.type === 'invoice.paid') {
+            if (event.type === "invoice.paid") {
               await this.fulfillInstallmentsIfComplete(sub, invoice.id);
             }
           }
@@ -1425,7 +1449,7 @@ export class BillingService implements OnModuleInit {
     sourceEventId?: string,
   ): Promise<void> {
     const customerId =
-      typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+      typeof sub.customer === "string" ? sub.customer : sub.customer.id;
 
     const user = await this.prisma.user.findUnique({
       where: { stripeCustomerId: customerId },
@@ -1446,7 +1470,7 @@ export class BillingService implements OnModuleInit {
     const items: NormalizedSubItem[] = [];
     for (const item of sub.items?.data ?? []) {
       const stripePriceId =
-        typeof item.price === 'string' ? item.price : item.price?.id;
+        typeof item.price === "string" ? item.price : item.price?.id;
       if (!stripePriceId) continue;
       const price = await this.prisma.price.findUnique({
         where: { stripePriceId },
@@ -1467,12 +1491,12 @@ export class BillingService implements OnModuleInit {
 
     await this.applySubscriptionState(
       {
-        provider: 'STRIPE',
+        provider: "STRIPE",
         externalSubId: sub.id,
         externalCustomerId: customerId,
         user: { id: user.id, email: user.email },
-        subStatus: paused ? 'PAUSED' : subStatus,
-        userLevelStatus: paused ? 'PAUSED' : levelStatus,
+        subStatus: paused ? "PAUSED" : subStatus,
+        userLevelStatus: paused ? "PAUSED" : levelStatus,
         currentPeriodEnd: sub.current_period_end
           ? new Date(sub.current_period_end * 1000)
           : null,
@@ -1480,7 +1504,7 @@ export class BillingService implements OnModuleInit {
         items,
         graceExpiresAt: null,
         mirrorPriceId: null,
-        periodKey: sub.current_period_end ?? 'na',
+        periodKey: sub.current_period_end ?? "na",
       },
       sourceEventId,
     );
@@ -1559,9 +1583,9 @@ export class BillingService implements OnModuleInit {
       // ACTIVE forever, even as its now-cancelled subscription reconciles). The
       // grace path likewise keeps access ACTIVE until the paid period ends.
       const statusForRow = prev?.lifetime
-        ? 'ACTIVE'
+        ? "ACTIVE"
         : grace
-          ? 'ACTIVE'
+          ? "ACTIVE"
           : s.userLevelStatus;
       const expiresForRow = grace ? s.graceExpiresAt : periodEnd;
       await this.prisma.userLevel.upsert({
@@ -1590,8 +1614,8 @@ export class BillingService implements OnModuleInit {
       // Audience/tag sync: add when newly active, remove when transitioning to
       // non-active — but NOT for a mere pause (keep tags during a pause so a
       // temporary suspension doesn't churn the audience).
-      const wasActive = prev?.status === 'ACTIVE';
-      const nowActive = statusForRow === 'ACTIVE';
+      const wasActive = prev?.status === "ACTIVE";
+      const nowActive = statusForRow === "ACTIVE";
       if (nowActive && !wasActive) {
         // ALWAYS capture the member into the class's in-house audience on a
         // newly-active grant (null audienceId → default "Members"). syncTags
@@ -1599,7 +1623,7 @@ export class BillingService implements OnModuleInit {
         // Best-effort.
         try {
           await this.contacts.syncTags(
-            'add',
+            "add",
             user.email,
             info.audienceTags,
             info.audienceId ?? undefined,
@@ -1611,7 +1635,7 @@ export class BillingService implements OnModuleInit {
             }`,
           );
         }
-      } else if (!nowActive && wasActive && statusForRow !== 'PAUSED') {
+      } else if (!nowActive && wasActive && statusForRow !== "PAUSED") {
         await this.maybeRemoveTags(
           user.id,
           levelId,
@@ -1635,9 +1659,9 @@ export class BillingService implements OnModuleInit {
       }
       await this.prisma.userLevel.update({
         where: { id: ul.id },
-        data: { status: 'CANCELED' },
+        data: { status: "CANCELED" },
       });
-      if (ul.level.audienceTags.length && ul.status === 'ACTIVE') {
+      if (ul.level.audienceTags.length && ul.status === "ACTIVE") {
         await this.maybeRemoveTags(
           user.id,
           ul.levelId,
@@ -1652,7 +1676,9 @@ export class BillingService implements OnModuleInit {
     // prevMirror vs the new values gates against replays/re-reconciles; the
     // unique dedupeKey is a backstop. Payment failures are emitted from the
     // invoice branch (not here), so PAST_DUE intentionally produces no event.
-    const planLabel = levelNames.length ? levelNames.join(', ') : 'subscription';
+    const planLabel = levelNames.length
+      ? levelNames.join(", ")
+      : "subscription";
     const prevStatus = prevMirror?.status ?? null;
     const prevCancelAtPe = prevMirror?.cancelAtPeriodEnd ?? false;
     const newCancelAtPe = s.cancelAtPeriodEnd;
@@ -1660,12 +1686,12 @@ export class BillingService implements OnModuleInit {
 
     if (
       prevMirror == null &&
-      (subStatusFinal === 'ACTIVE' || subStatusFinal === 'TRIALING')
+      (subStatusFinal === "ACTIVE" || subStatusFinal === "TRIALING")
     ) {
       await this.notify({
-        type: 'SUBSCRIPTION_CREATED',
-        severity: 'INFO',
-        title: 'New subscription',
+        type: "SUBSCRIPTION_CREATED",
+        severity: "INFO",
+        title: "New subscription",
         body: `${user.email} subscribed to ${planLabel}`,
         userId: user.id,
         dedupeKey: `sub:created:${s.externalSubId}`,
@@ -1673,37 +1699,41 @@ export class BillingService implements OnModuleInit {
       // Member-facing automation: gated by the same `prevMirror == null`
       // genuine-activation condition as the admin notification, so a webhook
       // replay / re-reconcile won't re-fire it (fire()'s dedupeKey is a backstop).
-      await this.fireSubscriptionAutomation('SUBSCRIPTION_ACTIVE', user, planLabel);
+      await this.fireSubscriptionAutomation(
+        "SUBSCRIPTION_ACTIVE",
+        user,
+        planLabel,
+      );
     }
-    if (prevStatus !== 'PAUSED' && subStatusFinal === 'PAUSED') {
+    if (prevStatus !== "PAUSED" && subStatusFinal === "PAUSED") {
       await this.notify({
-        type: 'SUBSCRIPTION_PAUSED',
-        severity: 'WARNING',
-        title: 'Subscription paused',
+        type: "SUBSCRIPTION_PAUSED",
+        severity: "WARNING",
+        title: "Subscription paused",
         body: `${user.email} — ${planLabel} is on hold`,
         userId: user.id,
         dedupeKey: `sub:paused:${s.externalSubId}:${sourceEventId ?? periodKey}`,
       });
     }
     if (
-      prevStatus === 'PAUSED' &&
-      subStatusFinal !== 'PAUSED' &&
-      subStatusFinal !== 'CANCELED'
+      prevStatus === "PAUSED" &&
+      subStatusFinal !== "PAUSED" &&
+      subStatusFinal !== "CANCELED"
     ) {
       await this.notify({
-        type: 'SUBSCRIPTION_RESUMED',
-        severity: 'INFO',
-        title: 'Subscription resumed',
+        type: "SUBSCRIPTION_RESUMED",
+        severity: "INFO",
+        title: "Subscription resumed",
         body: `${user.email} — ${planLabel} resumed`,
         userId: user.id,
         dedupeKey: `sub:resumed:${s.externalSubId}:${sourceEventId ?? periodKey}`,
       });
     }
-    if (prevStatus !== 'CANCELED' && subStatusFinal === 'CANCELED') {
+    if (prevStatus !== "CANCELED" && subStatusFinal === "CANCELED") {
       await this.notify({
-        type: 'SUBSCRIPTION_CANCELED',
-        severity: 'CRITICAL',
-        title: 'Subscription canceled',
+        type: "SUBSCRIPTION_CANCELED",
+        severity: "CRITICAL",
+        title: "Subscription canceled",
         body: grace
           ? `${user.email} — ${planLabel} canceled (access until the period end)`
           : `${user.email} — ${planLabel} canceled`,
@@ -1714,13 +1744,17 @@ export class BillingService implements OnModuleInit {
       // admin notification means a re-reconcile of an already-canceled sub won't
       // re-fire. Covers BOTH cancel paths (admin cancelSub + member
       // cancelMyMembership), since both funnel through reconcile -> here.
-      await this.fireSubscriptionAutomation('SUBSCRIPTION_CANCELED', user, planLabel);
+      await this.fireSubscriptionAutomation(
+        "SUBSCRIPTION_CANCELED",
+        user,
+        planLabel,
+      );
     }
-    if (!prevCancelAtPe && newCancelAtPe && subStatusFinal !== 'CANCELED') {
+    if (!prevCancelAtPe && newCancelAtPe && subStatusFinal !== "CANCELED") {
       await this.notify({
-        type: 'SUBSCRIPTION_CANCEL_SCHEDULED',
-        severity: 'WARNING',
-        title: 'Cancellation scheduled',
+        type: "SUBSCRIPTION_CANCEL_SCHEDULED",
+        severity: "WARNING",
+        title: "Cancellation scheduled",
         body: `${user.email} — ${planLabel} will cancel at the period end`,
         userId: user.id,
         dedupeKey: `sub:cancel_scheduled:${s.externalSubId}`,
@@ -1740,12 +1774,12 @@ export class BillingService implements OnModuleInit {
     audienceRef?: string,
   ): Promise<void> {
     const stillActive = await this.prisma.userLevel.count({
-      where: { userId, levelId, status: 'ACTIVE' },
+      where: { userId, levelId, status: "ACTIVE" },
     });
     if (stillActive === 0) {
       // In-house list write (best-effort).
       try {
-        await this.contacts.syncTags('remove', email, tags, audienceRef);
+        await this.contacts.syncTags("remove", email, tags, audienceRef);
       } catch (err) {
         this.logger.warn(
           `[billing] contacts remove-tags failed for ${email}: ${
@@ -1770,7 +1804,7 @@ export class BillingService implements OnModuleInit {
     currentInvoiceId: string | null,
   ): Promise<void> {
     const customerId =
-      typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+      typeof sub.customer === "string" ? sub.customer : sub.customer.id;
     const user = await this.prisma.user.findUnique({
       where: { stripeCustomerId: customerId },
     });
@@ -1778,7 +1812,7 @@ export class BillingService implements OnModuleInit {
 
     for (const item of sub.items?.data ?? []) {
       const stripePriceId =
-        typeof item.price === 'string' ? item.price : item.price?.id;
+        typeof item.price === "string" ? item.price : item.price?.id;
       if (!stripePriceId) continue;
       const price = await this.prisma.price.findUnique({
         where: { stripePriceId },
@@ -1788,7 +1822,7 @@ export class BillingService implements OnModuleInit {
 
       // Count paid invoices for this subscription; make sure the invoice that
       // triggered this event is counted (guards a read-after-write off-by-one).
-      const paid = await this.stripe.listSubscriptionInvoices(sub.id, 'paid');
+      const paid = await this.stripe.listSubscriptionInvoices(sub.id, "paid");
       const ids = new Set(paid.map((i) => i.id));
       if (currentInvoiceId) ids.add(currentInvoiceId);
       if (ids.size < price.installments) continue;
@@ -1798,28 +1832,28 @@ export class BillingService implements OnModuleInit {
           userId_levelId_source: {
             userId: user.id,
             levelId: price.levelId,
-            source: 'STRIPE',
+            source: "STRIPE",
           },
         },
         create: {
           userId: user.id,
           levelId: price.levelId,
-          source: 'STRIPE',
-          status: 'ACTIVE',
+          source: "STRIPE",
+          status: "ACTIVE",
           lifetime: true,
           stripeSubItemId: item.id,
           expiresAt: null,
         },
-        update: { status: 'ACTIVE', lifetime: true, expiresAt: null },
+        update: { status: "ACTIVE", lifetime: true, expiresAt: null },
       });
       this.logger.log(
         `[installments] sub=${sub.id} level=${price.levelId} paid ${ids.size}/${price.installments} -> lifetime granted user=${user.id}`,
       );
 
       await this.notify({
-        type: 'INSTALLMENT_PLAN_COMPLETED',
-        severity: 'INFO',
-        title: 'Installment plan completed',
+        type: "INSTALLMENT_PLAN_COMPLETED",
+        severity: "INFO",
+        title: "Installment plan completed",
         body: `${user.email} — ${price.level.name} paid in full (lifetime access granted)`,
         userId: user.id,
         dedupeKey: `installment:complete:${sub.id}:${price.levelId}`,
@@ -1827,7 +1861,7 @@ export class BillingService implements OnModuleInit {
 
       // Stop billing. The resulting customer.subscription.deleted reconciles,
       // and its revoke step skips the now-lifetime grant.
-      if (sub.status !== 'canceled') {
+      if (sub.status !== "canceled") {
         try {
           await this.stripe.cancelSubscription(sub.id);
         } catch (err) {
@@ -1878,7 +1912,7 @@ export class BillingService implements OnModuleInit {
     }
     const stripePrice = await this.stripe.createPrice({
       productId,
-      interval: price.interval as 'month' | 'year',
+      interval: price.interval as "month" | "year",
       amount: price.amount,
       currency: price.currency,
     });
@@ -1905,11 +1939,11 @@ export class BillingService implements OnModuleInit {
     const label =
       price.installments != null
         ? `${price.level.name} — ${price.installments} payments`
-        : `${price.level.name} (${price.interval === 'year' ? 'yearly' : 'monthly'})`;
+        : `${price.level.name} (${price.interval === "year" ? "yearly" : "monthly"})`;
     const planId = await this.paypal.createPlan({
       productId,
       name: label,
-      interval: price.interval as 'month' | 'year',
+      interval: price.interval as "month" | "year",
       amount: price.amount,
       currency: price.currency,
       installments: price.installments,
@@ -1928,22 +1962,22 @@ export class BillingService implements OnModuleInit {
     priceId: string,
   ): Promise<{ planId: string; customId: string }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException("User not found");
     const price = await this.findPriceByWireId(priceId);
     if (!price || !price.active) {
-      throw new NotFoundException('This plan is not available');
+      throw new NotFoundException("This plan is not available");
     }
     const existingPaid = await this.prisma.userLevel.findFirst({
       where: {
         userId: user.id,
         levelId: price.levelId,
-        source: { in: ['STRIPE', 'PAYPAL'] },
-        status: { in: ['ACTIVE', 'PAST_DUE'] },
+        source: { in: ["STRIPE", "PAYPAL"] },
+        status: { in: ["ACTIVE", "PAST_DUE"] },
       },
     });
     if (existingPaid) {
       throw new BadRequestException(
-        'You already have an active subscription to this class. Manage it from your account.',
+        "You already have an active subscription to this class. Manage it from your account.",
       );
     }
     const planId = await this.ensurePayPalPlan(price);
@@ -1959,23 +1993,25 @@ export class BillingService implements OnModuleInit {
     subscriptionId: string,
   ): Promise<SubscriptionDetailDTO[]> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException("User not found");
     let sub: PayPalSubscription;
     try {
       sub = await this.paypal.getSubscription(subscriptionId);
     } catch {
-      throw new NotFoundException('Subscription not found');
+      throw new NotFoundException("Subscription not found");
     }
     // Don't leak other people's subscription state — same 404 as unknown ids.
     if (sub.custom_id !== user.id) {
-      throw new NotFoundException('Subscription not found');
+      throw new NotFoundException("Subscription not found");
     }
     const price = await this.prisma.price.findUnique({
       where: { paypalPlanId: sub.plan_id },
       include: { level: true },
     });
     if (!price) {
-      throw new BadRequestException('This subscription is not for a known plan');
+      throw new BadRequestException(
+        "This subscription is not for a known plan",
+      );
     }
     // Double-approval guard: PayPal bills at approval, so a second live
     // subscription for the same class is a real double-charge. Cancel the
@@ -1984,8 +2020,8 @@ export class BillingService implements OnModuleInit {
       where: {
         userId: user.id,
         levelId: price.levelId,
-        source: { in: ['STRIPE', 'PAYPAL'] },
-        status: { in: ['ACTIVE', 'PAST_DUE'] },
+        source: { in: ["STRIPE", "PAYPAL"] },
+        status: { in: ["ACTIVE", "PAST_DUE"] },
         NOT: { stripeSubItemId: sub.id },
       },
     });
@@ -1993,7 +2029,7 @@ export class BillingService implements OnModuleInit {
       try {
         await this.paypal.cancelSubscription(
           sub.id,
-          'Duplicate subscription for an already-held class',
+          "Duplicate subscription for an already-held class",
         );
       } catch (err) {
         this.logger.error(
@@ -2003,15 +2039,15 @@ export class BillingService implements OnModuleInit {
         );
       }
       await this.notify({
-        type: 'SUBSCRIPTION_CANCELED',
-        severity: 'CRITICAL',
-        title: 'Duplicate PayPal subscription canceled',
+        type: "SUBSCRIPTION_CANCELED",
+        severity: "CRITICAL",
+        title: "Duplicate PayPal subscription canceled",
         body: `${user.email} approved a second PayPal subscription for ${price.level.name} — it was canceled automatically; check whether a refund is due (${sub.id})`,
         userId: user.id,
         dedupeKey: `pp:dup:${sub.id}`,
       });
       throw new BadRequestException(
-        'You already have an active subscription to this class. The duplicate PayPal subscription was canceled.',
+        "You already have an active subscription to this class. The duplicate PayPal subscription was canceled.",
       );
     }
     await this.reconcilePayPalSubscription(sub, `activate:${sub.id}`);
@@ -2020,12 +2056,12 @@ export class BillingService implements OnModuleInit {
 
   // Which processor owns a subscription id — mirror first, id-shape fallback
   // for a sub that hasn't been mirrored yet (PayPal ids are "I-…").
-  private async providerForSub(subId: string): Promise<'STRIPE' | 'PAYPAL'> {
+  private async providerForSub(subId: string): Promise<"STRIPE" | "PAYPAL"> {
     const mirror = await this.prisma.subscriptionMirror.findUnique({
       where: { stripeSubId: subId },
     });
     if (mirror) return mirror.provider;
-    return subId.startsWith('I-') ? 'PAYPAL' : 'STRIPE';
+    return subId.startsWith("I-") ? "PAYPAL" : "STRIPE";
   }
 
   // PayPal sibling of memberSub: fetch + assert ownership via custom_id.
@@ -2040,7 +2076,7 @@ export class BillingService implements OnModuleInit {
       sub = null;
     }
     if (!sub || sub.custom_id !== memberId) {
-      throw new NotFoundException('Subscription not found for this member');
+      throw new NotFoundException("Subscription not found for this member");
     }
     return sub;
   }
@@ -2066,9 +2102,9 @@ export class BillingService implements OnModuleInit {
     await this.prisma.subscriptionMirror.upsert({
       where: { stripeSubId: subId },
       create: {
-        provider: 'PAYPAL',
+        provider: "PAYPAL",
         stripeSubId: subId,
-        stripeCustomerId: sub.subscriber?.payer_id ?? 'paypal',
+        stripeCustomerId: sub.subscriber?.payer_id ?? "paypal",
         userId,
         priceId: price?.id ?? null,
         status: mapped.sub,
@@ -2082,33 +2118,33 @@ export class BillingService implements OnModuleInit {
     });
     await this.paypal.cancelSubscription(
       subId,
-      'Canceled — access continues until the paid period ends',
+      "Canceled — access continues until the paid period ends",
     );
     const after = await this.paypal.getSubscription(subId);
     await this.reconcilePayPalSubscription(after, tag);
   }
 
   // PayPal subscription status -> our SubStatus / UserLevelStatus.
-  private mapPayPalStatus(status: PayPalSubscription['status']): {
-    sub: NormalizedSubState['subStatus'];
-    userLevel: NormalizedSubState['userLevelStatus'];
+  private mapPayPalStatus(status: PayPalSubscription["status"]): {
+    sub: NormalizedSubState["subStatus"];
+    userLevel: NormalizedSubState["userLevelStatus"];
   } {
     switch (status) {
-      case 'ACTIVE':
-        return { sub: 'ACTIVE', userLevel: 'ACTIVE' };
-      case 'SUSPENDED':
-        return { sub: 'PAUSED', userLevel: 'PAUSED' };
-      case 'CANCELLED':
-        return { sub: 'CANCELED', userLevel: 'CANCELED' };
-      case 'EXPIRED':
+      case "ACTIVE":
+        return { sub: "ACTIVE", userLevel: "ACTIVE" };
+      case "SUSPENDED":
+        return { sub: "PAUSED", userLevel: "PAUSED" };
+      case "CANCELLED":
+        return { sub: "CANCELED", userLevel: "CANCELED" };
+      case "EXPIRED":
         // total_cycles ran out. Installment plans convert to lifetime (see
         // fulfillPayPalInstallmentsIfComplete); anything else simply ends.
-        return { sub: 'CANCELED', userLevel: 'CANCELED' };
-      case 'APPROVAL_PENDING':
-      case 'APPROVED':
+        return { sub: "CANCELED", userLevel: "CANCELED" };
+      case "APPROVAL_PENDING":
+      case "APPROVED":
       default:
         // Approved-but-not-billed mirrors Stripe's incomplete: no access yet.
-        return { sub: 'INCOMPLETE', userLevel: 'EXPIRED' };
+        return { sub: "INCOMPLETE", userLevel: "EXPIRED" };
     }
   }
 
@@ -2150,9 +2186,9 @@ export class BillingService implements OnModuleInit {
     let { sub: subStatus, userLevel: levelStatus } = this.mapPayPalStatus(
       sub.status,
     );
-    if (opts?.forcePastDue && subStatus === 'ACTIVE') {
-      subStatus = 'PAST_DUE';
-      levelStatus = 'PAST_DUE';
+    if (opts?.forcePastDue && subStatus === "ACTIVE") {
+      subStatus = "PAST_DUE";
+      levelStatus = "PAST_DUE";
     }
 
     // next_billing_time disappears once a sub is cancelled — fall back to the
@@ -2164,7 +2200,7 @@ export class BillingService implements OnModuleInit {
       ? new Date(sub.billing_info.next_billing_time)
       : (mirror?.currentPeriodEnd ?? null);
     const graceEnd =
-      sub.status === 'CANCELLED' &&
+      sub.status === "CANCELLED" &&
       mirror?.cancelAtPeriodEnd &&
       mirror.currentPeriodEnd &&
       mirror.currentPeriodEnd > new Date()
@@ -2173,9 +2209,9 @@ export class BillingService implements OnModuleInit {
 
     await this.applySubscriptionState(
       {
-        provider: 'PAYPAL',
+        provider: "PAYPAL",
         externalSubId: sub.id,
-        externalCustomerId: sub.subscriber?.payer_id ?? 'paypal',
+        externalCustomerId: sub.subscriber?.payer_id ?? "paypal",
         user: { id: user.id, email: user.email },
         subStatus,
         userLevelStatus: levelStatus,
@@ -2192,7 +2228,7 @@ export class BillingService implements OnModuleInit {
         ],
         graceExpiresAt: graceEnd,
         mirrorPriceId: price.id,
-        periodKey: sub.billing_info?.next_billing_time ?? 'na',
+        periodKey: sub.billing_info?.next_billing_time ?? "na",
       },
       sourceEventId,
     );
@@ -2215,37 +2251,37 @@ export class BillingService implements OnModuleInit {
     if (!user) return;
 
     const regular = sub.billing_info?.cycle_executions?.find(
-      (c) => c.tenure_type === 'REGULAR',
+      (c) => c.tenure_type === "REGULAR",
     );
     const completed = regular?.cycles_completed ?? 0;
-    if (sub.status !== 'EXPIRED' && completed < price.installments) return;
+    if (sub.status !== "EXPIRED" && completed < price.installments) return;
 
     await this.prisma.userLevel.upsert({
       where: {
         userId_levelId_source: {
           userId: user.id,
           levelId: price.levelId,
-          source: 'PAYPAL',
+          source: "PAYPAL",
         },
       },
       create: {
         userId: user.id,
         levelId: price.levelId,
-        source: 'PAYPAL',
-        status: 'ACTIVE',
+        source: "PAYPAL",
+        status: "ACTIVE",
         lifetime: true,
         stripeSubItemId: sub.id,
         expiresAt: null,
       },
-      update: { status: 'ACTIVE', lifetime: true, expiresAt: null },
+      update: { status: "ACTIVE", lifetime: true, expiresAt: null },
     });
     this.logger.log(
       `[paypal-installments] sub=${sub.id} level=${price.levelId} paid ${completed}/${price.installments} -> lifetime granted user=${user.id}`,
     );
     await this.notify({
-      type: 'INSTALLMENT_PLAN_COMPLETED',
-      severity: 'INFO',
-      title: 'Installment plan completed',
+      type: "INSTALLMENT_PLAN_COMPLETED",
+      severity: "INFO",
+      title: "Installment plan completed",
       body: `${user.email} — ${price.level.name} paid in full (lifetime access granted)`,
       userId: user.id,
       dedupeKey: `installment:complete:${sub.id}:${price.levelId}`,
@@ -2263,7 +2299,7 @@ export class BillingService implements OnModuleInit {
   ): Promise<void> {
     const verified = await this.paypal.verifyWebhookSignature(rawBody, headers);
     if (!verified) {
-      throw new BadRequestException('Invalid PayPal webhook signature');
+      throw new BadRequestException("Invalid PayPal webhook signature");
     }
     let event: {
       id?: string;
@@ -2275,28 +2311,28 @@ export class BillingService implements OnModuleInit {
       };
     };
     try {
-      event = JSON.parse(rawBody.toString('utf8')) as typeof event;
+      event = JSON.parse(rawBody.toString("utf8")) as typeof event;
     } catch {
-      throw new BadRequestException('Invalid PayPal webhook payload');
+      throw new BadRequestException("Invalid PayPal webhook payload");
     }
-    const type = event.event_type ?? 'unknown';
-    const eventId = event.id ?? 'unknown';
+    const type = event.event_type ?? "unknown";
+    const eventId = event.id ?? "unknown";
     const t0 = Date.now();
     this.logger.log(`[paypal-webhook] start id=${eventId} type=${type}`);
 
     try {
       switch (type) {
-        case 'BILLING.SUBSCRIPTION.ACTIVATED':
-        case 'BILLING.SUBSCRIPTION.UPDATED':
-        case 'BILLING.SUBSCRIPTION.SUSPENDED':
-        case 'BILLING.SUBSCRIPTION.CANCELLED': {
+        case "BILLING.SUBSCRIPTION.ACTIVATED":
+        case "BILLING.SUBSCRIPTION.UPDATED":
+        case "BILLING.SUBSCRIPTION.SUSPENDED":
+        case "BILLING.SUBSCRIPTION.CANCELLED": {
           const subId = event.resource?.id;
           if (!subId) break;
           const sub = await this.paypal.getSubscription(subId);
           await this.reconcilePayPalSubscription(sub, eventId);
           break;
         }
-        case 'BILLING.SUBSCRIPTION.EXPIRED': {
+        case "BILLING.SUBSCRIPTION.EXPIRED": {
           const subId = event.resource?.id;
           if (!subId) break;
           const sub = await this.paypal.getSubscription(subId);
@@ -2306,7 +2342,7 @@ export class BillingService implements OnModuleInit {
           await this.reconcilePayPalSubscription(sub, eventId);
           break;
         }
-        case 'BILLING.SUBSCRIPTION.PAYMENT.FAILED': {
+        case "BILLING.SUBSCRIPTION.PAYMENT.FAILED": {
           const subId = event.resource?.id;
           if (!subId) break;
           const sub = await this.paypal.getSubscription(subId);
@@ -2320,9 +2356,9 @@ export class BillingService implements OnModuleInit {
             });
             if (user) {
               await this.notify({
-                type: 'PAYMENT_FAILED',
-                severity: 'CRITICAL',
-                title: 'Payment failed',
+                type: "PAYMENT_FAILED",
+                severity: "CRITICAL",
+                title: "Payment failed",
                 body: `${user.email} — PayPal payment failed`,
                 userId: user.id,
                 dedupeKey: `pp:payfail:${subId}:${eventId}`,
@@ -2331,7 +2367,7 @@ export class BillingService implements OnModuleInit {
           }
           break;
         }
-        case 'PAYMENT.SALE.COMPLETED': {
+        case "PAYMENT.SALE.COMPLETED": {
           // Sale events reference the subscription via billing_agreement_id.
           // Ignore sales that aren't tied to one of OUR PayPal subscriptions
           // (e.g. one-off PayPal payments on the same business account).
@@ -2340,14 +2376,14 @@ export class BillingService implements OnModuleInit {
           const mirror = await this.prisma.subscriptionMirror.findUnique({
             where: { stripeSubId: subId },
           });
-          if (!mirror || mirror.provider !== 'PAYPAL') break;
+          if (!mirror || mirror.provider !== "PAYPAL") break;
           const sub = await this.paypal.getSubscription(subId);
           await this.reconcilePayPalSubscription(sub, eventId);
           await this.fulfillPayPalInstallmentsIfComplete(sub);
           // Renewal receipt notification; the FIRST payment is covered by
           // SUBSCRIPTION_CREATED (same suppression rule as Stripe invoices).
           const regular = sub.billing_info?.cycle_executions?.find(
-            (c) => c.tenure_type === 'REGULAR',
+            (c) => c.tenure_type === "REGULAR",
           );
           if ((regular?.cycles_completed ?? 0) > 1 && sub.custom_id) {
             const user = await this.prisma.user.findUnique({
@@ -2361,9 +2397,9 @@ export class BillingService implements OnModuleInit {
                 event.resource?.amount?.currency,
               );
               await this.notify({
-                type: 'PAYMENT_SUCCEEDED',
-                severity: 'INFO',
-                title: 'Payment received',
+                type: "PAYMENT_SUCCEEDED",
+                severity: "INFO",
+                title: "Payment received",
                 body: `${user.email} — paid ${amount}`,
                 userId: user.id,
                 dedupeKey: `pp:paid:${event.resource?.id ?? eventId}`,
@@ -2395,7 +2431,7 @@ export class BillingService implements OnModuleInit {
   // the index — PayPal has no list-by-payer API).
   private async paypalSubIdsForUser(userId: string): Promise<string[]> {
     const grants = await this.prisma.userLevel.findMany({
-      where: { userId, source: 'PAYPAL', stripeSubItemId: { not: null } },
+      where: { userId, source: "PAYPAL", stripeSubItemId: { not: null } },
       select: { stripeSubItemId: true },
     });
     return [...new Set(grants.map((g) => g.stripeSubItemId as string))];
@@ -2405,7 +2441,7 @@ export class BillingService implements OnModuleInit {
   // reconcile. Per-sub failures are logged, never thrown.
   private async refreshPayPalSubsForUser(
     userId: string,
-    tag = 'refresh',
+    tag = "refresh",
   ): Promise<void> {
     const subIds = await this.paypalSubIdsForUser(userId);
     await Promise.all(
@@ -2439,9 +2475,7 @@ export class BillingService implements OnModuleInit {
     ]);
     const mirrorById = new Map(mirrors.map((m) => [m.stripeSubId, m]));
     const priceIds = [
-      ...new Set(
-        mirrors.map((m) => m.priceId).filter((v): v is string => !!v),
-      ),
+      ...new Set(mirrors.map((m) => m.priceId).filter((v): v is string => !!v)),
     ];
     const prices = await this.prisma.price.findMany({
       where: { id: { in: priceIds } },
@@ -2456,17 +2490,17 @@ export class BillingService implements OnModuleInit {
       const price = mirror?.priceId ? priceById.get(mirror.priceId) : undefined;
       if (!mirror || !price) continue;
       const result = results[i];
-      const live = result.status === 'fulfilled' ? result.value : null;
+      const live = result.status === "fulfilled" ? result.value : null;
 
       // Normalized lowercase status (the DTO carries Stripe-style strings).
       const status: string = live
-        ? live.status === 'SUSPENDED'
-          ? 'paused'
-          : live.status === 'CANCELLED' || live.status === 'EXPIRED'
-            ? 'canceled'
-            : live.status === 'ACTIVE'
-              ? 'active'
-              : 'incomplete'
+        ? live.status === "SUSPENDED"
+          ? "paused"
+          : live.status === "CANCELLED" || live.status === "EXPIRED"
+            ? "canceled"
+            : live.status === "ACTIVE"
+              ? "active"
+              : "incomplete"
         : mirror.status.toLowerCase();
 
       const now = new Date();
@@ -2476,17 +2510,17 @@ export class BillingService implements OnModuleInit {
         mirror.currentPeriodEnd > now;
       // Terminal and out of grace -> drop the row (Stripe details skip
       // canceled subscriptions the same way).
-      if (status === 'canceled' && !grace) continue;
+      if (status === "canceled" && !grace) continue;
 
       const regular = live?.billing_info?.cycle_executions?.find(
-        (c) => c.tenure_type === 'REGULAR',
+        (c) => c.tenure_type === "REGULAR",
       );
       out.push({
         stripeSubId: subId,
-        provider: 'paypal',
+        provider: "paypal",
         levelId: price.levelId,
         levelName: price.level.name,
-        status: grace ? 'active' : status,
+        status: grace ? "active" : status,
         interval: price.interval,
         amount: price.amount,
         currency: price.currency,
@@ -2495,7 +2529,7 @@ export class BillingService implements OnModuleInit {
           mirror.currentPeriodEnd?.toISOString() ??
           null,
         cancelAtPeriodEnd: mirror.cancelAtPeriodEnd,
-        paused: status === 'paused',
+        paused: status === "paused",
         installmentsTotal: price.installments ?? null,
         installmentsPaid:
           price.installments != null
@@ -2516,17 +2550,13 @@ export class BillingService implements OnModuleInit {
       where: { stripeSubId: { in: subIds } },
     });
     const priceIds = [
-      ...new Set(
-        mirrors.map((m) => m.priceId).filter((v): v is string => !!v),
-      ),
+      ...new Set(mirrors.map((m) => m.priceId).filter((v): v is string => !!v)),
     ];
     const prices = await this.prisma.price.findMany({
       where: { id: { in: priceIds } },
       include: { level: { select: { name: true } } },
     });
-    const levelNameByPriceId = new Map(
-      prices.map((p) => [p.id, p.level.name]),
-    );
+    const levelNameByPriceId = new Map(prices.map((p) => [p.id, p.level.name]));
     const mirrorById = new Map(mirrors.map((m) => [m.stripeSubId, m]));
 
     const start = new Date(
@@ -2540,7 +2570,7 @@ export class BillingService implements OnModuleInit {
     const out: InvoiceDTO[] = [];
     for (let i = 0; i < subIds.length; i++) {
       const result = results[i];
-      if (result.status !== 'fulfilled') continue;
+      if (result.status !== "fulfilled") continue;
       const mirror = mirrorById.get(subIds[i]);
       const description = mirror?.priceId
         ? (levelNameByPriceId.get(mirror.priceId) ?? null)
@@ -2548,15 +2578,15 @@ export class BillingService implements OnModuleInit {
       for (const txn of result.value) {
         const gross = txn.amount_with_breakdown?.gross_amount;
         const cents = gross ? Math.round(parseFloat(gross.value) * 100) : 0;
-        const paid = txn.status === 'COMPLETED';
+        const paid = txn.status === "COMPLETED";
         out.push({
           id: txn.id,
           number: null,
           created: txn.time,
           amountPaid: paid ? cents : 0,
           amountDue: cents,
-          currency: (gross?.currency_code ?? 'usd').toLowerCase(),
-          status: paid ? 'paid' : txn.status.toLowerCase(),
+          currency: (gross?.currency_code ?? "usd").toLowerCase(),
+          status: paid ? "paid" : txn.status.toLowerCase(),
           description,
           hostedInvoiceUrl: null,
           invoicePdf: null,
@@ -2580,8 +2610,8 @@ export class BillingService implements OnModuleInit {
     try {
       const rows = await this.prisma.userLevel.findMany({
         where: {
-          source: 'PAYPAL',
-          status: 'ACTIVE',
+          source: "PAYPAL",
+          status: "ACTIVE",
           lifetime: false,
           expiresAt: { lt: new Date() },
           stripeSubItemId: { not: null },
@@ -2596,10 +2626,10 @@ export class BillingService implements OnModuleInit {
         const mirror = await this.prisma.subscriptionMirror.findUnique({
           where: { stripeSubId: ul.stripeSubItemId as string },
         });
-        if (!mirror || mirror.status !== 'CANCELED') continue;
+        if (!mirror || mirror.status !== "CANCELED") continue;
         await this.prisma.userLevel.update({
           where: { id: ul.id },
-          data: { status: 'CANCELED' },
+          data: { status: "CANCELED" },
         });
         this.logger.log(
           `[paypal-sweep] grace expired sub=${ul.stripeSubItemId} level=${ul.levelId} user=${ul.userId} -> CANCELED`,

@@ -1,18 +1,18 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
-import type { Request } from 'express';
-import { jwtSecret } from '../common/env.util';
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { PassportStrategy } from "@nestjs/passport";
+import { ExtractJwt, Strategy } from "passport-jwt";
+import type { Request } from "express";
+import { jwtSecret } from "../common/env.util";
 import type {
   AuthenticatedPrincipal,
   JwtPayload,
-} from './jwt-payload.interface';
+} from "./jwt-payload.interface";
 import {
   certDownloadScope,
   noteDownloadScope,
   type DownloadTokenPayload,
-} from './download-token.util';
+} from "./download-token.util";
 
 // JWT strategy for the file-download routes. It accepts the token from the
 // Authorization header (preferred — used by the web app's authed blob download)
@@ -27,17 +27,17 @@ import {
 @Injectable()
 export class JwtDownloadStrategy extends PassportStrategy(
   Strategy,
-  'jwt-download',
+  "jwt-download",
 ) {
   constructor(config: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         ExtractJwt.fromAuthHeaderAsBearerToken(),
         (req: Request) =>
-          typeof req?.query?.token === 'string' ? req.query.token : null,
+          typeof req?.query?.token === "string" ? req.query.token : null,
       ]),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret(config.get<string>('JWT_SECRET')),
+      secretOrKey: jwtSecret(config.get<string>("JWT_SECRET")),
       passReqToCallback: true,
     });
   }
@@ -49,11 +49,11 @@ export class JwtDownloadStrategy extends PassportStrategy(
     // The header extractor runs first, so an Authorization header means the
     // token came from the header (a session JWT is fine there). No header means
     // it came from ?token=, which must be a correctly-scoped download token.
-    const fromHeader = typeof req.headers?.authorization === 'string';
+    const fromHeader = typeof req.headers?.authorization === "string";
     if (!fromHeader) {
       const dl = payload as DownloadTokenPayload;
-      if (dl.typ !== 'dl' || !this.scopeMatches(dl.scope, req)) {
-        throw new UnauthorizedException('Invalid or expired download token.');
+      if (dl.typ !== "dl" || !this.scopeMatches(dl.scope, req)) {
+        throw new UnauthorizedException("Invalid or expired download token.");
       }
     }
     // A `dl` token no longer carries email/username (it omits PII), so default
@@ -61,7 +61,7 @@ export class JwtDownloadStrategy extends PassportStrategy(
     // (session-JWT) token still supplies the real values.
     return {
       sub: payload.sub,
-      email: (payload as JwtPayload).email ?? '',
+      email: (payload as JwtPayload).email ?? "",
       username: (payload as JwtPayload).username,
       isAdmin: payload.isAdmin,
       role: payload.role,
@@ -74,11 +74,11 @@ export class JwtDownloadStrategy extends PassportStrategy(
   private scopeMatches(scope: string | undefined, req: Request): boolean {
     if (!scope) return false;
     const params = (req.params ?? {}) as { id?: string; noteId?: string };
-    if (scope.startsWith('note:')) {
-      return scope === noteDownloadScope(params.id ?? '', params.noteId ?? '');
+    if (scope.startsWith("note:")) {
+      return scope === noteDownloadScope(params.id ?? "", params.noteId ?? "");
     }
-    if (scope.startsWith('cert:')) {
-      return scope === certDownloadScope(params.id ?? '');
+    if (scope.startsWith("cert:")) {
+      return scope === certDownloadScope(params.id ?? "");
     }
     return false;
   }

@@ -8,15 +8,15 @@ import {
   MaxLength,
   Min,
   MinLength,
-} from 'class-validator';
-import type { MemberStatusFilter } from '@lms/types';
+} from "class-validator";
+import type { MemberStatusFilter } from "@lms/types";
 
 const MEMBER_STATUS_FILTERS = [
-  'active',
-  'past_due',
-  'paused',
-  'canceled',
-  'expired',
+  "active",
+  "past_due",
+  "paused",
+  "canceled",
+  "expired",
 ] as const;
 
 // Query params for the server-paged member list. The global ValidationPipe runs

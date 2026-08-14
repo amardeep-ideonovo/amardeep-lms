@@ -6,10 +6,10 @@ import {
   Query,
   Req,
   UseGuards,
-} from '@nestjs/common';
-import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-import type { Request } from 'express';
-import { ContactsService } from './contacts.service';
+} from "@nestjs/common";
+import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import type { Request } from "express";
+import { ContactsService } from "./contacts.service";
 
 // Public confirm-link rate limit. Double-opt-in confirms are low-volume and
 // security-sensitive (a forged-token sprayer shouldn't be able to hammer this),
@@ -26,20 +26,20 @@ const CONFIRM_TTL_MS = 60_000;
 //
 // Throttled module-side: ContactsModule imports ThrottlerModule and these
 // routes carry @UseGuards(ThrottlerGuard)+@Throttle (mirrors AuthController).
-@Controller('contacts/confirm')
+@Controller("contacts/confirm")
 export class ContactsConfirmController {
   constructor(private readonly contacts: ContactsService) {}
 
   @Get()
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: CONFIRM_LIMIT, ttl: CONFIRM_TTL_MS } })
-  @Header('Content-Type', 'text/html; charset=utf-8')
+  @Header("Content-Type", "text/html; charset=utf-8")
   // Never let a confirm page get cached/indexed.
-  @Header('Cache-Control', 'no-store')
-  @Header('X-Robots-Tag', 'noindex')
+  @Header("Cache-Control", "no-store")
+  @Header("X-Robots-Tag", "noindex")
   async page(
     @Req() req: Request,
-    @Query('token') token?: string,
+    @Query("token") token?: string,
   ): Promise<string> {
     const { result, email } = await this.contacts.confirm(token, req.ip);
     return renderPage(result, email);
@@ -50,11 +50,11 @@ export class ContactsConfirmController {
   @Post()
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: CONFIRM_LIMIT, ttl: CONFIRM_TTL_MS } })
-  @Header('Content-Type', 'text/html; charset=utf-8')
-  @Header('Cache-Control', 'no-store')
+  @Header("Content-Type", "text/html; charset=utf-8")
+  @Header("Cache-Control", "no-store")
   async oneClick(
     @Req() req: Request,
-    @Query('token') token?: string,
+    @Query("token") token?: string,
   ): Promise<string> {
     const { result, email } = await this.contacts.confirm(token, req.ip);
     return renderPage(result, email);
@@ -68,11 +68,11 @@ export class ContactsConfirmController {
 
 function escapeHtml(s: string): string {
   return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function shell(title: string, body: string): string {
@@ -120,41 +120,41 @@ function shell(title: string, body: string): string {
 // opt-out; 'invalid' is a neutral error page (never confirms whether the address
 // was real). All return a string body — the controller sets the content type.
 function renderPage(
-  result: 'confirmed' | 'already' | 'suppressed' | 'invalid',
+  result: "confirmed" | "already" | "suppressed" | "invalid",
   email?: string,
 ): string {
   const who = email
     ? `<span class="email">${escapeHtml(email)}</span>`
-    : 'your email address';
+    : "your email address";
   switch (result) {
-    case 'confirmed':
+    case "confirmed":
       return shell(
-        'Subscription confirmed',
+        "Subscription confirmed",
         `<div class="badge" aria-hidden="true">✓</div>
          <h1>You're all set</h1>
          <p>${who} is now confirmed. You'll start receiving our emails.</p>
          <p class="muted">Changed your mind later? Every email has an unsubscribe link.</p>`,
       );
-    case 'already':
+    case "already":
       return shell(
-        'Already confirmed',
+        "Already confirmed",
         `<div class="badge" aria-hidden="true">✓</div>
          <h1>Already confirmed</h1>
          <p>${who} is already on our mailing list — nothing else to do.</p>
          <p class="muted">Every email we send includes an unsubscribe link if you ever want out.</p>`,
       );
-    case 'suppressed':
+    case "suppressed":
       return shell(
-        'Subscription not reactivated',
+        "Subscription not reactivated",
         `<div class="badge" aria-hidden="true">!</div>
          <h1>This address opted out</h1>
          <p>${who} previously unsubscribed, so this confirmation link won't re-subscribe it.</p>
          <p class="muted">If you'd like to subscribe again, please sign up afresh.</p>`,
       );
-    case 'invalid':
+    case "invalid":
     default:
       return shell(
-        'Confirmation link not valid',
+        "Confirmation link not valid",
         `<div class="badge" aria-hidden="true">!</div>
          <h1>This link isn't valid</h1>
          <p>The confirmation link looks incomplete or has expired. Please use the link from your most recent confirmation email.</p>

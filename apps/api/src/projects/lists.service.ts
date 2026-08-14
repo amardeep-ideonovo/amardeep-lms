@@ -3,15 +3,15 @@ import {
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
-} from '@nestjs/common';
-import { randomUUID } from 'crypto';
-import { Prisma } from '@prisma/client';
+} from "@nestjs/common";
+import { randomUUID } from "crypto";
+import { Prisma } from "@prisma/client";
 import type {
   ChatList,
   ChatListField,
   ChatListItem,
   ChatListItemComment,
-} from '@prisma/client';
+} from "@prisma/client";
 import type {
   ChatFieldType,
   ChatListDTO,
@@ -28,18 +28,18 @@ import type {
   CreateListFieldInput,
   UpdateChatListItemInput,
   UpdateListFieldInput,
-} from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { ChannelsService } from './channels.service';
-import { ProjectsGateway } from './projects.gateway';
-import { WorkflowsService } from './workflows.service';
-import { AuditService } from '../audit/audit.service';
+} from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { ChannelsService } from "./channels.service";
+import { ProjectsGateway } from "./projects.gateway";
+import { WorkflowsService } from "./workflows.service";
+import { AuditService } from "../audit/audit.service";
 import {
   SECRET_MAX_LENGTH,
   isSealed,
   openSecretValue,
   sealSecretValue,
-} from './secret-value.util';
+} from "./secret-value.util";
 
 // Item shape with the comment count + (optionally loaded) comments eagerly
 // included for serialization.
@@ -80,11 +80,11 @@ export class ListsService {
     try {
       return fn();
     } catch (e) {
-      const msg = e instanceof Error ? e.message : '';
+      const msg = e instanceof Error ? e.message : "";
       throw new ServiceUnavailableException(
-        msg.includes('SETTINGS_ENC_KEY')
-          ? 'Projects secrets need encryption configured (set SETTINGS_ENC_KEY).'
-          : 'This secret could not be decrypted — SETTINGS_ENC_KEY may have changed.',
+        msg.includes("SETTINGS_ENC_KEY")
+          ? "Projects secrets need encryption configured (set SETTINGS_ENC_KEY)."
+          : "This secret could not be decrypted — SETTINGS_ENC_KEY may have changed.",
       );
     }
   }
@@ -119,10 +119,10 @@ export class ListsService {
     const secretFieldIds: string[] = [];
     for (const f of fields) {
       if (!(f.id in raw)) continue;
-      if (f.type === 'SECRET') {
+      if (f.type === "SECRET") {
         const v = raw[f.id];
         // Only advertise the field as set when it actually holds a secret.
-        if (typeof v === 'string' && v.length > 0) secretFieldIds.push(f.id);
+        if (typeof v === "string" && v.length > 0) secretFieldIds.push(f.id);
         continue; // never emit the plaintext
       }
       // Defense in depth: flipping a column SECRET -> TEXT does not rewrite the
@@ -194,10 +194,12 @@ export class ListsService {
   // Standard include for list detail: fields ordered by position, items ordered
   // by position with their (non-deleted) comment counts.
   private readonly listInclude = {
-    fields: { orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] },
+    fields: { orderBy: [{ position: "asc" }, { createdAt: "asc" }] },
     items: {
-      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
-      include: { _count: { select: { comments: { where: { deletedAt: null } } } } },
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+      include: {
+        _count: { select: { comments: { where: { deletedAt: null } } } },
+      },
     },
   } satisfies Prisma.ChatListInclude;
 
@@ -212,7 +214,7 @@ export class ListsService {
     // endpoint is polled and refetched on socket updates, so keep it a count.
     const lists = await this.prisma.chatList.findMany({
       where: channelId ? { channelId } : {},
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
       include: { _count: { select: { items: true } } },
     });
     return lists.map((l) => this.toListSummaryDTO(l));
@@ -233,7 +235,7 @@ export class ListsService {
       where: { id: listId },
       include: this.listInclude,
     });
-    if (!list) throw new NotFoundException('List not found');
+    if (!list) throw new NotFoundException("List not found");
     return this.toListDTO(
       list as ChatList & { items: ItemWithCount[]; fields: ChatListField[] },
     );
@@ -275,8 +277,9 @@ export class ListsService {
         fields: { select: { id: true, type: true } },
       },
     });
-    if (!list) throw new NotFoundException('List not found');
-    if (list.channelId) await this.channels.assertVisible(adminId, list.channelId);
+    if (!list) throw new NotFoundException("List not found");
+    if (list.channelId)
+      await this.channels.assertVisible(adminId, list.channelId);
 
     // Optional custom-field values are validated against this list's fields.
     const values = input.values
@@ -286,14 +289,14 @@ export class ListsService {
     // Default new items to the bottom of the list.
     const last = await this.prisma.chatListItem.findFirst({
       where: { listId },
-      orderBy: { position: 'desc' },
+      orderBy: { position: "desc" },
       select: { position: true },
     });
     const item = await this.prisma.chatListItem.create({
       data: {
         listId,
         title: input.title.trim(),
-        status: input.status ?? 'TODO',
+        status: input.status ?? "TODO",
         assigneeAdminId: input.assigneeAdminId ?? null,
         dueDate: input.dueDate ? new Date(input.dueDate) : null,
         position: (last?.position ?? -1) + 1,
@@ -302,12 +305,14 @@ export class ListsService {
           : {}),
         createdFromMessageId: input.createdFromMessageId ?? null,
       },
-      include: { _count: { select: { comments: { where: { deletedAt: null } } } } },
+      include: {
+        _count: { select: { comments: { where: { deletedAt: null } } } },
+      },
     });
     this.gateway.emitListUpdate(list.channelId, listId);
     // Best-effort: fire ITEM_CREATED workflows (auto-post into the channel). A
     // workflow failure must never fail the create, so swallow everything.
-    await this.fireWorkflow('ITEM_CREATED', item.id, adminId);
+    await this.fireWorkflow("ITEM_CREATED", item.id, adminId);
     return this.toItemDTO(item, list.fields);
   }
 
@@ -341,7 +346,7 @@ export class ListsService {
         },
       },
     });
-    if (!item) throw new NotFoundException('List item not found');
+    if (!item) throw new NotFoundException("List item not found");
     if (item.list.channelId) {
       await this.channels.assertVisible(adminId, item.list.channelId);
     }
@@ -358,7 +363,9 @@ export class ListsService {
           : {}),
         ...(input.position !== undefined ? { position: input.position } : {}),
       },
-      include: { _count: { select: { comments: { where: { deletedAt: null } } } } },
+      include: {
+        _count: { select: { comments: { where: { deletedAt: null } } } },
+      },
     });
     this.gateway.emitListUpdate(item.list.channelId, item.listId);
     return this.toItemDTO(updated, item.list.fields);
@@ -369,7 +376,7 @@ export class ListsService {
       where: { id: itemId },
       include: { list: { select: { channelId: true } } },
     });
-    if (!item) throw new NotFoundException('List item not found');
+    if (!item) throw new NotFoundException("List item not found");
     if (item.list.channelId) {
       await this.channels.assertVisible(adminId, item.list.channelId);
     }
@@ -396,7 +403,7 @@ export class ListsService {
         },
       },
     });
-    if (!item) throw new NotFoundException('List item not found');
+    if (!item) throw new NotFoundException("List item not found");
     if (item.list.channelId) {
       await this.channels.assertVisible(adminId, item.list.channelId);
     }
@@ -407,7 +414,9 @@ export class ListsService {
     const updated = await this.prisma.chatListItem.update({
       where: { id: itemId },
       data: { values: merged as unknown as Prisma.InputJsonValue },
-      include: { _count: { select: { comments: { where: { deletedAt: null } } } } },
+      include: {
+        _count: { select: { comments: { where: { deletedAt: null } } } },
+      },
     });
     this.gateway.emitListUpdate(item.list.channelId, item.listId);
 
@@ -415,13 +424,13 @@ export class ListsService {
     // to a (new, non-empty) admin id in this PATCH. We compare the value before
     // vs after the merge so a no-op write doesn't re-fire.
     const assigneeField = item.list.fields.find(
-      (f) => f.type === 'PERSON' && f.name.trim().toLowerCase() === 'assignee',
+      (f) => f.type === "PERSON" && f.name.trim().toLowerCase() === "assignee",
     );
     if (assigneeField && assigneeField.id in validated) {
       const next = merged[assigneeField.id];
       const prev = before[assigneeField.id];
-      if (typeof next === 'string' && next && next !== prev) {
-        await this.fireWorkflow('ITEM_ASSIGNED', itemId, adminId);
+      if (typeof next === "string" && next && next !== prev) {
+        await this.fireWorkflow("ITEM_ASSIGNED", itemId, adminId);
       }
     }
     return this.toItemDTO(updated, item.list.fields);
@@ -448,21 +457,21 @@ export class ListsService {
         },
       },
     });
-    if (!item) throw new NotFoundException('List item not found');
+    if (!item) throw new NotFoundException("List item not found");
     if (item.list.channelId) {
       await this.channels.assertVisible(adminId, item.list.channelId);
     }
     const field = item.list.fields.find((f) => f.id === fieldId);
-    if (!field || field.type !== 'SECRET') {
-      throw new NotFoundException('Secret field not found');
+    if (!field || field.type !== "SECRET") {
+      throw new NotFoundException("Secret field not found");
     }
     const stored = this.readObject(item.values)[fieldId];
     // Audit BEFORE decrypting: an attempt that fails on a missing/rotated key
     // is still an attempt to read a credential and must leave a trail.
     await this.audit.write({
       actorAdminId: adminId,
-      action: 'projects.secret.reveal',
-      targetType: 'chat_list_item',
+      action: "projects.secret.reveal",
+      targetType: "chat_list_item",
       targetId: itemId,
       metadata: { fieldId, listId: item.listId },
       ip,
@@ -483,10 +492,11 @@ export class ListsService {
       where: { id: listId },
       select: { id: true, channelId: true },
     });
-    if (!list) throw new NotFoundException('List not found');
-    if (list.channelId) await this.channels.assertVisible(adminId, list.channelId);
+    if (!list) throw new NotFoundException("List not found");
+    if (list.channelId)
+      await this.channels.assertVisible(adminId, list.channelId);
 
-    const type: ChatFieldType = input.type ?? 'TEXT';
+    const type: ChatFieldType = input.type ?? "TEXT";
     const options = this.normalizeOptions(type, input.options);
     const key = await this.uniqueKey(listId, input.name);
 
@@ -496,7 +506,7 @@ export class ListsService {
       ((
         await this.prisma.chatListField.findFirst({
           where: { listId },
-          orderBy: { position: 'desc' },
+          orderBy: { position: "desc" },
           select: { position: true },
         })
       )?.position ?? -1) + 1;
@@ -525,7 +535,7 @@ export class ListsService {
       where: { id: fieldId },
       include: { list: { select: { id: true, channelId: true } } },
     });
-    if (!field) throw new NotFoundException('List field not found');
+    if (!field) throw new NotFoundException("List field not found");
     if (field.list.channelId) {
       await this.channels.assertVisible(adminId, field.list.channelId);
     }
@@ -563,7 +573,7 @@ export class ListsService {
       where: { id: fieldId },
       include: { list: { select: { id: true, channelId: true } } },
     });
-    if (!field) throw new NotFoundException('List field not found');
+    if (!field) throw new NotFoundException("List field not found");
     if (field.list.channelId) {
       await this.channels.assertVisible(adminId, field.list.channelId);
     }
@@ -581,8 +591,9 @@ export class ListsService {
       where: { id: listId },
       select: { id: true, channelId: true },
     });
-    if (!list) throw new NotFoundException('List not found');
-    if (list.channelId) await this.channels.assertVisible(adminId, list.channelId);
+    if (!list) throw new NotFoundException("List not found");
+    if (list.channelId)
+      await this.channels.assertVisible(adminId, list.channelId);
 
     const fields = await this.prisma.chatListField.findMany({
       where: { listId },
@@ -607,7 +618,7 @@ export class ListsService {
     );
     const fresh = await this.prisma.chatListField.findMany({
       where: { listId },
-      orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
     });
     this.gateway.emitListUpdate(list.channelId, listId);
     return fresh.map((f) => this.toFieldDTO(f));
@@ -623,13 +634,13 @@ export class ListsService {
       where: { id: itemId },
       include: { list: { select: { channelId: true } } },
     });
-    if (!item) throw new NotFoundException('List item not found');
+    if (!item) throw new NotFoundException("List item not found");
     if (item.list.channelId) {
       await this.channels.assertVisible(adminId, item.list.channelId);
     }
     const comments = await this.prisma.chatListItemComment.findMany({
       where: { itemId, deletedAt: null },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
     });
     return comments.map((c) => this.toCommentDTO(c));
   }
@@ -643,7 +654,7 @@ export class ListsService {
       where: { id: itemId },
       include: { list: { select: { channelId: true } } },
     });
-    if (!item) throw new NotFoundException('List item not found');
+    if (!item) throw new NotFoundException("List item not found");
     if (item.list.channelId) {
       await this.channels.assertVisible(adminId, item.list.channelId);
     }
@@ -694,11 +705,11 @@ export class ListsService {
       },
     });
     if (!comment || comment.deletedAt) {
-      throw new NotFoundException('Comment not found');
+      throw new NotFoundException("Comment not found");
     }
     // Only the author may edit/delete their own comment.
     if (comment.authorAdminId !== adminId) {
-      throw new NotFoundException('Comment not found');
+      throw new NotFoundException("Comment not found");
     }
     if (comment.item.list.channelId) {
       await this.channels.assertVisible(adminId, comment.item.list.channelId);
@@ -734,13 +745,13 @@ export class ListsService {
         field.name,
         value,
       );
-      if (field.type === 'SECRET' && typeof normalized === 'string') {
+      if (field.type === "SECRET" && typeof normalized === "string") {
         // THE single encrypt site: both writers (addItem, updateItemValues)
         // funnel through here, so plaintext never reaches the database.
         // '' means "clear the cell" — sealing it would yield a non-empty
         // ciphertext that toItemDTO would then report as a secret being set.
         out[fieldId] =
-          normalized === ''
+          normalized === ""
             ? null
             : this.crypto(() => sealSecretValue(normalized));
       } else {
@@ -760,18 +771,16 @@ export class ListsService {
   ): unknown {
     if (value === null || value === undefined) return null;
     const bad = (expected: string): never => {
-      throw new BadRequestException(
-        `Field "${fieldName}" expects ${expected}`,
-      );
+      throw new BadRequestException(`Field "${fieldName}" expects ${expected}`);
     };
     switch (type) {
-      case 'TEXT':
-      case 'LONG_TEXT':
-      case 'URL':
-        if (typeof value !== 'string') bad('a string');
+      case "TEXT":
+      case "LONG_TEXT":
+      case "URL":
+        if (typeof value !== "string") bad("a string");
         return value;
-      case 'SECRET': {
-        if (typeof value !== 'string') bad('a string');
+      case "SECRET": {
+        if (typeof value !== "string") bad("a string");
         const s = value as string;
         // Capped because sealing inflates the stored value. Deliberately NOT
         // trimmed — leading/trailing whitespace can be meaningful in a
@@ -783,42 +792,42 @@ export class ListsService {
         }
         return s;
       }
-      case 'PERSON':
+      case "PERSON":
         // An admin id is an opaque string; existence is the caller's concern.
-        if (typeof value !== 'string') bad('an admin id string');
+        if (typeof value !== "string") bad("an admin id string");
         return value;
-      case 'MULTI_PERSON': {
+      case "MULTI_PERSON": {
         // Multiple assignees — an array of admin id strings.
-        if (!Array.isArray(value)) bad('an array of admin id strings');
+        if (!Array.isArray(value)) bad("an array of admin id strings");
         const ids = value as unknown[];
         for (const id of ids) {
-          if (typeof id !== 'string') bad('an array of admin id strings');
+          if (typeof id !== "string") bad("an array of admin id strings");
         }
         return ids;
       }
-      case 'NUMBER':
-        if (typeof value !== 'number' || Number.isNaN(value)) bad('a number');
+      case "NUMBER":
+        if (typeof value !== "number" || Number.isNaN(value)) bad("a number");
         return value;
-      case 'CHECKBOX':
-        if (typeof value !== 'boolean') bad('a boolean');
+      case "CHECKBOX":
+        if (typeof value !== "boolean") bad("a boolean");
         return value;
-      case 'DATE': {
-        if (typeof value !== 'string' || Number.isNaN(Date.parse(value))) {
-          bad('an ISO date string');
+      case "DATE": {
+        if (typeof value !== "string" || Number.isNaN(Date.parse(value))) {
+          bad("an ISO date string");
         }
         return value;
       }
-      case 'SELECT': {
-        if (typeof value !== 'string') bad('an option id');
-        if (!options.some((o) => o.id === value)) bad('a valid option id');
+      case "SELECT": {
+        if (typeof value !== "string") bad("an option id");
+        if (!options.some((o) => o.id === value)) bad("a valid option id");
         return value;
       }
-      case 'MULTI_SELECT': {
-        if (!Array.isArray(value)) bad('an array of option ids');
+      case "MULTI_SELECT": {
+        if (!Array.isArray(value)) bad("an array of option ids");
         const ids = value as unknown[];
         for (const id of ids) {
-          if (typeof id !== 'string' || !options.some((o) => o.id === id)) {
-            bad('an array of valid option ids');
+          if (typeof id !== "string" || !options.some((o) => o.id === id)) {
+            bad("an array of valid option ids");
           }
         }
         return ids;
@@ -836,7 +845,7 @@ export class ListsService {
     type: ChatFieldType,
     options?: ChatListFieldOptionInput[],
   ): ChatListFieldOption[] {
-    if (type !== 'SELECT' && type !== 'MULTI_SELECT') return [];
+    if (type !== "SELECT" && type !== "MULTI_SELECT") return [];
     if (!options) return [];
     return options.map((o) => ({
       id: o.id && o.id.trim() ? o.id : randomUUID(),
@@ -852,9 +861,9 @@ export class ListsService {
       name
         .trim()
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        .slice(0, 48) || 'field';
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 48) || "field";
     const existing = await this.prisma.chatListField.findMany({
       where: { listId, key: { startsWith: base } },
       select: { key: true },
@@ -869,7 +878,7 @@ export class ListsService {
   // ----- JSON readers (Prisma Json -> typed) -----
 
   private readObject(value: Prisma.JsonValue): Record<string, unknown> {
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
       return value as Record<string, unknown>;
     }
     return {};
@@ -879,13 +888,13 @@ export class ListsService {
     if (!Array.isArray(value)) return [];
     const out: ChatListFieldOption[] = [];
     for (const entry of value) {
-      if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+      if (entry && typeof entry === "object" && !Array.isArray(entry)) {
         const o = entry as Record<string, unknown>;
-        if (typeof o.id === 'string' && typeof o.label === 'string') {
+        if (typeof o.id === "string" && typeof o.label === "string") {
           out.push({
             id: o.id,
             label: o.label,
-            color: typeof o.color === 'string' ? o.color : null,
+            color: typeof o.color === "string" ? o.color : null,
           });
         }
       }

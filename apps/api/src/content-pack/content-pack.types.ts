@@ -11,7 +11,6 @@
 // file bytes inlined as base64. See content-pack.service.ts for the exact model
 // list, the FK-safe insert order, and the transforms applied on import.
 
- 
 export type PackRow = Record<string, any>;
 
 // Which on-disk store a file belongs to. Mirrors the three writable upload roots
@@ -19,9 +18,9 @@ export type PackRow = Record<string, any>;
 // fonts are deliberately excluded — the former is issued state, the latter ships
 // in the image).
 export type PackFileStore =
-  | 'media' // MEDIA_DIR — gallery + certificate artwork, served at /media
-  | 'images' // BLOG_IMAGES_DIR — per-entity images, served at /images/<subdir>
-  | 'lesson-notes'; // LESSON_FILES_DIR/lesson-notes — access-checked attachments
+  | "media" // MEDIA_DIR — gallery + certificate artwork, served at /media
+  | "images" // BLOG_IMAGES_DIR — per-entity images, served at /images/<subdir>
+  | "lesson-notes"; // LESSON_FILES_DIR/lesson-notes — access-checked attachments
 
 export interface PackFile {
   store: PackFileStore;
@@ -32,7 +31,7 @@ export interface PackFile {
 }
 
 export interface PackManifest {
-  format: 'lms-content-pack';
+  format: "lms-content-pack";
   formatVersion: number;
   createdAt: string; // ISO
   // PUBLIC_API_URL of the demo instance this was exported from. Import rewrites

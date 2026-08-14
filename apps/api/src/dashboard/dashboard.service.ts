@@ -1,8 +1,8 @@
-import { Injectable } from '@nestjs/common';
-import type { DashboardResponse } from '@lms/types';
-import { PrismaService } from '../prisma/prisma.service';
-import { AccessService } from '../lms/access.service';
-import { isCourseLocked } from '../common/access.util';
+import { Injectable } from "@nestjs/common";
+import type { DashboardResponse } from "@lms/types";
+import { PrismaService } from "../prisma/prisma.service";
+import { AccessService } from "../lms/access.service";
+import { isCourseLocked } from "../common/access.util";
 
 @Injectable()
 export class DashboardService {
@@ -21,7 +21,7 @@ export class DashboardService {
     const [courses, activeLevels, purchased, completedByCourse] =
       await Promise.all([
         this.prisma.course.findMany({
-          orderBy: { order: 'asc' },
+          orderBy: { order: "asc" },
           include: {
             courseLevels: { select: { levelId: true } },
             _count: { select: { lessons: true } },
@@ -58,7 +58,7 @@ export class DashboardService {
       categories: courseCards.length
         ? [
             {
-              category: { id: '', name: '', thumbnailUrl: null, order: 0 },
+              category: { id: "", name: "", thumbnailUrl: null, order: 0 },
               courses: courseCards,
             },
           ]

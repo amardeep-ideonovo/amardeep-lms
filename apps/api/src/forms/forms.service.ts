@@ -3,7 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-} from '@nestjs/common';
+} from "@nestjs/common";
 import type {
   FormAdminRow,
   FormFieldDef,
@@ -11,11 +11,11 @@ import type {
   FormStatus,
   FormSubmissionDTO,
   FormSubmitResult,
-} from '@lms/types';
-import type { Prisma } from '@prisma/client';
-import { PrismaService } from '../prisma/prisma.service';
-import { ContactsService } from '../contacts/contacts.service';
-import { CreateFormDto, UpdateFormDto } from './dto/form.dto';
+} from "@lms/types";
+import type { Prisma } from "@prisma/client";
+import { PrismaService } from "../prisma/prisma.service";
+import { ContactsService } from "../contacts/contacts.service";
+import { CreateFormDto, UpdateFormDto } from "./dto/form.dto";
 
 type FormRow = {
   id: string;
@@ -44,12 +44,12 @@ const CSV_BATCH = 500; // rows per keyset hop while streaming the export
 
 // Escape one CSV cell (quote if it contains a comma/quote/newline).
 function csvCell(v: unknown): string {
-  const s = v === undefined || v === null ? '' : String(v);
+  const s = v === undefined || v === null ? "" : String(v);
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 function csvLine(cols: unknown[]): string {
-  return cols.map(csvCell).join(',') + '\r\n';
+  return cols.map(csvCell).join(",") + "\r\n";
 }
 
 @Injectable()
@@ -116,7 +116,7 @@ mount.appendChild(f);
 
   async adminList(): Promise<FormAdminRow[]> {
     const forms = await this.prisma.form.findMany({
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { updatedAt: "desc" },
       include: {
         audience: { select: { name: true } },
         _count: { select: { submissions: true } },
@@ -133,7 +133,7 @@ mount.appendChild(f);
         _count: { select: { submissions: true } },
       },
     });
-    if (!form) throw new NotFoundException('Form not found');
+    if (!form) throw new NotFoundException("Form not found");
     return this.toAdminRow(form);
   }
 
@@ -148,7 +148,7 @@ mount.appendChild(f);
         tags: dto.tags ?? [],
         successMessage: dto.successMessage?.trim() || null,
         redirectUrl: dto.redirectUrl?.trim() || null,
-        status: dto.status ?? 'ACTIVE',
+        status: dto.status ?? "ACTIVE",
       },
       include: {
         audience: { select: { name: true } },
@@ -160,7 +160,7 @@ mount.appendChild(f);
 
   async adminUpdate(id: string, dto: UpdateFormDto): Promise<FormAdminRow> {
     const existing = await this.prisma.form.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Form not found');
+    if (!existing) throw new NotFoundException("Form not found");
     const form = await this.prisma.form.update({
       where: { id },
       data: {
@@ -194,7 +194,7 @@ mount.appendChild(f);
 
   async adminDelete(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.form.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundException('Form not found');
+    if (!existing) throw new NotFoundException("Form not found");
     await this.prisma.form.delete({ where: { id } });
     return { ok: true };
   }
@@ -208,7 +208,7 @@ mount.appendChild(f);
     q: { limit?: number; cursor?: string } = {},
   ): Promise<FormSubmissionDTO[]> {
     const form = await this.prisma.form.findUnique({ where: { id: formId } });
-    if (!form) throw new NotFoundException('Form not found');
+    if (!form) throw new NotFoundException("Form not found");
     const take = Math.min(
       Math.max(q.limit ?? DEFAULT_SUBMISSION_PAGE, 1),
       MAX_SUBMISSION_PAGE,
@@ -222,14 +222,14 @@ mount.appendChild(f);
         where: { id: q.cursor, formId },
         select: { id: true, createdAt: true },
       });
-      if (!anchor) throw new BadRequestException('Invalid cursor');
+      if (!anchor) throw new BadRequestException("Invalid cursor");
       where = { AND: [{ formId }, this.olderThan(anchor)] };
     }
     const subs = await this.prisma.formSubmission.findMany({
       where,
       // Composite order: createdAt alone is neither unique nor a stable
       // tiebreaker, so rows could repeat or vanish across pages.
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take,
     });
     return subs.map((s) => ({
@@ -258,7 +258,7 @@ mount.appendChild(f);
     value: Prisma.JsonValue,
   ): Record<string, string | number | boolean> {
     return (
-      value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+      value && typeof value === "object" && !Array.isArray(value) ? value : {}
     ) as Record<string, string | number | boolean>;
   }
 
@@ -273,20 +273,22 @@ mount.appendChild(f);
    */
   async *csvRows(formId: string): AsyncGenerator<string> {
     const form = await this.prisma.form.findUnique({ where: { id: formId } });
-    if (!form) throw new NotFoundException('Form not found');
+    if (!form) throw new NotFoundException("Form not found");
     const fields = this.asFields(form.fields);
     yield csvLine([
-      'Submitted at',
-      'Email',
+      "Submitted at",
+      "Email",
       ...fields.map((f) => f.label || f.name),
-      'Subscribe status',
+      "Subscribe status",
     ]);
 
     let cursor: { createdAt: Date; id: string } | null = null;
     for (;;) {
       const rows = await this.prisma.formSubmission.findMany({
-        where: cursor ? { AND: [{ formId }, this.olderThan(cursor)] } : { formId },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        where: cursor
+          ? { AND: [{ formId }, this.olderThan(cursor)] }
+          : { formId },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: CSV_BATCH,
       });
       if (rows.length === 0) break;
@@ -294,9 +296,9 @@ mount.appendChild(f);
         const data = this.asData(r.data);
         yield csvLine([
           r.createdAt.toISOString(),
-          r.email ?? '',
-          ...fields.map((f) => data[f.name] ?? ''),
-          r.subscribeStatus ?? '',
+          r.email ?? "",
+          ...fields.map((f) => data[f.name] ?? ""),
+          r.subscribeStatus ?? "",
         ]);
       }
       if (rows.length < CSV_BATCH) break;
@@ -309,8 +311,8 @@ mount.appendChild(f);
 
   async getPublic(id: string): Promise<FormPublicDTO> {
     const form = await this.prisma.form.findUnique({ where: { id } });
-    if (!form || form.status !== 'ACTIVE') {
-      throw new NotFoundException('Form not found');
+    if (!form || form.status !== "ACTIVE") {
+      throw new NotFoundException("Form not found");
     }
     return {
       id: form.id,
@@ -326,12 +328,14 @@ mount.appendChild(f);
     values: Record<string, unknown>,
   ): Promise<FormSubmitResult> {
     const form = await this.prisma.form.findUnique({ where: { id } });
-    if (!form || form.status !== 'ACTIVE') {
-      throw new NotFoundException('Form not found');
+    if (!form || form.status !== "ACTIVE") {
+      throw new NotFoundException("Form not found");
     }
     const fields = this.asFields(form.fields);
     const safeValues =
-      values && typeof values === 'object' ? values : ({} as Record<string, unknown>);
+      values && typeof values === "object"
+        ? values
+        : ({} as Record<string, unknown>);
 
     // Server-side validation (never trust the client).
     for (const f of fields) {
@@ -339,22 +343,22 @@ mount.appendChild(f);
       const empty =
         v === undefined ||
         v === null ||
-        v === '' ||
-        (f.type === 'checkbox' && v !== true);
+        v === "" ||
+        (f.type === "checkbox" && v !== true);
       if (f.required && empty) {
         throw new BadRequestException(`"${f.label}" is required`);
       }
     }
 
     const emailField =
-      fields.find((f) => f.mergeTag === 'EMAIL') ??
-      fields.find((f) => f.type === 'email');
+      fields.find((f) => f.mergeTag === "EMAIL") ??
+      fields.find((f) => f.type === "email");
     const email =
-      emailField && typeof safeValues[emailField.name] === 'string'
+      emailField && typeof safeValues[emailField.name] === "string"
         ? (safeValues[emailField.name] as string).trim()
-        : '';
+        : "";
     if (email && !EMAIL_RE.test(email)) {
-      throw new BadRequestException('Please enter a valid email address');
+      throw new BadRequestException("Please enter a valid email address");
     }
 
     // Store the submission first so a contacts hiccup never loses the lead.
@@ -370,11 +374,11 @@ mount.appendChild(f);
     // itself, so it's excluded here).
     const mergeFields: Record<string, unknown> = {};
     for (const f of fields) {
-      if (f.mergeTag && f.mergeTag !== 'EMAIL') {
+      if (f.mergeTag && f.mergeTag !== "EMAIL") {
         const v = safeValues[f.name];
-        if (v !== undefined && v !== null && v !== '') {
+        if (v !== undefined && v !== null && v !== "") {
           mergeFields[f.mergeTag] =
-            typeof v === 'boolean' ? (v ? 'Yes' : 'No') : v;
+            typeof v === "boolean" ? (v ? "Yes" : "No") : v;
         }
       }
     }
@@ -385,7 +389,7 @@ mount.appendChild(f);
     // Best-effort so a contacts hiccup never 500s the public submit.
     let subscribeStatus: string;
     if (!email) {
-      subscribeStatus = 'skipped';
+      subscribeStatus = "skipped";
     } else {
       try {
         subscribeStatus = await this.contacts.subscribe(
@@ -397,11 +401,11 @@ mount.appendChild(f);
             doubleOptIn: form.doubleOptIn,
             updateExisting: form.updateExisting,
             tags: form.tags,
-            source: 'FORM',
+            source: "FORM",
           },
         );
       } catch (e) {
-        subscribeStatus = 'failed';
+        subscribeStatus = "failed";
         this.logger.warn(
           `Contacts subscribe failed for form ${form.id}: ${
             e instanceof Error ? e.message : String(e)

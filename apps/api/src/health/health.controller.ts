@@ -1,8 +1,8 @@
-import { Controller, Get, Inject } from '@nestjs/common';
-import { SkipThrottle } from '@nestjs/throttler';
-import type { Redis } from 'ioredis';
-import { PrismaService } from '../prisma/prisma.service';
-import { REDIS_CONNECTION } from '../queue/redis.provider';
+import { Controller, Get, Inject } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
+import type { Redis } from "ioredis";
+import { PrismaService } from "../prisma/prisma.service";
+import { REDIS_CONNECTION } from "../queue/redis.provider";
 
 // Liveness + readiness in one endpoint.
 //
@@ -12,7 +12,7 @@ import { REDIS_CONNECTION } from '../queue/redis.provider';
 // `checks` fields surface the real state for clients and synthetic smoke
 // tests (they can assert `checks.db === 'ok'` etc).
 @SkipThrottle() // uptime probes hit this frequently — never rate-limit it.
-@Controller('health')
+@Controller("health")
 export class HealthController {
   constructor(
     private readonly prisma: PrismaService,
@@ -21,15 +21,15 @@ export class HealthController {
 
   @Get()
   async check() {
-    const env = process.env.ENV_NAME ?? 'production';
+    const env = process.env.ENV_NAME ?? "production";
     const [db, redis] = await Promise.allSettled([
       this.withTimeout(this.prisma.client.$queryRaw`SELECT 1`, 1000),
       this.withTimeout(this.redis.ping(), 1000),
     ]);
-    const dbOk = db.status === 'fulfilled';
-    const redisOk = redis.status === 'fulfilled';
+    const dbOk = db.status === "fulfilled";
+    const redisOk = redis.status === "fulfilled";
     return {
-      status: dbOk && redisOk ? 'ok' : 'degraded',
+      status: dbOk && redisOk ? "ok" : "degraded",
       env,
       // Image build stamp (deploy/instance/build-images.sh) — lets the control
       // plane and smoke tests see which code version an instance actually runs.
@@ -37,8 +37,8 @@ export class HealthController {
       version: process.env.APP_VERSION || null,
       uptime: process.uptime(),
       checks: {
-        db: dbOk ? 'ok' : 'fail',
-        redis: redisOk ? 'ok' : 'fail',
+        db: dbOk ? "ok" : "fail",
+        redis: redisOk ? "ok" : "fail",
       },
     };
   }

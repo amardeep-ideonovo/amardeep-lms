@@ -11,26 +11,26 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import type { Request } from 'express';
-import { PermissionsGuard } from '../auth/guards/permissions.guard';
-import { RequirePermission } from '../auth/require-permission.decorator';
-import { CurrentUser } from '../auth/current-user.decorator';
-import type { AuthenticatedPrincipal } from '../auth/jwt-payload.interface';
-import { BlogService } from './blog.service';
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { diskStorage } from "multer";
+import type { Request } from "express";
+import { PermissionsGuard } from "../auth/guards/permissions.guard";
+import { RequirePermission } from "../auth/require-permission.decorator";
+import { CurrentUser } from "../auth/current-user.decorator";
+import type { AuthenticatedPrincipal } from "../auth/jwt-payload.interface";
+import { BlogService } from "./blog.service";
 import {
   CreatePostCategoryDto,
   CreatePostDto,
   UpdatePostDto,
-} from './dto/blog.dto';
+} from "./dto/blog.dto";
 import {
   BLOG_POST_DIR,
   BLOG_POST_URL_PATH,
   ensureUploadDirs,
   imageExt,
-} from './upload.config';
+} from "./upload.config";
 
 // Make sure the destination exists before multer's storage engine runs.
 ensureUploadDirs();
@@ -41,7 +41,7 @@ const blogImageStorage = diskStorage({
   destination: (_req, _file, cb) => cb(null, BLOG_POST_DIR),
   filename: (_req, file, cb) => {
     const ext = imageExt(file.mimetype, file.originalname);
-    cb(null, `${Date.now()}${ext ?? '.img'}`);
+    cb(null, `${Date.now()}${ext ?? ".img"}`);
   },
 });
 
@@ -54,26 +54,26 @@ export class BlogController {
 
   // ----- Public (no auth) -----
 
-  @Get('blog/posts')
+  @Get("blog/posts")
   listPublished() {
     return this.blog.listPublished();
   }
 
-  @Get('blog/categories')
+  @Get("blog/categories")
   listCategories() {
     return this.blog.listCategories();
   }
 
-  @Get('blog/posts/:slug')
-  getBySlug(@Param('slug') slug: string) {
+  @Get("blog/posts/:slug")
+  getBySlug(@Param("slug") slug: string) {
     return this.blog.getPublishedBySlug(slug);
   }
 
   // ----- Admin -----
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('blog', 'read')
-  @Get('admin/blog/posts')
+  @RequirePermission("blog", "read")
+  @Get("admin/blog/posts")
   adminList() {
     return this.blog.adminList();
   }
@@ -81,15 +81,15 @@ export class BlogController {
   // Full post (body included) for the editor. Unlike the public slug read this
   // serves DRAFTS, which is why the list can drop the body entirely.
   @UseGuards(PermissionsGuard)
-  @RequirePermission('blog', 'read')
-  @Get('admin/blog/posts/:id')
-  adminGet(@Param('id') id: string) {
+  @RequirePermission("blog", "read")
+  @Get("admin/blog/posts/:id")
+  adminGet(@Param("id") id: string) {
     return this.blog.adminGet(id);
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('blog', 'create')
-  @Post('admin/blog/posts')
+  @RequirePermission("blog", "create")
+  @Post("admin/blog/posts")
   adminCreate(
     @Body() dto: CreatePostDto,
     @CurrentUser() principal: AuthenticatedPrincipal,
@@ -98,30 +98,30 @@ export class BlogController {
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('blog', 'edit')
-  @Patch('admin/blog/posts/:id')
-  adminUpdate(@Param('id') id: string, @Body() dto: UpdatePostDto) {
+  @RequirePermission("blog", "edit")
+  @Patch("admin/blog/posts/:id")
+  adminUpdate(@Param("id") id: string, @Body() dto: UpdatePostDto) {
     return this.blog.adminUpdate(id, dto);
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('blog', 'delete')
-  @Delete('admin/blog/posts/:id')
-  adminDelete(@Param('id') id: string) {
+  @RequirePermission("blog", "delete")
+  @Delete("admin/blog/posts/:id")
+  adminDelete(@Param("id") id: string) {
     return this.blog.adminDelete(id);
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('blog', 'create')
-  @Post('admin/blog/categories')
+  @RequirePermission("blog", "create")
+  @Post("admin/blog/categories")
   createCategory(@Body() dto: CreatePostCategoryDto) {
     return this.blog.createCategory(dto);
   }
 
   @UseGuards(PermissionsGuard)
-  @RequirePermission('blog', 'delete')
-  @Delete('admin/blog/categories/:id')
-  deleteCategory(@Param('id') id: string) {
+  @RequirePermission("blog", "delete")
+  @Delete("admin/blog/categories/:id")
+  deleteCategory(@Param("id") id: string) {
     return this.blog.deleteCategory(id);
   }
 
@@ -129,10 +129,10 @@ export class BlogController {
   // and served back via the /images static route. Returns an absolute URL
   // suitable for storing in a post's coverImageUrl.
   @UseGuards(PermissionsGuard)
-  @RequirePermission('blog', 'create')
-  @Post('admin/blog/upload')
+  @RequirePermission("blog", "create")
+  @Post("admin/blog/upload")
   @UseInterceptors(
-    FileInterceptor('file', {
+    FileInterceptor("file", {
       storage: blogImageStorage,
       limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
       fileFilter: (_req, file, cb) => {
@@ -146,12 +146,12 @@ export class BlogController {
   ) {
     if (!file) {
       throw new BadRequestException(
-        'No image file provided (allowed: jpg, png, webp, gif, avif; max 5 MB)',
+        "No image file provided (allowed: jpg, png, webp, gif, avif; max 5 MB)",
       );
     }
     const base =
-      process.env.PUBLIC_API_URL?.replace(/\/$/, '') ||
-      `${req.protocol}://${req.get('host')}`;
+      process.env.PUBLIC_API_URL?.replace(/\/$/, "") ||
+      `${req.protocol}://${req.get("host")}`;
     return {
       url: `${base}${BLOG_POST_URL_PATH}/${file.filename}`,
       filename: file.filename,
