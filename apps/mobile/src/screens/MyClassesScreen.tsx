@@ -11,7 +11,6 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -30,6 +29,7 @@ import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { classSeed, courseSeed } from "../navigation";
 import type { TabScreenProps } from "../navigation";
+import { contentColumn, exploreTileWidth, useContentLayout } from "../responsive";
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
@@ -42,7 +42,7 @@ const coursePct = (c: CourseCard): number =>
 
 export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
   const styles = useStyles(makeStyles);
-  const { width } = useWindowDimensions();
+  const { contentWidth } = useContentLayout();
 
   const classesQuery = useMyClasses();
   const classes = classesQuery.data ?? null;
@@ -113,7 +113,7 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
   const active = owned.find((c) => incomplete(c.progress)) ?? owned[0] ?? null;
   const others = owned.filter((c) => c.id !== active?.id);
   const activeIdx = active ? accentIndex.get(active.id) ?? 0 : 0;
-  const tileWidth = (width - spacing.md * 2 - spacing.sm) / 2;
+  const tileWidth = exploreTileWidth(contentWidth);
 
   // The card already shows this class's artwork and name — hand them to the
   // Class screen so it paints the same hero instead of a cold skeleton.
@@ -352,12 +352,13 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
 const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
-    content: { padding: spacing.md, gap: 12 },
+    content: { padding: spacing.md, gap: 12, ...contentColumn },
     skeletonWrap: {
       flex: 1,
       backgroundColor: colors.bg,
       padding: spacing.md,
       gap: spacing.sm,
+      ...contentColumn,
     },
 
     activeCard: {

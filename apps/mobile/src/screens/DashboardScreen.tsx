@@ -13,7 +13,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -40,6 +39,7 @@ import { Skeleton } from "../components/Skeleton";
 import { Press } from "../components/Press";
 import { classSeed } from "../navigation";
 import type { TabScreenProps } from "../navigation";
+import { contentColumn, exploreTileWidth, useContentLayout } from "../responsive";
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -76,7 +76,7 @@ function initialsOf(u: AuthUser): string {
 export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
-  const { width } = useWindowDimensions();
+  const { contentWidth } = useContentLayout();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
 
@@ -131,18 +131,20 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
       <View style={styles.skeletonScreen}>
         {isFocused ? <StatusBar style="light" /> : null}
         <View style={[styles.band, { paddingTop: insets.top + 6 }]}>
-          <Skeleton
-            height={30}
-            width="55%"
-            radius={8}
-            color="rgba(255,255,255,0.08)"
-          />
-          <Skeleton
-            height={44}
-            radius={10}
-            color="rgba(255,255,255,0.08)"
-            style={{ marginTop: spacing.md }}
-          />
+          <View style={styles.bandInner}>
+            <Skeleton
+              height={30}
+              width="55%"
+              radius={8}
+              color="rgba(255,255,255,0.08)"
+            />
+            <Skeleton
+              height={44}
+              radius={10}
+              color="rgba(255,255,255,0.08)"
+              style={{ marginTop: spacing.md }}
+            />
+          </View>
         </View>
         <View style={styles.overlapWrap}>
           <Skeleton height={110} radius={16} />
@@ -180,7 +182,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
 
   const name = greetingName(me);
   const inProgress = owned.filter((c) => incomplete(c.progress));
-  const tileWidth = (width - spacing.md * 2 - spacing.sm) / 2;
+  const tileWidth = exploreTileWidth(contentWidth);
 
   // The tile already shows this class's artwork and name — hand them to the
   // Class screen so it paints the same hero instead of a cold skeleton.
@@ -232,31 +234,33 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
 
         {/* ---------- ink chrome band ---------- */}
         <View style={[styles.band, { paddingTop: insets.top + 6 }]}>
-          <View style={styles.brandRow}>
-            <BrandHeaderTitle onChrome />
-            <View style={styles.brandSpacer} />
-            {me?.avatarUrl ? (
-              <Image source={{ uri: me.avatarUrl }} style={styles.avatar} />
-            ) : me ? (
-              <View style={styles.avatarFallback}>
-                <Text style={styles.avatarInitials}>{initialsOf(me)}</Text>
-              </View>
+          <View style={styles.bandInner}>
+            <View style={styles.brandRow}>
+              <BrandHeaderTitle onChrome />
+              <View style={styles.brandSpacer} />
+              {me?.avatarUrl ? (
+                <Image source={{ uri: me.avatarUrl }} style={styles.avatar} />
+              ) : me ? (
+                <View style={styles.avatarFallback}>
+                  <Text style={styles.avatarInitials}>{initialsOf(me)}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            <Text style={styles.greeting}>
+              {name ? `${daypart()}, ${name}` : daypart()}
+            </Text>
+            <Text style={styles.streak}>{streakLine}</Text>
+
+            {featured ? (
+              <CtaButton
+                style={styles.resume}
+                icon={<Text style={styles.resumeGlyph}>▶</Text>}
+                label={`${featuredComplete ? "Review" : "Resume"}: ${featured.name}`}
+                onPress={() => openClass(featured)}
+              />
             ) : null}
           </View>
-
-          <Text style={styles.greeting}>
-            {name ? `${daypart()}, ${name}` : daypart()}
-          </Text>
-          <Text style={styles.streak}>{streakLine}</Text>
-
-          {featured ? (
-            <CtaButton
-              style={styles.resume}
-              icon={<Text style={styles.resumeGlyph}>▶</Text>}
-              label={`${featuredComplete ? "Review" : "Resume"}: ${featured.name}`}
-              onPress={() => openClass(featured)}
-            />
-          ) : null}
         </View>
 
         {/* ---------- overlap: My Learning Overview ---------- */}
@@ -471,12 +475,14 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       height: 600,
       backgroundColor: colors.chrome,
     },
-    // Ink chrome band (design: padding-bottom 58, content overlaps -46).
+    // Ink chrome band (design: padding-bottom 58, content overlaps -46). The
+    // band's ink stays full-bleed; bandInner caps + centers its content to the
+    // same column as the page body (tablets).
     band: {
       backgroundColor: colors.chrome,
-      paddingHorizontal: 18,
       paddingBottom: 58,
     },
+    bandInner: { paddingHorizontal: 18, ...contentColumn },
     brandRow: { flexDirection: "row", alignItems: "center", gap: 9 },
     brandSpacer: { flex: 1 },
     avatar: {
@@ -515,7 +521,12 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     resumeGlyph: { color: "#ffffff", fontSize: 12, fontFamily: fonts.semibold },
 
     // Content column overlapping the band (phone gutter 16, overlap -46).
-    overlapWrap: { paddingHorizontal: 16, marginTop: -46, gap: spacing.md },
+    overlapWrap: {
+      paddingHorizontal: 16,
+      marginTop: -46,
+      gap: spacing.md,
+      ...contentColumn,
+    },
 
     overviewCard: {
       backgroundColor: colors.surface,

@@ -15,7 +15,6 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { WebView } from "react-native-webview";
@@ -38,6 +37,7 @@ import {
   useScopedStyles,
   useScopedTheme,
 } from "./PageScope";
+import { useContentLayout } from "../responsive";
 import { spacing } from "../theme";
 import type { Theme, ThemePalette } from "../theme";
 
@@ -283,11 +283,11 @@ function HeadingBlock(p: Props) {
 
 function RichTextBlock(p: Props) {
   const onInteract = useInteraction();
-  const { width } = useWindowDimensions();
+  const { contentWidth } = useContentLayout();
   return (
     <HtmlView
       html={p.html || "<p></p>"}
-      contentWidth={Math.max(0, width - spacing.md * 2)}
+      contentWidth={Math.max(0, contentWidth - spacing.md * 2)}
       // Inside a popup, anchor taps count as engagement (web parity); outside,
       // onInteract is null and links just open.
       onLinkPress={(href) => {
@@ -516,13 +516,13 @@ function StatsBlock(p: Props) {
 
 function EmbedBlock(p: Props) {
   const onInteract = useInteraction();
-  const { width } = useWindowDimensions();
+  const { contentWidth } = useContentLayout();
   if (!p.html) return null;
   // Sanitized server-side like RichText; HtmlView renders the CMS tag set.
   return (
     <HtmlView
       html={String(p.html)}
-      contentWidth={Math.max(0, width - spacing.md * 2)}
+      contentWidth={Math.max(0, contentWidth - spacing.md * 2)}
       onLinkPress={(href) => {
         onInteract?.();
         openHref(href);

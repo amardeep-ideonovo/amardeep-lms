@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { formColumn } from "../responsive";
 import { DEFAULT_APP_CONFIG, paletteFrom, fonts, spacing } from "../theme";
 
 // Landing screen of the SHARED app — the first thing an unbound install shows,
@@ -94,7 +95,7 @@ const makeStyles = (colors: Colors) =>
       marginTop: 16,
       paddingHorizontal: 44,
     },
-    footer: { paddingHorizontal: spacing.lg },
+    footer: { paddingHorizontal: spacing.lg, ...formColumn },
     button: {
       backgroundColor: colors.primary,
       borderRadius: 12,

@@ -8,6 +8,7 @@ import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { CourseRow } from "../components/CourseRow";
 import { courseSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
+import { contentColumn } from "../responsive";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -101,7 +102,7 @@ export function CourseListScreen({
 
 const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   list: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md },
+  content: { padding: spacing.md, ...contentColumn },
   search: {
     backgroundColor: colors.surface,
     borderWidth: 1,

@@ -20,6 +20,7 @@ import { Press } from "../components/Press";
 import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import type { ScreenProps } from "../navigation";
+import { contentColumn } from "../responsive";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
 
@@ -145,7 +146,7 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
 const makeStyles = ({ colors, spacing, fonts }: Theme) =>
   StyleSheet.create({
     scroll: { flex: 1, backgroundColor: colors.bg },
-    content: { padding: spacing.md, gap: spacing.sm },
+    content: { padding: spacing.md, gap: spacing.sm, ...contentColumn },
     skeletonWrap: {
       flex: 1,
       backgroundColor: colors.bg,

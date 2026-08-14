@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import type { LinkingOptions } from "@react-navigation/native";
@@ -24,6 +24,7 @@ import { ConfigProvider, useAppConfig } from "./src/config-provider";
 import { InstanceGate } from "./src/instance-gate";
 import { QueryProvider, QueryAuthReset } from "./src/query";
 import { navigationRef } from "./src/nav-ref";
+import { unlockTabletOrientation } from "./src/responsive";
 import { ThemeProvider, useTheme } from "./src/theme-provider";
 import { fonts } from "./src/theme";
 import type {
@@ -428,6 +429,10 @@ export default function App() {
   // ~2s branded boot: the animated splash overlays the app while it loads
   // (providers below mount and fetch underneath), then fades itself out.
   const [splashDone, setSplashDone] = useState(false);
+  // Android tablets: lift the manifest's portrait lock (see responsive.ts).
+  useEffect(() => {
+    unlockTabletOrientation();
+  }, []);
   if (!fontsLoaded && !fontError) return null; // native splash stays up
   return (
     <SafeAreaProvider>

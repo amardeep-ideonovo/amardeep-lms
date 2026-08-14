@@ -21,6 +21,7 @@ import { CtaButton } from "../components/CtaButton";
 import { SpotlightMark } from "../components/SpotlightMark";
 import { useAppConfig } from "../config-provider";
 import type { AuthScreenProps } from "../navigation";
+import { formColumn } from "../responsive";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -214,6 +215,7 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
+    ...formColumn,
   },
   brandBlock: { alignItems: "center", marginBottom: spacing.lg },
   brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },

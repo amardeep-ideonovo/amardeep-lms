@@ -30,6 +30,7 @@ import { IS_LOCKED_BUILD, unbindInstance, WEB_BASE_URL } from "../config";
 import { fmtDate, money } from "../format";
 import type { TabScreenProps } from "../navigation";
 import { optimistic } from "../optimistic";
+import { contentColumn, formColumn } from "../responsive";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
@@ -1030,7 +1031,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
 
 const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md, paddingBottom: spacing.lg },
+  content: { padding: spacing.md, paddingBottom: spacing.lg, ...contentColumn },
   brandHeader: {
     alignItems: "center",
     paddingVertical: spacing.md,
@@ -1237,6 +1238,7 @@ const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
     borderColor: colors.borderSoft,
     borderRadius: 14,
     padding: spacing.lg,
+    ...formColumn,
   },
   modalTitle: {
     color: colors.text,

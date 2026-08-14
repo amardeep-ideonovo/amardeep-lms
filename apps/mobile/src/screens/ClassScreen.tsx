@@ -11,7 +11,6 @@ import {
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { WebView } from "react-native-webview";
 import { LinearGradient } from "expo-linear-gradient";
@@ -30,6 +29,7 @@ import { VideoPlayerView } from "../components/VideoPlayerView";
 import CertificateClaim from "../components/CertificateClaim";
 import { courseSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
+import { contentColumn, useContentLayout } from "../responsive";
 import { letterGradient } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
@@ -42,7 +42,8 @@ type Ownership = {
 
 export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
   const styles = useStyles(makeStyles);
-  const { width } = useWindowDimensions();
+  // isWide flips the stacked class hero to a side-by-side card (tablets).
+  const { contentWidth, isWide } = useContentLayout();
   // `seed` is the class card the member tapped (see navigation.ts): name +
   // artwork only. Ownership, prices and courses are never seeded — they decide
   // access, so they always come from the fetch below.
@@ -85,7 +86,7 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
           // hero is continuous instead of flashing an empty block. Everything
           // ownership-dependent (buy card, badge, course list) stays a
           // skeleton until the server answers.
-          <View style={styles.seedHero}>
+          <View style={[styles.seedHero, isWide && styles.seedHeroWide]}>
             {seed.imageUrl ? (
               <Image
                 source={{ uri: seed.imageUrl }}
@@ -131,7 +132,7 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
     .filter(Boolean)
     .join(" · ");
   const trailer = cls.trailerUrl ? vimeoEmbed(cls.trailerUrl) : null;
-  const trailerHeight = ((width - 32) * 9) / 16;
+  const trailerHeight = ((contentWidth - 32) * 9) / 16;
 
   // Cheapest price drives the "Starting at" label (web priceLabel parity).
   const cheapest =
@@ -157,7 +158,10 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
         <Text style={styles.sectionTitle}>Skills You&rsquo;ll Learn</Text>
         <View style={styles.skillsGrid}>
           {cls.skills.map((skill, i) => (
-            <View key={`${skill.title}-${i}`} style={styles.skillCard}>
+            <View
+              key={`${skill.title}-${i}`}
+              style={[styles.skillCard, isWide && styles.skillCardWide]}
+            >
               {skill.imageUrl ? (
                 <Image
                   source={{ uri: skill.imageUrl }}
@@ -187,10 +191,10 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
         style={styles.scroll}
         contentContainerStyle={styles.content}
       >
-        <View style={styles.classHero}>
+        <View style={[styles.classHero, isWide && styles.classHeroWide]}>
           {/* Image-prominent cover (~70%): the class image stays clear; only a
               soft bottom scrim carries the overlaid category + title. */}
-          <View style={styles.heroImage}>
+          <View style={[styles.heroImage, isWide && styles.heroImageWide]}>
             {cls.imageUrl ? (
               <Image
                 source={{ uri: cls.imageUrl }}
@@ -221,8 +225,8 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
             </View>
           </View>
 
-          {/* Details panel (~30%) below the image. */}
-          <View style={styles.heroContent}>
+          {/* Details panel (~30%) below the image; beside it when wide. */}
+          <View style={[styles.heroContent, isWide && styles.heroContentWide]}>
             {owned ? (
               <View style={styles.ownedBadge}>
                 <Badge label="You own this class" />
@@ -368,9 +372,9 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
 const makeStyles = ({ colors, spacing, fonts }: Theme) =>
   StyleSheet.create({
     scroll: { flex: 1, backgroundColor: colors.bg },
-    content: { padding: spacing.md, gap: spacing.lg },
+    content: { padding: spacing.md, gap: spacing.lg, ...contentColumn },
     // Used as a scroll content container (flex/background live on styles.scroll).
-    skeletonWrap: { padding: spacing.md, gap: spacing.md },
+    skeletonWrap: { padding: spacing.md, gap: spacing.md, ...contentColumn },
     skeletonRow: { flexDirection: "row", justifyContent: "space-between" },
     // Same frame as the real hero image so the seeded cover doesn't jump when
     // the fetched class replaces it.
@@ -382,6 +386,9 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       justifyContent: "flex-end",
       backgroundColor: colors.surfaceMuted,
     },
+    // Matches heroImageWide so the seeded cover sits where the real hero's
+    // image lands once the fetch resolves.
+    seedHeroWide: { width: "45%" },
     ownedBadge: { flexDirection: "row" },
     // Image-prominent class hero: a clear cover on top with the category + title
     // overlaid at its base (per request, ~70% image), then a details panel below.
@@ -392,12 +399,16 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       borderColor: colors.borderSoft,
       backgroundColor: colors.surface,
     },
+    // Wide layout: cover on the left, details beside it — a stacked 5:7 cover
+    // at tablet width would be most of the viewport tall.
+    classHeroWide: { flexDirection: "row", alignItems: "stretch" },
     heroImage: {
       width: "100%",
       aspectRatio: 5 / 7,
       justifyContent: "flex-end",
       backgroundColor: colors.surfaceMuted,
     },
+    heroImageWide: { width: "45%" },
     heroImageScrim: {
       position: "absolute",
       left: 0,
@@ -415,6 +426,7 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       lineHeight: 32,
     },
     heroContent: { padding: spacing.md, gap: spacing.sm },
+    heroContentWide: { flex: 1, justifyContent: "center", padding: spacing.lg },
     heroProgress: { gap: 6, marginTop: spacing.xs },
     heroProgressLabels: { flexDirection: "row", justifyContent: "space-between" },
     heroProgressLabel: {
@@ -464,6 +476,8 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       borderColor: colors.borderSoft,
       justifyContent: "space-between",
     },
+    // 2-up cards turn into slabs on the wide column — go 3-up there.
+    skillCardWide: { width: "31%" },
     skillNum: {
       margin: spacing.sm,
       width: 26,

@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
 import type { PostDetailDTO } from "@lms/types";
@@ -15,6 +14,7 @@ import { Chip } from "../components/Chip";
 import { HtmlView } from "../components/HtmlView";
 import { Loading, ErrorState } from "../components/Screen";
 import type { ScreenProps } from "../navigation";
+import { contentColumn, useContentLayout } from "../responsive";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
@@ -35,7 +35,7 @@ function fmtDate(iso: string | null): string {
 export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
   const styles = useStyles(makeStyles);
   const { slug } = route.params;
-  const { width } = useWindowDimensions();
+  const { contentWidth } = useContentLayout();
   const [post, setPost] = useState<PostDetailDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,7 +112,7 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
 
       <HtmlView
         html={post.content || "<p></p>"}
-        contentWidth={width - spacing.md * 2}
+        contentWidth={contentWidth - spacing.md * 2}
         baseStyle={styles.htmlBase}
       />
 
@@ -133,7 +133,7 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
 
 const makeStyles = ({ colors, fonts }: Theme) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md },
+  content: { padding: spacing.md, ...contentColumn },
   cover: {
     width: "100%",
     height: 200,

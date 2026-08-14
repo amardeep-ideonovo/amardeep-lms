@@ -13,6 +13,7 @@ import type { ClassCertificateStatusDTO, MyCertificateDTO } from "@lms/types";
 import { api, certificateDownloadUrl } from "../api";
 import { Press } from "./Press";
 import { useStyles, useTheme } from "../theme-provider";
+import { formColumn } from "../responsive";
 import { spacing, type Theme } from "../theme";
 
 // "Get certificate" / "Download certificate" — RN twin of the web component.
@@ -198,6 +199,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       padding: spacing.lg,
       borderWidth: 1,
       borderColor: colors.border,
+      ...formColumn,
     },
     modalTitle: {
       color: colors.text,

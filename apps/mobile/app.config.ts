@@ -80,12 +80,25 @@ const config = (): ExpoConfig => ({
   ],
   assetBundlePatterns: ["**/*"],
   ios: {
-    // iPhone-only for v1: iPad support makes Apple review on iPad and require
-    // 13" iPad screenshots + a QA'd tablet layout. Flip to true once that's done.
-    supportsTablet: false,
+    // Universal app: iPhone + iPad. Apple reviews on iPad and the store
+    // listing needs 13" iPad screenshots (see SHIPPING.md).
+    supportsTablet: true,
     bundleIdentifier: process.env.INSTANCE_IOS_BUNDLE_ID ?? "com.thewebpaanda.lms",
     config: {
       usesNonExemptEncryption: false,
+    },
+    infoPlist: {
+      // iPhone stays portrait-only (top-level `orientation`); iPad rotates
+      // freely. All four are REQUIRED on iPad unless UIRequiresFullScreen is
+      // set — App Store upload validation rejects a partial list, and full
+      // multitasking (Split View / Slide Over) needs them anyway. Layouts are
+      // width-driven (src/responsive.ts), so arbitrary window sizes are fine.
+      "UISupportedInterfaceOrientations~ipad": [
+        "UIInterfaceOrientationPortrait",
+        "UIInterfaceOrientationPortraitUpsideDown",
+        "UIInterfaceOrientationLandscapeLeft",
+        "UIInterfaceOrientationLandscapeRight",
+      ],
     },
   },
   android: {
