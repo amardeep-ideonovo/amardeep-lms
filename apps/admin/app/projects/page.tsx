@@ -14,7 +14,6 @@ import type {
   ChatChannelDTO,
   ChatChannelDetailDTO,
   ChatDmDTO,
-  ChatListDTO,
   ChatListSummaryDTO,
   ChatMessageDTO,
   UnreadSummaryDTO,
@@ -245,10 +244,10 @@ export default function ProjectsPage() {
   // Initial load (once auth resolves + permission present).
   useEffect(() => {
     if (authLoading || !can("projects", "read")) return;
-    loadChannels();
-    refreshUnread();
-    loadDms();
-    loadAdminRoster().then(setRoster);
+    void loadChannels();
+    void refreshUnread();
+    void loadDms();
+    void loadAdminRoster().then(setRoster);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
@@ -274,7 +273,7 @@ export default function ProjectsPage() {
     setThreadParent(null);
     setLoadingMessages(true);
     setPaneError(null);
-    (async () => {
+    void (async () => {
       try {
         const [d, msgs] = await Promise.all([
           api.getChannel(selectedId),
@@ -290,8 +289,8 @@ export default function ProjectsPage() {
         setMessages(ordered);
         // Mark read up to what we just loaded, then refresh the left-rail badges.
         await api.markRead(selectedId, lastSeqRef.current || undefined);
-        refreshUnread();
-        loadDms();
+        void refreshUnread();
+        void loadDms();
       } catch (err) {
         if (!cancelled)
           setPaneError(
@@ -317,7 +316,7 @@ export default function ProjectsPage() {
       if (fresh.length > 0) {
         upsertMessages(fresh);
         await api.markRead(ch, lastSeqRef.current || undefined);
-        refreshUnread();
+        void refreshUnread();
       }
     } catch {
       /* transient failure — next tick / next reconnect will retry */
@@ -328,7 +327,7 @@ export default function ProjectsPage() {
   // this only matters when the socket is down (server restart, network blip).
   useEffect(() => {
     if (!selectedId) return;
-    const t = setInterval(catchUpMessages, MESSAGE_FALLBACK_POLL_MS);
+    const t = setInterval(() => void catchUpMessages(), MESSAGE_FALLBACK_POLL_MS);
     return () => clearInterval(t);
   }, [selectedId, catchUpMessages]);
 
@@ -337,8 +336,8 @@ export default function ProjectsPage() {
   useEffect(() => {
     if (authLoading || !can("projects", "read")) return;
     const t = setInterval(() => {
-      refreshUnread();
-      loadDms();
+      void refreshUnread();
+      void loadDms();
     }, UNREAD_POLL_MS);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -411,7 +410,7 @@ export default function ProjectsPage() {
       onConnect(() => {
         const ch = selectedIdRef.current;
         if (ch) joinChannel(ch);
-        catchUpMessages();
+        void catchUpMessages();
       }),
     ];
     return () => {
@@ -556,7 +555,7 @@ export default function ProjectsPage() {
       await api.leaveChannel(ch.id);
       if (selectedId === ch.id) setSelectedId(null);
       await loadChannels();
-      refreshUnread();
+      void refreshUnread();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to leave");
     }
@@ -689,7 +688,7 @@ export default function ProjectsPage() {
   async function turnIntoTask(m: ChatMessageDTO) {
     if (!selectedId) return;
     try {
-      let lists: ChatListSummaryDTO[] = await api.listLists(selectedId);
+      const lists: ChatListSummaryDTO[] = await api.listLists(selectedId);
       let listId: string | undefined = lists[0]?.id;
       if (lists.length === 0) {
         const name = await dialog.prompt({
@@ -761,7 +760,7 @@ export default function ProjectsPage() {
           return sorted;
         });
         // Sending sets our own lastReadSeq server-side; refresh badges to match.
-        refreshUnread();
+        void refreshUnread();
         return created;
       } catch {
         if (selectedIdRef.current === pending.channelId) {
@@ -1543,8 +1542,8 @@ function ThreadPanel({
   }, []);
 
   useEffect(() => {
-    load();
-    const t = setInterval(load, THREAD_POLL_MS);
+    void load();
+    const t = setInterval(() => void load(), THREAD_POLL_MS);
     return () => clearInterval(t);
   }, [load]);
 
@@ -1760,7 +1759,7 @@ function Composer({
     // Enter sends; Shift+Enter inserts a newline.
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      submit();
+      void submit();
     }
   }
 
@@ -2117,7 +2116,7 @@ function CanvasEditor({
   }, [canvasId, channelId, onError]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   async function save() {
@@ -2181,7 +2180,7 @@ function CanvasEditor({
           aria-label="Canvas title"
           // Save the title on blur if it changed (explicit Save still available).
           onBlur={() => {
-            if (canEdit && dirty) save();
+            if (canEdit && dirty) void save();
           }}
         />
         <div className="pj-canvas-actions">
@@ -2207,7 +2206,7 @@ function CanvasEditor({
         className="pj-canvas-body"
         // Flush an unsaved edit when focus leaves the editor (e.g. clicking a tab).
         onBlur={() => {
-          if (canEdit && dirty) save();
+          if (canEdit && dirty) void save();
         }}
       >
         {canEdit ? (

@@ -142,13 +142,11 @@ export default async function BlogIndexPage() {
 
   return (
     <>
-      {/* eslint-disable-next-line react/no-danger */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbLd) }}
       />
       {posts.length > 0 && (
-        // eslint-disable-next-line react/no-danger
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: jsonLdScript(itemListLd) }}

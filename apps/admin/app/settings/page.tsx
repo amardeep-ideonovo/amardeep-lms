@@ -55,7 +55,7 @@ function PaymentProviderSection() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const r = await api.getPaymentProvider();
         setProvider(r.provider);
@@ -177,7 +177,7 @@ function StripeSection() {
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, []);
 
   async function save(e: FormEvent) {
@@ -312,7 +312,7 @@ function ZoomSection() {
     }
   }
   useEffect(() => {
-    load();
+    void load();
   }, []);
 
   async function save(e: FormEvent) {
@@ -441,7 +441,7 @@ function PayPalSection() {
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, []);
 
   async function save(e: FormEvent) {
@@ -626,7 +626,7 @@ function EmailSenderSection() {
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, []);
 
   async function save(e: FormEvent) {
@@ -894,7 +894,7 @@ function EmailWebhookSecretSection() {
     }
   }
   useEffect(() => {
-    load();
+    void load();
   }, []);
 
   async function save(e: FormEvent) {

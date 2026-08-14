@@ -397,7 +397,7 @@ function PlansView({ fleet }: { fleet: FleetState }) {
                         className="chip-action"
                         onClick={() => {
                           if (plan.active) setDeactivateTarget(plan);
-                          else togglePlanActive(plan.id);
+                          else void togglePlanActive(plan.id);
                         }}
                       >
                         {plan.active ? "Deactivate" : "Activate"}

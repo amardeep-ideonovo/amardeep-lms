@@ -145,7 +145,7 @@ export default function PageEditor() {
     if (!id) return;
     if (authLoading || !can("pages", "read")) return;
     let alive = true;
-    (async () => {
+    void (async () => {
       try {
         const page = await api.getPage(id);
         if (!alive) return;
@@ -186,14 +186,14 @@ export default function PageEditor() {
     latest.current = data;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     setSaveState("saving");
-    saveTimer.current = setTimeout(async () => {
+    saveTimer.current = setTimeout(() => void (async () => {
       try {
         await persist();
         setSaveState("saved");
       } catch {
         setSaveState("error");
       }
-    }, 1000);
+    })(), 1000);
   }
 
   async function saveStatus(next: PageStatus) {
@@ -374,7 +374,7 @@ export default function PageEditor() {
           onChange={(data) => scheduleSave(data)}
           onPublish={(data) => {
             latest.current = data;
-            saveStatus("PUBLISHED");
+            void saveStatus("PUBLISHED");
           }}
         />
       </div>

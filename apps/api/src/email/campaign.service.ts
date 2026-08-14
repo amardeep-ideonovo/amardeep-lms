@@ -416,7 +416,7 @@ export class CampaignService {
     const where = await this.buildRecipientWhere(campaign);
     let cursor: { createdAt: Date; id: string } | null = null;
 
-    // eslint-disable-next-line no-constant-condition
+     
     while (true) {
       const pageWhere: Prisma.ContactWhereInput = cursor
         ? {

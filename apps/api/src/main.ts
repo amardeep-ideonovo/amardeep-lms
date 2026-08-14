@@ -103,7 +103,7 @@ async function bootstrap() {
     .map((o) => o.trim())
     .filter(Boolean);
   if (!corsOrigins?.length && isProduction()) {
-    // eslint-disable-next-line no-console
+     
     console.warn('[api] CORS_ORIGIN unset — cross-origin requests disabled');
   }
   app.enableCors({
@@ -201,10 +201,10 @@ async function bootstrap() {
       const wsAdapter = new RedisIoAdapter(app);
       await wsAdapter.connectToRedis();
       app.useWebSocketAdapter(wsAdapter);
-      // eslint-disable-next-line no-console
+       
       console.log('[api] realtime: Redis Socket.IO adapter enabled');
     } catch (err) {
-      // eslint-disable-next-line no-console
+       
       console.warn(
         `[api] realtime: Redis adapter unavailable, using in-memory adapter — ${
           err instanceof Error ? err.message : String(err)
@@ -212,7 +212,7 @@ async function bootstrap() {
       );
     }
   } else {
-    // eslint-disable-next-line no-console
+     
     console.warn(
       '[api] realtime: REDIS_URL unset — using in-memory Socket.IO adapter (single instance only)',
     );
@@ -220,8 +220,14 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT ?? 3000);
   await app.listen(port);
-  // eslint-disable-next-line no-console
+   
   console.log(`[api] listening on :${port}`);
 }
 
-bootstrap();
+bootstrap().catch((err) => {
+  // A failed boot must exit nonzero (compose restart policy + health checks
+  // depend on it) — with the error logged plainly, not as an unhandled
+  // rejection stack the process reaper may swallow.
+  console.error('[api] fatal during bootstrap:', err);
+  process.exit(1);
+});

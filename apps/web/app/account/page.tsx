@@ -467,11 +467,11 @@ function AccountInner() {
         if (mounted) fail(err);
       }
     }
-    load();
+    void load();
     // Refresh on tab focus so admin changes (e.g. a paused/canceled plan) show
     // without a manual reload.
     const refresh = () => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") void load();
     };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);

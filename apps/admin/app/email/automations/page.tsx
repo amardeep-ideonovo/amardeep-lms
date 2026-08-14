@@ -110,7 +110,7 @@ export default function AutomationsPage() {
 
   useEffect(() => {
     if (authLoading || !can("email", "read")) return;
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 

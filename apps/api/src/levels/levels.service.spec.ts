@@ -7,7 +7,7 @@ import { LevelsService } from './levels.service';
 // can't be hard-deleted (would strand paying members), and archive() is the
 // non-destructive alternative that keeps grants intact.
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 function make(prisma: any): LevelsService {
   return new LevelsService(
     prisma,

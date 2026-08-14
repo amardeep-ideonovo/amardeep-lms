@@ -38,7 +38,7 @@ export default function PagesPage() {
 
   useEffect(() => {
     if (authLoading || !can("pages", "read")) return;
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 

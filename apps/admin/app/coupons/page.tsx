@@ -78,7 +78,7 @@ export default function CouponsPage() {
 
   useEffect(() => {
     if (authLoading || !can("coupons", "read")) return;
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 

@@ -120,7 +120,7 @@ test("concurrent getToken callers share one store read", async () => {
 
 test("a rejected read evicts itself and the next read retries", async () => {
   const stored = new Map<string, string>();
-  let epoch = 1;
+  const epoch = 1;
   let failNext = true;
   const ts = createTokenStore({
     currentKey: () => "k",

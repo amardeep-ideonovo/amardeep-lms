@@ -12,9 +12,21 @@
     "dev:api": "npm -w apps/api run dev",
     "dev:admin": "npm -w apps/admin run dev",
     "dev:web": "npm -w apps/web run dev",
-    "dev:control-plane": "npm -w apps/control-plane run dev"
+    "dev:control-plane": "npm -w apps/control-plane run dev",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^14.2.5",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
+    "prettier": "^3.9.6",
+    "typescript-eslint": "^8.67.0"
   }
 }

@@ -238,7 +238,7 @@ export default function PopupEditor() {
     if (!id) return;
     if (authLoading || !can("popups", "read")) return;
     let alive = true;
-    (async () => {
+    void (async () => {
       try {
         const [popup, pageList] = await Promise.all([
           api.getPopup(id),
@@ -302,7 +302,7 @@ export default function PopupEditor() {
     latest.current = data;
     if (docTimer.current) clearTimeout(docTimer.current);
     setSaveState("saving");
-    docTimer.current = setTimeout(async () => {
+    docTimer.current = setTimeout(() => void (async () => {
       try {
         await api.updatePopup(id, {
           data: (latest.current ?? undefined) as unknown as
@@ -313,21 +313,21 @@ export default function PopupEditor() {
       } catch {
         setSaveState("error");
       }
-    }, 1000);
+    })(), 1000);
   }
 
   // Debounced autosave of the popup settings (style + visibility).
   function scheduleSettingsSave(next: Settings) {
     if (settingsTimer.current) clearTimeout(settingsTimer.current);
     setSaveState("saving");
-    settingsTimer.current = setTimeout(async () => {
+    settingsTimer.current = setTimeout(() => void (async () => {
       try {
         await api.updatePopup(id, { ...next });
         setSaveState("saved");
       } catch {
         setSaveState("error");
       }
-    }, 600);
+    })(), 600);
   }
 
   function updateSettings(patch: Partial<Settings>) {

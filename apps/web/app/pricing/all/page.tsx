@@ -46,10 +46,10 @@ function AllPlansInner() {
         setError(err instanceof Error ? err.message : "Failed to load plans.");
       }
     }
-    load();
+    void load();
     // Refresh on tab focus so admin-added/changed plans show without a reload.
     const refresh = () => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") void load();
     };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);

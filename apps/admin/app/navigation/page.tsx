@@ -778,7 +778,13 @@ export default function MenusPage() {
                           onSaved={(m) => {
                             setMenu(m);
                             setEditId(null);
-                            reloadMenus();
+                            reloadMenus().catch((e) =>
+                              setError(
+                                e instanceof ApiError
+                                  ? e.message
+                                  : "Couldn’t reload the menus.",
+                              ),
+                            );
                           }}
                           onError={setError}
                           style={{ marginLeft: depth * 22 }}

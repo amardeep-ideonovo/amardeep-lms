@@ -15,7 +15,7 @@ export function useFleet(): FleetState | null {
 
   useEffect(() => {
     let alive = true;
-    getFleetState().then((s) => {
+    void getFleetState().then((s) => {
       if (alive) setSnap(s);
     });
     const unsub = subscribeFleet(() => {

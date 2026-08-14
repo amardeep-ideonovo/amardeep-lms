@@ -106,7 +106,7 @@ export default function ClassesPage() {
 
   useEffect(() => {
     if (authLoading || !can("classes", "read")) return;
-    load();
+    void load();
     // Courses for the per-class counts. 403 (no permission) → hide columns.
     if (can("courses", "read")) {
       api
@@ -996,13 +996,13 @@ export default function ClassesPage() {
                         { label: "Edit", onClick: () => startEdit(lvl) },
                         {
                           label: lvl.archivedAt ? "Unarchive" : "Archive",
-                          onClick: () => onArchive(lvl.id, !!lvl.archivedAt),
+                          onClick: () => void onArchive(lvl.id, !!lvl.archivedAt),
                           disabled: rowBusy === lvl.id,
                         },
                         {
                           label: "Delete",
                           danger: true,
-                          onClick: () => onDelete(lvl.id),
+                          onClick: () => void onDelete(lvl.id),
                           disabled: rowBusy === lvl.id,
                         },
                       ]}

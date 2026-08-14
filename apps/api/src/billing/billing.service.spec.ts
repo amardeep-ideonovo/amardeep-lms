@@ -7,7 +7,7 @@ import { BillingService } from './billing.service';
 // + reconcile it (revoking class access), and must be idempotent so a
 // duplicate/retried event can't hit Stripe's "cannot cancel a canceled sub" 400.
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 function make(stripe: any): { svc: any; reconciled: string[] } {
   const svc: any = new BillingService(
     {} as any,

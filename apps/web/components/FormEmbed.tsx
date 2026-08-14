@@ -19,7 +19,7 @@ export default function FormEmbed({ formId }: { formId: string }) {
 
   useEffect(() => {
     let alive = true;
-    (async () => {
+    void (async () => {
       try {
         const f = await fetchPublicForm(formId);
         if (!alive) return;

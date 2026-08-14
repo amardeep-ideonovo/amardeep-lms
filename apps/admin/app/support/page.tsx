@@ -66,7 +66,7 @@ export default function SupportPage() {
   }
 
   useEffect(() => {
-    load();
+    void load();
   }, []);
 
   return (

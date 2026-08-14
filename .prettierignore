@@ -1,0 +1,13 @@
+node_modules
+.next
+dist
+build
+.expo
+coverage
+package-lock.json
+apps/mobile/android
+apps/mobile/ios
+apps/mobile/certs
+docs/architecture.excalidraw
+graphify-out
+.claude

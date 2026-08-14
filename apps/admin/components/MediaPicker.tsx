@@ -108,7 +108,6 @@ export default function MediaPicker({
       {value ? (
         <div style={{ marginBottom: 8 }}>
           {kind === "video" ? (
-            // eslint-disable-next-line jsx-a11y/media-has-caption
             <video
               src={value}
               controls
@@ -259,7 +258,7 @@ function MediaLibraryModal({
   );
 
   useEffect(() => {
-    const t = setTimeout(() => load(q), 250);
+    const t = setTimeout(() => void load(q), 250);
     return () => clearTimeout(t);
   }, [q, load]);
   // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
@@ -354,7 +353,6 @@ function MediaLibraryModal({
                   }}
                 >
                   {kind === "video" ? (
-                    // eslint-disable-next-line jsx-a11y/media-has-caption
                     <video
                       src={m.url}
                       muted

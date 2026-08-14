@@ -7,7 +7,7 @@ import { MembersService } from './members.service';
 // relation, so a member holding several STRIPE grants got a non-deterministic
 // answer — which is why it could not be filtered on. These lock the precedence.
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 function svc(): MembersService {
   return new MembersService({} as any, {} as any, {} as any, {} as any);
 }

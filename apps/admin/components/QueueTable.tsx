@@ -181,14 +181,14 @@ export default function QueueTable({
   // response is the fresher answer anyway.
   const refreshIfIdle = useCallback(() => {
     if (optimistic.hasPending()) return;
-    load();
+    void load();
   }, [load, optimistic]);
 
   // Reset + reload when the target list changes.
   useEffect(() => {
     setLoading(true);
     setOpenItemId(null);
-    load();
+    void load();
   }, [load]);
 
   // Realtime: refresh on `chat:list:update` for THIS list. (Stand-alone lists
@@ -893,12 +893,12 @@ function TitleCell({
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {
           setEditing(false);
-          onSave(draft);
+          void onSave(draft);
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             setEditing(false);
-            onSave(draft);
+            void onSave(draft);
           } else if (e.key === "Escape") {
             setDraft(item.title);
             setEditing(false);
@@ -1018,7 +1018,7 @@ function TextCell({
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {
           setEditing(false);
-          if (draft !== value) onSave(draft);
+          if (draft !== value) void onSave(draft);
         }}
       />
     ) : (
@@ -1029,12 +1029,12 @@ function TextCell({
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {
           setEditing(false);
-          if (draft !== value) onSave(draft);
+          if (draft !== value) void onSave(draft);
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             setEditing(false);
-            if (draft !== value) onSave(draft);
+            if (draft !== value) void onSave(draft);
           } else if (e.key === "Escape") {
             setDraft(value);
             setEditing(false);
@@ -1096,7 +1096,7 @@ function NumberCell({
   }
   function commit() {
     if (draft === current) return;
-    onSave(draft === "" ? null : Number(draft));
+    void onSave(draft === "" ? null : Number(draft));
   }
   return (
     <button
@@ -1134,12 +1134,12 @@ function UrlCell({
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {
           setEditing(false);
-          if (draft !== value) onSave(draft);
+          if (draft !== value) void onSave(draft);
         }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             setEditing(false);
-            if (draft !== value) onSave(draft);
+            if (draft !== value) void onSave(draft);
           } else if (e.key === "Escape") {
             setDraft(value);
             setEditing(false);
@@ -1207,7 +1207,7 @@ function DateCell({
         autoFocus
         onChange={(e) => {
           const v = e.target.value;
-          onSave(v ? new Date(v + "T00:00:00").toISOString() : null);
+          void onSave(v ? new Date(v + "T00:00:00").toISOString() : null);
           setEditing(false);
         }}
         onBlur={() => setEditing(false)}
@@ -1292,7 +1292,7 @@ function SecretCell({
   if (editing && canEdit) {
     const commit = () => {
       setEditing(false);
-      if (draft) onSave(draft); // empty draft = no change (don't clear silently)
+      if (draft) void onSave(draft); // empty draft = no change (don't clear silently)
       setDraft("");
     };
     return (
@@ -1392,7 +1392,7 @@ function SelectCell({
               key={o.id}
               className="pj-menu-item pj-menu-item--opt"
               onClick={() => {
-                onSave(value === o.id ? null : o.id);
+                void onSave(value === o.id ? null : o.id);
                 setOpen(false);
               }}
             >
@@ -1405,7 +1405,7 @@ function SelectCell({
             <button
               className="pj-menu-item pj-menu-item--danger"
               onClick={() => {
-                onSave(null);
+                void onSave(null);
                 setOpen(false);
               }}
             >
@@ -1438,7 +1438,7 @@ function MultiSelectCell({
     const next = value.includes(id)
       ? value.filter((x) => x !== id)
       : [...value, id];
-    onSave(next);
+    void onSave(next);
   }
 
   return (
@@ -1524,7 +1524,7 @@ function PersonCell({
               key={a.id}
               className="pj-menu-item pj-menu-item--opt"
               onClick={() => {
-                onSave(value === a.id ? null : a.id);
+                void onSave(value === a.id ? null : a.id);
                 setOpen(false);
               }}
             >
@@ -1537,7 +1537,7 @@ function PersonCell({
             <button
               className="pj-menu-item pj-menu-item--danger"
               onClick={() => {
-                onSave(null);
+                void onSave(null);
                 setOpen(false);
               }}
             >
@@ -1580,10 +1580,10 @@ function MultiPersonCell({
     const next = value.includes(id)
       ? value.filter((x) => x !== id)
       : [...value, id];
-    onSave(next);
+    void onSave(next);
   }
   function remove(id: string) {
-    onSave(value.filter((x) => x !== id));
+    void onSave(value.filter((x) => x !== id));
   }
 
   // Filter the roster like the PERSON picker (case-insensitive name match).
@@ -1723,7 +1723,7 @@ function ItemDetailCard({
   }, [item.id, onError]);
 
   useEffect(() => {
-    loadComments();
+    void loadComments();
   }, [loadComments]);
 
   // Same optimistic write as the table's cells — the card renders the same item

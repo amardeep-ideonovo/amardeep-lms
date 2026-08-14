@@ -79,12 +79,12 @@ export default function MediaPage() {
   // Initial load + reload on filter/page change. Search is debounced.
   useEffect(() => {
     if (authLoading || !can("gallery", "read")) return;
-    load(1, q, kind);
+    void load(1, q, kind);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, authLoading]);
   useEffect(() => {
     if (authLoading || !can("gallery", "read")) return;
-    const t = setTimeout(() => load(1, q, kind), 300);
+    const t = setTimeout(() => void load(1, q, kind), 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
@@ -536,7 +536,7 @@ function MediaDetails({
     navigator.clipboard?.writeText(asset.url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    });
+    }).catch(() => {});
   }
 
   async function save() {
@@ -720,7 +720,7 @@ function MediaDetails({
 
 function MediaPreview({ asset }: { asset: MediaDTO }) {
   if (asset.kind === "image")
-    // eslint-disable-next-line @next/next/no-img-element
+     
     return (
       <img
         src={asset.url}

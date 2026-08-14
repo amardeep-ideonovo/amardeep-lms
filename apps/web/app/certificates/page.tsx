@@ -130,9 +130,9 @@ function CertificatesInner() {
         setError(err instanceof Error ? err.message : "Failed to load certificates.");
       }
     }
-    load();
+    void load();
     const refresh = () => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") void load();
     };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);

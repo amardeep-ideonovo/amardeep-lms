@@ -15,7 +15,6 @@ import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RowMenu from "@/components/RowMenu";
 
-const pad = (n: number) => String(n).padStart(2, "0");
 
 // Browser IANA zone (fallback UTC), used as the default for a new session.
 function browserTz(): string {
@@ -207,7 +206,7 @@ export default function LiveSessionsPage() {
   }
   useEffect(() => {
     if (authLoading || !can("liveSessions", "read")) return;
-    load();
+    void load();
     // Classes for the audience picker (used in the editor).
     api.listLevels().then(setLevels).catch(() => setLevels([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -253,7 +252,7 @@ export default function LiveSessionsPage() {
   function backToList() {
     setMode("list");
     setEditingId(null);
-    load();
+    void load();
   }
 
   // Create/update/publish all return the full AdminLiveSessionDTO through the
@@ -449,7 +448,7 @@ export default function LiveSessionsPage() {
               {
                 label: s.status === "SCHEDULED" ? "Cancel session" : "Delete",
                 danger: true,
-                onClick: () => remove(s),
+                onClick: () => void remove(s),
                 disabled: rowBusy === s.id,
               },
             ]
@@ -603,7 +602,7 @@ export default function LiveSessionsPage() {
                               {
                                 label: "Delete",
                                 danger: true,
-                                onClick: () => remove(s),
+                                onClick: () => void remove(s),
                                 disabled: rowBusy === s.id,
                               },
                             ]}

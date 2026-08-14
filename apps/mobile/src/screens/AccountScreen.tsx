@@ -26,7 +26,7 @@ import { Chip } from "../components/Chip";
 import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { useAppConfig } from "../config-provider";
-import { IS_LOCKED_BUILD, unbindInstance, WEB_BASE_URL } from "../config";
+import { IS_LOCKED_BUILD, unbindInstance } from "../config";
 import { fmtDate, money } from "../format";
 import type { TabScreenProps } from "../navigation";
 import { optimistic } from "../optimistic";

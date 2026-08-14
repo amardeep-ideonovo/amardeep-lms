@@ -658,7 +658,6 @@ export function createPuckConfig(
             <Designed d={design}>
               <div className={cx("lmspb-container", "lmspb-w-wide")}>
                 <figure className="lmspb-figure">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={src}
                     alt={alt || ""}
@@ -864,7 +863,6 @@ export function createPuckConfig(
                   const inner = (
                     <>
                       {it.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img className="lmspb-card-img" src={it.imageUrl} alt={it.title || ""} />
                       ) : null}
                       <p className="lmspb-card-title">{it.title}</p>
@@ -997,7 +995,6 @@ export function createPuckConfig(
                 <p className="lmspb-quote-text">“{quote}”</p>
                 <div className="lmspb-quote-by">
                   {avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img className="lmspb-quote-avatar" src={avatarUrl} alt={author || ""} />
                   ) : null}
                   <div>

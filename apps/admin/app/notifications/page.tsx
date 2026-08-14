@@ -50,7 +50,7 @@ export default function NotificationsPage() {
   }, []);
 
   useEffect(() => {
-    load(page);
+    void load(page);
   }, [page, load]);
 
   const items = data?.items ?? [];
@@ -74,7 +74,7 @@ export default function NotificationsPage() {
     try {
       await api.markNotificationRead(n.id);
     } catch {
-      load(page);
+      void load(page);
     }
   };
 
@@ -91,7 +91,7 @@ export default function NotificationsPage() {
     try {
       await api.markAllNotificationsRead();
     } catch {
-      load(page);
+      void load(page);
     }
   };
 

@@ -29,10 +29,8 @@ import { Field, Kebab, PageSkeleton, Pill } from "@/components/ui";
 import { useClientSession } from "@/lib/auth";
 import { useSelectedInstance } from "@/lib/instance-selection";
 import {
-  activePlans,
   clientInstances,
   displayStatus,
-  effectiveCap,
   effectiveTrack,
   getPlan,
   initialsOf,
@@ -259,11 +257,11 @@ function InstanceDashboard({
             items={[
               {
                 label: "Copy member URL",
-                onSelect: () => navigator.clipboard?.writeText(instance.urls.web),
+                onSelect: () => void navigator.clipboard?.writeText(instance.urls.web).catch(() => {}),
               },
               {
                 label: "Copy admin URL",
-                onSelect: () => navigator.clipboard?.writeText(instance.urls.admin),
+                onSelect: () => void navigator.clipboard?.writeText(instance.urls.admin).catch(() => {}),
               },
               {
                 label: "View instance details",
@@ -580,7 +578,7 @@ function MobileOverviewCard({
             type="button"
             className="btn btn-primary"
             onClick={() => {
-              navigator.clipboard?.writeText(instance.id);
+              navigator.clipboard?.writeText(instance.id).catch(() => {});
               setCopied(true);
               setTimeout(() => setCopied(false), 1600);
             }}

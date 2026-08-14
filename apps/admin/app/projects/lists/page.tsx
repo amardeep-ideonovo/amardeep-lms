@@ -12,7 +12,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
   ChatChannelDTO,
-  ChatListDTO,
   ChatListSummaryDTO,
   ChatWorkflowDTO,
   ChatWorkflowTrigger,
@@ -78,12 +77,12 @@ export default function ProjectListsPage() {
 
   useEffect(() => {
     if (authLoading || !can("projects", "read")) return;
-    load();
+    void load();
     api
       .listChannels()
       .then(setChannels)
       .catch(() => setChannels([]));
-    loadAdminRoster().then(setRoster);
+    void loadAdminRoster().then(setRoster);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
@@ -92,7 +91,7 @@ export default function ProjectListsPage() {
     if (authLoading || !can("projects", "read")) return;
     getProjectsSocket();
     const off = onChatListUpdate((evt) => {
-      if (lists.some((l) => l.id === evt.listId)) load();
+      if (lists.some((l) => l.id === evt.listId)) void load();
     });
     return off;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,7 +100,7 @@ export default function ProjectListsPage() {
   // 10s catch-all poll (covers stand-alone lists + missed socket events).
   useEffect(() => {
     if (authLoading || !can("projects", "read")) return;
-    const t = setInterval(() => load(), 10_000);
+    const t = setInterval(() => void load(), 10_000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
@@ -309,7 +308,7 @@ function WorkflowsPanel({
   }, [list.id, onError]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   // Default the post-target select to the list's own channel.

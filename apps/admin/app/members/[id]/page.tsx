@@ -51,7 +51,7 @@ export default function MemberBillingPage() {
   }
   useEffect(() => {
     if (authLoading || !can("members", "read")) return;
-    load();
+    void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, authLoading]);
 
@@ -72,7 +72,7 @@ export default function MemberBillingPage() {
     const sub = cancelFor;
     if (!sub) return;
     setCancelFor(null);
-    act(() => api.cancelMemberSub(id, sub.stripeSubId, mode));
+    void act(() => api.cancelMemberSub(id, sub.stripeSubId, mode));
   }
 
   // Prefer the member's name in the heading; fall back to email.
