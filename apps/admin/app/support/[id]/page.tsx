@@ -221,12 +221,13 @@ export default function SupportThreadPage() {
         /* transient poll failure — keep the last good thread */
       }
     };
-    const iv = window.setInterval(refresh, 6000);
-    window.addEventListener("focus", refresh);
+    const onRefresh = () => void refresh();
+    const iv = window.setInterval(onRefresh, 6000);
+    window.addEventListener("focus", onRefresh);
     return () => {
       active = false;
       window.clearInterval(iv);
-      window.removeEventListener("focus", refresh);
+      window.removeEventListener("focus", onRefresh);
     };
   }, [id]);
 

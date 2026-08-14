@@ -257,11 +257,11 @@ function InstanceDashboard({
             items={[
               {
                 label: "Copy member URL",
-                onSelect: () => navigator.clipboard?.writeText(instance.urls.web),
+                onSelect: () => void navigator.clipboard?.writeText(instance.urls.web).catch(() => {}),
               },
               {
                 label: "Copy admin URL",
-                onSelect: () => navigator.clipboard?.writeText(instance.urls.admin),
+                onSelect: () => void navigator.clipboard?.writeText(instance.urls.admin).catch(() => {}),
               },
               {
                 label: "View instance details",

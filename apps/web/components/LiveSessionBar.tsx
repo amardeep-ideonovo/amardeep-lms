@@ -80,7 +80,7 @@ export default function LiveSessionBar() {
     };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
-    const poll = setInterval(load, 60_000);
+    const poll = setInterval(() => void load(), 60_000);
     return () => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);

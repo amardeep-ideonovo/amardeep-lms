@@ -258,7 +258,7 @@ function MediaLibraryModal({
   );
 
   useEffect(() => {
-    const t = setTimeout(() => load(q), 250);
+    const t = setTimeout(() => void load(q), 250);
     return () => clearTimeout(t);
   }, [q, load]);
   // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.

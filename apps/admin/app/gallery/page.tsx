@@ -84,7 +84,7 @@ export default function MediaPage() {
   }, [kind, authLoading]);
   useEffect(() => {
     if (authLoading || !can("gallery", "read")) return;
-    const t = setTimeout(() => load(1, q, kind), 300);
+    const t = setTimeout(() => void load(1, q, kind), 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);

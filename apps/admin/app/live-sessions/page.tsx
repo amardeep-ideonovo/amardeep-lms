@@ -448,7 +448,7 @@ export default function LiveSessionsPage() {
               {
                 label: s.status === "SCHEDULED" ? "Cancel session" : "Delete",
                 danger: true,
-                onClick: () => remove(s),
+                onClick: () => void remove(s),
                 disabled: rowBusy === s.id,
               },
             ]
@@ -602,7 +602,7 @@ export default function LiveSessionsPage() {
                               {
                                 label: "Delete",
                                 danger: true,
-                                onClick: () => remove(s),
+                                onClick: () => void remove(s),
                                 disabled: rowBusy === s.id,
                               },
                             ]}

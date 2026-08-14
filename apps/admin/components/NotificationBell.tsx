@@ -67,7 +67,7 @@ export default function NotificationBell() {
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | null = null;
     const start = () => {
-      if (timer == null) timer = setInterval(fetchUnread, POLL_MS);
+      if (timer == null) timer = setInterval(() => void fetchUnread(), POLL_MS);
     };
     const stop = () => {
       if (timer != null) {
@@ -137,7 +137,7 @@ export default function NotificationBell() {
       },
       request: () => api.markAllNotificationsRead(),
       revert: restoreRead,
-      onError: () => fetchUnread(),
+      onError: () => void fetchUnread(),
       errorMessage: "Couldn’t mark your notifications read.",
     });
   };
@@ -156,7 +156,7 @@ export default function NotificationBell() {
         },
         request: () => api.markNotificationRead(n.id),
         revert: restoreRead,
-        onError: () => fetchUnread(),
+        onError: () => void fetchUnread(),
         errorMessage: "Couldn’t mark that notification read.",
       });
     }

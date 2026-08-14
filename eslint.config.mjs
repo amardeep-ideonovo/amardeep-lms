@@ -145,9 +145,11 @@ export default tseslint.config(
       ],
       "@typescript-eslint/await-thenable": "error",
       // checksVoidReturn.attributes would flag every `onClick={async ...}`,
-      // which this codebase uses idiomatically.
+      // which this codebase uses idiomatically. Error, not warn: the 22-site
+      // backlog (timers/listeners/menu items handed async fns) was fixed with
+      // the `() => void fn()` idiom in the baseline PR.
       "@typescript-eslint/no-misused-promises": [
-        "warn",
+        "error",
         { checksVoidReturn: { attributes: false } },
       ],
     },

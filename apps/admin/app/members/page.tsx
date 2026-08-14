@@ -404,7 +404,7 @@ export default function MembersPage() {
                         {
                           label: "Delete member…",
                           danger: true,
-                          onClick: () => onDeleteMember(m),
+                          onClick: () => void onDeleteMember(m),
                         },
                       ]}
                     />

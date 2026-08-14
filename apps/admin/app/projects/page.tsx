@@ -327,7 +327,7 @@ export default function ProjectsPage() {
   // this only matters when the socket is down (server restart, network blip).
   useEffect(() => {
     if (!selectedId) return;
-    const t = setInterval(catchUpMessages, MESSAGE_FALLBACK_POLL_MS);
+    const t = setInterval(() => void catchUpMessages(), MESSAGE_FALLBACK_POLL_MS);
     return () => clearInterval(t);
   }, [selectedId, catchUpMessages]);
 
@@ -1543,7 +1543,7 @@ function ThreadPanel({
 
   useEffect(() => {
     void load();
-    const t = setInterval(load, THREAD_POLL_MS);
+    const t = setInterval(() => void load(), THREAD_POLL_MS);
     return () => clearInterval(t);
   }, [load]);
 

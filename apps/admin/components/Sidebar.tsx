@@ -305,7 +305,7 @@ export default function Sidebar() {
         })
         .catch(() => undefined);
     void tick();
-    const timer = setInterval(tick, 30_000);
+    const timer = setInterval(() => void tick(), 30_000);
     return () => {
       active = false;
       clearInterval(timer);

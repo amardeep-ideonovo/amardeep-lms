@@ -100,7 +100,7 @@ export default function ProjectListsPage() {
   // 10s catch-all poll (covers stand-alone lists + missed socket events).
   useEffect(() => {
     if (authLoading || !can("projects", "read")) return;
-    const t = setInterval(() => load(), 10_000);
+    const t = setInterval(() => void load(), 10_000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);

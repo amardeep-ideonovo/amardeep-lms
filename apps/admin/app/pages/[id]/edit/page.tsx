@@ -186,14 +186,14 @@ export default function PageEditor() {
     latest.current = data;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     setSaveState("saving");
-    saveTimer.current = setTimeout(async () => {
+    saveTimer.current = setTimeout(() => void (async () => {
       try {
         await persist();
         setSaveState("saved");
       } catch {
         setSaveState("error");
       }
-    }, 1000);
+    })(), 1000);
   }
 
   async function saveStatus(next: PageStatus) {
