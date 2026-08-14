@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { Prisma } from '@prisma/client';
+import { AdminRole, Prisma } from '@prisma/client';
 import type { AdminDTO, AdminPermissions } from '@lms/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { ControlPlaneNotifier } from '../control-plane/control-plane.notifier';
@@ -86,7 +86,7 @@ export class AdminsService {
       data: {
         email,
         passwordHash: await bcrypt.hash(dto.password, 10),
-        role: dto.superAdmin ? 'SUPER_ADMIN' : 'ADMIN',
+        role: dto.superAdmin ? AdminRole.SUPER_ADMIN : AdminRole.ADMIN,
         permissions: (dto.superAdmin
           ? {}
           : this.sanitize(dto.permissions)) as unknown as Prisma.InputJsonValue,
@@ -102,13 +102,14 @@ export class AdminsService {
 
     const data: Prisma.AdminUpdateInput = {};
     if (dto.superAdmin !== undefined) {
-      if (target.role === 'SUPER_ADMIN' && dto.superAdmin === false) {
+      if (target.role === AdminRole.SUPER_ADMIN && dto.superAdmin === false) {
         await this.assertNotLastSuperAdmin(id);
       }
-      data.role = dto.superAdmin ? 'SUPER_ADMIN' : 'ADMIN';
+      data.role = dto.superAdmin ? AdminRole.SUPER_ADMIN : AdminRole.ADMIN;
     }
     if (dto.permissions !== undefined) {
-      const willBeSuper = dto.superAdmin ?? target.role === 'SUPER_ADMIN';
+      const willBeSuper =
+        dto.superAdmin ?? target.role === AdminRole.SUPER_ADMIN;
       data.permissions = (willBeSuper
         ? {}
         : this.sanitize(dto.permissions)) as unknown as Prisma.InputJsonValue;
@@ -166,7 +167,7 @@ export class AdminsService {
         ? await this.prisma.admin.findFirst({ where: { email } })
         : null) ??
       (await this.prisma.admin.findFirst({
-        where: { role: 'SUPER_ADMIN' },
+        where: { role: AdminRole.SUPER_ADMIN },
         orderBy: { createdAt: 'asc' },
       }));
     if (!target) throw new NotFoundException('No admin account to reset');
@@ -186,7 +187,7 @@ export class AdminsService {
     }
     const target = await this.prisma.admin.findUnique({ where: { id } });
     if (!target) throw new NotFoundException('Admin not found');
-    if (target.role === 'SUPER_ADMIN') {
+    if (target.role === AdminRole.SUPER_ADMIN) {
       await this.assertNotLastSuperAdmin(id);
     }
     await this.prisma.admin.delete({ where: { id } });
@@ -196,7 +197,7 @@ export class AdminsService {
   // Block removing/demoting the final super admin (lockout protection).
   private async assertNotLastSuperAdmin(excludingId: string): Promise<void> {
     const others = await this.prisma.admin.count({
-      where: { role: 'SUPER_ADMIN', id: { not: excludingId } },
+      where: { role: AdminRole.SUPER_ADMIN, id: { not: excludingId } },
     });
     if (others === 0) {
       throw new BadRequestException('Cannot remove the last super admin');
