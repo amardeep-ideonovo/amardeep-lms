@@ -97,15 +97,11 @@ export function clearToken(): Promise<void> {
 }
 
 // ---------- error type so screens can branch on status (e.g. 403 locked) ----------
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
+// Single source: packages/types (web + admin re-export the same class), so
+// `instanceof ApiError` means the same thing across the whole codebase.
+// (Imported, not `export … from`, because this file also throws it below.)
+import { ApiError } from "@lms/types";
+export { ApiError };
 
 // ---------- 401 handler ----------
 // The auth layer registers a callback here so a server-rejected token (expired,

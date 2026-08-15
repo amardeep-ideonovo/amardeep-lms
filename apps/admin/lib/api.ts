@@ -1,4 +1,5 @@
 // Typed fetch client for the admin app. Wraps the REST contract in @lms/types.
+import { createRequest } from "@lms/ui";
 import type {
   AdminCertificateListDTO,
   AdminDTO,
@@ -165,58 +166,36 @@ export function clearToken(): void {
 }
 
 // ---------- core request ----------
-export class ApiError extends Error {
-  status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
-    this.name = "ApiError";
-  }
-}
+// Single source: packages/types (web + mobile re-export the same class), so
+// `instanceof ApiError` means the same thing across the whole codebase.
+// (Imported, not `export … from`, because this file also throws it below.)
+import { ApiError } from "@lms/types";
+export { ApiError };
 
 type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+
+// The fetch mechanics live in @lms/ui's createRequest, shared with web
+// (docs/coding-standards.md D5). Admin's config: always no-store (it never
+// passes `revalidate`), and any 401 clears the token and bounces to login.
+// The (method, path, body) signature below is admin's historical surface —
+// kept so its ~1,000 call sites stay untouched.
+const coreRequest = createRequest({
+  baseUrl: apiUrl,
+  getToken,
+  onUnauthorized: () => {
+    if (typeof window === "undefined") return;
+    clearToken();
+    if (window.location.pathname !== withBase("/login"))
+      window.location.href = `${withBase("/login")}?session=expired`;
+  },
+});
 
 async function request<T>(
   method: Method,
   path: string,
   body?: unknown,
 ): Promise<T> {
-  const headers: Record<string, string> = {};
-  const token = getToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-
-  const res = await fetch(`${apiUrl()}${path}`, {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-    cache: "no-store",
-  });
-
-  if (res.status === 401 && typeof window !== "undefined") {
-    clearToken();
-    if (window.location.pathname !== withBase("/login"))
-      window.location.href = `${withBase("/login")}?session=expired`;
-  }
-
-  if (!res.ok) {
-    let message = `Request failed (${res.status})`;
-    try {
-      const data = await res.json();
-      if (data?.message) {
-        message = Array.isArray(data.message)
-          ? data.message.join(", ")
-          : String(data.message);
-      }
-    } catch {
-      /* non-JSON error body */
-    }
-    throw new ApiError(res.status, message);
-  }
-
-  if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  return coreRequest<T>(path, { method, body });
 }
 
 // ---------- multipart upload + authenticated download helpers ----------
