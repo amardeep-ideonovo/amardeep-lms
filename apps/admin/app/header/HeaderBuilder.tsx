@@ -20,7 +20,7 @@ import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 import ColorField from "@/components/ColorField";
 import { CtaTargetPicker } from "./CtaTargetPicker";
-import { useAppBrand } from "@/lib/app-brand";
+import { useAppBrand } from "@/lib/queries";
 import { STR } from "@lms/types";
 
 const SECTIONS: { value: HeaderSection; label: string }[] = [

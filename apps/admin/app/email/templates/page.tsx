@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { EmailTemplateDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
-import { useAppBrand } from "@/lib/app-brand";
+import { useAppBrand } from "@/lib/queries";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR } from "@lms/types";

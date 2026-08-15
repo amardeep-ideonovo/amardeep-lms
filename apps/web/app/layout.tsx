@@ -6,6 +6,7 @@ import "./globals.css";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import { ToastProvider } from "@/components/Toast";
+import { QueryProvider } from "@/lib/query";
 import {
   fetchAppConfig,
   fetchFooter,
@@ -105,15 +106,17 @@ export default async function RootLayout({
             window.__ENV__ (API/web origins) is set when lib/api.ts runs; its
             only reader looks it up at call time, never at module eval. */}
         <script src="/env.js" defer />
-        <ToastProvider>
-          <Nav
-            initialHeader={header}
-            initialMenu={headerMenu}
-            brandTitle={appConfig?.title ?? null}
-          />
-          <main className="container">{children}</main>
-          <Footer config={footer} brandTitle={appConfig?.title ?? null} />
-        </ToastProvider>
+        <QueryProvider>
+          <ToastProvider>
+            <Nav
+              initialHeader={header}
+              initialMenu={headerMenu}
+              brandTitle={appConfig?.title ?? null}
+            />
+            <main className="container">{children}</main>
+            <Footer config={footer} brandTitle={appConfig?.title ?? null} />
+          </ToastProvider>
+        </QueryProvider>
       </body>
     </html>
   );

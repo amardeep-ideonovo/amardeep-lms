@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, api, setToken } from "@/lib/api";
-import { useAppBrand } from "@/lib/app-brand";
+import { useAppBrand } from "@/lib/queries";
 import { STR } from "@lms/types";
 
 export default function LoginPage() {

@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { ClassTileDTO } from "@lms/types";
-import { ApiError, clearToken } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import {
   type ClassExtras,
   classColorClass,
   classIndexMap,
   classPct,
-  fetchMemberDashboard,
 } from "@/lib/memberData";
+import { useMemberDashboard } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
 
@@ -83,59 +82,31 @@ function ClassCard({
 }
 
 function ClassesInner() {
-  const router = useRouter();
-  const [classes, setClasses] = useState<ClassTileDTO[] | null>(null);
-  const [extras, setExtras] = useState<Map<string, ClassExtras>>(new Map());
-  const [error, setError] = useState<string | null>(null);
+  // Same shared dashboard payload /dashboard and /certificates read — cached,
+  // deduped, and revalidated on tab focus (updating in place, never re-showing
+  // the skeleton over rendered content).
+  const dashboard = useMemberDashboard();
   const [filter, setFilter] = useState<Filter>("all");
 
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      try {
-        const { classes: cs, extras: ex } = await fetchMemberDashboard();
-        if (!mounted) return;
-        setClasses(cs);
-        setExtras(ex);
-        setError(null);
-      } catch (err) {
-        if (!mounted) return;
-        if (err instanceof ApiError && err.status === 401) {
-          clearToken();
-          router.replace("/login");
-          return;
-        }
-        setError(
-          err instanceof Error ? err.message : "Failed to load classes.",
-        );
-      }
-    }
-    void load();
-    const refresh = () => {
-      if (document.visibilityState === "visible") void load();
-    };
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      mounted = false;
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [router]);
+  const dash = dashboard.data ?? null;
+  const colorIdx = useMemo(() => classIndexMap(dash?.classes ?? []), [dash]);
 
-  const colorIdx = useMemo(() => classIndexMap(classes ?? []), [classes]);
-
-  if (error) {
+  // A 401 means the global handler (lib/query.tsx) is already redirecting to
+  // /login — keep the skeleton up for that frame instead of flashing an alert.
+  const err = dashboard.error;
+  if (!dash && err && !(err instanceof ApiError && err.status === 401)) {
     return (
       <div className="ink-page">
         <div className="ik-band" />
         <div className="ik-main">
-          <div className="alert alert-error">{error}</div>
+          <div className="alert alert-error">
+            {err instanceof Error ? err.message : "Failed to load classes."}
+          </div>
         </div>
       </div>
     );
   }
-  if (!classes) {
+  if (!dash) {
     return (
       <div className="ink-page">
         <div className="ik-band">
@@ -173,6 +144,7 @@ function ClassesInner() {
       </div>
     );
   }
+  const { classes, extras } = dash;
 
   const owned = classes.filter((c) => c.owned);
   const explore = classes.filter((c) => !c.owned);
