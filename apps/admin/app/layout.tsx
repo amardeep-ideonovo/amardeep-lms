@@ -8,6 +8,7 @@ import AuthGuard from "@/components/AuthGuard";
 import { AdminAuthProvider } from "@/components/AdminAuthProvider";
 import { DialogProvider } from "@/components/DialogProvider";
 import { ToastProvider } from "@/components/ToastProvider";
+import { QueryProvider } from "@/lib/query";
 import { withBase } from "@/lib/base-path";
 
 // Spark UI type — Plus Jakarta Sans everywhere (display + body; owner's call
@@ -66,28 +67,30 @@ export default function RootLayout({
             writes (the sidebar order) and needs the toast channel to say so.
             The stack is position:fixed at z-index 90 — above the dialog layer
             (max 60) — so nesting order doesn't change what paints on top. */}
-        <ToastProvider>
-          <AdminAuthProvider>
-            <DialogProvider>
-              <div className="app-shell">
-                <Sidebar />
-                <main className="app-main">
-                  <Topbar />
-                  {/* .app-content is the scrolling light panel (the signature
+        <QueryProvider>
+          <ToastProvider>
+            <AdminAuthProvider>
+              <DialogProvider>
+                <div className="app-shell">
+                  <Sidebar />
+                  <main className="app-main">
+                    <Topbar />
+                    {/* .app-content is the scrolling light panel (the signature
                       22px top-left radius against the ink chrome holds while
                       scrolling because the radius lives on the scroll
                       container). .app-content-inner caps the line length on
                       wide screens. */}
-                  <div className="app-content">
-                    <div className="app-content-inner">
-                      <AuthGuard>{children}</AuthGuard>
+                    <div className="app-content">
+                      <div className="app-content-inner">
+                        <AuthGuard>{children}</AuthGuard>
+                      </div>
                     </div>
-                  </div>
-                </main>
-              </div>
-            </DialogProvider>
-          </AdminAuthProvider>
-        </ToastProvider>
+                  </main>
+                </div>
+              </DialogProvider>
+            </AdminAuthProvider>
+          </ToastProvider>
+        </QueryProvider>
       </body>
     </html>
   );
