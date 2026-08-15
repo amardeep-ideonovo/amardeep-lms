@@ -6,17 +6,15 @@
    we only retint the azure (action) ramp from Puck-blue to the Ink Hero teal
    so buttons/selection outlines match the app.
 
-   A stored `data-theme="dark"` preference must render identically (single
-   theme), so the same remap is pinned under BOTH attribute values; the old
-   dark-ramp override is gone on purpose.
-
-   These rules are also copied into the canvas iframe by Puck's style sync,
-   where they are inert: the iframe's <html> carries no data-theme attribute.
+   ALL-LITERAL ON PURPOSE: this sheet is copied into the canvas iframe by
+   Puck's style sync, and the iframe does NOT load @lms/ui/tokens.css — a
+   var(--…) reference would resolve to nothing there. Keep these hexes in
+   step with tokens.css (teal #34c9a2 / ink #17171d) when the palette moves.
+   The old data-theme attribute selectors are gone with the theme plumbing
+   (single appearance, P3).
    ========================================================================= */
 
-html,
-html[data-theme="light"],
-html[data-theme="dark"] {
+html {
   --puck-color-white: #ffffff;
   --puck-color-black: #17171d; /* ink text */
 

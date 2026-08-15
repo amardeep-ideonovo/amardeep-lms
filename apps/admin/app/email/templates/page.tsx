@@ -633,7 +633,7 @@ export default function EmailTemplatesPage() {
                       height: 520,
                       border: "1px solid var(--border)",
                       borderRadius: 12,
-                      background: "#fff",
+                      background: "var(--surface)",
                     }}
                   />
                   <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>

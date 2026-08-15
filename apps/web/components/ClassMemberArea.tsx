@@ -376,7 +376,7 @@ function ClassLiveCard({
             width: 7,
             height: 7,
             borderRadius: "50%",
-            background: "#ea4f4f",
+            background: "var(--danger-solid)",
             flex: "none",
           }}
           aria-hidden="true"
@@ -386,7 +386,7 @@ function ClassLiveCard({
             fontSize: 11,
             fontWeight: 700,
             letterSpacing: 0.8,
-            color: "#c03a3a",
+            color: "var(--danger-text)",
           }}
         >
           LIVE SESSION

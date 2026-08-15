@@ -449,7 +449,11 @@ function LessonInner() {
             />
             <div
               className="ik-skel"
-              style={{ height: 220, borderRadius: 16, background: "#fff" }}
+              style={{
+                height: 220,
+                borderRadius: 16,
+                background: "var(--surface)",
+              }}
             />
           </div>
         </div>

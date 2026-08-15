@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import "@lms/ui/tokens.css";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
@@ -22,11 +23,6 @@ const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
   display: "swap",
 });
-
-// Legacy theme resolution kept harmless: Ink Hero is a SINGLE theme (both
-// :root and [data-theme="light"] carry identical tokens), so whatever stored
-// preference this resolves to renders the same. The attribute plumbing stays.
-const themeScript = `(function(){try{var p=localStorage.getItem('lms.theme')||'dark';var d=p==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;document.documentElement.setAttribute('data-theme',d);}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
 
 // Dynamic so the browser-tab title + " | <brand>" suffix (inherited by every
 // child page), applicationName and OG/Twitter card all carry the PER-INSTANCE
@@ -101,12 +97,7 @@ export default async function RootLayout({
     headerPromise.then((h) => fetchHeaderMenu(h?.menuId)),
   ]);
   return (
-    <html
-      lang="en"
-      data-theme="dark"
-      className={jakarta.variable}
-      suppressHydrationWarning
-    >
+    <html lang="en" className={jakarta.variable}>
       <body>
         {/* Per-instance runtime config. `defer` keeps HTML parsing (and the
             SSR'd first paint) from blocking on this request while still
@@ -114,7 +105,6 @@ export default async function RootLayout({
             window.__ENV__ (API/web origins) is set when lib/api.ts runs; its
             only reader looks it up at call time, never at module eval. */}
         <script src="/env.js" defer />
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <ToastProvider>
           <Nav
             initialHeader={header}

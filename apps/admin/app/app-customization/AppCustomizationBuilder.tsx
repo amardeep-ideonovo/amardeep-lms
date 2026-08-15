@@ -242,7 +242,7 @@ export default function AppCustomizationBuilder({
               marginTop: -4,
               marginBottom: 12,
               borderLeft: `3px solid ${
-                wlLocked ? "#8b8a87" : "var(--amber, #f59e0b)"
+                wlLocked ? "var(--muted)" : "var(--amber, #f59e0b)"
               }`,
               paddingLeft: 10,
             }}

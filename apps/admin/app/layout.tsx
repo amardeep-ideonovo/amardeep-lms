@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import "@lms/ui/tokens.css";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
@@ -48,22 +49,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// Resolve the saved theme preference before first paint to avoid a flash.
-// Ink Hero has a SINGLE appearance — :root and [data-theme="light"] carry the
-// same token values — so whatever preference is stored renders identically.
-// The plumbing stays so stored preferences keep resolving without errors.
-const themeScript = `(function(){try{var p=localStorage.getItem('lms.admin.theme')||'light';var d=p==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p;document.documentElement.setAttribute('data-theme',d);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();`;
-
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={jakarta.variable} suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
+    <html lang="en" className={jakarta.variable}>
       <body>
         {/* Per-instance runtime config — loads before the app bundle so
             window.__ENV__ (API/web origins) is set when lib/api.ts runs.

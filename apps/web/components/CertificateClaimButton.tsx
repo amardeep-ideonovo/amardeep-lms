@@ -161,7 +161,9 @@ export default function CertificateClaimButton({
         </button>
       )}
       {error && (
-        <span style={{ color: "var(--danger, #ea4f4f)", fontSize: 13 }}>
+        <span
+          style={{ color: "var(--danger, var(--danger-solid))", fontSize: 13 }}
+        >
           {error}
         </span>
       )}

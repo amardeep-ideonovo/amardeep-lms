@@ -14,7 +14,7 @@ import type { LevelDTO, MemberStatsDTO, SubscriptionRowDTO } from "@lms/types";
 import { ApiError, api, type ReportFilter } from "@/lib/api";
 import { classAccentIndex } from "@/lib/class-accent";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
-import { STR } from "@lms/types";
+import { STR, CLASS_ACCENTS as ACCENT_SLOTS } from "@lms/types";
 
 const REPORTS: {
   key: string;
@@ -50,15 +50,10 @@ const fieldStyle: CSSProperties = {
 };
 
 // Class accent cycle — slots picked by name keywords (lib/class-accent) so the
-// seeded catalog matches the mocks (music amber → comedy sea).
-const CLASS_ACCENTS = [
-  "#f7a01e",
-  "#9046c8",
-  "#43a565",
-  "#e04848",
-  "#4a76d0",
-  "#27a596",
-];
+// seeded catalog matches the mocks (music amber → comedy sea). SVG/donut code
+// needs real color strings, so these come from the shared TS palette
+// (identical to the CSS --accent-* tokens), not var().
+const CLASS_ACCENTS = ACCENT_SLOTS.map((a) => a.color);
 const MIX_COLORS = ["#30b895", "#17171d", "#f6a623", "#8b8a87"];
 
 // A subscription row that is currently billing (both providers use raw
