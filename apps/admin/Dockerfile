@@ -15,10 +15,12 @@ COPY package.json package-lock.json ./
 COPY packages/db/package.json packages/db/
 COPY packages/types/package.json packages/types/
 COPY packages/bdd/package.json packages/bdd/
+COPY packages/puck/package.json packages/puck/
 COPY apps/api/package.json apps/api/
 COPY apps/admin/package.json apps/admin/
 COPY apps/web/package.json apps/web/
 COPY apps/mobile/package.json apps/mobile/
+COPY apps/control-plane/package.json apps/control-plane/
 RUN npm ci
 
 COPY . .

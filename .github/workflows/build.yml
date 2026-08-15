@@ -46,8 +46,10 @@ jobs:
       fail-fast: false
       matrix:
         # Workspaces with a tsconfig but no full build elsewhere. The API
-        # is covered by `nest build` in the BDD workflow; admin + web are
-        # covered by their `next build` jobs below.
+        # is covered by `nest build` in the BDD workflow; admin, web and
+        # control-plane are covered by their `next build` jobs below
+        # (`next build` type-checks the whole project, so a matrix entry
+        # for them would double-spend CI minutes for no extra signal).
         workspace: [mobile, puck, bdd, db]
     steps:
       - uses: actions/checkout@v4
@@ -97,6 +99,31 @@ jobs:
       - name: Unit tests (mobile)
         run: npm run -w @lms/mobile test
 
+  # apps/api carries node:test unit specs (23 files): the crypto round-trip
+  # guards, JWT/reset/download tokens, throttler tracker, storage-dir boot
+  # rules, destructive-op invariants — and deploy-pins.spec.ts, the cross-file
+  # contract test asserting every declared storage dir stays pinned in
+  # deploy/instance/docker-compose.instance.yml and apps/api/Dockerfile.
+  # Until this job existed they ran only on dev machines. `prisma generate`
+  # is needed so service files' Prisma types resolve under ts-node; the specs
+  # themselves inject hand-rolled literal mocks, so no DATABASE_URL and no
+  # live Postgres/Redis are required.
+  test-api:
+    name: Test (api)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate --schema packages/db/prisma/schema.prisma
+      - name: Unit tests (api)
+        run: npm run -w @lms/api test
+
   build-admin:
     name: Next build (admin)
     runs-on: ubuntu-latest
@@ -132,3 +159,24 @@ jobs:
         run: npm run -w @lms/web build
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3000
+
+  # The operator console was the one app CI neither type-checked nor built —
+  # a bundle/type regression only surfaced when someone next deployed it.
+  # `next build` type-checks the whole project (same coverage rationale as
+  # admin/web, see the TypeCheck matrix comment). No NEXT_PUBLIC_API_URL:
+  # the console reads its own env at runtime and builds without one.
+  build-control-plane:
+    name: Next build (control-plane)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Prisma client
+        run: npx prisma generate --schema packages/db/prisma/schema.prisma
+      - name: next build
+        run: npm run -w @lms/control-plane build

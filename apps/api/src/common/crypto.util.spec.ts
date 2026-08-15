@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decryptSecret, encryptSecret, maskSecret } from "./crypto.util";
+import { decryptSecret, encryptSecret } from "./crypto.util";
 
 // First tests for the at-rest crypto helper. It backs Setting rows (Stripe/SMTP
 // creds), LiveSession join URLs, and now Projects SECRET field values, so its
@@ -91,10 +91,4 @@ test("a malformed payload throws", () => {
       /Malformed ciphertext/,
     );
   });
-});
-
-test("maskSecret keeps only the last 4 characters", () => {
-  assert.equal(maskSecret("abcdefgh"), "••••••••efgh");
-  assert.equal(maskSecret(""), null);
-  assert.equal(maskSecret(null), null);
 });

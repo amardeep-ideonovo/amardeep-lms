@@ -50,12 +50,3 @@ export function decryptSecret(payload: string): string {
   ]);
   return plaintext.toString("utf8");
 }
-
-// Mask a secret for read-back to the admin UI — never expose plaintext.
-export function maskSecret(
-  plaintext: string | null | undefined,
-): string | null {
-  if (!plaintext) return null;
-  const last4 = plaintext.slice(-4);
-  return `••••••••${last4}`;
-}
