@@ -6,11 +6,15 @@
 // no retries on 4xx (ApiError carries status; a 403/404 won't change on
 // retry), no mutation retries (mutations are never safe to blind-repeat).
 //
-// Adoption order (D4): new pages use useQuery from day one; the module-level
-// cached+inflight dedupe singletons (app-brand, FormPickerField,
-// MenuPickerField) migrated first (they are now hooks in lib/queries.ts, which
-// also owns the `qk` query-key registry), then the heavy list surfaces, then
-// useOptimisticAction is replaced by useMutation + onMutate snapshot/rollback.
+// Adoption state (D4, complete for the admin): new pages use useQuery from
+// day one; the dedupe singletons are hooks in lib/queries.ts (which owns the
+// `qk` registry); mutations use useMutation with the lib/mutations.ts glue.
+// The ONE deliberate exception is lib/useOptimisticAction.ts — the narrow
+// primitive for dynamic-entity-key serialized optimistic writes on the
+// realtime projects board, a shape v5 mutation scopes cannot express (its
+// header has the full argument). The board's reads also stay socket-fed
+// local state on purpose: on a realtime surface the socket stream is the
+// freshness authority, and a parallel query cache would be a second one.
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";

@@ -1,9 +1,10 @@
 // TanStack Query wiring for the app.
 //
-// The app has no other data-fetching library; screens own their own state. This
-// module introduces ONE shared query cache so the same request made by several
-// screens (my-classes is fetched by Home, Classes AND Certificates) is fetched
-// once, paints from cache on the next visit, and revalidates in the background.
+// TanStack Query IS the app's data-fetching layer: screens read server state
+// through the hooks in queries.ts, all backed by the ONE shared cache this
+// module provides — so the same request made by several screens (my-classes is
+// fetched by Home, Classes AND Certificates) is fetched once, paints from cache
+// on the next visit, and revalidates in the background.
 //
 // Two isolation boundaries this cache MUST respect — both are load-bearing on a
 // shared device, and both are handled here rather than left to each screen:

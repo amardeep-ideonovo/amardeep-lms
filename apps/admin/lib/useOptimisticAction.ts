@@ -4,13 +4,23 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { ApiError } from "@/lib/api";
 import { useToast } from "@/components/ToastProvider";
 
-// The admin's hand-rolled optimistic update — now ONLY for the realtime
-// projects core (app/projects/page.tsx + components/QueueTable.tsx). Every
-// non-realtime site migrated to TanStack `useMutation` in the P4-2 wave
-// (scope-serialized writes, onMutate snapshot → verbatim onError rollback,
-// and the shared toast/mounted glue in lib/mutations.ts); this hook retires
-// with the P4-2b wave, when the projects board migrates too
-// (docs/coding-standards.md D4).
+// THE SANCTIONED NARROW PRIMITIVE — not legacy, not scheduled for removal.
+//
+// Scope (docs/coding-standards.md D4, decided in the P4-2b wave): this hook
+// serves exactly one niche that TanStack v5 `useMutation` cannot express —
+// DYNAMIC-ENTITY-KEY serialized optimistic writes on realtime surfaces
+// (`message:<id>` reactions/edit/delete on the projects board, and
+// `list-item:<id>` cell saves in QueueTable). Two verified v5 limits close
+// the standard route (both checked against query-core 5.101.4 in P4-2a):
+//   • mutation `scope` ids are fixed per hook instance, so a page-level
+//     handler covering arbitrary row ids cannot scope per entity; and
+//   • per-row hook instances would break the unmount boundary below (thread
+//     panels close and filtered rows unmount while writes are in the air —
+//     the page-level hook keeps applying their commits and reverts).
+// Everything else in the admin uses `useMutation` (see lib/mutations.ts and
+// the P4-2a call sites). Do not add a consumer here unless it has this exact
+// shape: dynamic entity keys + reachable same-key overlap + realtime refetch
+// pressure. If TanStack ever supports per-call scopes, revisit.
 //
 // React 18 has no `useOptimistic`, so the app once carried three copies of
 // the same five steps (sidebar order, the notification bell, the menu-tree

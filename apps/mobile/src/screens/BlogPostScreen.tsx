@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Image,
   RefreshControl,
@@ -7,9 +7,8 @@ import {
   Text,
   View,
 } from "react-native";
-import type { PostDetailDTO } from "@lms/types";
 
-import { api } from "../api";
+import { usePost } from "../queries";
 import { Chip } from "../components/Chip";
 import { HtmlView } from "../components/HtmlView";
 import { Loading, ErrorState } from "../components/Screen";
@@ -36,49 +35,43 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
   const styles = useStyles(makeStyles);
   const { slug } = route.params;
   const { contentWidth } = useContentLayout();
-  const [post, setPost] = useState<PostDetailDTO | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const loadedOnce = useRef(false);
-
-  // `silent` keeps the rendered article on screen while refetching;
-  // `loadedOnce` extends that to every other path (house pattern — see
-  // DashboardScreen), so a refetch that FAILS leaves the article on screen
-  // instead of swapping it for an error page.
-  const load = useCallback(
-    async (silent = false) => {
-      if (!silent && !loadedOnce.current) setLoading(true);
-      setError(null);
-      try {
-        setPost(await api.post(slug));
-        loadedOnce.current = true;
-      } catch (e) {
-        if (!loadedOnce.current) {
-          setError(
-            e instanceof Error ? e.message : "Could not load this post.",
-          );
-        }
-      } finally {
-        setLoading(false);
-      }
-    },
-    [slug],
-  );
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // react-query keeps the rendered article across refetches, so a refetch that
+  // FAILS leaves it on screen instead of swapping it for an error page — the
+  // old loadedOnce guard, now for free.
+  const postQuery = usePost(slug);
+  const post = postQuery.data ?? null;
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load(true);
-    setRefreshing(false);
-  }, [load]);
+    try {
+      await postQuery.refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [postQuery]);
 
-  if (loading) return <Loading />;
-  if (error) return <ErrorState message={error} onRetry={load} />;
-  if (!post) return <ErrorState message="Post not found." onRetry={load} />;
+  if (!post) {
+    // Error page only before the first success; the retry shows the spinner.
+    if (postQuery.isError && !postQuery.isFetching)
+      return (
+        <ErrorState
+          message={
+            postQuery.error instanceof Error
+              ? postQuery.error.message
+              : "Could not load this post."
+          }
+          onRetry={() => postQuery.refetch()}
+        />
+      );
+    if (postQuery.isPending || postQuery.isFetching) return <Loading />;
+    return (
+      <ErrorState
+        message="Post not found."
+        onRetry={() => postQuery.refetch()}
+      />
+    );
+  }
 
   return (
     <ScrollView

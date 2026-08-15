@@ -3,7 +3,7 @@
 // COMPLETE gradient button, certificate claim, and an "Up next" list built
 // from the lesson's course (best-effort fetch). All completion/certificate
 // logic is unchanged.
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -19,7 +19,7 @@ import {
 import { WebView } from "react-native-webview";
 import { Directory, File, Paths } from "expo-file-system";
 import * as SecureStore from "expo-secure-store";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 
@@ -38,8 +38,12 @@ import { HtmlView } from "../components/HtmlView";
 import { vimeoEmbed, youtubeEmbed, isProviderVideoUrl } from "../format";
 import { lessonSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
-import { optimistic } from "../optimistic";
-import { propagateLessonComplete } from "../queries";
+import {
+  propagateLessonComplete,
+  qk,
+  useCourseLessons,
+  useLesson,
+} from "../queries";
 import { contentColumn, formColumn, useContentLayout } from "../responsive";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -67,94 +71,87 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   // and duration — never the video URL, body, notes or certificate state, and
   // never anything that implies access. It paints the loading frame only.
   const { lessonId, seed } = route.params;
-  const [lesson, setLesson] = useState<LessonDTO | null>(null);
-  const [siblings, setSiblings] = useState<LessonDTO[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [locked, setLocked] = useState(false);
-  const loadedOnce = useRef(false);
 
-  const [completing, setCompleting] = useState(false);
+  // The lesson lives in the shared query cache — THE single source for the
+  // `completed` flag (the old local copy duplicated what the course-lessons
+  // entry already held). react-query keeps it across refetches, so a
+  // pull-to-refresh never swaps the player for the full-screen spinner and a
+  // refetch that FAILS keeps the player instead of replacing it with an error.
+  const lessonQuery = useLesson(lessonId);
+  const lesson = lessonQuery.data ?? null;
+
+  // Course siblings drive the "Lesson x of y" line and the Up-next rows —
+  // decorative, so a failure never blocks the player. Same cache entry the
+  // Course screen reads (and the completion write-back below ticks), sorted
+  // for display; the shared cache holds it unsorted.
+  const siblingsQuery = useCourseLessons(lesson?.courseId);
+  const siblings = useMemo(
+    () =>
+      siblingsQuery.data
+        ? [...siblingsQuery.data].sort((a, b) => a.order - b.order)
+        : null,
+    [siblingsQuery.data],
+  );
+
+  // Access is the server's call. A 403 from the lesson fetch always wins,
+  // whether or not content was already rendered (entitlement can be revoked
+  // mid-session), and only a later successful refetch clears it. A 403 from
+  // the completion mutation locks via this flag — reset on remount, exactly
+  // like the old screen-local `locked` state.
+  const [completeLocked, setCompleteLocked] = useState(false);
+  const locked =
+    completeLocked ||
+    (lessonQuery.error instanceof ApiError && lessonQuery.error.status === 403);
+
   const [completeError, setCompleteError] = useState<string | null>(null);
   const [noteError, setNoteError] = useState<string | null>(null);
   const [savingNoteId, setSavingNoteId] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
-  // `silent` keeps the rendered lesson on screen while refetching — a
-  // pull-to-refresh must never swap the player for the full-screen spinner.
-  // `loadedOnce` extends that to every other path (house pattern — see
-  // DashboardScreen): once the lesson is on screen nothing blanks it, and a
-  // refetch that FAILS keeps the player instead of replacing it with an error.
-  const load = useCallback(
-    async (silent = false) => {
-      const first = !loadedOnce.current;
-      if (!silent && first) {
-        setLoading(true);
-        setSiblings(null);
-      }
-      setError(null);
-      try {
-        const data = await api.lesson(lessonId);
-        setLesson(data);
-        // Access is the server's call, so `locked` is only cleared by a response
-        // that actually granted the lesson — never optimistically up front.
-        setLocked(false);
-        loadedOnce.current = true;
-        // Course siblings drive the "Lesson x of y" line and the Up-next rows —
-        // decorative, so a failure never blocks the player.
-        api
-          .courseLessons(data.courseId)
-          .then((ls) => setSiblings([...ls].sort((a, b) => a.order - b.order)))
-          .catch(() => {});
-      } catch (e) {
-        if (e instanceof ApiError && e.status === 403) {
-          // Entitlement can be revoked mid-session — a 403 always wins, whether
-          // or not we already had content rendered.
-          setLocked(true);
-        } else if (first) {
-          setError(
-            e instanceof Error ? e.message : "Could not load this lesson.",
-          );
-        }
-      } finally {
-        setLoading(false);
-      }
-    },
-    [lessonId],
-  );
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load(true);
-    setRefreshing(false);
-  }, [load]);
-
-  async function onComplete() {
-    setCompleteError(null);
-    // Optimistic. /complete does a lesson+course join, two access queries, a
-    // progress lookup, an upsert and a certificate-status query — the app's
-    // core emotional beat shouldn't sit under a spinner for all of that. The
-    // ✓ COMPLETED banner, the status pill and the meta line flip NOW, before
-    // the request. Only `completed` is touched: `certificates` is a GRANT and
-    // is left strictly as the server last reported it (see the render below).
-    const revert = optimistic(setLesson, (prev) =>
-      prev ? { ...prev, completed: true } : prev,
-    );
-    // The button is already gone (replaced by the banner), so `completing` no
-    // longer gates it — it now marks the in-flight window for the neutral
-    // "Checking certificate…" row.
-    setCompleting(true);
     try {
-      const res = await api.completeLesson(lessonId);
+      const jobs: Promise<unknown>[] = [lessonQuery.refetch()];
+      // `enabled` doesn't gate refetch() in v5 — only ask for siblings once the
+      // courseId is known (see the useMyClassCourses warning in queries.ts).
+      if (lesson?.courseId) jobs.push(siblingsQuery.refetch());
+      await Promise.all(jobs);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [lessonQuery, siblingsQuery, lesson?.courseId]);
+
+  // Optimistic. /complete does a lesson+course join, two access queries, a
+  // progress lookup, an upsert and a certificate-status query — the app's
+  // core emotional beat shouldn't sit under a spinner for all of that. The
+  // ✓ COMPLETED banner, the status pill and the meta line flip NOW, before
+  // the request. Only `completed` is touched: `certificates` is a GRANT and
+  // is left strictly as the server last reported it (see the render below).
+  //
+  // The CTA is replaced by the banner on that flip, so a second same-scope run
+  // is unreachable from the UI — which is what makes the plain `onMutate`
+  // snapshot here safe (see docs/coding-standards.md D4: `onMutate` runs at
+  // mutate() time, before any scope-queue turn, so it must never capture
+  // mid-flight state; there is none to capture). The snapshot is restored
+  // VERBATIM, never re-derived.
+  const completeMutation = useMutation({
+    scope: { id: `lesson:${lessonId}` },
+    mutationFn: () => api.completeLesson(lessonId),
+    onMutate: () => {
+      setCompleteError(null);
+      const snapshot =
+        queryClient.getQueryData<LessonDTO>(qk.lesson(lessonId)) ?? null;
+      queryClient.setQueryData<LessonDTO>(qk.lesson(lessonId), (prev) =>
+        prev ? { ...prev, completed: true } : prev,
+      );
+      return snapshot;
+    },
+    onSuccess: (res) => {
       // Completing the final lesson of a class returns fresh certificate
       // state — surface the "Get certificate" button without a refetch. This
       // is the ONLY place certificate state is written: never optimistically.
-      setLesson((prev) =>
+      queryClient.setQueryData<LessonDTO>(qk.lesson(lessonId), (prev) =>
         prev
           ? {
               ...prev,
@@ -167,26 +164,31 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
       // Course / Class / Home screens the member navigates back to are already
       // right: the course's lesson list ticks THIS lesson instantly, and
       // progress counts + certificate grants revalidate server-truthed in the
-      // background. Only on the 200 — never on the optimistic tap above.
-      if (lesson)
-        propagateLessonComplete(queryClient, lesson.courseId, lessonId);
-    } catch (e) {
-      // Put the exact pre-tap lesson back before anything else, so a 403 can't
-      // leave a phantom "completed" behind: `load()` clears `locked` on a
-      // later successful refetch, and the reverted slice is what it lands on.
-      revert();
+      // background. Only on the 200 — never on the optimistic paint above.
+      const courseId = queryClient.getQueryData<LessonDTO>(
+        qk.lesson(lessonId),
+      )?.courseId;
+      if (courseId) propagateLessonComplete(queryClient, courseId, lessonId);
+    },
+    onError: (e, _vars, snapshot) => {
+      // Put the exact pre-tap lesson back BEFORE anything else, so a 403 can't
+      // leave a phantom "completed" behind: a later successful refetch clears
+      // `locked`, and the reverted slice is what it lands on.
+      if (snapshot) queryClient.setQueryData(qk.lesson(lessonId), snapshot);
       if (e instanceof ApiError && e.status === 403) {
         setCompleteError("You no longer have access to this lesson.");
-        setLocked(true);
+        setCompleteLocked(true);
       } else {
         setCompleteError(
           e instanceof Error ? e.message : "Could not mark complete.",
         );
       }
-    } finally {
-      setCompleting(false);
-    }
-  }
+    },
+  });
+  // The button is already gone (replaced by the banner), so `completing` no
+  // longer gates it — it marks the in-flight window for the neutral
+  // "Checking certificate…" row.
+  const completing = completeMutation.isPending;
 
   // Download a note to the device. On Android we fetch the file (access-checked
   // endpoint; auth via the Authorization header) and save it to a user-chosen
@@ -274,8 +276,9 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   // First paint. With a seed we keep showing the row the member just tapped —
   // its still thumbnail, title and duration — instead of a cold spinner. The
   // player, completion button, notes and certificates stay out until the
-  // server has granted the lesson.
-  if (loading) {
+  // server has granted the lesson. (A cached lesson skips this entirely and
+  // paints, revalidating in the background.)
+  if (!lesson && !locked && !(lessonQuery.isError && !lessonQuery.isFetching)) {
     if (!seed) return <Loading />;
     return (
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
@@ -320,8 +323,24 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
     );
   }
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
-  if (!lesson) return <ErrorState message="Lesson not found." onRetry={load} />;
+  if (lessonQuery.isError && !lesson)
+    return (
+      <ErrorState
+        message={
+          lessonQuery.error instanceof Error
+            ? lessonQuery.error.message
+            : "Could not load this lesson."
+        }
+        onRetry={() => lessonQuery.refetch()}
+      />
+    );
+  if (!lesson)
+    return (
+      <ErrorState
+        message="Lesson not found."
+        onRetry={() => lessonQuery.refetch()}
+      />
+    );
 
   const completed = lesson.completed === true;
   // Media type is derived from the URLs: audioUrl -> audio player; otherwise
@@ -478,7 +497,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
             busy={completing}
             label="MARK AS COMPLETE"
             textStyle={styles.completeText}
-            onPress={onComplete}
+            onPress={() => completeMutation.mutate()}
           />
         )}
 
