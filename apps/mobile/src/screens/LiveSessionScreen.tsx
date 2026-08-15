@@ -3,7 +3,7 @@
 // — RN/Expo has no maintained native Zoom Meeting SDK, and a WebViewed meeting is
 // blocked/forced to the app). Mirrors the web join page's states: locked / 404 /
 // canceled / countdown-before-window / ready-to-join / ended.
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Linking,
@@ -15,6 +15,7 @@ import {
 import type { LiveJoinCredentialsDTO, LiveSessionBarDTO } from "@lms/types";
 
 import { ApiError, api } from "../api";
+import { useLiveSession } from "../queries";
 import { ErrorState, Loading } from "../components/Screen";
 import { Press } from "../components/Press";
 import { contentColumn } from "../responsive";
@@ -39,43 +40,24 @@ function hostOf(url: string): string {
   return m ? m[1] : url;
 }
 
-type Status = "loading" | "locked" | "notfound" | "canceled" | "error" | "ok";
-
 export function LiveSessionScreen({ route }: ScreenProps<"LiveSession">) {
   const { sessionId } = route.params;
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
 
-  const [session, setSession] = useState<LiveSessionBarDTO | null>(null);
+  const sessionQuery = useLiveSession(sessionId);
+  const session: LiveSessionBarDTO | null = sessionQuery.data ?? null;
   const [creds, setCreds] = useState<LiveJoinCredentialsDTO | null>(null);
-  const [status, setStatus] = useState<Status>("loading");
-  const [errorMsg, setErrorMsg] = useState("");
   const offsetRef = useRef(0);
   const [now, setNow] = useState(() => Date.now());
 
-  const loadShell = useCallback(async () => {
-    setStatus("loading");
-    try {
-      const s = await api.liveSession(sessionId);
-      offsetRef.current = Date.parse(s.serverNow) - Date.now();
-      setSession(s);
-      setStatus("ok");
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.status === 403) return setStatus("locked");
-        if (err.status === 410) return setStatus("canceled");
-        if (err.status === 404) return setStatus("notfound");
-      }
-      setErrorMsg(
-        err instanceof Error ? err.message : "Failed to load session.",
-      );
-      setStatus("error");
-    }
-  }, [sessionId]);
-
+  // Track the server-clock offset from the freshest response, so the countdown
+  // and join window run on server time, not a skewed device clock.
   useEffect(() => {
-    loadShell();
-  }, [loadShell]);
+    if (sessionQuery.data) {
+      offsetRef.current = Date.parse(sessionQuery.data.serverNow) - Date.now();
+    }
+  }, [sessionQuery.data]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now() + offsetRef.current), 1000);
@@ -90,7 +72,7 @@ export function LiveSessionScreen({ route }: ScreenProps<"LiveSession">) {
 
   // Fetch the join URL + passcode only once inside the window (never before).
   useEffect(() => {
-    if (status !== "ok" || !canJoin || creds) return;
+    if (!session || sessionQuery.isError || !canJoin || creds) return;
     let alive = true;
     api
       .liveCredentials(sessionId)
@@ -101,18 +83,33 @@ export function LiveSessionScreen({ route }: ScreenProps<"LiveSession">) {
     return () => {
       alive = false;
     };
-  }, [status, canJoin, creds, sessionId]);
+  }, [session, sessionQuery.isError, canJoin, creds, sessionId]);
 
-  if (status === "loading") return <Loading />;
-  if (status === "locked")
+  // The dedicated states always win, cached shell or not — entitlement (403),
+  // canceled (410) and gone (404) are server truth the moment they arrive.
+  const shellError = sessionQuery.error;
+  if (shellError instanceof ApiError && shellError.status === 403)
     return <ErrorState message="You don’t have access to this live session." />;
-  if (status === "notfound")
+  if (shellError instanceof ApiError && shellError.status === 404)
     return <ErrorState message="This live session doesn’t exist." />;
-  if (status === "canceled")
+  if (shellError instanceof ApiError && shellError.status === 410)
     return <ErrorState message="This live session was canceled." />;
-  if (status === "error")
-    return <ErrorState message={errorMsg} onRetry={loadShell} />;
-  if (!session) return null;
+  if (!session) {
+    // Error page only once the failure has settled — the first load AND the
+    // retry a member taps from it show the spinner, as they always did.
+    if (sessionQuery.isError && !sessionQuery.isFetching)
+      return (
+        <ErrorState
+          message={
+            shellError instanceof Error
+              ? shellError.message
+              : "Failed to load session."
+          }
+          onRetry={() => sessionQuery.refetch()}
+        />
+      );
+    return <Loading />;
+  }
 
   const provider = providerName(session.provider);
   const join = async () => {

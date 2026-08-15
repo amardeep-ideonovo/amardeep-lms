@@ -2,7 +2,7 @@
 // member's current plans first, then every other published PAID plan.
 // Store rules: tapping an available plan opens its IN-APP class landing
 // (marketing + neutral note) — no checkout links, payments stay on the web.
-import React, { useCallback, useState } from "react";
+import React from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -10,10 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import type { LevelDTO, PriceDTO, SubscriptionDetailDTO } from "@lms/types";
+import type { LevelDTO, PriceDTO } from "@lms/types";
 
-import { api } from "../api";
+import {
+  useLevels,
+  useMySubscriptionDetails,
+  useRefreshOnFocus,
+} from "../queries";
 import { money } from "../format";
 import { Chip } from "../components/Chip";
 import { Press } from "../components/Press";
@@ -34,33 +37,37 @@ function lowestPrice(prices: PriceDTO[]): PriceDTO | null {
 
 export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
   const styles = useStyles(makeStyles);
-  const [levels, setLevels] = useState<LevelDTO[] | null>(null);
-  const [subs, setSubs] = useState<SubscriptionDetailDTO[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  // Subscriptions are a shared cache entry with Account (best-effort there and
+  // here — the hook resolves [] on a billing hiccup instead of erroring).
+  const levelsQuery = useLevels();
+  const subsQuery = useMySubscriptionDetails();
+  const levels = levelsQuery.data ?? null;
+  const subs = subsQuery.data ?? [];
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const [l, s] = await Promise.all([
-        api.levels(),
-        api.mySubscriptionDetails().catch(() => [] as SubscriptionDetailDTO[]),
-      ]);
-      setLevels(l);
-      setSubs(s);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load plans.");
-    }
-  }, []);
+  // Refetch on focus so a plan bought/canceled elsewhere shows up on return.
+  useRefreshOnFocus(() => {
+    void levelsQuery.refetch();
+    void subsQuery.refetch();
+  });
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  // Same error surface as before the cache: a levels failure shows the error
+  // page even after content has rendered (only the subs read is best-effort).
+  if (levelsQuery.isError && !levelsQuery.isFetching)
+    return (
+      <ErrorState
+        message={
+          levelsQuery.error instanceof Error
+            ? levelsQuery.error.message
+            : "Failed to load plans."
+        }
+        onRetry={() => {
+          void levelsQuery.refetch();
+          void subsQuery.refetch();
+        }}
+      />
+    );
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
-
-  if (!levels) {
+  if (!levels || subsQuery.isLoading) {
     return (
       <View style={styles.skeletonWrap}>
         <Skeleton height={96} radius={14} />

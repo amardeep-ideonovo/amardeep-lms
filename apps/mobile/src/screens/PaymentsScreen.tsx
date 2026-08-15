@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   FlatList,
   Linking,
@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import type { InvoiceDTO } from "@lms/types";
 
-import { api } from "../api";
+import { useMyInvoices } from "../queries";
 import { Chip } from "../components/Chip";
 import { EmptyState, ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
@@ -61,43 +61,35 @@ function InvoiceRow({ inv }: { inv: InvoiceDTO }) {
 
 export function PaymentsScreen(_props: ScreenProps<"Payments">) {
   const styles = useStyles(makeStyles);
-  // null = still loading (skeleton rows instead of a spinner).
-  const [invoices, setInvoices] = useState<InvoiceDTO[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const loadedOnce = useRef(false);
-
-  // `silent` keeps the rendered rows on screen while refetching, so a
-  // pull-to-refresh doesn't drop the list back to skeletons. `loadedOnce`
-  // extends that to every other path (house pattern — see DashboardScreen):
-  // once rows are on screen they're never blanked, and a refetch that FAILS
-  // leaves them alone instead of swapping in an error page.
-  const load = useCallback(async (silent = false) => {
-    if (!silent && !loadedOnce.current) setInvoices(null);
-    setError(null);
-    try {
-      setInvoices(await api.myInvoices());
-      loadedOnce.current = true;
-    } catch (e) {
-      if (!loadedOnce.current) {
-        setError(
-          e instanceof Error ? e.message : "Could not load your payments.",
-        );
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // react-query keeps the rendered rows across refetches, so a pull-to-refresh
+  // never drops the list back to skeletons and a refetch that FAILS leaves them
+  // alone instead of swapping in an error page — the old loadedOnce guard, now
+  // for free. null = nothing fetched yet (skeleton rows instead of a spinner).
+  const invoicesQuery = useMyInvoices();
+  const invoices: InvoiceDTO[] | null = invoicesQuery.data ?? null;
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load(true);
-    setRefreshing(false);
-  }, [load]);
+    try {
+      await invoicesQuery.refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [invoicesQuery]);
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  // Error page only before the first success (and skeletons during the retry).
+  if (invoicesQuery.isError && invoices === null && !invoicesQuery.isFetching)
+    return (
+      <ErrorState
+        message={
+          invoicesQuery.error instanceof Error
+            ? invoicesQuery.error.message
+            : "Could not load your payments."
+        }
+        onRetry={() => invoicesQuery.refetch()}
+      />
+    );
   if (invoices === null) {
     return (
       <View style={styles.skeletons}>

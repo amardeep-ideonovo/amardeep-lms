@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -12,8 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 import * as ImagePicker from "expo-image-picker";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
   AuthUser,
   DeleteAccountSummaryDTO,
@@ -30,7 +30,12 @@ import { useAppConfig } from "../config-provider";
 import { IS_LOCKED_BUILD, unbindInstance } from "../config";
 import { fmtDate, money } from "../format";
 import type { TabScreenProps } from "../navigation";
-import { optimistic } from "../optimistic";
+import {
+  qk,
+  useMe,
+  useMySubscriptionDetails,
+  useRefreshOnFocus,
+} from "../queries";
 import { contentColumn, formColumn } from "../responsive";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -84,12 +89,23 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const styles = useStyles(makeStyles);
   const { config } = useAppConfig();
   const { signOut } = useAuth();
+  const queryClient = useQueryClient();
 
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [subs, setSubs] = useState<SubscriptionDetailDTO[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const loadedOnce = useRef(false);
+  // Profile + subscriptions come from the shared cache (`me` is the same entry
+  // Home's greeting reads, so edits here propagate there instantly). react-query
+  // keeps the rendered account across refetches — coming back from Payments/
+  // Plans/Certificates never drops the profile to skeletons, and a failed
+  // refetch keeps the content instead of swapping in an error page (the old
+  // loadedOnce guard, now for free). A billing hiccup still can't blank the
+  // profile: useMySubscriptionDetails resolves [] instead of erroring, so only
+  // the `me` read is fatal.
+  const meQuery = useMe();
+  const subsQuery = useMySubscriptionDetails();
+  const user = meQuery.data ?? null;
+  const subs: SubscriptionDetailDTO[] = subsQuery.data ?? [];
+  // First load only (both halves, like the old Promise.all): once data exists
+  // the cache keeps it through every revalidation.
+  const loading = meQuery.isLoading || subsQuery.isLoading;
 
   // Your details card: exactly one of view / edit / change-password is visible.
   const [mode, setMode] = useState<DetailsMode>("view");
@@ -127,43 +143,88 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Profile photo upload/remove state.
-  const [avatarBusy, setAvatarBusy] = useState<null | "pick" | "remove">(null);
+  // Profile photo upload/remove.
   const [avatarError, setAvatarError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    // Keep the rendered account on screen while refetching (house pattern —
-    // see DashboardScreen): coming back from Payments/Plans/Certificates used
-    // to drop the whole profile to skeletons on every focus, and a failed
-    // refetch replaced it with an error page.
-    if (!loadedOnce.current) setLoading(true);
-    setError(null);
-    try {
-      // A billing hiccup shouldn't blank the profile — only me() is fatal.
-      const [u, s] = await Promise.all([
-        api.me(),
-        api.mySubscriptionDetails().catch(() => [] as SubscriptionDetailDTO[]),
-      ]);
-      setUser(u);
-      setSubs(s);
-      loadedOnce.current = true;
-    } catch (e) {
-      if (!loadedOnce.current) {
-        setError(
-          e instanceof Error ? e.message : "Could not load your account.",
-        );
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Both avatar mutations write the SAME cache slice, so they share one entity
+  // scope (overlapping runs would queue, not interleave). In practice overlap
+  // is unreachable anyway: every avatar control is disabled while either is
+  // pending — which is exactly what makes the plain `onMutate` snapshot below
+  // safe (see docs/coding-standards.md D4: `onMutate` runs at mutate() time,
+  // before any scope-queue turn, so it must never capture mid-flight state;
+  // here there is none to capture). The snapshot is restored VERBATIM, never
+  // re-derived; if a background refetch replaced the entry mid-flight the
+  // restore wins and the screen is briefly stale — self-healing on the next
+  // revalidation, and the honest choice over rendering a failed write as done.
+  //
+  // Optimistic: show the photo the member just cropped instead of leaving the
+  // OLD one up for the whole upload. <Image> renders the picker's local
+  // file:// URI exactly like the served /media URL, so when the response lands
+  // the swap to the real URL is invisible. A profile photo is cosmetic — it
+  // grants nothing — so it is safe to be wrong about. The paint lives in
+  // `onMutate`, which only runs once `mutate()` is called — the permission and
+  // picker early-outs in pickAvatar below happen BEFORE that, so a failure
+  // there has nothing to undo (the old revert-only-after-swap rule).
+  const pickAvatarMutation = useMutation({
+    scope: { id: "avatar" },
+    mutationFn: ({ uri, mimeType }: { uri: string; mimeType?: string }) =>
+      api.uploadAvatar(uri, mimeType),
+    onMutate: ({ uri }) => {
+      const snapshot = queryClient.getQueryData<AuthUser>(qk.me) ?? null;
+      queryClient.setQueryData<AuthUser>(qk.me, (prev) =>
+        prev ? { ...prev, avatarUrl: uri } : prev,
+      );
+      return snapshot;
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(qk.me, updated);
+    },
+    onError: (e, _vars, snapshot) => {
+      // Upload failed -> the previous photo comes back, before any messaging.
+      if (snapshot) queryClient.setQueryData(qk.me, snapshot);
+      setAvatarError(
+        e instanceof Error ? e.message : "Couldn't update your photo.",
+      );
+    },
+  });
 
-  // Reload on focus so admin-side changes (paused/canceled plan) show up.
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  const removeAvatarMutation = useMutation({
+    // Same entity as the upload above — see the scope note there.
+    scope: { id: "avatar" },
+    mutationFn: () => api.updateMe({ removeAvatar: true }),
+    // Optimistic in the same way: the photo drops to the initials fallback now,
+    // and comes back untouched if the request fails.
+    onMutate: () => {
+      const snapshot = queryClient.getQueryData<AuthUser>(qk.me) ?? null;
+      queryClient.setQueryData<AuthUser>(qk.me, (prev) =>
+        prev ? { ...prev, avatarUrl: null } : prev,
+      );
+      return snapshot;
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(qk.me, updated);
+    },
+    onError: (e, _vars, snapshot) => {
+      if (snapshot) queryClient.setQueryData(qk.me, snapshot);
+      setAvatarError(
+        e instanceof Error ? e.message : "Couldn't remove the photo.",
+      );
+    },
+  });
+
+  // Drives the same "Uploading…" / "Removing…" labels and disabled states as
+  // the old busy flag.
+  const avatarBusy: null | "pick" | "remove" = pickAvatarMutation.isPending
+    ? "pick"
+    : removeAvatarMutation.isPending
+      ? "remove"
+      : null;
+
+  // Refetch on focus so admin-side changes (paused/canceled plan) show up.
+  useRefreshOnFocus(() => {
+    void meQuery.refetch();
+    void subsQuery.refetch();
+  });
 
   function startEdit() {
     if (!user) return;
@@ -186,11 +247,10 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
 
   // Pick a photo from the library, square-cropped via the native editor, then
   // upload. The picker's allowsEditing flow IS the resize/crop step on mobile.
+  // Nothing is painted until the pick succeeds and `mutate()` runs — a denied
+  // permission, a cancel or a picker error bails out with nothing to undo.
   async function pickAvatar() {
     setAvatarError(null);
-    // Set once the optimistic swap has happened, so a failure BEFORE it (denied
-    // permission, a picker error) has nothing to undo.
-    let revert: (() => void) | null = null;
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
@@ -205,44 +265,18 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       });
       if (result.canceled || !result.assets?.[0]) return;
       const asset = result.assets[0];
-      setAvatarBusy("pick");
-      // Optimistic: show the photo the member just cropped instead of leaving
-      // the OLD one up for the whole upload. <Image> renders the picker's local
-      // file:// URI exactly like the served /media URL, so when the response
-      // lands the swap to the real URL is invisible. A profile photo is
-      // cosmetic — it grants nothing — so it is safe to be wrong about.
-      revert = optimistic(setUser, (prev) =>
-        prev ? { ...prev, avatarUrl: asset.uri } : prev,
-      );
-      setUser(await api.uploadAvatar(asset.uri, asset.mimeType));
+      pickAvatarMutation.mutate({ uri: asset.uri, mimeType: asset.mimeType });
     } catch (e) {
-      revert?.(); // upload failed -> the previous photo comes back
+      // The picker itself failed — no optimistic paint has happened yet.
       setAvatarError(
         e instanceof Error ? e.message : "Couldn't update your photo.",
       );
-    } finally {
-      setAvatarBusy(null);
     }
   }
 
-  async function removeAvatar() {
-    setAvatarBusy("remove");
+  function removeAvatar() {
     setAvatarError(null);
-    // Optimistic in the same way: the photo drops to the initials fallback now,
-    // and comes back untouched if the request fails.
-    const revert = optimistic(setUser, (prev) =>
-      prev ? { ...prev, avatarUrl: null } : prev,
-    );
-    try {
-      setUser(await api.updateMe({ removeAvatar: true }));
-    } catch (e) {
-      revert();
-      setAvatarError(
-        e instanceof Error ? e.message : "Couldn't remove the photo.",
-      );
-    } finally {
-      setAvatarBusy(null);
-    }
+    removeAvatarMutation.mutate();
   }
 
   async function saveProfile() {
@@ -261,7 +295,8 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
     setEditError(null);
     try {
       const updated = await api.updateMe({ firstName, lastName, username });
-      setUser(updated);
+      // Server truth straight into the shared `me` entry (Home reads it too).
+      queryClient.setQueryData(qk.me, updated);
       setMode("view");
     } catch (e) {
       // ApiError.message surfaces server checks, e.g. "Username is already taken".
@@ -312,7 +347,12 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
     setCancelBusy(true);
     setCancelError(null);
     try {
-      setSubs(await api.cancelMyMembership(cancelFor.stripeSubId));
+      // The endpoint returns the fresh subscription list — write it into the
+      // shared cache entry (Plans reads the same one).
+      queryClient.setQueryData(
+        qk.mySubscriptionDetails,
+        await api.cancelMyMembership(cancelFor.stripeSubId),
+      );
       setCancelFor(null);
     } catch (e) {
       setCancelError(
@@ -401,7 +441,22 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
     if (!IS_LOCKED_BUILD) await unbindInstance();
   }
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  // Error page only before the first success (a failed refetch keeps the
+  // rendered account), and only for `me` — subscriptions resolve [] on failure.
+  if (meQuery.isError && !user && !meQuery.isFetching)
+    return (
+      <ErrorState
+        message={
+          meQuery.error instanceof Error
+            ? meQuery.error.message
+            : "Could not load your account."
+        }
+        onRetry={() => {
+          void meQuery.refetch();
+          void subsQuery.refetch();
+        }}
+      />
+    );
 
   const fullName =
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "—";

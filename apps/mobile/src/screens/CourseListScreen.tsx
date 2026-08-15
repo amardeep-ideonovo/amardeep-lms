@@ -1,9 +1,8 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
 import type { CourseCard } from "@lms/types";
 
-import { api } from "../api";
+import { useDashboard, useRefreshOnFocus } from "../queries";
 import { Loading, ErrorState, EmptyState } from "../components/Screen";
 import { CourseRow } from "../components/CourseRow";
 import { courseSeed } from "../navigation";
@@ -22,42 +21,37 @@ export function CourseListScreen({
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
   const { categoryId, all } = route.params;
-  // null = nothing fetched yet (spinner); a loaded list is never dropped back
-  // to null, so a refetch can't blank the screen.
-  const [courses, setCourses] = useState<CourseCard[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const loadedOnce = useRef(false);
 
-  const load = useCallback(async () => {
-    setError(null);
-    // Keep the rendered rows on screen while refetching (house pattern — see
-    // DashboardScreen): only the very first load shows the spinner, and a
-    // failed refocus refetch leaves the good list alone.
-    try {
-      const data = await api.dashboard();
-      const sections = data.categories;
-      const picked = all
-        ? sections.flatMap((s) => s.courses)
-        : (sections.find((s) => s.category.id === (categoryId ?? ""))
-            ?.courses ?? []);
-      setCourses(picked);
-      loadedOnce.current = true;
-    } catch (e) {
-      if (!loadedOnce.current) {
-        setError(e instanceof Error ? e.message : "Could not load courses.");
-      }
-    }
-  }, [categoryId, all]);
+  // react-query keeps the last response across refetches, so only the very
+  // first load shows the spinner and a failed refocus refetch leaves the good
+  // list alone. null = nothing fetched yet.
+  const dashboardQuery = useDashboard();
+  const courses: CourseCard[] | null = useMemo(() => {
+    const sections = dashboardQuery.data?.categories;
+    if (!sections) return null;
+    return all
+      ? sections.flatMap((s) => s.courses)
+      : (sections.find((s) => s.category.id === (categoryId ?? ""))?.courses ??
+          []);
+  }, [dashboardQuery.data, categoryId, all]);
 
-  // Reload on focus so progress stays current after viewing a lesson.
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  // Refetch on focus so progress stays current after viewing a lesson.
+  useRefreshOnFocus(() => {
+    void dashboardQuery.refetch();
+  });
 
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  if (dashboardQuery.isError && !courses && !dashboardQuery.isFetching)
+    return (
+      <ErrorState
+        message={
+          dashboardQuery.error instanceof Error
+            ? dashboardQuery.error.message
+            : "Could not load courses."
+        }
+        onRetry={() => dashboardQuery.refetch()}
+      />
+    );
   if (!courses) return <Loading />;
   if (courses.length === 0) {
     return <EmptyState message="No courses here yet." />;

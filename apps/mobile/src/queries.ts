@@ -1,21 +1,21 @@
-// Typed query hooks over the api client (src/api.ts). One hook per endpoint that
-// more than one screen reads, so the shared cache dedupes the request and every
-// reader paints from — and revalidates against — the same entry.
+// Typed query hooks over the api client (src/api.ts). One hook per endpoint a
+// screen reads — single-reader and public screens included — so every screen's
+// server state lives in the ONE shared cache: multi-reader requests are deduped
+// (my-classes is fetched by Home, Classes AND Certificates), and every screen
+// gets the same paint-from-cache-then-revalidate loading language.
 //
-// What is NOT here — these screens fetch locally because they share no data with
-// any other screen, so the cache would buy them nothing:
-//   • public / unauthenticated: Blog, Page
-//   • AUTHED but single-reader: Plans, Payments, LiveSession, CourseList
-//   • Account keeps its own `me` fetch (its forms/mutations are intricate);
-//     Home revalidates `me` on focus, so profile edits still propagate.
-// NOTE the authed ones are outside this module and therefore outside the cache's
-// two auth-isolation invariants (see query.tsx) — they read the member token per
-// request instead, so they are safe, but anything MIGRATED here later inherits
-// those invariants and must be checked against them.
+// Everything here sits inside the cache's two auth-isolation invariants (see
+// query.tsx): an academy switch remounts the tree into a brand-new cache, and a
+// member switch on the same instance clears it. The authed entries depend on
+// that for correctness; the public ones (blog, class pages) are per-instance
+// content, so the remount-on-switch is what keeps THEM right too — a member
+// switch merely refetches them, which is harmless. Only the CMS machinery
+// (PageRenderer, PopupHost and their form/menu embeds) still fetches outside
+// the cache.
 import { useCallback, useRef } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { useQuery, type QueryClient } from "@tanstack/react-query";
-import type { LessonDTO } from "@lms/types";
+import type { LessonDTO, SubscriptionDetailDTO } from "@lms/types";
 
 import { api } from "./api";
 import { STALE } from "./query";
@@ -29,9 +29,17 @@ export const qk = {
   liveCurrent: ["liveCurrent"] as const,
   myCertificates: ["myCertificates"] as const,
   courses: ["courses"] as const,
+  dashboard: ["dashboard"] as const,
+  levels: ["levels"] as const,
+  mySubscriptionDetails: ["mySubscriptionDetails"] as const,
+  myInvoices: ["myInvoices"] as const,
+  posts: ["posts"] as const,
   myClassCourses: (slugOrId: string) => ["myClassCourses", slugOrId] as const,
   classPage: (slugOrId: string) => ["classPage", slugOrId] as const,
   courseLessons: (courseId: string) => ["courseLessons", courseId] as const,
+  post: (slug: string) => ["post", slug] as const,
+  lesson: (lessonId: string) => ["lesson", lessonId] as const,
+  liveSession: (sessionId: string) => ["liveSession", sessionId] as const,
 };
 
 // ---------- read hooks ----------
@@ -41,7 +49,8 @@ export function useMyClasses() {
   return useQuery({ queryKey: qk.myClasses, queryFn: api.myClasses });
 }
 
-// Signed-in member (greeting + avatar on Home). Account owns its own copy.
+// Signed-in member — ONE entry read by Home (greeting + avatar) and Account,
+// and the slice Account's profile/avatar mutations write back into.
 export function useMe() {
   return useQuery({ queryKey: qk.me, queryFn: api.me });
 }
@@ -98,6 +107,66 @@ export function useCourseLessons(courseId: string | undefined) {
     queryKey: qk.courseLessons(courseId ?? ""),
     queryFn: () => api.courseLessons(courseId as string),
     enabled: !!courseId,
+  });
+}
+
+// Full category → courses breakdown (CourseList drill-down). Same endpoint the
+// old dashboard tiles were built from; the screen derives one category's slice.
+export function useDashboard() {
+  return useQuery({ queryKey: qk.dashboard, queryFn: api.dashboard });
+}
+
+// Every published level (Plans). Pairs with useMySubscriptionDetails below for
+// the current-vs-available split.
+export function useLevels() {
+  return useQuery({ queryKey: qk.levels, queryFn: api.levels });
+}
+
+// The member's subscriptions (Account + Plans — one shared entry). Billing is
+// best-effort everywhere it appears: a billing hiccup must never blank the
+// profile or the plan list, so the queryFn keeps the long-standing catch-to-[]
+// behavior — this query resolves empty instead of erroring.
+export function useMySubscriptionDetails() {
+  return useQuery({
+    queryKey: qk.mySubscriptionDetails,
+    queryFn: () =>
+      api.mySubscriptionDetails().catch(() => [] as SubscriptionDetailDTO[]),
+  });
+}
+
+// Invoice history (Payments).
+export function useMyInvoices() {
+  return useQuery({ queryKey: qk.myInvoices, queryFn: api.myInvoices });
+}
+
+// Blog list + a single post. Public (no auth) but per-instance content — the
+// academy-switch remount is what keeps these right on a shared build.
+export function usePosts() {
+  return useQuery({ queryKey: qk.posts, queryFn: api.posts });
+}
+
+export function usePost(slug: string) {
+  return useQuery({ queryKey: qk.post(slug), queryFn: () => api.post(slug) });
+}
+
+// A single lesson (Lesson player). THE entry for that lesson: the completion
+// mutation snapshots and paints this exact slice, and propagateLessonComplete
+// (below) keeps the course list consistent with it — so the `completed` flag
+// has ONE source of truth, the cache.
+export function useLesson(lessonId: string) {
+  return useQuery({
+    queryKey: qk.lesson(lessonId),
+    queryFn: () => api.lesson(lessonId),
+  });
+}
+
+// One live session's shell (join screen). Same never-stale rule as
+// useLiveCurrent — the join window is time-sensitive.
+export function useLiveSession(sessionId: string) {
+  return useQuery({
+    queryKey: qk.liveSession(sessionId),
+    queryFn: () => api.liveSession(sessionId),
+    staleTime: STALE.live,
   });
 }
 

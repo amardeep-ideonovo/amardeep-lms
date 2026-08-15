@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   FlatList,
   Image,
@@ -10,7 +10,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import type { PostListItem } from "@lms/types";
 
-import { api } from "../api";
+import { usePosts } from "../queries";
 import { Chip } from "../components/Chip";
 import { HeroBand } from "../components/HeroBand";
 import { Press } from "../components/Press";
@@ -26,43 +26,37 @@ import { useStyles } from "../theme-provider";
 // Live / Profile); it's reached from Profile → Blog and the /blog deep link.
 export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
   const styles = useStyles(makeStyles);
-  const [posts, setPosts] = useState<PostListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const loadedOnce = useRef(false);
-
-  // `silent` keeps the rendered posts on screen while refetching; `loadedOnce`
-  // extends that to every other path (house pattern — see DashboardScreen), so
-  // a refetch that FAILS leaves the rendered posts alone instead of swapping
-  // them for an error page.
-  const load = useCallback(async (silent = false) => {
-    if (!silent && !loadedOnce.current) setLoading(true);
-    setError(null);
-    try {
-      setPosts(await api.posts());
-      loadedOnce.current = true;
-    } catch (e) {
-      if (!loadedOnce.current) {
-        setError(e instanceof Error ? e.message : "Could not load the blog.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // react-query keeps the rendered posts across refetches, so a refetch that
+  // FAILS leaves them on screen instead of swapping them for an error page —
+  // the old loadedOnce guard, now for free.
+  const postsQuery = usePosts();
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await load(true);
-    setRefreshing(false);
-  }, [load]);
+    try {
+      await postsQuery.refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [postsQuery]);
 
-  if (loading) return <Loading />;
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  if (!postsQuery.data) {
+    // Error page only before the first success; the retry shows the spinner.
+    if (postsQuery.isError && !postsQuery.isFetching)
+      return (
+        <ErrorState
+          message={
+            postsQuery.error instanceof Error
+              ? postsQuery.error.message
+              : "Could not load the blog."
+          }
+          onRetry={() => postsQuery.refetch()}
+        />
+      );
+    return <Loading />;
+  }
+  const posts: PostListItem[] = postsQuery.data;
   if (posts.length === 0) return <EmptyState message="No blog posts yet." />;
 
   // Web parity (blog/page.tsx): the newest post gets the featured hero, the
