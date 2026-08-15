@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PopupAdminRow, PopupListItem } from "@lms/types";
+import { useMutation } from "@tanstack/react-query";
+import type { PopupAdminRow, PopupListItem, PopupStatus } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { withBase } from "@/lib/base-path";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
-import { useOptimisticAction } from "@/lib/useOptimisticAction";
+import { useToast } from "@/components/ToastProvider";
+import {
+  OPTIMISTIC_NETWORK_MODE,
+  mutationErrorMessage,
+  useMountedRef,
+} from "@/lib/mutations";
 import { STR } from "@lms/types";
 
 // Human summary of WHERE a popup shows, from its visibility flags.
@@ -53,7 +59,8 @@ const POSITION_LABEL: Record<PopupListItem["position"], string> = {
 
 export default function PopupsPage() {
   const { can, loading: authLoading } = useAdminAuth();
-  const optimistic = useOptimisticAction();
+  const toast = useToast();
+  const mounted = useMountedRef();
   const [popups, setPopups] = useState<PopupListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -153,27 +160,63 @@ export default function PopupsPage() {
   }
 
   // The status chip flips on click. Only `status` is painted optimistically —
-  // the list is sorted by `updatedAt` and the server's response does that move.
+  // the list is sorted by `updatedAt` and the server's response does that move
+  // (docs/coding-standards.md D4: useMutation with an onMutate snapshot and a
+  // verbatim onError rollback is the optimistic engine here).
+  //
+  // No `scope`: the old per-row queue key (`popup:<id>`) has no v5 equivalent
+  // on a single hook instance (scope ids are fixed per hook, and one scope for
+  // the whole table would serialize writes to DIFFERENT rows, which overlap
+  // freely today). Same-row overlap can't happen anyway — the row's own
+  // control is disabled while its write is in flight (`rowBusy`).
+  const activeMutation = useMutation({
+    networkMode: OPTIMISTIC_NETWORK_MODE,
+    mutationFn: ({
+      popup,
+      next,
+    }: {
+      popup: PopupListItem;
+      next: PopupStatus;
+    }) => api.updatePopup(popup.id, { status: next }),
+    // Snapshot ONLY the slice about to change and paint through the same state
+    // the table renders from; the snapshot rides to onError as the context.
+    onMutate: ({ popup, next }) => {
+      setPopups((prev) =>
+        prev.map((x) => (x.id === popup.id ? { ...x, status: next } : x)),
+      );
+      return { status: popup.status };
+    },
+    // The server is always the winner: commit its authoritative row.
+    onSuccess: (row) => {
+      if (mounted.current) applyPopup(row);
+    },
+    onError: (error, { popup, next }, snapshot) => {
+      if (!mounted.current || !snapshot) return;
+      // Verbatim restore, keyed by id — the list may have re-sorted underneath.
+      setPopups((prev) =>
+        prev.map((x) =>
+          x.id === popup.id ? { ...x, status: snapshot.status } : x,
+        ),
+      );
+      toast(mutationErrorMessage(error, "Failed to update status"), {
+        action: {
+          label: "Retry",
+          // Same variables — the same absolute "set status to X" intent.
+          onAction: () => activeMutation.mutate({ popup, next }),
+        },
+      });
+    },
+  });
+
   async function toggleActive(p: PopupListItem) {
     setError(null);
-    const next = p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    const next: PopupStatus = p.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
     setRowBusy(p.id);
     try {
-      await optimistic.run({
-        key: `popup:${p.id}`,
-        snapshot: () => p.status,
-        apply: () =>
-          setPopups((prev) =>
-            prev.map((x) => (x.id === p.id ? { ...x, status: next } : x)),
-          ),
-        request: () => api.updatePopup(p.id, { status: next }),
-        commit: (row) => applyPopup(row),
-        revert: (status) =>
-          setPopups((prev) =>
-            prev.map((x) => (x.id === p.id ? { ...x, status } : x)),
-          ),
-        errorMessage: "Failed to update status",
-      });
+      await activeMutation.mutateAsync({ popup: p, next });
+    } catch {
+      // Failure is fully handled in onError (rollback + toast with Retry); the
+      // await exists only so the row unlocks when the write settles.
     } finally {
       setRowBusy(null);
     }

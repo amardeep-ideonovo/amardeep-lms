@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import type {
   CourseCard,
   LevelDTO,
@@ -18,7 +19,12 @@ import { MENU_LOCATIONS, STR } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
-import { useOptimisticAction } from "@/lib/useOptimisticAction";
+import { useToast } from "@/components/ToastProvider";
+import {
+  OPTIMISTIC_NETWORK_MODE,
+  mutationErrorMessage,
+  useMountedRef,
+} from "@/lib/mutations";
 
 const LOCATION_LABELS: Record<MenuLocation, string> = {
   HEADER: "Header",
@@ -110,9 +116,24 @@ function flatten(
   return out;
 }
 
+// One reorder write. `box` is the run's snapshot slot, filled inside
+// mutationFn — i.e. at the run's TURN in its scope queue, after every earlier
+// same-menu write settled — NOT in onMutate: v5 runs onMutate at trigger time
+// even for a scope-queued mutation, so snapshotting (or painting) there would
+// capture and fight the write still in flight. Filling the box at the turn
+// reproduces the retired queue's rule: a queued run snapshots the state it
+// will actually revert to.
+type ReorderVars = {
+  menuId: string;
+  tree: MenuItemDTO[];
+  ticket: number;
+  box: { snapshot?: MenuItemDTO[] };
+};
+
 export default function MenusPage() {
   const { can, loading: authLoading } = useAdminAuth();
-  const optimistic = useOptimisticAction();
+  const toast = useToast();
+  const mounted = useMountedRef();
 
   const [menus, setMenus] = useState<MenuListItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -192,6 +213,86 @@ export default function MenusPage() {
     () => new Map(levels.map((l) => [l.id, l.name])),
     [levels],
   );
+
+  // The selected menu, readable at run time — a QUEUED reorder (see the scope
+  // below) must snapshot the tree as it is when its turn comes, not as it was
+  // when the arrow was clicked.
+  const menuRef = useRef<MenuDTO | null>(null);
+  menuRef.current = menu;
+  // Newest ticket per menu. Only the newest WAITING reorder survives its wait:
+  // every reorder persists the absolute item order, so a superseded
+  // intermediate is dead weight (the retired queue's rule — a run that is
+  // already executing is never superseded, only one still waiting its turn).
+  const reorderTickets = useRef(new Map<string, number>());
+
+  // The reorder write (docs/coding-standards.md D4: useMutation is the
+  // serialization + rollback engine here).
+  const reorderMutation = useMutation({
+    // One reorder per menu in flight: a second arrow-click while the first is
+    // still saving would otherwise be able to revert on top of it. The old
+    // per-menu queue key (`menu:<id>`) becomes a v5 mutation scope — same-id
+    // mutations run in series, different menus stay free to overlap. The id is
+    // read from the latest committed render, which is current by the time a
+    // click on the newly selected menu can happen.
+    scope: { id: `menu:${menu?.id ?? "none"}` },
+    networkMode: OPTIMISTIC_NETWORK_MODE,
+    // The snapshot box IS the context handed to onError; mutationFn fills it
+    // at the run's turn (see the ReorderVars comment).
+    onMutate: ({ box }: ReorderVars) => box,
+    mutationFn: async ({ menuId, tree, ticket, box }: ReorderVars) => {
+      // Superseded while waiting (a newer reorder for this menu queued up), or
+      // the page unmounted before this run's turn: never start.
+      if (reorderTickets.current.get(menuId) !== ticket || !mounted.current) {
+        return null;
+      }
+      const cur = menuRef.current;
+      if (cur && cur.id === menuId) {
+        // Fresh snapshot of the tree this run will actually revert to, then
+        // paint the precomputed tree through the same state the list renders
+        // from. If the admin switched menus while this run waited, both no-op
+        // — but the clicked order still persists below.
+        box.snapshot = cur.items;
+        setMenu((prev) =>
+          prev && prev.id === menuId ? { ...prev, items: tree } : prev,
+        );
+      }
+      return api.reorderMenuItems(menuId, { items: buildOrder(tree) });
+    },
+    // The server is always the winner: commit its authoritative tree (null =
+    // a superseded run that never started).
+    onSuccess: (updated) => {
+      if (!updated || !mounted.current) return;
+      setMenu((prev) => (prev && prev.id === updated.id ? updated : prev));
+    },
+    onError: (error, vars, box) => {
+      if (!mounted.current) return;
+      if (box?.snapshot) {
+        const items = box.snapshot;
+        setMenu((prev) =>
+          prev && prev.id === vars.menuId ? { ...prev, items } : prev,
+        );
+      }
+      // Re-pull the authoritative tree behind the revert; the server wins.
+      api
+        .getMenu(vars.menuId)
+        .then((m) => setMenu((prev) => (prev && prev.id === m.id ? m : prev)))
+        .catch(() => {});
+      // Toast rather than the page-top error strip: the item list is long and
+      // the strip renders above it, off screen for the rows being reordered.
+      toast(mutationErrorMessage(error, "Couldn’t reorder."), {
+        action: {
+          label: "Retry",
+          // Same tree, but a fresh ticket + box: the retry is a NEW run (it
+          // must not be skipped as superseded, and it takes its own snapshot).
+          onAction: () => {
+            const ticket = (reorderTickets.current.get(vars.menuId) ?? 0) + 1;
+            reorderTickets.current.set(vars.menuId, ticket);
+            reorderMutation.mutate({ ...vars, ticket, box: {} });
+          },
+        },
+      });
+    },
+  });
 
   if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("menus", "read"))
@@ -344,38 +445,24 @@ export default function MenusPage() {
 
   // Move/indent/outdent all reshape the same tree, so they share one write:
   // clone the tree, let the caller mutate the clone, paint it, and persist the
-  // flattened order. The snapshot is the menu's item tree only — the menu list,
-  // the pickers and the header form are untouched by a reorder.
+  // flattened order (all via reorderMutation above). The snapshot is the
+  // menu's item tree only — the menu list, the pickers and the header form are
+  // untouched by a reorder.
   async function applyStructural(mutate: (tree: MenuItemDTO[]) => void) {
     if (!menu) return;
     const menuId = menu.id;
     const tree = cloneTree(menu.items);
     mutate(tree);
-    const setItems = (items: MenuItemDTO[]) =>
-      setMenu((prev) =>
-        prev && prev.id === menuId ? { ...prev, items } : prev,
-      );
-    await optimistic.run({
-      // One reorder per menu in flight: a second drag while the first is still
-      // saving would otherwise be able to revert on top of it.
-      key: `menu:${menuId}`,
-      snapshot: () => menu.items,
-      apply: () => setItems(tree),
-      request: () => api.reorderMenuItems(menuId, { items: buildOrder(tree) }),
-      commit: (updated) =>
-        setMenu((prev) => (prev && prev.id === updated.id ? updated : prev)),
-      revert: (items) => setItems(items),
-      // Re-pull the authoritative tree behind the revert; the server wins.
-      onError: () => {
-        api
-          .getMenu(menuId)
-          .then((m) => setMenu((prev) => (prev && prev.id === m.id ? m : prev)))
-          .catch(() => {});
-      },
-      // Toast rather than the page-top error strip: the item list is long and
-      // the strip renders above it, off screen for the rows being reordered.
-      errorMessage: "Couldn’t reorder.",
-    });
+    // This click is now the newest intent for this menu; anything still
+    // waiting its turn is superseded.
+    const ticket = (reorderTickets.current.get(menuId) ?? 0) + 1;
+    reorderTickets.current.set(menuId, ticket);
+    try {
+      await reorderMutation.mutateAsync({ menuId, tree, ticket, box: {} });
+    } catch {
+      // Failure is fully handled in onError (rollback + heal + toast with
+      // Retry).
+    }
   }
 
   const moveUp = (id: string) =>

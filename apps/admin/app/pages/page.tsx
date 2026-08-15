@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { PageAdminRow, PageListItem } from "@lms/types";
+import { useMutation } from "@tanstack/react-query";
+import type { PageAdminRow, PageListItem, PageStatus } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
-import { useOptimisticAction } from "@/lib/useOptimisticAction";
+import { useToast } from "@/components/ToastProvider";
+import {
+  OPTIMISTIC_NETWORK_MODE,
+  mutationErrorMessage,
+  useMountedRef,
+} from "@/lib/mutations";
 import { withBase } from "@/lib/base-path";
 import { STR } from "@lms/types";
 
@@ -16,7 +22,8 @@ import { STR } from "@lms/types";
 
 export default function PagesPage() {
   const { can, loading: authLoading } = useAdminAuth();
-  const optimistic = useOptimisticAction();
+  const toast = useToast();
+  const mounted = useMountedRef();
   const [pages, setPages] = useState<PageListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,27 +125,58 @@ export default function PagesPage() {
 
   // The badge flips on click. Only `status` is painted optimistically — the
   // list is sorted by `updatedAt`, and faking that would slide the row out from
-  // under the cursor; the server's own response does the move on commit.
+  // under the cursor; the server's own response does the move on commit
+  // (docs/coding-standards.md D4: useMutation with an onMutate snapshot and a
+  // verbatim onError rollback is the optimistic engine here).
+  //
+  // No `scope`: the old per-row queue key (`page:<id>`) has no v5 equivalent on
+  // a single hook instance (scope ids are fixed per hook, and one scope for the
+  // whole table would serialize writes to DIFFERENT rows, which overlap freely
+  // today). Same-row overlap can't happen anyway — the row's own control is
+  // disabled while its write is in flight (`rowBusy`).
+  const publishMutation = useMutation({
+    networkMode: OPTIMISTIC_NETWORK_MODE,
+    mutationFn: ({ page, next }: { page: PageListItem; next: PageStatus }) =>
+      api.updatePage(page.id, { status: next }),
+    // Snapshot ONLY the slice about to change and paint through the same state
+    // the table renders from; the snapshot rides to onError as the context.
+    onMutate: ({ page, next }) => {
+      setPages((prev) =>
+        prev.map((x) => (x.id === page.id ? { ...x, status: next } : x)),
+      );
+      return { status: page.status };
+    },
+    // The server is always the winner: commit its authoritative row.
+    onSuccess: (row) => {
+      if (mounted.current) applyPage(row);
+    },
+    onError: (error, { page, next }, snapshot) => {
+      if (!mounted.current || !snapshot) return;
+      // Verbatim restore, keyed by id — the list may have re-sorted underneath.
+      setPages((prev) =>
+        prev.map((x) =>
+          x.id === page.id ? { ...x, status: snapshot.status } : x,
+        ),
+      );
+      toast(mutationErrorMessage(error, "Failed to update status"), {
+        action: {
+          label: "Retry",
+          // Same variables — the same absolute "set status to X" intent.
+          onAction: () => publishMutation.mutate({ page, next }),
+        },
+      });
+    },
+  });
+
   async function togglePublish(p: PageListItem) {
     setError(null);
-    const next = p.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED";
+    const next: PageStatus = p.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED";
     setRowBusy(p.id);
     try {
-      await optimistic.run({
-        key: `page:${p.id}`,
-        snapshot: () => p.status,
-        apply: () =>
-          setPages((prev) =>
-            prev.map((x) => (x.id === p.id ? { ...x, status: next } : x)),
-          ),
-        request: () => api.updatePage(p.id, { status: next }),
-        commit: (row) => applyPage(row),
-        revert: (status) =>
-          setPages((prev) =>
-            prev.map((x) => (x.id === p.id ? { ...x, status } : x)),
-          ),
-        errorMessage: "Failed to update status",
-      });
+      await publishMutation.mutateAsync({ page: p, next });
+    } catch {
+      // Failure is fully handled in onError (rollback + toast with Retry); the
+      // await exists only so the row unlocks when the write settles.
     } finally {
       setRowBusy(null);
     }

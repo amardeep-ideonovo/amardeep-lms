@@ -9,9 +9,15 @@ import {
   useState,
 } from "react";
 import { usePathname } from "next/navigation";
+import { useMutation } from "@tanstack/react-query";
 import type { AdminAction, AdminSection, AuthAdmin } from "@lms/types";
 import { api, getToken } from "@/lib/api";
-import { useOptimisticAction } from "@/lib/useOptimisticAction";
+import { useToast } from "@/components/ToastProvider";
+import {
+  OPTIMISTIC_NETWORK_MODE,
+  mutationErrorMessage,
+  useMountedRef,
+} from "@/lib/mutations";
 
 interface AdminAuthValue {
   me: AuthAdmin | null;
@@ -38,6 +44,17 @@ const Ctx = createContext<AdminAuthValue>({
   applyAdmin: () => {},
 });
 
+// A sidebar-order save. `box` is the run's snapshot slot, filled inside
+// mutationFn — i.e. at the run's TURN in its scope queue — NOT in onMutate:
+// v5 runs onMutate at trigger time even for a scope-queued mutation, so
+// snapshotting there would capture the save still in flight. Filling the box
+// at the turn keeps the rule the ref below documents.
+type MenuOrderVars = {
+  order: string[];
+  ticket: number;
+  box: { snapshot?: string[] };
+};
+
 // Loads the current admin (role + per-section permissions) once and exposes
 // `can(section, action)` + `isSuperAdmin` to gate UI. The backend is the real
 // enforcer — this only controls what's shown.
@@ -45,11 +62,17 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [me, setMe] = useState<AuthAdmin | null>(null);
   const [loading, setLoading] = useState(true);
-  const optimistic = useOptimisticAction();
+  const toast = useToast();
+  const mounted = useMountedRef();
   // The saved order, readable at run time — the optimistic snapshot has to be
   // the order as it is when the write actually starts, not when the callback
   // was created.
   const savedOrderRef = useRef<string[]>([]);
+  // Newest ticket for the (single) menu-order scope: only the newest WAITING
+  // save survives its wait — every save persists the whole order, so a
+  // superseded intermediate is dead weight. A save already executing is never
+  // superseded, only one still waiting its turn.
+  const orderTicket = useRef(0);
 
   const refresh = useCallback(() => {
     if (!getToken()) {
@@ -97,21 +120,57 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  // The save write (docs/coding-standards.md D4: useMutation is the
+  // serialization + rollback engine here). The old queue key
+  // (`admin:menu-order`) becomes a v5 mutation scope: same-id mutations run in
+  // series, so overlapping saves can never revert on top of each other.
+  const menuOrderMutation = useMutation({
+    scope: { id: "admin:menu-order" },
+    networkMode: OPTIMISTIC_NETWORK_MODE,
+    // The snapshot box IS the context handed to onError; mutationFn fills it
+    // at the run's turn (see the MenuOrderVars comment).
+    onMutate: ({ box }: MenuOrderVars) => box,
+    mutationFn: async ({ order, ticket, box }: MenuOrderVars) => {
+      // Superseded while waiting (a newer save queued up), or the provider
+      // unmounted before this run's turn: never start.
+      if (ticket !== orderTicket.current || !mounted.current) return null;
+      box.snapshot = savedOrderRef.current;
+      applyMenuOrder(order);
+      return api.updateMyPrefs({ menuOrder: order });
+    },
+    // The server is always the winner: commit its authoritative admin (null =
+    // a superseded run that never started).
+    onSuccess: (updated) => {
+      if (updated && mounted.current) setMe(updated);
+    },
+    onError: (error, vars, box) => {
+      if (!mounted.current) return;
+      if (box?.snapshot) applyMenuOrder(box.snapshot);
+      refresh();
+      toast(mutationErrorMessage(error, "Couldn’t save your sidebar order."), {
+        action: {
+          label: "Retry",
+          // Same order, but a fresh ticket + box: the retry is a NEW run (it
+          // must not be skipped as superseded, and it takes its own snapshot).
+          onAction: () => {
+            const ticket = ++orderTicket.current;
+            menuOrderMutation.mutate({ ...vars, ticket, box: {} });
+          },
+        },
+      });
+    },
+  });
+  const { mutateAsync: saveMenuOrderAsync } = menuOrderMutation;
+
   const saveMenuOrder = useCallback(
     async (order: string[]) => {
-      const outcome = await optimistic.run({
-        key: "admin:menu-order",
-        snapshot: () => savedOrderRef.current,
-        apply: () => applyMenuOrder(order),
-        request: () => api.updateMyPrefs({ menuOrder: order }),
-        commit: (updated) => setMe(updated),
-        revert: (previous) => applyMenuOrder(previous),
-        onError: () => refresh(),
-        errorMessage: "Couldn’t save your sidebar order.",
-      });
-      if (outcome.status === "failed") throw outcome.error;
+      // This call is now the newest intent; anything still waiting is
+      // superseded. Rejects on failure (after the rollback above); a
+      // superseded save resolves silently, like the old queue did.
+      const ticket = ++orderTicket.current;
+      await saveMenuOrderAsync({ order, ticket, box: {} });
     },
-    [applyMenuOrder, optimistic, refresh],
+    [saveMenuOrderAsync],
   );
 
   const applyAdmin = useCallback((admin: AuthAdmin) => setMe(admin), []);
