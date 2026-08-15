@@ -1,5 +1,12 @@
 # Deploying the LMS to a VPS with Docker
 
+> **Legacy — standalone single-VPS guide.** Production no longer deploys this
+> way: the platform runs as a multi-client fleet of instances provisioned by
+> the control plane — see [`SERVER-SETUP.md`](SERVER-SETUP.md) (bring-up) and
+> [`VPS-GUIDEBOOK.md`](VPS-GUIDEBOOK.md) (operations). This guide remains only
+> for running a single standalone instance from
+> [`docker-compose.yml`](docker-compose.yml) outside the fleet.
+
 This guide takes the whole stack — **API + member web + admin + PostgreSQL +
 Redis** — and runs it on one Linux server behind **Caddy** (which gives you
 automatic HTTPS). The **mobile app is a separate track** (see the last section).
@@ -74,7 +81,7 @@ Verify: `docker --version && docker compose version`.
 cd /opt
 git clone <YOUR_REPO_URL> lms     # private repo? use a GitHub deploy key or PAT
 cd lms
-git checkout amardeepLMS          # or main, whichever you deploy
+git checkout main                 # main is the deploy branch
 ```
 
 ---
@@ -176,10 +183,11 @@ git pull
 docker compose -f deploy/docker-compose.yml up -d --build
 ```
 
-> **Low-RAM/CPU VPS?** Instead of building on the server, build the images on a
-> beefier machine or CI, push them to a registry (e.g. GHCR), and have the
-> server `docker compose pull` + `up -d`. Ask me and I'll add a GitHub Actions
-> workflow that also runs the BDD gate before publishing images.
+> **Low-RAM/CPU VPS?** Instead of building on the server, pull the prebuilt
+> images: [`.github/workflows/images.yml`](../.github/workflows/images.yml)
+> publishes api/web/admin to GHCR on every push to `main` (this is what the
+> fleet path in [`VPS-GUIDEBOOK.md`](VPS-GUIDEBOOK.md) uses), so the server
+> can `docker compose pull` + `up -d` instead of building.
 
 ---
 
