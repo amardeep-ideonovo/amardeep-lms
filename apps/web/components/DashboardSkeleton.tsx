@@ -21,7 +21,11 @@ export default function DashboardSkeleton() {
       <div className="ik-main">
         <div
           className="ik-skel"
-          style={{ height: 144, borderRadius: 18, background: "#fff" }}
+          style={{
+            height: 144,
+            borderRadius: 18,
+            background: "var(--surface)",
+          }}
         />
         <div className="ik-class-grid" style={{ marginTop: 30 }}>
           {[0, 1, 2, 3].map((i) => (

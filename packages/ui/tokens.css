@@ -1,0 +1,98 @@
+/* ============================================================================
+   @lms/ui/tokens.css — THE shared Spark color core (docs/coding-standards.md
+   D3, roadmap P3). Every value here was verified byte-identical between
+   apps/web and apps/admin before extraction (or is an AA-contrast correction
+   admin had already shipped and web now inherits — see "AA" marks). Each app
+   imports this file BEFORE its own globals.css, then defines app-specific
+   surfaces and legacy aliases on top.
+
+   Deliberately NOT here because the apps genuinely differ (kept per-app):
+   --bg (web cream #f5f2ec vs admin #f6f4ef), --border-strong, the danger
+   role naming (web --danger = solid fill, admin --danger = text red — both
+   alias the canonical pair below), web's blue/sea gradient triplets, fonts,
+   glass, motion-duration names, and web's springy easings.
+
+   Accent SLOTS use collision-free --accent-<color> names: web's bare --amber
+   and admin's --amber/--green mean different things locally, so the canonical
+   slots are prefixed and each app aliases its historical names.
+   ========================================================================== */
+:root {
+  /* ---- Ink chrome ramp (web uses all six; admin the first two) ---- */
+  --ink-950: #0b0b0e;
+  --ink-900: #101014;
+  --ink-850: #131318;
+  --ink-800: #17171d;
+  --ink-750: #1d1d24;
+  --ink-700: #26262f;
+
+  /* ---- Teal accent system ---- */
+  --teal: #34c9a2;
+  --teal-grad: linear-gradient(100deg, #4dd1ae, #2aa283);
+  --teal-grad-hover: linear-gradient(100deg, #38cca5, #248d71);
+  --teal-text: #22846a; /* AA on the light canvases (was #299e7f, 3.33:1) */
+  --teal-on-dark: #79e9c6;
+  --teal-tint: rgba(48, 184, 149, 0.12);
+
+  /* ---- Shared light-canvas neutrals ---- */
+  --surface: #ffffff;
+  --surface-2: #f0ede4; /* neutral pills, recessed fills, track bars */
+  --surface-hover: #faf8f3;
+  --border: #e6e2d7;
+  --border-soft: #edeae0;
+  --row-divider: #f2efe7;
+  --text: #17171d;
+  --text-soft: #55534d;
+  --muted: #74726c; /* AA (was #8b8a87, 3.45:1) */
+  --faint: #706e67; /* AA (was #b7b4ac, 2.04:1) */
+
+  /* ---- Status ---- */
+  --success: #30b895;
+  --success-text: #207e65; /* AA (was #299e7f) */
+  --success-tint: rgba(48, 184, 149, 0.12);
+  --warning: #f6a623;
+  --warning-text: #98650d; /* AA (was #c07f10) */
+  --warning-tint: rgba(246, 166, 35, 0.16);
+  --danger-solid: #ea4f4f; /* fills; web's --danger */
+  --danger-text: #c03a3a; /* text red; admin's --danger */
+  --danger-tint: rgba(224, 72, 72, 0.1);
+  --info: #4a76d0;
+  --info-text: #3a62b4;
+  --info-tint: rgba(74, 118, 208, 0.13);
+
+  /* ---- Class-accent slots (0 amber · 1 violet · 2 green · 3 red · 4 blue ·
+     5 sea) — hex + on-light text shared by web/admin/mobile (the TS side is
+     packages/types/class-accents.ts; keep them in step). The -base/-dark RGB
+     gradient triplets are shared only for slots 0-3: web derived its own
+     blue/sea triplets and admin never had them, so those stay per-app. ---- */
+  --accent-amber: #f7a01e;
+  --accent-amber-base: 196, 112, 6;
+  --accent-amber-dark: 120, 66, 2;
+  --accent-amber-text: #b46f0a;
+  --accent-violet: #9046c8;
+  --accent-violet-base: 112, 42, 163;
+  --accent-violet-dark: 74, 22, 112;
+  --accent-violet-text: #7a3bab;
+  --accent-green: #43a565;
+  --accent-green-base: 42, 124, 72;
+  --accent-green-dark: 24, 88, 48;
+  --accent-green-text: #2d7a45;
+  --accent-red: #e04848;
+  --accent-red-base: 187, 41, 41;
+  --accent-red-dark: 132, 22, 22;
+  --accent-red-text: #c03a3a;
+  --accent-blue: #4a76d0;
+  --accent-blue-text: #3a62b4;
+  --accent-sea: #27a596;
+  --accent-sea-text: #1f8a7c;
+
+  /* ---- Shared shape / shadow / motion ---- */
+  --radius-sm: 9px;
+  --radius: 14px;
+  --radius-md: 18px;
+  --radius-pill: 999px;
+  --shadow-card: 0 2px 10px rgba(23, 23, 29, 0.05);
+  --shadow-pop: 0 14px 40px rgba(16, 16, 20, 0.12);
+  --shadow-primary: 0 10px 24px rgba(48, 184, 149, 0.35);
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --grad-progress: linear-gradient(90deg, #4dd1ae, #2aa283);
+}

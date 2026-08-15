@@ -207,8 +207,8 @@ function PopupCard({
             height: s.height && s.height !== "auto" ? s.height : undefined,
             maxHeight: "calc(100vh - 40px)",
             overflow: "auto",
-            background: s.background || "#ffffff",
-            border: `1px solid ${s.borderColor || "#e6e2d7"}`,
+            background: s.background || "var(--surface)",
+            border: `1px solid ${s.borderColor || "var(--border)"}`,
             borderRadius: s.borderRadius,
             padding: s.padding,
             boxShadow: "0 14px 40px rgba(16, 16, 20,0.18)",
@@ -230,7 +230,7 @@ function PopupCard({
               background: darkBg
                 ? "rgba(255,255,255,0.14)"
                 : "rgba(23, 23, 29,0.08)",
-              color: darkBg ? "#ffffff" : "#17171d",
+              color: darkBg ? "var(--paper-0)" : "var(--text)",
               fontSize: 16,
               lineHeight: 1,
               cursor: "pointer",

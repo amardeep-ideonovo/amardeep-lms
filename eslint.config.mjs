@@ -143,6 +143,26 @@ export default tseslint.config(
     },
   },
 
+  // ---------- raw-color ratchet (docs/coding-standards.md D3) ----------
+  // Warn on bare hex color strings in web/admin TSX — colors come from the
+  // token system (var(--token) in styles; CLASS_ACCENTS from @lms/types when
+  // a JS color string is genuinely needed, e.g. SVG/chart attributes).
+  // Warning-first: flags leftovers and new offenders without failing CI.
+  {
+    files: ["apps/web/**/*.tsx", "apps/admin/**/*.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector:
+            "Literal[value=/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/]",
+          message:
+            "Raw hex color — use var(--token) from @lms/ui/tokens.css (or CLASS_ACCENTS from @lms/types for JS color strings). docs/coding-standards.md D3.",
+        },
+      ],
+    },
+  },
+
   // ---------- Next.js apps: framework footguns ----------
   ...NEXT_APPS.map((app) => ({
     files: [`${app}/**/*.{ts,tsx}`],

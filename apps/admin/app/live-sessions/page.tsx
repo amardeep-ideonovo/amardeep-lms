@@ -14,7 +14,7 @@ import { classAccentIndex } from "@/lib/class-accent";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RowMenu from "@/components/RowMenu";
-import { STR } from "@lms/types";
+import { STR, CLASS_ACCENTS as ACCENT_SLOTS } from "@lms/types";
 
 // Browser IANA zone (fallback UTC), used as the default for a new session.
 function browserTz(): string {
@@ -114,15 +114,10 @@ function bucketOf(s: AdminLiveSessionDTO): Bucket {
 }
 
 // Class accent text colors — cycle by stable class-list index (Ink Hero
-// decision: the seeded catalog then matches the mocks). Tint = color + "1f".
-const CLASS_TAG_COLORS = [
-  "#b46f0a",
-  "#7a3bab",
-  "#2d7a45",
-  "#c03a3a",
-  "#3a62b4",
-  "#1f8a7c",
-];
+// decision: the seeded catalog then matches the mocks). Tint = color + "1f",
+// so these must stay REAL hex strings — hence values from the shared TS
+// palette (identical to the CSS --accent-*-text tokens), not var().
+const CLASS_TAG_COLORS = ACCENT_SLOTS.map((a) => a.text);
 
 // Red-dot countdown chip text, computed from the real session datetime.
 function countdown(s: AdminLiveSessionDTO): string | null {

@@ -443,7 +443,7 @@ export default function CertificateTemplateEditorPage() {
                   padding: "7px 10px",
                   borderRadius: 8,
                   cursor: "pointer",
-                  border: `1px solid ${selected === f.kind ? "var(--primary, #34c9a2)" : "var(--border)"}`,
+                  border: `1px solid ${selected === f.kind ? "var(--primary, var(--teal))" : "var(--border)"}`,
                 }}
               >
                 <strong style={{ flex: 1, fontSize: 13.5 }}>
@@ -686,7 +686,7 @@ export default function CertificateTemplateEditorPage() {
                           width: 12,
                           height: 12,
                           borderRadius: 999,
-                          background: "#299e7f",
+                          background: "var(--accent-2)",
                           cursor: "ew-resize",
                         }}
                       />

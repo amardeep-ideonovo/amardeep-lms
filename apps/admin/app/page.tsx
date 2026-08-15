@@ -215,7 +215,7 @@ export default function DashboardPage() {
       label: "Total members",
       value: can("members", "read") ? totalMembers : null,
       tint: "rgba(48, 184, 149,.13)",
-      color: "#299e7f",
+      color: "var(--teal-text)",
       delta:
         newThisWeek > 0
           ? { text: `↑ ${newThisWeek} this week`, cls: "up" }
@@ -236,7 +236,7 @@ export default function DashboardPage() {
       label: "Active subscriptions",
       value: can("members", "read") ? activeSubs : null,
       tint: "rgba(247,160,30,.14)",
-      color: "#b46f0a",
+      color: "var(--accent-amber-text)",
       delta: pastDue > 0 ? { text: `${pastDue} past due`, cls: "warn" } : null,
       icon: (
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
@@ -257,7 +257,7 @@ export default function DashboardPage() {
       label: "Classes",
       value: can("classes", "read") ? levels.length : null,
       tint: "rgba(144,70,200,.13)",
-      color: "#7a3bab",
+      color: "var(--accent-violet-text)",
       icon: (
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
           <rect
@@ -282,7 +282,7 @@ export default function DashboardPage() {
       label: "Courses",
       value: can("courses", "read") ? courses.length : null,
       tint: "rgba(67,165,101,.13)",
-      color: "#2d7a45",
+      color: "var(--accent-green-text)",
       icon: (
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
           <path

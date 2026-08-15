@@ -2,32 +2,30 @@
    SPOTLIGHT ACADEMY "SPARK" design tokens (direction 5B: teal + mint on ink,
    cream canvas, Plus Jakarta Sans) — cream content canvas (#f5f2ec) + ink #101014
    chrome + teal #34c9a2 / mint #79e9c6 accents, layered on the Ink Hero
-   structure. SINGLE THEME: `:root` and `:root[data-theme="light"]` carry
-   IDENTICAL values so any stored preference renders the same. Legacy token
-   NAMES are kept (re-pointed to Spark values) so component CSS keeps
-   resolving.
+   structure. SINGLE THEME, single token source: the shared color core lives
+   in @lms/ui/tokens.css (P3); this file layers web-specific values and the
+   legacy NAME aliases (re-pointed to Spark values) so component CSS keeps
+   resolving. The old data-theme plumbing is gone.
    ============================================================================ */
 :root {
-  /* ---- Ink chrome ramp (bands, sidebars, ink cards) ---- */
-  --ink-950: #0b0b0e;
-  --ink-900: #101014;
-  --ink-850: #131318;
-  --ink-800: #17171d;
-  --ink-750: #1d1d24;
-  --ink-700: #26262f;
+  /* Ink chrome ramp, teal system, shared neutrals/status/accent slots and
+     shape/shadow now come from @lms/ui/tokens.css (imported before this file
+     in app/layout.tsx — docs/coding-standards.md D3/P3). This block keeps
+     only web-specific values and the legacy aliases that re-point web's
+     historical names at the canonical tokens. */
   /* ---- Legacy violet/pink names → re-based to the teal accent system so any
      leftover reference renders on-theme (never violet). ---- */
   --violet-50: #e5f8f3;
   --violet-200: #a6e8d7;
-  --violet-300: #79e9c6;
+  --violet-300: var(--teal-on-dark);
   --violet-400: #4dd1ae;
-  --violet-500: #34c9a2;
+  --violet-500: var(--teal);
   --violet-600: #2aa283;
   --violet-700: #248d71;
   --violet-800: #1d705a;
-  --pink-300: #79e9c6;
+  --pink-300: var(--teal-on-dark);
   --pink-400: #4dd1ae;
-  --pink-500: #30b895;
+  --pink-500: var(--success);
   --pink-600: #299e7f;
   /* ---- Text on dark (ink bands / ink cards / over-photo scrims) ---- */
   --paper-0: #ffffff;
@@ -38,60 +36,58 @@
   --line: rgba(255, 255, 255, 0.2);
   --line-soft: rgba(255, 255, 255, 0.12);
   --line-strong: rgba(255, 255, 255, 0.3);
-  /* ---- Status raw values ---- */
-  --green-400: #30b895;
-  --amber-400: #f6a623;
-  --danger-400: #ea4f4f;
-  --blue-400: #4a76d0;
+  /* ---- Status raw values (legacy names → canonical) ---- */
+  --green-400: var(--success);
+  --amber-400: var(--warning);
+  --danger-400: var(--danger-solid);
+  --blue-400: var(--info);
 
-  /* ---- Ink Hero raw surfaces (light canvas) ---- */
+  /* ---- Ink Hero raw surfaces: web keeps its own cream --lav-bg; the rest
+     alias the canonical neutrals. --lav-muted/--lav-faint inherit the AA
+     corrections (#8b8a87→#74726c, #b7b4ac→#706e67 — deliberate). ---- */
   --lav-bg: #f5f2ec;
-  --lav-surface: #ffffff;
-  --lav-inset: #f0ede4;
-  --lav-hover: #faf8f3;
-  --lav-border: #e6e2d7;
-  --lav-text: #17171d;
-  --lav-soft: #55534d;
-  --lav-muted: #8b8a87;
-  --lav-faint: #b7b4ac;
+  --lav-surface: var(--surface);
+  --lav-inset: var(--surface-2);
+  --lav-hover: var(--surface-hover);
+  --lav-border: var(--border);
+  --lav-text: var(--text);
+  --lav-soft: var(--text-soft);
+  --lav-muted: var(--muted);
+  --lav-faint: var(--faint);
 
-  /* ---- Teal accent system ---- */
-  --teal: #34c9a2;
-  --teal-grad: linear-gradient(100deg, #4dd1ae, #2aa283);
-  --teal-grad-hover: linear-gradient(100deg, #38cca5, #248d71);
-  --teal-text: #299e7f; /* on light */
-  --teal-on-dark: #79e9c6;
-  --teal-tint: rgba(48, 184, 149, 0.12);
+  /* Teal system comes from tokens.css (--teal-text is now the AA #22846a). */
 
   /* ---- Class palette (photo-tint cards; base/dark are RGB triplets).
      Named by COLOR, not by subject: these slots dress whatever a client's
      catalog happens to sell, and the seeded demo is only one such catalog.
      (They used to be --music/--cooking/--photo/--film/--dance/--comedy, after
      an earlier demo catalog — the names went stale the moment it changed.) ---- */
-  --amber: #f7a01e;
-  --amber-base: 196, 112, 6;
-  --amber-dark: 120, 66, 2;
-  --amber-text: #b46f0a;
-  --violet: #9046c8;
-  --violet-base: 112, 42, 163;
-  --violet-dark: 74, 22, 112;
-  --violet-text: #7a3bab;
-  --green: #43a565;
-  --green-base: 42, 124, 72;
-  --green-dark: 24, 88, 48;
-  --green-text: #2d7a45;
-  --red: #e04848;
-  --red-base: 187, 41, 41;
-  --red-dark: 132, 22, 22;
-  --red-text: #c03a3a;
-  --blue: #4a76d0;
+  --amber: var(--accent-amber);
+  --amber-base: var(--accent-amber-base);
+  --amber-dark: var(--accent-amber-dark);
+  --amber-text: var(--accent-amber-text);
+  --violet: var(--accent-violet);
+  --violet-base: var(--accent-violet-base);
+  --violet-dark: var(--accent-violet-dark);
+  --violet-text: var(--accent-violet-text);
+  --green: var(--accent-green);
+  --green-base: var(--accent-green-base);
+  --green-dark: var(--accent-green-dark);
+  --green-text: var(--accent-green-text);
+  --red: var(--accent-red);
+  --red-base: var(--accent-red-base);
+  --red-dark: var(--accent-red-dark);
+  --red-text: var(--accent-red-text);
+  --blue: var(--accent-blue);
+  /* web-derived blue/sea gradient triplets (differ from the TS palette's —
+     flagged in the doc as a P3b design decision; values preserved here) */
   --blue-base: 32, 84, 150;
   --blue-dark: 18, 52, 96;
-  --blue-text: #3a62b4;
-  --sea: #27a596;
+  --blue-text: var(--accent-blue-text);
+  --sea: var(--accent-sea);
   --sea-base: 14, 116, 105;
   --sea-dark: 8, 72, 66;
-  --sea-text: #1f8a7c;
+  --sea-text: var(--accent-sea-text);
 
   /* ---- Fonts (next/font var injected on <html>) — one family, Plus
      Jakarta Sans; --font-display is kept as a token so existing selectors resolve. ---- */
@@ -103,21 +99,13 @@
     sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* ---- Radii / shadows / motion ---- */
-  --radius-sm: 9px;
-  --radius: 14px;
-  --radius-md: 18px;
+  /* ---- Radii / shadows / motion (shared set in tokens.css; web extras) ---- */
   --radius-lg: 22px;
   --radius-xl: 22px;
-  --radius-pill: 999px;
   --shadow-xs: 0 1px 2px rgba(23, 23, 29, 0.05);
-  --shadow-card: 0 2px 10px rgba(23, 23, 29, 0.05);
-  --shadow-pop: 0 14px 40px rgba(16, 16, 20, 0.12);
-  --shadow-float: 0 14px 40px rgba(16, 16, 20, 0.12);
-  --shadow-primary: 0 10px 24px rgba(48, 184, 149, 0.35);
-  --shadow-accent: 0 10px 24px rgba(48, 184, 149, 0.35);
+  --shadow-float: var(--shadow-pop);
+  --shadow-accent: var(--shadow-primary);
   --ring-primary: 0 0 0 4px rgba(52, 201, 162, 0.25);
-  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
   --ease-out-back: cubic-bezier(0.34, 1.4, 0.64, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --dur-fast: 150ms;
@@ -128,7 +116,6 @@
   --grad-primary: var(--teal-grad);
   --grad-accent: var(--teal-grad);
   --grad-brand: var(--teal-grad);
-  --grad-progress: linear-gradient(90deg, #4dd1ae, #2aa283);
   --grad-letter: linear-gradient(150deg, #26262f, #101014);
 
   /* ---- "Glass" tokens re-based to flat Ink Hero surfaces (no blur) ---- */
@@ -142,23 +129,19 @@
   /* ====================================================================== */
   /* SEMANTIC ALIASES — Ink Hero (light canvas)                             */
   /* ====================================================================== */
+  /* Canonical --surface/--surface-2/--surface-hover/--text/--text-soft/
+     --muted/--faint/--border come from tokens.css; re-declaring them here as
+     var(--lav-*) would cycle with the lav→canonical aliases above. Only the
+     names tokens.css does NOT own are defined in this block. */
   --bg: var(--lav-bg);
-  --surface: var(--lav-surface);
-  --surface-2: var(--lav-inset);
-  --surface-inset: var(--lav-inset);
-  --surface-hover: var(--lav-hover);
+  --surface-inset: var(--surface-2);
   --sidebar: var(--ink-900);
 
-  --text: var(--lav-text);
-  --text-soft: var(--lav-soft);
-  --text-muted: var(--lav-muted);
-  --text-faint: var(--lav-faint);
+  --text-muted: var(--muted);
+  --text-faint: var(--faint);
   --text-link: var(--teal-text);
 
-  --border: var(--lav-border);
-  --border-soft: #edeae0;
-  --border-strong: #dcd6c8;
-  --row-divider: #f2efe7;
+  --border-strong: #dcd6c8; /* web-specific (admin uses #ddd7c9) */
 
   --primary: #2aa283;
   --primary-hover: #248d71;
@@ -167,22 +150,17 @@
   --accent-hover: #299e7f;
   --on-accent: #101014;
 
-  --success: #30b895;
-  --success-text: #299e7f;
-  --warning: #f6a623;
-  --warning-text: #c07f10;
-  --danger: #ea4f4f;
-  --danger-text: #c03a3a;
-  --info: #4a76d0;
-  --info-text: #3a62b4;
+  /* status base/text + tints come from tokens.css; web's --danger is the
+     solid fill role (admin's is the text red — both alias the canonical pair) */
+  --danger: var(--danger-solid);
 
-  --fill-primary: rgba(48, 184, 149, 0.12);
-  --fill-accent: rgba(48, 184, 149, 0.12);
-  --fill-success: rgba(48, 184, 149, 0.12);
-  --fill-warning: rgba(246, 166, 35, 0.16);
-  --fill-danger: rgba(224, 72, 72, 0.1);
-  --fill-info: rgba(74, 118, 208, 0.13);
-  --fill-subtle: #f0ede4;
+  --fill-primary: var(--success-tint);
+  --fill-accent: var(--success-tint);
+  --fill-success: var(--success-tint);
+  --fill-warning: var(--warning-tint);
+  --fill-danger: var(--danger-tint);
+  --fill-info: var(--info-tint);
+  --fill-subtle: var(--surface-2);
 
   /* Always-light "over media" tokens — hero text on dark scrims */
   --media-text: var(--paper-0);
@@ -190,50 +168,11 @@
   --media-muted: var(--paper-muted);
   --media-border: rgba(255, 255, 255, 0.25);
 
-  /* ---- Legacy aliases (kept so existing component CSS resolves) ---- */
-  --muted: var(--text-muted);
+  /* ---- Legacy aliases (kept so existing component CSS resolves).
+     --muted itself is canonical in tokens.css now — re-defining it here as
+     var(--text-muted) would create a var() cycle through --lav-muted. ---- */
   --locked: var(--text-faint);
-  --radius: 14px;
   --shadow: var(--shadow-card);
-}
-
-/* ====================================================================== */
-/* SINGLE THEME — [data-theme="light"] repeats the same Ink Hero values so */
-/* a stored "light" preference renders identically to the default.        */
-/* ====================================================================== */
-:root[data-theme="light"] {
-  --bg: var(--lav-bg);
-  --surface: var(--lav-surface);
-  --surface-2: var(--lav-inset);
-  --surface-inset: var(--lav-inset);
-  --surface-hover: var(--lav-hover);
-  --sidebar: var(--ink-900);
-
-  --text: var(--lav-text);
-  --text-soft: var(--lav-soft);
-  --text-muted: var(--lav-muted);
-  --text-faint: var(--lav-faint);
-  --text-link: var(--teal-text);
-
-  --border: var(--lav-border);
-  --border-soft: #edeae0;
-  --border-strong: #dcd6c8;
-
-  --fill-primary: rgba(48, 184, 149, 0.12);
-  --fill-accent: rgba(48, 184, 149, 0.12);
-  --fill-success: rgba(48, 184, 149, 0.12);
-  --fill-warning: rgba(246, 166, 35, 0.16);
-  --fill-danger: rgba(224, 72, 72, 0.1);
-  --fill-info: rgba(74, 118, 208, 0.13);
-  --fill-subtle: #f0ede4;
-
-  --shadow: var(--shadow-card);
-
-  --glass-bg: #ffffff;
-  --glass-bg-strong: #ffffff;
-  --glass-border: 1px solid #e6e2d7;
-  --glass-shine: 0 0 0 0 rgba(0, 0, 0, 0);
-  --glass-shadow: 0 2px 10px rgba(23, 23, 29, 0.05);
 }
 
 /* ---- Class-color cycle: slot 0-5, resolved per class by classAccentIndex()
@@ -4384,27 +4323,7 @@ a.card:hover {
   background: var(--surface-hover);
   color: var(--text);
 }
-/* ThemeToggle is no longer rendered (single theme); class kept for compat. */
-.nav-theme {
-  display: inline-grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  flex: none;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background: var(--fill-subtle);
-  color: var(--text-soft);
-  cursor: pointer;
-}
-.nav-theme--drawer {
-  width: 100%;
-  height: auto;
-  justify-content: flex-start;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: var(--radius);
-}
+/* .nav-theme styles removed with the dead ThemeToggle component (P3). */
 
 /* ---------- nav link: 2px teal underline (active) that animates in on hover */
 .nav-link {
