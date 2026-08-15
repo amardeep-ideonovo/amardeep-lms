@@ -15,7 +15,7 @@
 //   • Error message = body.message → body.error → cfg.fallbackMessage(res),
 //     arrays joined with ", " (the API's class-validator errors).
 
-import { ApiError } from "@lms/types";
+import { ApiError, ERROR_CODES, type ErrorCode } from "@lms/types";
 
 export type RequestConfig = {
   /** Resolved per call — runtime env (window.__ENV__) can change after load. */
@@ -72,6 +72,7 @@ export function createRequest(cfg: RequestConfig) {
     if (!res.ok) {
       let message =
         cfg.fallbackMessage?.(res) ?? `Request failed (${res.status})`;
+      let code: ErrorCode = "UNSPECIFIED";
       try {
         const data: unknown = await res.json();
         if (data && typeof data === "object") {
@@ -80,11 +81,19 @@ export function createRequest(cfg: RequestConfig) {
             (data as { error?: unknown }).error;
           if (Array.isArray(raw)) message = raw.join(", ");
           else if (raw != null && raw !== "") message = String(raw);
+          // D6: the API stamps every error body with a machine-readable code.
+          const rawCode = (data as { code?: unknown }).code;
+          if (
+            typeof rawCode === "string" &&
+            (ERROR_CODES as readonly string[]).includes(rawCode)
+          ) {
+            code = rawCode as ErrorCode;
+          }
         }
       } catch {
         /* non-JSON error body */
       }
-      throw new ApiError(res.status, message);
+      throw new ApiError(res.status, message, code);
     }
 
     if (res.status === 204) return undefined as T;

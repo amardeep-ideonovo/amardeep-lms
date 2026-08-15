@@ -100,7 +100,7 @@ export function clearToken(): Promise<void> {
 // Single source: packages/types (web + admin re-export the same class), so
 // `instanceof ApiError` means the same thing across the whole codebase.
 // (Imported, not `export … from`, because this file also throws it below.)
-import { ApiError } from "@lms/types";
+import { ApiError, ERROR_CODES, type ErrorCode } from "@lms/types";
 export { ApiError };
 
 // ---------- 401 handler ----------
@@ -144,6 +144,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     // auth layer sign out so the user lands on Login rather than retrying a 401.
     if (res.status === 401 && auth) onUnauthorized?.();
     let message = `Request failed (${res.status})`;
+    let code: ErrorCode = "UNSPECIFIED";
     try {
       const data = await res.json();
       if (data?.message) {
@@ -151,10 +152,17 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
           ? data.message.join(", ")
           : data.message;
       }
+      // D6: the API stamps every error body with a machine-readable code.
+      if (
+        typeof data?.code === "string" &&
+        (ERROR_CODES as readonly string[]).includes(data.code)
+      ) {
+        code = data.code as ErrorCode;
+      }
     } catch {
       // non-JSON error body; keep default message
     }
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, code);
   }
 
   if (res.status === 204) return undefined as T;

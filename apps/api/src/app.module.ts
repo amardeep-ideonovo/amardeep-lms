@@ -1,7 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { SentryModule } from "@sentry/nestjs/setup";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
+import { HttpExceptionFilter } from "./common/http-exception.filter";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./prisma/prisma.module";
 import { AuditModule } from "./audit/audit.module";
@@ -94,6 +95,11 @@ import { ContentPackModule } from "./content-pack/content-pack.module";
     SupportModule,
     ContentPackModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: GlobalThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: GlobalThrottlerGuard },
+    // D6: every HTTP error body carries a machine-readable `code`
+    // ("UNSPECIFIED" for legacy string-only throws) — one response shape.
+    { provide: APP_FILTER, useClass: HttpExceptionFilter },
+  ],
 })
 export class AppModule {}

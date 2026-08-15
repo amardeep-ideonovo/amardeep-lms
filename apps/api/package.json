@@ -2,7 +2,7 @@
   "name": "@lms/api",
   "version": "0.1.0",
   "private": true,
-  "description": "NestJS API — single source of truth for the membership LMS.",
+  "description": "NestJS API \u2014 single source of truth for the membership LMS.",
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
@@ -60,6 +60,6 @@
     "@types/passport-jwt": "^4.0.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.6.2"
+    "typescript": "5.9.3"
   }
 }
