@@ -186,6 +186,11 @@ export default tseslint.config(
       "apps/control-plane/**/*.{ts,tsx}",
       "packages/puck/**/*.{ts,tsx}",
       "packages/ui/**/*.{ts,tsx}",
+      // Mirror packages/db/tsconfig.json's include exactly — seed-email-qa.ts
+      // is an ad-hoc QA script deliberately outside the project service.
+      "packages/db/prisma/seed.ts",
+      "packages/db/prisma/seed-provisioning-check.ts",
+      "packages/db/prisma/assets/**/*.ts",
     ],
     languageOptions: {
       parserOptions: {
