@@ -6,15 +6,11 @@ import type { SubscriptionRowDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { DownloadIcon, SpinnerIcon } from "@/components/ExportIcons";
-import { STR } from "@lms/types";
+import { STR, formatMoney } from "@lms/types";
 
+// "—" for unmapped amounts, else the shared formatter.
 const money = (a: number | null, c: string) =>
-  a == null
-    ? "—"
-    : (a / 100).toLocaleString(undefined, {
-        style: "currency",
-        currency: (c || "usd").toUpperCase(),
-      });
+  a == null ? "—" : formatMoney(a, c);
 
 const fmtDate = (iso: string | null) =>
   iso

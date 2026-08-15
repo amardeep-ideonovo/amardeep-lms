@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { CertificateVerifyDTO } from "@lms/types";
-import { STR } from "@lms/types";
+import { STR, formatDateLong } from "@lms/types";
 import { apiBase } from "@/lib/api";
 
 export const metadata: Metadata = {
@@ -68,13 +68,7 @@ export default async function VerifyCertificatePage({
               <div>
                 <dt>Issued</dt>
                 <dd>
-                  {result.issuedAt
-                    ? new Date(result.issuedAt).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })
-                    : "—"}
+                  {result.issuedAt ? formatDateLong(result.issuedAt) : "—"}
                 </dd>
               </div>
               <div>

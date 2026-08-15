@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ClassPublicDTO } from "@lms/types";
+import { formatMoney } from "@lms/types";
 import { fetchClassPage } from "@/lib/api";
 import { buildMetadata } from "@/lib/seo";
 import { stripHtml } from "@/lib/stripHtml";
@@ -27,10 +28,7 @@ function fmtTotal(seconds: number): string {
 function priceLabel(cls: ClassPublicDTO): string | null {
   if (cls.prices.length === 0) return null;
   const cheapest = cls.prices.reduce((a, b) => (a.amount <= b.amount ? a : b));
-  const amt = (cheapest.amount / 100).toLocaleString(undefined, {
-    style: "currency",
-    currency: (cheapest.currency || "usd").toUpperCase(),
-  });
+  const amt = formatMoney(cheapest.amount, cheapest.currency);
   return `${amt}/${cheapest.interval}`;
 }
 

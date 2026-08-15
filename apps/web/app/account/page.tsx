@@ -9,7 +9,7 @@ import type {
   MyCertificateDTO,
   SubscriptionDetailDTO,
 } from "@lms/types";
-import { PASSWORD_MIN, STR } from "@lms/types";
+import { PASSWORD_MIN, STR, formatMoney } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import AvatarCropper from "@/components/AvatarCropper";
@@ -26,12 +26,6 @@ function avatarInitials(u: AuthUser): string {
   return ((parts[0]?.[0] ?? "M") + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
-function money(amount: number, currency: string): string {
-  return (amount / 100).toLocaleString(undefined, {
-    style: "currency",
-    currency: (currency || "usd").toUpperCase(),
-  });
-}
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     year: "numeric",
@@ -297,7 +291,7 @@ function DangerZoneSection() {
                       <ul style={{ margin: 0, paddingLeft: 18 }}>
                         {summary.subscriptions.map((s) => (
                           <li key={s.stripeSubId} style={{ marginBottom: 6 }}>
-                            {s.levelName} — {money(s.amount, s.currency)}/
+                            {s.levelName} — {formatMoney(s.amount, s.currency)}/
                             {s.interval}
                             {s.currentPeriodEnd
                               ? ` · renews ${fmtDate(s.currentPeriodEnd)}`
@@ -319,7 +313,7 @@ function DangerZoneSection() {
                           <li key={c.id} style={{ marginBottom: 6 }}>
                             {c.title}{" "}
                             {c.amount != null
-                              ? `(${money(c.amount, c.currency ?? "usd")} — lifetime access, destroyed)`
+                              ? `(${formatMoney(c.amount, c.currency ?? "usd")} — lifetime access, destroyed)`
                               : "(lifetime access, destroyed)"}
                           </li>
                         ))}
@@ -988,7 +982,7 @@ function AccountInner() {
                       </div>
                       <span className="plan-tile__meta">
                         {sub.provider === "paypal" ? "PayPal · " : ""}
-                        {money(sub.amount, sub.currency)} / {sub.interval}
+                        {formatMoney(sub.amount, sub.currency)} / {sub.interval}
                         {sub.currentPeriodEnd
                           ? ` · renews ${fmtDate(sub.currentPeriodEnd)}`
                           : ""}

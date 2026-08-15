@@ -8,6 +8,7 @@
 // raw Level id, so existing /checkout/<levelId> links (e.g. from the pricing
 // page) keep working unchanged.
 import type { PriceDTO } from "@lms/types";
+import { formatMoney } from "@lms/types";
 import { api } from "./api";
 
 // A single selectable option under "SELECT PRODUCT".
@@ -50,12 +51,8 @@ export type LevelCheckoutConfig = {
 // still resolves via the backend-by-slug-or-levelId fallback below.
 export const CHECKOUT_LEVELS: Record<string, LevelCheckoutConfig> = {};
 
-export function formatMoney(amount: number, currency: string): string {
-  return (amount / 100).toLocaleString(undefined, {
-    style: "currency",
-    currency: (currency || "usd").toUpperCase(),
-  });
-}
+// Shared canonical formatter, re-exported for the checkout page.
+export { formatMoney };
 
 // Build an option from a level's recurring Stripe price (fallback path).
 function priceToOption(levelName: string, p: PriceDTO): CheckoutProductOption {

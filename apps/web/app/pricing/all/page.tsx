@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LevelDTO, PriceDTO, SubscriptionDetailDTO } from "@lms/types";
-import { STR } from "@lms/types";
+import { STR, formatMoney } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 
@@ -15,13 +15,6 @@ function lowestPrice(prices: PriceDTO[]): PriceDTO | null {
     prices[0],
   );
 }
-function money(amount: number, currency: string): string {
-  return (amount / 100).toLocaleString(undefined, {
-    style: "currency",
-    currency: (currency || "usd").toUpperCase(),
-  });
-}
-
 function AllPlansInner() {
   const router = useRouter();
   const [levels, setLevels] = useState<LevelDTO[] | null>(null);
@@ -82,7 +75,7 @@ function AllPlansInner() {
           <span className="plan-badge">Current plan</span>
           <h3 className="card-title">{level.name}</h3>
           <p className="card-desc">
-            {money(sub.amount, sub.currency)} / {sub.interval}
+            {formatMoney(sub.amount, sub.currency)} / {sub.interval}
           </p>
           {sub.cancelAtPeriodEnd && (
             <p className="card-note">Cancels at period end</p>
@@ -103,7 +96,7 @@ function AllPlansInner() {
         >
           <h3 className="card-title">{level.name}</h3>
           <p className="card-desc">
-            From {money(low.amount, low.currency)} / {low.interval}
+            From {formatMoney(low.amount, low.currency)} / {low.interval}
           </p>
           <span className="card-cta">Choose plan →</span>
         </Link>

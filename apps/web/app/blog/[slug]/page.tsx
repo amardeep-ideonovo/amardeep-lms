@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { formatDateLong } from "@lms/types";
 import { fetchPublishedPost } from "@/lib/api";
 import {
   absoluteUrl,
@@ -26,15 +27,6 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     publishedTime: post.publishedAt,
     modifiedTime: post.updatedAt,
     authors: post.author ? [post.author.name] : undefined,
-  });
-}
-
-function fmtDate(iso: string | null): string {
-  if (!iso) return "";
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
   });
 }
 
@@ -109,7 +101,9 @@ export default async function BlogPostPage({ params }: Params) {
 
         <div className="post-meta" style={{ marginBottom: 20 }}>
           {post.author && <span>By {post.author.name}</span>}
-          {post.publishedAt && <span>· {fmtDate(post.publishedAt)}</span>}
+          {post.publishedAt && (
+            <span>· {formatDateLong(post.publishedAt)}</span>
+          )}
           {post.categories.length > 0 && (
             <span className="post-cat">
               · {post.categories.map((c) => c.name).join(", ")}

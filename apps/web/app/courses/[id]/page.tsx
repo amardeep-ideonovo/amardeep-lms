@@ -4,24 +4,11 @@ import { Suspense, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { CourseCard, LessonDTO } from "@lms/types";
-import { STR } from "@lms/types";
+import { STR, formatMoney } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
 import ProgressBar from "@/components/ProgressBar";
-
-// Minor units (cents) -> localized currency string, e.g. (2500, "usd") => "$25.00".
-function formatMoney(minor: number, currency?: string): string {
-  const cur = (currency || "usd").toUpperCase();
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: cur,
-    }).format(minor / 100);
-  } catch {
-    return `${(minor / 100).toFixed(2)} ${cur}`;
-  }
-}
 
 function CourseInner() {
   const params = useParams<{ id: string }>();
@@ -161,7 +148,7 @@ function CourseInner() {
   } else if (locked) {
     const price =
       course?.purchasable && course.priceAmount != null
-        ? formatMoney(course.priceAmount, course.priceCurrency)
+        ? formatMoney(course.priceAmount, course.priceCurrency ?? "usd")
         : null;
     body = (
       <div className="locked-panel">
