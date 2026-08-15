@@ -9,8 +9,9 @@ const basePath = process.env.NEXT_PUBLIC_ADMIN_BASE_PATH || "";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // @lms/types and @lms/puck ship raw .ts(x) from the workspace; transpile them.
-  transpilePackages: ["@lms/types", "@lms/puck"],
+  // @lms/types, @lms/puck and @lms/ui ship raw .ts(x) from the workspace;
+  // transpile them.
+  transpilePackages: ["@lms/types", "@lms/puck", "@lms/ui"],
   // Conditional spread: only set basePath when actually deployed under a prefix.
   ...(basePath ? { basePath } : {}),
 };
