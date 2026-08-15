@@ -4,9 +4,15 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { ApiError } from "@/lib/api";
 import { useToast } from "@/components/ToastProvider";
 
-// The admin's hand-rolled optimistic update, in one place.
+// The admin's hand-rolled optimistic update — now ONLY for the realtime
+// projects core (app/projects/page.tsx + components/QueueTable.tsx). Every
+// non-realtime site migrated to TanStack `useMutation` in the P4-2 wave
+// (scope-serialized writes, onMutate snapshot → verbatim onError rollback,
+// and the shared toast/mounted glue in lib/mutations.ts); this hook retires
+// with the P4-2b wave, when the projects board migrates too
+// (docs/coding-standards.md D4).
 //
-// React 18 has no `useOptimistic`, so the app already carried three copies of
+// React 18 has no `useOptimistic`, so the app once carried three copies of
 // the same five steps (sidebar order, the notification bell, the menu-tree
 // reorder): snapshot what you're about to touch, paint the new state, fire the
 // write, and on failure put the snapshot back. This is that shape, with the

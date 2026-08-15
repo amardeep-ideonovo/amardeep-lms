@@ -9,8 +9,9 @@
 // Adoption order (D4): new pages use useQuery from day one; the member read
 // surfaces (dashboard/classes/certificates/account/payments) migrated first
 // (hooks in lib/queries.ts, which also owns the `qk` query-key registry), then
-// the remaining hand-rolled loads, then useOptimisticAction is replaced by
-// useMutation + onMutate snapshot/rollback.
+// the remaining hand-rolled loads, then useOptimisticAction was retired for
+// useMutation + onMutate snapshot/rollback (scope ids keep its one-in-flight-
+// per-entity rule).
 
 import {
   MutationCache,

@@ -16,6 +16,7 @@ import type {
   ChatWorkflowDTO,
   ChatWorkflowTrigger,
 } from "@lms/types";
+import { useMutation } from "@tanstack/react-query";
 import { ApiError, api } from "@/lib/api";
 import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
@@ -27,7 +28,12 @@ import {
   loadAdminRoster,
   makeNameResolver,
 } from "@/lib/projects";
-import { useOptimisticAction } from "@/lib/useOptimisticAction";
+import { useToast } from "@/components/ToastProvider";
+import {
+  OPTIMISTIC_NETWORK_MODE,
+  mutationErrorMessage,
+  useMountedRef,
+} from "@/lib/mutations";
 import { getProjectsSocket, onChatListUpdate } from "@/lib/projectsSocket";
 import { STR } from "@lms/types";
 
@@ -281,7 +287,8 @@ function WorkflowsPanel({
   onError: (msg: string) => void;
 }) {
   const [workflows, setWorkflows] = useState<ChatWorkflowDTO[]>([]);
-  const optimistic = useOptimisticAction();
+  const toast = useToast();
+  const mounted = useMountedRef();
   // Names the workflow whose enable/delete is mid-flight so its row locks.
   const [rowBusy, setRowBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -354,29 +361,60 @@ function WorkflowsPanel({
   }
 
   // The Enabled/Disabled chip flips on click; PATCH returns the whole workflow,
-  // so the response replaces the row and no refetch is needed.
+  // so the response replaces the row and no refetch is needed
+  // (docs/coding-standards.md D4: useMutation with an onMutate snapshot and a
+  // verbatim onError rollback is the optimistic engine here).
+  //
+  // No `scope`: the old per-row queue key (`workflow:<id>`) has no v5
+  // equivalent on a single hook instance (scope ids are fixed per hook, and
+  // one scope for the whole panel would serialize writes to DIFFERENT rows,
+  // which overlap freely today). Same-row overlap can't happen anyway — the
+  // row's own control is disabled while its write is in flight (`rowBusy`).
+  const toggleMutation = useMutation({
+    networkMode: OPTIMISTIC_NETWORK_MODE,
+    mutationFn: ({ wf, next }: { wf: ChatWorkflowDTO; next: boolean }) =>
+      api.updateWorkflow(wf.id, { enabled: next }),
+    // Snapshot ONLY the slice about to change and paint through the same state
+    // the panel renders from; the snapshot rides to onError as the context.
+    onMutate: ({ wf, next }) => {
+      setWorkflows((prev) =>
+        prev.map((x) => (x.id === wf.id ? { ...x, enabled: next } : x)),
+      );
+      return { enabled: wf.enabled };
+    },
+    // The server is always the winner: commit its authoritative row.
+    onSuccess: (updated) => {
+      if (!mounted.current) return;
+      setWorkflows((prev) =>
+        prev.map((x) => (x.id === updated.id ? updated : x)),
+      );
+    },
+    onError: (error, vars, snapshot) => {
+      if (!mounted.current || !snapshot) return;
+      // Verbatim restore, keyed by id.
+      setWorkflows((prev) =>
+        prev.map((x) =>
+          x.id === vars.wf.id ? { ...x, enabled: snapshot.enabled } : x,
+        ),
+      );
+      toast(mutationErrorMessage(error, "Failed to update workflow"), {
+        action: {
+          label: "Retry",
+          // Same variables — the same absolute enable/disable intent.
+          onAction: () => toggleMutation.mutate(vars),
+        },
+      });
+    },
+  });
+
   async function toggleEnabled(wf: ChatWorkflowDTO) {
     setRowBusy(wf.id);
     const next = !wf.enabled;
     try {
-      await optimistic.run({
-        key: `workflow:${wf.id}`,
-        snapshot: () => wf.enabled,
-        apply: () =>
-          setWorkflows((prev) =>
-            prev.map((x) => (x.id === wf.id ? { ...x, enabled: next } : x)),
-          ),
-        request: () => api.updateWorkflow(wf.id, { enabled: next }),
-        commit: (updated) =>
-          setWorkflows((prev) =>
-            prev.map((x) => (x.id === updated.id ? updated : x)),
-          ),
-        revert: (enabled) =>
-          setWorkflows((prev) =>
-            prev.map((x) => (x.id === wf.id ? { ...x, enabled } : x)),
-          ),
-        errorMessage: "Failed to update workflow",
-      });
+      await toggleMutation.mutateAsync({ wf, next });
+    } catch {
+      // Failure is fully handled in onError (rollback + toast with Retry); the
+      // await exists only so the row unlocks when the write settles.
     } finally {
       setRowBusy(null);
     }

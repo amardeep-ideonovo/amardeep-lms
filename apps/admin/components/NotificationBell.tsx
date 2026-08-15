@@ -3,8 +3,14 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useMutation } from "@tanstack/react-query";
 import { api, getToken } from "@/lib/api";
-import { useOptimisticAction } from "@/lib/useOptimisticAction";
+import { useToast } from "@/components/ToastProvider";
+import {
+  OPTIMISTIC_NETWORK_MODE,
+  mutationErrorMessage,
+  useMountedRef,
+} from "@/lib/mutations";
 import type { AdminNotificationDTO } from "@lms/types";
 import { STR } from "@lms/types";
 
@@ -31,9 +37,10 @@ export default function NotificationBell() {
   const [items, setItems] = useState<AdminNotificationDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const optimistic = useOptimisticAction();
+  const toast = useToast();
+  const mounted = useMountedRef();
   // Mirrors of the two pieces an optimistic mark touches, so a revert restores
-  // what was on screen when the write started (a queued run re-reads them).
+  // what was on screen when the write started.
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const unreadRef = useRef(unread);
@@ -119,7 +126,7 @@ export default function NotificationBell() {
   };
 
   // The touched slice for both marks is the same pair: which rows show as read,
-  // and the badge count. Snapshots read it through the setters so they capture
+  // and the badge count. Snapshots read it through the refs so they capture
   // the state at run time, not at render time.
   const snapshotRead = () => ({
     items: itemsRef.current,
@@ -133,38 +140,80 @@ export default function NotificationBell() {
     setUnread(snap.unread);
   };
 
+  // Both marks below follow docs/coding-standards.md D4: useMutation with an
+  // onMutate snapshot and a verbatim onError rollback is the optimistic
+  // engine. The failed-write heal (fetchUnread) keeps the badge honest.
+  //
+  // Mark-all keeps its old queue key (`notifications:mark-all`) as a v5
+  // mutation scope. Overlap can't actually occur — the button disables at
+  // unread 0, which the optimistic paint sets — so the scope is belt and
+  // braces.
+  const markAllMutation = useMutation({
+    scope: { id: "notifications:mark-all" },
+    networkMode: OPTIMISTIC_NETWORK_MODE,
+    mutationFn: () => api.markAllNotificationsRead(),
+    onMutate: () => {
+      const snapshot = snapshotRead();
+      setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+      setUnread(0);
+      return snapshot;
+    },
+    onError: (error, _vars, snapshot) => {
+      if (!mounted.current || !snapshot) return;
+      restoreRead(snapshot);
+      void fetchUnread();
+      toast(
+        mutationErrorMessage(error, "Couldn’t mark your notifications read."),
+        {
+          action: {
+            label: "Retry",
+            onAction: () => markAllMutation.mutate(),
+          },
+        },
+      );
+    },
+  });
+
+  // Per-notification: marking one read never races another row, so different
+  // rows stay free to overlap. No `scope`: the old per-row queue key
+  // (`notification:<id>`) has no v5 equivalent on a single hook instance
+  // (scope ids are fixed per hook, and one scope would serialize DIFFERENT
+  // rows). Re-marking the SAME row can't happen — the optimistic paint sets
+  // `read`, and onItem only mutates unread rows.
+  const markReadMutation = useMutation({
+    networkMode: OPTIMISTIC_NETWORK_MODE,
+    mutationFn: (n: AdminNotificationDTO) => api.markNotificationRead(n.id),
+    onMutate: (n) => {
+      const snapshot = snapshotRead();
+      setItems((prev) =>
+        prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)),
+      );
+      setUnread((u) => Math.max(0, u - 1));
+      return snapshot;
+    },
+    onError: (error, n, snapshot) => {
+      if (!mounted.current || !snapshot) return;
+      restoreRead(snapshot);
+      void fetchUnread();
+      toast(
+        mutationErrorMessage(error, "Couldn’t mark that notification read."),
+        {
+          action: {
+            label: "Retry",
+            onAction: () => markReadMutation.mutate(n),
+          },
+        },
+      );
+    },
+  });
+
   const markAll = () => {
-    void optimistic.run({
-      key: "notifications:mark-all",
-      snapshot: snapshotRead,
-      apply: () => {
-        setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-        setUnread(0);
-      },
-      request: () => api.markAllNotificationsRead(),
-      revert: restoreRead,
-      onError: () => void fetchUnread(),
-      errorMessage: "Couldn’t mark your notifications read.",
-    });
+    markAllMutation.mutate();
   };
 
   const onItem = (n: AdminNotificationDTO) => {
     if (!n.read) {
-      void optimistic.run({
-        // Per-notification: marking one read never races another row.
-        key: `notification:${n.id}`,
-        snapshot: snapshotRead,
-        apply: () => {
-          setItems((prev) =>
-            prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)),
-          );
-          setUnread((u) => Math.max(0, u - 1));
-        },
-        request: () => api.markNotificationRead(n.id),
-        revert: restoreRead,
-        onError: () => void fetchUnread(),
-        errorMessage: "Couldn’t mark that notification read.",
-      });
+      markReadMutation.mutate(n);
     }
     // The navigation below is deliberately NOT part of the optimistic write:
     // the bell lives in the persistent shell, so it stays mounted across the

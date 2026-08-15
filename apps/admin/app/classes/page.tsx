@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import type {
   AudienceDTO,
   CourseCard,
@@ -16,7 +17,12 @@ import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 import RichTextEditor from "@/components/RichTextEditor";
 import RowMenu from "@/components/RowMenu";
-import { useOptimisticAction } from "@/lib/useOptimisticAction";
+import { useToast } from "@/components/ToastProvider";
+import {
+  OPTIMISTIC_NETWORK_MODE,
+  mutationErrorMessage,
+  useMountedRef,
+} from "@/lib/mutations";
 import { STR } from "@lms/types";
 
 type PriceForm = {
@@ -27,13 +33,22 @@ type PriceForm = {
 
 const LEVEL_TYPES: LevelType[] = ["PAID", "FREE", "MANUAL"];
 
+// An archive/unarchive write. `archived` is the row's CURRENT state (true →
+// unarchive); `current` is the pre-write slice the rollback restores.
+type ArchiveVars = {
+  id: string;
+  archived: boolean;
+  current: Pick<LevelDTO, "archivedAt" | "published">;
+};
+
 function emptyPrice(): PriceForm {
   return { interval: "month", amount: "", installments: "" };
 }
 
 export default function ClassesPage() {
   const { can, loading: authLoading } = useAdminAuth();
-  const optimistic = useOptimisticAction();
+  const toast = useToast();
+  const mounted = useMountedRef();
   const [levels, setLevels] = useState<LevelDTO[]>([]);
   const [categories, setCategories] = useState<LevelCategoryDTO[]>([]);
   // Courses power the per-class COURSES/LESSONS columns (CourseCard.levelIds);
@@ -322,36 +337,67 @@ export default function ClassesPage() {
 
   // Archive/unarchive is reversible (grants, subscriptions and issued
   // certificates all survive), so the row flips immediately. DELETE stays
-  // pessimistic — it isn't.
+  // pessimistic — it isn't. (docs/coding-standards.md D4: useMutation with an
+  // onMutate snapshot and a verbatim onError rollback is the optimistic engine
+  // here.)
+  //
+  // No `scope`: the old per-row queue key (`level:<id>`) has no v5 equivalent
+  // on a single hook instance (scope ids are fixed per hook, and one scope for
+  // the whole table would serialize writes to DIFFERENT rows, which overlap
+  // freely today). Same-row overlap can't happen anyway — the row's menu
+  // entries are disabled while its write is in flight (`rowBusy`).
+  const archiveMutation = useMutation({
+    networkMode: OPTIMISTIC_NETWORK_MODE,
+    mutationFn: ({ id, archived }: ArchiveVars) =>
+      archived ? api.unarchiveLevel(id) : api.archiveLevel(id),
+    // Snapshot ONLY the slice about to change (carried in the variables, read
+    // off the row at click time) and paint through the same state the table
+    // renders from; the snapshot rides to onError as the context.
+    onMutate: ({ id, archived, current }) => {
+      // Mirrors the service: archiving stamps archivedAt AND unpublishes;
+      // unarchiving only clears archivedAt.
+      const optimisticPatch: Partial<LevelDTO> = archived
+        ? { archivedAt: null }
+        : { archivedAt: new Date().toISOString(), published: false };
+      setLevels((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, ...optimisticPatch } : l)),
+      );
+      return current;
+    },
+    // Both endpoints answer {ok:true} only, so there's nothing to commit —
+    // the authoritative row comes from the quiet refetch in onArchive.
+    onError: (error, vars, snapshot) => {
+      if (!mounted.current || !snapshot) return;
+      // Verbatim restore, keyed by id — the list may have re-sorted underneath.
+      setLevels((prev) =>
+        prev.map((l) => (l.id === vars.id ? { ...l, ...snapshot } : l)),
+      );
+      toast(mutationErrorMessage(error, "Archive failed"), {
+        action: {
+          label: "Retry",
+          // Same variables — the same absolute archive/unarchive intent.
+          onAction: () => archiveMutation.mutate(vars),
+        },
+      });
+    },
+  });
+
   async function onArchive(id: string, archived: boolean) {
     setRowBusy(id);
     const current = levels.find((l) => l.id === id);
-    // Mirrors the service: archiving stamps archivedAt AND unpublishes;
-    // unarchiving only clears archivedAt.
-    const optimisticPatch: Partial<LevelDTO> = archived
-      ? { archivedAt: null }
-      : { archivedAt: new Date().toISOString(), published: false };
     try {
-      await optimistic.run({
-        key: `level:${id}`,
-        snapshot: () => ({
+      await archiveMutation.mutateAsync({
+        id,
+        archived,
+        current: {
           archivedAt: current?.archivedAt ?? null,
           published: current?.published ?? false,
-        }),
-        apply: () =>
-          setLevels((prev) =>
-            prev.map((l) => (l.id === id ? { ...l, ...optimisticPatch } : l)),
-          ),
-        request: () =>
-          archived ? api.unarchiveLevel(id) : api.archiveLevel(id),
-        // Both endpoints answer {ok:true} only, so there's nothing to commit —
-        // the authoritative row comes from the quiet refetch below.
-        revert: (previous) =>
-          setLevels((prev) =>
-            prev.map((l) => (l.id === id ? { ...l, ...previous } : l)),
-          ),
-        errorMessage: "Archive failed",
+        },
       });
+    } catch {
+      // Failure already rolled back + toasted in onError; the heal below still
+      // runs so the server's answer wins either way.
+    } finally {
       // Heal from the server WITHOUT load()'s loading flag: the table already
       // shows the new state, and blanking it to "Loading…" would undo the point
       // of flipping the row on click.
@@ -359,7 +405,6 @@ export default function ClassesPage() {
         .listLevels()
         .then(setLevels)
         .catch(() => {});
-    } finally {
       setRowBusy(null);
     }
   }

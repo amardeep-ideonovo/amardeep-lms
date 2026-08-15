@@ -10,6 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useMutation } from "@tanstack/react-query";
 import type {
   ClassCertificateStatusDTO,
   CourseCard,
@@ -19,7 +20,6 @@ import type {
 import { STR, formatBytes } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import { fmtDuration } from "@/lib/memberData";
-import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
 import CertificateClaimButton from "@/components/CertificateClaimButton";
@@ -136,14 +136,12 @@ function LessonInner() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const lessonId = params.id;
-  const runOptimistic = useOptimisticAction();
 
   const [lesson, setLesson] = useState<LessonDTO | null>(null);
   const [siblings, setSiblings] = useState<LessonDTO[] | null>(null);
   const [course, setCourse] = useState<CourseCard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
-  const [completing, setCompleting] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [noteError, setNoteError] = useState<string | null>(null);
@@ -201,44 +199,54 @@ function LessonInner() {
   // behind this joins lesson+course, runs two access queries, a progress lookup,
   // an upsert and a certificate check, and this is the most repeated action in
   // the product. Completion is a member-owned toggle, so it is safe to paint and
-  // reverse. The CERTIFICATE is not — see `commit`.
-  async function markComplete() {
-    setCompleting(true);
-    setError(null);
-    await runOptimistic(`lesson:${lessonId}`, {
-      snapshot: () => ({ completed, siblings }),
-      apply: () => {
-        setCompleted(true);
-        setSiblings((ls) =>
-          ls
-            ? ls.map((l) => (l.id === lessonId ? { ...l, completed: true } : l))
-            : ls,
-        );
-      },
-      commit: async () => {
-        const res = await api.completeLesson(lessonId);
-        // A certificate is a GRANT, not a toggle — it is only ever rendered from
-        // what the server returned, never inferred from the flip above.
-        if (res?.certificates) setCertificates(res.certificates);
-      },
-      revert: (snap) => {
-        setCompleted(snap.completed);
-        setSiblings(snap.siblings);
-      },
-      onError: (err) => {
-        // Access revoked mid-session: the flip is already reverted, and the
-        // lesson locks as it did before.
-        if (err instanceof ApiError && err.status === 403) {
-          setLocked(true);
-          return;
-        }
-        setError(
-          err instanceof Error ? err.message : "Could not mark complete.",
-        );
-      },
-    });
-    setCompleting(false);
-  }
+  // reverse. The CERTIFICATE is not — see `onSuccess`.
+  //
+  // `scope` carries over the retired useOptimisticAction's one-in-flight-per-
+  // entity-key rule: TanStack v5 serializes mutations sharing a scope id. One
+  // deliberate difference — the old hook DROPPED an overlapping run outright
+  // (a double-fire shield), while scope QUEUES its request behind the in-flight
+  // one. With the button disabled during `isPending` a queued second run is
+  // unreachable in practice, and queueing is the semantic the admin's hook
+  // already proved.
+  const completeMutation = useMutation({
+    scope: { id: `lesson:${lessonId}` },
+    mutationFn: () => api.completeLesson(lessonId),
+    onMutate: () => {
+      setError(null);
+      // Capture the exact slice the paint below changes; onError restores it
+      // VERBATIM, never re-derived — recomputing "what it probably was" is how
+      // a revert quietly invents state.
+      const snapshot = { completed, siblings };
+      setCompleted(true);
+      setSiblings((ls) =>
+        ls
+          ? ls.map((l) => (l.id === lessonId ? { ...l, completed: true } : l))
+          : ls,
+      );
+      return snapshot;
+    },
+    onSuccess: (res) => {
+      // A certificate is a GRANT, not a toggle — it is only ever rendered from
+      // what the server returned, never inferred from the flip above.
+      if (res?.certificates) setCertificates(res.certificates);
+    },
+    onError: (err, _vars, snapshot) => {
+      // Revert FIRST: the snapshot goes back before any error handling (the
+      // 403 below included) reacts to the failure.
+      if (snapshot) {
+        setCompleted(snapshot.completed);
+        setSiblings(snapshot.siblings);
+      }
+      // Access revoked mid-session: the flip is already reverted, and the
+      // lesson locks as it did before.
+      if (err instanceof ApiError && err.status === 403) {
+        setLocked(true);
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Could not mark complete.");
+    },
+  });
+  const completing = completeMutation.isPending;
 
   async function download(note: LessonNoteDTO) {
     setNoteError(null);
@@ -626,7 +634,7 @@ function LessonInner() {
                   <button
                     type="button"
                     className="ik-cta ik-cta--sm"
-                    onClick={markComplete}
+                    onClick={() => completeMutation.mutate()}
                     disabled={completing}
                     aria-busy={completing}
                   >
