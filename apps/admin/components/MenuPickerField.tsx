@@ -4,28 +4,7 @@
 // name from a dropdown instead of pasting an id. Injected into the page + popup
 // editors via createPuckConfig({ menuField }); the public site keeps the plain
 // text fallback.
-import { useEffect, useState } from "react";
-import type { MenuListItem } from "@lms/types";
-import { api } from "@/lib/api";
-
-let cache: MenuListItem[] | null = null;
-let inflight: Promise<MenuListItem[]> | null = null;
-function loadMenus(): Promise<MenuListItem[]> {
-  if (cache) return Promise.resolve(cache);
-  if (!inflight) {
-    inflight = api
-      .listMenus()
-      .then((m) => {
-        cache = m;
-        return m;
-      })
-      .catch(() => {
-        inflight = null;
-        return [];
-      });
-  }
-  return inflight;
-}
+import { useMenusList } from "@/lib/queries";
 
 export default function MenuPickerField({
   value,
@@ -34,15 +13,10 @@ export default function MenuPickerField({
   value?: string;
   onChange: (v: string) => void;
 }) {
-  const [menus, setMenus] = useState<MenuListItem[]>(cache ?? []);
-
-  useEffect(() => {
-    let alive = true;
-    void loadMenus().then((m) => alive && setMenus(m));
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // Shared query cache: multiple Menu blocks (and re-renders) share ONE fetch.
+  // Best-effort — while loading or on a load error the dropdown renders empty.
+  const { data } = useMenusList();
+  const menus = data ?? [];
 
   const known = !value || menus.some((m) => m.id === value);
 

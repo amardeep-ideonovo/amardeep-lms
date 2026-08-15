@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import type { AdminSection } from "@lms/types";
 import { getToken, api } from "@/lib/api";
-import { useAppBrand } from "@/lib/app-brand";
+import { useAppBrand } from "@/lib/queries";
 import { useAdminAuth } from "./AdminAuthProvider";
 import { mobileNav, useMobileNavOpen } from "./mobile-nav";
 

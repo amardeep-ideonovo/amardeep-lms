@@ -11,7 +11,7 @@ import type {
 import { ApiError, api } from "@/lib/api";
 import MediaPicker from "@/components/MediaPicker";
 import ColorField from "@/components/ColorField";
-import { useAppBrand } from "@/lib/app-brand";
+import { useAppBrand } from "@/lib/queries";
 import { STR } from "@lms/types";
 
 const msg = (e: unknown, fb: string) =>

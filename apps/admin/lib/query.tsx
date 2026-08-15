@@ -8,7 +8,8 @@
 //
 // Adoption order (D4): new pages use useQuery from day one; the module-level
 // cached+inflight dedupe singletons (app-brand, FormPickerField,
-// MenuPickerField) migrate first, then the heavy list surfaces, then
+// MenuPickerField) migrated first (they are now hooks in lib/queries.ts, which
+// also owns the `qk` query-key registry), then the heavy list surfaces, then
 // useOptimisticAction is replaced by useMutation + onMutate snapshot/rollback.
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -20,6 +21,10 @@ export const STALE = {
   // change shows quickly, long enough to kill refetch storms on tab focus.
   entitlement: 15_000,
   live: 0,
+  // Instance branding (app title): ~never changes, and its readers (sidebar,
+  // login card) are mounted all day — a long window stops focus refetches
+  // while an edited title still lands within a minute.
+  brand: 60_000,
 } as const;
 
 function makeQueryClient() {

@@ -1,8 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import type { CouponDTO, CreateCouponInput, LevelDTO } from "@lms/types";
+import { FormEvent, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { CouponDTO, CreateCouponInput } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { qk } from "@/lib/queries";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR, formatMoney } from "@lms/types";
@@ -38,11 +40,35 @@ function statusOf(c: CouponDTO): "Active" | "Inactive" | "Expired" {
 
 export default function CouponsPage() {
   const { can, loading: authLoading } = useAdminAuth();
-  const [coupons, setCoupons] = useState<CouponDTO[]>([]);
-  const [levels, setLevels] = useState<LevelDTO[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  // The list reads live in the query cache (docs/coding-standards.md D4).
+  // `enabled` keeps the RBAC gate: a denied section never fires the request.
+  const canRead = !authLoading && can("coupons", "read");
+  const couponsQuery = useQuery({
+    queryKey: qk.coupons,
+    queryFn: () => api.listCoupons(),
+    enabled: canRead,
+  });
+  const levelsQuery = useQuery({
+    queryKey: qk.levels,
+    queryFn: () => api.listLevels(),
+    enabled: canRead,
+  });
+  const coupons = couponsQuery.data ?? [];
+  const levels = levelsQuery.data ?? [];
+  const loading = couponsQuery.isPending || levelsQuery.isPending;
+  const [error, setError] = useState<string | null>(null); // mutation errors
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Load failures surface from the queries, mutation failures from `error`;
+  // one slot renders both (a mutation's message wins while set, as before).
+  const loadFailure = couponsQuery.error ?? levelsQuery.error;
+  const pageError =
+    error ??
+    (loadFailure
+      ? loadFailure instanceof ApiError
+        ? loadFailure.message
+        : "Failed to load coupons"
+      : null);
 
   // create form
   const [code, setCode] = useState("");
@@ -58,28 +84,6 @@ export default function CouponsPage() {
   // Promotion codes are permanent in Stripe (deactivate, never delete), so the
   // list accumulates. Default to showing only active codes.
   const [filter, setFilter] = useState<"active" | "inactive" | "all">("active");
-
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const [c, l] = await Promise.all([api.listCoupons(), api.listLevels()]);
-      setCoupons(c);
-      setLevels(l);
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Failed to load coupons",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (authLoading || !can("coupons", "read")) return;
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading]);
 
   function resetForm() {
     setCode("");
@@ -124,7 +128,10 @@ export default function CouponsPage() {
       // Levels are untouched by a coupon create, so they need no refresh.
       const created = await api.createCoupon(input);
       resetForm();
-      setCoupons((prev) => [created, ...prev]);
+      queryClient.setQueryData<CouponDTO[]>(qk.coupons, (prev = []) => [
+        created,
+        ...prev,
+      ]);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Couldn’t create coupon",
@@ -146,8 +153,8 @@ export default function CouponsPage() {
       const updated = turningOff
         ? await api.deactivateCoupon(c.id)
         : await api.activateCoupon(c.id);
-      setCoupons((prev) =>
-        prev.map((row) => (row.id === updated.id ? updated : row)),
+      queryClient.setQueryData<CouponDTO[]>(qk.coupons, (prev) =>
+        prev?.map((row) => (row.id === updated.id ? updated : row)),
       );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Update failed");
@@ -170,7 +177,9 @@ export default function CouponsPage() {
       await api.deleteCoupon(c.id);
       // Soft-delete in Stripe (metadata flag + deactivate), but list() filters
       // those out — so the row is gone from the server's list either way.
-      setCoupons((prev) => prev.filter((row) => row.id !== c.id));
+      queryClient.setQueryData<CouponDTO[]>(qk.coupons, (prev) =>
+        prev?.filter((row) => row.id !== c.id),
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Delete failed");
     } finally {
@@ -333,7 +342,7 @@ export default function CouponsPage() {
             </select>
           </div>
 
-          {error && <p className="error">{error}</p>}
+          {pageError && <p className="error">{pageError}</p>}
           <div className="row-actions">
             <button className="btn" type="submit" disabled={saving}>
               {saving ? "Creating…" : "Create coupon"}

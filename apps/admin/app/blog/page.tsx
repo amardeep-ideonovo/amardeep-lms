@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CreatePostInput,
   PostAdminListRow,
@@ -9,6 +10,7 @@ import type {
   PostStatus,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { qk } from "@/lib/queries";
 import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
@@ -28,10 +30,24 @@ const EMPTY = {
 
 export default function BlogPage() {
   const { can, loading: authLoading } = useAdminAuth();
-  const [posts, setPosts] = useState<PostAdminListRow[]>([]);
-  const [categories, setCategories] = useState<PostCategoryDTO[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null); // page-level errors
+  const queryClient = useQueryClient();
+  // The list reads live in the query cache (docs/coding-standards.md D4).
+  // `enabled` keeps the RBAC gate: a denied section never fires the request.
+  const canRead = !authLoading && can("blog", "read");
+  const postsQuery = useQuery({
+    queryKey: qk.blogPosts,
+    queryFn: () => api.listPosts(),
+    enabled: canRead,
+  });
+  const categoriesQuery = useQuery({
+    queryKey: qk.blogCategories,
+    queryFn: () => api.listPostCategories(),
+    enabled: canRead,
+  });
+  const posts = postsQuery.data ?? [];
+  const categories = categoriesQuery.data ?? [];
+  const loading = postsQuery.isPending || categoriesQuery.isPending;
+  const [error, setError] = useState<string | null>(null); // page-level (mutation) errors
 
   // Create/edit happens in a modal.
   const [modalOpen, setModalOpen] = useState(false);
@@ -52,37 +68,24 @@ export default function BlogPage() {
   const [newCategory, setNewCategory] = useState("");
   const modalRef = useModalA11y();
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const [p, c] = await Promise.all([
-        api.listPosts(),
-        api.listPostCategories(),
-      ]);
-      setPosts(p);
-      setCategories(c);
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Failed to load blog posts",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (authLoading || !can("blog", "read")) return;
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading]);
+  // Load failures surface from the queries, mutation failures from `error`;
+  // one slot renders both (a mutation's message wins while set, as before).
+  const loadFailure = postsQuery.error ?? categoriesQuery.error;
+  const pageError =
+    error ??
+    (loadFailure
+      ? loadFailure instanceof ApiError
+        ? loadFailure.message
+        : "Failed to load blog posts"
+      : null);
 
   // Create/update return exactly the PostAdminRow the list renders (the API maps
   // list rows and mutation responses through the same toAdminRow), so apply the
-  // response instead of refetching. GET /admin/blog/posts is ordered by
-  // createdAt desc: a new post goes first, an edited one keeps its slot.
+  // response to the cached list instead of refetching. GET /admin/blog/posts is
+  // ordered by createdAt desc: a new post goes first, an edited one keeps its
+  // slot.
   function applyPost(row: PostAdminRow) {
-    setPosts((prev) =>
+    queryClient.setQueryData<PostAdminListRow[]>(qk.blogPosts, (prev = []) =>
       (prev.some((p) => p.id === row.id)
         ? prev.map((p) => (p.id === row.id ? row : p))
         : [row, ...prev]
@@ -226,7 +229,9 @@ export default function BlogPage() {
     try {
       await api.deletePost(post.id);
       if (editingId === post.id) closeModal();
-      setPosts((prev) => prev.filter((p) => p.id !== post.id));
+      queryClient.setQueryData<PostAdminListRow[]>(qk.blogPosts, (prev) =>
+        prev?.filter((p) => p.id !== post.id),
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete post");
     }
@@ -245,7 +250,10 @@ export default function BlogPage() {
         categories.length,
       );
       setNewCategory("");
-      setCategories((prev) => [...prev, cat].sort((a, b) => a.order - b.order));
+      queryClient.setQueryData<PostCategoryDTO[]>(
+        qk.blogCategories,
+        (prev = []) => [...prev, cat].sort((a, b) => a.order - b.order),
+      );
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Failed to create category",
@@ -269,9 +277,12 @@ export default function BlogPage() {
         ...f,
         categoryIds: f.categoryIds.filter((id) => id !== c.id),
       }));
-      // Refetch: deleting a category also detaches it from every post, and the
-      // {ok:true} response carries none of those post rows.
-      await load();
+      // Refetch both lists: deleting a category also detaches it from every
+      // post, and the {ok:true} response carries none of those post rows.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.blogPosts }),
+        queryClient.invalidateQueries({ queryKey: qk.blogCategories }),
+      ]);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Failed to remove category",
@@ -314,7 +325,7 @@ export default function BlogPage() {
         </button>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {pageError && <p className="error">{pageError}</p>}
 
       <div className="card">
         <h2>New category</h2>
