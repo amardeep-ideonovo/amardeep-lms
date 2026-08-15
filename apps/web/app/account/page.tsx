@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
   AuthUser,
   DeleteAccountSummaryDTO,
@@ -16,7 +16,6 @@ import { qk, useMe, useMySubscriptions } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
 import AvatarCropper from "@/components/AvatarCropper";
 import { useModalA11y } from "@/lib/useModalA11y";
-import { useOptimisticAction } from "@/lib/useOptimisticAction";
 
 // Avatar fallback initials from the member's name, else username/email.
 function avatarInitials(u: AuthUser): string {
@@ -425,7 +424,6 @@ function CheckoutBanner() {
 function AccountInner() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const runOptimistic = useOptimisticAction();
   // Initial reads. The queries revalidate on tab focus so admin changes (e.g.
   // a paused/canceled plan) show without a manual reload; the forms/mutations
   // below stay as they are and write their responses back into the cache in
@@ -458,11 +456,9 @@ function AccountInner() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwOk, setPwOk] = useState(false);
-  // Profile photo: cropper file + upload state.
+  // Profile photo: cropper file. Busy state comes off the avatar mutations
+  // below (their isPending replaced the old manual avatarBusy flag).
   const [cropFile, setCropFile] = useState<File | null>(null);
-  const [avatarBusy, setAvatarBusy] = useState<null | "upload" | "remove">(
-    null,
-  );
   // Object URL for the just-cropped bytes, shown while the upload is in flight.
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarErr, setAvatarErr] = useState<string | null>(null);
@@ -582,71 +578,87 @@ function AccountInner() {
     setCropFile(file);
   }
 
-  async function uploadCroppedAvatar(blob: Blob) {
-    // The cropped bytes are already in the browser, so there is no reason to
-    // leave the OLD photo on screen for the whole upload. Show them now; the
-    // server URL replaces this the moment it lands.
-    const preview = URL.createObjectURL(blob);
-    setAvatarBusy("upload");
-    setAvatarErr(null);
-    await runOptimistic("avatar", {
-      snapshot: () => null,
-      apply: () => setAvatarPreview(preview),
-      commit: async () => {
-        const updated = await api.uploadAvatar(blob);
-        queryClient.setQueryData(qk.me, updated);
-        setCropFile(null);
-      },
-      // Nothing to put back but the preview: `user` is only ever written from
-      // the server response, so a failure just uncovers the previous photo.
-      revert: () => setAvatarPreview(null),
-      onError: (err) => {
-        if (err instanceof ApiError && err.status === 401) {
-          fail(err);
-          return;
-        }
-        setAvatarErr(
-          err instanceof ApiError ? err.message : "Couldn’t upload the photo.",
-        );
-      },
-    });
-    setAvatarPreview(null);
-    URL.revokeObjectURL(preview);
-    setAvatarBusy(null);
+  // Both avatar mutations share scope id "avatar" — the same entity key the
+  // retired useOptimisticAction used: TanStack v5 serializes mutations sharing
+  // a scope id, so an upload and a remove can never interleave their requests.
+  // One deliberate difference — the old hook DROPPED an overlapping run
+  // outright (a double-fire shield), while scope QUEUES its request behind the
+  // in-flight one. Both buttons are disabled while either mutation is pending,
+  // so a queued second run is unreachable in practice, and queueing is the
+  // semantic the admin's hook already proved.
+  //
+  // The cropped bytes are already in the browser, so there is no reason to
+  // leave the OLD photo on screen for the whole upload. Show them now (the
+  // object URL rides in as a variable); the server URL replaces this the
+  // moment it lands.
+  const uploadAvatarMutation = useMutation({
+    scope: { id: "avatar" },
+    mutationFn: ({ blob }: { blob: Blob; preview: string }) =>
+      api.uploadAvatar(blob),
+    onMutate: ({ preview }) => {
+      setAvatarErr(null);
+      setAvatarPreview(preview);
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(qk.me, updated);
+      setCropFile(null);
+    },
+    // Nothing to put back but the preview: `user` is only ever written from
+    // the server response, so a failure just uncovers the previous photo.
+    onError: (err) => {
+      setAvatarPreview(null);
+      if (err instanceof ApiError && err.status === 401) {
+        fail(err);
+        return;
+      }
+      setAvatarErr(
+        err instanceof ApiError ? err.message : "Couldn’t upload the photo.",
+      );
+    },
+    onSettled: (_data, _err, { preview }) => {
+      setAvatarPreview(null);
+      URL.revokeObjectURL(preview);
+    },
+  });
+
+  function uploadCroppedAvatar(blob: Blob) {
+    uploadAvatarMutation.mutate({ blob, preview: URL.createObjectURL(blob) });
   }
 
-  async function removeAvatar() {
-    setAvatarBusy("remove");
-    setAvatarErr(null);
-    await runOptimistic("avatar", {
-      // The whole user, so a failure restores the exact photo that was there
-      // rather than a re-derived guess at it. State lives in the query cache
-      // now, so snapshot/apply/revert go through it (same in-place contract).
-      snapshot: () => queryClient.getQueryData<AuthUser>(qk.me) ?? null,
-      apply: () =>
-        queryClient.setQueryData<AuthUser>(qk.me, (u) =>
-          u ? { ...u, avatarUrl: null } : u,
-        ),
-      commit: async () =>
-        queryClient.setQueryData(
-          qk.me,
-          await api.updateMe({ removeAvatar: true }),
-        ),
-      revert: (snap) => {
-        if (snap) queryClient.setQueryData(qk.me, snap);
-      },
-      onError: (err) => {
-        if (err instanceof ApiError && err.status === 401) {
-          fail(err);
-          return;
-        }
-        setAvatarErr(
-          err instanceof ApiError ? err.message : "Couldn’t remove the photo.",
-        );
-      },
-    });
-    setAvatarBusy(null);
-  }
+  const removeAvatarMutation = useMutation({
+    // Same entity as the upload above — see the scope note there.
+    scope: { id: "avatar" },
+    mutationFn: () => api.updateMe({ removeAvatar: true }),
+    onMutate: () => {
+      setAvatarErr(null);
+      // Snapshot the whole user, so a failure restores the exact photo that
+      // was there rather than a re-derived guess at it. State lives in the
+      // query cache, so snapshot/paint/restore go through it (same in-place
+      // contract).
+      const snapshot = queryClient.getQueryData<AuthUser>(qk.me) ?? null;
+      queryClient.setQueryData<AuthUser>(qk.me, (u) =>
+        u ? { ...u, avatarUrl: null } : u,
+      );
+      return snapshot;
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(qk.me, updated);
+    },
+    onError: (err, _vars, snapshot) => {
+      // Restore the captured cache value VERBATIM, before any error handling.
+      if (snapshot) queryClient.setQueryData(qk.me, snapshot);
+      if (err instanceof ApiError && err.status === 401) {
+        fail(err);
+        return;
+      }
+      setAvatarErr(
+        err instanceof ApiError ? err.message : "Couldn’t remove the photo.",
+      );
+    },
+  });
+
+  const avatarBusy =
+    uploadAvatarMutation.isPending || removeAvatarMutation.isPending;
 
   function startPwEdit() {
     setPwForm({ current: "", next: "", confirm: "" });
@@ -917,10 +929,10 @@ function AccountInner() {
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      disabled={!!avatarBusy}
+                      disabled={avatarBusy}
                       onClick={() => fileRef.current?.click()}
                     >
-                      {avatarBusy === "upload"
+                      {uploadAvatarMutation.isPending
                         ? "Uploading…"
                         : user.avatarUrl
                           ? "Change photo"
@@ -930,11 +942,11 @@ function AccountInner() {
                       <button
                         type="button"
                         className="btn btn-secondary"
-                        disabled={!!avatarBusy}
-                        aria-busy={avatarBusy === "remove"}
-                        onClick={removeAvatar}
+                        disabled={avatarBusy}
+                        aria-busy={removeAvatarMutation.isPending}
+                        onClick={() => removeAvatarMutation.mutate()}
                       >
-                        {avatarBusy === "remove"
+                        {removeAvatarMutation.isPending
                           ? "Removing…"
                           : STR.common.remove}
                       </button>
@@ -1127,7 +1139,7 @@ function AccountInner() {
       {cropFile && (
         <AvatarCropper
           file={cropFile}
-          busy={avatarBusy === "upload"}
+          busy={uploadAvatarMutation.isPending}
           error={avatarErr}
           onCancel={() => {
             if (!avatarBusy) setCropFile(null);
