@@ -91,12 +91,14 @@ function ProgressRing({ pct }: { pct: number }) {
       viewBox="0 0 92 92"
       aria-label={`${pct}% complete`}
     >
+      {/* Track: surface-2's value (P3b; was pre-Spark lavender #eeecf5).
+          SVG attributes can't take var() — keep in step with tokens.css. */}
       <circle
         cx="46"
         cy="46"
         r="39.5"
         fill="none"
-        stroke="#eeecf5"
+        stroke="#f0ede4"
         strokeWidth="9"
       />
       <circle

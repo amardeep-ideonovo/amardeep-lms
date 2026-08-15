@@ -235,7 +235,8 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#ffffff"
+            // iOS spinner shows over the ink bounce cover — on-dark tint.
+            tintColor={colors.heroText}
             colors={[colors.primary]}
           />
         }
@@ -515,12 +516,12 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       justifyContent: "center",
     },
     avatarInitials: {
-      color: "#ffffff",
+      color: colors.heroText,
       fontSize: 11,
       fontFamily: fonts.bold,
     },
     greeting: {
-      color: "#ffffff",
+      color: colors.heroText,
       fontSize: 22,
       fontFamily: fonts.semibold,
       marginTop: 18,
@@ -533,7 +534,13 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontFamily: fonts.regular,
     },
     resume: { marginTop: 15 },
-    resumeGlyph: { color: "#ffffff", fontSize: 12, fontFamily: fonts.semibold },
+    // The ▶ sits on the teal CTA gradient: Spark rule is INK on teal (onCta).
+    // It was white while the label beside it rendered ink — a brand bug.
+    resumeGlyph: {
+      color: colors.onCta,
+      fontSize: 12,
+      fontFamily: fonts.semibold,
+    },
 
     // Content column overlapping the band (phone gutter 16, overlap -46).
     overlapWrap: {
@@ -551,6 +558,9 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 14,
+      // Ink shadow literal kept: same tint as theme.ts elevatedShadow() but
+      // the design's deeper overlap-card geometry (offset/radius differ), so
+      // the helper doesn't apply.
       shadowColor: "#0b0b0e",
       shadowOffset: { width: 0, height: 14 },
       shadowOpacity: 0.12,
@@ -651,14 +661,14 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       backgroundColor: colors.surfaceMuted,
     },
     classCardTitle: {
-      color: "#ffffff",
+      color: colors.heroText,
       fontSize: 13,
       fontFamily: fonts.bold,
       lineHeight: 17,
     },
     grow: { flex: 1 },
     classCardPct: {
-      color: "#ffffff",
+      color: colors.heroText,
       fontSize: 11,
       fontFamily: fonts.semibold,
       marginBottom: 5,
@@ -672,7 +682,9 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     classCardFill: {
       height: 5,
       borderRadius: 3,
-      backgroundColor: "#ffffff",
+      // On-scrim indicator (photo + accent tint behind): heroText is the
+      // design's light-on-dark foreground, matching the title/pct above.
+      backgroundColor: colors.heroText,
     },
 
     grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },

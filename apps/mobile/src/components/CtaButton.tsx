@@ -52,9 +52,7 @@ export function CtaButton({
         ) : (
           <View style={styles.row}>
             {icon}
-            <Text style={[styles.label, { color: colors.onCta }, textStyle]}>
-              {label}
-            </Text>
+            <Text style={[styles.label, textStyle]}>{label}</Text>
           </View>
         )}
       </LinearGradient>
@@ -62,16 +60,18 @@ export function CtaButton({
   );
 }
 
-const makeStyles = ({ fonts }: Theme) =>
+const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
     grad: {
       paddingVertical: 12,
       paddingHorizontal: 16,
       alignItems: "center",
       justifyContent: "center",
-      // Teal CTA glow (iOS; Android elevation is skipped — it needs an opaque
-      // bg and the gradient wrapper has none).
-      shadowColor: "#30b895",
+      // CTA glow (iOS; Android elevation is skipped — it needs an opaque
+      // bg and the gradient wrapper has none). colors.primary so the glow
+      // tracks the brand accent (the old #30b895 literal was the pre-Spark
+      // teal and stayed teal on recolored instances).
+      shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.35,
       shadowRadius: 12,
@@ -82,6 +82,8 @@ const makeStyles = ({ fonts }: Theme) =>
       justifyContent: "center",
       gap: 8,
     },
-    label: { color: "#ffffff", fontSize: 12.5, fontFamily: fonts.semibold },
+    // Spark rule: labels on the teal CTA gradient are INK, not white — onCta
+    // resolves against the lighter gradient stop (theme.ts).
+    label: { color: colors.onCta, fontSize: 12.5, fontFamily: fonts.semibold },
     disabled: { opacity: 0.55 },
   });

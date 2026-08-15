@@ -44,5 +44,5 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       // Wide enough for the full brand; iOS truncated it at the larger font.
       maxWidth: 240,
     },
-    titleOnChrome: { color: "#ffffff" },
+    titleOnChrome: { color: colors.heroText },
   });

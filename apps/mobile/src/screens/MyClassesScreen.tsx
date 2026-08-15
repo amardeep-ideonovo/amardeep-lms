@@ -32,7 +32,7 @@ import {
 } from "../responsive";
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
-import { useStyles } from "../theme-provider";
+import { useStyles, useTheme } from "../theme-provider";
 
 const pctOf = (p: ClassTileDTO["progress"]): number =>
   p && p.total > 0 ? Math.round((p.completed / p.total) * 100) : 0;
@@ -42,6 +42,7 @@ const coursePct = (c: CourseCard): number =>
 
 export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
   const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
   const { contentWidth } = useContentLayout();
 
   const classesQuery = useMyClasses();
@@ -229,9 +230,9 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
                       size={46}
                       stroke={4}
                       pct={coursePct(c)}
-                      color="#ffffff"
+                      color={colors.heroText}
                       trackColor="rgba(255,255,255,0.3)"
-                      labelColor="#ffffff"
+                      labelColor={colors.heroText}
                       labelSize={10.5}
                     />
                   </Press>
@@ -250,7 +251,11 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
                 onPress={() => navigation.navigate("Certificates")}
               >
                 <View style={[styles.courseThumb, styles.courseThumbEmpty]}>
-                  <Ionicons name="ribbon-outline" size={20} color="#ffffff" />
+                  <Ionicons
+                    name="ribbon-outline"
+                    size={20}
+                    color={colors.heroText}
+                  />
                 </View>
                 <View style={styles.courseInfo}>
                   <Text style={styles.courseTitle}>Class Certificate</Text>
@@ -262,9 +267,9 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
                   size={46}
                   stroke={4}
                   pct={cert?.claimed ? 100 : pctOf(active.progress)}
-                  color="#ffffff"
+                  color={colors.heroText}
                   trackColor="rgba(255,255,255,0.3)"
-                  labelColor="#ffffff"
+                  labelColor={colors.heroText}
                   labelSize={10.5}
                 />
               </Press>
@@ -403,7 +408,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       letterSpacing: 0.8,
     },
     activeName: {
-      color: "#ffffff",
+      color: colors.heroText,
       fontSize: 16,
       fontFamily: fonts.semibold,
       marginTop: 3,
@@ -454,12 +459,16 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       justifyContent: "center",
     },
     courseThumbLetter: {
-      color: "#ffffff",
+      color: colors.heroText,
       fontSize: 17,
       fontFamily: fonts.extrabold,
     },
     courseInfo: { flex: 1, gap: 1 },
-    courseTitle: { color: "#ffffff", fontSize: 14, fontFamily: fonts.bold },
+    courseTitle: {
+      color: colors.heroText,
+      fontSize: 14,
+      fontFamily: fonts.bold,
+    },
     courseSub: {
       color: "rgba(255,255,255,0.8)",
       fontSize: 11,

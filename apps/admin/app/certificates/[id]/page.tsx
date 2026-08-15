@@ -44,7 +44,11 @@ const SAMPLE: Record<CertificateFieldKind, string> = {
 };
 
 // Starter layout for new templates — centered name/class, date + serial in
-// the bottom corners (all adjustable, of course).
+// the bottom corners (all adjustable, of course). Field colors are Spark
+// tokens by value (P3b: #101828 → ink-900 #101014, #52525b → text-soft
+// #55534d; keep in step with packages/ui/tokens.css) — they're persisted
+// per-template data, so only NEW templates pick these up; existing saved
+// templates keep their stored colors.
 const DEFAULT_FIELDS: CertificateFieldLayout[] = [
   {
     kind: "memberName",
@@ -55,7 +59,7 @@ const DEFAULT_FIELDS: CertificateFieldLayout[] = [
     align: "center",
     fontFamily: "greatvibes",
     fontSizePct: 7,
-    color: "#101828",
+    color: "#101014",
     uppercase: false,
   },
   {
@@ -67,7 +71,7 @@ const DEFAULT_FIELDS: CertificateFieldLayout[] = [
     align: "center",
     fontFamily: "playfair",
     fontSizePct: 3.6,
-    color: "#101828",
+    color: "#101014",
     uppercase: false,
   },
   {
@@ -79,7 +83,7 @@ const DEFAULT_FIELDS: CertificateFieldLayout[] = [
     align: "left",
     fontFamily: "inter",
     fontSizePct: 1.6,
-    color: "#52525b",
+    color: "#55534d",
     uppercase: false,
   },
   {
@@ -91,7 +95,7 @@ const DEFAULT_FIELDS: CertificateFieldLayout[] = [
     align: "right",
     fontFamily: "inter",
     fontSizePct: 1.3,
-    color: "#52525b",
+    color: "#55534d",
     uppercase: false,
     letterSpacing: 0.06,
   },

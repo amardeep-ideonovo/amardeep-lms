@@ -225,7 +225,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     brandBlock: { alignItems: "center", marginBottom: spacing.lg },
     brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
     brand: {
-      color: "#ffffff",
+      color: colors.heroText,
       fontSize: 24,
       fontFamily: fonts.bold,
       textAlign: "center",
@@ -246,6 +246,9 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       backgroundColor: colors.surface,
       borderRadius: 18,
       padding: spacing.lg,
+      // Ink shadow literal kept: same tint as theme.ts elevatedShadow() but a
+      // deeper auth-card geometry (offset/opacity/radius differ), so the
+      // helper doesn't apply.
       shadowColor: "#0b0b0e",
       shadowOffset: { width: 0, height: 14 },
       shadowOpacity: 0.25,

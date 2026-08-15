@@ -9,8 +9,8 @@
    Deliberately NOT here because the apps genuinely differ (kept per-app):
    --bg (web cream #f5f2ec vs admin #f6f4ef), --border-strong, the danger
    role naming (web --danger = solid fill, admin --danger = text red — both
-   alias the canonical pair below), web's blue/sea gradient triplets, fonts,
-   glass, motion-duration names, and web's springy easings.
+   alias the canonical pair below), fonts, glass, motion-duration names, and
+   web's springy easings.
 
    Accent SLOTS use collision-free --accent-<color> names: web's bare --amber
    and admin's --amber/--green mean different things locally, so the canonical
@@ -60,10 +60,11 @@
   --info-tint: rgba(74, 118, 208, 0.13);
 
   /* ---- Class-accent slots (0 amber · 1 violet · 2 green · 3 red · 4 blue ·
-     5 sea) — hex + on-light text shared by web/admin/mobile (the TS side is
-     packages/types/class-accents.ts; keep them in step). The -base/-dark RGB
-     gradient triplets are shared only for slots 0-3: web derived its own
-     blue/sea triplets and admin never had them, so those stay per-app. ---- */
+     5 sea) — hex + on-light text + -base/-dark RGB gradient triplets, shared
+     by web/admin/mobile (the TS side is packages/types/class-accents.ts;
+     keep them in step). All six slots carry triplets since P3b: web's
+     formerly self-derived blue/sea triplets were reconciled to the
+     TS-canonical CLASS_ACCENTS values (deliberate rendering change). ---- */
   --accent-amber: #f7a01e;
   --accent-amber-base: 196, 112, 6;
   --accent-amber-dark: 120, 66, 2;
@@ -81,8 +82,12 @@
   --accent-red-dark: 132, 22, 22;
   --accent-red-text: #c03a3a;
   --accent-blue: #4a76d0;
+  --accent-blue-base: 42, 86, 176;
+  --accent-blue-dark: 26, 54, 118;
   --accent-blue-text: #3a62b4;
   --accent-sea: #27a596;
+  --accent-sea-base: 24, 138, 124;
+  --accent-sea-dark: 14, 90, 80;
   --accent-sea-text: #1f8a7c;
 
   /* ---- Shared shape / shadow / motion ---- */

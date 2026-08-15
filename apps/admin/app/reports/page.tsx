@@ -54,7 +54,10 @@ const fieldStyle: CSSProperties = {
 // needs real color strings, so these come from the shared TS palette
 // (identical to the CSS --accent-* tokens), not var().
 const CLASS_ACCENTS = ACCENT_SLOTS.map((a) => a.color);
-const MIX_COLORS = ["#30b895", "#17171d", "#f6a623", "#8b8a87"];
+// Donut mix palette: success, ink, warning, muted. P3b aligned the grey
+// segment with the token system's AA --muted (#8b8a87 → #74726c); keep in
+// step with packages/ui/tokens.css.
+const MIX_COLORS = ["#30b895", "#17171d", "#f6a623", "#74726c"];
 
 // A subscription row that is currently billing (both providers use raw
 // Stripe-style statuses in this DTO).
@@ -304,7 +307,7 @@ export default function ReportsPage() {
                     y="88"
                     textAnchor="middle"
                     fontSize="10"
-                    fill="#8b8a87"
+                    fill="#74726c"
                     fontFamily="inherit"
                   >
                     active subs

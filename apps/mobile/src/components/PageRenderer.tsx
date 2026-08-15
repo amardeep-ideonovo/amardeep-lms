@@ -111,7 +111,8 @@ function bgColor(colors: ThemePalette, bg?: string): string | undefined {
 function bandText(colors: ThemePalette, bg?: string): string | undefined {
   switch (bg) {
     case "dark":
-      return "#f8fafc";
+      // On-dark band text token (was a slate #f8fafc leftover).
+      return colors.heroText;
     case "brand":
       return colors.onPrimary;
     default:

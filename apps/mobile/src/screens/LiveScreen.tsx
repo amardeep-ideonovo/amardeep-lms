@@ -229,7 +229,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       flexShrink: 1,
     },
     title: {
-      color: "#ffffff",
+      color: colors.heroText,
       fontSize: 15,
       fontFamily: fonts.bold,
       lineHeight: 20,

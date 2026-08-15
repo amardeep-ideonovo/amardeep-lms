@@ -147,7 +147,9 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
               end={{ x: 1, y: 1 }}
               style={styles.seal}
             >
-              <Ionicons name="ribbon-outline" size={20} color="#ffffff" />
+              {/* Spark rule: glyphs on the teal CTA gradient are INK (onCta),
+                  not white — the white literal here was a brand bug. */}
+              <Ionicons name="ribbon-outline" size={20} color={colors.onCta} />
             </LinearGradient>
             <Text style={styles.heroEyebrow}>CERTIFICATE OF COMPLETION</Text>
           </View>
@@ -161,7 +163,13 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
               style={styles.heroBtn}
               radius={9}
               icon={
-                <Ionicons name="download-outline" size={13} color="#ffffff" />
+                // onCta: the icon must match the ink CTA label beside it
+                // (white-on-teal was a brand bug).
+                <Ionicons
+                  name="download-outline"
+                  size={13}
+                  color={colors.onCta}
+                />
               }
               label="View PDF"
               busy={busyCertId === hero.id}
@@ -172,7 +180,11 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
               onPress={() => sharePdf(hero)}
               disabled={busyCertId === hero.id}
             >
-              <Ionicons name="share-outline" size={13} color="#ffffff" />
+              <Ionicons
+                name="share-outline"
+                size={13}
+                color={colors.heroText}
+              />
               <Text style={styles.ghostBtnText}>Share</Text>
             </Press>
           </View>
@@ -312,7 +324,9 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       borderRadius: 22,
       alignItems: "center",
       justifyContent: "center",
-      shadowColor: "#30b895",
+      // colors.primary so the seal glow tracks the brand accent (the old
+      // #30b895 literal was the pre-Spark teal).
+      shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.4,
       shadowRadius: 10,
@@ -325,7 +339,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       flexShrink: 1,
     },
     heroName: {
-      color: "#ffffff",
+      color: colors.heroText,
       fontSize: 18,
       fontFamily: fonts.bold,
       marginTop: 14,
@@ -356,7 +370,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       paddingVertical: 10,
     },
     ghostBtnText: {
-      color: "#ffffff",
+      color: colors.heroText,
       fontSize: 11.5,
       fontFamily: fonts.semibold,
     },
@@ -476,7 +490,11 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       justifyContent: "center",
       marginBottom: 4,
     },
-    emptyTitle: { color: "#ffffff", fontSize: 15, fontFamily: fonts.bold },
+    emptyTitle: {
+      color: colors.heroText,
+      fontSize: 15,
+      fontFamily: fonts.bold,
+    },
     emptyBody: {
       color: "rgba(255,255,255,0.55)",
       fontSize: 12,

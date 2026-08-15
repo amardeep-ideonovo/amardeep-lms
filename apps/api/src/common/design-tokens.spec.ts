@@ -103,14 +103,33 @@ test("tokens.css stays in step with the TS accent palette (packages/types/class-
   // way the api's other specs do (relative path — see constants.ts header).
   const { CLASS_ACCENTS } =
     require("../../../../packages/types/class-accents") as {
-      CLASS_ACCENTS: Array<{ color: string; text: string }>;
+      CLASS_ACCENTS: Array<{
+        color: string;
+        base: string;
+        dark: string;
+        text: string;
+      }>;
     };
+  // P3b completed the slot table: all six slots carry -base/-dark gradient
+  // triplets (web's formerly self-derived blue/sea values were reconciled to
+  // the TS canon). CSS writes "r, g, b", TS "r,g,b" — compare space-free.
+  const rgb = (v: string | undefined) => v?.replace(/\s+/g, "");
   const slots = ["amber", "violet", "green", "red", "blue", "sea"];
   slots.forEach((slot, i) => {
     assert.equal(
       decls.get(`--accent-${slot}`),
       CLASS_ACCENTS[i].color,
       `--accent-${slot} drifted from CLASS_ACCENTS[${i}].color`,
+    );
+    assert.equal(
+      rgb(decls.get(`--accent-${slot}-base`)),
+      CLASS_ACCENTS[i].base,
+      `--accent-${slot}-base drifted from CLASS_ACCENTS[${i}].base`,
+    );
+    assert.equal(
+      rgb(decls.get(`--accent-${slot}-dark`)),
+      CLASS_ACCENTS[i].dark,
+      `--accent-${slot}-dark drifted from CLASS_ACCENTS[${i}].dark`,
     );
     assert.equal(
       decls.get(`--accent-${slot}-text`),

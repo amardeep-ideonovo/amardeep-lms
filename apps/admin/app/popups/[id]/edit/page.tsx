@@ -605,7 +605,12 @@ export default function PopupEditor() {
                 </div>
               )}
 
-              {/* Live preview */}
+              {/* Live preview. The slate editor chrome here and below —
+                  transparency checkerboard #f1f5f9/#fff, preview ink #0f172a
+                  / #475569, borders #e2e8f0 (color-input fallback) + #e2e5ea
+                  (page list) — is DELIBERATE (P3b-reviewed): functional
+                  editor affordances (checkerboard + canvas chrome), not
+                  instance branding, so it stays off the Spark palette. */}
               <div style={{ marginBottom: 18 }}>
                 <div style={drawerLabel}>{STR.common.preview}</div>
                 <div

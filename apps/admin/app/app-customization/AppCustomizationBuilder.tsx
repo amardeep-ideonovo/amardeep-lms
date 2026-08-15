@@ -464,7 +464,8 @@ function PhonePreview({
         width: 290,
         borderRadius: 38,
         padding: 12,
-        background: "#0b0b0d",
+        // P3b: bezel was #0b0b0d — one off ink-950 (#0b0b0e); now the token.
+        background: "var(--ink-950)",
         border: "1px solid var(--border)",
         boxShadow: "0 24px 60px rgba(0,0,0,.45)",
       }}
@@ -488,7 +489,7 @@ function PhonePreview({
               width: 110,
               height: 22,
               borderRadius: 12,
-              background: "#0b0b0d",
+              background: "var(--ink-950)", // P3b: was #0b0b0d (off by one)
             }}
           />
         </div>

@@ -133,7 +133,11 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontFamily: fonts.bold,
       letterSpacing: 0.8,
     },
-    title: { color: "#ffffff", fontSize: 12.5, fontFamily: fonts.semibold },
+    title: {
+      color: colors.heroText,
+      fontSize: 12.5,
+      fontFamily: fonts.semibold,
+    },
     pill: {
       backgroundColor: `${colors.primary}33`,
       borderRadius: 999,

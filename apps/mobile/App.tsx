@@ -26,7 +26,7 @@ import { QueryProvider, QueryAuthReset } from "./src/query";
 import { navigationRef } from "./src/nav-ref";
 import { unlockTabletOrientation } from "./src/responsive";
 import { ThemeProvider, useTheme } from "./src/theme-provider";
-import { fonts } from "./src/theme";
+import { fonts, spacing } from "./src/theme";
 import type {
   AuthStackParamList,
   RootStackParamList,
@@ -313,7 +313,12 @@ function VersionGate({ kind }: { kind: "appOutdated" | "apiOutdated" }) {
       ? `A newer version of the ${config.title} app is required. Please update from the app store.`
       : `${config.title} is being updated right now. This usually takes a few minutes — the app will reconnect automatically.`;
   return (
-    <View style={[styles.center, { backgroundColor: colors.bg, padding: 32 }]}>
+    <View
+      style={[
+        styles.center,
+        { backgroundColor: colors.bg, padding: spacing.xl },
+      ]}
+    >
       <Text
         style={{
           color: colors.text,
