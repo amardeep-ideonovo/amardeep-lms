@@ -14,10 +14,12 @@
 
 ## 0. Prerequisites
 
-- [ ] Latest `amardeepLMS` deployed to staging (check the build hash in
-      `$STAGING_API/health` matches the latest commit on the branch)
+- [ ] The release candidate from `main` deployed to staging — today that means
+      an internal instance (e.g. the demo instance) rolled to the candidate
+      `sha-<sha>` image before the fleet-wide roll (check the build hash in
+      `$STAGING_API/health` matches)
 - [ ] Staging seed has been run at least once
-      (`npm run -w @lms/db seed:staging` — added in PR #8)
+      (`npm run -w @lms/db seed:staging`)
 - [ ] Stripe is in **test mode** on staging
       (`STRIPE_SECRET_KEY` starts with `sk_test_`)
 
