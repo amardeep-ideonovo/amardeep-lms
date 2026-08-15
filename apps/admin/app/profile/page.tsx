@@ -5,6 +5,7 @@ import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import AvatarCropper from "@/components/AvatarCropper";
+import { PASSWORD_MIN, STR } from "@lms/types";
 
 function initials(name: string | null, email: string): string {
   const src = (name && name.trim()) || email;
@@ -37,7 +38,7 @@ export default function ProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [me?.id]);
 
-  if (loading) return <p className="muted">Loading…</p>;
+  if (loading) return <p className="muted">{STR.common.loading}</p>;
   if (!me) return null; // AuthGuard handles the unauthenticated redirect
 
   async function saveName(e: React.FormEvent) {
@@ -94,7 +95,7 @@ export default function ProfilePage() {
   async function removeAvatar() {
     if (
       !(await dialog.confirm({
-        message: "Remove your profile photo?",
+        message: STR.confirm.removeEntity("your profile photo"),
         danger: true,
       }))
     )
@@ -119,12 +120,12 @@ export default function ProfilePage() {
     e.preventDefault();
     setPwErr(null);
     setPwMsg(null);
-    if (newPw.length < 10) {
-      setPwErr("New password must be at least 10 characters.");
+    if (newPw.length < PASSWORD_MIN.member) {
+      setPwErr(STR.validation.passwordMin(PASSWORD_MIN.member));
       return;
     }
     if (newPw !== confirmPw) {
-      setPwErr("New password and confirmation don't match.");
+      setPwErr(STR.errors.passwordsDontMatch);
       return;
     }
     setSavingPw(true);
@@ -196,7 +197,7 @@ export default function ProfilePage() {
                   disabled={uploading}
                   onClick={removeAvatar}
                 >
-                  Remove
+                  {STR.common.remove}
                 </button>
               )}
             </div>
@@ -208,7 +209,7 @@ export default function ProfilePage() {
 
         <form onSubmit={saveName}>
           <div className="field">
-            <label htmlFor="pf-name">Name</label>
+            <label htmlFor="pf-name">{STR.labels.name}</label>
             <input
               id="pf-name"
               value={name}
@@ -218,7 +219,7 @@ export default function ProfilePage() {
             />
           </div>
           <div className="field">
-            <label htmlFor="pf-email">Email</label>
+            <label htmlFor="pf-email">{STR.labels.email}</label>
             <input id="pf-email" value={me.email} disabled />
             <span className="muted profile-hint">
               Email is your login and can&apos;t be changed here.
@@ -238,7 +239,7 @@ export default function ProfilePage() {
             </div>
           </div>
           <button className="btn" type="submit" disabled={savingName}>
-            {savingName ? "Saving…" : "Save changes"}
+            {savingName ? STR.common.saving : "Save changes"}
           </button>
         </form>
       </div>
@@ -260,7 +261,7 @@ export default function ProfilePage() {
             />
           </div>
           <div className="field">
-            <label htmlFor="pf-new">New password</label>
+            <label htmlFor="pf-new">{STR.labels.newPassword}</label>
             <input
               id="pf-new"
               type="password"
@@ -271,7 +272,7 @@ export default function ProfilePage() {
             />
           </div>
           <div className="field">
-            <label htmlFor="pf-confirm">Confirm new password</label>
+            <label htmlFor="pf-confirm">{STR.labels.confirmNewPassword}</label>
             <input
               id="pf-confirm"
               type="password"
@@ -282,7 +283,7 @@ export default function ProfilePage() {
             />
           </div>
           <button className="btn" type="submit" disabled={savingPw}>
-            {savingPw ? "Saving…" : "Change password"}
+            {savingPw ? STR.common.saving : "Change password"}
           </button>
         </form>
       </div>

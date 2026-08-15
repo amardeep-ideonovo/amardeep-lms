@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { STR } from "@lms/types";
 import { getToken } from "@/lib/api";
 
 // Entry point: route to dashboard if authed, otherwise login.
@@ -13,7 +14,7 @@ export default function Home() {
   return (
     <div className="dark-page">
       <div className="centered-state">
-        <div className="spinner" aria-label="Loading" />
+        <div className="spinner" aria-label={STR.common.loadingLabel} />
       </div>
     </div>
   );

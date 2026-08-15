@@ -3,6 +3,7 @@
 import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { STR } from "@lms/types";
 import { api, setToken } from "@/lib/api";
 import SpotlightLogo from "@/components/SpotlightLogo";
 
@@ -60,7 +61,7 @@ export default function LoginPage() {
 
           <form onSubmit={onSubmit}>
             <div className="field">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">{STR.labels.email}</label>
               <input
                 id="email"
                 type="email"
@@ -71,7 +72,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">{STR.labels.password}</label>
               <input
                 id="password"
                 type="password"

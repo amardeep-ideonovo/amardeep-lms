@@ -9,7 +9,9 @@ import type {
   SubscriptionDetailDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
+import { STR } from "@lms/types";
 
 const money = (a: number, c: string) =>
   (a / 100).toLocaleString(undefined, {
@@ -39,6 +41,7 @@ export default function MemberBillingPage() {
   const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(
     null,
   );
+  const modalRef = useModalA11y();
 
   async function load() {
     setLoading(true);
@@ -84,14 +87,14 @@ export default function MemberBillingPage() {
     .trim();
   const heading = fullName || data?.member.email || "Member";
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("members", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Member billing</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -112,7 +115,7 @@ export default function MemberBillingPage() {
 
       <div className="card">
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : !data ? null : (
           <>
             <h3 style={{ marginTop: 0 }}>Subscriptions</h3>
@@ -172,7 +175,7 @@ export default function MemberBillingPage() {
                                 disabled={busy}
                                 onClick={() => setCancelFor(s)}
                               >
-                                Cancel
+                                {STR.common.cancel}
                               </button>
                             )}
                           </>
@@ -212,10 +215,10 @@ export default function MemberBillingPage() {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Date</th>
-                      <th>Description</th>
+                      <th>{STR.labels.date}</th>
+                      <th>{STR.labels.description}</th>
                       <th>Amount</th>
-                      <th>Status</th>
+                      <th>{STR.labels.status}</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -251,14 +254,19 @@ export default function MemberBillingPage() {
 
       {/* Cancel-subscription modal — not dismissable by accident (backdrop/Escape); use ×/Cancel */}
       {cancelFor && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div
+          ref={modalRef}
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="modal">
             <div className="modal-header">
               <h2>Cancel {cancelFor.levelName}?</h2>
               <button
                 type="button"
                 className="modal-close"
-                aria-label="Close"
+                aria-label={STR.common.close}
                 disabled={busy}
                 onClick={() => setCancelFor(null)}
               >

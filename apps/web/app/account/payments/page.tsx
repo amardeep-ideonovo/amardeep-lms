@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { InvoiceDTO } from "@lms/types";
+import { STR } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 
@@ -61,7 +62,7 @@ function PaymentsInner() {
         <section className="account-section">
           {invoices === null ? (
             <div className="centered-state">
-              <div className="spinner" aria-label="Loading" />
+              <div className="spinner" aria-label={STR.common.loadingLabel} />
             </div>
           ) : invoices.length === 0 ? (
             <p className="empty">No payments yet.</p>
@@ -69,10 +70,10 @@ function PaymentsInner() {
             <table className="pay-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Description</th>
+                  <th>{STR.labels.date}</th>
+                  <th>{STR.labels.description}</th>
                   <th>Amount</th>
-                  <th>Status</th>
+                  <th>{STR.labels.status}</th>
                   <th></th>
                 </tr>
               </thead>

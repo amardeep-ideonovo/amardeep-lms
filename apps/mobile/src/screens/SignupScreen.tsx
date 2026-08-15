@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { PASSWORD_MIN, STR } from "@lms/types";
 
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
@@ -44,7 +45,7 @@ export function SignupScreen({ navigation }: Props) {
 
   const canSubmit =
     email.trim().length > 0 &&
-    password.length >= 10 &&
+    password.length >= PASSWORD_MIN.member &&
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     !submitting;
@@ -78,7 +79,7 @@ export function SignupScreen({ navigation }: Props) {
       } else if (e instanceof Error) {
         setError(e.message);
       } else {
-        setError("Something went wrong.");
+        setError(STR.errors.generic);
       }
     } finally {
       setSubmitting(false);
@@ -121,7 +122,7 @@ export function SignupScreen({ navigation }: Props) {
 
             <TextInput
               style={styles.input}
-              placeholder="First name"
+              placeholder={STR.labels.firstName}
               placeholderTextColor={colors.textMuted}
               autoCapitalize="words"
               value={firstName}
@@ -130,7 +131,7 @@ export function SignupScreen({ navigation }: Props) {
             />
             <TextInput
               style={styles.input}
-              placeholder="Last name"
+              placeholder={STR.labels.lastName}
               placeholderTextColor={colors.textMuted}
               autoCapitalize="words"
               value={lastName}
@@ -139,7 +140,7 @@ export function SignupScreen({ navigation }: Props) {
             />
             <TextInput
               style={styles.input}
-              placeholder="Email"
+              placeholder={STR.labels.email}
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               autoCorrect={false}
@@ -151,7 +152,7 @@ export function SignupScreen({ navigation }: Props) {
             />
             <TextInput
               style={styles.input}
-              placeholder="Password (10+ characters)"
+              placeholder={`Password (${PASSWORD_MIN.member}+ characters)`}
               placeholderTextColor={colors.textMuted}
               secureTextEntry
               textContentType="newPassword"

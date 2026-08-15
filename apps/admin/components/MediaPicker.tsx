@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MediaDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import MediaCropper from "./MediaCropper";
+import { SEARCH_DEBOUNCE_MS, STR } from "@lms/types";
 
 type MediaKindPick = "image" | "video" | "audio";
 
@@ -170,7 +172,7 @@ export default function MediaPicker({
             disabled={disabled}
             onClick={() => onChange("")}
           >
-            Remove
+            {STR.common.remove}
           </button>
         ) : null}
       </div>
@@ -237,6 +239,7 @@ function MediaLibraryModal({
   const [err, setErr] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const modalRef = useModalA11y();
   const noun =
     kind === "video" ? "videos" : kind === "audio" ? "audio files" : "images";
 
@@ -262,7 +265,7 @@ function MediaLibraryModal({
   );
 
   useEffect(() => {
-    const t = setTimeout(() => void load(q), 250);
+    const t = setTimeout(() => void load(q), SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(t);
   }, [q, load]);
   // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
@@ -281,7 +284,12 @@ function MediaLibraryModal({
   }
 
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <div
+      ref={modalRef}
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="modal" style={{ maxWidth: 760 }}>
         <div className="modal-header">
           <h2>Gallery</h2>
@@ -289,7 +297,7 @@ function MediaLibraryModal({
             type="button"
             className="modal-close"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={STR.common.close}
           >
             ×
           </button>
@@ -327,7 +335,7 @@ function MediaLibraryModal({
           </div>
           {err && <p className="error">{err}</p>}
           {loading ? (
-            <p className="muted">Loading…</p>
+            <p className="muted">{STR.common.loading}</p>
           ) : items.length === 0 ? (
             <p className="muted">No {noun} yet — use “Upload new”.</p>
           ) : (

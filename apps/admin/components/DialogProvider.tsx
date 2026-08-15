@@ -8,6 +8,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { STR } from "@lms/types";
+import { useModalA11y } from "@/lib/useModalA11y";
 
 // In-app replacements for window.confirm / window.alert / window.prompt, themed
 // to match the admin (dark + light). All three return a Promise so call sites
@@ -147,8 +149,20 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
     };
   }, [confirm, notify, prompt]);
 
+  // Keyboard/AT wiring: focus trap + focus restore (useModalA11y). Escape
+  // dismisses only when nothing can be lost — confirm/notify always, prompt
+  // while its input still holds the starting value. Backdrop stays inert
+  // either way (the #106/#107 no-accidental-close contract).
+  const modalRef = useModalA11y({
+    onEscape:
+      state &&
+      (state.kind !== "prompt" || value === (state.opts.defaultValue ?? ""))
+        ? () => finish(true)
+        : undefined,
+  });
+
   // Focus the input (prompt) or the confirm button.
-  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
+  // (useModalA11y defers to this targeted initial focus.)
   useEffect(() => {
     if (!state) return;
     const t = setTimeout(() => {
@@ -167,6 +181,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
       {children}
       {state && o && (
         <div
+          ref={modalRef}
           className="modal-overlay modal-overlay--center"
           role="dialog"
           aria-modal="true"
@@ -201,7 +216,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => finish(true)}
                   >
-                    {o.cancelLabel ?? "Cancel"}
+                    {o.cancelLabel ?? STR.common.cancel}
                   </button>
                 )}
                 <button
@@ -230,7 +245,11 @@ function defaultTitle(kind: Kind): string {
       : "Are you sure?";
 }
 function defaultOk(kind: Kind): string {
-  return kind === "notify" ? "OK" : kind === "prompt" ? "Save" : "Confirm";
+  return kind === "notify"
+    ? "OK"
+    : kind === "prompt"
+      ? STR.common.save
+      : "Confirm";
 }
 
 export function useDialog(): DialogContextValue {

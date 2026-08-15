@@ -1,3 +1,7 @@
+# DEV-ONLY dependencies (local Postgres + Redis with default credentials,
+# ports published to the host). Nothing production runs from this file:
+# the single-VPS prod stack is deploy/docker-compose.yml and per-tenant
+# instances are deploy/instance/docker-compose.instance.yml.
 services:
   postgres:
     image: postgres:16

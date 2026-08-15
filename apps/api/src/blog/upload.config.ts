@@ -1,6 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { resolveStorageDir } from "../storage/storage-dirs";
+// Relative on purpose — see packages/types/constants.ts (API value imports).
+import { IMAGE_MIME_TO_EXT } from "../../../../packages/types/constants";
 
 // Where uploaded blog images are stored on disk AND served from, i.e.
 // `<IMAGES_ROOT>/blog-post/<timestamp>.<ext>`. In dev this is the API's own
@@ -21,14 +23,9 @@ export function ensureUploadDirs(): void {
   fs.mkdirSync(BLOG_POST_DIR, { recursive: true });
 }
 
-// Allowed image types -> canonical extension.
-const MIME_TO_EXT: Record<string, string> = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-  "image/gif": ".gif",
-  "image/avif": ".avif",
-};
+// Allowed image types -> canonical extension (shared safe-image subset — see
+// packages/types/constants.ts).
+const MIME_TO_EXT = IMAGE_MIME_TO_EXT;
 const ALLOWED_EXT = new Set([
   ".jpg",
   ".jpeg",

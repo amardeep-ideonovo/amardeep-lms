@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { FormFieldDef, FormPublicDTO } from "@lms/types";
+import { STR } from "@lms/types";
 import { ApiError, fetchPublicForm, submitForm } from "@/lib/api";
 
 // Interactive, embeddable audience-linked form. Drop <FormEmbed formId="…" />
@@ -70,16 +71,15 @@ export default function FormEmbed({ formId }: { formId: string }) {
       setDone(res.message || "Thanks! You're subscribed.");
     } catch (err) {
       setSubmitError(
-        err instanceof ApiError
-          ? err.message
-          : "Something went wrong. Please try again.",
+        err instanceof ApiError ? err.message : STR.errors.generic,
       );
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (loading) return <div className="form-embed-note">Loading…</div>;
+  if (loading)
+    return <div className="form-embed-note">{STR.common.loading}</div>;
   if (missing || !def) return null; // embeds render nothing if the form is gone
   if (done) return <div className="form-embed-success">{done}</div>;
 

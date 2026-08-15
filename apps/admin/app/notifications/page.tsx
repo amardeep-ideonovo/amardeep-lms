@@ -8,6 +8,7 @@ import type {
   AdminNotificationSeverity,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { STR } from "@lms/types";
 
 const PAGE_SIZE = 20;
 
@@ -127,7 +128,7 @@ export default function NotificationsPage() {
 
       <div className="card">
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : items.length === 0 ? (
           <p className="muted">No notifications yet.</p>
         ) : (
@@ -138,7 +139,7 @@ export default function NotificationsPage() {
                   <tr>
                     <th>Severity</th>
                     <th>Event</th>
-                    <th>Member</th>
+                    <th>{STR.labels.member}</th>
                     <th>When</th>
                     <th />
                   </tr>

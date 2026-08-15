@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ClassCertificateStatusDTO, MyCertificateDTO } from "@lms/types";
+import { STR } from "@lms/types";
 import { api, ApiError } from "@/lib/api";
 
 // "Get certificate" / "Download certificate" — shared by the lesson page and
@@ -144,7 +145,7 @@ export default function CertificateClaimButton({
               className="btn btn-secondary"
               onClick={() => setAskName(false)}
             >
-              Cancel
+              {STR.common.cancel}
             </button>
           </div>
         </form>

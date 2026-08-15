@@ -10,6 +10,7 @@ import { api, API_BASE_URL, ApiError } from "@/lib/api";
 import { webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { SEARCH_DEBOUNCE_MS, STR } from "@lms/types";
 
 // Member-site origin for "copy verify link" comes from webUrl() at call time
 // (runtime per-instance value) — NEXT_PUBLIC_* would bake localhost into the
@@ -24,14 +25,14 @@ export default function CertificatesPage() {
   const [tab, setTab] = useState<"templates" | "issued">("templates");
   const [error, setError] = useState<string | null>(null);
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("certificates", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Certificates</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -112,7 +113,7 @@ function TemplatesTab({
         t.issuedCount > 0
           ? `"${t.name}" has ${t.issuedCount} issued certificate(s). They keep their PDFs and stay valid — only the design is removed.`
           : `Delete "${t.name}"? This cannot be undone.`,
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
       danger: true,
     });
     if (!ok) return;
@@ -130,7 +131,7 @@ function TemplatesTab({
     }
   };
 
-  if (!rows) return <p className="muted">Loading…</p>;
+  if (!rows) return <p className="muted">{STR.common.loading}</p>;
 
   const hasDefault = rows.some((r) => r.isDefault);
 
@@ -219,7 +220,7 @@ function TemplatesTab({
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <Link href={`/certificates/${t.id}`} className="btn btn--sm">
-                  Edit
+                  {STR.common.edit}
                 </Link>
                 {canDelete && (
                   <button
@@ -227,7 +228,7 @@ function TemplatesTab({
                     onClick={() => remove(t)}
                     disabled={rowBusy === t.id}
                   >
-                    {rowBusy === t.id ? "Deleting…" : "Delete"}
+                    {rowBusy === t.id ? "Deleting…" : STR.common.delete}
                   </button>
                 )}
               </div>
@@ -259,7 +260,7 @@ function IssuedTab({
       );
   }, [q, page, onError]);
   useEffect(() => {
-    const t = setTimeout(load, q ? 250 : 0); // debounce typing
+    const t = setTimeout(load, q ? SEARCH_DEBOUNCE_MS : 0); // debounce typing
     return () => clearTimeout(t);
   }, [load, q]);
 
@@ -308,7 +309,7 @@ function IssuedTab({
       </div>
 
       {!data ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{STR.common.loading}</p>
       ) : data.items.length === 0 ? (
         <p className="muted">
           No certificates issued{q ? " for this search" : " yet"}.
@@ -319,9 +320,9 @@ function IssuedTab({
             <thead>
               <tr>
                 <th>Serial</th>
-                <th>Member</th>
-                <th>Class</th>
-                <th>Template</th>
+                <th>{STR.labels.member}</th>
+                <th>{STR.labels.class}</th>
+                <th>{STR.labels.template}</th>
                 <th>Issued</th>
                 <th />
               </tr>

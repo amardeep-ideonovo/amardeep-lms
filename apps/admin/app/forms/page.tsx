@@ -21,6 +21,7 @@ import { ApiError, api } from "@/lib/api";
 import { apiUrl, webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { STR } from "@lms/types";
 
 // Human-readable cell value for the on-screen table (booleans → Yes/No).
 function cellText(v: unknown): string {
@@ -490,14 +491,14 @@ export default function FormsPage() {
 
   const mergeOptions = mergeFields.length ? mergeFields : FALLBACK_MERGE;
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("forms", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Forms</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -524,7 +525,7 @@ export default function FormsPage() {
 
         <div className="card">
           {loading ? (
-            <p className="muted">Loading…</p>
+            <p className="muted">{STR.common.loading}</p>
           ) : forms.length === 0 ? (
             <p className="muted">
               No forms yet. Click “Add new form” to start.
@@ -534,11 +535,11 @@ export default function FormsPage() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Audience</th>
+                    <th>{STR.labels.name}</th>
+                    <th>{STR.labels.audience}</th>
                     <th>Fields</th>
                     <th>Submissions</th>
-                    <th>Status</th>
+                    <th>{STR.labels.status}</th>
                     <th>Embed id</th>
                     <th></th>
                   </tr>
@@ -560,7 +561,9 @@ export default function FormsPage() {
                               : "badge badge--draft"
                           }
                         >
-                          {f.status === "ACTIVE" ? "Active" : "Inactive"}
+                          {f.status === "ACTIVE"
+                            ? STR.common.active
+                            : "Inactive"}
                         </span>
                       </td>
                       <td>
@@ -585,13 +588,13 @@ export default function FormsPage() {
                             className="btn btn--ghost btn--sm"
                             onClick={() => openEdit(f.id)}
                           >
-                            Edit
+                            {STR.common.edit}
                           </button>
                           <button
                             className="btn btn--danger btn--sm"
                             onClick={() => remove(f)}
                           >
-                            Delete
+                            {STR.common.delete}
                           </button>
                         </div>
                       </td>
@@ -663,13 +666,13 @@ export default function FormsPage() {
                     className="btn btn--ghost btn--sm"
                     onClick={closeEntries}
                   >
-                    Close
+                    {STR.common.close}
                   </button>
                 </div>
               </div>
               <div style={{ overflow: "auto", padding: 18 }}>
                 {entriesLoading ? (
-                  <p className="muted">Loading…</p>
+                  <p className="muted">{STR.common.loading}</p>
                 ) : entriesError ? (
                   <p className="error">{entriesError}</p>
                 ) : entries.length === 0 ? (
@@ -680,7 +683,7 @@ export default function FormsPage() {
                       <thead>
                         <tr>
                           <th>Submitted</th>
-                          <th>Email</th>
+                          <th>{STR.labels.email}</th>
                           {entriesForm.fields.map((f) => (
                             <th key={f.id}>{f.label || f.name}</th>
                           ))}
@@ -713,7 +716,7 @@ export default function FormsPage() {
                       disabled={entriesLoading}
                       onClick={loadMoreEntries}
                     >
-                      {entriesLoading ? "Loading…" : "Load more"}
+                      {entriesLoading ? STR.common.loading : "Load more"}
                     </button>
                   </div>
                 )}
@@ -764,7 +767,7 @@ export default function FormsPage() {
               </div>
 
               <div className="field">
-                <label>Audience</label>
+                <label>{STR.labels.audience}</label>
                 <select
                   value={form.audienceId}
                   onChange={(e) => onSelectAudience(e.target.value)}
@@ -812,7 +815,7 @@ export default function FormsPage() {
                 >
                   <div className="form-row">
                     <div className="field">
-                      <label>Label</label>
+                      <label>{STR.labels.label}</label>
                       <input
                         value={fld.label}
                         onChange={(e) =>
@@ -837,7 +840,7 @@ export default function FormsPage() {
                       />
                     </div>
                     <div className="field">
-                      <label>Type</label>
+                      <label>{STR.labels.type}</label>
                       <select
                         value={fld.type}
                         onChange={(e) =>
@@ -880,8 +883,8 @@ export default function FormsPage() {
                           patchField(i, { required: e.target.value === "yes" })
                         }
                       >
-                        <option value="no">No</option>
-                        <option value="yes">Yes</option>
+                        <option value="no">{STR.common.no}</option>
+                        <option value="yes">{STR.common.yes}</option>
                       </select>
                     </div>
                     {fld.type === "select" && (
@@ -922,7 +925,7 @@ export default function FormsPage() {
                       className="btn btn--danger btn--sm"
                       onClick={() => removeField(i)}
                     >
-                      Remove
+                      {STR.common.remove}
                     </button>
                   </div>
                 </div>
@@ -943,8 +946,8 @@ export default function FormsPage() {
                       })
                     }
                   >
-                    <option value="no">No</option>
-                    <option value="yes">Yes</option>
+                    <option value="no">{STR.common.no}</option>
+                    <option value="yes">{STR.common.yes}</option>
                   </select>
                 </div>
                 <div className="field">
@@ -958,8 +961,8 @@ export default function FormsPage() {
                       })
                     }
                   >
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
+                    <option value="yes">{STR.common.yes}</option>
+                    <option value="no">{STR.common.no}</option>
                   </select>
                 </div>
               </div>
@@ -1026,14 +1029,14 @@ export default function FormsPage() {
               )}
 
               <div className="field">
-                <label>Status</label>
+                <label>{STR.labels.status}</label>
                 <select
                   value={form.status}
                   onChange={(e) =>
                     setForm({ ...form, status: e.target.value as FormStatus })
                   }
                 >
-                  <option value="ACTIVE">Active</option>
+                  <option value="ACTIVE">{STR.common.active}</option>
                   <option value="INACTIVE">Inactive</option>
                 </select>
               </div>
@@ -1189,10 +1192,14 @@ export default function FormsPage() {
 
         <div className="row-actions" style={{ marginTop: 16 }}>
           <button className="btn" type="submit" disabled={saving}>
-            {saving ? "Saving…" : editingId ? "Save changes" : "Create form"}
+            {saving
+              ? STR.common.saving
+              : editingId
+                ? "Save changes"
+                : "Create form"}
           </button>
           <button type="button" className="btn btn--ghost" onClick={backToList}>
-            Cancel
+            {STR.common.cancel}
           </button>
         </div>
       </form>

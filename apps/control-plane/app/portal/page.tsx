@@ -13,6 +13,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { STR } from "@lms/types";
 import { Icon } from "@/components/icons";
 import { InstanceSwitcher } from "@/components/instance-switcher";
 import {
@@ -469,7 +470,7 @@ function InstanceDashboard({
 
         <div className="card">
           <div className="card-head">
-            <span className="card-title">Version</span>
+            <span className="card-title">{STR.labels.version}</span>
             <div className="card-head-spacer" />
             {instance.updateScheduled ? (
               <Pill tone="warning">Scheduled</Pill>

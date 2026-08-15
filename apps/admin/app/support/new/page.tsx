@@ -9,6 +9,7 @@ import type {
   SupportTicketCategory,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { STR } from "@lms/types";
 
 const PRIORITIES: { value: SupportTicketPriority; label: string }[] = [
   { value: "LOW", label: "Low" },
@@ -142,7 +143,7 @@ export default function NewSupportTicketPage() {
             {saving ? "Opening…" : "Open ticket"}
           </button>
           <Link href="/support" className="btn btn--ghost">
-            Cancel
+            {STR.common.cancel}
           </Link>
         </div>
       </form>

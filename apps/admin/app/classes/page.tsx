@@ -10,12 +10,14 @@ import type {
   LevelType,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 import RichTextEditor from "@/components/RichTextEditor";
 import RowMenu from "@/components/RowMenu";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
+import { STR } from "@lms/types";
 
 type PriceForm = {
   interval: "month" | "year";
@@ -86,6 +88,8 @@ export default function ClassesPage() {
   // 'contacts' permission, so a class-only admin gets an empty list (403) and
   // simply sees the default-audience option.
   const [audiences, setAudiences] = useState<AudienceDTO[]>([]);
+
+  const modalRef = useModalA11y();
 
   async function load() {
     setLoading(true);
@@ -408,7 +412,7 @@ export default function ClassesPage() {
   async function removeCategory(c: LevelCategoryDTO) {
     if (
       !(await dialog.confirm({
-        message: `Remove category "${c.name}"? Classes in it will become uncategorized.`,
+        message: `${STR.confirm.removeEntity(`category “${c.name}”`)} Classes in it will become uncategorized.`,
         danger: true,
       }))
     )
@@ -428,14 +432,14 @@ export default function ClassesPage() {
     }
   }
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("classes", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Classes</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -489,7 +493,12 @@ export default function ClassesPage() {
       {error && <p className="error">{error}</p>}
 
       {modalOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div
+          ref={modalRef}
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="modal">
             <div className="modal-header">
               <h2>{editingId ? "Edit class" : "Create class"}</h2>
@@ -497,7 +506,7 @@ export default function ClassesPage() {
                 type="button"
                 className="modal-close"
                 onClick={closeModal}
-                aria-label="Close"
+                aria-label={STR.common.close}
               >
                 ×
               </button>
@@ -507,7 +516,7 @@ export default function ClassesPage() {
               <form onSubmit={onSubmit}>
                 <div className="form-row">
                   <div className="field">
-                    <label>Name</label>
+                    <label>{STR.labels.name}</label>
                     <input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -515,7 +524,7 @@ export default function ClassesPage() {
                     />
                   </div>
                   <div className="field">
-                    <label>Type</label>
+                    <label>{STR.labels.type}</label>
                     <select
                       value={type}
                       onChange={(e) => setType(e.target.value as LevelType)}
@@ -569,7 +578,7 @@ export default function ClassesPage() {
                 </div>
 
                 <div className="field">
-                  <label>Visibility</label>
+                  <label>{STR.labels.visibility}</label>
                   <label
                     style={{
                       display: "flex",
@@ -707,7 +716,7 @@ export default function ClassesPage() {
                             )
                           }
                         >
-                          Remove
+                          {STR.common.remove}
                         </button>
                       </div>
                     ))}
@@ -869,7 +878,7 @@ export default function ClassesPage() {
                 <div className="row-actions">
                   <button className="btn" type="submit" disabled={saving}>
                     {saving
-                      ? "Saving…"
+                      ? STR.common.saving
                       : editingId
                         ? "Update class"
                         : "Create class"}
@@ -879,7 +888,7 @@ export default function ClassesPage() {
                     className="btn btn--ghost"
                     onClick={closeModal}
                   >
-                    Cancel
+                    {STR.common.cancel}
                   </button>
                 </div>
               </form>
@@ -958,7 +967,7 @@ export default function ClassesPage() {
       {/* management table */}
       <div className="card">
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : levels.length === 0 ? (
           <p className="muted">No classes yet — click “+ New class”.</p>
         ) : (
@@ -967,12 +976,12 @@ export default function ClassesPage() {
               className="mini-grid mini-grid--head"
               style={{ gridTemplateColumns: gridCols }}
             >
-              <span>Class</span>
+              <span>{STR.labels.class}</span>
               {courses && <span>Courses</span>}
               {courses && <span>Lessons</span>}
               <span>Enrolled</span>
-              <span>Plan</span>
-              <span>Status</span>
+              <span>{STR.labels.plan}</span>
+              <span>{STR.labels.status}</span>
               <span />
             </div>
             {visible.length === 0 && (

@@ -17,6 +17,7 @@ import type {
   ChatWorkflowTrigger,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import QueueTable from "@/components/QueueTable";
@@ -28,6 +29,7 @@ import {
 } from "@/lib/projects";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import { getProjectsSocket, onChatListUpdate } from "@/lib/projectsSocket";
+import { STR } from "@lms/types";
 
 // ============================================================================
 // Page
@@ -112,7 +114,7 @@ export default function ProjectListsPage() {
     const name = await dialog.prompt({
       message: "New list name",
       placeholder: "e.g. Web queue",
-      confirmLabel: "Create",
+      confirmLabel: STR.common.create,
     });
     if (!name || !name.trim()) return;
     try {
@@ -130,14 +132,14 @@ export default function ProjectListsPage() {
     [channels],
   );
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("projects", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Lists</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -172,7 +174,7 @@ export default function ProjectListsPage() {
       {error && <p className="error">{error}</p>}
 
       {loading ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{STR.common.loading}</p>
       ) : lists.length === 0 ? (
         <div className="card" style={{ margin: 0 }}>
           <p className="muted">
@@ -291,6 +293,7 @@ function WorkflowsPanel({
   const [channelId, setChannelId] = useState<string>(list.channelId ?? "");
   const [template, setTemplate] = useState("");
   const [busy, setBusy] = useState(false);
+  const modalRef = useModalA11y();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -381,9 +384,9 @@ function WorkflowsPanel({
 
   async function remove(wf: ChatWorkflowDTO) {
     const ok = await dialog.confirm({
-      message: `Delete workflow "${wf.name}"?`,
+      message: STR.confirm.deleteEntity("workflow", wf.name),
       danger: true,
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
     });
     if (!ok) return;
     setRowBusy(wf.id);
@@ -406,11 +409,20 @@ function WorkflowsPanel({
 
   return (
     // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
-    <div className="modal-overlay">
+    <div
+      ref={modalRef}
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="modal modal--wide" role="dialog" aria-label="Workflows">
         <div className="modal-header">
           <h2>⚡ Workflows — {list.name}</h2>
-          <button className="modal-close" onClick={onClose} aria-label="Close">
+          <button
+            className="modal-close"
+            onClick={onClose}
+            aria-label={STR.common.close}
+          >
             ×
           </button>
         </div>
@@ -430,7 +442,7 @@ function WorkflowsPanel({
 
           {/* Existing workflows */}
           {loading ? (
-            <p className="muted">Loading…</p>
+            <p className="muted">{STR.common.loading}</p>
           ) : workflows.length === 0 ? (
             <p className="muted" style={{ fontSize: 13 }}>
               No workflows yet.
@@ -460,7 +472,7 @@ function WorkflowsPanel({
                         disabled={rowBusy === wf.id}
                       >
                         {rowBusy === wf.id
-                          ? "Saving…"
+                          ? STR.common.saving
                           : wf.enabled
                             ? "Disable"
                             : "Enable"}
@@ -549,7 +561,7 @@ function WorkflowsPanel({
                     className="btn btn--ghost btn--sm"
                     onClick={() => setCreating(false)}
                   >
-                    Cancel
+                    {STR.common.cancel}
                   </button>
                   <button
                     className="btn btn--sm"

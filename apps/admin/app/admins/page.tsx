@@ -10,8 +10,10 @@ import {
   type AdminSection,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { dialog } from "@/components/DialogProvider";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
+import { PASSWORD_MIN, STR } from "@lms/types";
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, {
@@ -61,7 +63,7 @@ export default function AdminsPage() {
     if (isSuperAdmin) void load();
   }, [isSuperAdmin, load]);
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!isSuperAdmin) {
     return (
       <div>
@@ -77,7 +79,7 @@ export default function AdminsPage() {
     if (a.id === me?.id) return;
     if (
       !(await dialog.confirm({
-        message: `Delete admin ${a.email}? This can’t be undone.`,
+        message: STR.confirm.deleteEntity("admin", a.email),
         danger: true,
       }))
     )
@@ -97,12 +99,12 @@ export default function AdminsPage() {
   async function onResetPassword(a: AdminDTO) {
     const pw = await dialog.prompt({
       title: "Reset password",
-      message: `New password for ${a.email} (min 8 chars):`,
+      message: `New password for ${a.email} (min ${PASSWORD_MIN.admin} chars):`,
       inputType: "password",
     });
     if (pw === null) return;
-    if (pw.length < 8) {
-      setError("Password must be at least 8 characters.");
+    if (pw.length < PASSWORD_MIN.admin) {
+      setError(STR.validation.passwordMin(PASSWORD_MIN.admin));
       return;
     }
     setBusy(true);
@@ -136,13 +138,13 @@ export default function AdminsPage() {
 
       <div className="card">
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : (
           <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Email</th>
+                  <th>{STR.labels.email}</th>
                   <th>Role</th>
                   <th>Access</th>
                   <th>Created</th>
@@ -180,7 +182,7 @@ export default function AdminsPage() {
                           disabled={busy}
                           onClick={() => setModal({ mode: "edit", admin: a })}
                         >
-                          Edit
+                          {STR.common.edit}
                         </button>
                         <button
                           className="btn btn--ghost btn--sm"
@@ -194,7 +196,7 @@ export default function AdminsPage() {
                           disabled={busy || a.id === me?.id}
                           onClick={() => onDelete(a)}
                         >
-                          Delete
+                          {STR.common.delete}
                         </button>
                       </div>
                     </td>
@@ -240,6 +242,7 @@ function AdminModal({
   );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const modalRef = useModalA11y();
 
   const toggle = (section: AdminSection, action: AdminAction) => {
     setPerms((prev) => {
@@ -261,8 +264,8 @@ function AdminModal({
         setErr("Email is required");
         return;
       }
-      if (password.length < 8) {
-        setErr("Password must be at least 8 characters");
+      if (password.length < PASSWORD_MIN.admin) {
+        setErr(STR.validation.passwordMin(PASSWORD_MIN.admin));
         return;
       }
     }
@@ -290,14 +293,19 @@ function AdminModal({
 
   // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <div
+      ref={modalRef}
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="modal" style={{ maxWidth: 660 }}>
         <div className="modal-header">
           <h2>{mode === "create" ? "Add admin" : `Edit ${admin?.email}`}</h2>
           <button
             type="button"
             className="modal-close"
-            aria-label="Close"
+            aria-label={STR.common.close}
             disabled={busy}
             onClick={onClose}
           >
@@ -310,7 +318,7 @@ function AdminModal({
             {mode === "create" && (
               <>
                 <div className="field">
-                  <label htmlFor="adm-email">Email</label>
+                  <label htmlFor="adm-email">{STR.labels.email}</label>
                   <input
                     id="adm-email"
                     type="email"
@@ -404,7 +412,7 @@ function AdminModal({
             <div className="row-actions" style={{ marginTop: 16 }}>
               <button type="submit" className="btn" disabled={busy}>
                 {busy
-                  ? "Saving…"
+                  ? STR.common.saving
                   : mode === "create"
                     ? "Create admin"
                     : "Save changes"}
@@ -415,7 +423,7 @@ function AdminModal({
                 onClick={onClose}
                 disabled={busy}
               >
-                Cancel
+                {STR.common.cancel}
               </button>
             </div>
           </form>

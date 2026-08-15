@@ -14,7 +14,7 @@ import type {
   PageListItem,
   PostAdminListRow,
 } from "@lms/types";
-import { MENU_LOCATIONS } from "@lms/types";
+import { MENU_LOCATIONS, STR } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
@@ -193,7 +193,7 @@ export default function MenusPage() {
     [levels],
   );
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("menus", "read"))
     return (
       <div>
@@ -419,7 +419,7 @@ export default function MenusPage() {
   async function deleteItem(id: string) {
     if (
       !(await dialog.confirm({
-        message: "Remove this menu item?",
+        message: STR.confirm.removeEntity("this menu item"),
         danger: true,
       }))
     )
@@ -493,7 +493,7 @@ export default function MenusPage() {
                 onClick={createMenu}
                 disabled={busy || !newName.trim()}
               >
-                Create
+                {STR.common.create}
               </button>
             </div>
           )}
@@ -569,7 +569,7 @@ export default function MenusPage() {
                 <h2>Add item</h2>
                 <div className="form-row">
                   <div className="field">
-                    <label>Type</label>
+                    <label>{STR.labels.type}</label>
                     <select
                       value={addType}
                       onChange={(e) => {
@@ -777,7 +777,9 @@ export default function MenusPage() {
                                 setEditId(editId === item.id ? null : item.id)
                               }
                             >
-                              {editId === item.id ? "Close" : "Edit"}
+                              {editId === item.id
+                                ? STR.common.close
+                                : STR.common.edit}
                             </button>
                             <button
                               className="btn btn--danger btn--sm"
@@ -874,7 +876,7 @@ function ItemEditor({
           <input value={label} onChange={(e) => setLabel(e.target.value)} />
         </div>
         <div className="field" style={{ flex: 1 }}>
-          <label>Visibility</label>
+          <label>{STR.labels.visibility}</label>
           <select
             value={visibility}
             onChange={(e) =>
@@ -919,7 +921,7 @@ function ItemEditor({
       </div>
       <div className="row-actions">
         <button className="btn btn--sm" onClick={save} disabled={saving}>
-          {saving ? "Saving…" : "Save item"}
+          {saving ? STR.common.saving : "Save item"}
         </button>
       </div>
     </div>

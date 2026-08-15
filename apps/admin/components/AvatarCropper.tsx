@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { STR } from "@lms/types";
+import { useModalA11y } from "@/lib/useModalA11y";
 
 // Self-contained avatar cropper. The admin picks an image, then pans (drag) and
 // zooms (slider / wheel) to frame a square crop under a circular guide. On apply
@@ -44,6 +46,7 @@ export default function AvatarCropper({
     ox: number;
     oy: number;
   } | null>(null);
+  const modalRef = useModalA11y();
 
   // Keep the image covering the viewport so the circle is never empty.
   const clampPos = useCallback(
@@ -71,7 +74,7 @@ export default function AvatarCropper({
       if (cancelled) return;
       const d = { w: img.naturalWidth, h: img.naturalHeight };
       if (!d.w || !d.h) {
-        setError("That image couldn't be read. Try another file.");
+        setError(STR.errors.imageUnreadable);
         return;
       }
       const fit = Math.max(VIEWPORT / d.w, VIEWPORT / d.h);
@@ -83,7 +86,7 @@ export default function AvatarCropper({
     };
     img.onerror = () => {
       if (cancelled) return;
-      setError("That image couldn't be read. Try another file.");
+      setError(STR.errors.imageUnreadable);
     };
     img.src = objectUrl;
     return () => {
@@ -169,14 +172,19 @@ export default function AvatarCropper({
   const h = dims ? dims.h * scale : 0;
 
   return (
-    <div className="modal-overlay modal-overlay--center">
+    <div
+      ref={modalRef}
+      className="modal-overlay modal-overlay--center"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="modal modal--crop">
         <div className="modal-header">
           <h2>Position your photo</h2>
           <button
             type="button"
             className="modal-close"
-            aria-label="Close"
+            aria-label={STR.common.close}
             onClick={onCancel}
             disabled={busy}
           >
@@ -254,7 +262,7 @@ export default function AvatarCropper({
             onClick={onCancel}
             disabled={busy}
           >
-            Cancel
+            {STR.common.cancel}
           </button>
         </div>
       </div>

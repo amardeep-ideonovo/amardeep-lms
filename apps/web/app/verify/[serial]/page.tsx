@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { CertificateVerifyDTO } from "@lms/types";
+import { STR } from "@lms/types";
 import { apiBase } from "@/lib/api";
 
 export const metadata: Metadata = {
@@ -61,7 +62,7 @@ export default async function VerifyCertificatePage({
                 <dd>{result.memberName}</dd>
               </div>
               <div>
-                <dt>Class</dt>
+                <dt>{STR.labels.class}</dt>
                 <dd>{result.className}</dd>
               </div>
               <div>

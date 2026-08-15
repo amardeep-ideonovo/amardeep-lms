@@ -1,8 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import type { AuthUser } from "@lms/types";
+import { STR } from "@lms/types";
 import { ApiError, login } from "@/lib/checkout-service";
+import { useModalA11y } from "@/lib/useModalA11y";
 
 // "Already a member?" popup. On success it hands the logged-in user back to the
 // checkout page, which switches to the logged-in (State B) experience.
@@ -17,14 +19,7 @@ export default function LoginModal({
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const modalRef = useModalA11y();
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -42,20 +37,21 @@ export default function LoginModal({
   }
 
   return (
+    // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
     <div
+      ref={modalRef}
       className="co-modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-label="Log in"
-      onClick={onClose}
     >
-      <div className="co-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="co-modal">
         <div className="co-modal-head">
           <h2>Log in</h2>
           <button
             type="button"
             className="co-modal-x icon-btn"
-            aria-label="Close"
+            aria-label={STR.common.close}
             onClick={onClose}
           >
             ×
@@ -66,7 +62,7 @@ export default function LoginModal({
           <input
             className="co-input"
             type="email"
-            placeholder="Email"
+            placeholder={STR.labels.email}
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -76,7 +72,7 @@ export default function LoginModal({
           <input
             className="co-input"
             type="password"
-            placeholder="Password"
+            placeholder={STR.labels.password}
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

@@ -12,6 +12,8 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
+// Relative on purpose — see packages/types/constants.ts (API value imports).
+import { MAX_AVATAR_UPLOAD_BYTES } from "../../../../packages/types/constants";
 import type { Request } from "express";
 import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
@@ -133,7 +135,7 @@ export class AuthController {
   @UseInterceptors(
     FileInterceptor("file", {
       storage: memoryStorage(),
-      limits: { fileSize: 8 * 1024 * 1024 },
+      limits: { fileSize: MAX_AVATAR_UPLOAD_BYTES },
     }),
   )
   uploadMyAvatar(
@@ -198,7 +200,7 @@ export class AuthController {
   @UseInterceptors(
     FileInterceptor("file", {
       storage: memoryStorage(),
-      limits: { fileSize: 8 * 1024 * 1024 },
+      limits: { fileSize: MAX_AVATAR_UPLOAD_BYTES },
     }),
   )
   uploadAvatar(

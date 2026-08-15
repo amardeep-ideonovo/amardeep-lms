@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { AuthUser, BillingConfigDTO, CouponPreviewDTO } from "@lms/types";
+import { PASSWORD_MIN, STR } from "@lms/types";
 import {
   ApiError,
   getBillingConfig,
@@ -41,7 +42,10 @@ const FALLBACK_BILLING: BillingConfigDTO = {
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD = 8;
+// Checkout's inline signup posts to /auth/signup, whose DTO enforces the
+// member tier — this used to be a hardcoded 8, silently below the server's 10,
+// so 8-9-char passwords passed the client check and bounced off the API.
+const MIN_PASSWORD = PASSWORD_MIN.member;
 
 // Submit runs up to four calls in sequence; name the one in flight so the
 // slowest moment in the product doesn't sit under a frozen label.
@@ -218,7 +222,7 @@ export default function CheckoutPage() {
     if (!EMAIL_RE.test(email.trim())) return "Enter a valid email address.";
     if (!user) {
       if (password.length < MIN_PASSWORD)
-        return `Password must be at least ${MIN_PASSWORD} characters.`;
+        return STR.validation.passwordMin(MIN_PASSWORD);
     }
     if (!firstName.trim()) return "Enter your first name.";
     if (!lastName.trim()) return "Enter your last name.";
@@ -305,7 +309,7 @@ export default function CheckoutPage() {
           ? err.message
           : err instanceof Error
             ? err.message
-            : "Something went wrong. Please try again.",
+            : STR.errors.generic,
       );
       setSubmitting(false);
       setStage(null);
@@ -425,7 +429,7 @@ export default function CheckoutPage() {
           ? err.message
           : err instanceof Error
             ? err.message
-            : "Something went wrong. Please try again.",
+            : STR.errors.generic,
       );
       setSubmitting(false);
       setStage(null);
@@ -438,7 +442,7 @@ export default function CheckoutPage() {
       <div className="dark-page checkout-dark">
         <div className="dp-wrap">
           <div className="centered-state">
-            <div className="spinner" aria-label="Loading" />
+            <div className="spinner" aria-label={STR.common.loadingLabel} />
           </div>
         </div>
       </div>
@@ -545,11 +549,11 @@ export default function CheckoutPage() {
             <input
               className="co-input"
               type="email"
-              placeholder="Email"
+              placeholder={STR.labels.email}
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              aria-label="Email"
+              aria-label={STR.labels.email}
             />
             {!user && (
               <input
@@ -559,7 +563,7 @@ export default function CheckoutPage() {
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                aria-label="Password"
+                aria-label={STR.labels.password}
               />
             )}
 
@@ -568,19 +572,19 @@ export default function CheckoutPage() {
             <div className="co-grid2">
               <input
                 className="co-input"
-                placeholder="First name"
+                placeholder={STR.labels.firstName}
                 autoComplete="given-name"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                aria-label="First name"
+                aria-label={STR.labels.firstName}
               />
               <input
                 className="co-input"
-                placeholder="Last name"
+                placeholder={STR.labels.lastName}
                 autoComplete="family-name"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                aria-label="Last name"
+                aria-label={STR.labels.lastName}
               />
             </div>
             <CountrySelect value={country} onChange={setCountry} />

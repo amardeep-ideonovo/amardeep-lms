@@ -12,6 +12,7 @@ import type {
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { STR } from "@lms/types";
 
 // Editor draft. runAt is held as a value for <input type="datetime-local">
 // (local wall-clock, no tz suffix) and converted to/from ISO at the edges.
@@ -295,9 +296,9 @@ export default function CampaignsPage() {
 
   async function remove(c: CampaignDTO) {
     const ok = await dialog.confirm({
-      message: `Delete campaign "${c.name}"? This can't be undone.`,
+      message: STR.confirm.deleteEntity("campaign", c.name),
       danger: true,
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
     });
     if (!ok) return;
     setBusyId(c.id);
@@ -312,14 +313,14 @@ export default function CampaignsPage() {
     }
   }
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("email", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Campaigns</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -365,7 +366,7 @@ export default function CampaignsPage() {
             <h2 style={{ fontSize: 16 }}>All campaigns</h2>
           </div>
           {loading ? (
-            <p className="muted">Loading…</p>
+            <p className="muted">{STR.common.loading}</p>
           ) : campaigns.length === 0 ? (
             <p className="muted">
               No campaigns yet.{canCreate ? " Create one to begin." : ""}
@@ -375,8 +376,8 @@ export default function CampaignsPage() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Status</th>
+                    <th>{STR.labels.name}</th>
+                    <th>{STR.labels.status}</th>
                     <th>Cadence</th>
                     <th>Next run</th>
                     <th style={{ textAlign: "right" }}>Sent</th>
@@ -464,7 +465,7 @@ export default function CampaignsPage() {
                               onClick={() => remove(c)}
                               disabled={busy}
                             >
-                              {busy ? "…" : "Delete"}
+                              {busy ? "…" : STR.common.delete}
                             </button>
                           )}
                         </td>
@@ -489,7 +490,7 @@ export default function CampaignsPage() {
                 className="btn btn--ghost btn--sm"
                 onClick={closeEditor}
               >
-                Close
+                {STR.common.close}
               </button>
             </div>
 
@@ -503,7 +504,7 @@ export default function CampaignsPage() {
             )}
 
             <div className="field">
-              <label>Name</label>
+              <label>{STR.labels.name}</label>
               <input
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
@@ -515,7 +516,7 @@ export default function CampaignsPage() {
 
             <div className="form-row">
               <div className="field">
-                <label>Template</label>
+                <label>{STR.labels.template}</label>
                 <select
                   value={draft.templateId}
                   onChange={(e) =>
@@ -533,7 +534,7 @@ export default function CampaignsPage() {
                 </select>
               </div>
               <div className="field">
-                <label>Audience</label>
+                <label>{STR.labels.audience}</label>
                 <select
                   value={draft.audienceId}
                   onChange={(e) =>
@@ -672,7 +673,7 @@ export default function CampaignsPage() {
               {(canEdit || creating) && (
                 <button className="btn" type="submit" disabled={saving}>
                   {saving
-                    ? "Saving…"
+                    ? STR.common.saving
                     : creating
                       ? "Create campaign"
                       : "Save changes"}

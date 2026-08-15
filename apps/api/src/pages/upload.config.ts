@@ -1,6 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
 import { resolveStorageDir } from "../storage/storage-dirs";
+// Relative on purpose — see packages/types/constants.ts (API value imports).
+import { IMAGE_MIME_TO_EXT } from "../../../../packages/types/constants";
 
 // Page-builder images share the same images root as the rest of the app.
 // In prod BLOG_IMAGES_DIR points at a persistent volume; in dev it falls back
@@ -16,15 +18,9 @@ export function ensurePageUploadDir(): void {
   fs.mkdirSync(PAGE_IMAGE_DIR, { recursive: true });
 }
 
-// Allowed image types -> canonical extension. SVG is intentionally excluded:
-// it can carry inline script and these files are served from our own origin.
-const MIME_TO_EXT: Record<string, string> = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-  "image/gif": ".gif",
-  "image/avif": ".avif",
-};
+// Allowed image types -> canonical extension (shared safe-image subset; SVG is
+// intentionally excluded — see packages/types/constants.ts).
+const MIME_TO_EXT = IMAGE_MIME_TO_EXT;
 const ALLOWED_EXT = new Set([
   ".jpg",
   ".jpeg",

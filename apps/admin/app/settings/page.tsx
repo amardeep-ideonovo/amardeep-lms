@@ -11,10 +11,11 @@ import {
 } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { STR } from "@lms/types";
 
 export default function SettingsPage() {
   const { can, loading } = useAdminAuth();
-  if (loading) return <p className="muted">Loading…</p>;
+  if (loading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("settings", "read")) {
     return (
       <div>
@@ -127,7 +128,7 @@ function PaymentProviderSection() {
               />
               <span>{o.label}</span>
               {provider === o.value && (
-                <span className="badge badge--ok">Active</span>
+                <span className="badge badge--ok">{STR.common.active}</span>
               )}
             </label>
           ))}
@@ -141,7 +142,7 @@ function PaymentProviderSection() {
             type="submit"
             disabled={saving || provider === null || selected === provider}
           >
-            {saving ? "Saving…" : "Set active provider"}
+            {saving ? STR.common.saving : "Set active provider"}
           </button>
         </div>
       </form>
@@ -208,7 +209,7 @@ function StripeSection() {
   async function remove() {
     if (
       !(await dialog.confirm({
-        message: "Remove all Stripe keys? This cannot be undone.",
+        message: `${STR.confirm.removeEntity("all Stripe keys")} ${STR.confirm.cannotBeUndone}`,
         danger: true,
       }))
     )
@@ -276,7 +277,7 @@ function StripeSection() {
         {status && <p className="muted">{status}</p>}
         <div className="row-actions">
           <button className="btn" type="submit" disabled={saving || removing}>
-            {saving ? "Saving…" : "Save Stripe settings"}
+            {saving ? STR.common.saving : "Save Stripe settings"}
           </button>
           <button
             type="button"
@@ -340,7 +341,7 @@ function ZoomSection() {
   async function remove() {
     if (
       !(await dialog.confirm({
-        message: "Remove the Zoom SDK credentials?",
+        message: STR.confirm.removeEntity("the Zoom SDK credentials"),
         danger: true,
       }))
     )
@@ -400,7 +401,7 @@ function ZoomSection() {
         {status && <p className="muted">{status}</p>}
         <div className="row-actions">
           <button className="btn" type="submit" disabled={saving || removing}>
-            {saving ? "Saving…" : "Save Zoom settings"}
+            {saving ? STR.common.saving : "Save Zoom settings"}
           </button>
           <button
             type="button"
@@ -473,7 +474,7 @@ function PayPalSection() {
   async function remove() {
     if (
       !(await dialog.confirm({
-        message: "Remove all PayPal credentials? This cannot be undone.",
+        message: `${STR.confirm.removeEntity("all PayPal credentials")} ${STR.confirm.cannotBeUndone}`,
         danger: true,
       }))
     )
@@ -553,7 +554,7 @@ function PayPalSection() {
         {status && <p className="muted">{status}</p>}
         <div className="row-actions">
           <button className="btn" type="submit" disabled={saving || removing}>
-            {saving ? "Saving…" : "Save PayPal settings"}
+            {saving ? STR.common.saving : "Save PayPal settings"}
           </button>
           <button
             type="button"
@@ -667,8 +668,7 @@ function EmailSenderSection() {
   async function remove() {
     if (
       !(await dialog.confirm({
-        message:
-          "Remove the email provider settings (SMTP host/credentials, Resend key, and From address)? This cannot be undone.",
+        message: `${STR.confirm.removeEntity("the email provider settings (SMTP host/credentials, Resend key, and From address)")} ${STR.confirm.cannotBeUndone}`,
         danger: true,
       }))
     )
@@ -739,7 +739,7 @@ function EmailSenderSection() {
                 />
                 <span>{o.label}</span>
                 {current?.provider === o.value && (
-                  <span className="badge badge--ok">Active</span>
+                  <span className="badge badge--ok">{STR.common.active}</span>
                 )}
               </label>
             ))}
@@ -769,7 +769,7 @@ function EmailSenderSection() {
             </div>
             <div className="form-row">
               <div className="field">
-                <label>Username</label>
+                <label>{STR.labels.username}</label>
                 <input
                   value={user}
                   placeholder="SMTP username"
@@ -860,7 +860,7 @@ function EmailSenderSection() {
         {status && <p className="muted">{status}</p>}
         <div className="row-actions">
           <button className="btn" type="submit" disabled={saving || removing}>
-            {saving ? "Saving…" : "Save email settings"}
+            {saving ? STR.common.saving : "Save email settings"}
           </button>
           <button
             type="button"
@@ -986,7 +986,7 @@ function EmailWebhookSecretSection() {
             type="submit"
             disabled={saving || clearing || !secret.trim()}
           >
-            {saving ? "Saving…" : "Save secret"}
+            {saving ? STR.common.saving : "Save secret"}
           </button>
           {secretSet && (
             <button

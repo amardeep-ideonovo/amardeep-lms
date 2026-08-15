@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { api, getToken } from "@/lib/api";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import type { AdminNotificationDTO } from "@lms/types";
+import { STR } from "@lms/types";
 
 // Low-urgency feed → poll the unread badge every 30s (the app's only poll).
 const POLL_MS = 30_000;
@@ -214,7 +215,7 @@ export default function NotificationBell() {
           </div>
           <div className="notif-list">
             {loading ? (
-              <p className="notif-empty">Loading…</p>
+              <p className="notif-empty">{STR.common.loading}</p>
             ) : items.length === 0 ? (
               <p className="notif-empty">No notifications yet.</p>
             ) : (

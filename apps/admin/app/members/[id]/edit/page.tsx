@@ -7,6 +7,7 @@ import type { MemberRow } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { PASSWORD_MIN, STR } from "@lms/types";
 
 // Edit a member's profile (first/last name, phone) on its own page. Opened from
 // the "Edit" button in the members table; saves and returns to the list.
@@ -97,12 +98,12 @@ export default function EditMemberPage() {
     e.preventDefault();
     setPwError(null);
     setPwOk(false);
-    if (pw.next.length < 10) {
-      setPwError("New password must be at least 10 characters.");
+    if (pw.next.length < PASSWORD_MIN.member) {
+      setPwError(STR.validation.passwordMin(PASSWORD_MIN.member));
       return;
     }
     if (pw.next !== pw.confirm) {
-      setPwError("Passwords don’t match.");
+      setPwError(STR.errors.passwordsDontMatch);
       return;
     }
     setPwSaving(true);
@@ -119,14 +120,14 @@ export default function EditMemberPage() {
     }
   }
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("members", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Edit member</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -144,11 +145,11 @@ export default function EditMemberPage() {
 
       <div className="card">
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : !member ? null : (
           <form onSubmit={onSubmit}>
             <div className="field">
-              <label>Email</label>
+              <label>{STR.labels.email}</label>
               <input
                 type="email"
                 required
@@ -166,7 +167,7 @@ export default function EditMemberPage() {
             </div>
             <div className="form-row">
               <div className="field">
-                <label>First name</label>
+                <label>{STR.labels.firstName}</label>
                 <input
                   value={form.firstName}
                   onChange={(e) =>
@@ -176,7 +177,7 @@ export default function EditMemberPage() {
                 />
               </div>
               <div className="field">
-                <label>Last name</label>
+                <label>{STR.labels.lastName}</label>
                 <input
                   value={form.lastName}
                   onChange={(e) =>
@@ -200,10 +201,10 @@ export default function EditMemberPage() {
             </p>
             <div className="row-actions">
               <button className="btn" type="submit" disabled={saving}>
-                {saving ? "Saving…" : "Save changes"}
+                {saving ? STR.common.saving : "Save changes"}
               </button>
               <Link href="/members" className="btn btn--ghost">
-                Cancel
+                {STR.common.cancel}
               </Link>
             </div>
           </form>
@@ -222,7 +223,7 @@ export default function EditMemberPage() {
           <form onSubmit={resetPassword}>
             <div className="form-row">
               <div className="field">
-                <label>New password</label>
+                <label>{STR.labels.newPassword}</label>
                 <input
                   type="password"
                   autoComplete="new-password"
@@ -235,7 +236,7 @@ export default function EditMemberPage() {
                 />
               </div>
               <div className="field">
-                <label>Confirm new password</label>
+                <label>{STR.labels.confirmNewPassword}</label>
                 <input
                   type="password"
                   autoComplete="new-password"

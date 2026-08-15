@@ -9,9 +9,11 @@ import type {
   MyCertificateDTO,
   SubscriptionDetailDTO,
 } from "@lms/types";
+import { PASSWORD_MIN, STR } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import AvatarCropper from "@/components/AvatarCropper";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
 
 // Avatar fallback initials from the member's name, else username/email.
@@ -146,6 +148,7 @@ function DangerZoneSection() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const deleteModalRef = useModalA11y();
 
   function openModal() {
     setPassword("");
@@ -207,13 +210,12 @@ function DangerZoneSection() {
       </section>
 
       {open && (
+        // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
         <div
+          ref={deleteModalRef}
           className="modal-overlay"
           role="dialog"
           aria-modal="true"
-          onClick={() => {
-            if (!busy) setOpen(false);
-          }}
         >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -221,7 +223,7 @@ function DangerZoneSection() {
               <button
                 type="button"
                 className="modal-close"
-                aria-label="Close"
+                aria-label={STR.common.close}
                 disabled={busy}
                 onClick={() => setOpen(false)}
               >
@@ -460,6 +462,13 @@ function AccountInner() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarErr, setAvatarErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Pure confirm with nothing to lose, so Escape may dismiss it (mirrors the
+  // DialogProvider policy); the delete-account modal above stays Escape-proof.
+  const cancelModalRef = useModalA11y({
+    onEscape: () => {
+      if (!cancelBusy) setCancelFor(null);
+    },
+  });
 
   function fail(err: unknown) {
     if (err instanceof ApiError && err.status === 401) {
@@ -467,7 +476,7 @@ function AccountInner() {
       router.replace("/login");
       return;
     }
-    setError(err instanceof Error ? err.message : "Something went wrong.");
+    setError(err instanceof Error ? err.message : STR.errors.generic);
   }
 
   useEffect(() => {
@@ -653,12 +662,12 @@ function AccountInner() {
   async function savePassword(e: FormEvent) {
     e.preventDefault();
     setPwError(null);
-    if (pwForm.next.length < 10) {
-      setPwError("New password must be at least 10 characters.");
+    if (pwForm.next.length < PASSWORD_MIN.member) {
+      setPwError(STR.validation.passwordMin(PASSWORD_MIN.member));
       return;
     }
     if (pwForm.next !== pwForm.confirm) {
-      setPwError("New passwords don’t match.");
+      setPwError(STR.errors.passwordsDontMatch);
       return;
     }
     setPwSaving(true);
@@ -717,7 +726,7 @@ function AccountInner() {
                   className="btn btn-secondary"
                   onClick={startEdit}
                 >
-                  Edit
+                  {STR.common.edit}
                 </button>
               </div>
             )}
@@ -728,7 +737,7 @@ function AccountInner() {
             </div>
           )}
           {!user ? (
-            <p className="empty">Loading…</p>
+            <p className="empty">{STR.common.loading}</p>
           ) : editing ? (
             <form onSubmit={saveProfile}>
               {editError && (
@@ -736,7 +745,7 @@ function AccountInner() {
               )}
               <div className="field-row">
                 <div className="field">
-                  <label htmlFor="firstName">First name</label>
+                  <label htmlFor="firstName">{STR.labels.firstName}</label>
                   <input
                     id="firstName"
                     value={form.firstName}
@@ -749,7 +758,7 @@ function AccountInner() {
                   />
                 </div>
                 <div className="field">
-                  <label htmlFor="lastName">Last name</label>
+                  <label htmlFor="lastName">{STR.labels.lastName}</label>
                   <input
                     id="lastName"
                     value={form.lastName}
@@ -762,7 +771,7 @@ function AccountInner() {
                 </div>
               </div>
               <div className="field">
-                <label htmlFor="username">Username</label>
+                <label htmlFor="username">{STR.labels.username}</label>
                 <input
                   id="username"
                   value={form.username}
@@ -778,7 +787,7 @@ function AccountInner() {
                 </p>
               </div>
               <div className="field">
-                <label>Email</label>
+                <label>{STR.labels.email}</label>
                 <div className="field-readonly">{user.email}</div>
                 <p className="field-hint">
                   Email can’t be changed here — contact support if you need it
@@ -792,7 +801,7 @@ function AccountInner() {
                   disabled={saving}
                   aria-busy={saving}
                 >
-                  {saving ? "Saving…" : "Save changes"}
+                  {saving ? STR.common.saving : "Save changes"}
                 </button>
                 <button
                   type="button"
@@ -801,7 +810,7 @@ function AccountInner() {
                   disabled={saving}
                   aria-busy={saving}
                 >
-                  Cancel
+                  {STR.common.cancel}
                 </button>
               </div>
             </form>
@@ -824,7 +833,7 @@ function AccountInner() {
               </div>
               <div className="field-row">
                 <div className="field">
-                  <label htmlFor="newpw">New password</label>
+                  <label htmlFor="newpw">{STR.labels.newPassword}</label>
                   <input
                     id="newpw"
                     type="password"
@@ -833,13 +842,15 @@ function AccountInner() {
                     onChange={(e) =>
                       setPwForm((f) => ({ ...f, next: e.target.value }))
                     }
-                    minLength={10}
+                    minLength={PASSWORD_MIN.member}
                     maxLength={72}
                     required
                   />
                 </div>
                 <div className="field">
-                  <label htmlFor="confpw">Confirm new password</label>
+                  <label htmlFor="confpw">
+                    {STR.labels.confirmNewPassword}
+                  </label>
                   <input
                     id="confpw"
                     type="password"
@@ -848,14 +859,14 @@ function AccountInner() {
                     onChange={(e) =>
                       setPwForm((f) => ({ ...f, confirm: e.target.value }))
                     }
-                    minLength={10}
+                    minLength={PASSWORD_MIN.member}
                     maxLength={72}
                     required
                   />
                 </div>
               </div>
               <p className="field-hint">
-                At least 10 characters. Use one you don’t use elsewhere.
+                {`At least ${PASSWORD_MIN.member} characters. Use one you don’t use elsewhere.`}
               </p>
               <div className="form-actions">
                 <button
@@ -864,7 +875,7 @@ function AccountInner() {
                   disabled={pwSaving}
                   aria-busy={pwSaving}
                 >
-                  {pwSaving ? "Saving…" : "Update password"}
+                  {pwSaving ? STR.common.saving : "Update password"}
                 </button>
                 <button
                   type="button"
@@ -873,7 +884,7 @@ function AccountInner() {
                   disabled={pwSaving}
                   aria-busy={pwSaving}
                 >
-                  Cancel
+                  {STR.common.cancel}
                 </button>
               </div>
             </form>
@@ -925,7 +936,9 @@ function AccountInner() {
                         aria-busy={avatarBusy === "remove"}
                         onClick={removeAvatar}
                       >
-                        {avatarBusy === "remove" ? "Removing…" : "Remove"}
+                        {avatarBusy === "remove"
+                          ? "Removing…"
+                          : STR.common.remove}
                       </button>
                     )}
                   </div>
@@ -939,15 +952,15 @@ function AccountInner() {
               )}
               <dl className="detail-list">
                 <div>
-                  <dt>Name</dt>
+                  <dt>{STR.labels.name}</dt>
                   <dd>{fullName}</dd>
                 </div>
                 <div>
-                  <dt>Email</dt>
+                  <dt>{STR.labels.email}</dt>
                   <dd>{user.email}</dd>
                 </div>
                 <div>
-                  <dt>Username</dt>
+                  <dt>{STR.labels.username}</dt>
                   <dd>{user.username}</dd>
                 </div>
               </dl>
@@ -993,7 +1006,7 @@ function AccountInner() {
                             className="plan-tile__cancel"
                             onClick={() => setCancelFor(sub)}
                           >
-                            Cancel
+                            {STR.common.cancel}
                           </button>
                         )}
                     </div>
@@ -1061,12 +1074,10 @@ function AccountInner() {
 
       {cancelFor && (
         <div
+          ref={cancelModalRef}
           className="modal-overlay"
           role="dialog"
           aria-modal="true"
-          onClick={() => {
-            if (!cancelBusy) setCancelFor(null);
-          }}
         >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -1074,7 +1085,7 @@ function AccountInner() {
               <button
                 type="button"
                 className="modal-close"
-                aria-label="Close"
+                aria-label={STR.common.close}
                 disabled={cancelBusy}
                 aria-busy={cancelBusy}
                 onClick={() => setCancelFor(null)}

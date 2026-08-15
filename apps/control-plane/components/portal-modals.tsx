@@ -5,6 +5,7 @@
 // billing (license-level), upgrade plan (catalog-driven), changelog.
 
 import { useState } from "react";
+import { STR } from "@lms/types";
 import {
   activePlans,
   changeLicensePlan,
@@ -96,7 +97,7 @@ export function RestoreModal({
       </div>
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Cancel
+          {STR.common.cancel}
         </button>
         <button
           type="button"
@@ -150,7 +151,7 @@ export function NewTicketModal({
       </div>
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Cancel
+          {STR.common.cancel}
         </button>
         <button
           type="button"
@@ -219,7 +220,7 @@ export function RequestBuildModal({
       </div>
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Cancel
+          {STR.common.cancel}
         </button>
         <button
           type="button"
@@ -283,7 +284,7 @@ export function ManageBillingModal({
       </div>
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Cancel
+          {STR.common.cancel}
         </button>
         <button
           type="button"
@@ -295,7 +296,7 @@ export function ManageBillingModal({
             onClose();
           }}
         >
-          {busy ? "Saving…" : "Save card"}
+          {busy ? STR.common.saving : "Save card"}
         </button>
       </div>
     </Modal>
@@ -366,7 +367,7 @@ export function UpgradeModal({
       </div>
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Cancel
+          {STR.common.cancel}
         </button>
         <button
           type="button"
@@ -454,7 +455,7 @@ export function ChangelogModal({ onClose }: { onClose: () => void }) {
       </div>
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Close
+          {STR.common.close}
         </button>
       </div>
     </Modal>

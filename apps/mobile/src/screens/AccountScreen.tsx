@@ -19,6 +19,7 @@ import type {
   DeleteAccountSummaryDTO,
   SubscriptionDetailDTO,
 } from "@lms/types";
+import { PASSWORD_MIN, STR } from "@lms/types";
 
 import { api } from "../api";
 import { useAuth } from "../auth";
@@ -278,12 +279,12 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       setPwError("Enter your current password.");
       return;
     }
-    if (pwForm.next.length < 10) {
-      setPwError("New password must be at least 10 characters.");
+    if (pwForm.next.length < PASSWORD_MIN.member) {
+      setPwError(STR.validation.passwordMin(PASSWORD_MIN.member));
       return;
     }
     if (pwForm.next !== pwForm.confirm) {
-      setPwError("New passwords don't match.");
+      setPwError(STR.errors.passwordsDontMatch);
       return;
     }
     setPwSaving(true);
@@ -493,7 +494,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                           activeOpacity={0.8}
                         >
                           <Text style={styles.btnSecondaryText}>
-                            {avatarBusy === "remove" ? "Removing…" : "Remove"}
+                            {avatarBusy === "remove"
+                              ? "Removing…"
+                              : STR.common.remove}
                           </Text>
                         </TouchableOpacity>
                       ) : null}
@@ -507,11 +510,13 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                     <Text style={styles.detailValue}>{fullName}</Text>
                   </View>
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Email</Text>
+                    <Text style={styles.detailLabel}>{STR.labels.email}</Text>
                     <Text style={styles.detailValue}>{user.email}</Text>
                   </View>
                   <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Username</Text>
+                    <Text style={styles.detailLabel}>
+                      {STR.labels.username}
+                    </Text>
                     <Text style={styles.detailValue}>{user.username}</Text>
                   </View>
                   <View style={styles.actionsRow}>
@@ -520,7 +525,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       onPress={startEdit}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.btnSecondaryText}>Edit</Text>
+                      <Text style={styles.btnSecondaryText}>
+                        {STR.common.edit}
+                      </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.btnSecondary, styles.grow]}
@@ -538,7 +545,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                   {editError ? (
                     <Text style={styles.formError}>{editError}</Text>
                   ) : null}
-                  <Text style={styles.inputLabel}>First name</Text>
+                  <Text style={styles.inputLabel}>{STR.labels.firstName}</Text>
                   <TextInput
                     style={styles.input}
                     value={form.firstName}
@@ -548,7 +555,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                     maxLength={80}
                     editable={!saving}
                   />
-                  <Text style={styles.inputLabel}>Last name</Text>
+                  <Text style={styles.inputLabel}>{STR.labels.lastName}</Text>
                   <TextInput
                     style={styles.input}
                     value={form.lastName}
@@ -558,7 +565,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                     maxLength={80}
                     editable={!saving}
                   />
-                  <Text style={styles.inputLabel}>Username</Text>
+                  <Text style={styles.inputLabel}>{STR.labels.username}</Text>
                   <TextInput
                     style={styles.input}
                     value={form.username}
@@ -570,7 +577,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                     autoCorrect={false}
                     editable={!saving}
                   />
-                  <Text style={styles.inputLabel}>Email</Text>
+                  <Text style={styles.inputLabel}>{STR.labels.email}</Text>
                   <View style={styles.readonlyBox}>
                     <Text style={styles.readonlyText}>{user.email}</Text>
                   </View>
@@ -590,7 +597,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       activeOpacity={0.8}
                     >
                       <Text style={styles.btnPrimaryText}>
-                        {saving ? "Saving…" : "Save changes"}
+                        {saving ? STR.common.saving : "Save changes"}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -599,7 +606,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       disabled={saving}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.btnSecondaryText}>Cancel</Text>
+                      <Text style={styles.btnSecondaryText}>
+                        {STR.common.cancel}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -620,7 +629,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                     autoCapitalize="none"
                     editable={!pwSaving}
                   />
-                  <Text style={styles.inputLabel}>New password</Text>
+                  <Text style={styles.inputLabel}>
+                    {STR.labels.newPassword}
+                  </Text>
                   <TextInput
                     style={styles.input}
                     value={pwForm.next}
@@ -630,7 +641,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                     autoCapitalize="none"
                     editable={!pwSaving}
                   />
-                  <Text style={styles.inputLabel}>Confirm new password</Text>
+                  <Text style={styles.inputLabel}>
+                    {STR.labels.confirmNewPassword}
+                  </Text>
                   <TextInput
                     style={styles.input}
                     value={pwForm.confirm}
@@ -643,7 +656,8 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                     editable={!pwSaving}
                   />
                   <Text style={styles.hint}>
-                    At least 10 characters. Use one you don't use elsewhere.
+                    At least {PASSWORD_MIN.member} characters. Use one you don't
+                    use elsewhere.
                   </Text>
                   <View style={styles.actionsRow}>
                     <TouchableOpacity
@@ -657,7 +671,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       activeOpacity={0.8}
                     >
                       <Text style={styles.btnPrimaryText}>
-                        {pwSaving ? "Saving…" : "Update password"}
+                        {pwSaving ? STR.common.saving : "Update password"}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -666,7 +680,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       disabled={pwSaving}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.btnSecondaryText}>Cancel</Text>
+                      <Text style={styles.btnSecondaryText}>
+                        {STR.common.cancel}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -706,7 +722,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                           }}
                           activeOpacity={0.7}
                         >
-                          <Text style={styles.cancelLink}>Cancel</Text>
+                          <Text style={styles.cancelLink}>
+                            {STR.common.cancel}
+                          </Text>
                         </TouchableOpacity>
                       ) : null}
                     </View>
@@ -885,7 +903,9 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       onPress={loadDeleteSummary}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.btnSecondaryText}>Try again</Text>
+                      <Text style={styles.btnSecondaryText}>
+                        {STR.common.retry}
+                      </Text>
                     </TouchableOpacity>
                   </>
                 ) : deleteSummary ? (
@@ -1013,7 +1033,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                 {deleteError ? (
                   <Text style={styles.formError}>{deleteError}</Text>
                 ) : null}
-                <Text style={styles.inputLabel}>Password</Text>
+                <Text style={styles.inputLabel}>{STR.labels.password}</Text>
                 <TextInput
                   style={styles.input}
                   value={deletePassword}
@@ -1047,7 +1067,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                   disabled={deleteBusy}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.btnSecondaryText}>Back</Text>
+                  <Text style={styles.btnSecondaryText}>{STR.common.back}</Text>
                 </TouchableOpacity>
               </>
             )}

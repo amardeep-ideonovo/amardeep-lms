@@ -34,6 +34,7 @@ import type {
   SubscriptionDetailDTO,
   UpdateProfileInput,
 } from "@lms/types";
+import { STR } from "@lms/types";
 
 import { File, UploadType } from "expo-file-system";
 import {
@@ -139,10 +140,7 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
-    throw new ApiError(
-      0,
-      "Network error. Check your connection and try again.",
-    );
+    throw new ApiError(0, STR.errors.network);
   }
 
   if (!res.ok) {
@@ -234,10 +232,7 @@ export const api = {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
     } catch {
-      throw new ApiError(
-        0,
-        "Network error. Check your connection and try again.",
-      );
+      throw new ApiError(0, STR.errors.network);
     }
     if (result.status < 200 || result.status >= 300) {
       if (result.status === 401) onUnauthorized?.();

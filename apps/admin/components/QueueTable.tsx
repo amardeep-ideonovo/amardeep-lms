@@ -35,6 +35,7 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { dialog } from "@/components/DialogProvider";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
 import { AdminLite, NameResolver, formatTime, initials } from "@/lib/projects";
 import {
@@ -43,6 +44,7 @@ import {
   leaveChannel,
   onChatListUpdate,
 } from "@/lib/projectsSocket";
+import { STR } from "@lms/types";
 
 // Slow catch-all refresh for stand-alone lists (no channel socket room) and
 // missed socket events. Channel-scoped lists also refresh on `chat:list:update`.
@@ -258,7 +260,7 @@ export default function QueueTable({
     [applyItemValues, optimistic],
   );
 
-  if (loading && !list) return <p className="muted">Loading…</p>;
+  if (loading && !list) return <p className="muted">{STR.common.loading}</p>;
   if (!list)
     return (
       <div className="card" style={{ margin: 0 }}>
@@ -420,7 +422,7 @@ function ListTable({
     const ok = await dialog.confirm({
       message: `Delete "${item.title}"?`,
       danger: true,
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
     });
     if (!ok) return;
     try {
@@ -456,7 +458,7 @@ function ListTable({
         <table className="pj-tbl">
           <thead>
             <tr>
-              <th className="pj-tbl-th pj-tbl-th--title">Name</th>
+              <th className="pj-tbl-th pj-tbl-th--title">{STR.labels.name}</th>
               {fields.map((f) => (
                 <ColumnHeader
                   key={f.id}
@@ -581,7 +583,7 @@ function AddRow({ onAdd }: { onAdd: (title: string) => Promise<void> }) {
         type="submit"
         disabled={busy || !title.trim()}
       >
-        {busy ? "Adding…" : "Add"}
+        {busy ? "Adding…" : STR.common.add}
       </button>
     </form>
   );
@@ -612,7 +614,7 @@ function ColumnHeader({
     const name = await dialog.prompt({
       message: "Rename column",
       defaultValue: field.name,
-      confirmLabel: "Save",
+      confirmLabel: STR.common.save,
     });
     if (!name || !name.trim() || name.trim() === field.name) return;
     try {
@@ -627,7 +629,7 @@ function ColumnHeader({
   async function remove() {
     setMenuOpen(false);
     const ok = await dialog.confirm({
-      message: `Delete column "${field.name}"? Its values are removed from every item.`,
+      message: `${STR.confirm.deleteEntity("column", field.name)} Its values are removed from every item.`,
       danger: true,
       confirmLabel: "Delete column",
     });
@@ -757,7 +759,7 @@ function AddColumnButton({
             placeholder="e.g. Status"
             autoFocus
           />
-          <label className="pj-pop-label">Type</label>
+          <label className="pj-pop-label">{STR.labels.type}</label>
           <select
             className="pj-pop-input"
             value={type}
@@ -833,7 +835,7 @@ function AddColumnButton({
                 setOpen(false);
               }}
             >
-              Cancel
+              {STR.common.cancel}
             </button>
             <button
               className="btn btn--sm"
@@ -1779,6 +1781,7 @@ function ItemDetailCard({
   const [posting, setPosting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const modalRef = useModalA11y();
 
   const loadComments = useCallback(async () => {
     setLoadingComments(true);
@@ -1842,9 +1845,9 @@ function ItemDetailCard({
   }
   async function deleteComment(commentId: string) {
     const ok = await dialog.confirm({
-      message: "Delete this comment?",
+      message: STR.confirm.deleteEntity("this comment"),
       danger: true,
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
     });
     if (!ok) return;
     try {
@@ -1860,7 +1863,12 @@ function ItemDetailCard({
 
   // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
   return (
-    <div className="modal-overlay">
+    <div
+      ref={modalRef}
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+    >
       <div
         className="modal modal--wide"
         role="dialog"
@@ -1868,7 +1876,11 @@ function ItemDetailCard({
       >
         <div className="modal-header">
           <h2>{item.title}</h2>
-          <button className="modal-close" onClick={onClose} aria-label="Close">
+          <button
+            className="modal-close"
+            onClick={onClose}
+            aria-label={STR.common.close}
+          >
             ×
           </button>
         </div>
@@ -1876,7 +1888,7 @@ function ItemDetailCard({
           {/* ---- fields ---- */}
           <div className="pj-detail-fields">
             <div className="pj-detail-row">
-              <span className="pj-detail-label">Name</span>
+              <span className="pj-detail-label">{STR.labels.name}</span>
               <div className="pj-detail-value">
                 <TitleCell
                   item={item}
@@ -1915,7 +1927,7 @@ function ItemDetailCard({
             </h3>
 
             {loadingComments ? (
-              <p className="muted">Loading…</p>
+              <p className="muted">{STR.common.loading}</p>
             ) : comments.length === 0 ? (
               <p className="muted" style={{ fontSize: 13 }}>
                 No comments yet.
@@ -1974,14 +1986,14 @@ function ItemDetailCard({
                                 className="btn btn--ghost btn--sm"
                                 onClick={() => setEditingId(null)}
                               >
-                                Cancel
+                                {STR.common.cancel}
                               </button>
                               <button
                                 className="btn btn--sm"
                                 onClick={() => saveEdit(c.id)}
                                 disabled={!editDraft.trim()}
                               >
-                                Save
+                                {STR.common.save}
                               </button>
                             </div>
                           </div>

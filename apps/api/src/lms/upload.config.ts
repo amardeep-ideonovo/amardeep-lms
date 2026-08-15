@@ -2,6 +2,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { IMAGES_ROOT, imageExt } from "../blog/upload.config";
 import { resolveStorageDir } from "../storage/storage-dirs";
+// Relative on purpose — see packages/types/constants.ts (API value imports).
+import { MAX_IMAGE_UPLOAD_BYTES } from "../../../../packages/types/constants";
 
 // Reuse the blog image validator + the same public images root so all uploaded
 // images share one served tree (/images/*, see main.ts).
@@ -31,7 +33,7 @@ export function ensureLmsUploadDirs(): void {
 }
 
 // Size caps (multer enforces these per request).
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB per image
+export const MAX_IMAGE_BYTES = MAX_IMAGE_UPLOAD_BYTES; // 5 MB per image
 export const MAX_NOTE_BYTES = 25 * 1024 * 1024; // 25 MB per note file
 export const MAX_NOTES_PER_UPLOAD = 20;
 

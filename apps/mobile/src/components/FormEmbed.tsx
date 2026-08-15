@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import type { FormFieldDef, FormPublicDTO } from "@lms/types";
+import { STR } from "@lms/types";
 
 import { api, ApiError } from "../api";
 import { spacing } from "../theme";
@@ -88,16 +89,14 @@ export function FormEmbed({ formId }: { formId: string }) {
       setDone(res.message || "Thanks! You're subscribed.");
     } catch (err) {
       setSubmitError(
-        err instanceof ApiError
-          ? err.message
-          : "Something went wrong. Please try again.",
+        err instanceof ApiError ? err.message : STR.errors.generic,
       );
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (loading) return <Text style={styles.note}>Loading…</Text>;
+  if (loading) return <Text style={styles.note}>{STR.common.loading}</Text>;
   if (missing || !def) return null;
   if (done) {
     return (

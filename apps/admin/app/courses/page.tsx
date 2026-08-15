@@ -9,6 +9,7 @@ import type {
   LevelDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
@@ -20,6 +21,7 @@ import LessonMediaFields, {
   lessonMediaPayload,
   validateLessonMedia,
 } from "@/components/LessonMediaFields";
+import { STR } from "@lms/types";
 
 const EMPTY_COURSE = {
   title: "",
@@ -84,6 +86,8 @@ export default function CoursesPage() {
 
   // expanded course -> lessons
   const [openCourse, setOpenCourse] = useState<string | null>(null);
+
+  const courseModalRef = useModalA11y();
 
   async function load() {
     setLoading(true);
@@ -280,14 +284,14 @@ export default function CoursesPage() {
           levelNamesFor(c.levelIds).some((n) => n.toLowerCase().includes(q)),
       );
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("courses", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Courses</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -349,7 +353,7 @@ export default function CoursesPage() {
           </div>
         </div>
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : courses.length === 0 ? (
           <p className="muted">
             No courses yet. Click “Add new course” to start.
@@ -362,8 +366,8 @@ export default function CoursesPage() {
               <thead>
                 <tr>
                   <th></th>
-                  <th>Title</th>
-                  <th>Class</th>
+                  <th>{STR.labels.title}</th>
+                  <th>{STR.labels.class}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -417,14 +421,16 @@ export default function CoursesPage() {
                             className="btn btn--ghost btn--sm"
                             onClick={() => startEdit(course)}
                           >
-                            Edit
+                            {STR.common.edit}
                           </button>
                           <button
                             className="btn btn--danger btn--sm"
                             onClick={() => removeCourse(course)}
                             disabled={rowBusy === course.id}
                           >
-                            {rowBusy === course.id ? "Deleting…" : "Delete"}
+                            {rowBusy === course.id
+                              ? "Deleting…"
+                              : STR.common.delete}
                           </button>
                         </div>
                       </td>
@@ -448,7 +454,12 @@ export default function CoursesPage() {
       </div>
 
       {modalOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div
+          ref={courseModalRef}
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="modal">
             <div className="modal-header">
               <h2>{editingId ? "Edit course" : "New course"}</h2>
@@ -456,7 +467,7 @@ export default function CoursesPage() {
                 type="button"
                 className="modal-close"
                 onClick={closeModal}
-                aria-label="Close"
+                aria-label={STR.common.close}
               >
                 ×
               </button>
@@ -465,7 +476,7 @@ export default function CoursesPage() {
               {formError && <p className="error">{formError}</p>}
               <form onSubmit={submitCourse}>
                 <div className="field">
-                  <label>Title</label>
+                  <label>{STR.labels.title}</label>
                   <input
                     value={form.title}
                     onChange={(e) =>
@@ -477,7 +488,7 @@ export default function CoursesPage() {
                 </div>
 
                 <div className="field">
-                  <label>Description</label>
+                  <label>{STR.labels.description}</label>
                   <RichTextEditor
                     value={form.description}
                     onChange={(html) => setForm({ ...form, description: html })}
@@ -607,7 +618,7 @@ export default function CoursesPage() {
                     disabled={saving || form.levelIds.length === 0}
                   >
                     {saving
-                      ? "Saving…"
+                      ? STR.common.saving
                       : editingId
                         ? "Save changes"
                         : "Create course"}
@@ -617,7 +628,7 @@ export default function CoursesPage() {
                     className="btn btn--ghost"
                     onClick={closeModal}
                   >
-                    Cancel
+                    {STR.common.cancel}
                   </button>
                 </div>
               </form>
@@ -651,6 +662,7 @@ function CourseLessons({
   // upload endpoint needs the new lesson's id).
   const [noteFiles, setNoteFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
+  const lessonModalRef = useModalA11y();
 
   async function load() {
     setLoading(true);
@@ -728,7 +740,7 @@ function CourseLessons({
       {error && <p className="error">{error}</p>}
 
       {loading ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{STR.common.loading}</p>
       ) : lessons.length === 0 ? (
         <p className="muted">No lessons yet.</p>
       ) : (
@@ -752,7 +764,12 @@ function CourseLessons({
       </button>
 
       {showAdd && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div
+          ref={lessonModalRef}
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="modal" style={{ maxWidth: 860 }}>
             <div className="modal-header">
               <h2>Add lesson — {courseTitle}</h2>
@@ -760,7 +777,7 @@ function CourseLessons({
                 type="button"
                 className="modal-close"
                 onClick={closeAdd}
-                aria-label="Close"
+                aria-label={STR.common.close}
               >
                 ×
               </button>
@@ -770,7 +787,7 @@ function CourseLessons({
               <form onSubmit={addLesson}>
                 {/* Full-width: title + description */}
                 <div className="field">
-                  <label>Title</label>
+                  <label>{STR.labels.title}</label>
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
@@ -868,7 +885,7 @@ function CourseLessons({
                                   )
                                 }
                               >
-                                Remove
+                                {STR.common.remove}
                               </button>
                             </li>
                           ))}
@@ -906,7 +923,7 @@ function CourseLessons({
                     className="btn btn--ghost"
                     onClick={closeAdd}
                   >
-                    Cancel
+                    {STR.common.cancel}
                   </button>
                 </div>
               </form>
@@ -1021,7 +1038,7 @@ function LessonRow({
   async function removeLesson() {
     if (
       !(await dialog.confirm({
-        message: `Delete lesson "${lesson.title}"?`,
+        message: STR.confirm.deleteEntity("lesson", lesson.title),
         danger: true,
       }))
     )
@@ -1080,14 +1097,14 @@ function LessonRow({
               setEditing(true);
             }}
           >
-            {editing ? "Close" : "Edit details"}
+            {editing ? STR.common.close : "Edit details"}
           </button>
           <button
             className="btn btn--danger btn--sm"
             onClick={removeLesson}
             disabled={busy}
           >
-            Delete
+            {STR.common.delete}
           </button>
         </div>
       </div>
@@ -1097,11 +1114,11 @@ function LessonRow({
           {err && <p className="error">{err}</p>}
 
           <div className="field">
-            <label>Title</label>
+            <label>{STR.labels.title}</label>
             <input value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           <div className="field">
-            <label>Description</label>
+            <label>{STR.labels.description}</label>
             <RichTextEditor value={content} onChange={setContent} />
           </div>
           <LessonMediaFields
@@ -1168,7 +1185,7 @@ function LessonRow({
                       className="btn btn--danger btn--sm"
                       onClick={() => removeNote(n.id)}
                     >
-                      Remove
+                      {STR.common.remove}
                     </button>
                   </li>
                 ))}
@@ -1191,13 +1208,13 @@ function LessonRow({
 
           <div className="row-actions">
             <button className="btn btn--sm" onClick={saveEdits} disabled={busy}>
-              {busy ? "Saving…" : "Save"}
+              {busy ? STR.common.saving : STR.common.save}
             </button>
             <button
               className="btn btn--ghost btn--sm"
               onClick={() => setEditing(false)}
             >
-              Cancel
+              {STR.common.cancel}
             </button>
           </div>
         </div>

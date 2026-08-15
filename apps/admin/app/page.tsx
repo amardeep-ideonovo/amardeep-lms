@@ -12,6 +12,7 @@ import type {
   MemberRow,
   MemberStatsDTO,
 } from "@lms/types";
+import { STR } from "@lms/types";
 
 // NOTE (Ink Hero): the frame's "Weekly revenue" bar chart is intentionally
 // omitted — the API has no revenue-over-time endpoint (only on-demand .xlsx
@@ -345,14 +346,14 @@ export default function DashboardPage() {
                 </Link>
               </div>
               <div className="mini-grid mini-grid--head mini-grid--members">
-                <span>Member</span>
-                <span>Plan</span>
+                <span>{STR.labels.member}</span>
+                <span>{STR.labels.plan}</span>
                 <span>Joined</span>
-                <span>Status</span>
+                <span>{STR.labels.status}</span>
               </div>
               {loading ? (
                 <p className="muted" style={{ padding: "12px 0" }}>
-                  Loading…
+                  {STR.common.loading}
                 </p>
               ) : recent.length === 0 ? (
                 <p className="muted" style={{ padding: "12px 0" }}>
@@ -487,7 +488,7 @@ export default function DashboardPage() {
 
           {activity.length === 0 ? (
             <p className="muted" style={{ padding: "12px 0" }}>
-              {loading ? "Loading…" : "No recent activity yet."}
+              {loading ? STR.common.loading : "No recent activity yet."}
             </p>
           ) : (
             activity.map((n) => (

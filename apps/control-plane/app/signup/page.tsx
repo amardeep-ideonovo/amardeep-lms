@@ -9,6 +9,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
+import { STR } from "@lms/types";
 import { clientSignUp } from "@/lib/auth";
 import {
   activePlans,
@@ -210,7 +211,7 @@ function SignupCard() {
               />
             </Field>
           </div>
-          <Field label="Email">
+          <Field label={STR.labels.email}>
             <input
               className="input"
               type="email"
@@ -226,7 +227,7 @@ function SignupCard() {
               aria-invalid={error ? true : undefined}
             />
           </Field>
-          <Field label="Password">
+          <Field label={STR.labels.password}>
             <input
               className="input"
               type="password"
