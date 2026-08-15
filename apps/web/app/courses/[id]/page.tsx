@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { CourseCard, LessonDTO } from "@lms/types";
+import { STR } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
@@ -154,7 +155,7 @@ function CourseInner() {
     // wrong locked panel before the course card (and its price) arrives.
     body = (
       <div className="centered-state">
-        <div className="spinner" aria-label="Loading" />
+        <div className="spinner" aria-label={STR.common.loadingLabel} />
       </div>
     );
   } else if (locked) {
@@ -202,7 +203,7 @@ function CourseInner() {
   } else if (!lessons) {
     body = (
       <div className="centered-state">
-        <div className="spinner" aria-label="Loading" />
+        <div className="spinner" aria-label={STR.common.loadingLabel} />
       </div>
     );
   } else {
@@ -285,7 +286,7 @@ export default function CoursePage() {
           <div className="course-cinema">
             <div className="cd-wrap">
               <div className="centered-state">
-                <div className="spinner" aria-label="Loading" />
+                <div className="spinner" aria-label={STR.common.loadingLabel} />
               </div>
             </div>
           </div>

@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { STR } from "@lms/types";
 
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -42,7 +43,7 @@ export function ErrorState({
           onPress={onRetry}
           activeOpacity={0.8}
         >
-          <Text style={styles.retryText}>Try again</Text>
+          <Text style={styles.retryText}>{STR.common.retry}</Text>
         </TouchableOpacity>
       ) : null}
     </Centered>

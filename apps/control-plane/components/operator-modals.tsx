@@ -4,6 +4,7 @@
 // verbs (change plan, cap override, app-track override, provision-for-client).
 
 import { FormEvent, useState } from "react";
+import { STR } from "@lms/types";
 import {
   activePlans,
   changeLicensePlan,
@@ -225,10 +226,10 @@ export function PlanEditorModal({
         </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Cancel
+            {STR.common.cancel}
           </button>
           <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? "Saving…" : plan ? "Save plan" : "Create plan"}
+            {busy ? STR.common.saving : plan ? "Save plan" : "Create plan"}
           </button>
         </div>
       </form>
@@ -302,7 +303,7 @@ export function ChangeLicensePlanModal({
       </div>
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Cancel
+          {STR.common.cancel}
         </button>
         <button
           type="button"
@@ -400,10 +401,10 @@ export function CapOverrideModal({
         </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Cancel
+            {STR.common.cancel}
           </button>
           <button type="submit" className="btn btn-primary" disabled={busy}>
-            {busy ? "Saving…" : "Save cap"}
+            {busy ? STR.common.saving : "Save cap"}
           </button>
         </div>
       </form>
@@ -447,7 +448,7 @@ export function TrackOverrideModal({
       </div>
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Cancel
+          {STR.common.cancel}
         </button>
         <button
           type="button"
@@ -459,7 +460,7 @@ export function TrackOverrideModal({
             onClose();
           }}
         >
-          {busy ? "Saving…" : "Save track"}
+          {busy ? STR.common.saving : "Save track"}
         </button>
       </div>
     </Modal>
@@ -555,7 +556,7 @@ export function ProvisionForClientModal({
         </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Cancel
+            {STR.common.cancel}
           </button>
           <button
             type="submit"

@@ -6,6 +6,7 @@ import type { SubscriptionRowDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { DownloadIcon, SpinnerIcon } from "@/components/ExportIcons";
+import { STR } from "@lms/types";
 
 const money = (a: number | null, c: string) =>
   a == null
@@ -93,14 +94,14 @@ export default function SubscriptionsPage() {
     );
   });
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("subscriptions", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Subscriptions</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -149,7 +150,7 @@ export default function SubscriptionsPage() {
 
       <div className="card">
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : rows.length === 0 ? (
           <p className="muted">No subscriptions yet.</p>
         ) : (
@@ -164,7 +165,7 @@ export default function SubscriptionsPage() {
               }}
             >
               <label htmlFor="sub-search" style={{ fontWeight: 600 }}>
-                Search
+                {STR.common.search}
               </label>
               <input
                 id="sub-search"
@@ -175,7 +176,7 @@ export default function SubscriptionsPage() {
                 style={{ minWidth: 220 }}
               />
               <label htmlFor="sub-status" style={{ fontWeight: 600 }}>
-                Status
+                {STR.labels.status}
               </label>
               <select
                 id="sub-status"
@@ -201,8 +202,8 @@ export default function SubscriptionsPage() {
                 <table className="table">
                   <thead>
                     <tr>
-                      <th>Status</th>
-                      <th>Name</th>
+                      <th>{STR.labels.status}</th>
+                      <th>{STR.labels.name}</th>
                       <th>Class Name</th>
                       <th>Total</th>
                       <th>Start Date</th>

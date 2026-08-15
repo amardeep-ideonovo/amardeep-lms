@@ -18,6 +18,8 @@ import type {
   AuthUser,
   LoginResponse,
 } from "@lms/types";
+// Relative on purpose — see packages/types/constants.ts (API value imports).
+import { MAX_AVATAR_UPLOAD_BYTES } from "../../../../packages/types/constants";
 import { PrismaService } from "../prisma/prisma.service";
 import { ContactsService } from "../contacts/contacts.service";
 import { AutomationService } from "../email/automation.service";
@@ -51,7 +53,7 @@ const AVATAR_EXT: Record<string, string> = {
   "image/webp": ".webp",
   "image/gif": ".gif",
 };
-const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
+const AVATAR_MAX_BYTES = MAX_AVATAR_UPLOAD_BYTES; // 8 MB
 
 @Injectable()
 export class AuthService {

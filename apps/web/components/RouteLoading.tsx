@@ -13,10 +13,12 @@
 //   AuthGate in front of them and today make the visitor wait on a blank frame
 //   for the whole dynamic render.
 
+import { STR } from "@lms/types";
+
 export function RouteSpinner() {
   return (
     <div className="centered-state">
-      <div className="spinner" aria-label="Loading" />
+      <div className="spinner" aria-label={STR.common.loadingLabel} />
     </div>
   );
 }
@@ -36,7 +38,7 @@ export function PageSkeleton({
     // reader read out the placeholder layout. One status line says it instead.
     <div className="ink-page" aria-busy="true">
       <span className="sr-only" role="status">
-        Loading
+        {STR.common.loadingLabel}
       </span>
       <div className="ik-band" aria-hidden="true">
         <div className="ik-band-inner">

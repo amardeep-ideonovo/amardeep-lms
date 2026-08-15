@@ -2769,3 +2769,9 @@ export const ROUTES = {
   // infra
   health: "GET /health", // public probe -> { status, env, uptime, checks: { db, redis } }
 } as const;
+
+// ---------- Shared UI strings, constants & class accents ----------
+// (docs/coding-standards.md D1/D2 — see each file's header for the rules.)
+export * from "./strings";
+export * from "./constants";
+export * from "./class-accents";

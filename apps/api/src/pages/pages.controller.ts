@@ -14,6 +14,8 @@ import {
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { diskStorage } from "multer";
+// Relative on purpose — see packages/types/constants.ts (API value imports).
+import { MAX_IMAGE_UPLOAD_BYTES } from "../../../../packages/types/constants";
 import type { Request } from "express";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
 import { RequirePermission } from "../auth/require-permission.decorator";
@@ -109,7 +111,7 @@ export class PagesController {
   @UseInterceptors(
     FileInterceptor("file", {
       storage: pageImageStorage,
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+      limits: { fileSize: MAX_IMAGE_UPLOAD_BYTES }, // 5 MB
       fileFilter: (_req, file, cb) => {
         cb(null, imageExt(file.mimetype, file.originalname) !== null);
       },

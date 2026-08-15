@@ -8,6 +8,7 @@ import type {
   LiveSessionBarDTO,
   LiveZoomEmbedDTO,
 } from "@lms/types";
+import { STR } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import ZoomEmbed from "@/components/ZoomEmbed";
@@ -128,7 +129,7 @@ function LiveInner() {
   if (screen === "loading") {
     return (
       <div className="centered-state">
-        <div className="spinner" aria-label="Loading" />
+        <div className="spinner" aria-label={STR.common.loadingLabel} />
       </div>
     );
   }

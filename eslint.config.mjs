@@ -95,6 +95,53 @@ export default tseslint.config(
     },
   },
 
+  // ---------- shared-strings ratchet (docs/coding-standards.md D1) ----------
+  // Warn on raw copies of the top catalog literals — render STR.* from
+  // @lms/types instead. Warning-first like the rest of this config: these
+  // never fail CI; they mark leftovers until an app is fully migrated and its
+  // entry can ratchet to error. API is exempt until D6 (error codes) lands.
+  {
+    files: [
+      "apps/web/**/*.tsx",
+      "apps/admin/**/*.tsx",
+      "apps/control-plane/**/*.tsx",
+      "apps/mobile/**/*.tsx",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "warn",
+        {
+          // :last-child keeps sentence FRAGMENTS out: in `<h2>Cancel {x}?</h2>`
+          // the "Cancel " text node is followed by siblings, so it's not a
+          // standalone label — only a lone/trailing text node is.
+          selector:
+            "JSXText[value=/^\\s*(Close|Cancel|Save|Saving…|Delete|Edit|Remove|Loading…|Try again)\\s*$/]:last-child",
+          message:
+            "Use STR.common.* from @lms/types instead of retyping this label (docs/coding-standards.md D1).",
+        },
+        {
+          selector: 'JSXAttribute[name.name="aria-label"][value.value="Close"]',
+          message: "Use STR.common.close from @lms/types.",
+        },
+        {
+          selector: "JSXText[value=/You don’t have permission to view this/]",
+          message: "Use STR.errors.permissionDenied from @lms/types.",
+        },
+        {
+          selector:
+            "Literal[value=/^You don’t have permission to view this\\.$/]",
+          message: "Use STR.errors.permissionDenied from @lms/types.",
+        },
+        {
+          // Trailing period required: a period-less "Something went wrong" is
+          // a heading slot, not the catalog error sentence.
+          selector: "Literal[value=/^Something went wrong\\./]",
+          message: "Use STR.errors.generic from @lms/types.",
+        },
+      ],
+    },
+  },
+
   // ---------- Next.js apps: framework footguns ----------
   ...NEXT_APPS.map((app) => ({
     files: [`${app}/**/*.{ts,tsx}`],

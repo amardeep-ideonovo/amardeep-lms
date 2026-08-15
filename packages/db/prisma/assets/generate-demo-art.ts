@@ -30,7 +30,9 @@ const TEAL = hex("#3cc4b2");
 const WHITE = hex("#ffffff");
 
 // One accent per demo class, matching the accent slot each class resolves to
-// (music amber · food purple · sports green · technology blue).
+// (music amber · food purple · sports green · technology blue). The canonical
+// slot palette + keyword table live in packages/types/class-accents.ts — if a
+// slot color changes there, repaint here to match.
 type Theme = "music" | "food" | "technology" | "sports" | "general";
 const ACCENT: Record<Theme, RGB> = {
   music: hex("#f7a01e"),

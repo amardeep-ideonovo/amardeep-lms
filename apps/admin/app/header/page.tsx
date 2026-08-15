@@ -11,6 +11,7 @@ import type {
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import HeaderBuilder from "./HeaderBuilder";
+import { STR } from "@lms/types";
 
 // Standalone "Header" page (sidebar item above Navigation). Builds site headers
 // and their placement rules. Gated by the `menus` permission, same as menus.
@@ -46,14 +47,14 @@ export default function HeaderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("menus", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Header</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 

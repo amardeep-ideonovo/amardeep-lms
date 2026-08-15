@@ -13,6 +13,7 @@ import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
 import MediaPicker from "@/components/MediaPicker";
+import { STR } from "@lms/types";
 
 const EMPTY = {
   title: "",
@@ -253,7 +254,7 @@ export default function BlogPage() {
   async function removeCategory(c: PostCategoryDTO) {
     if (
       !(await dialog.confirm({
-        message: `Remove category "${c.name}"? Posts in it will become uncategorized.`,
+        message: `${STR.confirm.removeEntity(`category “${c.name}”`)} Posts in it will become uncategorized.`,
         danger: true,
       }))
     )
@@ -285,14 +286,14 @@ export default function BlogPage() {
         })
       : "—";
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("blog", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Blog</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -353,7 +354,7 @@ export default function BlogPage() {
           </button>
         </div>
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : posts.length === 0 ? (
           <p className="muted">No posts yet. Click “Add new post” to start.</p>
         ) : (
@@ -361,12 +362,12 @@ export default function BlogPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Title</th>
+                  <th>{STR.labels.title}</th>
                   <th>Category</th>
                   <th>Tags</th>
                   <th>Author</th>
-                  <th>Date</th>
-                  <th>Status</th>
+                  <th>{STR.labels.date}</th>
+                  <th>{STR.labels.status}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -403,7 +404,7 @@ export default function BlogPage() {
                           className="btn btn--ghost btn--sm"
                           onClick={() => startEdit(post)}
                         >
-                          Edit
+                          {STR.common.edit}
                         </button>
                         <button
                           className="btn btn--ghost btn--sm"
@@ -417,7 +418,7 @@ export default function BlogPage() {
                           className="btn btn--danger btn--sm"
                           onClick={() => remove(post)}
                         >
-                          Delete
+                          {STR.common.delete}
                         </button>
                       </div>
                     </td>
@@ -438,7 +439,7 @@ export default function BlogPage() {
                 type="button"
                 className="modal-close"
                 onClick={closeModal}
-                aria-label="Close"
+                aria-label={STR.common.close}
               >
                 ×
               </button>
@@ -447,7 +448,7 @@ export default function BlogPage() {
               {formError && <p className="error">{formError}</p>}
               <form onSubmit={submit}>
                 <div className="field">
-                  <label>Title</label>
+                  <label>{STR.labels.title}</label>
                   <input
                     value={form.title}
                     onChange={(e) =>
@@ -515,7 +516,7 @@ export default function BlogPage() {
 
                 <div className="form-row">
                   <div className="field">
-                    <label>Status</label>
+                    <label>{STR.labels.status}</label>
                     <select
                       value={form.status}
                       onChange={(e) =>
@@ -552,9 +553,9 @@ export default function BlogPage() {
                     disabled={saving || detailState !== "ready"}
                   >
                     {detailState === "loading"
-                      ? "Loading…"
+                      ? STR.common.loading
                       : saving
-                        ? "Saving…"
+                        ? STR.common.saving
                         : editingId
                           ? "Save changes"
                           : "Publish post"}
@@ -564,7 +565,7 @@ export default function BlogPage() {
                     className="btn btn--ghost"
                     onClick={closeModal}
                   >
-                    Cancel
+                    {STR.common.cancel}
                   </button>
                 </div>
               </form>

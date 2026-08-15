@@ -6,6 +6,7 @@ import { ApiError, api } from "@/lib/api";
 import { useAppBrand } from "@/lib/app-brand";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { STR } from "@lms/types";
 
 // Editor draft. MJML + subject are Handlebars sources; `variables` is edited as
 // a comma-separated string in the form and split on save.
@@ -240,9 +241,9 @@ export default function EmailTemplatesPage() {
       return;
     }
     const ok = await dialog.confirm({
-      message: `Delete template "${t.name}"?`,
+      message: STR.confirm.deleteEntity("template", t.name),
       danger: true,
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
     });
     if (!ok) return;
     setRemoving(true);
@@ -318,14 +319,14 @@ export default function EmailTemplatesPage() {
     }
   }
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("email", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Email</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -366,7 +367,7 @@ export default function EmailTemplatesPage() {
             <h2 style={{ fontSize: 16 }}>Templates</h2>
           </div>
           {loading ? (
-            <p className="muted">Loading…</p>
+            <p className="muted">{STR.common.loading}</p>
           ) : templates.length === 0 ? (
             <p className="muted">
               No templates yet.{canCreate ? " Create one to begin." : ""}
@@ -456,7 +457,7 @@ export default function EmailTemplatesPage() {
                   className="btn btn--ghost btn--sm"
                   onClick={closeEditor}
                 >
-                  Close
+                  {STR.common.close}
                 </button>
               </div>
 
@@ -464,7 +465,7 @@ export default function EmailTemplatesPage() {
 
               <div className="form-row">
                 <div className="field">
-                  <label>Name</label>
+                  <label>{STR.labels.name}</label>
                   <input
                     value={draft.name}
                     onChange={(e) =>
@@ -569,7 +570,7 @@ export default function EmailTemplatesPage() {
                 {(canEdit || creating) && (
                   <button className="btn" type="submit" disabled={saving}>
                     {saving
-                      ? "Saving…"
+                      ? STR.common.saving
                       : creating
                         ? "Create template"
                         : "Save changes"}
@@ -581,7 +582,7 @@ export default function EmailTemplatesPage() {
                   onClick={preview}
                   disabled={previewing}
                 >
-                  {previewing ? "Rendering…" : "Preview"}
+                  {previewing ? "Rendering…" : STR.common.preview}
                 </button>
                 {!creating && selected && canEdit && (
                   <button
@@ -600,7 +601,7 @@ export default function EmailTemplatesPage() {
                     onClick={() => remove(selected)}
                     disabled={removing}
                   >
-                    {removing ? "Deleting…" : "Delete"}
+                    {removing ? "Deleting…" : STR.common.delete}
                   </button>
                 )}
               </div>
@@ -616,7 +617,9 @@ export default function EmailTemplatesPage() {
                       marginBottom: 8,
                     }}
                   >
-                    <h3 style={{ fontSize: 14, margin: 0 }}>Preview</h3>
+                    <h3 style={{ fontSize: 14, margin: 0 }}>
+                      {STR.common.preview}
+                    </h3>
                     <span className="muted" style={{ fontSize: 13 }}>
                       Subject: {previewSubject || "—"}
                     </span>

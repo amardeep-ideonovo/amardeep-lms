@@ -14,6 +14,7 @@ import type { LevelDTO, MemberStatsDTO, SubscriptionRowDTO } from "@lms/types";
 import { ApiError, api, type ReportFilter } from "@/lib/api";
 import { classAccentIndex } from "@/lib/class-accent";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
+import { STR } from "@lms/types";
 
 const REPORTS: {
   key: string;
@@ -126,14 +127,14 @@ export default function ReportsPage() {
     setLevelId("");
   }
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("reports", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Reports</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -217,7 +218,7 @@ export default function ReportsPage() {
     .map((l, idx) => ({
       l,
       accent:
-        CLASS_ACCENTS[classAccentIndex(l.name, idx) % CLASS_ACCENTS.length],
+        CLASS_ACCENTS[classAccentIndex(l.name, [], idx) % CLASS_ACCENTS.length],
     }))
     .sort((a, b) => b.l.memberCount - a.l.memberCount)
     .slice(0, 5);
@@ -408,7 +409,7 @@ export default function ReportsPage() {
             />
           </label>
           <label style={fieldStyle}>
-            <span className="muted">Class</span>
+            <span className="muted">{STR.labels.class}</span>
             <select
               value={levelId}
               onChange={(e) => setLevelId(e.target.value)}

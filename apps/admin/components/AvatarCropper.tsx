@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { STR } from "@lms/types";
 
 // Self-contained avatar cropper. The admin picks an image, then pans (drag) and
 // zooms (slider / wheel) to frame a square crop under a circular guide. On apply
@@ -71,7 +72,7 @@ export default function AvatarCropper({
       if (cancelled) return;
       const d = { w: img.naturalWidth, h: img.naturalHeight };
       if (!d.w || !d.h) {
-        setError("That image couldn't be read. Try another file.");
+        setError(STR.errors.imageUnreadable);
         return;
       }
       const fit = Math.max(VIEWPORT / d.w, VIEWPORT / d.h);
@@ -83,7 +84,7 @@ export default function AvatarCropper({
     };
     img.onerror = () => {
       if (cancelled) return;
-      setError("That image couldn't be read. Try another file.");
+      setError(STR.errors.imageUnreadable);
     };
     img.src = objectUrl;
     return () => {
@@ -176,7 +177,7 @@ export default function AvatarCropper({
           <button
             type="button"
             className="modal-close"
-            aria-label="Close"
+            aria-label={STR.common.close}
             onClick={onCancel}
             disabled={busy}
           >
@@ -254,7 +255,7 @@ export default function AvatarCropper({
             onClick={onCancel}
             disabled={busy}
           >
-            Cancel
+            {STR.common.cancel}
           </button>
         </div>
       </div>

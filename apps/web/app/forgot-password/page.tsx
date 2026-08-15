@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { STR } from "@lms/types";
 import { api } from "@/lib/api";
 
 // Self-serve password reset, step 1: ask for the account email. The API
@@ -23,9 +24,7 @@ export default function ForgotPasswordPage() {
       setSent(true);
     } catch (err) {
       // Only transport/rate-limit failures land here — never "no such account".
-      setError(
-        err instanceof Error ? err.message : "Something went wrong. Try again.",
-      );
+      setError(err instanceof Error ? err.message : STR.errors.generic);
     } finally {
       setLoading(false);
     }
@@ -62,7 +61,7 @@ export default function ForgotPasswordPage() {
 
               <form onSubmit={onSubmit}>
                 <div className="field">
-                  <label htmlFor="email">Email</label>
+                  <label htmlFor="email">{STR.labels.email}</label>
                   <input
                     id="email"
                     type="email"

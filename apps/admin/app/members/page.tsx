@@ -14,6 +14,7 @@ import { dialog } from "@/components/DialogProvider";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import RowMenu from "@/components/RowMenu";
 import { DownloadIcon, SpinnerIcon } from "@/components/ExportIcons";
+import { STR } from "@lms/types";
 
 const PAGE_SIZE = 8; // rows per page (Ink Hero frame 2h)
 
@@ -201,14 +202,14 @@ export default function MembersPage() {
   const from = filteredTotal === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const to = Math.min(filteredTotal, page * PAGE_SIZE);
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("members", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Members</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -255,7 +256,7 @@ export default function MembersPage() {
           }}
         >
           <option value="">Status: All</option>
-          <option value="active">Active</option>
+          <option value="active">{STR.common.active}</option>
           <option value="past_due">Past due</option>
           <option value="paused">Paused</option>
           <option value="canceled">Canceled</option>
@@ -314,7 +315,7 @@ export default function MembersPage() {
       {/* members table */}
       <div className="card">
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : totalMembers === 0 ? (
           <p className="muted">No members yet.</p>
         ) : filteredTotal === 0 ? (
@@ -329,11 +330,11 @@ export default function MembersPage() {
                 className="mini-grid mini-grid--head"
                 style={{ gridTemplateColumns: GRID }}
               >
-                <span>Member</span>
-                <span>Plan</span>
+                <span>{STR.labels.member}</span>
+                <span>{STR.labels.plan}</span>
                 <span>Classes</span>
                 <span>Joined</span>
-                <span>Status</span>
+                <span>{STR.labels.status}</span>
                 <span />
               </div>
               {pageRows.map((m) => {
@@ -477,7 +478,7 @@ export default function MembersPage() {
                 type="button"
                 className="modal-close"
                 onClick={() => setGrantFor(null)}
-                aria-label="Close"
+                aria-label={STR.common.close}
               >
                 ×
               </button>
@@ -493,7 +494,7 @@ export default function MembersPage() {
                 a class. Manual grants coexist with paid subscriptions.
               </p>
               <div className="field">
-                <label htmlFor="grant-level">Class</label>
+                <label htmlFor="grant-level">{STR.labels.class}</label>
                 <select
                   id="grant-level"
                   value={grantLevelId}
@@ -517,7 +518,7 @@ export default function MembersPage() {
                   className="btn btn--ghost"
                   onClick={() => setGrantFor(null)}
                 >
-                  Cancel
+                  {STR.common.cancel}
                 </button>
                 <button
                   type="button"
