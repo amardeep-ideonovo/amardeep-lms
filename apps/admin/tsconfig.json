@@ -18,7 +18,8 @@
     "paths": {
       "@/*": ["./*"],
       "@lms/types": ["../../packages/types/index.ts"],
-      "@lms/puck": ["../../packages/puck/index.ts"]
+      "@lms/puck": ["../../packages/puck/index.ts"],
+      "@lms/ui": ["../../packages/ui/index.ts"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

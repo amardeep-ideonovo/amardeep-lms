@@ -11,13 +11,8 @@ import type {
 import { ApiError, api } from "@/lib/api";
 import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
-import { STR } from "@lms/types";
+import { STR, formatMoney } from "@lms/types";
 
-const money = (a: number, c: string) =>
-  (a / 100).toLocaleString(undefined, {
-    style: "currency",
-    currency: (c || "usd").toUpperCase(),
-  });
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, {
     year: "numeric",
@@ -130,7 +125,7 @@ export default function MemberBillingPage() {
                         <strong>{s.levelName}</strong>
                         <span className="muted">
                           {s.provider === "paypal" ? "PayPal" : "Stripe"} ·{" "}
-                          {money(s.amount, s.currency)} / {s.interval} ·{" "}
+                          {formatMoney(s.amount, s.currency)} / {s.interval} ·{" "}
                           {s.paused ? "paused" : s.status}
                           {s.cancelAtPeriodEnd
                             ? " · cancels at period end"
@@ -228,7 +223,10 @@ export default function MemberBillingPage() {
                         <td>{fmtDate(inv.created)}</td>
                         <td className="muted">{inv.description ?? "—"}</td>
                         <td>
-                          {money(inv.amountPaid || inv.amountDue, inv.currency)}
+                          {formatMoney(
+                            inv.amountPaid || inv.amountDue,
+                            inv.currency,
+                          )}
                         </td>
                         <td>{inv.status}</td>
                         <td>

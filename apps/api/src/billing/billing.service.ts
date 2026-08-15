@@ -21,6 +21,8 @@ import type {
   SubscribeResult,
   SubscriptionDetailDTO,
 } from "@lms/types";
+// Relative on purpose — see packages/types/constants.ts (API value imports).
+import { formatMoney } from "../../../../packages/types/format";
 import { PrismaService } from "../prisma/prisma.service";
 import { StripeService } from "./stripe.service";
 import { PayPalService, type PayPalSubscription } from "./paypal.service";
@@ -207,21 +209,13 @@ export class BillingService implements OnModuleInit {
     }
   }
 
-  // Minor units -> display string, e.g. (12000, "usd") => "$120.00".
+  // Minor units -> display string, e.g. (12000, "usd") => "$120.00". Nullable
+  // adapter over the shared formatter (webhook payloads can omit amounts).
   private formatMoney(
     amountMinor: number | null | undefined,
     currency: string | null | undefined,
   ): string {
-    const amt = (amountMinor ?? 0) / 100;
-    const cur = (currency || "usd").toUpperCase();
-    try {
-      return new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: cur,
-      }).format(amt);
-    } catch {
-      return `${amt.toFixed(2)} ${cur}`;
-    }
+    return formatMoney(amountMinor ?? 0, currency || "usd");
   }
 
   // Emit a PAYMENT_SUCCEEDED / PAYMENT_FAILED notification for one invoice.

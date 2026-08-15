@@ -1,18 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { STR } from "@lms/types";
 import { useModalA11y } from "@/lib/useModalA11y";
+import { useImageCropper } from "@lms/ui";
+import { STR } from "@lms/types";
 
-// Self-contained avatar cropper. The admin picks an image, then pans (drag) and
-// zooms (slider / wheel) to frame a square crop under a circular guide. On apply
-// we redraw the framed region to a fixed-size canvas and hand back a JPEG blob,
-// so the existing upload endpoint stays unchanged. Zero external dependencies —
-// mirrors the rest of the admin's bespoke, inline-styled UI.
+// Avatar cropper, admin-skinned. The pan/zoom/crop mechanism lives in
+// @lms/ui's useImageCropper (shared with web's AvatarCropper and
+// MediaCropper); this file is only the admin markup around it. On apply the
+// framed region is exported as a fixed-size JPEG blob, so the existing upload
+// endpoint stays unchanged.
 
 const VIEWPORT = 300; // on-screen crop square (px)
 const OUTPUT = 512; // exported avatar resolution (px)
-const MAX_ZOOM_FACTOR = 4; // furthest zoom = min-fit × this
 
 type Props = {
   file: File;
@@ -23,8 +22,6 @@ type Props = {
   onApply: (blob: Blob) => void;
 };
 
-type Dims = { w: number; h: number };
-
 export default function AvatarCropper({
   file,
   busy = false,
@@ -32,144 +29,20 @@ export default function AvatarCropper({
   onCancel,
   onApply,
 }: Props) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [dims, setDims] = useState<Dims | null>(null);
-  const [minScale, setMinScale] = useState(1);
-  const [scale, setScale] = useState(1);
-  const [pos, setPos] = useState({ x: 0, y: 0 }); // top-left of the scaled image
-  const [error, setError] = useState<string | null>(null);
-
-  const imgRef = useRef<HTMLImageElement | null>(null);
-  const drag = useRef<{
-    px: number;
-    py: number;
-    ox: number;
-    oy: number;
-  } | null>(null);
   const modalRef = useModalA11y();
+  const crop = useImageCropper({
+    file,
+    aspect: 1,
+    stageMax: { w: VIEWPORT, h: VIEWPORT },
+    busy,
+    output: { kind: "fixed", size: OUTPUT },
+  });
 
-  // Keep the image covering the viewport so the circle is never empty.
-  const clampPos = useCallback(
-    (p: { x: number; y: number }, s: number, d: Dims) => {
-      const w = d.w * s;
-      const h = d.h * s;
-      return {
-        x: Math.min(0, Math.max(VIEWPORT - w, p.x)),
-        y: Math.min(0, Math.max(VIEWPORT - h, p.y)),
-      };
-    },
-    [],
-  );
-
-  // Load the picked file into an <img> and fit it to the viewport. The
-  // `cancelled` guard keeps a superseded run (e.g. React StrictMode's
-  // dev double-mount, which revokes the first object URL) from reporting a
-  // false load error onto the live component.
-  useEffect(() => {
-    let cancelled = false;
-    const objectUrl = URL.createObjectURL(file);
-    setUrl(objectUrl);
-    const img = new Image();
-    img.onload = () => {
-      if (cancelled) return;
-      const d = { w: img.naturalWidth, h: img.naturalHeight };
-      if (!d.w || !d.h) {
-        setError(STR.errors.imageUnreadable);
-        return;
-      }
-      const fit = Math.max(VIEWPORT / d.w, VIEWPORT / d.h);
-      imgRef.current = img;
-      setDims(d);
-      setMinScale(fit);
-      setScale(fit);
-      setPos({ x: (VIEWPORT - d.w * fit) / 2, y: (VIEWPORT - d.h * fit) / 2 });
-    };
-    img.onerror = () => {
-      if (cancelled) return;
-      setError(STR.errors.imageUnreadable);
-    };
-    img.src = objectUrl;
-    return () => {
-      cancelled = true;
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [file]);
-
-  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
-
-  // Re-zoom around the viewport centre so framing feels stable.
-  const applyZoom = useCallback(
-    (next: number) => {
-      if (!dims) return;
-      const s = Math.min(minScale * MAX_ZOOM_FACTOR, Math.max(minScale, next));
-      setScale((prev) => {
-        const cx = (VIEWPORT / 2 - pos.x) / prev;
-        const cy = (VIEWPORT / 2 - pos.y) / prev;
-        const np = { x: VIEWPORT / 2 - cx * s, y: VIEWPORT / 2 - cy * s };
-        setPos(clampPos(np, s, dims));
-        return s;
-      });
-    },
-    [dims, minScale, pos.x, pos.y, clampPos],
-  );
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (busy) return;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    drag.current = { px: e.clientX, py: e.clientY, ox: pos.x, oy: pos.y };
+  const handleApply = async () => {
+    if (busy || !crop.ready) return;
+    const blob = await crop.exportBlob();
+    if (blob) onApply(blob);
   };
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!drag.current || !dims) return;
-    const next = {
-      x: drag.current.ox + (e.clientX - drag.current.px),
-      y: drag.current.oy + (e.clientY - drag.current.py),
-    };
-    setPos(clampPos(next, scale, dims));
-  };
-  const endDrag = (e: React.PointerEvent) => {
-    drag.current = null;
-    try {
-      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {
-      /* capture may already be gone */
-    }
-  };
-  const onWheel = (e: React.WheelEvent) => {
-    if (busy) return;
-    applyZoom(scale * (e.deltaY < 0 ? 1.08 : 0.92));
-  };
-
-  // Draw the framed region to a square canvas and export a JPEG.
-  const handleApply = () => {
-    const img = imgRef.current;
-    if (!img || !dims || busy) return;
-    const sSize = VIEWPORT / scale; // source square under the viewport
-    const sx = -pos.x / scale;
-    const sy = -pos.y / scale;
-    const canvas = document.createElement("canvas");
-    canvas.width = OUTPUT;
-    canvas.height = OUTPUT;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      setError("Couldn't process the image in this browser.");
-      return;
-    }
-    ctx.imageSmoothingQuality = "high";
-    ctx.fillStyle = "#ffffff"; // flatten any transparency (JPEG has no alpha)
-    ctx.fillRect(0, 0, OUTPUT, OUTPUT);
-    ctx.drawImage(img, sx, sy, sSize, sSize, 0, 0, OUTPUT, OUTPUT);
-    canvas.toBlob(
-      (blob) => {
-        if (blob) onApply(blob);
-        else setError("Couldn't process the image. Try a different file.");
-      },
-      "image/jpeg",
-      0.92,
-    );
-  };
-
-  const w = dims ? dims.w * scale : 0;
-  const h = dims ? dims.h * scale : 0;
 
   return (
     <div
@@ -192,29 +65,30 @@ export default function AvatarCropper({
           </button>
         </div>
         <div className="modal-body cropper-body">
-          {error ? (
-            <p className="error">{error}</p>
+          {crop.error ? (
+            <p className="error">{crop.error}</p>
           ) : (
             <>
               <div
                 className="cropper-stage"
-                style={{ width: VIEWPORT, height: VIEWPORT }}
-                onPointerDown={onPointerDown}
-                onPointerMove={onPointerMove}
-                onPointerUp={endDrag}
-                onPointerCancel={endDrag}
-                onWheel={onWheel}
+                style={{ width: crop.stage.w, height: crop.stage.h }}
+                {...crop.stageHandlers}
                 role="application"
                 aria-label="Drag to reposition, scroll to zoom"
               >
-                {url && (
+                {crop.url && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={url}
+                    src={crop.url}
                     alt=""
                     className="cropper-img"
                     draggable={false}
-                    style={{ left: pos.x, top: pos.y, width: w, height: h }}
+                    style={{
+                      left: crop.pos.x,
+                      top: crop.pos.y,
+                      width: crop.imgSize.w,
+                      height: crop.imgSize.h,
+                    }}
                   />
                 )}
                 <div className="cropper-mask" aria-hidden="true" />
@@ -226,11 +100,11 @@ export default function AvatarCropper({
                 </span>
                 <input
                   type="range"
-                  min={minScale}
-                  max={minScale * MAX_ZOOM_FACTOR}
-                  step={(minScale * (MAX_ZOOM_FACTOR - 1)) / 100 || 0.001}
-                  value={scale}
-                  onChange={(e) => applyZoom(Number(e.target.value))}
+                  min={crop.minScale}
+                  max={crop.maxScale}
+                  step={crop.zoomStep}
+                  value={crop.scale}
+                  onChange={(e) => crop.setZoom(Number(e.target.value))}
                   aria-label="Zoom"
                   disabled={busy}
                 />
@@ -243,7 +117,7 @@ export default function AvatarCropper({
               </p>
             </>
           )}
-          {uploadError && !error && (
+          {uploadError && !crop.error && (
             <p className="error cropper-upload-error">{uploadError}</p>
           )}
         </div>
@@ -252,7 +126,7 @@ export default function AvatarCropper({
             type="button"
             className="btn"
             onClick={handleApply}
-            disabled={busy || !dims || !!error}
+            disabled={busy || !crop.ready}
           >
             {busy ? "Uploading…" : "Save photo"}
           </button>

@@ -1,5 +1,7 @@
-// Small display formatters shared across screens (ports of the web's helpers
-// so both clients render the same strings).
+// Small display formatters shared across screens. The money/date helpers now
+// delegate to the canonical versions in @lms/types (docs/coding-standards.md
+// D2/D5) under their original mobile names.
+import { formatDateLong, formatMoney } from "@lms/types";
 
 // Strip rich-text HTML to a single plain-text line — for card/teaser previews
 // where a clamped <Text numberOfLines> can't render HTML (full bodies use
@@ -31,31 +33,18 @@ export function fmtTotalDuration(
   return h > 0 ? `${h}hr ${m}min` : `${m}min`;
 }
 
-// Stripe amounts are minor units (cents). Hermes ships Intl, but keep a plain
-// fallback so a missing locale can never crash a billing screen.
+// Stripe amounts are minor units (cents). The canonical formatter (with the
+// Hermes-safe fallback this file pioneered) lives in @lms/types now; `money`
+// stays as mobile's local name for it.
 export function money(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency.toUpperCase(),
-    }).format(amount / 100);
-  } catch {
-    return `$${(amount / 100).toFixed(2)}`;
-  }
+  return formatMoney(amount, currency);
 }
 
+// Canonical long-date lives in @lms/types; mobile additionally accepts
+// epoch SECONDS (number), which the shared helper doesn't.
 export function fmtDate(iso: string | number | null | undefined): string {
   if (!iso) return "";
-  try {
-    const d = typeof iso === "number" ? new Date(iso * 1000) : new Date(iso);
-    return d.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  } catch {
-    return "";
-  }
+  return formatDateLong(typeof iso === "number" ? new Date(iso * 1000) : iso);
 }
 
 // Parse a Vimeo URL into its player embed URL (or null if not a Vimeo link).

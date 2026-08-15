@@ -1,5 +1,6 @@
 // Typed fetch client for the member web app.
 // Talks to the NestJS API; auth via member JWT stored in localStorage.
+import { createRequest } from "@lms/ui";
 import type {
   AuthUser,
   BillingConfigDTO,
@@ -116,14 +117,11 @@ export function setCachedMe(u: AuthUser | null): void {
   }
 }
 
-export class ApiError extends Error {
-  status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
-    this.name = "ApiError";
-  }
-}
+// Single source: packages/types (admin + mobile re-export the same class), so
+// `instanceof ApiError` means the same thing across the whole codebase.
+// (Imported, not `export … from`, because this file also throws it below.)
+import { ApiError } from "@lms/types";
+export { ApiError };
 
 // Default TTL (seconds) for PUBLIC, token-independent responses that opt into
 // caching. Applied to the site header/footer/menu/app-config fetches the root
@@ -139,67 +137,17 @@ export class ApiError extends Error {
 // request()).
 export const PUBLIC_TTL_SECONDS = 5;
 
-type Options = {
-  method?: string;
-  body?: unknown;
-  auth?: boolean; // attach Bearer token (default true)
-  // Seconds to cache a PUBLIC response in Next's shared Data Cache. Honored only
-  // when NO member token is attached — otherwise request() forces no-store, so a
-  // per-member response can never be served to another visitor from the cache.
-  revalidate?: number;
-};
-
-async function request<T>(path: string, opts: Options = {}): Promise<T> {
-  const { method = "GET", body, auth = true, revalidate } = opts;
-  const headers: Record<string, string> = {};
-
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-
-  let tokenAttached = false;
-  if (auth) {
-    const token = getToken();
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-      tokenAttached = true;
-    }
-  }
-
-  // TTL-cache ONLY public responses. If a member token is attached, force
-  // no-store — a member's response must never land in the shared Data Cache
-  // where another visitor could be served it. This invariant holds regardless
-  // of what the caller passes for `revalidate`. Otherwise, an explicit
-  // `revalidate` caches the (public) response for that many seconds; without it
-  // we keep the previous no-store (always-fresh) default.
-  const init: RequestInit & { next?: { revalidate?: number } } = {
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  };
-  if (revalidate !== undefined && !tokenAttached) {
-    init.next = { revalidate };
-  } else {
-    init.cache = "no-store";
-  }
-
-  const res = await fetch(`${apiBase()}${path}`, init);
-
-  if (!res.ok) {
-    let message = res.statusText;
-    try {
-      const data = await res.json();
-      message = (data && (data.message || data.error)) || message;
-      if (Array.isArray(message)) message = message.join(", ");
-    } catch {
-      /* non-JSON error body */
-    }
-    throw new ApiError(res.status, message);
-  }
-
-  if (res.status === 204) return undefined as T;
-  // Some endpoints may return empty body.
-  const text = await res.text();
-  return (text ? JSON.parse(text) : undefined) as T;
-}
+// The fetch mechanics live in @lms/ui's createRequest, shared with admin
+// (docs/coding-standards.md D5). Web's config: `revalidate` may TTL-cache
+// PUBLIC responses in Next's Data Cache — the core forces no-store whenever a
+// member token is attached (that invariant is owned there). No onUnauthorized:
+// the member site handles 401s per-surface (AuthGate redirects; background
+// fetches surface the error inline).
+const request = createRequest({
+  baseUrl: apiBase,
+  getToken,
+  fallbackMessage: (res) => res.statusText,
+});
 
 // ---------- Endpoints (mirror packages/types ROUTES) ----------
 export const api = {

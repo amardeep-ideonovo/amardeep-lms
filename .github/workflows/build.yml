@@ -50,7 +50,7 @@ jobs:
         # control-plane are covered by their `next build` jobs below
         # (`next build` type-checks the whole project, so a matrix entry
         # for them would double-spend CI minutes for no extra signal).
-        workspace: [mobile, puck, bdd, db]
+        workspace: [mobile, puck, ui, bdd, db]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -69,6 +69,7 @@ jobs:
             # RN 0.85 type errors.
             mobile) cd apps/mobile && exec npx tsc --noEmit -p tsconfig.json ;;
             puck)   PROJECT=packages/puck/tsconfig.json ;;
+            ui)     PROJECT=packages/ui/tsconfig.json ;;
             bdd)    PROJECT=packages/bdd/tsconfig.json ;;
             db)     PROJECT=packages/db/tsconfig.json ;;
           esac

@@ -16,6 +16,7 @@ COPY packages/db/package.json packages/db/
 COPY packages/types/package.json packages/types/
 COPY packages/bdd/package.json packages/bdd/
 COPY packages/puck/package.json packages/puck/
+COPY packages/ui/package.json packages/ui/
 COPY apps/api/package.json apps/api/
 COPY apps/admin/package.json apps/admin/
 COPY apps/web/package.json apps/web/

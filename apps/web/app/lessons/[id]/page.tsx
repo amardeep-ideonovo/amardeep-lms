@@ -16,7 +16,7 @@ import type {
   LessonDTO,
   LessonNoteDTO,
 } from "@lms/types";
-import { STR } from "@lms/types";
+import { STR, formatBytes } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import { fmtDuration } from "@/lib/memberData";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
@@ -461,12 +461,6 @@ function LessonInner() {
   const ytId = youtubeId(lesson.videoUrl);
   const resumeAt = lesson.lastPositionSeconds ?? 0;
   const notes = lesson.notes ?? [];
-  const fmtSize = (n: number) =>
-    n < 1024
-      ? `${n} B`
-      : n < 1024 * 1024
-        ? `${(n / 1024).toFixed(0)} KB`
-        : `${(n / 1024 / 1024).toFixed(1)} MB`;
   const dur = fmtDuration(lesson.durationSeconds);
 
   let media: ReactNode;
@@ -717,7 +711,7 @@ function LessonInner() {
                     <div key={n.id} className="ik-download">
                       <span className="ik-download-name">{n.originalName}</span>
                       <span className="ik-download-size">
-                        {fmtSize(n.size)}
+                        {formatBytes(n.size)}
                       </span>
                       <button
                         type="button"

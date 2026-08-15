@@ -4,16 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { InvoiceDTO } from "@lms/types";
-import { STR } from "@lms/types";
+import { STR, formatMoney } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 
-function money(amount: number, currency: string): string {
-  return (amount / 100).toLocaleString(undefined, {
-    style: "currency",
-    currency: (currency || "usd").toUpperCase(),
-  });
-}
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
     year: "numeric",
@@ -83,7 +77,10 @@ function PaymentsInner() {
                     <td>{fmtDate(inv.created)}</td>
                     <td>{inv.description ?? "—"}</td>
                     <td>
-                      {money(inv.amountPaid || inv.amountDue, inv.currency)}
+                      {formatMoney(
+                        inv.amountPaid || inv.amountDue,
+                        inv.currency,
+                      )}
                     </td>
                     <td>
                       <span className={`pay-badge ${inv.status}`}>

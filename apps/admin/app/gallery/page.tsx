@@ -6,7 +6,7 @@ import { ApiError, api } from "@/lib/api";
 import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
-import { STR } from "@lms/types";
+import { STR, formatBytes, formatDateLong } from "@lms/types";
 
 const PAGE_SIZE = 40;
 
@@ -27,19 +27,6 @@ const KIND_ICON: Record<MediaKind, string> = {
   archive: "🗜️",
   other: "📦",
 };
-
-function fmtBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
-}
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-}
 
 export default function MediaPage() {
   const { can, loading: authLoading } = useAdminAuth();
@@ -444,7 +431,7 @@ function NewMediaModal({
                 <br />
                 <strong>File type:</strong> {file.type || "—"}
                 <br />
-                <strong>File size:</strong> {fmtBytes(file.size)}
+                <strong>File size:</strong> {formatBytes(file.size)}
               </p>
               <div className="field">
                 <label>{STR.labels.title}</label>
@@ -630,7 +617,7 @@ function MediaDetails({
             {/* Metadata + URL */}
             <div>
               <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-                Uploaded on <strong>{fmtDate(asset.createdAt)}</strong>
+                Uploaded on <strong>{formatDateLong(asset.createdAt)}</strong>
                 {asset.uploadedBy ? ` by ${asset.uploadedBy.email}` : ""}
               </p>
               <p style={{ margin: "4px 0", fontSize: 13 }}>
@@ -638,7 +625,7 @@ function MediaDetails({
                 <br />
                 <strong>File type:</strong> {asset.mimeType}
                 <br />
-                <strong>File size:</strong> {fmtBytes(asset.size)}
+                <strong>File size:</strong> {formatBytes(asset.size)}
                 {asset.width && asset.height ? (
                   <>
                     <br />

@@ -21,7 +21,7 @@ import LessonMediaFields, {
   lessonMediaPayload,
   validateLessonMedia,
 } from "@/components/LessonMediaFields";
-import { STR } from "@lms/types";
+import { STR, formatBytes } from "@lms/types";
 
 const EMPTY_COURSE = {
   title: "",
@@ -58,12 +58,6 @@ function formatDuration(sec?: number | null): string {
   const s = Math.floor(sec % 60);
   const pad = (n: number) => String(n).padStart(2, "0");
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-}
-
-function fmtBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
 export default function CoursesPage() {
@@ -875,7 +869,9 @@ function CourseLessons({
                               >
                                 {f.name}
                               </span>
-                              <span className="muted">{fmtBytes(f.size)}</span>
+                              <span className="muted">
+                                {formatBytes(f.size)}
+                              </span>
                               <button
                                 type="button"
                                 className="btn btn--ghost btn--sm"
@@ -1055,13 +1051,6 @@ function LessonRow({
     }
   }
 
-  const fmtSize = (n: number) =>
-    n < 1024
-      ? `${n} B`
-      : n < 1024 * 1024
-        ? `${(n / 1024).toFixed(0)} KB`
-        : `${(n / 1024 / 1024).toFixed(1)} MB`;
-
   return (
     <div className="lesson-item">
       <div className="lesson-item__head">
@@ -1164,7 +1153,7 @@ function LessonRow({
                       }
                       aria-label="File name"
                     />
-                    <span className="muted">{fmtSize(n.size)}</span>
+                    <span className="muted">{formatBytes(n.size)}</span>
                     <button
                       className="btn btn--ghost btn--sm"
                       onClick={() => rename(n)}

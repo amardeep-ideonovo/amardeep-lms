@@ -5,7 +5,7 @@ import type { CouponDTO, CreateCouponInput, LevelDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
-import { STR } from "@lms/types";
+import { STR, formatMoney } from "@lms/types";
 
 type DiscountType = "percent" | "amount";
 type Duration = "once" | "repeating" | "forever";
@@ -20,11 +20,7 @@ function randomCode(): string {
 
 function discountLabel(c: CouponDTO): string {
   if (c.discountType === "percent") return `${c.percentOff}% off`;
-  const amt = (c.amountOff ?? 0) / 100;
-  return `${amt.toLocaleString(undefined, {
-    style: "currency",
-    currency: (c.currency || "usd").toUpperCase(),
-  })} off`;
+  return `${formatMoney(c.amountOff ?? 0, c.currency || "usd")} off`;
 }
 
 function durationLabel(c: CouponDTO): string {

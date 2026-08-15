@@ -86,6 +86,7 @@ export default tseslint.config(
       "apps/control-plane/**/*.tsx",
       "apps/mobile/**/*.{ts,tsx}",
       "packages/puck/**/*.tsx",
+      "packages/ui/**/*.{ts,tsx}",
     ],
     plugins: { "react-hooks": reactHooks },
     rules: {
@@ -164,6 +165,7 @@ export default tseslint.config(
       "apps/admin/**/*.{ts,tsx}",
       "apps/control-plane/**/*.{ts,tsx}",
       "packages/puck/**/*.{ts,tsx}",
+      "packages/ui/**/*.{ts,tsx}",
     ],
     languageOptions: {
       parserOptions: {
