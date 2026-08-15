@@ -1,20 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import type { AuthUser, ClassTileDTO, MyCertificateDTO } from "@lms/types";
-import { ApiError, api, clearToken, getCachedMe, setCachedMe } from "@/lib/api";
+import type { AuthUser, ClassTileDTO } from "@lms/types";
+import { ApiError, getCachedMe } from "@/lib/api";
 import {
   type ClassExtras,
   classColorClass,
   classIndexMap,
   classPct,
-  fetchMemberDashboard,
   fmtDuration,
   greetingFor,
   overallPct,
 } from "@/lib/memberData";
+import { useMe, useMemberDashboard, useMyCertificates } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
 import PopupHost from "@/components/PopupHost";
@@ -177,98 +176,54 @@ function ClassCard({
 }
 
 function DashboardInner() {
-  const router = useRouter();
-  const [classes, setClasses] = useState<ClassTileDTO[] | null>(null);
-  const [extras, setExtras] = useState<Map<string, ClassExtras>>(new Map());
-  const [certs, setCerts] = useState<MyCertificateDTO[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // Tiles and enrichment arrive together — one request instead of the
+  // per-class fan-out. The shared cache (also read by /classes and
+  // /certificates) revalidates on tab focus, so a class purchased elsewhere
+  // (or an admin grant) flips to "Enrolled" without a manual reload — updating
+  // in place, never re-showing the skeleton over rendered content.
+  const dashboard = useMemberDashboard();
+  // Best-effort count for the overview card: undefined (still loading / failed)
+  // renders as 0, exactly as the old catch-to-[] did.
+  const certsQuery = useMyCertificates();
   // Member identity for the personalized greeting. Seeded from the localStorage
-  // cache so the name paints immediately (no flash), then refreshed by /auth/me.
-  const [me, setMe] = useState<AuthUser | null>(() => getCachedMe());
+  // cache so the name paints immediately (no flash), then refreshed by /auth/me
+  // (the useMe queryFn also keeps that cache current for the next visit).
+  const meQuery = useMe();
+  const [cachedMe] = useState<AuthUser | null>(() => getCachedMe());
+  const me = meQuery.data ?? cachedMe;
 
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      try {
-        // Tiles and enrichment arrive together now — one request instead of the
-        // per-class fan-out, so there's nothing left to stage progressively.
-        const { classes: cs, extras: ex } = await fetchMemberDashboard();
-        if (!mounted) return;
-        setClasses(cs); // update in place — no skeleton flash on a focus refresh
-        setExtras(ex);
-        setError(null);
-      } catch (err) {
-        if (!mounted) return;
-        if (err instanceof ApiError && err.status === 401) {
-          clearToken();
-          router.replace("/login");
-          return;
-        }
-        setError(
-          err instanceof Error ? err.message : "Failed to load dashboard.",
-        );
-      }
-    }
-    void load();
-    api
-      .myCertificates()
-      .then((rows) => mounted && setCerts(rows))
-      .catch(() => mounted && setCerts([]));
-    // Refresh when the member returns to this tab so a class purchased elsewhere
-    // (or an admin grant) flips to "Enrolled" without a manual reload.
-    const refresh = () => {
-      if (document.visibilityState === "visible") void load();
-    };
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      mounted = false;
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [router]);
+  const dash = dashboard.data ?? null;
+  const colorIdx = useMemo(() => classIndexMap(dash?.classes ?? []), [dash]);
 
-  // Refresh the member profile for the greeting (seeded from cache above), and
-  // keep the cache current so the name paints instantly on the next visit.
-  useEffect(() => {
-    let alive = true;
-    api
-      .me()
-      .then((u) => {
-        if (!alive) return;
-        setMe(u);
-        setCachedMe(u);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const colorIdx = useMemo(() => classIndexMap(classes ?? []), [classes]);
-
-  if (error) {
-    return (
-      <div className="ink-page">
-        <div className="ik-band" />
-        <div className="ik-main">
-          <div className="alert alert-error">{error}</div>
+  if (!dash) {
+    // A 401 means the global handler (lib/query.tsx) is already redirecting to
+    // /login — keep the skeleton up for that frame instead of flashing an
+    // "Unauthorized" alert.
+    const err = dashboard.error;
+    if (err && !(err instanceof ApiError && err.status === 401)) {
+      return (
+        <div className="ink-page">
+          <div className="ik-band" />
+          <div className="ik-main">
+            <div className="alert alert-error">
+              {err instanceof Error ? err.message : "Failed to load dashboard."}
+            </div>
+          </div>
         </div>
-      </div>
-    );
-  }
-  if (!classes) {
+      );
+    }
     // Same shimmer the AuthGate fallback + route loading state show, so the
     // hand-off from first paint to data is seamless (no layout jump).
     return <DashboardSkeleton />;
   }
+  const { classes, extras } = dash;
 
   // Enrolled first, then the rest to explore (backend name ordering preserved).
   const enrolled = classes.filter((c) => c.owned);
   const available = classes.filter((c) => !c.owned);
   const journeyPct = overallPct(enrolled);
   const name = greetingName(me);
-  const certCount = certs?.length ?? 0;
+  const certCount = certsQuery.data?.length ?? 0;
 
   // Resume target: the first enrolled class with lessons left → its next
   // lesson (deep link) when known; otherwise the class page.

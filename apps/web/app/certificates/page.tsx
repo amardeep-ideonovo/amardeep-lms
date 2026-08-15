@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { ClassTileDTO, MyCertificateDTO } from "@lms/types";
-import { ApiError, api, clearToken } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import {
   type ClassExtras,
   classColorClass,
   classIndexMap,
   classPct,
-  fetchMemberDashboard,
 } from "@/lib/memberData";
+import { useMemberDashboard, useMyCertificates } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
 import SpotlightLogo from "@/components/SpotlightLogo";
 
@@ -115,62 +114,40 @@ function CertCard({ cert }: { cert: MyCertificateDTO }) {
   );
 }
 
-function CertificatesInner() {
-  const router = useRouter();
-  const [certs, setCerts] = useState<MyCertificateDTO[] | null>(null);
-  const [classes, setClasses] = useState<ClassTileDTO[] | null>(null);
-  const [extras, setExtras] = useState<Map<string, ClassExtras>>(new Map());
-  const [error, setError] = useState<string | null>(null);
+// Stable empty enrichment map for the renders before the dashboard payload
+// lands (or after it fails) — never written to.
+const EMPTY_EXTRAS: ReadonlyMap<string, ClassExtras> = new Map();
 
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      try {
-        const [rows, dash] = await Promise.all([
-          api.myCertificates(),
-          fetchMemberDashboard().catch(() => ({
-            classes: [] as ClassTileDTO[],
-            extras: new Map<string, ClassExtras>(),
-          })),
-        ]);
-        if (!mounted) return;
-        setCerts(rows);
-        setClasses(dash.classes);
-        setExtras(dash.extras);
-        setError(null);
-      } catch (err) {
-        if (!mounted) return;
-        if (err instanceof ApiError && err.status === 401) {
-          clearToken();
-          router.replace("/login");
-          return;
-        }
-        setError(
-          err instanceof Error ? err.message : "Failed to load certificates.",
-        );
-      }
-    }
-    void load();
-    const refresh = () => {
-      if (document.visibilityState === "visible") void load();
-    };
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      mounted = false;
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [router]);
+function CertificatesInner() {
+  const certsQuery = useMyCertificates();
+  // The in-progress section is best-effort, exactly as the old fetch's
+  // catch-to-empty was: a dashboard error still renders the earned grid, just
+  // without the progress rows. Both reads share their caches with the other
+  // member pages and revalidate on tab focus, updating in place.
+  const dashboard = useMemberDashboard();
+
+  const certs = certsQuery.data ?? null;
+  const classes = useMemo<ClassTileDTO[] | null>(
+    () => dashboard.data?.classes ?? (dashboard.error ? [] : null),
+    [dashboard.data, dashboard.error],
+  );
+  const extras = dashboard.data?.extras ?? EMPTY_EXTRAS;
 
   const colorIdx = useMemo(() => classIndexMap(classes ?? []), [classes]);
 
-  if (error) {
+  // A 401 means the global handler (lib/query.tsx) is already redirecting to
+  // /login — keep the skeleton up for that frame instead of flashing an alert.
+  const err = certsQuery.error;
+  if (!certs && err && !(err instanceof ApiError && err.status === 401)) {
     return (
       <div className="ink-page">
         <div className="ik-band" />
         <div className="ik-main">
-          <div className="alert alert-error">{error}</div>
+          <div className="alert alert-error">
+            {err instanceof Error
+              ? err.message
+              : "Failed to load certificates."}
+          </div>
         </div>
       </div>
     );

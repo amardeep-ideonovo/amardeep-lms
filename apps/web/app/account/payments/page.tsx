@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import type { InvoiceDTO } from "@lms/types";
 import { STR, formatMoney } from "@lms/types";
-import { ApiError, api, clearToken } from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import { useMyInvoices } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
 
 function fmtDate(iso: string): string {
@@ -17,30 +15,17 @@ function fmtDate(iso: string): string {
 }
 
 function PaymentsInner() {
-  const router = useRouter();
-  const [invoices, setInvoices] = useState<InvoiceDTO[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    api
-      .myInvoices()
-      .then((i) => active && setInvoices(i))
-      .catch((err) => {
-        if (!active) return;
-        if (err instanceof ApiError && err.status === 401) {
-          clearToken();
-          router.replace("/login");
-          return;
-        }
-        setError(
-          err instanceof Error ? err.message : "Failed to load payments.",
-        );
-      });
-    return () => {
-      active = false;
-    };
-  }, [router]);
+  const invoicesQuery = useMyInvoices();
+  const invoices = invoicesQuery.data ?? null;
+  // A 401 is handled globally (lib/query.tsx: clear token + redirect to
+  // /login?session=expired) — don't also flash an inline alert for it.
+  const err = invoicesQuery.error;
+  const error =
+    err && !(err instanceof ApiError && err.status === 401)
+      ? err instanceof Error
+        ? err.message
+        : "Failed to load payments."
+      : null;
 
   return (
     <div className="account-cinema">

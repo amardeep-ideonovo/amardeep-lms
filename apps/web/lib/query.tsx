@@ -6,14 +6,22 @@
 // no retries on 4xx (ApiError carries status; a 403/404 won't change on
 // retry), no mutation retries (mutations are never safe to blind-repeat).
 //
-// Adoption order (D4): new pages use useQuery from day one; the module-level
-// cached+inflight dedupe singletons (app-brand, FormPickerField,
-// MenuPickerField) migrate first, then the heavy list surfaces, then
-// useOptimisticAction is replaced by useMutation + onMutate snapshot/rollback.
+// Adoption order (D4): new pages use useQuery from day one; the member read
+// surfaces (dashboard/classes/certificates/account/payments) migrated first
+// (hooks in lib/queries.ts, which also owns the `qk` query-key registry), then
+// the remaining hand-rolled loads, then useOptimisticAction is replaced by
+// useMutation + onMutate snapshot/rollback.
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  MutationCache,
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+} from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError } from "@lms/types";
+
+import { clearToken, getToken } from "./api";
 
 export const STALE = {
   // Same 15s the mobile app settled on: fresh enough that another admin's
@@ -22,8 +30,33 @@ export const STALE = {
   live: 0,
 } as const;
 
+// Global expired-session handling — the 401 story web previously did NOT have
+// (docs/coding-standards.md M3/D4): every page hand-rolled `clearToken();
+// router.replace("/login")` in its own load() catch, and any surface that
+// forgot simply rendered "Unauthorized". Wiring it into the query/mutation
+// caches replaces that per-page handling for everything on TanStack Query:
+// any query or mutation that fails with ApiError 401 funnels here, mirroring
+// admin's semantics (its request core does the same clear-token + redirect to
+// /login?session=expired). Guards:
+//   • member token present — public pages fetch with `auth: false` and carry
+//     no token, so a tokenless 401 has no session to expire and stays a plain
+//     query error for the page to render (it also makes a burst of failing
+//     queries redirect only once: the first one clears the token);
+//   • not already on /login — no redirect loop.
+function onApiError(error: unknown): void {
+  if (typeof window === "undefined") return;
+  if (!(error instanceof ApiError) || error.status !== 401) return;
+  if (!getToken()) return;
+  clearToken();
+  if (window.location.pathname !== "/login") {
+    window.location.href = "/login?session=expired";
+  }
+}
+
 function makeQueryClient() {
   return new QueryClient({
+    queryCache: new QueryCache({ onError: onApiError }),
+    mutationCache: new MutationCache({ onError: onApiError }),
     defaultOptions: {
       queries: {
         staleTime: STALE.entitlement,

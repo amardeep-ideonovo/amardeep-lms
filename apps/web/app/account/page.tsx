@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import type {
   AuthUser,
   DeleteAccountSummaryDTO,
@@ -11,6 +12,7 @@ import type {
 } from "@lms/types";
 import { PASSWORD_MIN, STR, formatMoney } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
+import { qk, useMe, useMySubscriptions } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
 import AvatarCropper from "@/components/AvatarCropper";
 import { useModalA11y } from "@/lib/useModalA11y";
@@ -422,11 +424,20 @@ function CheckoutBanner() {
 
 function AccountInner() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const runOptimistic = useOptimisticAction();
+  // Initial reads. The queries revalidate on tab focus so admin changes (e.g.
+  // a paused/canceled plan) show without a manual reload; the forms/mutations
+  // below stay as they are and write their responses back into the cache in
+  // place (queryClient.setQueryData) exactly where they used to setState — no
+  // refetch. Subscriptions render `data ?? []`, so loading and load errors
+  // alike show the no-plan state, as the old catch-to-[] did.
+  const meQuery = useMe();
+  const subsQuery = useMySubscriptions();
+  const user = meQuery.data ?? null;
+  const subs = subsQuery.data ?? [];
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [subs, setSubs] = useState<SubscriptionDetailDTO[]>([]);
   // Member self-cancel (period end). `cancelFor` drives the confirm modal.
   const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(
     null,
@@ -473,39 +484,16 @@ function AccountInner() {
     setError(err instanceof Error ? err.message : STR.errors.generic);
   }
 
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      try {
-        const [u, s] = await Promise.all([
-          api.me(),
-          api
-            .mySubscriptionDetails()
-            .catch(() => [] as SubscriptionDetailDTO[]),
-        ]);
-        if (!mounted) return;
-        setUser(u);
-        setSubs(s);
-        setError(null);
-      } catch (err) {
-        if (mounted) fail(err);
-      }
-    }
-    void load();
-    // Refresh on tab focus so admin changes (e.g. a paused/canceled plan) show
-    // without a manual reload.
-    const refresh = () => {
-      if (document.visibilityState === "visible") void load();
-    };
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      mounted = false;
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Initial-load failure of the profile read, shown in the same alert slot the
+  // actions use. A 401 is excluded: the global handler (lib/query.tsx) is
+  // already clearing the token and redirecting to /login?session=expired.
+  const loadErr = meQuery.error;
+  const loadError =
+    loadErr && !(loadErr instanceof ApiError && loadErr.status === 401)
+      ? loadErr instanceof Error
+        ? loadErr.message
+        : STR.errors.generic
+      : null;
 
   async function openPortal() {
     setError(null);
@@ -533,7 +521,9 @@ function AccountInner() {
     setError(null);
     try {
       const updated = await api.cancelMyMembership(cancelFor.stripeSubId);
-      setSubs(updated);
+      // The endpoint returns the refreshed plan list — write it into the cache
+      // in place (no refetch), exactly as the old setSubs did.
+      queryClient.setQueryData(qk.mySubscriptions, updated);
       setCancelFor(null);
     } catch (err) {
       fail(err);
@@ -563,7 +553,9 @@ function AccountInner() {
         lastName: form.lastName.trim(),
         username: form.username.trim(),
       });
-      setUser(updated);
+      // Write the response into the shared cache in place (no refetch),
+      // exactly as the old setUser did — the dashboard greeting reads it too.
+      queryClient.setQueryData(qk.me, updated);
       setEditing(false);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
@@ -602,7 +594,7 @@ function AccountInner() {
       apply: () => setAvatarPreview(preview),
       commit: async () => {
         const updated = await api.uploadAvatar(blob);
-        setUser(updated);
+        queryClient.setQueryData(qk.me, updated);
         setCropFile(null);
       },
       // Nothing to put back but the preview: `user` is only ever written from
@@ -628,11 +620,21 @@ function AccountInner() {
     setAvatarErr(null);
     await runOptimistic("avatar", {
       // The whole user, so a failure restores the exact photo that was there
-      // rather than a re-derived guess at it.
-      snapshot: () => user,
-      apply: () => setUser((u) => (u ? { ...u, avatarUrl: null } : u)),
-      commit: async () => setUser(await api.updateMe({ removeAvatar: true })),
-      revert: (snap) => setUser(snap),
+      // rather than a re-derived guess at it. State lives in the query cache
+      // now, so snapshot/apply/revert go through it (same in-place contract).
+      snapshot: () => queryClient.getQueryData<AuthUser>(qk.me) ?? null,
+      apply: () =>
+        queryClient.setQueryData<AuthUser>(qk.me, (u) =>
+          u ? { ...u, avatarUrl: null } : u,
+        ),
+      commit: async () =>
+        queryClient.setQueryData(
+          qk.me,
+          await api.updateMe({ removeAvatar: true }),
+        ),
+      revert: (snap) => {
+        if (snap) queryClient.setQueryData(qk.me, snap);
+      },
       onError: (err) => {
         if (err instanceof ApiError && err.status === 401) {
           fail(err);
@@ -701,7 +703,9 @@ function AccountInner() {
           <CheckoutBanner />
         </Suspense>
 
-        {error && <div className="alert alert-error">{error}</div>}
+        {(error ?? loadError) && (
+          <div className="alert alert-error">{error ?? loadError}</div>
+        )}
 
         <section className="account-section">
           <div className="section-head">
