@@ -7,12 +7,15 @@
 // padding) and placed per its `position`.
 //
 // Colors: admins style popups against the web defaults (e.g. a white box), so
-// the body must NOT use the app theme's text colors — dark-mode white text on
-// a white configured background is unreadable. When the popup config sets a
-// background, its luminance picks a self-consistent light/dark content palette
-// (same rule as theme.ts's onColor) that is scoped to the body via PageScope;
-// brand colors (primary/danger/onPrimary) stay from the app theme. With no
-// configured background, the box and content fall back to the theme.
+// the body must NOT blindly use the ACTIVE app palette — dark-mode white text
+// on a white configured background is unreadable. When the popup config sets a
+// background, its luminance (same rule as theme.ts's onColor) picks which of
+// the INSTANCE's two palettes the content renders with (light bg → the
+// instance's light palette, dark bg → its dark palette, scoped to the body via
+// PageScope) — so a configured popup still carries the instance's branding
+// rather than a hardcoded neutral ramp. With no configured background, the box
+// and content fall back to the active theme. The popup CHROME (backdrop, box
+// fallbacks, close control) draws from theme tokens.
 //
 // Display behaviour mirrors the web host: the popup's `behavior` decides WHEN
 // it fires (IMMEDIATE/DELAY honored natively; SCROLL and EXIT_INTENT have no
@@ -36,16 +39,22 @@ import {
   View,
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import type { PopupContext, PopupPosition, PopupPublicDTO } from "@lms/types";
+import type {
+  AppConfig,
+  PopupContext,
+  PopupPosition,
+  PopupPublicDTO,
+} from "@lms/types";
 
 import { api } from "../api";
 import { scopedKey } from "../config";
+import { useAppConfig } from "../config-provider";
 import { PageRenderer } from "./PageRenderer";
 import { PageScope } from "./PageScope";
 import { POPUP_MAX_WIDTH } from "../responsive";
-import { fonts, spacing } from "../theme";
+import { paletteFrom, spacing } from "../theme";
 import type { Theme } from "../theme";
-import { useTheme } from "../theme-provider";
+import { useStyles, useTheme } from "../theme-provider";
 
 // ---------- frequency capping ----------
 // Map of popupId -> last-shown epoch ms, persisted across app runs. SecureStore
@@ -140,8 +149,9 @@ function overlayAlign(pos: PopupPosition): {
 function resolveWidth(width: string, screenW: number): number {
   const w = (width || "").trim();
   // Percentage widths resolve against the window, so a big tablet window
-  // needs a hard ceiling — "90%" of a 1024pt iPad is not a popup.
-  const max = Math.min(screenW - 32, POPUP_MAX_WIDTH);
+  // needs a hard ceiling — "90%" of a 1024pt iPad is not a popup. The
+  // subtraction mirrors styles.overlay's spacing.md gutter on each side.
+  const max = Math.min(screenW - spacing.md * 2, POPUP_MAX_WIDTH);
   if (w.endsWith("%")) {
     const pct = parseFloat(w);
     if (!Number.isNaN(pct)) return Math.min(max, (pct / 100) * screenW);
@@ -181,29 +191,24 @@ function luminanceOf(color: string): number | null {
   return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
 }
 
-// Neutral content tokens for an admin-configured popup background — the same
-// slate ramps as the app's default light/dark palettes (theme.ts defaults).
-const LIGHT_CONTENT = {
-  surface: "#f1f5f9",
-  surfaceMuted: "#e2e8f0",
-  border: "#cbd5e1",
-  text: "#101828",
-  textMuted: "#475569",
-} as const;
-const DARK_CONTENT = {
-  surface: "#1e293b",
-  surfaceMuted: "#334155",
-  border: "#334155",
-  text: "#f8fafc",
-  textMuted: "#94a3b8",
-} as const;
-
-function popupTheme(app: Theme, bg: string, light: boolean): Theme {
+// Content theme for an admin-configured popup background: the INSTANCE's own
+// palette for the background's luminance family (not the active app mode, and
+// not a hardcoded neutral ramp — the pre-P3b slate palette here ignored
+// instance branding). paletteFrom() re-derives every token (primarySoft,
+// borderSoft, …) against that family, so e.g. accent TEXT stays AA on a light
+// box even while the app runs dark.
+function popupTheme(
+  app: Theme,
+  config: AppConfig,
+  bg: string,
+  light: boolean,
+): Theme {
+  const mode = light ? "light" : "dark";
   return {
-    mode: light ? "light" : "dark",
+    mode,
     spacing: app.spacing,
     fonts: app.fonts,
-    colors: { ...app.colors, bg, ...(light ? LIGHT_CONTENT : DARK_CONTENT) },
+    colors: { ...paletteFrom(config[mode], mode), bg },
   };
 }
 
@@ -215,7 +220,9 @@ function PopupModal({
   onClose: () => void;
 }) {
   const theme = useTheme();
+  const styles = useStyles(makeStyles);
   const { colors } = theme;
+  const { config } = useAppConfig();
   const { width: screenW, height: screenH } = useWindowDimensions();
   const s = popup.style;
   const align = overlayAlign(s.position);
@@ -229,13 +236,15 @@ function PopupModal({
   const lum = luminanceOf(boxBg);
   const light =
     lum !== null ? lum > 0.45 : configuredBg ? true : theme.mode === "light";
-  const boxBorder =
-    (s.borderColor || "").trim() ||
-    (configuredBg ? (light ? "#e2e8f0" : "#334155") : colors.border);
   const contentTheme = useMemo(
-    () => (configuredBg ? popupTheme(theme, configuredBg, light) : null),
-    [configuredBg, theme, light],
+    () =>
+      configuredBg ? popupTheme(theme, config, configuredBg, light) : null,
+    [configuredBg, theme, config, light],
   );
+  // The palette the box's own chrome follows: the content theme when the bg is
+  // configured, the app theme otherwise.
+  const content = contentTheme ?? theme;
+  const boxBorder = (s.borderColor || "").trim() || content.colors.border;
 
   // Count one impression + start the frequency clock when the popup appears.
   useEffect(() => {
@@ -291,17 +300,22 @@ function PopupModal({
             },
           ]}
         >
+          {/* The × follows the BOX background, not the app theme: a text-
+              tinted wash + the content palette's text color (hex+alpha
+              suffix — same technique as theme.ts's borderSoft). */}
           <TouchableOpacity
-            style={[styles.close, light ? styles.closeLight : styles.closeDark]}
+            style={[
+              styles.close,
+              {
+                backgroundColor: light
+                  ? `${content.colors.text}14`
+                  : `${content.colors.text}29`,
+              },
+            ]}
             onPress={handleClose}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text
-              style={[
-                styles.closeText,
-                light ? styles.closeTextLight : styles.closeTextDark,
-              ]}
-            >
+            <Text style={[styles.closeText, { color: content.colors.text }]}>
               ×
             </Text>
           </TouchableOpacity>
@@ -378,47 +392,48 @@ export function PopupHost({ context }: { context: PopupContext }) {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: "rgba(15,23,42,0.5)",
-  },
-  overlay: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    padding: spacing.md,
-  },
-  box: {
-    borderWidth: 1,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-  close: {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    width: 28,
-    height: 28,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 1,
-  },
-  // The × follows the BOX background, not the app theme.
-  closeLight: { backgroundColor: "rgba(15,23,42,0.08)" },
-  closeDark: { backgroundColor: "rgba(248,250,252,0.16)" },
-  closeText: { fontSize: 18, lineHeight: 20, fontFamily: fonts.regular },
-  closeTextLight: { color: "#101828" },
-  closeTextDark: { color: "#f8fafc" },
-});
+const makeStyles = ({ colors, fonts }: Theme) =>
+  StyleSheet.create({
+    backdrop: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      // Modal scrim token (AccountScreen's modals set the precedent) — the
+      // pre-P3b literal was an off-palette slate wash.
+      backgroundColor: colors.overlayMid,
+    },
+    overlay: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      bottom: 0,
+      left: 0,
+      padding: spacing.md,
+    },
+    box: {
+      borderWidth: 1,
+      overflow: "hidden",
+      // Shadow literal kept: a modal-grade drop over the dimmed backdrop;
+      // theme.ts elevatedShadow() is the in-page card recipe (different
+      // color/geometry) and there is no token for shadow blacks.
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.25,
+      shadowRadius: 16,
+      elevation: 12,
+    },
+    close: {
+      position: "absolute",
+      top: 6,
+      right: 6,
+      width: 28,
+      height: 28,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 1,
+    },
+    closeText: { fontSize: 18, lineHeight: 20, fontFamily: fonts.regular },
+  });

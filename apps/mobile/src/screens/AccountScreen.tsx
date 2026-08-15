@@ -1432,6 +1432,9 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       alignItems: "center",
     },
     btnDangerText: {
+      // Literal kept: label on the danger fill. The theme has no onDanger
+      // token (P3b did not add one), and white is what theme.ts's onColor()
+      // yields for both stock danger reds; heroText/onCta are the wrong roles.
       color: "#ffffff",
       fontSize: 15,
       fontWeight: "700",

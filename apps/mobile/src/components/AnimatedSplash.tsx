@@ -266,6 +266,10 @@ const styles = StyleSheet.create({
     width: 15,
     height: 15,
     borderRadius: 3,
+    // Literal kept on purpose: the splash is deliberately theme-independent
+    // (fixed default palette to match the native splash beneath — see the
+    // header comment), and the WHITE spark matches the baked brand art
+    // (assets/icon.png: ink S + white four-point spark on teal).
     backgroundColor: "#ffffff",
   },
   word: { alignItems: "center", maxWidth: "84%" },
