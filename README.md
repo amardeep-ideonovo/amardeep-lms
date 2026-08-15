@@ -43,10 +43,6 @@ Self-hosted on a VPS fleet — server bring-up in
   serves every client). Rolling the fleet to a new tag is an operator action
   from the control plane — never automatic on push.
 - Mobile (Expo) ships via TestFlight/Play, not web deploy.
-- [`render.yaml`](render.yaml) is **legacy** — the original Vercel + Render
-  plan, never used for production. It declares `autoDeploy: true`, so before
-  deleting it confirm in the Render dashboard that no service is still
-  connected to this repo.
 
 ## Branching & CI gate
 

@@ -3,7 +3,8 @@
 > **Status: LEGACY — never executed as written (marked 2026-08-14). Do not
 > follow.** This plan targeted the retired `amardeepLMS` branch and a
 > Render/Vercel staging topology that was never built (`render-staging.yaml`
-> was never created; root `render.yaml` is likewise legacy, pending deletion).
+> was never created; root `render.yaml` was deleted 2026-08-15 after the
+> owner confirmed in the Render dashboard that no service was connected).
 > Several code deliverables later shipped by other routes — deep `/health`,
 > login/signup rate limiting, public signup, `deploy/QA-CHECKLIST.md`,
 > `deploy/BACKUP.md`, the `@smoke` suite + `smoke-staging.yml`, and CI build
