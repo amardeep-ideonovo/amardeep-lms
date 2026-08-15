@@ -79,14 +79,12 @@
   --red-dark: var(--accent-red-dark);
   --red-text: var(--accent-red-text);
   --blue: var(--accent-blue);
-  /* web-derived blue/sea gradient triplets (differ from the TS palette's —
-     flagged in the doc as a P3b design decision; values preserved here) */
-  --blue-base: 32, 84, 150;
-  --blue-dark: 18, 52, 96;
+  --blue-base: var(--accent-blue-base);
+  --blue-dark: var(--accent-blue-dark);
   --blue-text: var(--accent-blue-text);
   --sea: var(--accent-sea);
-  --sea-base: 14, 116, 105;
-  --sea-dark: 8, 72, 66;
+  --sea-base: var(--accent-sea-base);
+  --sea-dark: var(--accent-sea-dark);
   --sea-text: var(--accent-sea-text);
 
   /* ---- Fonts (next/font var injected on <html>) — one family, Plus
@@ -3138,7 +3136,7 @@ a.card:hover {
   height: 40px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.95);
-  color: #0b0b0d;
+  color: var(--ink-950);
   display: grid;
   place-items: center;
   opacity: 0;
@@ -4182,6 +4180,9 @@ a.card:hover {
   --bg: #f5f2ec;
   --surface: #ffffff;
   --border: #e6e2d7;
+  /* P3b decision: this dark checkout skin re-pins --muted to the lighter
+     #8b8a87 ON PURPOSE — the AA correction (#74726c) is about grey-on-light;
+     on this ink background the lighter grey is the higher-contrast choice. */
   --muted: #8b8a87;
 }
 .checkout-dark .co-input,
@@ -5918,7 +5919,7 @@ a.ik-lesson--current:hover {
 .ik-prog-track {
   height: 5px;
   border-radius: 3px;
-  background: #eeecf5;
+  background: var(--surface-2);
   display: block;
   overflow: hidden;
 }

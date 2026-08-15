@@ -92,7 +92,7 @@ const CheckIcon = ({ size = 13 }: { size?: number }) => (
 );
 const PlayGlyph = ({
   size = 11,
-  fill = "#8b8a87",
+  fill = "#74726c", // AA muted (SVG attr needs a literal; keep in step with --muted)
 }: {
   size?: number;
   fill?: string;
