@@ -7,5 +7,9 @@
     "strict": true,
     "resolveJsonModule": true
   },
-  "include": ["prisma/seed.ts", "prisma/assets/**/*.ts"]
+  "include": [
+    "prisma/seed.ts",
+    "prisma/seed-provisioning-check.ts",
+    "prisma/assets/**/*.ts"
+  ]
 }

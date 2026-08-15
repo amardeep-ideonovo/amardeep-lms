@@ -18,6 +18,7 @@ import type {
   AuthUser,
   LoginResponse,
 } from "@lms/types";
+import type { ErrorCode } from "@lms/types";
 // Relative on purpose — see packages/types/constants.ts (API value imports).
 import { MAX_AVATAR_UPLOAD_BYTES } from "../../../../packages/types/constants";
 import { PrismaService } from "../prisma/prisma.service";
@@ -106,7 +107,10 @@ export class AuthService {
       where: { email: email.toLowerCase() },
     });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      throw new UnauthorizedException("Invalid credentials");
+      throw new UnauthorizedException({
+        code: "INVALID_CREDENTIALS" satisfies ErrorCode,
+        message: "Invalid credentials",
+      });
     }
     const payload: JwtPayload = {
       sub: user.id,
@@ -129,7 +133,10 @@ export class AuthService {
       where: { email: email.toLowerCase() },
     });
     if (!admin || !(await bcrypt.compare(password, admin.passwordHash))) {
-      throw new UnauthorizedException("Invalid credentials");
+      throw new UnauthorizedException({
+        code: "INVALID_CREDENTIALS" satisfies ErrorCode,
+        message: "Invalid credentials",
+      });
     }
     const payload: JwtPayload = {
       sub: admin.id,
@@ -154,7 +161,10 @@ export class AuthService {
     // Invite-code gate (closed beta). Skipped when env var is unset.
     const requiredInvite = process.env.SIGNUP_INVITE_CODE?.trim();
     if (requiredInvite && dto.inviteCode?.trim() !== requiredInvite) {
-      throw new ForbiddenException("Invalid invite code");
+      throw new ForbiddenException({
+        code: "INVALID_INVITE_CODE" satisfies ErrorCode,
+        message: "Invalid invite code",
+      });
     }
 
     const email = dto.email.toLowerCase().trim();
@@ -162,7 +172,10 @@ export class AuthService {
     // Email uniqueness — surface as 409 so the UI can show "account exists".
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
-      throw new ConflictException("An account with this email already exists");
+      throw new ConflictException({
+        code: "EMAIL_EXISTS" satisfies ErrorCode,
+        message: "An account with this email already exists",
+      });
     }
 
     // Derive a username from the email's local part. Strip non-alphanumeric
@@ -344,7 +357,11 @@ export class AuthService {
         },
         select: { id: true },
       });
-      if (clash) throw new ConflictException("That username is taken");
+      if (clash)
+        throw new ConflictException({
+          code: "USERNAME_TAKEN" satisfies ErrorCode,
+          message: "That username is taken",
+        });
       data.username = username;
     }
 
@@ -364,7 +381,10 @@ export class AuthService {
           err instanceof Prisma.PrismaClientKnownRequestError &&
           err.code === "P2002"
         ) {
-          throw new ConflictException("That username is taken");
+          throw new ConflictException({
+            code: "USERNAME_TAKEN" satisfies ErrorCode,
+            message: "That username is taken",
+          });
         }
         throw err;
       }
@@ -396,14 +416,18 @@ export class AuthService {
       user.passwordHash,
     );
     if (!currentOk) {
-      throw new BadRequestException("Current password is incorrect");
+      throw new BadRequestException({
+        code: "CURRENT_PASSWORD_INCORRECT" satisfies ErrorCode,
+        message: "Current password is incorrect",
+      });
     }
 
     const sameAsOld = await bcrypt.compare(dto.newPassword, user.passwordHash);
     if (sameAsOld) {
-      throw new BadRequestException(
-        "New password must be different from the current one",
-      );
+      throw new BadRequestException({
+        code: "PASSWORD_UNCHANGED" satisfies ErrorCode,
+        message: "New password must be different from the current one",
+      });
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, 10);
@@ -501,7 +525,10 @@ export class AuthService {
   ): Promise<{ ok: true }> {
     const data = verifyPasswordResetToken(token);
     if (!data) {
-      throw new BadRequestException(AuthService.RESET_LINK_INVALID);
+      throw new BadRequestException({
+        code: "RESET_LINK_INVALID" satisfies ErrorCode,
+        message: AuthService.RESET_LINK_INVALID,
+      });
     }
 
     const user = await this.prisma.user.findUnique({
@@ -514,14 +541,18 @@ export class AuthService {
         passwordHashFingerprint(user.passwordHash),
       )
     ) {
-      throw new BadRequestException(AuthService.RESET_LINK_INVALID);
+      throw new BadRequestException({
+        code: "RESET_LINK_INVALID" satisfies ErrorCode,
+        message: AuthService.RESET_LINK_INVALID,
+      });
     }
 
     const sameAsOld = await bcrypt.compare(newPassword, user.passwordHash);
     if (sameAsOld) {
-      throw new BadRequestException(
-        "New password must be different from the current one",
-      );
+      throw new BadRequestException({
+        code: "PASSWORD_UNCHANGED" satisfies ErrorCode,
+        message: "New password must be different from the current one",
+      });
     }
 
     // Bump tokenVersion so every live session is revoked — a reset is a
@@ -551,13 +582,17 @@ export class AuthService {
       admin.passwordHash,
     );
     if (!currentOk) {
-      throw new BadRequestException("Current password is incorrect");
+      throw new BadRequestException({
+        code: "CURRENT_PASSWORD_INCORRECT" satisfies ErrorCode,
+        message: "Current password is incorrect",
+      });
     }
     const sameAsOld = await bcrypt.compare(dto.newPassword, admin.passwordHash);
     if (sameAsOld) {
-      throw new BadRequestException(
-        "New password must be different from the current one",
-      );
+      throw new BadRequestException({
+        code: "PASSWORD_UNCHANGED" satisfies ErrorCode,
+        message: "New password must be different from the current one",
+      });
     }
     const updated = await this.prisma.admin.update({
       where: { id: adminId },

@@ -215,11 +215,15 @@ export class MenusService {
         await tx.menu.update({ where: { id }, data });
       if (desired !== undefined) {
         // Drop this menu's assignments that are no longer selected...
-        await tx.menuLocationAssignment.deleteMany(
-          desired.length
-            ? { where: { menuId: id, location: { notIn: desired } } }
-            : { where: { menuId: id } },
-        );
+        // (two monomorphic calls — the ternary union defeats Prisma's
+        // parameter typing under strict)
+        if (desired.length) {
+          await tx.menuLocationAssignment.deleteMany({
+            where: { menuId: id, location: { notIn: desired } },
+          });
+        } else {
+          await tx.menuLocationAssignment.deleteMany({ where: { menuId: id } });
+        }
         // ...then (re)claim each selected location, stealing it from any other
         // menu that held it (upsert on the location PK).
         for (const location of desired) {

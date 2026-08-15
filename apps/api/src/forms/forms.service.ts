@@ -12,7 +12,7 @@ import type {
   FormSubmissionDTO,
   FormSubmitResult,
 } from "@lms/types";
-import type { Prisma } from "@prisma/client";
+import type { FormSubmission, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { ContactsService } from "../contacts/contacts.service";
 import { CreateFormDto, UpdateFormDto } from "./dto/form.dto";
@@ -284,7 +284,9 @@ mount.appendChild(f);
 
     let cursor: { createdAt: Date; id: string } | null = null;
     for (;;) {
-      const rows = await this.prisma.formSubmission.findMany({
+      // Explicit annotation: cursor -> olderThan(cursor) -> rows -> cursor is
+      // circular for inference under strict (TS7022).
+      const rows: FormSubmission[] = await this.prisma.formSubmission.findMany({
         where: cursor
           ? { AND: [{ formId }, this.olderThan(cursor)] }
           : { formId },

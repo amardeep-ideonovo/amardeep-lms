@@ -70,10 +70,19 @@ export async function buildHrefMaps(
   ]);
 
   return {
-    pageSlug: new Map(pages.map((p) => [p.id, p.slug] as const)),
-    levelSlug: new Map(levels.map((l) => [l.id, l.slug] as const)),
+    // Same null-slug guard as posts below (draft pages).
+    pageSlug: new Map(
+      pages.flatMap((p) => (p.slug ? [[p.id, p.slug] as const] : [])),
+    ),
+    levelSlug: new Map(
+      levels.flatMap((l) => (l.slug ? [[l.id, l.slug] as const] : [])),
+    ),
     levelExists: new Set(levels.map((l) => l.id)),
-    postSlug: new Map(posts.map((p) => [p.id, p.slug] as const)),
+    // A draft post can have a null slug — skip it rather than mapping to a
+    // literal "null" in an href (strict surfaced this).
+    postSlug: new Map(
+      posts.flatMap((p) => (p.slug ? [[p.id, p.slug] as const] : [])),
+    ),
     courseExists: new Set(courses.map((c) => c.id)),
   };
 }

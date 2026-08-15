@@ -67,11 +67,13 @@ export function SignupScreen({ navigation }: Props) {
       await signIn(res.token);
     } catch (e) {
       if (e instanceof ApiError) {
-        if (e.status === 409) {
+        // D6: branch on the machine-readable code first; status is the
+        // fallback for a fleet API older than the code taxonomy.
+        if (e.code === "EMAIL_EXISTS" || e.status === 409) {
           setError(
             "An account with this email already exists. Try signing in.",
           );
-        } else if (e.status === 403) {
+        } else if (e.code === "INVALID_INVITE_CODE" || e.status === 403) {
           setError("That invite code isn't valid.");
         } else {
           setError(e.message);
