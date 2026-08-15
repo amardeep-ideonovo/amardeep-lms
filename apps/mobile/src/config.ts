@@ -62,8 +62,12 @@ export function isBound(): boolean {
 // One shared binary can serve different instances over its lifetime; tokens and
 // cached branding must never leak across instances. The scope keeps the scheme
 // so http:// and https:// origins never collapse into one namespace.
+export function storageScopeFor(apiUrl: string): string {
+  return apiUrl.replace(/[^A-Za-z0-9._-]/g, "-") || "unbound";
+}
+
 export function storageScope(): string {
-  return API_BASE_URL.replace(/[^A-Za-z0-9._-]/g, "-") || "unbound";
+  return storageScopeFor(API_BASE_URL);
 }
 
 export function scopedKey(base: string): string {
@@ -82,6 +86,12 @@ const isWeb = Platform.OS === "web";
 // Storage base for the member auth token. Single source of truth shared with
 // api.ts so "Switch academy" (unbindInstance) can clear the exact scoped key.
 export const AUTH_TOKEN_BASE = "lms.auth.token";
+
+// Storage base for the cached AppConfig (branding). Single source of truth
+// shared with config-provider.tsx and the boot splash — the splash must read
+// this cache BEFORE the live binding/scope has been applied, so it derives the
+// key from the STORED binding via storageScopeFor() instead of scopedKey().
+export const APP_CONFIG_CACHE_BASE = "lms.appconfig";
 
 // The app POSTs the member's credentials + session token to the bound origin,
 // so in a release build that origin MUST be https. http is allowed only in dev

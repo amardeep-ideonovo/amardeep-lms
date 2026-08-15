@@ -13,12 +13,13 @@ import Constants from "expo-constants";
 import type { AppConfig } from "@lms/types";
 
 import { api } from "./api";
-import { scopedKey } from "./config";
+import { APP_CONFIG_CACHE_BASE, scopedKey } from "./config";
 import { DEFAULT_APP_CONFIG, isCompleteAppConfig } from "./theme";
 
 // Namespaced per instance (see config.ts) so a shared binary never paints one
-// instance with another instance's cached branding.
-const configKey = () => scopedKey("lms.appconfig");
+// instance with another instance's cached branding. The key BASE is shared
+// with the boot splash, which reads this cache before the scope is applied.
+const configKey = () => scopedKey(APP_CONFIG_CACHE_BASE);
 
 // ---- app <-> API version handshake ----
 // The API injects apiVersion/minAppVersion into GET /app/config. The app
