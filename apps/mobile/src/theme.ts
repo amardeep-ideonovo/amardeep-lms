@@ -338,6 +338,11 @@ export const spacing = {
   sm: 8,
   md: 16,
   lg: 24,
+  // Added in P3 (docs/coding-standards.md D3): the audit found 164 raw
+  // spacing literals partly because the scale stopped at 24. Use xl for the
+  // 32s; the off-scale 12/20 values await a design decision (P3b) rather
+  // than a token that would legitimize them.
+  xl: 32,
 };
 
 // Plus Jakarta Sans everywhere (Spark; owner's call over the pack's Space
