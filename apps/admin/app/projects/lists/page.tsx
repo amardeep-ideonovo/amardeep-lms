@@ -17,6 +17,7 @@ import type {
   ChatWorkflowTrigger,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import QueueTable from "@/components/QueueTable";
@@ -292,6 +293,7 @@ function WorkflowsPanel({
   const [channelId, setChannelId] = useState<string>(list.channelId ?? "");
   const [template, setTemplate] = useState("");
   const [busy, setBusy] = useState(false);
+  const modalRef = useModalA11y();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -407,7 +409,12 @@ function WorkflowsPanel({
 
   return (
     // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
-    <div className="modal-overlay">
+    <div
+      ref={modalRef}
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="modal modal--wide" role="dialog" aria-label="Workflows">
         <div className="modal-header">
           <h2>⚡ Workflows — {list.name}</h2>

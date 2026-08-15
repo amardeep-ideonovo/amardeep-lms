@@ -9,6 +9,7 @@ import type {
   LevelDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
@@ -85,6 +86,8 @@ export default function CoursesPage() {
 
   // expanded course -> lessons
   const [openCourse, setOpenCourse] = useState<string | null>(null);
+
+  const courseModalRef = useModalA11y();
 
   async function load() {
     setLoading(true);
@@ -451,7 +454,12 @@ export default function CoursesPage() {
       </div>
 
       {modalOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div
+          ref={courseModalRef}
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="modal">
             <div className="modal-header">
               <h2>{editingId ? "Edit course" : "New course"}</h2>
@@ -654,6 +662,7 @@ function CourseLessons({
   // upload endpoint needs the new lesson's id).
   const [noteFiles, setNoteFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
+  const lessonModalRef = useModalA11y();
 
   async function load() {
     setLoading(true);
@@ -755,7 +764,12 @@ function CourseLessons({
       </button>
 
       {showAdd && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div
+          ref={lessonModalRef}
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="modal" style={{ maxWidth: 860 }}>
             <div className="modal-header">
               <h2>Add lesson — {courseTitle}</h2>

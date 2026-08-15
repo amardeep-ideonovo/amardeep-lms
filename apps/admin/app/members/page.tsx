@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useRouter } from "next/navigation";
 import type {
   LevelDTO,
@@ -71,6 +72,7 @@ export default function MembersPage() {
   const [error, setError] = useState<string | null>(null);
   // "grant a class" modal target + selected level
   const [grantFor, setGrantFor] = useState<MemberRow | null>(null);
+  const grantModalRef = useModalA11y();
   const [grantLevelId, setGrantLevelId] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -467,6 +469,7 @@ export default function MembersPage() {
       {/* add-class (manual grant) modal — not dismissable by accident (backdrop/Escape); use ×/Cancel/Save */}
       {grantFor && (
         <div
+          ref={grantModalRef}
           className="modal-overlay modal-overlay--center"
           role="dialog"
           aria-modal="true"

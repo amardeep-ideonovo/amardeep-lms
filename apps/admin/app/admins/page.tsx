@@ -10,6 +10,7 @@ import {
   type AdminSection,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { dialog } from "@/components/DialogProvider";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { PASSWORD_MIN, STR } from "@lms/types";
@@ -241,6 +242,7 @@ function AdminModal({
   );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const modalRef = useModalA11y();
 
   const toggle = (section: AdminSection, action: AdminAction) => {
     setPerms((prev) => {
@@ -291,7 +293,12 @@ function AdminModal({
 
   // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
   return (
-    <div className="modal-overlay" role="dialog" aria-modal="true">
+    <div
+      ref={modalRef}
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="modal" style={{ maxWidth: 660 }}>
         <div className="modal-header">
           <h2>{mode === "create" ? "Add admin" : `Edit ${admin?.email}`}</h2>

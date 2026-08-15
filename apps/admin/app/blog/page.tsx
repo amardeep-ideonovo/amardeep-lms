@@ -9,6 +9,7 @@ import type {
   PostStatus,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
@@ -49,6 +50,7 @@ export default function BlogPage() {
   const editingIdRef = useRef<string | null>(null);
 
   const [newCategory, setNewCategory] = useState("");
+  const modalRef = useModalA11y();
 
   async function load() {
     setLoading(true);
@@ -431,7 +433,12 @@ export default function BlogPage() {
       </div>
 
       {modalOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true">
+        <div
+          ref={modalRef}
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="modal">
             <div className="modal-header">
               <h2>{editingId ? "Edit post" : "New post"}</h2>

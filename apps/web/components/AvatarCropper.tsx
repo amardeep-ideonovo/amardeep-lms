@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { STR } from "@lms/types";
+import { useModalA11y } from "@/lib/useModalA11y";
 
 // Circular avatar cropper for member self-service. Pick a photo, then pan (drag)
 // and zoom (slider / wheel) to frame a square crop under a circular guide; on
@@ -45,6 +46,7 @@ export default function AvatarCropper({
     ox: number;
     oy: number;
   } | null>(null);
+  const modalRef = useModalA11y();
 
   // Keep the image covering the viewport so the circle is never empty.
   const clampPos = useCallback(
@@ -93,14 +95,7 @@ export default function AvatarCropper({
     };
   }, [file]);
 
-  // Esc to cancel.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onCancel();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [busy, onCancel]);
+  // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
 
   // Re-zoom around the viewport centre so framing feels stable.
   const applyZoom = useCallback(
@@ -178,10 +173,10 @@ export default function AvatarCropper({
 
   return (
     <div
+      ref={modalRef}
       className="modal-overlay"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget && !busy) onCancel();
-      }}
+      role="dialog"
+      aria-modal="true"
     >
       <div
         className="modal modal--crop"

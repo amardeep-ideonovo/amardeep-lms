@@ -10,6 +10,7 @@ import type {
   SegmentDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR } from "@lms/types";
@@ -100,6 +101,8 @@ export default function ContactsPage() {
   // ----- side panels (fields + segments) -----
   const [fields, setFields] = useState<AudienceFieldDTO[]>([]);
   const [segments, setSegments] = useState<SegmentDTO[]>([]);
+
+  const modalRef = useModalA11y();
 
   const canCreate = can("contacts", "create");
   const canEdit = can("contacts", "edit");
@@ -765,7 +768,12 @@ export default function ContactsPage() {
 
       {/* ---------------- Contact editor modal ---------------- */}
       {editorOpen && (
-        <div className="modal-overlay">
+        <div
+          ref={modalRef}
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="modal modal--wide" style={{ maxWidth: 520 }}>
             <div className="modal-header">
               <h2>{editingId ? "Edit contact" : "New contact"}</h2>
