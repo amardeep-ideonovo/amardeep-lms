@@ -12,29 +12,18 @@
      content panel. The ink chrome overrides its own scrollbars below. */
   color-scheme: light;
 
-  /* ---- Ink chrome ---- */
-  --ink-900: #101014; /* bands, sidebar, app chrome */
-  --ink-800: #17171d; /* ink cards on light, heading text */
+  /* Ink ramp, teal system, shared neutrals/status/accent slots and shape/
+     shadow come from @lms/ui/tokens.css (imported before this file in
+     app/layout.tsx — docs/coding-standards.md D3/P3). Admin's names ARE the
+     canonical vocabulary, so this block keeps only admin-specific values. */
 
   /* ---- surfaces (light content panel) ---- */
-  --bg: #f6f4ef;
-  --sidebar: #101014;
-  --surface: #ffffff;
-  --surface-2: #f0ede4; /* neutral pills, recessed fills, track bars */
-  --surface-tint: #f0ede4;
-  --surface-hover: #faf8f3; /* row hover */
+  --bg: #f6f4ef; /* admin-specific cream (web uses #f5f2ec) */
+  --sidebar: var(--ink-900);
+  --surface-tint: var(--surface-2);
 
   /* lines */
-  --border: #e6e2d7;
-  --border-strong: #ddd7c9;
-  --border-soft: #edeae0;
-  --row-divider: #f2efe7;
-
-  /* text on light */
-  --text: #17171d;
-  --text-soft: #55534d;
-  --muted: #74726c; /* was #8b8a87 (3.45:1) — AA on light */
-  --faint: #706e67; /* was #b7b4ac (2.04:1) — AA on light */
+  --border-strong: #ddd7c9; /* admin-specific (web uses #dcd6c8) */
 
   /* text on dark (ink chrome) */
   --dark-text-2: rgba(255, 255, 255, 0.55);
@@ -42,64 +31,53 @@
   --dark-border: rgba(255, 255, 255, 0.2);
   --dark-input: rgba(255, 255, 255, 0.1);
 
-  /* ---- teal accent ---- */
-  --teal: #34c9a2;
-  --teal-grad: linear-gradient(100deg, #4dd1ae, #2aa283);
-  --teal-text: #22846a; /* teal on light — was #299e7f (3.33:1), now AA */
-  --teal-on-dark: #79e9c6;
-  --teal-tint: rgba(48, 184, 149, 0.12);
+  /* ---- teal accent (system itself lives in tokens.css) ---- */
   --sidebar-active-bg: linear-gradient(
     100deg,
     rgba(77, 209, 174, 0.25),
     rgba(48, 184, 149, 0.12)
   );
-  --accent: #34c9a2;
+  --accent: var(--teal);
   --accent-2: #299e7f;
   /* Spark: ink labels on teal fills (matches the S-monogram icon) */
   --on-cta: #101014;
-  --accent-grad: linear-gradient(100deg, #4dd1ae, #2aa283);
+  --accent-grad: var(--teal-grad);
 
-  /* ---- status ---- */
-  --green: #30b895;
-  --success: #30b895;
-  --success-text: #207e65;
-  --success-tint: rgba(48, 184, 149, 0.12);
+  /* ---- status (bases/texts/tints in tokens.css) ---- */
+  --green: var(--success);
+  /* Admin's bare --amber is an amber TEXT tone, not the accent-slot amber —
+     the slot is --accent-amber (tokens.css). Colliding name kept local. */
   --amber: #c07f10;
-  --warning: #f6a623;
-  --warning-text: #98650d;
-  --warning-tint: rgba(246, 166, 35, 0.16);
-  --danger: #c03a3a;
-  --danger-solid: #ea4f4f;
-  --danger-tint: rgba(224, 72, 72, 0.1);
-  --info: #4a76d0;
-  --info-text: #3a62b4;
-  --info-tint: rgba(74, 118, 208, 0.13);
-  --purple: #7a3bab;
+  /* Admin's --danger is the TEXT red role; web's is the solid fill.
+     Both alias the canonical --danger-text / --danger-solid pair. */
+  --danger: var(--danger-text);
+  --purple: var(--accent-violet-text);
 
-  /* ---- class palette (accents cycle by stable class index) ---- */
-  --music: #f7a01e;
-  --music-base: 196, 112, 6;
-  --music-dark: 120, 66, 2;
-  --music-text: #b46f0a;
-  --cooking: #9046c8;
-  --cooking-base: 112, 42, 163;
-  --cooking-dark: 74, 22, 112;
-  --cooking-text: #7a3bab;
-  --photo: #43a565;
-  --photo-base: 42, 124, 72;
-  --photo-dark: 24, 88, 48;
-  --photo-text: #2d7a45;
-  --film: #e04848;
-  --film-base: 187, 41, 41;
-  --film-dark: 132, 22, 22;
-  --film-text: #c03a3a;
-  --dance: #4a76d0;
-  --dance-text: #3a62b4;
-  --comedy: #27a596;
-  --comedy-text: #1f8a7c;
+  /* ---- class palette: admin's legacy domain names → the canonical
+     --accent-<color> slots in tokens.css ---- */
+  --music: var(--accent-amber);
+  --music-base: var(--accent-amber-base);
+  --music-dark: var(--accent-amber-dark);
+  --music-text: var(--accent-amber-text);
+  --cooking: var(--accent-violet);
+  --cooking-base: var(--accent-violet-base);
+  --cooking-dark: var(--accent-violet-dark);
+  --cooking-text: var(--accent-violet-text);
+  --photo: var(--accent-green);
+  --photo-base: var(--accent-green-base);
+  --photo-dark: var(--accent-green-dark);
+  --photo-text: var(--accent-green-text);
+  --film: var(--accent-red);
+  --film-base: var(--accent-red-base);
+  --film-dark: var(--accent-red-dark);
+  --film-text: var(--accent-red-text);
+  --dance: var(--accent-blue);
+  --dance-text: var(--accent-blue-text);
+  --comedy: var(--accent-sea);
+  --comedy-text: var(--accent-sea-text);
 
   /* legacy aliases (kept so inline references keep resolving) */
-  --primary: #34c9a2;
+  --primary: var(--teal);
   --primary-dark: #2aa283;
 
   /* fonts (next/font var injected on <html>) — Plus Jakarta Sans everywhere */
@@ -110,11 +88,10 @@
     var(--font-jakarta), system-ui, -apple-system, "Segoe UI", Roboto,
     sans-serif;
 
-  /* gradients */
-  --grad-primary: linear-gradient(100deg, #4dd1ae, #2aa283);
-  --grad-accent: linear-gradient(100deg, #4dd1ae, #2aa283);
-  --grad-brand: linear-gradient(100deg, #4dd1ae, #2aa283);
-  --grad-progress: linear-gradient(90deg, #4dd1ae, #2aa283);
+  /* gradients (--grad-progress in tokens.css) */
+  --grad-primary: var(--teal-grad);
+  --grad-accent: var(--teal-grad);
+  --grad-brand: var(--teal-grad);
 
   /* frosted-glass tokens re-based on white (legacy consumers) */
   --glass-bg: rgba(255, 255, 255, 0.72);
@@ -124,22 +101,15 @@
   --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.95);
   --glass-shadow: 0 14px 40px rgba(16, 16, 20, 0.12);
 
-  /* shadows + motion */
-  --shadow-card: 0 2px 10px rgba(23, 23, 29, 0.05);
-  --shadow-overlap: 0 14px 40px rgba(16, 16, 20, 0.12);
-  --shadow-pop: 0 14px 40px rgba(16, 16, 20, 0.12);
-  --shadow-cta: 0 10px 24px rgba(48, 184, 149, 0.35);
-  --shadow-primary: 0 10px 24px rgba(48, 184, 149, 0.35);
-  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
-  --ease-spring: cubic-bezier(0.2, 0.7, 0.3, 1);
-  --ease-out-back: cubic-bezier(0.2, 0.7, 0.3, 1);
+  /* shadows + motion (card/pop/primary + --ease + radius set in tokens.css;
+     admin's springy names were already flattened to the base ease) */
+  --shadow-overlap: var(--shadow-pop);
+  --shadow-cta: var(--shadow-primary);
+  --ease-spring: var(--ease);
+  --ease-out-back: var(--ease);
   --t-fast: 150ms;
   --t-page: 200ms;
 
-  --radius: 14px;
-  --radius-sm: 9px;
-  --radius-md: 18px;
-  --radius-pill: 999px;
   --sidebar-w: 236px;
   --admin-content-radius: 22px 0 0 0;
 }
@@ -2559,38 +2529,7 @@ select:-webkit-autofill:focus {
 }
 
 /* ---------- theme toggle (sidebar footer) ---------- */
-.theme-toggle {
-  margin-top: 12px;
-  display: flex;
-  gap: 4px;
-  padding: 5px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 11px;
-}
-.theme-toggle button {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 7px 4px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--muted);
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.theme-toggle button:hover {
-  color: var(--text-soft);
-}
-.theme-toggle button.on {
-  background: var(--surface-hover);
-  color: var(--text);
-}
+/* .theme-toggle styles removed with the dead ThemeToggle component (P3). */
 
 @media (max-width: 1080px) {
   .stat-grid {
@@ -2601,44 +2540,11 @@ select:-webkit-autofill:focus {
   }
 }
 
-/* =========================================================================
-   THEME PREFERENCE COMPATIBILITY
-   Ink Hero is a SINGLE-appearance theme. The data-theme plumbing (no-flash
-   script + localStorage) is kept so stored preferences keep resolving, but
-   BOTH resolved values render the same Ink Hero look: `:root` above already
-   carries the light-panel tokens, and this block re-asserts the identical
-   values under [data-theme="light"] (and "dark") so nothing can drift.
-   ========================================================================= */
-:root[data-theme="light"],
-:root[data-theme="dark"] {
-  color-scheme: light;
-
-  --bg: #f6f4ef;
-  --sidebar: #101014;
-  --surface: #ffffff;
-  --surface-2: #f0ede4;
-  --surface-hover: #faf8f3;
-
-  --border: #e6e2d7;
-  --border-strong: #ddd7c9;
-
-  --text: #17171d;
-  --text-soft: #55534d;
-  --muted: #8b8a87;
-  --faint: #b7b4ac;
-
-  --accent: #34c9a2;
-  --accent-2: #299e7f;
-  --danger: #c03a3a;
-
-  --glass-bg: rgba(255, 255, 255, 0.72);
-  --glass-bg-strong: rgba(255, 255, 255, 0.88);
-  --glass-border: 1px solid rgba(228, 225, 238, 0.9);
-  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  --glass-shadow: 0 14px 40px rgba(16, 16, 20, 0.12);
-  --shadow-card: 0 2px 10px rgba(23, 23, 29, 0.05);
-  --shadow-pop: 0 14px 40px rgba(16, 16, 20, 0.12);
-}
+/* The old THEME PREFERENCE COMPATIBILITY block ([data-theme="light"]/"dark"
+   re-pins) is gone with the data-theme plumbing (P3): it re-asserted the
+   PRE-AA --muted/--faint values and, because the no-flash script always set
+   data-theme, was silently overriding the :root AA corrections at runtime.
+   Single appearance now means exactly one token source. */
 
 /* ---------- navigation page: Menus | Header tabs ---------- */
 .nav-tabs {
