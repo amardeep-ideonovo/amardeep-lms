@@ -6,6 +6,7 @@
 // iteration and slots into the activity area.
 
 import { useMemo, useState } from "react";
+import { STR } from "@lms/types";
 import { AddHostModal } from "@/components/AddHostModal";
 import { RolloutCard } from "@/components/RolloutCard";
 import { Icon } from "@/components/icons";
@@ -220,11 +221,11 @@ export default function OperatorDashboard() {
             <thead>
               <tr>
                 <th>Instance</th>
-                <th>Version</th>
+                <th>{STR.labels.version}</th>
                 <th>Health</th>
                 <th>Members</th>
-                <th>Plan</th>
-                <th>Status</th>
+                <th>{STR.labels.plan}</th>
+                <th>{STR.labels.status}</th>
                 <th />
               </tr>
             </thead>

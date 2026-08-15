@@ -9,6 +9,7 @@ import type {
   SupportTicketCategory,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { STR } from "@lms/types";
 
 const STATUS_META: Record<SupportTicketStatus, { label: string; cls: string }> =
   {
@@ -93,7 +94,7 @@ export default function SupportPage() {
 
       <div className="card">
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : items.length === 0 ? (
           <p className="muted">
             No support tickets yet — open one if you need help.
@@ -104,7 +105,7 @@ export default function SupportPage() {
               <thead>
                 <tr>
                   <th>Subject</th>
-                  <th>Status</th>
+                  <th>{STR.labels.status}</th>
                   <th>Priority</th>
                   <th>Category</th>
                   <th>Last activity</th>

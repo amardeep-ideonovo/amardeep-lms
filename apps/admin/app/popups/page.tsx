@@ -7,6 +7,7 @@ import { withBase } from "@/lib/base-path";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { useOptimisticAction } from "@/lib/useOptimisticAction";
+import { STR } from "@lms/types";
 
 // Human summary of WHERE a popup shows, from its visibility flags.
 function visibilitySummary(p: PopupListItem): string {
@@ -207,14 +208,14 @@ export default function PopupsPage() {
       day: "numeric",
     });
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("popups", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Popups</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -241,7 +242,7 @@ export default function PopupsPage() {
           <h2>All popups</h2>
         </div>
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : popups.length === 0 ? (
           <p className="muted">
             No popups yet. Click “Add new popup” to start.
@@ -251,12 +252,12 @@ export default function PopupsPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Name</th>
+                  <th>{STR.labels.name}</th>
                   <th>Shows on</th>
                   <th>Position</th>
                   <th>Performance</th>
                   <th>Updated</th>
-                  <th>Status</th>
+                  <th>{STR.labels.status}</th>
                   <th></th>
                 </tr>
               </thead>
@@ -276,7 +277,7 @@ export default function PopupsPage() {
                             : "badge badge--draft"
                         }
                       >
-                        {p.status === "ACTIVE" ? "Active" : "Inactive"}
+                        {p.status === "ACTIVE" ? STR.common.active : "Inactive"}
                       </span>
                     </td>
                     <td>
@@ -285,7 +286,7 @@ export default function PopupsPage() {
                           className="btn btn--ghost btn--sm"
                           onClick={() => openEditor(p.id)}
                         >
-                          Edit
+                          {STR.common.edit}
                         </button>
                         <button
                           className="btn btn--ghost btn--sm"
@@ -299,7 +300,7 @@ export default function PopupsPage() {
                           disabled={rowBusy === p.id}
                         >
                           {rowBusy === p.id
-                            ? "Saving…"
+                            ? STR.common.saving
                             : p.status === "ACTIVE"
                               ? "Deactivate"
                               : "Activate"}
@@ -309,7 +310,7 @@ export default function PopupsPage() {
                           onClick={() => remove(p)}
                           disabled={rowBusy === p.id}
                         >
-                          Delete
+                          {STR.common.delete}
                         </button>
                       </div>
                     </td>

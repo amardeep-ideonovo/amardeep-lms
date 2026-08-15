@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { LiveZoomEmbedDTO } from "@lms/types";
+import { STR } from "@lms/types";
 
 // Renders a Zoom meeting INSIDE the page via the Zoom Meeting SDK "Component
 // View" — no redirect, no new tab. The SDK is imported dynamically (client-only;
@@ -101,7 +102,7 @@ export default function ZoomEmbed({
           </div>
           {phase === "error" && <p className="live-error">{error}</p>}
           <button className="live-btn" type="button" onClick={join}>
-            {phase === "error" ? "Try again" : "Join meeting here"}
+            {phase === "error" ? STR.common.retry : "Join meeting here"}
           </button>
           {phase === "error" && onUnavailable && (
             <button

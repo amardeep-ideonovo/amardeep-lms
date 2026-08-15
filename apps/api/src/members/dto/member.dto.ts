@@ -10,6 +10,9 @@ import {
   MinLength,
 } from "class-validator";
 import type { MemberStatusFilter } from "@lms/types";
+// Relative on purpose — see packages/types/constants.ts (API value imports).
+import { PASSWORD_MIN } from "../../../../../packages/types/constants";
+import { STR } from "../../../../../packages/types/strings";
 
 const MEMBER_STATUS_FILTERS = [
   "active",
@@ -83,7 +86,9 @@ export class UpdateMemberDto {
 // Admin override: set a member's password without their current one.
 export class SetMemberPasswordDto {
   @IsString()
-  @MinLength(10)
+  @MinLength(PASSWORD_MIN.member, {
+    message: STR.validation.passwordMin(PASSWORD_MIN.member),
+  })
   @MaxLength(72)
   newPassword!: string;
 }

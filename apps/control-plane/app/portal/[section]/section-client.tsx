@@ -9,6 +9,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useState } from "react";
+import { STR } from "@lms/types";
 import { Icon } from "@/components/icons";
 import { InstanceSwitcher } from "@/components/instance-switcher";
 import { ProvisionSlots } from "@/components/provision-slots";
@@ -204,7 +205,7 @@ function InstanceView({ instance }: { instance: Instance }) {
               <span className="kv-v mono">{instance.dbName}</span>
             </div>
             <div className="kv">
-              <span className="kv-k">Version</span>
+              <span className="kv-k">{STR.labels.version}</span>
               <span className="kv-v mono">{instance.version}</span>
             </div>
             <div className="kv">
@@ -542,7 +543,7 @@ function MobileView({
             </div>
             <div className="kv-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
               <div className="kv">
-                <span className="kv-k">Version</span>
+                <span className="kv-k">{STR.labels.version}</span>
                 <span className="kv-v mono">{build.version}</span>
               </div>
               <div className="kv">
@@ -641,7 +642,7 @@ function BillingView({
             {suspended ? (
               <Pill tone="warning">Suspended</Pill>
             ) : (
-              <Pill tone="success">Active</Pill>
+              <Pill tone="success">{STR.common.active}</Pill>
             )}
           </div>
           <div className="price-row">
@@ -710,9 +711,9 @@ function BillingView({
           <thead>
             <tr>
               <th>Invoice</th>
-              <th>Date</th>
+              <th>{STR.labels.date}</th>
               <th>Amount</th>
-              <th>Status</th>
+              <th>{STR.labels.status}</th>
             </tr>
           </thead>
           <tbody>

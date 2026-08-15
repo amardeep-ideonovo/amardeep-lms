@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { PASSWORD_MIN, STR } from "@lms/types";
 import { api, ApiError, setToken } from "@/lib/api";
 import SpotlightLogo from "@/components/SpotlightLogo";
 
@@ -80,7 +81,7 @@ export default function SignupPage() {
           <form onSubmit={onSubmit}>
             <div className="field-row">
               <div className="field">
-                <label htmlFor="firstName">First name</label>
+                <label htmlFor="firstName">{STR.labels.firstName}</label>
                 <input
                   id="firstName"
                   autoComplete="given-name"
@@ -90,7 +91,7 @@ export default function SignupPage() {
                 />
               </div>
               <div className="field">
-                <label htmlFor="lastName">Last name</label>
+                <label htmlFor="lastName">{STR.labels.lastName}</label>
                 <input
                   id="lastName"
                   autoComplete="family-name"
@@ -102,7 +103,7 @@ export default function SignupPage() {
             </div>
 
             <div className="field">
-              <label htmlFor="email">Email</label>
+              <label htmlFor="email">{STR.labels.email}</label>
               <input
                 id="email"
                 type="email"
@@ -114,17 +115,17 @@ export default function SignupPage() {
             </div>
 
             <div className="field">
-              <label htmlFor="password">Password</label>
+              <label htmlFor="password">{STR.labels.password}</label>
               <input
                 id="password"
                 type="password"
                 autoComplete="new-password"
-                minLength={10}
+                minLength={PASSWORD_MIN.member}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <span className="hint">At least 10 characters.</span>
+              <span className="hint">{`At least ${PASSWORD_MIN.member} characters.`}</span>
             </div>
 
             <div className="field">

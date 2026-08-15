@@ -12,6 +12,7 @@ import type {
   SupportTicketCategory,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { STR } from "@lms/types";
 
 const STATUS_META: Record<SupportTicketStatus, { label: string; cls: string }> =
   {
@@ -270,7 +271,7 @@ export default function SupportThreadPage() {
     }
   }
 
-  if (loading) return <p className="muted">Loading…</p>;
+  if (loading) return <p className="muted">{STR.common.loading}</p>;
   if (error && !thread) {
     return (
       <div>

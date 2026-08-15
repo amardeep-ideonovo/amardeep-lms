@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import type { AuthUser } from "@lms/types";
+import { STR } from "@lms/types";
 import { ApiError, login } from "@/lib/checkout-service";
 
 // "Already a member?" popup. On success it hands the logged-in user back to the
@@ -55,7 +56,7 @@ export default function LoginModal({
           <button
             type="button"
             className="co-modal-x icon-btn"
-            aria-label="Close"
+            aria-label={STR.common.close}
             onClick={onClose}
           >
             ×
@@ -66,7 +67,7 @@ export default function LoginModal({
           <input
             className="co-input"
             type="email"
-            placeholder="Email"
+            placeholder={STR.labels.email}
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -76,7 +77,7 @@ export default function LoginModal({
           <input
             className="co-input"
             type="password"
-            placeholder="Password"
+            placeholder={STR.labels.password}
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

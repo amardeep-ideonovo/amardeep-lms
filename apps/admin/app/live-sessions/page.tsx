@@ -14,6 +14,7 @@ import { classAccentIndex } from "@/lib/class-accent";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RowMenu from "@/components/RowMenu";
+import { STR } from "@lms/types";
 
 // Browser IANA zone (fallback UTC), used as the default for a new session.
 function browserTz(): string {
@@ -328,7 +329,7 @@ export default function LiveSessionsPage() {
     const idx = levels.findIndex((l) => l.id === s.levelIds[0]);
     if (idx < 0) return null;
     return CLASS_TAG_COLORS[
-      classAccentIndex(levels[idx].name, idx) % CLASS_TAG_COLORS.length
+      classAccentIndex(levels[idx].name, [], idx) % CLASS_TAG_COLORS.length
     ];
   }
 
@@ -427,14 +428,14 @@ export default function LiveSessionsPage() {
     }
   }
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("liveSessions", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Live Sessions</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -562,7 +563,7 @@ export default function LiveSessionsPage() {
         {loading ? (
           <div className="card">
             <p className="muted" style={{ margin: 0 }}>
-              Loading…
+              {STR.common.loading}
             </p>
           </div>
         ) : sessions.length === 0 ? (
@@ -664,7 +665,7 @@ export default function LiveSessionsPage() {
       <form onSubmit={save} style={{ maxWidth: 720 }}>
         <div className="card">
           <div className="field">
-            <label>Title</label>
+            <label>{STR.labels.title}</label>
             <input
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
@@ -903,10 +904,14 @@ export default function LiveSessionsPage() {
 
         <div className="row-actions" style={{ marginTop: 16 }}>
           <button className="btn" type="submit" disabled={saving}>
-            {saving ? "Saving…" : editingId ? "Save changes" : "Create draft"}
+            {saving
+              ? STR.common.saving
+              : editingId
+                ? "Save changes"
+                : "Create draft"}
           </button>
           <button type="button" className="btn btn--ghost" onClick={backToList}>
-            Cancel
+            {STR.common.cancel}
           </button>
         </div>
       </form>

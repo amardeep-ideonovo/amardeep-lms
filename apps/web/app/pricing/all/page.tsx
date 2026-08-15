@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LevelDTO, PriceDTO, SubscriptionDetailDTO } from "@lms/types";
+import { STR } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 
@@ -129,7 +130,7 @@ function AllPlansInner() {
 
         {levels === null ? (
           <div className="centered-state">
-            <div className="spinner" aria-label="Loading" />
+            <div className="spinner" aria-label={STR.common.loadingLabel} />
           </div>
         ) : planLevels.length === 0 ? (
           <p className="empty">No plans are available right now.</p>

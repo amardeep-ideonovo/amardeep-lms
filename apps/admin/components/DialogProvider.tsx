@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { STR } from "@lms/types";
 
 // In-app replacements for window.confirm / window.alert / window.prompt, themed
 // to match the admin (dark + light). All three return a Promise so call sites
@@ -201,7 +202,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => finish(true)}
                   >
-                    {o.cancelLabel ?? "Cancel"}
+                    {o.cancelLabel ?? STR.common.cancel}
                   </button>
                 )}
                 <button
@@ -230,7 +231,11 @@ function defaultTitle(kind: Kind): string {
       : "Are you sure?";
 }
 function defaultOk(kind: Kind): string {
-  return kind === "notify" ? "OK" : kind === "prompt" ? "Save" : "Confirm";
+  return kind === "notify"
+    ? "OK"
+    : kind === "prompt"
+      ? STR.common.save
+      : "Confirm";
 }
 
 export function useDialog(): DialogContextValue {

@@ -3,6 +3,7 @@
 // Small shared presentational + overlay components for the control plane.
 
 import { ReactNode, useEffect, useRef, useState } from "react";
+import { STR } from "@lms/types";
 
 // ---------- avatar ----------
 
@@ -168,7 +169,7 @@ export function Modal({
             type="button"
             className="modal-x"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={STR.common.close}
           >
             ×
           </button>
@@ -200,7 +201,7 @@ export function ConfirmModal({
       <div className="modal-body">{body}</div>
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>
-          Cancel
+          {STR.common.cancel}
         </button>
         <button
           type="button"

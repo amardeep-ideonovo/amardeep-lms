@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+import { STR } from "@lms/types";
 
 // True when the viewport is too narrow for the drag-and-drop builders (Puck
 // page/popup editors, the certificate designer). useSyncExternalStore keeps the
@@ -25,7 +26,7 @@ export function useIsNarrow(maxWidth = 820): boolean {
 // the content area (for the in-shell certificate designer).
 export function EditorDesktopNotice({
   backHref,
-  backLabel = "Back",
+  backLabel = STR.common.back,
   what = "This editor",
   fixed = false,
 }: {

@@ -5,6 +5,7 @@ import type { AudienceDTO, MenuListItem } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import FooterBuilder from "./FooterBuilder";
+import { STR } from "@lms/types";
 
 // Standalone "Footer" page (sidebar item under Header). Single global footer:
 // logo, a menu, an email opt-in, and a bottom bar. Gated by the `menus` permission.
@@ -32,14 +33,14 @@ export default function FooterPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("menus", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Footer</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 

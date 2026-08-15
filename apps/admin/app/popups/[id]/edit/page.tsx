@@ -36,6 +36,7 @@ import {
   EditorDesktopNotice,
   useIsNarrow,
 } from "@/components/EditorDesktopNotice";
+import { STR } from "@lms/types";
 
 type PopupData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -414,7 +415,7 @@ export default function PopupEditor() {
         <div className="page-header">
           <h1>Popup editor</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -439,7 +440,7 @@ export default function PopupEditor() {
 
   const saveLabel =
     saveState === "saving"
-      ? "Saving…"
+      ? STR.common.saving
       : saveState === "saved"
         ? "Saved ✓"
         : saveState === "error"
@@ -496,7 +497,7 @@ export default function PopupEditor() {
               : "badge badge--draft"
           }
         >
-          {status === "ACTIVE" ? "Active" : "Inactive"}
+          {status === "ACTIVE" ? STR.common.active : "Inactive"}
         </span>
         <span
           className="muted"
@@ -606,7 +607,7 @@ export default function PopupEditor() {
 
               {/* Live preview */}
               <div style={{ marginBottom: 18 }}>
-                <div style={drawerLabel}>Preview</div>
+                <div style={drawerLabel}>{STR.common.preview}</div>
                 <div
                   style={{
                     background:

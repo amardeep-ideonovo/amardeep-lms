@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { EmailLogListDTO, EmailSendStatus } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
+import { STR } from "@lms/types";
 
 // EmailLog statuses (mirrors the EmailStatus enum) with label + badge maps.
 const STATUSES: EmailSendStatus[] = [
@@ -89,14 +90,14 @@ export default function EmailLogsPage() {
     ? Math.max(1, Math.ceil(list.total / list.pageSize))
     : 1;
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("email", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Email logs</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -165,7 +166,7 @@ export default function EmailLogsPage() {
         {error && <p className="error">{error}</p>}
 
         {loading ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : !list || list.items.length === 0 ? (
           <p className="muted">No emails match.</p>
         ) : (
@@ -176,8 +177,8 @@ export default function EmailLogsPage() {
                   <tr>
                     <th>To</th>
                     <th>Subject</th>
-                    <th>Status</th>
-                    <th>Template</th>
+                    <th>{STR.labels.status}</th>
+                    <th>{STR.labels.template}</th>
                     <th>Sent</th>
                   </tr>
                 </thead>

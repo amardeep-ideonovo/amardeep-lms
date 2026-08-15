@@ -26,6 +26,7 @@ import {
   EditorDesktopNotice,
   useIsNarrow,
 } from "@/components/EditorDesktopNotice";
+import { STR } from "@lms/types";
 
 type PageData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -259,7 +260,7 @@ export default function PageEditor() {
         <div className="page-header">
           <h1>Page editor</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -284,7 +285,7 @@ export default function PageEditor() {
 
   const saveLabel =
     saveState === "saving"
-      ? "Saving…"
+      ? STR.common.saving
       : saveState === "saved"
         ? "Saved ✓"
         : saveState === "error"

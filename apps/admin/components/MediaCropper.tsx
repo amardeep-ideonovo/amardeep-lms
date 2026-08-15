@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { STR } from "@lms/types";
 
 // Generalized image cropper (rectangular, arbitrary aspect ratio). The admin
 // pans (drag) + zooms (slider/wheel) to frame the image inside an aspect-locked
@@ -100,7 +101,7 @@ export default function MediaCropper({
       if (cancelled) return;
       const d = { w: img.naturalWidth, h: img.naturalHeight };
       if (!d.w || !d.h) {
-        setError("That image couldn't be read. Try another file.");
+        setError(STR.errors.imageUnreadable);
         return;
       }
       // Smallest scale that still covers the framing window on both axes.
@@ -113,7 +114,7 @@ export default function MediaCropper({
     };
     img.onerror = () => {
       if (cancelled) return;
-      setError("That image couldn't be read. Try another file.");
+      setError(STR.errors.imageUnreadable);
     };
     img.src = objectUrl;
     return () => {
@@ -212,7 +213,7 @@ export default function MediaCropper({
           <button
             type="button"
             className="modal-close"
-            aria-label="Close"
+            aria-label={STR.common.close}
             onClick={onCancel}
             disabled={busy}
           >
@@ -285,7 +286,7 @@ export default function MediaCropper({
             onClick={handleApply}
             disabled={busy || !dims || !!error}
           >
-            {busy ? "Uploading…" : "Save"}
+            {busy ? "Uploading…" : STR.common.save}
           </button>
           <button
             type="button"
@@ -293,7 +294,7 @@ export default function MediaCropper({
             onClick={onCancel}
             disabled={busy}
           >
-            Cancel
+            {STR.common.cancel}
           </button>
         </div>
       </div>

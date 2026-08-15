@@ -9,6 +9,7 @@ import type {
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { STR } from "@lms/types";
 
 type Draft = {
   name: string;
@@ -180,11 +181,11 @@ export default function AutomationsPage() {
 
   async function remove(a: AutomationDTO) {
     const ok = await dialog.confirm({
-      message: `Delete automation "${a.name}"? The ${TRIGGER_LABEL[
+      message: `${STR.confirm.deleteEntity("automation", a.name)} The ${TRIGGER_LABEL[
         a.trigger
       ].toLowerCase()} email will stop sending.`,
       danger: true,
-      confirmLabel: "Delete",
+      confirmLabel: STR.common.delete,
     });
     if (!ok) return;
     try {
@@ -196,14 +197,14 @@ export default function AutomationsPage() {
     }
   }
 
-  if (authLoading) return <p className="muted">Loading…</p>;
+  if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("email", "read"))
     return (
       <div>
         <div className="page-header">
           <h1>Automations</h1>
         </div>
-        <p className="muted">You don’t have permission to view this.</p>
+        <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
     );
 
@@ -247,7 +248,7 @@ export default function AutomationsPage() {
             <h2 style={{ fontSize: 16 }}>All automations</h2>
           </div>
           {loading ? (
-            <p className="muted">Loading…</p>
+            <p className="muted">{STR.common.loading}</p>
           ) : automations.length === 0 ? (
             <p className="muted">
               No automations yet.{canCreate ? " Create one to begin." : ""}
@@ -257,10 +258,10 @@ export default function AutomationsPage() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Name</th>
+                    <th>{STR.labels.name}</th>
                     <th>Trigger</th>
-                    <th>Template</th>
-                    <th>Active</th>
+                    <th>{STR.labels.template}</th>
+                    <th>{STR.common.active}</th>
                     <th aria-label="actions" />
                   </tr>
                 </thead>
@@ -314,7 +315,11 @@ export default function AutomationsPage() {
                                 : undefined
                             }
                           >
-                            {busy ? "…" : a.active ? "Active" : "Paused"}
+                            {busy
+                              ? "…"
+                              : a.active
+                                ? STR.common.active
+                                : "Paused"}
                           </button>
                         </td>
                         <td
@@ -325,7 +330,7 @@ export default function AutomationsPage() {
                               className="btn btn--danger btn--sm"
                               onClick={() => remove(a)}
                             >
-                              Delete
+                              {STR.common.delete}
                             </button>
                           )}
                         </td>
@@ -350,14 +355,14 @@ export default function AutomationsPage() {
                 className="btn btn--ghost btn--sm"
                 onClick={closeEditor}
               >
-                Close
+                {STR.common.close}
               </button>
             </div>
 
             {editorError && <p className="error">{editorError}</p>}
 
             <div className="field">
-              <label>Name</label>
+              <label>{STR.labels.name}</label>
               <input
                 value={draft.name}
                 onChange={(e) => setDraft({ ...draft, name: e.target.value })}
@@ -391,7 +396,7 @@ export default function AutomationsPage() {
             </div>
 
             <div className="field">
-              <label>Template</label>
+              <label>{STR.labels.template}</label>
               <select
                 value={draft.templateId}
                 onChange={(e) =>
@@ -442,7 +447,7 @@ export default function AutomationsPage() {
               {(canEdit || creating) && (
                 <button className="btn" type="submit" disabled={saving}>
                   {saving
-                    ? "Saving…"
+                    ? STR.common.saving
                     : creating
                       ? "Create automation"
                       : "Save changes"}

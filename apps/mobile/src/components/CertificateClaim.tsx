@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import type { ClassCertificateStatusDTO, MyCertificateDTO } from "@lms/types";
+import { STR } from "@lms/types";
 import { api, certificateDownloadUrl } from "../api";
 import { Press } from "./Press";
 import { useStyles, useTheme } from "../theme-provider";
@@ -144,7 +145,7 @@ export default function CertificateClaim({
                 onPress={() => setAskName(false)}
                 activeOpacity={0.8}
               >
-                <Text style={styles.buttonGhostText}>Cancel</Text>
+                <Text style={styles.buttonGhostText}>{STR.common.cancel}</Text>
               </TouchableOpacity>
             </View>
           </View>

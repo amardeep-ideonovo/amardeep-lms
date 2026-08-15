@@ -4,6 +4,7 @@
 // confirm, "View plan" dialog. Shared by the operator dashboard + Updates page.
 
 import { useState } from "react";
+import { STR } from "@lms/types";
 import { pauseRollout, resumeRollout } from "@/lib/provisioner";
 import type { Rollout } from "@/lib/types";
 import { Icon } from "./icons";
@@ -145,7 +146,7 @@ export function RolloutCard({ rollout }: { rollout: Rollout }) {
               className="btn btn-ghost"
               onClick={() => setPlanOpen(false)}
             >
-              Close
+              {STR.common.close}
             </button>
           </div>
         </Modal>

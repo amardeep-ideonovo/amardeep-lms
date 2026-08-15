@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useState } from "react";
+import { STR } from "@lms/types";
 import { AddHostModal } from "@/components/AddHostModal";
 import {
   CapOverrideModal,
@@ -272,7 +273,7 @@ function BackupsView({ fleet }: { fleet: FleetState }) {
             <th>Schedule</th>
             <th>Last run</th>
             <th>Size</th>
-            <th>Status</th>
+            <th>{STR.labels.status}</th>
           </tr>
         </thead>
         <tbody>
@@ -366,12 +367,12 @@ function PlansView({ fleet }: { fleet: FleetState }) {
           <thead>
             <tr>
               <th>Order</th>
-              <th>Plan</th>
+              <th>{STR.labels.plan}</th>
               <th>Price</th>
               <th>Instance cap</th>
               <th>App track</th>
               <th>Clients</th>
-              <th>Status</th>
+              <th>{STR.labels.status}</th>
               <th />
             </tr>
           </thead>
@@ -429,7 +430,7 @@ function PlansView({ fleet }: { fleet: FleetState }) {
                   <td>{clients}</td>
                   <td>
                     {plan.active ? (
-                      <Pill tone="success">Active</Pill>
+                      <Pill tone="success">{STR.common.active}</Pill>
                     ) : (
                       <Pill tone="neutral">Off sale</Pill>
                     )}
@@ -447,7 +448,7 @@ function PlansView({ fleet }: { fleet: FleetState }) {
                         className="chip-action"
                         onClick={() => setEditor({ open: true, plan })}
                       >
-                        Edit
+                        {STR.common.edit}
                       </button>
                       <button
                         type="button"
@@ -553,11 +554,11 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
           <thead>
             <tr>
               <th>Client</th>
-              <th>Plan</th>
+              <th>{STR.labels.plan}</th>
               <th>Price</th>
               <th>Instances</th>
               <th>App track</th>
-              <th>Status</th>
+              <th>{STR.labels.status}</th>
               <th>Since</th>
               <th />
             </tr>
@@ -596,7 +597,7 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
                     {suspended ? (
                       <Pill tone="warning">Suspended</Pill>
                     ) : (
-                      <Pill tone="success">Active</Pill>
+                      <Pill tone="success">{STR.common.active}</Pill>
                     )}
                   </td>
                   <td>{client.createdAt}</td>
@@ -892,7 +893,7 @@ function BillingView({ fleet }: { fleet: FleetState }) {
           <thead>
             <tr>
               <th>Client</th>
-              <th>Plan</th>
+              <th>{STR.labels.plan}</th>
               <th>MRR</th>
               <th>Renews</th>
               <th>State</th>
@@ -1153,7 +1154,7 @@ function SettingsView({ fleet }: { fleet: FleetState }) {
                 setTimeout(() => setSaved(false), 2000);
               }}
             >
-              {busy ? "Saving…" : "Save settings"}
+              {busy ? STR.common.saving : "Save settings"}
             </button>
             {saved && <span className="saved-flash">Saved ✓</span>}
           </div>

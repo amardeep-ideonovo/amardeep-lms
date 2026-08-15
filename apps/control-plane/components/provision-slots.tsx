@@ -8,6 +8,7 @@
 // always add an instance anywhere their instances are shown.
 
 import { FormEvent, useState } from "react";
+import { STR } from "@lms/types";
 import { Icon } from "@/components/icons";
 import { UpgradeModal } from "@/components/portal-modals";
 import { Field, Pill } from "@/components/ui";
@@ -191,7 +192,7 @@ function ProvisionAnotherCard({
               className="btn btn-ghost"
               onClick={() => setExpanded(false)}
             >
-              Cancel
+              {STR.common.cancel}
             </button>
           </div>
         </form>

@@ -1,4 +1,7 @@
 import { IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+// Relative on purpose — see packages/types/constants.ts (API value imports).
+import { PASSWORD_MIN } from "../../../../../packages/types/constants";
+import { STR } from "../../../../../packages/types/strings";
 
 // Body for the control-plane-only POST /instance-admin/reset-password. The
 // control plane GENERATES the new password and tells us which admin it's for
@@ -15,7 +18,9 @@ export class ResetInstanceAdminDto {
   // Control-plane-generated; we set it verbatim as the new password. 12–72 to
   // stay within bcrypt's 72-byte input limit while rejecting anything too short.
   @IsString()
-  @MinLength(12)
+  @MinLength(PASSWORD_MIN.instanceAdminReset, {
+    message: STR.validation.passwordMin(PASSWORD_MIN.instanceAdminReset),
+  })
   @MaxLength(72)
   password!: string;
 }

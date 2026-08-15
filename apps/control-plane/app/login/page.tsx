@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
+import { STR } from "@lms/types";
 import { clientSignIn, getClientSession } from "@/lib/auth";
 import { LogoGlyph } from "@/components/icons";
 import { Field } from "@/components/ui";
@@ -51,7 +52,7 @@ export default function LoginPage() {
           Your license, instance, backups, apps &amp; billing.
         </p>
         <form method="post" className="login-form" onSubmit={submit}>
-          <Field label="Email">
+          <Field label={STR.labels.email}>
             <input
               className="input"
               type="email"
@@ -67,7 +68,7 @@ export default function LoginPage() {
               autoFocus
             />
           </Field>
-          <Field label="Password">
+          <Field label={STR.labels.password}>
             <input
               className="input"
               type="password"

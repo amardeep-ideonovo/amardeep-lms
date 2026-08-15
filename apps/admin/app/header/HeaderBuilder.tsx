@@ -21,6 +21,7 @@ import MediaPicker from "@/components/MediaPicker";
 import ColorField from "@/components/ColorField";
 import { CtaTargetPicker } from "./CtaTargetPicker";
 import { useAppBrand } from "@/lib/app-brand";
+import { STR } from "@lms/types";
 
 const SECTIONS: { value: HeaderSection; label: string }[] = [
   { value: "HOME", label: "Home" },
@@ -145,7 +146,7 @@ export default function HeaderBuilder({
     if (!dto) return;
     if (
       !(await dialog.confirm({
-        message: `Delete the header “${dto.name}”?`,
+        message: STR.confirm.deleteEntity("the header", dto.name),
         danger: true,
       }))
     )
@@ -233,7 +234,7 @@ export default function HeaderBuilder({
               onClick={create}
               disabled={busy || !newName.trim()}
             >
-              Create
+              {STR.common.create}
             </button>
           </div>
         )}
@@ -254,7 +255,7 @@ export default function HeaderBuilder({
             </p>
           </div>
         ) : loadingDto || !dto ? (
-          <p className="muted">Loading…</p>
+          <p className="muted">{STR.common.loading}</p>
         ) : (
           <HeaderEditor
             key={dto.id}
@@ -464,7 +465,7 @@ function HeaderEditor({
         <h2>Where this header shows</h2>
         <div className="form-row">
           <div className="field">
-            <label>Audience</label>
+            <label>{STR.labels.audience}</label>
             <select
               value={cond.audience}
               disabled={ro}
@@ -482,7 +483,7 @@ function HeaderEditor({
           </div>
           {cond.audience === "LEVEL" && (
             <div className="field" style={{ flex: 2 }}>
-              <label>Class</label>
+              <label>{STR.labels.class}</label>
               <select
                 value={cond.audienceLevelId ?? ""}
                 disabled={ro}
@@ -841,7 +842,7 @@ function HeaderEditor({
                 <div key={c.id} className="hb-cta-row">
                   <div className="form-row">
                     <div className="field" style={{ flex: 2 }}>
-                      <label>Label</label>
+                      <label>{STR.labels.label}</label>
                       <input
                         value={c.label}
                         disabled={ro}
@@ -943,7 +944,7 @@ function HeaderEditor({
                           className="btn btn--danger btn--sm"
                           onClick={() => removeCta(c.id)}
                         >
-                          Remove
+                          {STR.common.remove}
                         </button>
                       </div>
                     )}
@@ -959,7 +960,7 @@ function HeaderEditor({
       {canEdit && (
         <div className="row-actions" style={{ alignItems: "center" }}>
           <button className="btn" onClick={save} disabled={saving}>
-            {saving ? "Saving…" : "Save header"}
+            {saving ? STR.common.saving : "Save header"}
           </button>
           {saved && (
             <span className="alert-success" style={{ padding: "6px 10px" }}>
