@@ -1122,28 +1122,36 @@ a.card:hover {
     opacity var(--dur-fast) var(--ease);
 }
 
-.btn-primary {
+/* The canonical btn--* aliases (grouped so they can't drift) let the shared
+   @lms/ui <Button> emit one class set that styles identically in web + admin
+   (docs/coding-standards.md D5). */
+.btn-primary,
+.btn--primary {
   background: var(--teal-grad);
   color: var(--on-primary);
   box-shadow: var(--shadow-primary);
 }
 
-.btn-primary:hover:not(:disabled) {
+.btn-primary:hover:not(:disabled),
+.btn--primary:hover:not(:disabled) {
   filter: brightness(0.94);
   transform: translateY(-1px);
   box-shadow: 0 12px 28px rgba(48, 184, 149, 0.4);
 }
-.btn-primary:active:not(:disabled) {
+.btn-primary:active:not(:disabled),
+.btn--primary:active:not(:disabled) {
   transform: translateY(0);
 }
 
-.btn-secondary {
+.btn-secondary,
+.btn--secondary {
   background: transparent;
   color: var(--text);
   border-color: var(--border);
 }
 
-.btn-secondary:hover:not(:disabled) {
+.btn-secondary:hover:not(:disabled),
+.btn--secondary:hover:not(:disabled) {
   background: var(--surface-hover);
   transform: translateY(-1px);
 }
@@ -1153,7 +1161,8 @@ a.card:hover {
   cursor: not-allowed;
 }
 
-.btn-block {
+.btn-block,
+.btn--block {
   width: 100%;
 }
 
@@ -1562,18 +1571,41 @@ a.card:hover {
 }
 
 /* small + danger button variants */
-.btn-sm {
+.btn-sm,
+.btn--sm {
   padding: 7px 12px;
   font-size: 13px;
 }
-.btn-danger {
+.btn-danger,
+.btn--danger {
   background: var(--surface);
   color: var(--danger-text);
   border-color: var(--border);
 }
-.btn-danger:hover:not(:disabled) {
+.btn-danger:hover:not(:disabled),
+.btn--danger:hover:not(:disabled) {
   background: var(--fill-danger);
   border-color: rgba(224, 72, 72, 0.3);
+}
+/* Variants web lacked in its single-dash family — defined to match admin so
+   the shared <Button> renders identically here (docs/coding-standards.md D5). */
+.btn--danger-solid {
+  background: var(--danger);
+  color: var(--paper-0);
+  border-color: transparent;
+}
+.btn--danger-solid:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+.btn--icon {
+  padding: 0;
+  width: 40px;
+  height: 40px;
+  line-height: 0;
+}
+.btn--sm.btn--icon {
+  width: 30px;
+  height: 30px;
 }
 
 /* ---------- Modal ---------- */
