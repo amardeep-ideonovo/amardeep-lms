@@ -22,6 +22,7 @@ import ColorField from "@/components/ColorField";
 import { CtaTargetPicker } from "./CtaTargetPicker";
 import { useAppBrand } from "@/lib/queries";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 const SECTIONS: { value: HeaderSection; label: string }[] = [
   { value: "HOME", label: "Home" },
@@ -231,13 +232,13 @@ export default function HeaderBuilder({
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && create()}
             />
-            <button
-              className="btn btn--sm"
+            <Button
+              size="sm"
               onClick={create}
               disabled={busy || !newName.trim()}
             >
               {STR.common.create}
-            </button>
+            </Button>
           </div>
         )}
         <p className="profile-hint muted">
@@ -834,9 +835,9 @@ function HeaderEditor({
           <div className="card-head">
             <h2>CTA buttons</h2>
             {canEdit && (
-              <button className="btn btn--sm" onClick={addCta}>
+              <Button size="sm" onClick={addCta}>
                 + Add CTA
-              </button>
+              </Button>
             )}
           </div>
           {config.ctas.length === 0 ? (
@@ -945,12 +946,13 @@ function HeaderEditor({
                         style={{ justifyContent: "flex-end" }}
                       >
                         <label>&nbsp;</label>
-                        <button
-                          className="btn btn--danger btn--sm"
+                        <Button
+                          variant="danger"
+                          size="sm"
                           onClick={() => removeCta(c.id)}
                         >
                           {STR.common.remove}
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -964,23 +966,23 @@ function HeaderEditor({
       {/* ---------- actions ---------- */}
       {canEdit && (
         <div className="row-actions" style={{ alignItems: "center" }}>
-          <button className="btn" onClick={save} disabled={saving}>
+          <Button onClick={save} disabled={saving}>
             {saving ? STR.common.saving : "Save header"}
-          </button>
+          </Button>
           {saved && (
             <span className="alert-success" style={{ padding: "6px 10px" }}>
               Saved ✓
             </span>
           )}
           {canDelete && (
-            <button
-              className="btn btn--danger"
+            <Button
+              variant="danger"
               onClick={onDelete}
               disabled={busy}
               style={{ marginLeft: "auto" }}
             >
               Delete header
-            </button>
+            </Button>
           )}
         </div>
       )}

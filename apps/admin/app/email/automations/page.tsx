@@ -10,6 +10,7 @@ import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 type Draft = {
   name: string;
@@ -225,9 +226,7 @@ export default function AutomationsPage() {
         </div>
         {canCreate && (
           <div className="row-actions">
-            <button className="btn" onClick={openCreate}>
-              + New automation
-            </button>
+            <Button onClick={openCreate}>+ New automation</Button>
           </div>
         )}
       </div>
@@ -326,12 +325,13 @@ export default function AutomationsPage() {
                           style={{ textAlign: "right", whiteSpace: "nowrap" }}
                         >
                           {canDelete && (
-                            <button
-                              className="btn btn--danger btn--sm"
+                            <Button
+                              variant="danger"
+                              size="sm"
                               onClick={() => remove(a)}
                             >
                               {STR.common.delete}
-                            </button>
+                            </Button>
                           )}
                         </td>
                       </tr>
@@ -350,13 +350,14 @@ export default function AutomationsPage() {
               <h2 style={{ fontSize: 16 }}>
                 {creating ? "New automation" : `Editing: ${selected?.name}`}
               </h2>
-              <button
+              <Button
                 type="button"
-                className="btn btn--ghost btn--sm"
+                variant="secondary"
+                size="sm"
                 onClick={closeEditor}
               >
                 {STR.common.close}
-              </button>
+              </Button>
             </div>
 
             {editorError && <p className="error">{editorError}</p>}
@@ -445,13 +446,13 @@ export default function AutomationsPage() {
               }}
             >
               {(canEdit || creating) && (
-                <button className="btn" type="submit" disabled={saving}>
+                <Button type="submit" disabled={saving}>
                   {saving
                     ? STR.common.saving
                     : creating
                       ? "Create automation"
                       : "Save changes"}
-                </button>
+                </Button>
               )}
             </div>
           </form>

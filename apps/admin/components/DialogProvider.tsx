@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 import { useModalA11y } from "@/lib/useModalA11y";
 
 // In-app replacements for window.confirm / window.alert / window.prompt, themed
@@ -210,24 +211,24 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
               )}
               <div className="dialog-actions">
                 {state.kind !== "notify" && (
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn--ghost"
+                    variant="secondary"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => finish(true)}
                   >
                     {o.cancelLabel ?? STR.common.cancel}
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   ref={okRef}
                   type="button"
-                  className={o.danger ? "btn btn--danger-solid" : "btn"}
+                  variant={o.danger ? "danger-solid" : "primary"}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => finish(false)}
                 >
                   {o.confirmLabel ?? defaultOk(state.kind)}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

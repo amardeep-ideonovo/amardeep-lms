@@ -8,6 +8,7 @@ import { qk } from "@/lib/queries";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR, formatMoney } from "@lms/types";
+import { Button } from "@lms/ui";
 
 type DiscountType = "percent" | "amount";
 type Duration = "once" | "repeating" | "forever";
@@ -226,13 +227,14 @@ export default function CouponsPage() {
                   placeholder="SAVE20"
                   required
                 />
-                <button
+                <Button
                   type="button"
-                  className="btn btn--ghost btn--sm"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setCode(randomCode())}
                 >
                   Generate
-                </button>
+                </Button>
               </div>
             </div>
             <div className="field">
@@ -344,9 +346,9 @@ export default function CouponsPage() {
 
           {pageError && <p className="error">{pageError}</p>}
           <div className="row-actions">
-            <button className="btn" type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving}>
               {saving ? "Creating…" : "Create coupon"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -429,29 +431,32 @@ export default function CouponsPage() {
                       <td>
                         <div className="row-actions">
                           {c.active ? (
-                            <button
-                              className="btn btn--ghost btn--sm"
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               disabled={busyId === c.id}
                               onClick={() => toggleActive(c)}
                             >
                               Deactivate
-                            </button>
+                            </Button>
                           ) : (
-                            <button
-                              className="btn btn--ghost btn--sm"
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               disabled={busyId === c.id || status === "Expired"}
                               onClick={() => toggleActive(c)}
                             >
                               Activate
-                            </button>
+                            </Button>
                           )}
-                          <button
-                            className="btn btn--danger btn--sm"
+                          <Button
+                            variant="danger"
+                            size="sm"
                             disabled={busyId === c.id}
                             onClick={() => removeCoupon(c)}
                           >
                             {STR.common.delete}
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </tr>

@@ -22,6 +22,7 @@ import LessonMediaFields, {
   validateLessonMedia,
 } from "@/components/LessonMediaFields";
 import { STR, formatBytes } from "@lms/types";
+import { Button } from "@lms/ui";
 
 const EMPTY_COURSE = {
   title: "",
@@ -299,9 +300,7 @@ export default function CoursesPage() {
             member holds ANY assigned class.
           </p>
         </div>
-        <button className="btn" onClick={openCreate}>
-          + Add new course
-        </button>
+        <Button onClick={openCreate}>+ Add new course</Button>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -341,9 +340,9 @@ export default function CoursesPage() {
                 aria-label="Search courses"
               />
             </div>
-            <button className="btn btn--sm" onClick={openCreate}>
+            <Button size="sm" onClick={openCreate}>
               + Add new course
-            </button>
+            </Button>
           </div>
         </div>
         {loading ? (
@@ -399,8 +398,9 @@ export default function CoursesPage() {
                       </td>
                       <td>
                         <div className="row-actions">
-                          <button
-                            className="btn btn--ghost btn--sm"
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={() =>
                               setOpenCourse(
                                 openCourse === course.id ? null : course.id,
@@ -410,22 +410,24 @@ export default function CoursesPage() {
                             {openCourse === course.id
                               ? "Hide lessons"
                               : "Lessons"}
-                          </button>
-                          <button
-                            className="btn btn--ghost btn--sm"
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={() => startEdit(course)}
                           >
                             {STR.common.edit}
-                          </button>
-                          <button
-                            className="btn btn--danger btn--sm"
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
                             onClick={() => removeCourse(course)}
                             disabled={rowBusy === course.id}
                           >
                             {rowBusy === course.id
                               ? "Deleting…"
                               : STR.common.delete}
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -606,8 +608,7 @@ export default function CoursesPage() {
                 </div>
 
                 <div className="row-actions">
-                  <button
-                    className="btn"
+                  <Button
                     type="submit"
                     disabled={saving || form.levelIds.length === 0}
                   >
@@ -616,14 +617,14 @@ export default function CoursesPage() {
                       : editingId
                         ? "Save changes"
                         : "Create course"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
-                    className="btn btn--ghost"
+                    variant="secondary"
                     onClick={closeModal}
                   >
                     {STR.common.cancel}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -749,13 +750,9 @@ function CourseLessons({
       )}
 
       {/* The add-lesson flow opens in a modal (same as Add new course). */}
-      <button
-        className="btn"
-        style={{ marginTop: 16 }}
-        onClick={() => setShowAdd(true)}
-      >
+      <Button style={{ marginTop: 16 }} onClick={() => setShowAdd(true)}>
         + Add lesson
-      </button>
+      </Button>
 
       {showAdd && (
         <div
@@ -872,9 +869,10 @@ function CourseLessons({
                               <span className="muted">
                                 {formatBytes(f.size)}
                               </span>
-                              <button
+                              <Button
                                 type="button"
-                                className="btn btn--ghost btn--sm"
+                                variant="secondary"
+                                size="sm"
                                 onClick={() =>
                                   setNoteFiles((fs) =>
                                     fs.filter((_, j) => j !== i),
@@ -882,7 +880,7 @@ function CourseLessons({
                                 }
                               >
                                 {STR.common.remove}
-                              </button>
+                              </Button>
                             </li>
                           ))}
                         </ul>
@@ -911,16 +909,12 @@ function CourseLessons({
                 </div>
 
                 <div className="row-actions" style={{ marginTop: 22 }}>
-                  <button className="btn" type="submit" disabled={saving}>
+                  <Button type="submit" disabled={saving}>
                     {saving ? "Adding…" : "Add lesson"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    onClick={closeAdd}
-                  >
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={closeAdd}>
                     {STR.common.cancel}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -1066,8 +1060,9 @@ function LessonRow({
           <span className="muted">{notes.length} note(s)</span>
         )}
         <div className="row-actions">
-          <button
-            className="btn btn--ghost btn--sm"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => {
               if (editing) {
                 setEditing(false);
@@ -1087,14 +1082,15 @@ function LessonRow({
             }}
           >
             {editing ? STR.common.close : "Edit details"}
-          </button>
-          <button
-            className="btn btn--danger btn--sm"
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
             onClick={removeLesson}
             disabled={busy}
           >
             {STR.common.delete}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -1154,8 +1150,9 @@ function LessonRow({
                       aria-label="File name"
                     />
                     <span className="muted">{formatBytes(n.size)}</span>
-                    <button
-                      className="btn btn--ghost btn--sm"
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => rename(n)}
                       disabled={
                         !nameFor(n).trim() ||
@@ -1163,19 +1160,21 @@ function LessonRow({
                       }
                     >
                       Rename
-                    </button>
-                    <button
-                      className="btn btn--ghost btn--sm"
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => download(n)}
                     >
                       Download
-                    </button>
-                    <button
-                      className="btn btn--danger btn--sm"
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
                       onClick={() => removeNote(n.id)}
                     >
                       {STR.common.remove}
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -1196,15 +1195,16 @@ function LessonRow({
           </div>
 
           <div className="row-actions">
-            <button className="btn btn--sm" onClick={saveEdits} disabled={busy}>
+            <Button size="sm" onClick={saveEdits} disabled={busy}>
               {busy ? STR.common.saving : STR.common.save}
-            </button>
-            <button
-              className="btn btn--ghost btn--sm"
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setEditing(false)}
             >
               {STR.common.cancel}
-            </button>
+            </Button>
           </div>
         </div>
       )}

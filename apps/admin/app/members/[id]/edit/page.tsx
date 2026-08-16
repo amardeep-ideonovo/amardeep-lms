@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { MemberRow } from "@lms/types";
+import { Button } from "@lms/ui";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
@@ -200,9 +201,9 @@ export default function EditMemberPage() {
               Leave name or phone blank to clear it. Email can’t be empty.
             </p>
             <div className="row-actions">
-              <button className="btn" type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving}>
                 {saving ? STR.common.saving : "Save changes"}
-              </button>
+              </Button>
               <Link href="/members" className="btn btn--ghost">
                 {STR.common.cancel}
               </Link>
@@ -254,9 +255,9 @@ export default function EditMemberPage() {
               password.
             </p>
             <div className="row-actions">
-              <button className="btn" type="submit" disabled={pwSaving}>
+              <Button type="submit" disabled={pwSaving}>
                 {pwSaving ? "Setting…" : "Set new password"}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

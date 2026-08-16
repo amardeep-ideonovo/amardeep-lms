@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MediaDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
+import { Button } from "@lms/ui";
 import { useModalA11y } from "@/lib/useModalA11y";
 import MediaCropper from "./MediaCropper";
 import { SEARCH_DEBOUNCE_MS, STR } from "@lms/types";
@@ -149,31 +150,34 @@ export default function MediaPicker({
         </div>
       ) : null}
       <div className="row-actions">
-        <button
+        <Button
           type="button"
-          className="btn btn--ghost btn--sm"
+          variant="secondary"
+          size="sm"
           disabled={disabled}
           onClick={() => setLibOpen(true)}
         >
           {value ? "Replace from gallery" : "Gallery"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="btn btn--ghost btn--sm"
+          variant="secondary"
+          size="sm"
           disabled={disabled || uploading}
           onClick={() => fileRef.current?.click()}
         >
           {uploading ? "Uploading…" : "Upload"}
-        </button>
+        </Button>
         {value ? (
-          <button
+          <Button
             type="button"
-            className="btn btn--ghost btn--sm"
+            variant="secondary"
+            size="sm"
             disabled={disabled}
             onClick={() => onChange("")}
           >
             {STR.common.remove}
-          </button>
+          </Button>
         ) : null}
       </div>
       <input
@@ -311,14 +315,14 @@ function MediaLibraryModal({
               placeholder={`Search ${noun}…`}
               style={{ minWidth: 220 }}
             />
-            <button
+            <Button
               type="button"
-              className="btn btn--sm"
+              size="sm"
               disabled={uploading}
               onClick={() => fileRef.current?.click()}
             >
               {uploading ? "Uploading…" : "Upload new"}
-            </button>
+            </Button>
             <input
               ref={fileRef}
               type="file"

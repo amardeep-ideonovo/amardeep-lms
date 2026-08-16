@@ -10,6 +10,7 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 const PRIORITIES: { value: SupportTicketPriority; label: string }[] = [
   { value: "LOW", label: "Low" },
@@ -135,13 +136,12 @@ export default function NewSupportTicketPage() {
         </div>
 
         <div className="row-actions" style={{ marginTop: 16 }}>
-          <button
-            className="btn"
+          <Button
             type="submit"
             disabled={saving || !subject.trim() || !body.trim()}
           >
             {saving ? "Opening…" : "Open ticket"}
-          </button>
+          </Button>
           <Link href="/support" className="btn btn--ghost">
             {STR.common.cancel}
           </Link>

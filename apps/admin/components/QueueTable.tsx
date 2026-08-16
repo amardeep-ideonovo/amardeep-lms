@@ -45,6 +45,7 @@ import {
   onChatListUpdate,
 } from "@/lib/projectsSocket";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // Slow catch-all refresh for stand-alone lists (no channel socket room) and
 // missed socket events. Channel-scoped lists also refresh on `chat:list:update`.
@@ -578,13 +579,9 @@ function AddRow({ onAdd }: { onAdd: (title: string) => Promise<void> }) {
         placeholder="Add item…"
         aria-label="New item title"
       />
-      <button
-        className="btn btn--sm"
-        type="submit"
-        disabled={busy || !title.trim()}
-      >
+      <Button size="sm" type="submit" disabled={busy || !title.trim()}>
         {busy ? "Adding…" : STR.common.add}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -828,22 +825,19 @@ function AddColumnButton({
           )}
 
           <div className="pj-pop-actions">
-            <button
-              className="btn btn--ghost btn--sm"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => {
                 reset();
                 setOpen(false);
               }}
             >
               {STR.common.cancel}
-            </button>
-            <button
-              className="btn btn--sm"
-              onClick={create}
-              disabled={busy || !name.trim()}
-            >
+            </Button>
+            <Button size="sm" onClick={create} disabled={busy || !name.trim()}>
               {busy ? "Adding…" : "Add column"}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -1982,19 +1976,20 @@ function ItemDetailCard({
                               autoFocus
                             />
                             <div className="pj-pop-actions">
-                              <button
-                                className="btn btn--ghost btn--sm"
+                              <Button
+                                variant="secondary"
+                                size="sm"
                                 onClick={() => setEditingId(null)}
                               >
                                 {STR.common.cancel}
-                              </button>
-                              <button
-                                className="btn btn--sm"
+                              </Button>
+                              <Button
+                                size="sm"
                                 onClick={() => saveEdit(c.id)}
                                 disabled={!editDraft.trim()}
                               >
                                 {STR.common.save}
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         ) : (
@@ -2015,13 +2010,13 @@ function ItemDetailCard({
                 placeholder="Add a comment…"
                 rows={2}
               />
-              <button
-                className="btn btn--sm"
+              <Button
+                size="sm"
                 type="submit"
                 disabled={posting || !draft.trim()}
               >
                 {posting ? "Posting…" : "Comment"}
-              </button>
+              </Button>
             </form>
           </div>
         </div>

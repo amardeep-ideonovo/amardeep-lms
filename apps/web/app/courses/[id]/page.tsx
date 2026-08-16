@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import type { CourseCard, LessonDTO } from "@lms/types";
 import { STR, formatMoney } from "@lms/types";
+import { Button } from "@lms/ui";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
@@ -124,13 +125,9 @@ function CourseInner() {
           only takes a few seconds.
         </p>
         <div className="locked-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setReloadTick((t) => t + 1)}
-          >
+          <Button type="button" onClick={() => setReloadTick((t) => t + 1)}>
             Refresh
-          </button>
+          </Button>
           <Link href="/account" className="btn btn-secondary">
             Go to my account
           </Link>
@@ -161,15 +158,14 @@ function CourseInner() {
               membership.
             </p>
             <div className="locked-actions">
-              <button
+              <Button
                 type="button"
-                className="btn btn-primary"
                 onClick={buyCourse}
                 disabled={buying}
                 aria-busy={buying}
               >
                 {buying ? "Starting checkout…" : `Buy this course · ${price}`}
-              </button>
+              </Button>
               <Link href="/account" className="btn btn-secondary">
                 View membership plans
               </Link>

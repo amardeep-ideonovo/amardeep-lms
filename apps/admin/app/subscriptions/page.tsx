@@ -7,6 +7,7 @@ import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { DownloadIcon, SpinnerIcon } from "@/components/ExportIcons";
 import { STR, formatMoney } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // "—" for unmapped amounts, else the shared formatter.
 const money = (a: number | null, c: string) =>
@@ -112,9 +113,10 @@ export default function SubscriptionsPage() {
           </p>
         </div>
         <div className="row-actions">
-          <button
+          <Button
             type="button"
-            className="btn btn--ghost btn--icon"
+            variant="secondary"
+            iconOnly
             disabled={exporting || loading}
             aria-label={
               exporting
@@ -135,10 +137,10 @@ export default function SubscriptionsPage() {
             }}
           >
             {exporting ? <SpinnerIcon /> : <DownloadIcon />}
-          </button>
-          <button className="btn btn--ghost" onClick={load} disabled={loading}>
+          </Button>
+          <Button variant="secondary" onClick={load} disabled={loading}>
             {loading ? "Refreshing…" : "Refresh"}
-          </button>
+          </Button>
         </div>
       </div>
 

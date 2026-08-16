@@ -5,6 +5,7 @@ import type { EmailLogListDTO, EmailSendStatus } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // EmailLog statuses (mirrors the EmailStatus enum) with label + badge maps.
 const STATUSES: EmailSendStatus[] = [
@@ -146,15 +147,16 @@ export default function EmailLogsPage() {
             ))}
           </select>
           {(statusFilter || debouncedSearch) && (
-            <button
-              className="btn btn--ghost btn--sm"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => {
                 setStatusFilter("");
                 setSearch("");
               }}
             >
               Clear
-            </button>
+            </Button>
           )}
           {list && (
             <span className="muted" style={{ fontSize: 13 }}>
@@ -231,23 +233,25 @@ export default function EmailLogsPage() {
                   marginTop: 14,
                 }}
               >
-                <button
-                  className="btn btn--ghost btn--sm"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   ← Prev
-                </button>
+                </Button>
                 <span className="muted" style={{ fontSize: 13 }}>
                   Page {page} of {totalPages}
                 </span>
-                <button
-                  className="btn btn--ghost btn--sm"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
                   Next →
-                </button>
+                </Button>
               </div>
             )}
           </>

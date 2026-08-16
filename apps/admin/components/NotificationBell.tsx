@@ -13,6 +13,7 @@ import {
 } from "@/lib/mutations";
 import type { AdminNotificationDTO } from "@lms/types";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // Low-urgency feed → poll the unread badge every 30s (the app's only poll).
 const POLL_MS = 30_000;
@@ -253,14 +254,15 @@ export default function NotificationBell() {
         <div className="notif-panel" role="dialog" aria-label="Notifications">
           <div className="notif-panel__head">
             <span>Notifications</span>
-            <button
+            <Button
               type="button"
-              className="btn btn--ghost btn--sm"
+              variant="secondary"
+              size="sm"
               onClick={markAll}
               disabled={unread === 0}
             >
               Mark all read
-            </button>
+            </Button>
           </div>
           <div className="notif-list">
             {loading ? (

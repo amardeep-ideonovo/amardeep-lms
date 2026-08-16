@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ApiError, api, setToken } from "@/lib/api";
 import { useAppBrand } from "@/lib/queries";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -90,9 +91,9 @@ export default function LoginPage() {
         </div>
         {notice && <p className="alert-warning">{notice}</p>}
         {error && <p className="error">{error}</p>}
-        <button className="btn" type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading}>
           {loading ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
       </form>
     </div>
   );

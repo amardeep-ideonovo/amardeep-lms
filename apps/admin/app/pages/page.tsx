@@ -15,6 +15,7 @@ import {
 } from "@/lib/mutations";
 import { withBase } from "@/lib/base-path";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // The public "View" link opens on the member site — origin from webUrl() at
 // render time (runtime per-instance value; NEXT_PUBLIC_* would bake the
@@ -233,9 +234,9 @@ export default function PagesPage() {
             private.
           </p>
         </div>
-        <button className="btn" onClick={addNewPage} disabled={busy}>
+        <Button onClick={addNewPage} disabled={busy}>
           + Add new page
-        </button>
+        </Button>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -279,18 +280,20 @@ export default function PagesPage() {
                     </td>
                     <td>
                       <div className="row-actions">
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => openEditor(p.id)}
                         >
                           {STR.common.edit}
-                        </button>
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => rename(p)}
                         >
                           Rename
-                        </button>
+                        </Button>
                         <a
                           className="btn btn--ghost btn--sm"
                           href={`${webUrl()}/${p.slug}`}
@@ -299,8 +302,9 @@ export default function PagesPage() {
                         >
                           View
                         </a>
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => togglePublish(p)}
                           disabled={rowBusy === p.id}
                         >
@@ -309,14 +313,15 @@ export default function PagesPage() {
                             : p.status === "PUBLISHED"
                               ? "Unpublish"
                               : "Publish"}
-                        </button>
-                        <button
-                          className="btn btn--danger btn--sm"
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
                           onClick={() => remove(p)}
                           disabled={rowBusy === p.id}
                         >
                           {STR.common.delete}
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

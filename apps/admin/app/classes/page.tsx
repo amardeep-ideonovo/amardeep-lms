@@ -24,6 +24,7 @@ import {
   useMountedRef,
 } from "@/lib/mutations";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 type PriceForm = {
   interval: "month" | "year";
@@ -750,9 +751,10 @@ export default function ClassesPage() {
                           }
                           style={{ maxWidth: 130 }}
                         />
-                        <button
+                        <Button
                           type="button"
-                          className="btn btn--ghost btn--sm"
+                          variant="secondary"
+                          size="sm"
                           onClick={() =>
                             setPrices((prev) =>
                               prev.length > 1
@@ -762,18 +764,19 @@ export default function ClassesPage() {
                           }
                         >
                           {STR.common.remove}
-                        </button>
+                        </Button>
                       </div>
                     ))}
-                    <button
+                    <Button
                       type="button"
-                      className="btn btn--ghost btn--sm"
+                      variant="secondary"
+                      size="sm"
                       onClick={() =>
                         setPrices((prev) => [...prev, emptyPrice()])
                       }
                     >
                       + Add price
-                    </button>
+                    </Button>
                   </div>
                 )}
 
@@ -910,31 +913,32 @@ export default function ClassesPage() {
                       </div>
                     ))
                   )}
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn--add btn--sm"
+                    variant="add"
+                    size="sm"
                     onClick={addSkill}
                     style={{ width: "100%", marginTop: 4 }}
                   >
                     + Add skill
-                  </button>
+                  </Button>
                 </div>
 
                 <div className="row-actions">
-                  <button className="btn" type="submit" disabled={saving}>
+                  <Button type="submit" disabled={saving}>
                     {saving
                       ? STR.common.saving
                       : editingId
                         ? "Update class"
                         : "Create class"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
-                    className="btn btn--ghost"
+                    variant="secondary"
                     onClick={closeModal}
                   >
                     {STR.common.cancel}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -1003,9 +1007,7 @@ export default function ClassesPage() {
           />
         </div>
         {can("classes", "create") && (
-          <button className="btn" onClick={openCreate}>
-            + New class
-          </button>
+          <Button onClick={openCreate}>+ New class</Button>
         )}
       </div>
 
@@ -1136,9 +1138,7 @@ export default function ClassesPage() {
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
           />
-          <button className="btn" type="submit">
-            Add category
-          </button>
+          <Button type="submit">Add category</Button>
         </form>
         {categories.length > 0 && (
           <div className="chips" style={{ marginTop: 12 }}>

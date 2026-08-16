@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@lms/ui";
 
 export type RowMenuItem = {
   label: string;
@@ -42,9 +43,11 @@ export default function RowMenu({
 
   return (
     <div className="row-menu" ref={ref}>
-      <button
+      <Button
         type="button"
-        className="btn btn--ghost btn--sm row-menu-trigger"
+        variant="secondary"
+        size="sm"
+        className="row-menu-trigger"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={label}
@@ -61,7 +64,7 @@ export default function RowMenu({
           <circle cx="12" cy="12" r="2" />
           <circle cx="19" cy="12" r="2" />
         </svg>
-      </button>
+      </Button>
       {open && (
         <div className="row-menu-pop" role="menu">
           {items.map((it) => (

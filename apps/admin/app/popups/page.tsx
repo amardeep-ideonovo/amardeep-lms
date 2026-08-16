@@ -14,6 +14,7 @@ import {
   useMountedRef,
 } from "@/lib/mutations";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // Human summary of WHERE a popup shows, from its visibility flags.
 function visibilitySummary(p: PopupListItem): string {
@@ -273,9 +274,9 @@ export default function PopupsPage() {
             <strong>Active</strong> popups show to visitors.
           </p>
         </div>
-        <button className="btn" onClick={addNewPopup} disabled={busy}>
+        <Button onClick={addNewPopup} disabled={busy}>
           + Add new popup
-        </button>
+        </Button>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -325,20 +326,23 @@ export default function PopupsPage() {
                     </td>
                     <td>
                       <div className="row-actions">
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => openEditor(p.id)}
                         >
                           {STR.common.edit}
-                        </button>
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => rename(p)}
                         >
                           Rename
-                        </button>
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => toggleActive(p)}
                           disabled={rowBusy === p.id}
                         >
@@ -347,14 +351,15 @@ export default function PopupsPage() {
                             : p.status === "ACTIVE"
                               ? "Deactivate"
                               : "Activate"}
-                        </button>
-                        <button
-                          className="btn btn--danger btn--sm"
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
                           onClick={() => remove(p)}
                           disabled={rowBusy === p.id}
                         >
                           {STR.common.delete}
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>

@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 import { api } from "@/lib/api";
 
 // Self-serve password reset, step 1: ask for the account email. The API
@@ -71,14 +72,15 @@ export default function ForgotPasswordPage() {
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
-                <button
+                <Button
                   type="submit"
-                  className="btn btn-primary btn-block press"
+                  block
+                  className="press"
                   disabled={loading}
                   aria-busy={loading}
                 >
                   {loading ? "Sending…" : "Send reset link"}
-                </button>
+                </Button>
               </form>
 
               <p className="sub" style={{ marginTop: 16 }}>

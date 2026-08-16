@@ -16,6 +16,7 @@ import type {
   PostAdminListRow,
 } from "@lms/types";
 import { MENU_LOCATIONS, STR } from "@lms/types";
+import { Button } from "@lms/ui";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
@@ -575,13 +576,13 @@ export default function MenusPage() {
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && createMenu()}
               />
-              <button
-                className="btn btn--sm"
+              <Button
+                size="sm"
                 onClick={createMenu}
                 disabled={busy || !newName.trim()}
               >
                 {STR.common.create}
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -634,18 +635,14 @@ export default function MenusPage() {
               </span>
               <div className="row-actions" style={{ marginTop: 14 }}>
                 {canEdit && (
-                  <button className="btn" onClick={saveHeader} disabled={busy}>
+                  <Button onClick={saveHeader} disabled={busy}>
                     Save menu
-                  </button>
+                  </Button>
                 )}
                 {canDelete && (
-                  <button
-                    className="btn btn--danger"
-                    onClick={removeMenu}
-                    disabled={busy}
-                  >
+                  <Button variant="danger" onClick={removeMenu} disabled={busy}>
                     Delete menu
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -790,9 +787,9 @@ export default function MenusPage() {
                     style={{ flex: 1, justifyContent: "flex-end" }}
                   >
                     <label>&nbsp;</label>
-                    <button className="btn" onClick={addItem} disabled={busy}>
+                    <Button onClick={addItem} disabled={busy}>
                       + Add to menu
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -858,8 +855,9 @@ export default function MenusPage() {
                             >
                               ←
                             </button>
-                            <button
-                              className="btn btn--ghost btn--sm"
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               onClick={() =>
                                 setEditId(editId === item.id ? null : item.id)
                               }
@@ -867,13 +865,14 @@ export default function MenusPage() {
                               {editId === item.id
                                 ? STR.common.close
                                 : STR.common.edit}
-                            </button>
-                            <button
-                              className="btn btn--danger btn--sm"
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
                               onClick={() => deleteItem(item.id)}
                             >
                               ✕
-                            </button>
+                            </Button>
                           </span>
                         )}
                       </div>
@@ -1007,9 +1006,9 @@ function ItemEditor({
         </div>
       </div>
       <div className="row-actions">
-        <button className="btn btn--sm" onClick={save} disabled={saving}>
+        <Button size="sm" onClick={save} disabled={saving}>
           {saving ? STR.common.saving : "Save item"}
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import MediaPicker from "@/components/MediaPicker";
 import ColorField from "@/components/ColorField";
 import { useAppBrand } from "@/lib/queries";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 const msg = (e: unknown, fb: string) =>
   e instanceof ApiError ? e.message : fb;
@@ -414,9 +415,9 @@ export default function FooterBuilder({
         <div className="card-head">
           <h2>Bottom bar</h2>
           {canEdit && (
-            <button className="btn btn--sm" onClick={addLink}>
+            <Button size="sm" onClick={addLink}>
               + Add link
-            </button>
+            </Button>
           )}
         </div>
         <div className="field">
@@ -456,12 +457,13 @@ export default function FooterBuilder({
                 {canEdit && (
                   <div className="field" style={{ justifyContent: "flex-end" }}>
                     <label>&nbsp;</label>
-                    <button
-                      className="btn btn--danger btn--sm"
+                    <Button
+                      variant="danger"
+                      size="sm"
                       onClick={() => removeLink(l.id)}
                     >
                       {STR.common.remove}
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
@@ -472,9 +474,9 @@ export default function FooterBuilder({
 
       {canEdit && (
         <div className="row-actions" style={{ alignItems: "center" }}>
-          <button className="btn" onClick={save} disabled={busy}>
+          <Button onClick={save} disabled={busy}>
             {busy ? STR.common.saving : "Save footer"}
-          </button>
+          </Button>
           {saved && (
             <span className="alert-success" style={{ padding: "6px 10px" }}>
               Saved ✓

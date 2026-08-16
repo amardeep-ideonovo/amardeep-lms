@@ -12,6 +12,7 @@ import {
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 export default function SettingsPage() {
   const { can, loading } = useAdminAuth();
@@ -137,13 +138,12 @@ function PaymentProviderSection() {
         {warning && <p className="error">{warning}</p>}
         {status && <p className="muted">{status}</p>}
         <div className="row-actions">
-          <button
-            className="btn"
+          <Button
             type="submit"
             disabled={saving || provider === null || selected === provider}
           >
             {saving ? STR.common.saving : "Set active provider"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -276,17 +276,17 @@ function StripeSection() {
         {error && <p className="error">{error}</p>}
         {status && <p className="muted">{status}</p>}
         <div className="row-actions">
-          <button className="btn" type="submit" disabled={saving || removing}>
+          <Button type="submit" disabled={saving || removing}>
             {saving ? STR.common.saving : "Save Stripe settings"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn--danger"
+            variant="danger"
             onClick={remove}
             disabled={removing || saving}
           >
             {removing ? "Removing…" : "Remove keys"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -400,17 +400,17 @@ function ZoomSection() {
         {error && <p className="error">{error}</p>}
         {status && <p className="muted">{status}</p>}
         <div className="row-actions">
-          <button className="btn" type="submit" disabled={saving || removing}>
+          <Button type="submit" disabled={saving || removing}>
             {saving ? STR.common.saving : "Save Zoom settings"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn--danger"
+            variant="danger"
             onClick={remove}
             disabled={removing || saving}
           >
             {removing ? "Removing…" : "Remove credentials"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -553,17 +553,17 @@ function PayPalSection() {
         {error && <p className="error">{error}</p>}
         {status && <p className="muted">{status}</p>}
         <div className="row-actions">
-          <button className="btn" type="submit" disabled={saving || removing}>
+          <Button type="submit" disabled={saving || removing}>
             {saving ? STR.common.saving : "Save PayPal settings"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn--danger"
+            variant="danger"
             onClick={remove}
             disabled={removing || saving}
           >
             {removing ? "Removing…" : "Remove credentials"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -859,17 +859,17 @@ function EmailSenderSection() {
         {error && <p className="error">{error}</p>}
         {status && <p className="muted">{status}</p>}
         <div className="row-actions">
-          <button className="btn" type="submit" disabled={saving || removing}>
+          <Button type="submit" disabled={saving || removing}>
             {saving ? STR.common.saving : "Save email settings"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn--danger"
+            variant="danger"
             onClick={remove}
             disabled={removing || saving}
           >
             {removing ? "Removing…" : "Remove settings"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -981,22 +981,18 @@ function EmailWebhookSecretSection() {
         {error && <p className="error">{error}</p>}
         {status && <p className="muted">{status}</p>}
         <div className="row-actions">
-          <button
-            className="btn"
-            type="submit"
-            disabled={saving || clearing || !secret.trim()}
-          >
+          <Button type="submit" disabled={saving || clearing || !secret.trim()}>
             {saving ? STR.common.saving : "Save secret"}
-          </button>
+          </Button>
           {secretSet && (
-            <button
+            <Button
               type="button"
-              className="btn btn--danger"
+              variant="danger"
               onClick={clear}
               disabled={clearing || saving}
             >
               {clearing ? "Clearing…" : "Clear secret"}
-            </button>
+            </Button>
           )}
         </div>
       </form>

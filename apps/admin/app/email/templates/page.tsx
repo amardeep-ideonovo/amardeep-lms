@@ -7,6 +7,7 @@ import { useAppBrand } from "@/lib/queries";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // Editor draft. MJML + subject are Handlebars sources; `variables` is edited as
 // a comma-separated string in the form and split on save.
@@ -344,9 +345,7 @@ export default function EmailTemplatesPage() {
         </div>
         {canCreate && (
           <div className="row-actions">
-            <button className="btn" onClick={openCreate}>
-              + New template
-            </button>
+            <Button onClick={openCreate}>+ New template</Button>
           </div>
         )}
       </div>
@@ -452,13 +451,14 @@ export default function EmailTemplatesPage() {
                       ? `Editing system template: ${selected?.name}`
                       : `Editing: ${selected?.name}`}
                 </h2>
-                <button
+                <Button
                   type="button"
-                  className="btn btn--ghost btn--sm"
+                  variant="secondary"
+                  size="sm"
                   onClick={closeEditor}
                 >
                   {STR.common.close}
-                </button>
+                </Button>
               </div>
 
               {editorError && <p className="error">{editorError}</p>}
@@ -568,41 +568,37 @@ export default function EmailTemplatesPage() {
                 }}
               >
                 {(canEdit || creating) && (
-                  <button className="btn" type="submit" disabled={saving}>
+                  <Button type="submit" disabled={saving}>
                     {saving
                       ? STR.common.saving
                       : creating
                         ? "Create template"
                         : "Save changes"}
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
                   type="button"
-                  className="btn btn--ghost"
+                  variant="secondary"
                   onClick={preview}
                   disabled={previewing}
                 >
                   {previewing ? "Rendering…" : STR.common.preview}
-                </button>
+                </Button>
                 {!creating && selected && canEdit && (
-                  <button
-                    type="button"
-                    className="btn btn--ghost"
-                    onClick={testSend}
-                  >
+                  <Button type="button" variant="secondary" onClick={testSend}>
                     Send test…
-                  </button>
+                  </Button>
                 )}
                 {!creating && selected && !selected.isSystem && canDelete && (
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn--danger"
+                    variant="danger"
                     style={{ marginLeft: "auto" }}
                     onClick={() => remove(selected)}
                     disabled={removing}
                   >
                     {removing ? "Deleting…" : STR.common.delete}
-                  </button>
+                  </Button>
                 )}
               </div>
 

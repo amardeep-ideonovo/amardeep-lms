@@ -14,6 +14,7 @@ import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // Contact status options (mirrors the ContactStatus enum) + a label/badge map.
 const STATUSES: ContactStatus[] = [
@@ -385,9 +386,7 @@ export default function ContactsPage() {
         </div>
         {canCreate && (
           <div className="row-actions">
-            <button className="btn" onClick={createAudience}>
-              + Add audience
-            </button>
+            <Button onClick={createAudience}>+ Add audience</Button>
           </div>
         )}
       </div>
@@ -483,14 +482,16 @@ export default function ContactsPage() {
             >
               {canEdit && (
                 <>
-                  <button
-                    className="btn btn--ghost btn--sm"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => renameAudience(selected)}
                   >
                     Rename
-                  </button>
-                  <button
-                    className="btn btn--ghost btn--sm"
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => makeDefault(selected)}
                     disabled={selected.isDefault}
                     title={
@@ -500,16 +501,17 @@ export default function ContactsPage() {
                     }
                   >
                     Set default
-                  </button>
+                  </Button>
                 </>
               )}
               {canDelete && (
-                <button
-                  className="btn btn--danger btn--sm"
+                <Button
+                  variant="danger"
+                  size="sm"
                   onClick={() => deleteAudience(selected)}
                 >
                   {STR.common.delete}
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -535,9 +537,9 @@ export default function ContactsPage() {
                     </span>
                   </h2>
                   {canCreate && (
-                    <button className="btn btn--sm" onClick={openCreate}>
+                    <Button size="sm" onClick={openCreate}>
                       + Add contact
-                    </button>
+                    </Button>
                   )}
                 </div>
 
@@ -587,8 +589,9 @@ export default function ContactsPage() {
                     ))}
                   </select>
                   {(statusFilter || tagFilter || debouncedSearch) && (
-                    <button
-                      className="btn btn--ghost btn--sm"
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => {
                         setStatusFilter("");
                         setTagFilter("");
@@ -596,7 +599,7 @@ export default function ContactsPage() {
                       }}
                     >
                       Clear
-                    </button>
+                    </Button>
                   )}
                   {list && (
                     <span className="muted" style={{ fontSize: 13 }}>
@@ -673,20 +676,22 @@ export default function ContactsPage() {
                               <td>
                                 <div className="row-actions">
                                   {canEdit && (
-                                    <button
-                                      className="btn btn--ghost btn--sm"
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
                                       onClick={() => openEdit(c)}
                                     >
                                       {STR.common.edit}
-                                    </button>
+                                    </Button>
                                   )}
                                   {canDelete && (
-                                    <button
-                                      className="btn btn--danger btn--sm"
+                                    <Button
+                                      variant="danger"
+                                      size="sm"
                                       onClick={() => deleteContact(c)}
                                     >
                                       {STR.common.delete}
-                                    </button>
+                                    </Button>
                                   )}
                                 </div>
                               </td>
@@ -706,25 +711,27 @@ export default function ContactsPage() {
                           marginTop: 14,
                         }}
                       >
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           disabled={page <= 1}
                           onClick={() => setPage((p) => Math.max(1, p - 1))}
                         >
                           ← Prev
-                        </button>
+                        </Button>
                         <span className="muted" style={{ fontSize: 13 }}>
                           Page {page} of {totalPages}
                         </span>
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           disabled={page >= totalPages}
                           onClick={() =>
                             setPage((p) => Math.min(totalPages, p + 1))
                           }
                         >
                           Next →
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </>
@@ -862,24 +869,20 @@ export default function ContactsPage() {
               >
                 <span />
                 <div className="row-actions">
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn--ghost"
+                    variant="secondary"
                     onClick={closeEditor}
                   >
                     {STR.common.cancel}
-                  </button>
-                  <button
-                    className="btn"
-                    type="submit"
-                    disabled={savingContact}
-                  >
+                  </Button>
+                  <Button type="submit" disabled={savingContact}>
                     {savingContact
                       ? STR.common.saving
                       : editingId
                         ? "Save changes"
                         : "Add contact"}
-                  </button>
+                  </Button>
                 </div>
               </div>
             </form>
@@ -1010,9 +1013,9 @@ function SegmentsPanel({
       <div className="card-head">
         <h2 style={{ fontSize: 16 }}>Segments</h2>
         {canCreate && (
-          <button className="btn btn--sm" onClick={create}>
+          <Button size="sm" onClick={create}>
             + New
-          </button>
+          </Button>
         )}
       </div>
       <p className="subtitle" style={{ fontSize: 12, marginBottom: 10 }}>
@@ -1067,20 +1070,18 @@ function SegmentsPanel({
               </button>
               <div className="row-actions">
                 {canEdit && (
-                  <button
-                    className="btn btn--ghost btn--sm"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => rename(s)}
                   >
                     Rename
-                  </button>
+                  </Button>
                 )}
                 {canDelete && (
-                  <button
-                    className="btn btn--danger btn--sm"
-                    onClick={() => remove(s)}
-                  >
+                  <Button variant="danger" size="sm" onClick={() => remove(s)}>
                     ✕
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -1189,12 +1190,13 @@ function FieldsPanel({
                   </td>
                   {canEdit && (
                     <td>
-                      <button
-                        className="btn btn--danger btn--sm"
+                      <Button
+                        variant="danger"
+                        size="sm"
                         onClick={() => remove(f)}
                       >
                         ✕
-                      </button>
+                      </Button>
                     </td>
                   )}
                 </tr>
@@ -1246,13 +1248,13 @@ function FieldsPanel({
               </select>
             </div>
           </div>
-          <button
-            className="btn btn--sm"
+          <Button
+            size="sm"
             type="submit"
             disabled={busy || !tag.trim() || !label.trim()}
           >
             {busy ? STR.common.saving : "Add / update field"}
-          </button>
+          </Button>
         </form>
       )}
     </div>

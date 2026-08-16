@@ -22,6 +22,7 @@ import { apiUrl, webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // Human-readable cell value for the on-screen table (booleans → Yes/No).
 function cellText(v: unknown): string {
@@ -516,9 +517,7 @@ export default function FormsPage() {
               component, or <code>/forms/&lt;id&gt;</code>).
             </p>
           </div>
-          <button className="btn" onClick={openCreate}>
-            + Add new form
-          </button>
+          <Button onClick={openCreate}>+ Add new form</Button>
         </div>
 
         {error && <p className="error">{error}</p>}
@@ -568,34 +567,38 @@ export default function FormsPage() {
                       </td>
                       <td>
                         <code style={{ fontSize: 12 }}>{f.id}</code>{" "}
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => copyId(f.id)}
                           title="Copy form id"
                         >
                           Copy
-                        </button>
+                        </Button>
                       </td>
                       <td>
                         <div className="row-actions">
-                          <button
-                            className="btn btn--ghost btn--sm"
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={() => openEntries(f)}
                           >
                             Entries ({f.submissionCount})
-                          </button>
-                          <button
-                            className="btn btn--ghost btn--sm"
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={() => openEdit(f.id)}
                           >
                             {STR.common.edit}
-                          </button>
-                          <button
-                            className="btn btn--danger btn--sm"
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
                             onClick={() => remove(f)}
                           >
                             {STR.common.delete}
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -655,19 +658,17 @@ export default function FormsPage() {
                   </span>
                 </div>
                 <div className="row-actions">
-                  <button
-                    className="btn btn--ghost btn--sm"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     disabled={entriesForm.submissionCount === 0 || exporting}
                     onClick={() => exportEntriesCsv(entriesForm)}
                   >
                     {exporting ? "Exporting…" : "Export CSV"}
-                  </button>
-                  <button
-                    className="btn btn--ghost btn--sm"
-                    onClick={closeEntries}
-                  >
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={closeEntries}>
                     {STR.common.close}
-                  </button>
+                  </Button>
                 </div>
               </div>
               <div style={{ overflow: "auto", padding: 18 }}>
@@ -711,13 +712,14 @@ export default function FormsPage() {
                 )}
                 {entriesHasMore && (
                   <div style={{ padding: "12px 0", textAlign: "center" }}>
-                    <button
-                      className="btn btn--ghost btn--sm"
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       disabled={entriesLoading}
                       onClick={loadMoreEntries}
                     >
                       {entriesLoading ? STR.common.loading : "Load more"}
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
@@ -739,9 +741,9 @@ export default function FormsPage() {
             <code>EMAIL</code> is the subscriber’s email.
           </p>
         </div>
-        <button className="btn btn--ghost" onClick={backToList}>
+        <Button variant="secondary" onClick={backToList}>
           ← Back to forms
-        </button>
+        </Button>
       </div>
 
       {formError && <p className="error">{formError}</p>}
@@ -796,13 +798,9 @@ export default function FormsPage() {
             <div className="card">
               <div className="card-head">
                 <h2>Fields</h2>
-                <button
-                  type="button"
-                  className="btn btn--sm"
-                  onClick={addField}
-                >
+                <Button type="button" size="sm" onClick={addField}>
                   + Add field
-                </button>
+                </Button>
               </div>
               {form.fields.length === 0 && (
                 <p className="muted">No fields yet — add one.</p>
@@ -906,27 +904,30 @@ export default function FormsPage() {
                   </div>
 
                   <div className="row-actions">
-                    <button
+                    <Button
                       type="button"
-                      className="btn btn--ghost btn--sm"
+                      variant="secondary"
+                      size="sm"
                       onClick={() => moveField(i, -1)}
                     >
                       ↑
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
-                      className="btn btn--ghost btn--sm"
+                      variant="secondary"
+                      size="sm"
                       onClick={() => moveField(i, 1)}
                     >
                       ↓
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
-                      className="btn btn--danger btn--sm"
+                      variant="danger"
+                      size="sm"
                       onClick={() => removeField(i)}
                     >
                       {STR.common.remove}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -1118,14 +1119,13 @@ export default function FormsPage() {
                     </div>
                   </div>
                 ))}
-                <button
+                <Button
                   type="button"
                   disabled
-                  className="btn"
                   style={{ alignSelf: "flex-start", opacity: 0.7 }}
                 >
                   Submit
-                </button>
+                </Button>
                 <p className="muted" style={{ fontSize: 12, margin: 0 }}>
                   {form.afterSubmit === "redirect"
                     ? `On submit → redirect to ${form.redirectUrl || "(set a URL)"}`
@@ -1160,13 +1160,14 @@ export default function FormsPage() {
                         <label style={{ fontSize: 13, fontWeight: 500 }}>
                           {row.label}
                         </label>
-                        <button
+                        <Button
                           type="button"
-                          className="btn btn--ghost btn--sm"
+                          variant="secondary"
+                          size="sm"
                           onClick={() => copyText(row.code)}
                         >
                           Copy
-                        </button>
+                        </Button>
                       </div>
                       <code
                         style={{
@@ -1191,16 +1192,16 @@ export default function FormsPage() {
         </div>
 
         <div className="row-actions" style={{ marginTop: 16 }}>
-          <button className="btn" type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving}>
             {saving
               ? STR.common.saving
               : editingId
                 ? "Save changes"
                 : "Create form"}
-          </button>
-          <button type="button" className="btn btn--ghost" onClick={backToList}>
+          </Button>
+          <Button type="button" variant="secondary" onClick={backToList}>
             {STR.common.cancel}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

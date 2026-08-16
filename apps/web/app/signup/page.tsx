@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PASSWORD_MIN, STR } from "@lms/types";
+import { Button } from "@lms/ui";
 import { api, ApiError, setToken } from "@/lib/api";
 import SpotlightLogo from "@/components/SpotlightLogo";
 
@@ -148,14 +149,15 @@ export default function SignupPage() {
               />
             </div>
 
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary btn-block press"
+              block
+              className="press"
               disabled={loading}
               aria-busy={loading}
             >
               {loading ? "Creating account…" : "Create account"}
-            </button>
+            </Button>
           </form>
         </div>
       </div>

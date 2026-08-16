@@ -15,6 +15,7 @@ import { ApiError, api, type ReportFilter } from "@/lib/api";
 import { classAccentIndex } from "@/lib/class-accent";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { STR, CLASS_ACCENTS as ACCENT_SLOTS } from "@lms/types";
+import { Button } from "@lms/ui";
 
 const REPORTS: {
   key: string;
@@ -422,9 +423,9 @@ export default function ReportsPage() {
             </select>
           </label>
           {hasFilter && (
-            <button className="btn btn--ghost btn--sm" onClick={clearFilters}>
+            <Button variant="secondary" size="sm" onClick={clearFilters}>
               Clear filters
-            </button>
+            </Button>
           )}
         </div>
         <p
@@ -450,13 +451,13 @@ export default function ReportsPage() {
               <div className="export-row-title">{r.title}</div>
               <div className="export-row-desc">{r.desc}</div>
             </div>
-            <button
-              className="btn btn--ghost"
+            <Button
+              variant="secondary"
               disabled={!!busy[r.key]}
               onClick={() => download(r.key, () => r.run(filter))}
             >
               {busy[r.key] ? "Preparing…" : "Download Excel"}
-            </button>
+            </Button>
           </div>
         ))}
 
@@ -467,15 +468,14 @@ export default function ReportsPage() {
               One workbook with all three reports, each on its own sheet.
             </div>
           </div>
-          <button
-            className="btn"
+          <Button
             disabled={!!busy.all}
             onClick={() =>
               download("all", () => api.downloadAllReports(filter))
             }
           >
             {busy.all ? "Preparing…" : "Export all (.xlsx)"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

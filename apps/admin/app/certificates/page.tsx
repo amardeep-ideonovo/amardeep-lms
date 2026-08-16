@@ -11,6 +11,7 @@ import { webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { SEARCH_DEBOUNCE_MS, STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // Member-site origin for "copy verify link" comes from webUrl() at call time
 // (runtime per-instance value) — NEXT_PUBLIC_* would bake localhost into the
@@ -49,22 +50,20 @@ export default function CertificatesPage() {
       {error && <p className="error">{error}</p>}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-        <button
-          className={
-            tab === "templates" ? "btn btn--sm" : "btn btn--ghost btn--sm"
-          }
+        <Button
+          size="sm"
+          variant={tab === "templates" ? "primary" : "secondary"}
           onClick={() => setTab("templates")}
         >
           Templates
-        </button>
-        <button
-          className={
-            tab === "issued" ? "btn btn--sm" : "btn btn--ghost btn--sm"
-          }
+        </Button>
+        <Button
+          size="sm"
+          variant={tab === "issued" ? "primary" : "secondary"}
           onClick={() => setTab("issued")}
         >
           Issued
-        </button>
+        </Button>
       </div>
 
       {tab === "templates" ? (
@@ -223,13 +222,14 @@ function TemplatesTab({
                   {STR.common.edit}
                 </Link>
                 {canDelete && (
-                  <button
-                    className="btn btn--danger btn--sm"
+                  <Button
+                    variant="danger"
+                    size="sm"
                     onClick={() => remove(t)}
                     disabled={rowBusy === t.id}
                   >
                     {rowBusy === t.id ? "Deleting…" : STR.common.delete}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
@@ -348,8 +348,8 @@ function IssuedTab({
                   </td>
                   <td>{new Date(r.issuedAt).toLocaleDateString()}</td>
                   <td style={{ whiteSpace: "nowrap" }}>
-                    <button
-                      className="btn btn--sm"
+                    <Button
+                      size="sm"
                       onClick={() =>
                         api
                           .downloadCertificate(r)
@@ -363,20 +363,18 @@ function IssuedTab({
                       }
                     >
                       Download
-                    </button>{" "}
-                    <button
-                      className="btn btn--sm"
-                      onClick={() => copyVerify(r.serial)}
-                    >
+                    </Button>{" "}
+                    <Button size="sm" onClick={() => copyVerify(r.serial)}>
                       Copy verify link
-                    </button>{" "}
+                    </Button>{" "}
                     {canDelete && (
-                      <button
-                        className="btn btn--danger btn--sm"
+                      <Button
+                        variant="danger"
+                        size="sm"
                         onClick={() => revoke(r.id, r.serial)}
                       >
                         Revoke
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>
@@ -392,23 +390,23 @@ function IssuedTab({
                 marginTop: 12,
               }}
             >
-              <button
-                className="btn btn--sm"
+              <Button
+                size="sm"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
               >
                 ← Prev
-              </button>
+              </Button>
               <span className="muted">
                 Page {data.page} of {pages} ({data.total} total)
               </span>
-              <button
-                className="btn btn--sm"
+              <Button
+                size="sm"
                 disabled={page >= pages}
                 onClick={() => setPage((p) => p + 1)}
               >
                 Next →
-              </button>
+              </Button>
             </div>
           )}
         </>

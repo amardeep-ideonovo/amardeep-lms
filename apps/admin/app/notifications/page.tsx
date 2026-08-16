@@ -7,6 +7,7 @@ import type {
   AdminNotificationListDTO,
   AdminNotificationSeverity,
 } from "@lms/types";
+import { Button } from "@lms/ui";
 import { ApiError, api } from "@/lib/api";
 import { STR } from "@lms/types";
 
@@ -107,20 +108,20 @@ export default function NotificationsPage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button
-            className="btn btn--ghost"
+          <Button
+            variant="secondary"
             onClick={markAll}
             disabled={loading || unread === 0}
           >
             Mark all read
-          </button>
-          <button
-            className="btn btn--ghost"
+          </Button>
+          <Button
+            variant="secondary"
             onClick={() => load(page)}
             disabled={loading}
           >
             {loading ? "Refreshing…" : "Refresh"}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -188,12 +189,13 @@ export default function NotificationsPage() {
                               Read
                             </span>
                           ) : (
-                            <button
-                              className="btn btn--ghost btn--sm"
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               onClick={() => markRead(n)}
                             >
                               Mark read
-                            </button>
+                            </Button>
                           )}
                         </td>
                       </tr>
@@ -215,20 +217,22 @@ export default function NotificationsPage() {
                 Page {page} of {totalPages} · {total} total · {unread} unread
               </span>
               <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  className="btn btn--ghost btn--sm"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page <= 1 || loading}
                 >
                   Prev
-                </button>
-                <button
-                  className="btn btn--ghost btn--sm"
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages || loading}
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
           </>

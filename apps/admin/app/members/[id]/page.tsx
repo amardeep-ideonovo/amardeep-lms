@@ -8,6 +8,7 @@ import type {
   SubscriptionCancelMode,
   SubscriptionDetailDTO,
 } from "@lms/types";
+import { Button } from "@lms/ui";
 import { ApiError, api } from "@/lib/api";
 import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
@@ -140,38 +141,40 @@ export default function MemberBillingPage() {
                       </div>
                       <div className="row-actions">
                         {s.paused ? (
-                          <button
-                            className="btn btn--sm"
+                          <Button
+                            size="sm"
                             disabled={busy}
                             onClick={() =>
                               act(() => api.resumeMemberSub(id, s.stripeSubId))
                             }
                           >
                             Resume
-                          </button>
+                          </Button>
                         ) : s.cancelAtPeriodEnd ? (
                           <span className="muted" style={{ fontSize: 12 }}>
                             Cancels at period end
                           </span>
                         ) : (
                           <>
-                            <button
-                              className="btn btn--ghost btn--sm"
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               disabled={busy}
                               onClick={() =>
                                 act(() => api.pauseMemberSub(id, s.stripeSubId))
                               }
                             >
                               Pause
-                            </button>
+                            </Button>
                             {s.installmentsTotal == null && (
-                              <button
-                                className="btn btn--danger btn--sm"
+                              <Button
+                                variant="danger"
+                                size="sm"
                                 disabled={busy}
                                 onClick={() => setCancelFor(s)}
                               >
                                 {STR.common.cancel}
-                              </button>
+                              </Button>
                             )}
                           </>
                         )}
@@ -280,27 +283,23 @@ export default function MemberBillingPage() {
                   : ""}
               </p>
               <div className="row-actions">
-                <button
-                  className="btn btn--danger"
+                <Button
+                  variant="danger"
                   disabled={busy}
                   onClick={() => doCancel("immediate")}
                 >
                   End access now
-                </button>
-                <button
-                  className="btn"
-                  disabled={busy}
-                  onClick={() => doCancel("period_end")}
-                >
+                </Button>
+                <Button disabled={busy} onClick={() => doCancel("period_end")}>
                   End at period end
-                </button>
-                <button
-                  className="btn btn--ghost"
+                </Button>
+                <Button
+                  variant="secondary"
                   disabled={busy}
                   onClick={() => setCancelFor(null)}
                 >
                   Keep subscription
-                </button>
+                </Button>
               </div>
             </div>
           </div>

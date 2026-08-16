@@ -17,6 +17,7 @@ import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
 import MediaPicker from "@/components/MediaPicker";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 const EMPTY = {
   title: "",
@@ -320,9 +321,7 @@ export default function BlogPage() {
             site without login; drafts stay private.
           </p>
         </div>
-        <button className="btn" onClick={openCreate}>
-          + Add new post
-        </button>
+        <Button onClick={openCreate}>+ Add new post</Button>
       </div>
 
       {pageError && <p className="error">{pageError}</p>}
@@ -335,9 +334,7 @@ export default function BlogPage() {
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
           />
-          <button className="btn" type="submit">
-            Add category
-          </button>
+          <Button type="submit">Add category</Button>
         </form>
         {categories.length > 0 && (
           <div className="chips" style={{ marginTop: 12 }}>
@@ -362,9 +359,9 @@ export default function BlogPage() {
       <div className="card">
         <div className="card-head">
           <h2>All posts</h2>
-          <button className="btn btn--sm" onClick={openCreate}>
+          <Button size="sm" onClick={openCreate}>
             + Add new post
-          </button>
+          </Button>
         </div>
         {loading ? (
           <p className="muted">{STR.common.loading}</p>
@@ -413,26 +410,29 @@ export default function BlogPage() {
                     </td>
                     <td>
                       <div className="row-actions">
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => startEdit(post)}
                         >
                           {STR.common.edit}
-                        </button>
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           onClick={() => togglePublish(post)}
                         >
                           {post.status === "PUBLISHED"
                             ? "Unpublish"
                             : "Publish"}
-                        </button>
-                        <button
-                          className="btn btn--danger btn--sm"
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
                           onClick={() => remove(post)}
                         >
                           {STR.common.delete}
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -563,8 +563,7 @@ export default function BlogPage() {
                 </div>
 
                 <div className="row-actions">
-                  <button
-                    className="btn"
+                  <Button
                     type="submit"
                     // Blocked until the body has loaded — saving a blank editor
                     // over a loaded post would replace its entire content.
@@ -577,14 +576,14 @@ export default function BlogPage() {
                         : editingId
                           ? "Save changes"
                           : "Publish post"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
-                    className="btn btn--ghost"
+                    variant="secondary"
                     onClick={closeModal}
                   >
                     {STR.common.cancel}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
