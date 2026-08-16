@@ -13,6 +13,7 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 const STATUS_META: Record<SupportTicketStatus, { label: string; cls: string }> =
   {
@@ -126,17 +127,17 @@ function CsatPrompt({
       </p>
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         {[1, 2, 3, 4, 5].map((n) => (
-          <button
+          <Button
             key={n}
             type="button"
             aria-label={`${n} star${n === 1 ? "" : "s"}`}
             aria-pressed={rating >= n}
             onClick={() => setRating(n)}
-            className={rating >= n ? "btn" : "btn btn--ghost"}
+            variant={rating >= n ? "primary" : "secondary"}
             style={{ minWidth: 44, fontSize: 16 }}
           >
             {rating >= n ? "★" : "☆"}
-          </button>
+          </Button>
         ))}
       </div>
       <div className="field">
@@ -152,14 +153,13 @@ function CsatPrompt({
         />
       </div>
       <div className="row-actions">
-        <button
-          className="btn"
+        <Button
           type="button"
           disabled={submitting || rating < 1}
           onClick={() => onSubmit(rating, comment.trim())}
         >
           {submitting ? "Sending…" : "Submit rating"}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -357,13 +357,9 @@ export default function SupportThreadPage() {
             />
           </div>
           <div className="row-actions">
-            <button
-              className="btn"
-              type="submit"
-              disabled={sending || !reply.trim()}
-            >
+            <Button type="submit" disabled={sending || !reply.trim()}>
               {sending ? "Sending…" : "Send reply"}
-            </button>
+            </Button>
           </div>
         </form>
       )}

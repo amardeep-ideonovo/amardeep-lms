@@ -1,7 +1,7 @@
 "use client";
 
 import { useModalA11y } from "@/lib/useModalA11y";
-import { useImageCropper } from "@lms/ui";
+import { Button, useImageCropper } from "@lms/ui";
 import { STR } from "@lms/types";
 
 // Circular avatar cropper for member self-service, web-skinned. The pan/zoom/
@@ -130,23 +130,22 @@ export default function AvatarCropper({
           )}
         </div>
         <div className="modal-actions cropper-actions">
-          <button
+          <Button
             type="button"
-            className="btn btn-secondary"
+            variant="secondary"
             onClick={onCancel}
             disabled={busy}
             aria-busy={busy}
           >
             {STR.common.cancel}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn-primary"
             onClick={handleApply}
             disabled={busy || !crop.ready}
           >
             {busy ? "Uploading…" : "Save photo"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

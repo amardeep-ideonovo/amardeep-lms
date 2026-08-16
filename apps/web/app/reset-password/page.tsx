@@ -4,6 +4,7 @@ import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PASSWORD_MIN, STR } from "@lms/types";
+import { Button } from "@lms/ui";
 import { ApiError, api } from "@/lib/api";
 
 // Self-serve password reset, step 2: the page the emailed link lands on
@@ -124,14 +125,15 @@ function ResetPasswordForm() {
             onChange={(e) => setConfirm(e.target.value)}
           />
         </div>
-        <button
+        <Button
           type="submit"
-          className="btn btn-primary btn-block press"
+          block
+          className="press"
           disabled={loading}
           aria-busy={loading}
         >
           {loading ? STR.common.saving : "Set new password"}
-        </button>
+        </Button>
       </form>
     </>
   );

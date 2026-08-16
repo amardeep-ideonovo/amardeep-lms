@@ -18,6 +18,7 @@ import {
   EditorDesktopNotice,
   useIsNarrow,
 } from "@/components/EditorDesktopNotice";
+import { Button } from "@lms/ui";
 
 // Visual certificate-template editor. The right side renders the uploaded
 // artwork with the dynamic text fields as draggable boxes; everything is
@@ -349,14 +350,14 @@ export default function CertificateTemplateEditorPage() {
             {STR.common.back}
           </Link>
           {!isNew && can("certificates", "delete") && (
-            <button className="btn btn--danger" onClick={remove}>
+            <Button variant="danger" onClick={remove}>
               {STR.common.delete}
-            </button>
+            </Button>
           )}
           {canEdit && (
-            <button className="btn" onClick={save} disabled={saving}>
+            <Button onClick={save} disabled={saving}>
               {saving ? STR.common.saving : STR.common.save}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -537,19 +538,16 @@ export default function CertificateTemplateEditorPage() {
                 <label>Alignment</label>
                 <div style={{ display: "flex", gap: 6 }}>
                   {(["left", "center", "right"] as const).map((a) => (
-                    <button
+                    <Button
                       key={a}
-                      className={
-                        sel.align === a
-                          ? "btn btn--sm"
-                          : "btn btn--ghost btn--sm"
-                      }
+                      size="sm"
+                      variant={sel.align === a ? "primary" : "secondary"}
                       onClick={() => patchField(sel.kind, { align: a })}
                       disabled={!canEdit}
                       type="button"
                     >
                       {a}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>

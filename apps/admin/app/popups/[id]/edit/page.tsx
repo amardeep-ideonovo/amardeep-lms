@@ -37,6 +37,7 @@ import {
   useIsNarrow,
 } from "@/components/EditorDesktopNotice";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 type PopupData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -430,9 +431,7 @@ export default function PopupEditor() {
     return (
       <div style={{ padding: 40 }}>
         <p className="error">{loadError}</p>
-        <button className="btn" onClick={() => router.push("/popups")}>
-          ← Back to Popups
-        </button>
+        <Button onClick={() => router.push("/popups")}>← Back to Popups</Button>
       </div>
     );
   }
@@ -474,12 +473,13 @@ export default function PopupEditor() {
           flex: "none",
         }}
       >
-        <button
-          className="btn btn--ghost btn--sm"
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => router.push("/popups")}
         >
           ← Popups
-        </button>
+        </Button>
         <input
           aria-label="Popup name"
           value={name}
@@ -505,22 +505,22 @@ export default function PopupEditor() {
         >
           {saveLabel}
         </span>
-        <button
-          className="btn btn--ghost btn--sm"
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => setDrawerOpen(true)}
         >
           ⚙ Settings
-        </button>
-        <button
-          className={
-            status === "ACTIVE" ? "btn btn--ghost btn--sm" : "btn btn--sm"
-          }
+        </Button>
+        <Button
+          size="sm"
+          variant={status === "ACTIVE" ? "secondary" : "primary"}
           onClick={() =>
             saveStatus(status === "ACTIVE" ? "INACTIVE" : "ACTIVE")
           }
         >
           {status === "ACTIVE" ? "Deactivate" : "Activate"}
-        </button>
+        </Button>
       </div>
 
       <div style={{ flex: 1, minHeight: 0 }}>
@@ -575,12 +575,13 @@ export default function PopupEditor() {
               }}
             >
               <strong>Popup settings</strong>
-              <button
-                className="btn btn--ghost btn--sm"
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setDrawerOpen(false)}
               >
                 Done
-              </button>
+              </Button>
             </div>
 
             <div style={{ overflowY: "auto", padding: 16 }}>

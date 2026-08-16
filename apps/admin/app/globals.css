@@ -1149,17 +1149,32 @@ select:-webkit-autofill:focus {
   cursor: not-allowed;
   box-shadow: none;
 }
-.btn--ghost {
+/* `btn--secondary` is the shared @lms/ui <Button>'s name for the ghost role —
+   grouped so the two can't drift (docs/coding-standards.md D5). */
+.btn--ghost,
+.btn--secondary {
   background: #fff;
   color: var(--text);
   border-color: var(--border);
   box-shadow: none;
 }
-.btn--ghost:hover {
+.btn--ghost:hover,
+.btn--secondary:hover {
   background: var(--surface-hover);
   color: var(--text);
   filter: none;
   box-shadow: none;
+}
+/* The shared <Button> emits `btn btn--primary` for the primary role (web needs
+   the modifier; admin's bare .btn is already primary — this reaffirms it) and
+   `btn--block` for full width. */
+.btn--primary {
+  background: var(--teal-grad);
+  color: var(--on-cta);
+  box-shadow: var(--shadow-cta);
+}
+.btn--block {
+  width: 100%;
 }
 .btn--danger {
   background: var(--danger-tint);

@@ -36,6 +36,7 @@ import {
 } from "@/lib/mutations";
 import { getProjectsSocket, onChatListUpdate } from "@/lib/projectsSocket";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // ============================================================================
 // Page
@@ -161,19 +162,15 @@ export default function ProjectListsPage() {
         </div>
         <div className="row-actions">
           {selectedId && (
-            <button
-              className="btn btn--ghost"
+            <Button
+              variant="secondary"
               onClick={() => setWorkflowsOpen(true)}
               title="Automations that auto-post into a channel when items change"
             >
               ⚡ Workflows
-            </button>
+            </Button>
           )}
-          {canCreate && (
-            <button className="btn" onClick={createList}>
-              + New list
-            </button>
-          )}
+          {canCreate && <Button onClick={createList}>+ New list</Button>}
         </div>
       </div>
 
@@ -504,8 +501,9 @@ function WorkflowsPanel({
                       {wf.enabled ? "Enabled" : "Disabled"}
                     </span>
                     {canEdit && (
-                      <button
-                        className="btn btn--ghost btn--sm"
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={() => toggleEnabled(wf)}
                         disabled={rowBusy === wf.id}
                       >
@@ -514,7 +512,7 @@ function WorkflowsPanel({
                           : wf.enabled
                             ? "Disable"
                             : "Enable"}
-                      </button>
+                      </Button>
                     )}
                     {canDelete && (
                       <button
@@ -595,29 +593,30 @@ function WorkflowsPanel({
                 />
 
                 <div className="pj-pop-actions">
-                  <button
-                    className="btn btn--ghost btn--sm"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => setCreating(false)}
                   >
                     {STR.common.cancel}
-                  </button>
-                  <button
-                    className="btn btn--sm"
+                  </Button>
+                  <Button
+                    size="sm"
                     onClick={create}
                     disabled={busy || !name.trim()}
                   >
                     {busy ? "Creating…" : "Create workflow"}
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
-              <button
-                className="btn btn--sm"
+              <Button
+                size="sm"
                 style={{ marginTop: 12 }}
                 onClick={() => setCreating(true)}
               >
                 + New workflow
-              </button>
+              </Button>
             ))}
         </div>
       </div>

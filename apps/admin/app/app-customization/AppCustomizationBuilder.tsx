@@ -11,6 +11,7 @@ import { ApiError, api } from "@/lib/api";
 import ColorField from "@/components/ColorField";
 import MediaPicker from "@/components/MediaPicker";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 const msg = (e: unknown, fb: string) =>
   e instanceof ApiError ? e.message : fb;
@@ -199,28 +200,22 @@ export default function AppCustomizationBuilder({
             <div className="field" style={{ flex: 1 }}>
               <label>{STR.common.preview}</label>
               <div className="row-actions">
-                <button
+                <Button
                   type="button"
-                  className={
-                    previewMode === "light"
-                      ? "btn btn--sm"
-                      : "btn btn--ghost btn--sm"
-                  }
+                  size="sm"
+                  variant={previewMode === "light" ? "primary" : "secondary"}
                   onClick={() => setPreviewMode("light")}
                 >
                   Light
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={
-                    previewMode === "dark"
-                      ? "btn btn--sm"
-                      : "btn btn--ghost btn--sm"
-                  }
+                  size="sm"
+                  variant={previewMode === "dark" ? "primary" : "secondary"}
                   onClick={() => setPreviewMode("dark")}
                 >
                   Dark
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -304,9 +299,9 @@ export default function AppCustomizationBuilder({
 
         {canEdit && (
           <div className="row-actions" style={{ alignItems: "center" }}>
-            <button className="btn" onClick={save} disabled={busy}>
+            <Button onClick={save} disabled={busy}>
               {busy ? STR.common.saving : STR.common.save}
-            </button>
+            </Button>
             {saved && (
               <span className="alert-success" style={{ padding: "6px 10px" }}>
                 Saved ✓

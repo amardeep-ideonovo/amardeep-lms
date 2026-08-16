@@ -11,6 +11,7 @@ import type {
   SubscriptionDetailDTO,
 } from "@lms/types";
 import { PASSWORD_MIN, STR, formatMoney } from "@lms/types";
+import { Button } from "@lms/ui";
 import { ApiError, api, clearToken } from "@/lib/api";
 import { qk, useMe, useMySubscriptions } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
@@ -108,15 +109,15 @@ function CertificatesSection() {
               </span>
             </div>
             <div className="plan-tile__actions">
-              <button
+              <Button
                 type="button"
-                className="btn btn-secondary"
+                variant="secondary"
                 onClick={() => download(c)}
                 disabled={downloadingId === c.id}
                 aria-busy={downloadingId === c.id}
               >
                 {downloadingId === c.id ? "Preparing…" : "Download"}
-              </button>
+              </Button>
             </div>
           </div>
         ))}
@@ -199,9 +200,9 @@ function DangerZoneSection() {
           Permanently delete your account and everything tied to it. This can’t
           be undone.
         </p>
-        <button type="button" className="btn btn-danger" onClick={openModal}>
+        <Button type="button" variant="danger" onClick={openModal}>
           Delete my account
-        </button>
+        </Button>
       </section>
 
       {open && (
@@ -254,9 +255,9 @@ function DangerZoneSection() {
                         {summary.certificates.map((c) => (
                           <li key={c.id} style={{ marginBottom: 8 }}>
                             {c.className} · {c.serial}{" "}
-                            <button
+                            <Button
                               type="button"
-                              className="btn btn-secondary"
+                              variant="secondary"
                               onClick={() =>
                                 api
                                   .downloadCertificate(c)
@@ -270,7 +271,7 @@ function DangerZoneSection() {
                               }
                             >
                               Download
-                            </button>
+                            </Button>
                           </li>
                         ))}
                       </ul>
@@ -371,9 +372,9 @@ function DangerZoneSection() {
                   />
                 </div>
                 <div className="modal-actions">
-                  <button
+                  <Button
                     type="submit"
-                    className="btn btn-danger"
+                    variant="danger"
                     disabled={busy || !summary}
                   >
                     {busy
@@ -381,15 +382,15 @@ function DangerZoneSection() {
                       : hasSubs
                         ? "Cancel subscription & delete account"
                         : "Delete my account"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
-                    className="btn btn-secondary"
+                    variant="secondary"
                     disabled={busy}
                     onClick={() => setOpen(false)}
                   >
                     Keep my account
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -724,20 +725,12 @@ function AccountInner() {
             <h2>Your details</h2>
             {user && !editing && !pwEditing && (
               <div className="section-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={startPwEdit}
-                >
+                <Button type="button" variant="secondary" onClick={startPwEdit}>
                   Change password
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={startEdit}
-                >
+                </Button>
+                <Button type="button" variant="secondary" onClick={startEdit}>
                   {STR.common.edit}
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -805,23 +798,18 @@ function AccountInner() {
                 </p>
               </div>
               <div className="form-actions">
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={saving}
-                  aria-busy={saving}
-                >
+                <Button type="submit" disabled={saving} aria-busy={saving}>
                   {saving ? STR.common.saving : "Save changes"}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="btn btn-secondary"
+                  variant="secondary"
                   onClick={() => setEditing(false)}
                   disabled={saving}
                   aria-busy={saving}
                 >
                   {STR.common.cancel}
-                </button>
+                </Button>
               </div>
             </form>
           ) : pwEditing ? (
@@ -879,23 +867,18 @@ function AccountInner() {
                 {`At least ${PASSWORD_MIN.member} characters. Use one you don’t use elsewhere.`}
               </p>
               <div className="form-actions">
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={pwSaving}
-                  aria-busy={pwSaving}
-                >
+                <Button type="submit" disabled={pwSaving} aria-busy={pwSaving}>
                   {pwSaving ? STR.common.saving : "Update password"}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="btn btn-secondary"
+                  variant="secondary"
                   onClick={() => setPwEditing(false)}
                   disabled={pwSaving}
                   aria-busy={pwSaving}
                 >
                   {STR.common.cancel}
-                </button>
+                </Button>
               </div>
             </form>
           ) : (
@@ -926,9 +909,9 @@ function AccountInner() {
                     onChange={onPickAvatar}
                   />
                   <div className="account-avatar-btns">
-                    <button
+                    <Button
                       type="button"
-                      className="btn btn-secondary"
+                      variant="secondary"
                       disabled={avatarBusy}
                       onClick={() => fileRef.current?.click()}
                     >
@@ -937,11 +920,11 @@ function AccountInner() {
                         : user.avatarUrl
                           ? "Change photo"
                           : "Upload photo"}
-                    </button>
+                    </Button>
                     {user.avatarUrl && (
-                      <button
+                      <Button
                         type="button"
-                        className="btn btn-secondary"
+                        variant="secondary"
                         disabled={avatarBusy}
                         aria-busy={removeAvatarMutation.isPending}
                         onClick={() => removeAvatarMutation.mutate()}
@@ -949,7 +932,7 @@ function AccountInner() {
                         {removeAvatarMutation.isPending
                           ? "Removing…"
                           : STR.common.remove}
-                      </button>
+                      </Button>
                     )}
                   </div>
                   <p className="field-hint">
@@ -1059,15 +1042,14 @@ function AccountInner() {
               Update your card details through the secure Stripe customer
               portal.
             </p>
-            <button
+            <Button
               type="button"
-              className="btn btn-primary"
               onClick={openPortal}
               disabled={busy}
               aria-busy={busy}
             >
               {busy ? "Redirecting…" : "Update Card Details"}
-            </button>
+            </Button>
           </section>
         ) : subs.some((s) => s.provider === "paypal") ? (
           <section className="account-section">
@@ -1112,24 +1094,24 @@ function AccountInner() {
                 , then it won’t renew. You can re-subscribe anytime.
               </p>
               <div className="modal-actions">
-                <button
+                <Button
                   type="button"
-                  className="btn btn-danger"
+                  variant="danger"
                   disabled={cancelBusy}
                   aria-busy={cancelBusy}
                   onClick={doCancelMembership}
                 >
                   {cancelBusy ? "Canceling…" : "Cancel membership"}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="btn btn-secondary"
+                  variant="secondary"
                   disabled={cancelBusy}
                   aria-busy={cancelBusy}
                   onClick={() => setCancelFor(null)}
                 >
                   Keep membership
-                </button>
+                </Button>
               </div>
             </div>
           </div>

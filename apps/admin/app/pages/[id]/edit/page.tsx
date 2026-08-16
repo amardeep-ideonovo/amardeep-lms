@@ -27,6 +27,7 @@ import {
   useIsNarrow,
 } from "@/components/EditorDesktopNotice";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 type PageData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -275,9 +276,7 @@ export default function PageEditor() {
     return (
       <div style={{ padding: 40 }}>
         <p className="error">{loadError}</p>
-        <button className="btn" onClick={() => router.push("/pages")}>
-          ← Back to Pages
-        </button>
+        <Button onClick={() => router.push("/pages")}>← Back to Pages</Button>
       </div>
     );
   }
@@ -315,12 +314,13 @@ export default function PageEditor() {
           flex: "none",
         }}
       >
-        <button
-          className="btn btn--ghost btn--sm"
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={() => router.push("/pages")}
         >
           ← Pages
-        </button>
+        </Button>
         <input
           aria-label="Page title"
           value={title}
@@ -369,12 +369,13 @@ export default function PageEditor() {
             >
               View
             </a>
-            <button
-              className="btn btn--ghost btn--sm"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => saveStatus("DRAFT")}
             >
               Unpublish
-            </button>
+            </Button>
           </>
         )}
       </div>

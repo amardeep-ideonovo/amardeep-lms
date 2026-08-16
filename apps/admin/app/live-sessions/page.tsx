@@ -15,6 +15,7 @@ import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RowMenu from "@/components/RowMenu";
 import { STR, CLASS_ACCENTS as ACCENT_SLOTS } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // Browser IANA zone (fallback UTC), used as the default for a new session.
 function browserTz(): string {
@@ -516,19 +517,15 @@ export default function LiveSessionsPage() {
           </span>
           <span className="live-card-aud">{providerLabel(s.provider)}</span>
           {can("liveSessions", "edit") && (
-            <button className="btn btn--ghost" onClick={() => openEdit(s.id)}>
+            <Button variant="secondary" onClick={() => openEdit(s.id)}>
               Manage
-            </button>
+            </Button>
           )}
           {kind === "draft" && can("liveSessions", "edit") && (
-            <button className="btn" onClick={() => publish(s)}>
-              Publish
-            </button>
+            <Button onClick={() => publish(s)}>Publish</Button>
           )}
           {kind === "week" && s.hasJoinUrl && can("liveSessions", "edit") && (
-            <button className="btn" onClick={() => startLiveRoom(s.id)}>
-              Start live room
-            </button>
+            <Button onClick={() => startLiveRoom(s.id)}>Start live room</Button>
           )}
           {menuItems.length > 0 && (
             <RowMenu label={`Actions for ${s.title}`} items={menuItems} />
@@ -547,9 +544,7 @@ export default function LiveSessionsPage() {
           </p>
           <div className="filter-spacer" />
           {can("liveSessions", "create") && (
-            <button className="btn" onClick={openCreate}>
-              + Schedule session
-            </button>
+            <Button onClick={openCreate}>+ Schedule session</Button>
           )}
         </div>
 
@@ -650,9 +645,9 @@ export default function LiveSessionsPage() {
             members.
           </p>
         </div>
-        <button className="btn btn--ghost" onClick={backToList}>
+        <Button variant="secondary" onClick={backToList}>
           ← Back to live sessions
-        </button>
+        </Button>
       </div>
 
       {formError && <p className="error">{formError}</p>}
@@ -702,20 +697,22 @@ export default function LiveSessionsPage() {
             {form.hasJoinUrl && !form.replaceUrl ? (
               <div className="row-actions">
                 <span className="muted">A link is saved.</span>
-                <button
+                <Button
                   type="button"
-                  className="btn btn--ghost btn--sm"
+                  variant="secondary"
+                  size="sm"
                   onClick={testLink}
                 >
                   Test link
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="btn btn--ghost btn--sm"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setForm({ ...form, replaceUrl: true })}
                 >
                   Replace link
-                </button>
+                </Button>
               </div>
             ) : (
               <input
@@ -744,16 +741,18 @@ export default function LiveSessionsPage() {
               {form.hasPassword && !form.replacePassword ? (
                 <div className="row-actions">
                   <span className="muted">A passcode is saved.</span>
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn--ghost btn--sm"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => setForm({ ...form, replacePassword: true })}
                   >
                     Replace
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
-                    className="btn btn--ghost btn--sm"
+                    variant="secondary"
+                    size="sm"
                     onClick={() =>
                       setForm({
                         ...form,
@@ -763,18 +762,19 @@ export default function LiveSessionsPage() {
                     }
                   >
                     Clear
-                  </button>
+                  </Button>
                 </div>
               ) : form.clearPassword ? (
                 <div className="row-actions">
                   <span className="muted">Passcode will be cleared.</span>
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn--ghost btn--sm"
+                    variant="secondary"
+                    size="sm"
                     onClick={() => setForm({ ...form, clearPassword: false })}
                   >
                     Undo
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <input
@@ -898,16 +898,16 @@ export default function LiveSessionsPage() {
         </div>
 
         <div className="row-actions" style={{ marginTop: 16 }}>
-          <button className="btn" type="submit" disabled={saving}>
+          <Button type="submit" disabled={saving}>
             {saving
               ? STR.common.saving
               : editingId
                 ? "Save changes"
                 : "Create draft"}
-          </button>
-          <button type="button" className="btn btn--ghost" onClick={backToList}>
+          </Button>
+          <Button type="button" variant="secondary" onClick={backToList}>
             {STR.common.cancel}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

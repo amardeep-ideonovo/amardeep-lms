@@ -7,6 +7,7 @@ import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR, formatBytes, formatDateLong } from "@lms/types";
+import { Button } from "@lms/ui";
 
 const PAGE_SIZE = 40;
 
@@ -141,9 +142,9 @@ export default function MediaPage() {
             video, audio, PDFs, documents and SVG are supported.
           </p>
         </div>
-        <button className="btn" onClick={() => fileRef.current?.click()}>
+        <Button onClick={() => fileRef.current?.click()}>
           + Add Media File
-        </button>
+        </Button>
         <input
           ref={fileRef}
           type="file"
@@ -259,23 +260,25 @@ export default function MediaPage() {
                 className="row-actions"
                 style={{ marginTop: 16, justifyContent: "center" }}
               >
-                <button
-                  className="btn btn--ghost btn--sm"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   disabled={page <= 1}
                   onClick={() => load(page - 1, q, kind)}
                 >
                   ← Prev
-                </button>
+                </Button>
                 <span className="muted" style={{ fontSize: 13 }}>
                   Page {page} of {pageCount}
                 </span>
-                <button
-                  className="btn btn--ghost btn--sm"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   disabled={page >= pageCount}
                   onClick={() => load(page + 1, q, kind)}
                 >
                   Next →
-                </button>
+                </Button>
               </div>
             )}
           </>
@@ -464,23 +467,22 @@ function NewMediaModal({
                 />
               </div>
               <div className="row-actions" style={{ marginTop: 12 }}>
-                <button
-                  className="btn"
+                <Button
                   disabled={busy}
                   onClick={() =>
                     onSave({ title, altText, caption, description })
                   }
                 >
                   {busy ? STR.common.saving : "Save to gallery"}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="btn btn--ghost"
+                  variant="secondary"
                   disabled={busy}
                   onClick={onCancel}
                 >
                   {STR.common.cancel}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -681,13 +683,14 @@ function MediaDetails({
                   onFocus={(e) => e.target.select()}
                 />
                 <div className="row-actions" style={{ marginTop: 6 }}>
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn--ghost btn--sm"
+                    variant="secondary"
+                    size="sm"
                     onClick={copyUrl}
                   >
                     {copied ? "Copied!" : "Copy URL to clipboard"}
-                  </button>
+                  </Button>
                   <a
                     href={asset.url}
                     target="_blank"
@@ -706,16 +709,17 @@ function MediaDetails({
                   justifyContent: "space-between",
                 }}
               >
-                <button className="btn" onClick={save} disabled={saving}>
+                <Button onClick={save} disabled={saving}>
                   {saving ? STR.common.saving : "Save changes"}
-                </button>
-                <button
-                  className="btn btn--danger btn--sm"
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
                   onClick={remove}
                   disabled={busy}
                 >
                   Delete permanently
-                </button>
+                </Button>
               </div>
             </div>
           </div>

@@ -14,6 +14,7 @@ import { useModalA11y } from "@/lib/useModalA11y";
 import { dialog } from "@/components/DialogProvider";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { PASSWORD_MIN, STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, {
@@ -129,9 +130,9 @@ export default function AdminsPage() {
             / read / edit / delete). Only super admins can manage admins.
           </p>
         </div>
-        <button className="btn" onClick={() => setModal({ mode: "create" })}>
+        <Button onClick={() => setModal({ mode: "create" })}>
           + Add admin
-        </button>
+        </Button>
       </div>
 
       {error && <p className="error">{error}</p>}
@@ -177,27 +178,30 @@ export default function AdminsPage() {
                     <td className="muted">{fmtDate(a.createdAt)}</td>
                     <td>
                       <div className="row-actions">
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           disabled={busy}
                           onClick={() => setModal({ mode: "edit", admin: a })}
                         >
                           {STR.common.edit}
-                        </button>
-                        <button
-                          className="btn btn--ghost btn--sm"
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
                           disabled={busy}
                           onClick={() => onResetPassword(a)}
                         >
                           Reset password
-                        </button>
-                        <button
-                          className="btn btn--danger btn--sm"
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
                           disabled={busy || a.id === me?.id}
                           onClick={() => onDelete(a)}
                         >
                           {STR.common.delete}
-                        </button>
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -410,21 +414,21 @@ function AdminModal({
             )}
 
             <div className="row-actions" style={{ marginTop: 16 }}>
-              <button type="submit" className="btn" disabled={busy}>
+              <Button type="submit" disabled={busy}>
                 {busy
                   ? STR.common.saving
                   : mode === "create"
                     ? "Create admin"
                     : "Save changes"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
-                className="btn btn--ghost"
+                variant="secondary"
                 onClick={onClose}
                 disabled={busy}
               >
                 {STR.common.cancel}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

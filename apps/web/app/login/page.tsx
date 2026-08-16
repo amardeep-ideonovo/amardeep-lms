@@ -4,6 +4,7 @@ import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 import { api, setToken } from "@/lib/api";
 import SpotlightLogo from "@/components/SpotlightLogo";
 
@@ -90,14 +91,15 @@ export default function LoginPage() {
                 Forgot password?
               </Link>
             </p>
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary btn-block press"
+              block
+              className="press"
               disabled={loading}
               aria-busy={loading}
             >
               {loading ? "Signing in…" : "Sign in"}
-            </button>
+            </Button>
           </form>
 
           <p className="sub" style={{ marginTop: 16 }}>

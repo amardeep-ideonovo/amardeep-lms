@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import type { ClassCertificateStatusDTO, MyCertificateDTO } from "@lms/types";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 import { api, ApiError } from "@/lib/api";
 
 // "Get certificate" / "Download certificate" — shared by the lesson page and
@@ -82,15 +83,16 @@ export default function CertificateClaimButton({
         <>
           {/* Secondary weight: the class card's primary action is "Continue
               learning"; the certificate download is the optional follow-up. */}
-          <button
+          <Button
             type="button"
-            className="btn btn-secondary press"
+            variant="secondary"
+            className="press"
             onClick={download}
             disabled={claiming}
             aria-busy={claiming}
           >
             {claiming ? "Preparing…" : "Download certificate"}
-          </button>
+          </Button>
           {serial && (
             <span style={{ fontSize: 12.5, opacity: 0.75 }}>
               {serial} ·{" "}
@@ -132,33 +134,33 @@ export default function CertificateClaimButton({
             }}
           />
           <div style={{ display: "flex", gap: 8 }}>
-            <button
+            <Button
               type="submit"
-              className="btn btn-primary press"
+              className="press"
               disabled={claiming || !name.trim()}
               aria-busy={claiming}
             >
               {claiming ? "Issuing…" : "Issue certificate"}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="btn btn-secondary"
+              variant="secondary"
               onClick={() => setAskName(false)}
             >
               {STR.common.cancel}
-            </button>
+            </Button>
           </div>
         </form>
       ) : (
-        <button
+        <Button
           type="button"
-          className="btn btn-primary press"
+          className="press"
           disabled={claiming}
           aria-busy={claiming}
           onClick={() => (status.needsName ? setAskName(true) : void claim())}
         >
           {claiming ? "Issuing…" : "Get certificate"}
-        </button>
+        </Button>
       )}
       {error && (
         <span

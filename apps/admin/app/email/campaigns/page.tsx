@@ -13,6 +13,7 @@ import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // Editor draft. runAt is held as a value for <input type="datetime-local">
 // (local wall-clock, no tz suffix) and converted to/from ISO at the edges.
@@ -343,9 +344,7 @@ export default function CampaignsPage() {
         </div>
         {canCreate && (
           <div className="row-actions">
-            <button className="btn" onClick={openCreate}>
-              + New campaign
-            </button>
+            <Button onClick={openCreate}>+ New campaign</Button>
           </div>
         )}
       </div>
@@ -426,47 +425,49 @@ export default function CampaignsPage() {
                         >
                           {canEdit &&
                             (c.status === "DRAFT" || c.status === "SENT") && (
-                              <button
-                                className="btn btn--sm"
+                              <Button
+                                size="sm"
                                 disabled={busy}
                                 onClick={() =>
                                   runAction(c, () => api.scheduleCampaign(c.id))
                                 }
                               >
                                 {busy ? "…" : "Schedule"}
-                              </button>
+                              </Button>
                             )}
                           {canEdit && c.status === "SCHEDULED" && (
-                            <button
-                              className="btn btn--ghost btn--sm"
+                            <Button
+                              variant="secondary"
+                              size="sm"
                               disabled={busy}
                               onClick={() =>
                                 runAction(c, () => api.pauseCampaign(c.id))
                               }
                             >
                               {busy ? "…" : "Pause"}
-                            </button>
+                            </Button>
                           )}
                           {canEdit && c.status === "PAUSED" && (
-                            <button
-                              className="btn btn--sm"
+                            <Button
+                              size="sm"
                               disabled={busy}
                               onClick={() =>
                                 runAction(c, () => api.scheduleCampaign(c.id))
                               }
                             >
                               {busy ? "…" : "Resume"}
-                            </button>
+                            </Button>
                           )}
                           {canDelete && (
-                            <button
-                              className="btn btn--danger btn--sm"
+                            <Button
+                              variant="danger"
+                              size="sm"
                               style={{ marginLeft: 6 }}
                               onClick={() => remove(c)}
                               disabled={busy}
                             >
                               {busy ? "…" : STR.common.delete}
-                            </button>
+                            </Button>
                           )}
                         </td>
                       </tr>
@@ -485,13 +486,14 @@ export default function CampaignsPage() {
               <h2 style={{ fontSize: 16 }}>
                 {creating ? "New campaign" : `Editing: ${selected?.name}`}
               </h2>
-              <button
+              <Button
                 type="button"
-                className="btn btn--ghost btn--sm"
+                variant="secondary"
+                size="sm"
                 onClick={closeEditor}
               >
                 {STR.common.close}
-              </button>
+              </Button>
             </div>
 
             {editorError && <p className="error">{editorError}</p>}
@@ -671,21 +673,21 @@ export default function CampaignsPage() {
               }}
             >
               {(canEdit || creating) && (
-                <button className="btn" type="submit" disabled={saving}>
+                <Button type="submit" disabled={saving}>
                   {saving
                     ? STR.common.saving
                     : creating
                       ? "Create campaign"
                       : "Save changes"}
-                </button>
+                </Button>
               )}
               {!creating &&
                 selected &&
                 canEdit &&
                 (selected.status === "DRAFT" || selected.status === "SENT") && (
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn--ghost"
+                    variant="secondary"
                     disabled={busyId === selected.id}
                     onClick={() =>
                       runAction(selected, () =>
@@ -694,30 +696,30 @@ export default function CampaignsPage() {
                     }
                   >
                     {busyId === selected.id ? "Scheduling…" : "Schedule"}
-                  </button>
+                  </Button>
                 )}
               {!creating &&
                 selected &&
                 canEdit &&
                 selected.status === "SCHEDULED" && (
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn--ghost"
+                    variant="secondary"
                     disabled={busyId === selected.id}
                     onClick={() =>
                       runAction(selected, () => api.pauseCampaign(selected.id))
                     }
                   >
                     {busyId === selected.id ? "Pausing…" : "Pause"}
-                  </button>
+                  </Button>
                 )}
               {!creating &&
                 selected &&
                 canEdit &&
                 selected.status === "PAUSED" && (
-                  <button
+                  <Button
                     type="button"
-                    className="btn btn--ghost"
+                    variant="secondary"
                     disabled={busyId === selected.id}
                     onClick={() =>
                       runAction(selected, () =>
@@ -726,7 +728,7 @@ export default function CampaignsPage() {
                     }
                   >
                     {busyId === selected.id ? "Resuming…" : "Resume"}
-                  </button>
+                  </Button>
                 )}
             </div>
           </form>

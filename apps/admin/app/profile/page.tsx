@@ -6,6 +6,7 @@ import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import AvatarCropper from "@/components/AvatarCropper";
 import { PASSWORD_MIN, STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 function initials(name: string | null, email: string): string {
   const src = (name && name.trim()) || email;
@@ -178,9 +179,9 @@ export default function ProfilePage() {
               onChange={onPickAvatar}
             />
             <div className="row-actions">
-              <button
+              <Button
                 type="button"
-                className="btn btn--ghost"
+                variant="secondary"
                 disabled={uploading}
                 onClick={() => fileRef.current?.click()}
               >
@@ -189,16 +190,16 @@ export default function ProfilePage() {
                   : me.avatarUrl
                     ? "Change photo"
                     : "Upload photo"}
-              </button>
+              </Button>
               {me.avatarUrl && (
-                <button
+                <Button
                   type="button"
-                  className="btn btn--danger"
+                  variant="danger"
                   disabled={uploading}
                   onClick={removeAvatar}
                 >
                   {STR.common.remove}
-                </button>
+                </Button>
               )}
             </div>
             <p className="muted profile-hint">
@@ -238,9 +239,9 @@ export default function ProfilePage() {
               </span>
             </div>
           </div>
-          <button className="btn" type="submit" disabled={savingName}>
+          <Button type="submit" disabled={savingName}>
             {savingName ? STR.common.saving : "Save changes"}
-          </button>
+          </Button>
         </form>
       </div>
 
@@ -282,9 +283,9 @@ export default function ProfilePage() {
               required
             />
           </div>
-          <button className="btn" type="submit" disabled={savingPw}>
+          <Button type="submit" disabled={savingPw}>
             {savingPw ? STR.common.saving : "Change password"}
-          </button>
+          </Button>
         </form>
       </div>
 

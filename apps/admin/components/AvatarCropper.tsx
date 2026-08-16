@@ -1,7 +1,7 @@
 "use client";
 
 import { useModalA11y } from "@/lib/useModalA11y";
-import { useImageCropper } from "@lms/ui";
+import { Button, useImageCropper } from "@lms/ui";
 import { STR } from "@lms/types";
 
 // Avatar cropper, admin-skinned. The pan/zoom/crop mechanism lives in
@@ -122,22 +122,21 @@ export default function AvatarCropper({
           )}
         </div>
         <div className="dialog-actions cropper-actions">
-          <button
+          <Button
             type="button"
-            className="btn"
             onClick={handleApply}
             disabled={busy || !crop.ready}
           >
             {busy ? "Uploading…" : "Save photo"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn--ghost"
+            variant="secondary"
             onClick={onCancel}
             disabled={busy}
           >
             {STR.common.cancel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // True when the viewport is too narrow for the drag-and-drop builders (Puck
 // page/popup editors, the certificate designer). useSyncExternalStore keeps the
@@ -67,9 +68,7 @@ export function EditorDesktopNotice({
           {what} is a drag-and-drop builder that needs a wider window. Open this
           page on a desktop, laptop, or a tablet in landscape to edit it.
         </p>
-        <button className="btn" onClick={() => router.push(backHref)}>
-          ← {backLabel}
-        </button>
+        <Button onClick={() => router.push(backHref)}>← {backLabel}</Button>
       </div>
     </div>
   );

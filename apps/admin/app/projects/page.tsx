@@ -53,6 +53,7 @@ import {
   onConnect,
 } from "@/lib/projectsSocket";
 import { STR } from "@lms/types";
+import { Button } from "@lms/ui";
 
 // Phase 3: realtime over a Socket.IO gateway delivers other admins' messages,
 // edits and reactions live. We keep two safety polls behind it:
@@ -846,9 +847,9 @@ export default function ProjectsPage() {
           <div className="card-head">
             <h2 style={{ fontSize: 16 }}>Channels</h2>
             {canCreate && (
-              <button className="btn btn--sm" onClick={createChannel}>
+              <Button size="sm" onClick={createChannel}>
                 + New
-              </button>
+              </Button>
             )}
           </div>
           {loadingChannels ? (
@@ -905,12 +906,9 @@ export default function ProjectsPage() {
           <div className="card-head" style={{ marginTop: 18 }}>
             <h2 style={{ fontSize: 16 }}>Direct messages</h2>
             {canCreate && (
-              <button
-                className="btn btn--sm"
-                onClick={() => setDmPickerOpen((v) => !v)}
-              >
+              <Button size="sm" onClick={() => setDmPickerOpen((v) => !v)}>
                 + New message
-              </button>
+              </Button>
             )}
           </div>
 
@@ -1025,12 +1023,13 @@ export default function ProjectsPage() {
                 </div>
                 {/* DMs aren't "left"; only regular channels show the Leave action. */}
                 {canEdit && !selectedIsDm && (
-                  <button
-                    className="btn btn--ghost btn--sm"
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => leaveChannel(selected)}
                   >
                     Leave
-                  </button>
+                  </Button>
                 )}
               </div>
 
@@ -1252,16 +1251,16 @@ function DmPicker({
         </div>
       )}
       <div className="pj-dm-picker-actions">
-        <button className="btn btn--ghost btn--sm" onClick={onClose}>
+        <Button variant="secondary" size="sm" onClick={onClose}>
           {STR.common.cancel}
-        </button>
-        <button
-          className="btn btn--sm"
+        </Button>
+        <Button
+          size="sm"
           disabled={picked.length === 0}
           onClick={() => onOpen(picked)}
         >
           Start{picked.length > 1 ? ` (${picked.length})` : ""}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -1463,22 +1462,24 @@ function MessageRow({
           <div className="pj-msg-failed" role="alert">
             <span className="pj-msg-failed-text">Not sent.</span>
             {onRetry && (
-              <button
+              <Button
                 type="button"
-                className="btn btn--ghost btn--sm"
+                variant="secondary"
+                size="sm"
                 onClick={() => onRetry(m)}
               >
                 Retry
-              </button>
+              </Button>
             )}
             {onDiscard && (
-              <button
+              <Button
                 type="button"
-                className="btn btn--ghost btn--sm"
+                variant="secondary"
+                size="sm"
                 onClick={() => onDiscard(m)}
               >
                 Discard
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -1818,9 +1819,9 @@ function Composer({
         rows={2}
         aria-label="Message"
       />
-      <button className="btn" type="submit" disabled={!value.trim()}>
+      <Button type="submit" disabled={!value.trim()}>
         {inFlight > 0 ? "Sending…" : "Send"}
-      </button>
+      </Button>
     </form>
   );
 }
@@ -2210,8 +2211,8 @@ function CanvasEditor({
         />
         <div className="pj-canvas-actions">
           {canEdit && (
-            <button
-              className="btn btn--sm"
+            <Button
+              size="sm"
               onClick={save}
               disabled={saving || !dirty}
               title={dirty ? "Save changes" : "No changes to save"}
@@ -2221,12 +2222,12 @@ function CanvasEditor({
                 : dirty
                   ? STR.common.save
                   : STR.common.saved}
-            </button>
+            </Button>
           )}
           {canDelete && (
-            <button className="btn btn--ghost btn--sm" onClick={remove}>
+            <Button variant="secondary" size="sm" onClick={remove}>
               {STR.common.delete}
-            </button>
+            </Button>
           )}
         </div>
       </div>

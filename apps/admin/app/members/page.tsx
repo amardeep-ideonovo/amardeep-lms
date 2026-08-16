@@ -10,6 +10,7 @@ import type {
   MemberStatsDTO,
   MemberStatusFilter,
 } from "@lms/types";
+import { Button } from "@lms/ui";
 import { ApiError, api } from "@/lib/api";
 import { dialog } from "@/components/DialogProvider";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
@@ -285,9 +286,11 @@ export default function MembersPage() {
         <span className="filter-count">
           {totalMembers.toLocaleString()} members
         </span>
-        <button
+        <Button
           type="button"
-          className="btn btn--ghost btn--sm btn--icon"
+          variant="secondary"
+          size="sm"
+          iconOnly
           disabled={exporting}
           aria-label={
             exporting ? "Exporting members…" : "Download members as Excel"
@@ -311,7 +314,7 @@ export default function MembersPage() {
           }}
         >
           {exporting ? <SpinnerIcon /> : <DownloadIcon />}
-        </button>
+        </Button>
       </div>
 
       {/* members table */}
@@ -516,21 +519,20 @@ export default function MembersPage() {
                 </select>
               </div>
               <div className="dialog-actions">
-                <button
+                <Button
                   type="button"
-                  className="btn btn--ghost"
+                  variant="secondary"
                   onClick={() => setGrantFor(null)}
                 >
                   {STR.common.cancel}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="btn"
                   disabled={!grantLevelId || busy === grantFor.id}
                   onClick={addLevel}
                 >
                   {busy === grantFor.id ? "Adding…" : "Add class"}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
