@@ -98,7 +98,7 @@ function ProgressRing({ pct }: { pct: number }) {
         cy="46"
         r="39.5"
         fill="none"
-        stroke="#f0ede4"
+        stroke="#f1eff7"
         strokeWidth="9"
       />
       <circle
@@ -106,7 +106,7 @@ function ProgressRing({ pct }: { pct: number }) {
         cy="46"
         r="39.5"
         fill="none"
-        stroke="#30b895"
+        stroke="#35b3a2"
         strokeWidth="9"
         strokeLinecap="round"
         strokeDasharray={`${arc} ${C}`}
@@ -118,7 +118,7 @@ function ProgressRing({ pct }: { pct: number }) {
         textAnchor="middle"
         fontSize="20"
         fontWeight="700"
-        fill="#17171d"
+        fill="#272144"
       >
         {pct}%
       </text>

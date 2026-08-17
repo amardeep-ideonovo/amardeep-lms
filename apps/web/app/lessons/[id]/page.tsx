@@ -76,7 +76,7 @@ function isProviderVideoUrl(url: string | null | undefined): boolean {
 
 const CheckIcon = ({
   size = 13,
-  color = "#299e7f",
+  color = "#2a9d8d",
 }: {
   size?: number;
   color?: string;
@@ -99,7 +99,7 @@ const CheckIcon = ({
 );
 const PlayGlyph = ({
   size = 11,
-  fill = "#74726c", // AA muted (SVG attr needs a literal; keep in step with --muted)
+  fill = "#777394", // AA muted (SVG attr needs a literal; keep in step with --muted)
 }: {
   size?: number;
   fill?: string;
@@ -114,7 +114,7 @@ const PlayGlyph = ({
     <path d="m8 5 12 7-12 7z" fill={fill} />
   </svg>
 );
-const DownloadIcon = ({ color = "#17171d" }: { color?: string }) => (
+const DownloadIcon = ({ color = "#272144" }: { color?: string }) => (
   <svg
     width="13"
     height="13"
@@ -624,7 +624,7 @@ function LessonInner() {
                     style={{
                       cursor: "default",
                       color: "var(--teal-text)",
-                      borderColor: "rgba(48, 184, 149,.35)",
+                      borderColor: "rgba(53, 179, 162,.35)",
                     }}
                   >
                     <CheckIcon />

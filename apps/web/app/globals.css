@@ -1,7 +1,7 @@
 /* ============================================================================
    SPOTLIGHT ACADEMY "SPARK" design tokens (direction 5B: teal + mint on ink,
-   cream canvas, Plus Jakarta Sans) — cream content canvas (#f5f2ec) + ink #101014
-   chrome + teal #34c9a2 / mint #79e9c6 accents, layered on the Ink Hero
+   cream canvas, Plus Jakarta Sans) — cream content canvas (#f4f3f8) + ink #221c3d
+   chrome + teal #3cc4b2 / mint #7ce4d2 accents, layered on the Ink Hero
    structure. SINGLE THEME, single token source: the shared color core lives
    in @lms/ui/tokens.css (P3); this file layers web-specific values and the
    legacy NAME aliases (re-pointed to Spark values) so component CSS keeps
@@ -18,15 +18,15 @@
   --violet-50: #e5f8f3;
   --violet-200: #a6e8d7;
   --violet-300: var(--teal-on-dark);
-  --violet-400: #4dd1ae;
+  --violet-400: #4fcdb8;
   --violet-500: var(--teal);
-  --violet-600: #2aa283;
-  --violet-700: #248d71;
+  --violet-600: #2f9d8e;
+  --violet-700: #28897b;
   --violet-800: #1d705a;
   --pink-300: var(--teal-on-dark);
-  --pink-400: #4dd1ae;
+  --pink-400: #4fcdb8;
   --pink-500: var(--success);
-  --pink-600: #299e7f;
+  --pink-600: #2a9d8d;
   /* ---- Text on dark (ink bands / ink cards / over-photo scrims) ---- */
   --paper-0: #ffffff;
   --paper-soft: rgba(255, 255, 255, 0.85);
@@ -44,8 +44,8 @@
 
   /* ---- Ink Hero raw surfaces: web keeps its own cream --lav-bg; the rest
      alias the canonical neutrals. --lav-muted/--lav-faint inherit the AA
-     corrections (#8b8a87→#74726c, #b7b4ac→#706e67 — deliberate). ---- */
-  --lav-bg: #f5f2ec;
+     corrections (#8b87a3→#777394, #b6b3c9→#77719a — deliberate). ---- */
+  --lav-bg: #f4f3f8;
   --lav-surface: var(--surface);
   --lav-inset: var(--surface-2);
   --lav-hover: var(--surface-hover);
@@ -55,7 +55,7 @@
   --lav-muted: var(--muted);
   --lav-faint: var(--faint);
 
-  /* Teal system comes from tokens.css (--teal-text is now the AA #22846a). */
+  /* Teal system comes from tokens.css (--teal-text is now the AA #238376). */
 
   /* ---- Class palette (photo-tint cards; base/dark are RGB triplets).
      Named by COLOR, not by subject: these slots dress whatever a client's
@@ -100,10 +100,10 @@
   /* ---- Radii / shadows / motion (shared set in tokens.css; web extras) ---- */
   --radius-lg: 22px;
   --radius-xl: 22px;
-  --shadow-xs: 0 1px 2px rgba(23, 23, 29, 0.05);
+  --shadow-xs: 0 1px 2px rgba(39, 33, 68, 0.05);
   --shadow-float: var(--shadow-pop);
   --shadow-accent: var(--shadow-primary);
-  --ring-primary: 0 0 0 4px rgba(52, 201, 162, 0.25);
+  --ring-primary: 0 0 0 4px rgba(60, 196, 178, 0.25);
   --ease-out-back: cubic-bezier(0.34, 1.4, 0.64, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --dur-fast: 150ms;
@@ -114,15 +114,15 @@
   --grad-primary: var(--teal-grad);
   --grad-accent: var(--teal-grad);
   --grad-brand: var(--teal-grad);
-  --grad-letter: linear-gradient(150deg, #26262f, #101014);
+  --grad-letter: linear-gradient(150deg, #37315e, #221c3d);
 
   /* ---- "Glass" tokens re-based to flat Ink Hero surfaces (no blur) ---- */
   --glass-bg: #ffffff;
   --glass-bg-strong: #ffffff;
   --glass-blur: none;
-  --glass-border: 1px solid #e6e2d7;
+  --glass-border: 1px solid #e4e1ee;
   --glass-shine: 0 0 0 0 rgba(0, 0, 0, 0);
-  --glass-shadow: 0 2px 10px rgba(23, 23, 29, 0.05);
+  --glass-shadow: 0 2px 10px rgba(39, 33, 68, 0.05);
 
   /* ====================================================================== */
   /* SEMANTIC ALIASES — Ink Hero (light canvas)                             */
@@ -139,14 +139,14 @@
   --text-faint: var(--faint);
   --text-link: var(--teal-text);
 
-  --border-strong: #dcd6c8; /* web-specific (admin uses #ddd7c9) */
+  --border-strong: #d8d4e6; /* web-specific (admin uses #d9d5e8) */
 
-  --primary: #2aa283;
-  --primary-hover: #248d71;
-  --on-primary: #101014; /* Spark: ink labels on teal (matches the S-monogram icon) */
-  --accent: #30b895;
-  --accent-hover: #299e7f;
-  --on-accent: #101014;
+  --primary: #2f9d8e;
+  --primary-hover: #28897b;
+  --on-primary: #ffffff; /* Spark: ink labels on teal (matches the S-monogram icon) */
+  --accent: #35b3a2;
+  --accent-hover: #2a9d8d;
+  --on-accent: #ffffff;
 
   /* status base/text + tints come from tokens.css; web's --danger is the
      solid fill role (admin's is the text red — both alias the canonical pair) */
@@ -249,7 +249,7 @@ a {
   text-decoration: none;
 }
 
-/* ---------- Nav — Ink Hero band top row (frame 2a). Flat #101014, 66px row,
+/* ---------- Nav — Ink Hero band top row (frame 2a). Flat #221c3d, 66px row,
    full-width with 40px gutters; the admin Header builder still overrides via
    the inline --hdr-* vars. ---------- */
 .nav {
@@ -360,7 +360,7 @@ a {
 }
 .nav-profile-btn:hover .nav-avatar,
 .nav-avatar:hover {
-  box-shadow: 0 0 0 3px rgba(52, 201, 162, 0.25);
+  box-shadow: 0 0 0 3px rgba(60, 196, 178, 0.25);
 }
 .nav-avatar-img {
   position: absolute;
@@ -1136,7 +1136,7 @@ a.card:hover {
 .btn--primary:hover:not(:disabled) {
   filter: brightness(0.94);
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(48, 184, 149, 0.4);
+  box-shadow: 0 12px 28px rgba(53, 179, 162, 0.4);
 }
 .btn-primary:active:not(:disabled),
 .btn--primary:active:not(:disabled) {
@@ -1375,11 +1375,11 @@ a.card:hover {
     filter 0.15s ease,
     transform 0.12s ease,
     box-shadow 0.15s ease;
-  box-shadow: 0 8px 22px rgba(48, 184, 149, 0.28);
+  box-shadow: 0 8px 22px rgba(53, 179, 162, 0.28);
 }
 .form-embed-submit:hover:not(:disabled) {
   filter: brightness(0.94);
-  box-shadow: 0 10px 28px rgba(48, 184, 149, 0.36);
+  box-shadow: 0 10px 28px rgba(53, 179, 162, 0.36);
 }
 .form-embed-submit:active:not(:disabled) {
   transform: translateY(1px);
@@ -1905,7 +1905,7 @@ a.card:hover {
 }
 .article-content pre {
   background: var(--ink-800);
-  color: #f5f2ec;
+  color: #f4f3f8;
   padding: 16px;
   border-radius: 8px;
   overflow-x: auto;
@@ -2307,7 +2307,7 @@ a.card:hover {
   padding: 12px 16px;
   border-radius: 10px;
   background: var(--teal-tint);
-  border: 1px solid rgba(48, 184, 149, 0.25);
+  border: 1px solid rgba(53, 179, 162, 0.25);
   margin-bottom: 18px;
 }
 .co-auth-banner--ghost {
@@ -2535,7 +2535,7 @@ a.card:hover {
   );
 }
 .cc-hero-bg--empty {
-  background: linear-gradient(150deg, #26262f, #101014 72%);
+  background: linear-gradient(150deg, #37315e, #221c3d 72%);
 }
 .cc-hero-inner {
   position: relative;
@@ -2760,7 +2760,7 @@ a.card:hover {
   opacity: 1;
 }
 .cc-skill--empty {
-  background: linear-gradient(150deg, #26262f, #101014);
+  background: linear-gradient(150deg, #37315e, #221c3d);
 }
 .cc-skill-num {
   position: absolute;
@@ -3017,7 +3017,7 @@ a.card:hover {
     linear-gradient(0deg, rgba(28, 23, 52, 0.85) 0%, transparent 55%);
 }
 .md-continue-bg--empty {
-  background: linear-gradient(150deg, #26262f, #101014 72%);
+  background: linear-gradient(150deg, #37315e, #221c3d 72%);
 }
 .md-continue-inner {
   position: relative;
@@ -4147,7 +4147,7 @@ a.card:hover {
 }
 .dark-page a.card:hover {
   border-color: var(--dp-border);
-  box-shadow: 0 8px 24px rgba(16, 16, 20, 0.1);
+  box-shadow: 0 8px 24px rgba(20, 15, 45, 0.1);
 }
 .dark-page .card-title {
   color: var(--dp-text);
@@ -4206,16 +4206,16 @@ a.card:hover {
 
 /* ---- CHECKOUT skin (rides on the .dark-page canvas). Ink Hero: the class
    keeps compiling but now re-pins its local vars to LIGHT surfaces — a white
-   panel on the #f5f2ec canvas, ink text, teal accents. ---- */
+   panel on the #f4f3f8 canvas, ink text, teal accents. ---- */
 .checkout-dark {
-  --text: #17171d;
-  --bg: #f5f2ec;
+  --text: #272144;
+  --bg: #f4f3f8;
   --surface: #ffffff;
-  --border: #e6e2d7;
+  --border: #e4e1ee;
   /* P3b decision: this dark checkout skin re-pins --muted to the lighter
-     #8b8a87 ON PURPOSE — the AA correction (#74726c) is about grey-on-light;
+     #8b87a3 ON PURPOSE — the AA correction (#777394) is about grey-on-light;
      on this ink background the lighter grey is the higher-contrast choice. */
-  --muted: #8b8a87;
+  --muted: #8b87a3;
 }
 .checkout-dark .co-input,
 .checkout-dark .co-field--select,
@@ -4224,35 +4224,35 @@ a.card:hover {
 }
 .checkout-dark .co-input::placeholder,
 .checkout-dark .co-bare::placeholder {
-  color: #8b8a87;
+  color: #8b87a3;
 }
 .checkout-dark .co-select-input option {
   background: #fff;
-  color: #17171d;
+  color: #272144;
 }
 .checkout-dark .co-float-label {
-  color: #8b8a87;
+  color: #8b87a3;
 }
 .checkout-dark .co-rule {
-  background: #e6e2d7;
+  background: #e4e1ee;
   opacity: 1;
 }
 .checkout-dark .co-radio {
-  border-color: #dcd6c8;
+  border-color: #d8d4e6;
 }
 .checkout-dark .co-radio--on {
   border-color: var(--teal);
 }
 .checkout-dark .co-product-sub {
-  color: #8b8a87;
+  color: #8b87a3;
 }
 .checkout-dark .co-product-price {
-  color: #55534d;
+  color: #55506e;
 }
 .checkout-dark .co-brand {
-  color: #8b8a87;
-  background: #f0ede4;
-  border-color: #e6e2d7;
+  color: #8b87a3;
+  background: #f1eff7;
+  border-color: #e4e1ee;
 }
 .checkout-dark .co-btn--ghost {
   background: #fff;
@@ -4265,7 +4265,7 @@ a.card:hover {
 }
 .checkout-dark .co-auth-banner {
   background: var(--teal-tint);
-  border-color: rgba(48, 184, 149, 0.25);
+  border-color: rgba(53, 179, 162, 0.25);
 }
 .checkout-dark .co-alert-error {
   background: var(--fill-danger);
@@ -4273,18 +4273,18 @@ a.card:hover {
 }
 .checkout-dark .co-modal {
   background: #fff;
-  border: 1px solid #e6e2d7;
+  border: 1px solid #e4e1ee;
 }
 .checkout-dark .co-modal-overlay {
   background: rgba(28, 23, 52, 0.5);
 }
 .checkout-dark .co-modal-head h2 {
-  color: #17171d;
+  color: #272144;
 }
 /* White panel behind the form so checkout reads as a card on the canvas. */
 .checkout-dark .co-page {
   background: #fff;
-  border: 1px solid #edeae0;
+  border: 1px solid #ecebf2;
   border-radius: 18px;
   padding: 28px 32px 40px;
   margin-top: 12px;
@@ -4293,7 +4293,7 @@ a.card:hover {
 
 /* ===========================================================================
    Ink band Nav polish (later in the file → wins at equal specificity). Flat
-   #101014, no blur, no border — the band must merge seamlessly with each
+   #221c3d, no blur, no border — the band must merge seamlessly with each
    page's band hero. The admin "Header" builder still wins: it sets --hdr-bg /
    --hdr-link / --hdr-active inline, kept as `var(--hdr-*, <ink fallback>)`.
    =========================================================================== */
@@ -4445,7 +4445,7 @@ a.card:hover {
 
 /* Signature teal gradient headline word. Wrap a word: <span class="t-gradient"> */
 .t-gradient {
-  background: linear-gradient(100deg, #4dd1ae, #2aa283);
+  background: linear-gradient(100deg, #4fcdb8, #2f9d8e);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -4476,7 +4476,7 @@ a.card:hover {
   --border: var(--line);
   --border-soft: var(--line-soft);
   --fill-subtle: rgba(255, 255, 255, 0.05);
-  --fill-primary: rgba(52, 201, 162, 0.2);
+  --fill-primary: rgba(60, 196, 178, 0.2);
   /* Re-pin the scoped --cc-/--md-/--bc- aliases too. They were substituted to
      concrete values on their .class-cinema/.member-dash/.blog-cinema ANCESTOR
      (CSS resolves a custom property's var()s at its declaring element), so the
@@ -4933,8 +4933,8 @@ a.card:hover {
   color: #fff;
 }
 .ik-chip.on {
-  background: rgba(52, 201, 162, 0.2);
-  color: #79e9c6;
+  background: rgba(60, 196, 178, 0.2);
+  color: #7ce4d2;
   font-weight: 600;
 }
 
@@ -4964,7 +4964,7 @@ a.card:hover {
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(48, 184, 149, 0.35);
+  box-shadow: 0 10px 24px rgba(53, 179, 162, 0.35);
   transition:
     filter var(--dur-fast) var(--ease),
     transform var(--dur-fast) var(--ease),
@@ -4973,7 +4973,7 @@ a.card:hover {
 .ik-cta:hover {
   filter: brightness(0.94);
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(48, 184, 149, 0.4);
+  box-shadow: 0 12px 28px rgba(53, 179, 162, 0.4);
 }
 .ik-cta:active {
   transform: translateY(0);
@@ -4986,7 +4986,7 @@ a.card:hover {
   filter: none;
   transform: none;
   cursor: not-allowed;
-  box-shadow: 0 6px 14px rgba(48, 184, 149, 0.2);
+  box-shadow: 0 6px 14px rgba(53, 179, 162, 0.2);
 }
 /* Busy reads as "working", not "blocked": keep more presence than a control the
    member isn't allowed to use. */
@@ -5043,7 +5043,7 @@ a.card:hover {
   background: #fff;
   border-radius: 18px;
   padding: 26px 30px;
-  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.12);
+  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.12);
   display: flex;
   align-items: center;
   gap: 30px;
@@ -5148,7 +5148,7 @@ a.card:hover {
       rgba(var(--cls-dark), 0.1) 60%,
       rgba(var(--cls-dark), 0.34) 100%
     ),
-    var(--card-img, linear-gradient(150deg, #26262f, #101014)) center/cover;
+    var(--card-img, linear-gradient(150deg, #37315e, #221c3d)) center/cover;
   border-radius: 18px;
   padding: 22px;
   display: flex;
@@ -5491,11 +5491,11 @@ a.ik-row:hover,
   color: var(--teal-text);
 }
 .ik-pill--pct {
-  background: #f0ede4;
+  background: #f1eff7;
   color: var(--text);
 }
 .ik-pill--todo {
-  background: #f0ede4;
+  background: #f1eff7;
   color: var(--text-muted);
 }
 /* On the teal header band the status pill reads as a clean white chip
@@ -5561,20 +5561,20 @@ a.ik-lesson:hover {
   flex: none;
 }
 .ik-lesson-state--done {
-  background: rgba(48, 184, 149, 0.14);
+  background: rgba(53, 179, 162, 0.14);
 }
 .ik-lesson-state--todo {
-  background: #f0ede4;
+  background: #f1eff7;
 }
 /* current lesson: teal tint row + 3px teal left border + RESUME pill */
 .ik-lesson--current {
-  background: rgba(52, 201, 162, 0.07);
+  background: rgba(60, 196, 178, 0.07);
   border-left: 3px solid var(--teal);
   margin: 0 -22px;
   padding: 10px 19px;
 }
 a.ik-lesson--current:hover {
-  background: rgba(52, 201, 162, 0.12);
+  background: rgba(60, 196, 178, 0.12);
   box-shadow: none;
   border-radius: 0;
 }
@@ -5591,7 +5591,7 @@ a.ik-lesson--current:hover {
 /* "START" — a not-yet-begun lesson. Muted (outlined) so it reads as an
    available next step, not the active teal "RESUME" state. */
 .ik-start-pill {
-  background: #f0ede4;
+  background: #f1eff7;
   border-radius: 999px;
   padding: 6px 13px;
   color: var(--text-muted);
@@ -5715,7 +5715,7 @@ a.ik-lesson--current:hover {
   overflow: hidden;
   position: relative;
   aspect-ratio: 16 / 9;
-  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.12);
+  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.12);
 }
 .ik-player iframe,
 .ik-player video {
@@ -5797,7 +5797,7 @@ a.ik-lesson--current:hover {
 }
 .ik-divider {
   height: 1px;
-  background: #f0ede4;
+  background: #f1eff7;
   margin: 16px 0;
   border: none;
 }
@@ -5851,7 +5851,7 @@ a.ik-lesson--current:hover {
   background: #fff;
   border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.1);
+  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.1);
 }
 .ik-cert-head {
   background: var(--ink-900);
@@ -5888,11 +5888,11 @@ a.ik-lesson--current:hover {
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4dd1ae, #2aa283);
+  background: linear-gradient(135deg, #4fcdb8, #2f9d8e);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8px 20px rgba(48, 184, 149, 0.4);
+  box-shadow: 0 8px 20px rgba(53, 179, 162, 0.4);
 }
 .ik-cert-foot {
   padding: 16px 24px;
@@ -5962,11 +5962,11 @@ a.ik-lesson--current:hover {
   background: var(--cls, var(--teal));
 }
 
-/* ---- skeleton shimmer: #f0ede4 on white, white-alpha on ink ---- */
+/* ---- skeleton shimmer: #f1eff7 on white, white-alpha on ink ---- */
 .ik-skel {
   position: relative;
   overflow: hidden;
-  background: #f0ede4;
+  background: #f1eff7;
   border-radius: 8px;
   color: transparent;
 }
@@ -6094,7 +6094,7 @@ a.ik-lesson--current:hover {
   transform: scale(1.05);
 }
 .ik-skill--empty {
-  background: linear-gradient(150deg, #26262f, #101014);
+  background: linear-gradient(150deg, #37315e, #221c3d);
 }
 .ik-skill-num {
   position: absolute;

@@ -71,14 +71,14 @@ const FIELD_TYPES: { type: ChatFieldType; label: string }[] = [
 
 // Swatch palette — drawn from the Ink Hero token hues so options stay on-brand.
 const SWATCHES = [
-  "#34c9a2", // teal (accent)
+  "#3cc4b2", // teal (accent)
   "#f7a01e", // music amber
   "#9046c8", // cooking purple
   "#43a565", // photo green
   "#e04848", // film red
   "#4a76d0", // dance blue
   "#27a596", // comedy sea
-  "#8b8a87", // muted
+  "#8b87a3", // muted
 ];
 
 // Render an option's chip color: explicit color → tinted chip; otherwise muted.

@@ -6,29 +6,29 @@ import { PrismaService } from "../prisma/prisma.service";
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const SCHEMES: AppColorScheme[] = ["light", "dark", "system"];
 
-// Defaults mirror the member WEBSITE's "Spark" theme (cream content with ink
-// #101014 chrome and a teal #34c9a2 accent), so web, app, and admin preview
-// agree out of the box. DARK is the all-ink variant for admins who pick a
-// dark scheme. MUST stay in sync with apps/mobile/src/theme.ts (the offline
-// fallback) and seedAppConfig() in packages/db/prisma/seed.ts.
+// Defaults mirror the member WEBSITE's "Ink Hero" theme (light content with
+// ink #221c3d navy chrome and a teal #3cc4b2 accent), so web, app, and admin
+// preview agree out of the box. DARK is the all-ink variant for admins who
+// pick a dark scheme. MUST stay in sync with apps/mobile/src/theme.ts (the
+// offline fallback) and seedAppConfig() in packages/db/prisma/seed.ts.
 const DARK: AppThemePalette = {
-  bg: "#101014",
-  surface: "#17171d",
-  surfaceMuted: "#1e1e26",
-  border: "#2a2a33",
+  bg: "#221c3d",
+  surface: "#272144",
+  surfaceMuted: "#322b52",
+  border: "#3a3460",
   text: "#ffffff",
-  textMuted: "#a4a3a9",
-  primary: "#34c9a2",
+  textMuted: "#a7a3bd",
+  primary: "#3cc4b2",
   danger: "#ea4f4f",
 };
 const LIGHT: AppThemePalette = {
-  bg: "#f5f2ec",
+  bg: "#f4f3f8",
   surface: "#ffffff",
-  surfaceMuted: "#f0ede4",
-  border: "#e6e2d7",
-  text: "#17171d",
-  textMuted: "#8b8a87",
-  primary: "#34c9a2",
+  surfaceMuted: "#f1eff7",
+  border: "#e4e1ee",
+  text: "#272144",
+  textMuted: "#8b87a3",
+  primary: "#3cc4b2",
   danger: "#e04848",
 };
 const DEFAULT_APP_CONFIG: AppConfig = {
@@ -43,30 +43,32 @@ const DEFAULT_APP_CONFIG: AppConfig = {
   dark: DARK,
 };
 
-// The Ink Hero-era stock palettes (the pre-Spark product default). A stored
-// palette that still equals one of these VERBATIM was never customized — the
-// seed materializes the then-current defaults into the row at provision time —
-// so sanitize() serves it as the Spark defaults, carrying the fleet-wide
-// rebrand to already-provisioned instances. A palette where even one key
-// differs was touched by an admin and is left exactly as stored.
+// The Spark-era stock palettes (the interim rebrand default that shipped
+// between #116 and the navy reversion). A stored palette that still equals
+// one of these VERBATIM was materialized into the row when the instance was
+// provisioned DURING the Spark window and was never customized — so
+// sanitize() serves it as the Ink Hero defaults above, carrying the theme
+// reversion to those already-provisioned instances without a data migration.
+// A palette where even one key differs was touched by an admin and is left
+// exactly as stored.
 const LEGACY_DARK: AppThemePalette = {
-  bg: "#221c3d",
-  surface: "#272144",
-  surfaceMuted: "#322b52",
-  border: "#3a3460",
+  bg: "#101014",
+  surface: "#17171d",
+  surfaceMuted: "#1e1e26",
+  border: "#2a2a33",
   text: "#ffffff",
-  textMuted: "#a7a3bd",
-  primary: "#3cc4b2",
+  textMuted: "#a4a3a9",
+  primary: "#34c9a2",
   danger: "#ea4f4f",
 };
 const LEGACY_LIGHT: AppThemePalette = {
-  bg: "#f4f3f8",
+  bg: "#f5f2ec",
   surface: "#ffffff",
-  surfaceMuted: "#f1eff7",
-  border: "#e4e1ee",
-  text: "#272144",
-  textMuted: "#8b87a3",
-  primary: "#3cc4b2",
+  surfaceMuted: "#f0ede4",
+  border: "#e6e2d7",
+  text: "#17171d",
+  textMuted: "#8b8a87",
+  primary: "#34c9a2",
   danger: "#e04848",
 };
 

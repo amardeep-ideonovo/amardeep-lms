@@ -89,8 +89,8 @@ const PaymentSection = forwardRef<PaymentHandle, Props>(function PaymentSection(
         style: {
           base: {
             fontSize: "16px",
-            color: "#17171d",
-            "::placeholder": { color: "#8b8a87" },
+            color: "#272144",
+            "::placeholder": { color: "#8b87a3" },
           },
         },
       });

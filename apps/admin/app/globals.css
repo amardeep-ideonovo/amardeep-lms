@@ -1,6 +1,6 @@
 /* =========================================================================
    LMS Admin — "Spark" theme (single appearance; Ink Hero structure).
-   Ink #101014 chrome (sidebar + top bar) around a cream #f6f4ef content panel
+   Ink #221c3d chrome (sidebar + top bar) around a cream #f5f4f9 content panel
    with the signature 22px top-left radius. Teal accent, Plus Jakarta Sans.
    All original class names are preserved, so every page reskins automatically.
    NOTE: `:root` and `:root[data-theme="light"]` intentionally carry the SAME
@@ -18,12 +18,12 @@
      canonical vocabulary, so this block keeps only admin-specific values. */
 
   /* ---- surfaces (light content panel) ---- */
-  --bg: #f6f4ef; /* admin-specific cream (web uses #f5f2ec) */
+  --bg: #f5f4f9; /* admin-specific cream (web uses #f4f3f8) */
   --sidebar: var(--ink-900);
   --surface-tint: var(--surface-2);
 
   /* lines */
-  --border-strong: #ddd7c9; /* admin-specific (web uses #dcd6c8) */
+  --border-strong: #d9d5e8; /* admin-specific (web uses #d8d4e6) */
 
   /* text on dark (ink chrome) */
   --dark-text-2: rgba(255, 255, 255, 0.55);
@@ -35,12 +35,12 @@
   --sidebar-active-bg: linear-gradient(
     100deg,
     rgba(77, 209, 174, 0.25),
-    rgba(48, 184, 149, 0.12)
+    rgba(53, 179, 162, 0.12)
   );
   --accent: var(--teal);
-  --accent-2: #299e7f;
+  --accent-2: #2a9d8d;
   /* Spark: ink labels on teal fills (matches the S-monogram icon) */
-  --on-cta: #101014;
+  --on-cta: #ffffff;
   --accent-grad: var(--teal-grad);
 
   /* ---- status (bases/texts/tints in tokens.css) ---- */
@@ -78,7 +78,7 @@
 
   /* legacy aliases (kept so inline references keep resolving) */
   --primary: var(--teal);
-  --primary-dark: #2aa283;
+  --primary-dark: #2f9d8e;
 
   /* fonts (next/font var injected on <html>) — Plus Jakarta Sans everywhere */
   --font-display:
@@ -99,7 +99,7 @@
   --glass-blur: blur(28px) saturate(180%);
   --glass-border: 1px solid rgba(228, 225, 238, 0.9);
   --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  --glass-shadow: 0 14px 40px rgba(16, 16, 20, 0.12);
+  --glass-shadow: 0 14px 40px rgba(20, 15, 45, 0.12);
 
   /* shadows + motion (card/pop/primary + --ease + radius set in tokens.css;
      admin's springy names were already flattened to the base ease) */
@@ -141,11 +141,11 @@ a {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(23, 23, 29, 0.16);
+  background: rgba(39, 33, 68, 0.16);
   border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(23, 23, 29, 0.28);
+  background: rgba(39, 33, 68, 0.28);
 }
 /* …dark-tint thumbs on the ink chrome. */
 .sidebar::-webkit-scrollbar-thumb {
@@ -313,7 +313,7 @@ a {
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--teal-on-dark);
-  background: rgba(48, 184, 149, 0.22);
+  background: rgba(53, 179, 162, 0.22);
   padding: 2px 7px;
   border-radius: 6px;
 }
@@ -484,7 +484,7 @@ a {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.18);
+  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.18);
   padding: 6px;
   max-height: 64vh;
   overflow-y: auto;
@@ -566,7 +566,7 @@ a {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.18);
+  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.18);
   padding: 6px;
   z-index: 50;
   color: var(--text);
@@ -1077,7 +1077,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--teal);
-  box-shadow: 0 0 0 3px rgba(52, 201, 162, 0.18);
+  box-shadow: 0 0 0 3px rgba(60, 196, 178, 0.18);
 }
 /* Browser autofill forces its own background + text color (Chrome/Safari).
    Repaint autofilled fields white with ink text — the huge inset shadow masks
@@ -1099,10 +1099,10 @@ select:-webkit-autofill:focus {
   border-color: var(--teal);
   -webkit-box-shadow:
     0 0 0 1000px #fff inset,
-    0 0 0 3px rgba(52, 201, 162, 0.18);
+    0 0 0 3px rgba(60, 196, 178, 0.18);
   box-shadow:
     0 0 0 1000px #fff inset,
-    0 0 0 3px rgba(52, 201, 162, 0.18);
+    0 0 0 3px rgba(60, 196, 178, 0.18);
 }
 .form-row {
   display: flex;
@@ -1135,7 +1135,7 @@ select:-webkit-autofill:focus {
 .btn:hover {
   filter: brightness(0.94);
   transform: translateY(-1px);
-  box-shadow: 0 12px 28px rgba(48, 184, 149, 0.42);
+  box-shadow: 0 12px 28px rgba(53, 179, 162, 0.42);
 }
 .btn:active:not(:disabled) {
   transform: translateY(0);
@@ -1329,7 +1329,7 @@ select:-webkit-autofill:focus {
 .alert-success {
   background: var(--success-tint);
   color: var(--success-text);
-  border: 1px solid rgba(48, 184, 149, 0.3);
+  border: 1px solid rgba(53, 179, 162, 0.3);
 }
 .alert-warning {
   background: var(--warning-tint);
@@ -1365,7 +1365,7 @@ select:-webkit-autofill:focus {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 10px;
-  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.14);
+  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.14);
 }
 .row-menu-item {
   display: block;
@@ -1588,7 +1588,7 @@ select:-webkit-autofill:focus {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(16, 16, 20, 0.45);
+  background: rgba(20, 15, 45, 0.45);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: flex-start;
@@ -1604,7 +1604,7 @@ select:-webkit-autofill:focus {
   width: 100%;
   max-width: 720px;
   margin: auto;
-  box-shadow: 0 24px 70px rgba(16, 16, 20, 0.3);
+  box-shadow: 0 24px 70px rgba(20, 15, 45, 0.3);
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 80px);
@@ -1964,7 +1964,7 @@ select:-webkit-autofill:focus {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.18);
+  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.18);
   z-index: 60;
   max-height: 70vh;
   display: flex;
@@ -1995,7 +1995,7 @@ select:-webkit-autofill:focus {
   background: var(--surface-hover);
 }
 .notif-item--unread {
-  background: rgba(48, 184, 149, 0.07);
+  background: rgba(53, 179, 162, 0.07);
 }
 .notif-item__dot {
   width: 8px;
@@ -3044,7 +3044,7 @@ h1,
 
 /* ---- workflow author (auto-posted messages) ---- */
 .pj-avatar--workflow {
-  background: linear-gradient(120deg, #4dd1ae, #4a76d0);
+  background: linear-gradient(120deg, #4fcdb8, #4a76d0);
   font-size: 16px;
 }
 .pj-wf-badge {
@@ -3190,7 +3190,7 @@ h1,
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 10px;
-  box-shadow: 0 10px 26px rgba(16, 16, 20, 0.14);
+  box-shadow: 0 10px 26px rgba(20, 15, 45, 0.14);
   width: max-content;
 }
 .pj-emoji-opt {
@@ -3220,7 +3220,7 @@ h1,
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 10px;
-  box-shadow: 0 12px 30px rgba(16, 16, 20, 0.16);
+  box-shadow: 0 12px 30px rgba(20, 15, 45, 0.16);
 }
 .pj-menu-item {
   text-align: left;
@@ -3275,8 +3275,8 @@ h1,
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #30b895;
-  box-shadow: 0 0 0 2px rgba(48, 184, 149, 0.25);
+  background: #35b3a2;
+  box-shadow: 0 0 0 2px rgba(53, 179, 162, 0.25);
 }
 
 .pj-composer {
@@ -3307,7 +3307,7 @@ h1,
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 12px;
-  box-shadow: 0 14px 34px rgba(16, 16, 20, 0.16);
+  box-shadow: 0 14px 34px rgba(20, 15, 45, 0.16);
 }
 .pj-mention-opt {
   display: flex;
@@ -3536,7 +3536,7 @@ h1,
 }
 .pj-tab--active {
   color: var(--text);
-  border-bottom-color: var(--primary, #34c9a2);
+  border-bottom-color: var(--primary, #3cc4b2);
 }
 .pj-tab--add {
   font-size: 17px;
@@ -3882,7 +3882,7 @@ h1,
 }
 .check-pill:has(input:checked) {
   border-color: var(--accent);
-  background: rgba(52, 201, 162, 0.12);
+  background: rgba(60, 196, 178, 0.12);
   color: var(--accent-2);
   font-weight: 600;
 }
@@ -4297,7 +4297,7 @@ h1,
 }
 .filter-search:focus-within {
   border-color: var(--teal);
-  box-shadow: 0 0 0 3px rgba(52, 201, 162, 0.18);
+  box-shadow: 0 0 0 3px rgba(60, 196, 178, 0.18);
 }
 .filter-search input:focus {
   box-shadow: none;
@@ -4660,7 +4660,7 @@ select.filter-select {
   border-radius: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
-  box-shadow: 0 16px 38px rgba(23, 23, 29, 0.18);
+  box-shadow: 0 16px 38px rgba(39, 33, 68, 0.18);
   color: var(--text);
   font-size: 13.5px;
   animation: toast-in 160ms ease-out;

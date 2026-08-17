@@ -27,7 +27,7 @@ export default async function OpengraphImage() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "#101014",
+        background: "linear-gradient(135deg, #221c3d 0%, #2f9d8e 130%)",
         color: "#ffffff",
         fontSize: 84,
         fontWeight: 700,
@@ -48,7 +48,8 @@ export default async function OpengraphImage() {
           fontSize: 34,
           fontWeight: 400,
           marginTop: 16,
-          color: "#8b8a87",
+          color: "#ffffff",
+          opacity: 0.85,
         }}
       >
         Courses &amp; memberships

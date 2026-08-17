@@ -7,7 +7,7 @@
    surfaces and legacy aliases on top.
 
    Deliberately NOT here because the apps genuinely differ (kept per-app):
-   --bg (web cream #f5f2ec vs admin #f6f4ef), --border-strong, the danger
+   --bg (web cream #f4f3f8 vs admin #f5f4f9), --border-strong, the danger
    role naming (web --danger = solid fill, admin --danger = text red — both
    alias the canonical pair below), fonts, glass, motion-duration names, and
    web's springy easings.
@@ -18,37 +18,37 @@
    ========================================================================== */
 :root {
   /* ---- Ink chrome ramp (web uses all six; admin the first two) ---- */
-  --ink-950: #0b0b0e;
-  --ink-900: #101014;
-  --ink-850: #131318;
-  --ink-800: #17171d;
-  --ink-750: #1d1d24;
-  --ink-700: #26262f;
+  --ink-950: #1c1734;
+  --ink-900: #221c3d;
+  --ink-850: #251f40;
+  --ink-800: #272144;
+  --ink-750: #2e2850;
+  --ink-700: #37315e;
 
   /* ---- Teal accent system ---- */
-  --teal: #34c9a2;
-  --teal-grad: linear-gradient(100deg, #4dd1ae, #2aa283);
-  --teal-grad-hover: linear-gradient(100deg, #38cca5, #248d71);
-  --teal-text: #22846a; /* AA on the light canvases (was #299e7f, 3.33:1) */
-  --teal-on-dark: #79e9c6;
-  --teal-tint: rgba(48, 184, 149, 0.12);
+  --teal: #3cc4b2;
+  --teal-grad: linear-gradient(100deg, #4fcdb8, #2f9d8e);
+  --teal-grad-hover: linear-gradient(100deg, #45bfa9, #28897b);
+  --teal-text: #238376; /* AA on the light canvases (was #2a9d8d, 3.33:1) */
+  --teal-on-dark: #7ce4d2;
+  --teal-tint: rgba(53, 179, 162, 0.12);
 
   /* ---- Shared light-canvas neutrals ---- */
   --surface: #ffffff;
-  --surface-2: #f0ede4; /* neutral pills, recessed fills, track bars */
-  --surface-hover: #faf8f3;
-  --border: #e6e2d7;
-  --border-soft: #edeae0;
-  --row-divider: #f2efe7;
-  --text: #17171d;
-  --text-soft: #55534d;
-  --muted: #74726c; /* AA (was #8b8a87, 3.45:1) */
-  --faint: #706e67; /* AA (was #b7b4ac, 2.04:1) */
+  --surface-2: #f1eff7; /* neutral pills, recessed fills, track bars */
+  --surface-hover: #f8f7fc;
+  --border: #e4e1ee;
+  --border-soft: #ecebf2;
+  --row-divider: #f3f1f8;
+  --text: #272144;
+  --text-soft: #55506e;
+  --muted: #777394; /* AA (was #8b87a3, 3.45:1) */
+  --faint: #77719a; /* AA (was #b6b3c9, 2.04:1) */
 
   /* ---- Status ---- */
-  --success: #30b895;
-  --success-text: #207e65; /* AA (was #299e7f) */
-  --success-tint: rgba(48, 184, 149, 0.12);
+  --success: #35b3a2;
+  --success-text: #217d70; /* AA (was #2a9d8d) */
+  --success-tint: rgba(53, 179, 162, 0.12);
   --warning: #f6a623;
   --warning-text: #98650d; /* AA (was #c07f10) */
   --warning-tint: rgba(246, 166, 35, 0.16);
@@ -95,9 +95,9 @@
   --radius: 14px;
   --radius-md: 18px;
   --radius-pill: 999px;
-  --shadow-card: 0 2px 10px rgba(23, 23, 29, 0.05);
-  --shadow-pop: 0 14px 40px rgba(16, 16, 20, 0.12);
-  --shadow-primary: 0 10px 24px rgba(48, 184, 149, 0.35);
+  --shadow-card: 0 2px 10px rgba(39, 33, 68, 0.05);
+  --shadow-pop: 0 14px 40px rgba(20, 15, 45, 0.12);
+  --shadow-primary: 0 10px 24px rgba(53, 179, 162, 0.35);
   --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
-  --grad-progress: linear-gradient(90deg, #4dd1ae, #2aa283);
+  --grad-progress: linear-gradient(90deg, #4fcdb8, #2f9d8e);
 }

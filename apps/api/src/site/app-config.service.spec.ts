@@ -2,12 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { AppConfigService } from "./app-config.service";
 
-// Unit tests for the Spark-rebrand legacy translation: a stored palette that
-// still equals the Ink Hero-era stock VERBATIM was never customized (the seed
-// materialized the then-current defaults into the row), so read() serves the
-// Spark defaults for it — while a palette with even one admin-touched key is
-// returned exactly as stored. This is what carries a product-default rebrand
-// to already-provisioned fleet instances without clobbering client branding.
+// Unit tests for the navy-reversion translation: a stored palette that still
+// equals the Spark-era stock VERBATIM was materialized into the row when the
+// instance was provisioned during the Spark window and was never customized,
+// so read() serves the Ink Hero navy defaults for it — while a palette with
+// even one admin-touched key is returned exactly as stored. This is what
+// carries the theme reversion to already-provisioned fleet instances without
+// clobbering client branding (the mirror of the original Spark rollout).
 
 const INK_HERO_LIGHT = {
   bg: "#f4f3f8",
@@ -62,7 +63,37 @@ function makeService(storedConfig: unknown) {
   return new AppConfigService(prisma as any);
 }
 
-test("an untouched Ink Hero-era stock row reads back as the Spark defaults", async () => {
+test("an untouched Spark-era stock row reads back as the Ink Hero navy defaults", async () => {
+  const svc = makeService({
+    title: "Spotlight Academy",
+    colorScheme: "light",
+    light: { ...SPARK_LIGHT },
+    dark: { ...SPARK_DARK },
+  });
+  const cfg = await svc.read();
+  assert.deepEqual(cfg.light, INK_HERO_LIGHT);
+  assert.deepEqual(cfg.dark, INK_HERO_DARK);
+});
+
+test("a customized palette is served exactly as stored (no translation)", async () => {
+  const customLight = { ...SPARK_LIGHT, primary: "#ff6600" }; // one touched key
+  const svc = makeService({
+    title: "Client Academy",
+    colorScheme: "light",
+    light: customLight,
+    dark: { ...SPARK_DARK },
+  });
+  const cfg = await svc.read();
+  // The touched palette survives verbatim…
+  assert.deepEqual(cfg.light, customLight);
+  // …while the untouched sibling palette still reverts independently.
+  assert.deepEqual(cfg.dark, INK_HERO_DARK);
+});
+
+test("an already-navy stock row is served unchanged (no double-translation)", async () => {
+  // Instances provisioned BEFORE the Spark window (or since the reversion)
+  // store the Ink Hero stock; it is not Spark-stock, so it passes through as
+  // the navy palette it already is.
   const svc = makeService({
     title: "Spotlight Academy",
     colorScheme: "light",
@@ -70,41 +101,26 @@ test("an untouched Ink Hero-era stock row reads back as the Spark defaults", asy
     dark: { ...INK_HERO_DARK },
   });
   const cfg = await svc.read();
-  assert.deepEqual(cfg.light, SPARK_LIGHT);
-  assert.deepEqual(cfg.dark, SPARK_DARK);
-});
-
-test("a customized palette is served exactly as stored (no translation)", async () => {
-  const customLight = { ...INK_HERO_LIGHT, primary: "#ff6600" }; // one touched key
-  const svc = makeService({
-    title: "Client Academy",
-    colorScheme: "light",
-    light: customLight,
-    dark: { ...INK_HERO_DARK },
-  });
-  const cfg = await svc.read();
-  // The touched palette survives verbatim…
-  assert.deepEqual(cfg.light, customLight);
-  // …while the untouched sibling palette still upgrades independently.
-  assert.deepEqual(cfg.dark, SPARK_DARK);
+  assert.deepEqual(cfg.light, INK_HERO_LIGHT);
+  assert.deepEqual(cfg.dark, INK_HERO_DARK);
 });
 
 test("legacy detection is case-insensitive on stored hex values", async () => {
   const upper = Object.fromEntries(
-    Object.entries(INK_HERO_LIGHT).map(([k, v]) => [k, v.toUpperCase()]),
+    Object.entries(SPARK_LIGHT).map(([k, v]) => [k, v.toUpperCase()]),
   );
-  const svc = makeService({ light: upper, dark: { ...INK_HERO_DARK } });
+  const svc = makeService({ light: upper, dark: { ...SPARK_DARK } });
   const cfg = await svc.read();
-  assert.deepEqual(cfg.light, SPARK_LIGHT);
+  assert.deepEqual(cfg.light, INK_HERO_LIGHT);
 });
 
-test("a missing row serves the Spark defaults", async () => {
+test("a missing row serves the Ink Hero navy defaults", async () => {
   const prisma = {
     appConfig: { findUnique: () => Promise.resolve(null) },
   };
   const svc = new AppConfigService(prisma as any);
   const cfg = await svc.read();
   assert.equal(cfg.title, "Spotlight Academy");
-  assert.deepEqual(cfg.light, SPARK_LIGHT);
-  assert.deepEqual(cfg.dark, SPARK_DARK);
+  assert.deepEqual(cfg.light, INK_HERO_LIGHT);
+  assert.deepEqual(cfg.dark, INK_HERO_DARK);
 });

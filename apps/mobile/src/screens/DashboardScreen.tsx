@@ -534,8 +534,8 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontFamily: fonts.regular,
     },
     resume: { marginTop: 15 },
-    // The ▶ sits on the teal CTA gradient: Spark rule is INK on teal (onCta).
-    // It was white while the label beside it rendered ink — a brand bug.
+    // The ▶ sits on the teal CTA gradient and uses onCta (white on the stock
+    // Ink Hero teal), matching the label beside it.
     resumeGlyph: {
       color: colors.onCta,
       fontSize: 12,
@@ -561,7 +561,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       // Ink shadow literal kept: same tint as theme.ts elevatedShadow() but
       // the design's deeper overlap-card geometry (offset/radius differ), so
       // the helper doesn't apply.
-      shadowColor: "#0b0b0e",
+      shadowColor: "#140f2d",
       shadowOffset: { width: 0, height: 14 },
       shadowOpacity: 0.12,
       shadowRadius: 20,
