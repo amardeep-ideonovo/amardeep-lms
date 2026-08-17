@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MediaDTO, MediaKind } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
-import { useModalA11y } from "@/lib/useModalA11y";
 import { usePersistedDraft } from "@/lib/usePersistedDraft";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
+import FormModal from "@/components/FormModal";
 import ModalFooter from "@/components/ModalFooter";
 import { dialog } from "@/components/DialogProvider";
 import { STR, formatBytes, formatDateLong } from "@lms/types";
@@ -343,7 +343,6 @@ function NewMediaModal({
   const [caption, setCaption] = useState("");
   const [description, setDescription] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const newMediaModalRef = useModalA11y();
 
   // Fresh fields + a local preview whenever the queued file changes.
   useEffect(() => {
@@ -369,130 +368,114 @@ function NewMediaModal({
           : "other";
 
   return (
-    <div
-      ref={newMediaModalRef}
-      className="modal-overlay"
-      role="dialog"
-      aria-modal="true"
+    <FormModal
+      title={`Add to Gallery${remaining > 1 ? ` — ${remaining} files` : ""}`}
+      onClose={onCancel}
+      maxWidth={760}
     >
-      <div className="modal" style={{ maxWidth: 760 }}>
-        <div className="modal-header">
-          <h2>Add to Gallery{remaining > 1 ? ` — ${remaining} files` : ""}</h2>
-          <button
-            type="button"
-            className="modal-close"
-            onClick={onCancel}
-            aria-label={STR.common.close}
+      <div className="modal-body">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+            gap: 20,
+          }}
+        >
+          <div
+            style={{
+              background: "var(--bg)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              minHeight: 220,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+            }}
           >
-            ×
-          </button>
-        </div>
-        <div className="modal-form">
-          <div className="modal-body">
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-                gap: 20,
-              }}
-            >
-              <div
+            {kind === "image" && previewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewUrl}
+                alt=""
                 style={{
-                  background: "var(--bg)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 8,
-                  minHeight: 220,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
+                  maxWidth: "100%",
+                  maxHeight: 300,
+                  objectFit: "contain",
                 }}
-              >
-                {kind === "image" && previewUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={previewUrl}
-                    alt=""
-                    style={{
-                      maxWidth: "100%",
-                      maxHeight: 300,
-                      objectFit: "contain",
-                    }}
-                  />
-                ) : (
-                  <div style={{ textAlign: "center", padding: 24 }}>
-                    <div style={{ fontSize: 56 }}>{KIND_ICON[kind]}</div>
-                    <p className="muted" style={{ fontSize: 13 }}>
-                      {file.name}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div>
-                <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-                  Not saved yet — add details below, then save.
+              />
+            ) : (
+              <div style={{ textAlign: "center", padding: 24 }}>
+                <div style={{ fontSize: 56 }}>{KIND_ICON[kind]}</div>
+                <p className="muted" style={{ fontSize: 13 }}>
+                  {file.name}
                 </p>
-                <p style={{ margin: "4px 0", fontSize: 13 }}>
-                  <strong>File name:</strong> {file.name}
-                  <br />
-                  <strong>File type:</strong> {file.type || "—"}
-                  <br />
-                  <strong>File size:</strong> {formatBytes(file.size)}
-                </p>
-                <div className="field">
-                  <label>{STR.labels.title}</label>
-                  <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    autoFocus
-                  />
-                </div>
-                <div className="field">
-                  <label>Alternative text</label>
-                  <input
-                    value={altText}
-                    onChange={(e) => setAltText(e.target.value)}
-                  />
-                </div>
-                <div className="field">
-                  <label>Caption</label>
-                  <input
-                    value={caption}
-                    onChange={(e) => setCaption(e.target.value)}
-                  />
-                </div>
-                <div className="field">
-                  <label>{STR.labels.description}</label>
-                  <textarea
-                    rows={3}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                  />
-                </div>
               </div>
+            )}
+          </div>
+          <div>
+            <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+              Not saved yet — add details below, then save.
+            </p>
+            <p style={{ margin: "4px 0", fontSize: 13 }}>
+              <strong>File name:</strong> {file.name}
+              <br />
+              <strong>File type:</strong> {file.type || "—"}
+              <br />
+              <strong>File size:</strong> {formatBytes(file.size)}
+            </p>
+            <div className="field">
+              <label>{STR.labels.title}</label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="field">
+              <label>Alternative text</label>
+              <input
+                value={altText}
+                onChange={(e) => setAltText(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>Caption</label>
+              <input
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>{STR.labels.description}</label>
+              <textarea
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
             </div>
           </div>
-          <ModalFooter>
-            <div className="row-actions" style={{ marginTop: 12 }}>
-              <Button
-                disabled={busy}
-                onClick={() => onSave({ title, altText, caption, description })}
-              >
-                {busy ? STR.common.saving : "Save to gallery"}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={busy}
-                onClick={onCancel}
-              >
-                {STR.common.cancel}
-              </Button>
-            </div>
-          </ModalFooter>
         </div>
       </div>
-    </div>
+      <ModalFooter>
+        <div className="row-actions" style={{ marginTop: 12 }}>
+          <Button
+            disabled={busy}
+            onClick={() => onSave({ title, altText, caption, description })}
+          >
+            {busy ? STR.common.saving : "Save to gallery"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy}
+            onClick={onCancel}
+          >
+            {STR.common.cancel}
+          </Button>
+        </div>
+      </ModalFooter>
+    </FormModal>
   );
 }
 
@@ -517,7 +500,6 @@ function MediaDetails({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const detailsModalRef = useModalA11y();
 
   // Re-init when a different asset is opened.
   useEffect(() => {
@@ -590,167 +572,142 @@ function MediaDetails({
   }
 
   return (
-    <div
-      ref={detailsModalRef}
-      className="modal-overlay"
-      role="dialog"
-      aria-modal="true"
-    >
-      <div className="modal" style={{ maxWidth: 920 }}>
-        <div className="modal-header">
-          <h2>Attachment details</h2>
-          <button
-            type="button"
-            className="modal-close"
-            onClick={onClose}
-            aria-label={STR.common.close}
-          >
-            ×
-          </button>
-        </div>
-        <div className="modal-form">
-          <div className="modal-body">
+    <FormModal title="Attachment details" onClose={onClose} maxWidth={920}>
+      <div className="modal-body">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+            gap: 20,
+          }}
+        >
+          {/* Preview */}
+          <div>
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
-                gap: 20,
+                background: "var(--bg)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                minHeight: 240,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
               }}
             >
-              {/* Preview */}
-              <div>
-                <div
-                  style={{
-                    background: "var(--bg)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                    minHeight: 240,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
-                  }}
+              <MediaPreview asset={asset} />
+            </div>
+          </div>
+
+          {/* Metadata + URL */}
+          <div>
+            <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+              Uploaded on <strong>{formatDateLong(asset.createdAt)}</strong>
+              {asset.uploadedBy ? ` by ${asset.uploadedBy.email}` : ""}
+            </p>
+            <p style={{ margin: "4px 0", fontSize: 13 }}>
+              <strong>File name:</strong> {asset.originalName}
+              <br />
+              <strong>File type:</strong> {asset.mimeType}
+              <br />
+              <strong>File size:</strong> {formatBytes(asset.size)}
+              {asset.width && asset.height ? (
+                <>
+                  <br />
+                  <strong>Dimensions:</strong> {asset.width} × {asset.height}{" "}
+                  pixels
+                </>
+              ) : null}
+            </p>
+
+            <div className="field">
+              <label>{STR.labels.title}</label>
+              <input
+                value={form.title}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, title: e.target.value }))
+                }
+              />
+            </div>
+            <div className="field">
+              <label>Alternative text</label>
+              <input
+                value={form.altText}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, altText: e.target.value }))
+                }
+              />
+            </div>
+            <div className="field">
+              <label>Caption</label>
+              <input
+                value={form.caption}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, caption: e.target.value }))
+                }
+              />
+            </div>
+            <div className="field">
+              <label>{STR.labels.description}</label>
+              <textarea
+                rows={3}
+                value={form.description}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, description: e.target.value }))
+                }
+              />
+            </div>
+
+            <div className="field">
+              <label>File URL</label>
+              <input
+                value={asset.url}
+                readOnly
+                onFocus={(e) => e.target.select()}
+              />
+              <div className="row-actions" style={{ marginTop: 6 }}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={copyUrl}
                 >
-                  <MediaPreview asset={asset} />
-                </div>
-              </div>
-
-              {/* Metadata + URL */}
-              <div>
-                <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
-                  Uploaded on <strong>{formatDateLong(asset.createdAt)}</strong>
-                  {asset.uploadedBy ? ` by ${asset.uploadedBy.email}` : ""}
-                </p>
-                <p style={{ margin: "4px 0", fontSize: 13 }}>
-                  <strong>File name:</strong> {asset.originalName}
-                  <br />
-                  <strong>File type:</strong> {asset.mimeType}
-                  <br />
-                  <strong>File size:</strong> {formatBytes(asset.size)}
-                  {asset.width && asset.height ? (
-                    <>
-                      <br />
-                      <strong>Dimensions:</strong> {asset.width} ×{" "}
-                      {asset.height} pixels
-                    </>
-                  ) : null}
-                </p>
-
-                <div className="field">
-                  <label>{STR.labels.title}</label>
-                  <input
-                    value={form.title}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, title: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="field">
-                  <label>Alternative text</label>
-                  <input
-                    value={form.altText}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, altText: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="field">
-                  <label>Caption</label>
-                  <input
-                    value={form.caption}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, caption: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="field">
-                  <label>{STR.labels.description}</label>
-                  <textarea
-                    rows={3}
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, description: e.target.value }))
-                    }
-                  />
-                </div>
-
-                <div className="field">
-                  <label>File URL</label>
-                  <input
-                    value={asset.url}
-                    readOnly
-                    onFocus={(e) => e.target.select()}
-                  />
-                  <div className="row-actions" style={{ marginTop: 6 }}>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      onClick={copyUrl}
-                    >
-                      {copied ? "Copied!" : "Copy URL to clipboard"}
-                    </Button>
-                    <a
-                      href={asset.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="btn btn--ghost btn--sm"
-                    >
-                      Open ↗
-                    </a>
-                  </div>
-                </div>
+                  {copied ? "Copied!" : "Copy URL to clipboard"}
+                </Button>
+                <a
+                  href={asset.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn--ghost btn--sm"
+                >
+                  Open ↗
+                </a>
               </div>
             </div>
           </div>
-          <ModalFooter
-            error={err}
-            draftRestored={draft.restored}
-            onDiscardDraft={draft.discard}
-          >
-            <div
-              className="row-actions"
-              style={{
-                marginTop: 12,
-                justifyContent: "space-between",
-              }}
-            >
-              <Button onClick={save} disabled={saving}>
-                {saving ? STR.common.saving : "Save changes"}
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={remove}
-                disabled={busy}
-              >
-                Delete permanently
-              </Button>
-            </div>
-          </ModalFooter>
         </div>
       </div>
-    </div>
+      <ModalFooter
+        error={err}
+        draftRestored={draft.restored}
+        onDiscardDraft={draft.discard}
+      >
+        <div
+          className="row-actions"
+          style={{
+            marginTop: 12,
+            justifyContent: "space-between",
+          }}
+        >
+          <Button onClick={save} disabled={saving}>
+            {saving ? STR.common.saving : "Save changes"}
+          </Button>
+          <Button variant="danger" size="sm" onClick={remove} disabled={busy}>
+            Delete permanently
+          </Button>
+        </div>
+      </ModalFooter>
+    </FormModal>
   );
 }
 
