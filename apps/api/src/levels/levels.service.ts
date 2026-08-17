@@ -43,6 +43,7 @@ type LevelWithPrices = {
   audience: { name: string } | null; // included Audience relation for the display name
   stripeProductId: string | null;
   imageUrl: string | null;
+  thumbnailUrl: string | null;
   description: string | null;
   trailerUrl: string | null;
   featuredCourseId: string | null;
@@ -85,6 +86,7 @@ export class LevelsService {
       audienceName: level.audience?.name ?? null,
       stripeProductId: level.stripeProductId,
       imageUrl: level.imageUrl,
+      thumbnailUrl: level.thumbnailUrl,
       description: toRichHtml(level.description),
       trailerUrl: level.trailerUrl,
       featuredCourseId: level.featuredCourseId,
@@ -322,6 +324,7 @@ export class LevelsService {
       name: l.name,
       slug: l.slug,
       imageUrl: l.imageUrl,
+      thumbnailUrl: l.thumbnailUrl,
       owned: owned.has(l.id),
       categories: l.categories.map((c) => ({
         id: c.id,
@@ -665,6 +668,7 @@ export class LevelsService {
         audienceId: dto.audienceId ?? null,
         stripeProductId,
         imageUrl: dto.imageUrl || null,
+        thumbnailUrl: dto.thumbnailUrl || null,
         description: sanitizeRichTextForStore(dto.description),
         trailerUrl: dto.trailerUrl || null,
         featuredCourseId: dto.featuredCourseId || null,
@@ -732,6 +736,8 @@ export class LevelsService {
         // Landing-page fields: only touch them when the caller actually sends
         // them (so a partial update can't accidentally blank them).
         imageUrl: dto.imageUrl !== undefined ? dto.imageUrl || null : undefined,
+        thumbnailUrl:
+          dto.thumbnailUrl !== undefined ? dto.thumbnailUrl || null : undefined,
         description:
           dto.description !== undefined
             ? sanitizeRichTextForStore(dto.description)
