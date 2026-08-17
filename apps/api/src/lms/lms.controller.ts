@@ -117,6 +117,15 @@ export class LmsController {
     );
   }
 
+  // Public: the one-off course checkout page reads this to render title/price.
+  // 404s unless the course is individually purchasable (priceActive && amount>0),
+  // so a disabled/free-price course can never mount a chargeable form. Returns
+  // only checkout-safe fields — no lessons, levels, or per-viewer lock state.
+  @Get("courses/checkout/:idOrSlug")
+  checkoutCourse(@Param("idOrSlug") idOrSlug: string) {
+    return this.lms.checkoutCourseBySlugOrId(idOrSlug);
+  }
+
   @UseGuards(PermissionsGuard)
   @RequirePermission("courses", "create")
   @Post("courses")

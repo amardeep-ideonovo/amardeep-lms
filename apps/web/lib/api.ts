@@ -9,9 +9,13 @@ import type {
   CompleteLessonResponse,
   CouponPreviewDTO,
   CouponValidateInput,
+  CheckoutCourseDTO,
   CheckoutLevelDTO,
   ClassPublicDTO,
   ClassTileDTO,
+  CourseIntentConfirmInput,
+  CourseIntentInput,
+  CourseIntentResult,
   MemberDashboardDTO,
   CourseCard,
   DeleteAccountSummaryDTO,
@@ -418,18 +422,25 @@ export const api = {
   portal: () => request<{ url: string }>("/billing/portal"),
   mySubscriptions: () => request<MySubscriptionDTO[]>("/billing/subscriptions"),
 
-  // One-off course purchase (Stripe mode=payment). `courseCheckout` returns the
-  // hosted-checkout URL to redirect to; `confirmCoursePurchase` grants inline on
-  // return (the success URL carries ?session_id=…) without waiting on a webhook.
-  courseCheckout: (courseId: string) =>
-    request<{ url: string }>("/billing/course/checkout", {
+  // One-off course purchase (embedded Stripe Elements, one-time PaymentIntent).
+  // `checkoutCourse` resolves the course for the checkout page (public, no auth);
+  // `createCourseIntent` mints the one-time PaymentIntent (client secret), and
+  // `confirmCourseIntent` grants inline after Stripe.js confirms the card (the
+  // payment_intent.succeeded webhook is the backstop).
+  checkoutCourse: (idOrSlug: string) =>
+    request<CheckoutCourseDTO>(
+      `/courses/checkout/${encodeURIComponent(idOrSlug)}`,
+      { auth: false },
+    ),
+  createCourseIntent: (input: CourseIntentInput) =>
+    request<CourseIntentResult>("/billing/course/intent", {
       method: "POST",
-      body: { courseId },
+      body: input,
     }),
-  confirmCoursePurchase: (sessionId: string) =>
-    request<{ granted: boolean }>("/billing/course/confirm", {
+  confirmCourseIntent: (input: CourseIntentConfirmInput) =>
+    request<{ granted: boolean }>("/billing/course/confirm-intent", {
       method: "POST",
-      body: { sessionId },
+      body: input,
     }),
 
   // Embedded checkout (Stripe Elements). `config` is public; the others need auth.

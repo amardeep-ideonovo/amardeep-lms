@@ -554,7 +554,7 @@ export default function CoursesPage() {
                 <div className="form-row">
                   <div className="field">
                     <label>
-                      One-off price{" "}
+                      One-time lifetime purchase price{" "}
                       <span className="muted">
                         (blank = not sold individually)
                       </span>
@@ -605,8 +605,9 @@ export default function CoursesPage() {
                   </label>
                   <p className="muted">
                     A member who lacks membership access can buy lifetime access
-                    to just this course. Uncheck to pause sales without losing
-                    the price.
+                    to just this course — a one-time charge (no renewals),
+                    through the site’s own branded card checkout. Uncheck to
+                    pause sales without losing the price.
                   </p>
                 </div>
 

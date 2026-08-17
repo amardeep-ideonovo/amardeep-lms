@@ -213,6 +213,21 @@ export interface CheckoutLevelDTO {
   prices: PriceDTO[];
 }
 
+// Public, unauthenticated one-off course-checkout resolution
+// (GET /courses/checkout/:idOrSlug) — only what the branded course checkout page
+// needs. The resolver 404s unless the course is individually purchasable
+// (priceActive && priceAmount > 0), so priceAmount here is always a positive
+// minor-units value.
+export interface CheckoutCourseDTO {
+  id: string;
+  slug: string | null;
+  title: string;
+  coverImageUrl: string | null;
+  priceAmount: number; // minor units (cents); guaranteed > 0 by the resolver
+  priceCurrency: string;
+  priceActive: boolean;
+}
+
 // Public class landing page (GET /levels/page/:slugOrId) — MasterClass-style.
 // Curriculum = the featured course's lessons (titles/durations/thumbnails only;
 // no playback for logged-out visitors).
@@ -347,6 +362,26 @@ export interface SubscribeResult {
   status: "requires_payment" | "active" | "mock";
   clientSecret: string | null;
   subscriptionId: string | null;
+}
+// ---------- One-off course purchase (embedded Elements, one-time PaymentIntent) ----------
+// Buy LIFETIME access to a single course through the site's own branded card
+// checkout — mirrors the subscription Elements flow, but a one-time charge (no
+// PayPal, no coupons in phase 1). `clientSecret` confirms the one-time
+// PaymentIntent on the client via Stripe.js; the web layer substitutes a "mock"
+// status when Stripe isn't configured so the UI can simulate success.
+export interface CourseIntentInput {
+  courseId: string;
+}
+export interface CourseIntentResult {
+  status: "requires_payment" | "paid" | "mock";
+  clientSecret: string | null;
+  paymentIntentId: string | null;
+}
+// Confirm the one-off purchase inline after Stripe.js confirms the card (the
+// webhook is the backstop). The server re-fetches the PaymentIntent and verifies
+// owner + kind + succeeded before granting — the id is never trusted blindly.
+export interface CourseIntentConfirmInput {
+  paymentIntentId: string;
 }
 export interface CouponValidateInput {
   code: string;
@@ -2441,6 +2476,7 @@ export const ROUTES = {
   updateLevel: "PATCH /levels/:id",
   deleteLevel: "DELETE /levels/:id",
   checkoutLevel: "GET /levels/checkout/:slugOrId", // public — resolve a level for checkout by slug or id
+  courseCheckoutResolve: "GET /courses/checkout/:idOrSlug", // public — resolve a course for one-off checkout (404 unless priceActive && priceAmount>0)
   classPage: "GET /levels/page/:slugOrId", // public — full class landing-page data
   listPublicClasses: "GET /levels/public", // public — minimal class list (sitemap/links)
   myClasses: "GET /levels/my-classes", // member — published class tiles for the dashboard (owned flag)
@@ -2685,6 +2721,8 @@ export const ROUTES = {
   stripeWebhook: "POST /billing/webhook",
   billingConfig: "GET /billing/config", // -> BillingConfigDTO (public; Stripe Elements publishable key)
   subscribe: "POST /billing/subscribe", // body SubscribeInput -> SubscribeResult (Elements clientSecret)
+  courseIntent: "POST /billing/course/intent", // body CourseIntentInput -> CourseIntentResult (one-time PaymentIntent clientSecret)
+  courseIntentConfirm: "POST /billing/course/confirm-intent", // body CourseIntentConfirmInput -> { granted: boolean } (inline grant; webhook is the backstop)
   syncMySubscriptions: "POST /billing/sync", // member: reconcile own subs inline post-payment -> { ok: true }
   validateCoupon: "POST /billing/coupon/validate", // body CouponValidateInput -> CouponPreviewDTO
   mySubscriptionDetails: "GET /billing/subscription-details", // -> SubscriptionDetailDTO[]

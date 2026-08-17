@@ -129,71 +129,70 @@ export class StripeService {
   // can resolve the grant. `?session_id={CHECKOUT_SESSION_ID}` is appended to the
   // success URL so the browser can confirm the purchase without waiting on a
   // webhook (dev needs no `stripe listen`).
-  async createPaymentCheckoutSession(input: {
+  // Client-confirmable one-time PaymentIntent for a single-course LIFETIME
+  // purchase via the site's own branded Stripe Elements checkout. A fresh
+  // PaymentIntent is always `requires_payment_method` (no method attached yet);
+  // the caller REUSES an open one (findOpenCoursePaymentIntent) before creating a
+  // second, so a double-submit / two tabs can't charge twice.
+  async createCoursePaymentIntent(input: {
     customerId: string;
     amount: number; // minor units
     currency: string;
-    productName: string;
     userId: string;
     courseId: string;
-    successUrl: string;
-    cancelUrl: string;
-  }): Promise<Stripe.Checkout.Session> {
+  }): Promise<{
+    paymentIntentId: string;
+    clientSecret: string | null;
+    status: Stripe.PaymentIntent.Status;
+  }> {
     const stripe = await this.getClient();
-    return stripe.checkout.sessions.create({
-      mode: "payment",
+    const pi = await stripe.paymentIntents.create({
       customer: input.customerId,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: input.currency,
-            unit_amount: input.amount,
-            product_data: { name: input.productName },
-          },
-        },
-      ],
-      client_reference_id: input.userId,
+      amount: input.amount,
+      currency: input.currency.toLowerCase(),
+      automatic_payment_methods: { enabled: true },
       metadata: {
         userId: input.userId,
         courseId: input.courseId,
         kind: "course",
       },
-      payment_intent_data: {
-        metadata: {
-          userId: input.userId,
-          courseId: input.courseId,
-          kind: "course",
-        },
-      },
-      success_url: input.successUrl,
-      cancel_url: input.cancelUrl,
     });
+    return {
+      paymentIntentId: pi.id,
+      clientSecret: pi.client_secret,
+      status: pi.status,
+    };
   }
 
-  // Retrieve a Checkout Session (payment_intent expanded) — used by the inline
-  // confirm to verify payment status + ownership and read the charge id.
-  async retrieveCheckoutSession(
-    sessionId: string,
-  ): Promise<Stripe.Checkout.Session> {
-    const stripe = await this.getClient();
-    return stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["payment_intent"],
-    });
-  }
-
-  // Recent Checkout Sessions for a customer — used to REUSE an already-open
-  // one-off session instead of creating a duplicate (double-charge backstop).
-  async listCheckoutSessionsForCustomer(
+  // All of a customer's one-off course PaymentIntents for a given course (any
+  // status). The caller uses these to REUSE an open one (double-charge safety on
+  // a re-click / two tabs) and to RECOVER a succeeded-but-ungranted one. NOTE:
+  // list responses REDACT client_secret (Stripe only returns it on create /
+  // retrieve), so a reused intent must be re-fetched with retrievePaymentIntent
+  // to get a confirmable secret.
+  async listCoursePaymentIntents(
     customerId: string,
-    limit = 10,
-  ): Promise<Stripe.Checkout.Session[]> {
+    courseId: string,
+  ): Promise<Stripe.PaymentIntent[]> {
     const stripe = await this.getClient();
-    const res = await stripe.checkout.sessions.list({
+    const res = await stripe.paymentIntents.list({
       customer: customerId,
-      limit,
+      limit: 100,
     });
-    return res.data;
+    return res.data.filter(
+      (pi) =>
+        pi.metadata?.kind === "course" && pi.metadata?.courseId === courseId,
+    );
+  }
+
+  // Retrieve a PaymentIntent (status + metadata + settled amount) — used by the
+  // inline confirm to verify a one-off course purchase succeeded and belongs to
+  // the caller before granting, without waiting on the webhook.
+  async retrievePaymentIntent(
+    paymentIntentId: string,
+  ): Promise<Stripe.PaymentIntent> {
+    const stripe = await this.getClient();
+    return stripe.paymentIntents.retrieve(paymentIntentId);
   }
 
   async createPortalSession(input: {

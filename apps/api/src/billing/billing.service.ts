@@ -14,6 +14,7 @@ import type {
   BillingConfigDTO,
   CouponPreviewDTO,
   CouponValidateInput,
+  CourseIntentResult,
   InvoiceDTO,
   MemberBillingDTO,
   MySubscriptionDTO,
@@ -322,15 +323,16 @@ export class BillingService implements OnModuleInit {
     return { url: session.url };
   }
 
-  // ---------- One-off course purchase (Stripe mode=payment) ----------
+  // ---------- One-off course purchase (embedded Stripe Elements, one-time PI) ----------
 
-  // Start a one-time checkout to buy LIFETIME access to a single course. Mirrors
-  // createCheckout's customer plumbing but pays a one-off price (no subscription)
-  // and grants a course-scoped UserCourse rather than a UserLevel.
-  async createCoursePurchaseCheckout(
+  // Start a one-off, one-time PaymentIntent to buy LIFETIME access to a single
+  // course through the site's OWN branded checkout — mirrors subscribe()'s
+  // customer plumbing but pays a one-time charge and grants a course-scoped
+  // UserCourse rather than a UserLevel.
+  async createCourseIntent(
     userId: string,
     courseId: string,
-  ): Promise<{ url: string }> {
+  ): Promise<CourseIntentResult> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException("User not found");
 
@@ -384,89 +386,128 @@ export class BillingService implements OnModuleInit {
       });
     }
 
-    // Reuse an already-OPEN checkout for this exact course instead of minting a
-    // second one. Prevents a double charge when the member re-clicks Buy before
-    // the first session is paid (or expires) — mirrors the pending-subscription
-    // reuse in subscribe(). The unpaid session's URL stays valid until it expires.
-    const openSessions =
-      await this.stripe.listCheckoutSessionsForCustomer(customerId);
-    const reusable = openSessions.find(
-      (s) =>
-        s.status === "open" &&
-        s.mode === "payment" &&
-        s.metadata?.kind === "course" &&
-        s.metadata?.courseId === courseId &&
-        !!s.url,
+    const currency = course.priceCurrency.toLowerCase();
+    const coursePis = await this.stripe.listCoursePaymentIntents(
+      customerId,
+      courseId,
     );
-    if (reusable?.url) {
-      return { url: reusable.url };
+
+    // (a) Self-heal a paid-but-ungranted purchase. isCourseLocked already ruled
+    // out an ACTIVE grant, so a SUCCEEDED course PI here means the member paid
+    // but the grant never landed (inline confirm failed AND the webhook hasn't
+    // arrived). Grant it inline instead of charging again — this closes the
+    // "still locked after paying → re-click Buy → second charge" gap. Skip a
+    // REFUNDED charge (its money was returned) so a re-purchase after a refund
+    // still starts a fresh charge rather than re-granting for free.
+    for (const pi of coursePis) {
+      if (pi.status !== "succeeded") continue;
+      const chargeId =
+        typeof pi.latest_charge === "string"
+          ? pi.latest_charge
+          : (pi.latest_charge?.id ?? null);
+      const charge = chargeId
+        ? await this.stripe.retrieveCharge(chargeId)
+        : null;
+      if (charge && !charge.refunded) {
+        await this.grantCoursePurchase({
+          userId: user.id,
+          courseId,
+          paymentIntentId: pi.id,
+          amount: pi.amount_received ?? pi.amount ?? null,
+          currency: pi.currency ?? null,
+        });
+        return { status: "paid", clientSecret: null, paymentIntentId: pi.id };
+      }
     }
 
-    const session = await this.stripe.createPaymentCheckoutSession({
+    // (b) Reuse an already-OPEN PaymentIntent at the CURRENT price instead of
+    // minting a second one — the real double-charge guard on a re-click / two
+    // tabs. Skip one whose amount/currency drifted (an admin changed the price
+    // since it was created) so the member is charged the price they now see.
+    // client_secret is redacted in list responses, so re-fetch to get a usable
+    // one.
+    const open = coursePis.find(
+      (pi) =>
+        [
+          "requires_payment_method",
+          "requires_confirmation",
+          "requires_action",
+          "processing",
+        ].includes(pi.status) &&
+        pi.amount === amount &&
+        pi.currency === currency,
+    );
+    if (open) {
+      const full = await this.stripe.retrievePaymentIntent(open.id);
+      if (full.client_secret) {
+        return {
+          status: "requires_payment",
+          clientSecret: full.client_secret,
+          paymentIntentId: full.id,
+        };
+      }
+    }
+
+    // (c) Nothing reusable — mint a fresh one-time PaymentIntent.
+    const intent = await this.stripe.createCoursePaymentIntent({
       customerId,
       amount,
       currency: course.priceCurrency,
-      productName: course.title,
       userId: user.id,
       courseId,
-      // {CHECKOUT_SESSION_ID} is substituted by Stripe on redirect so the web
-      // can confirm the grant inline (no webhook needed in dev).
-      successUrl: `${this.appUrl()}/courses/${courseId}?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${this.appUrl()}/courses/${courseId}?purchase=cancel`,
     });
-    if (!session.url) {
-      throw new BadRequestException("Stripe did not return a checkout URL");
-    }
-    return { url: session.url };
+    return {
+      // A fresh PI is never already-succeeded, but keep the branch honest.
+      status: intent.status === "succeeded" ? "paid" : "requires_payment",
+      clientSecret: intent.clientSecret,
+      paymentIntentId: intent.paymentIntentId,
+    };
   }
 
-  // Confirm a one-off course purchase inline after the Stripe redirect: verify
-  // the session is a PAID course checkout that belongs to THIS caller, then grant
-  // (idempotent). Lets a purchase reflect immediately without waiting on the
-  // webhook — mirrors syncMySubscriptions for subscriptions.
-  async confirmCoursePurchase(
+  // Confirm a one-off course purchase inline after Stripe.js confirms the card:
+  // re-fetch the PaymentIntent, verify it's a SUCCEEDED course purchase that
+  // belongs to THIS caller, then grant (idempotent). Reflects the purchase
+  // immediately without waiting on the webhook (which is the backstop).
+  async confirmCourseIntent(
     userId: string,
-    sessionId: string,
+    paymentIntentId: string,
   ): Promise<{ granted: boolean }> {
-    const session = await this.stripe.retrieveCheckoutSession(sessionId);
-    const meta = session.metadata ?? {};
+    const pi = await this.stripe.retrievePaymentIntent(paymentIntentId);
+    const meta = pi.metadata ?? {};
     const courseId = meta.courseId;
-    const ownerId = session.client_reference_id || meta.userId;
-    // Only handle our one-off course checkouts; anything else is a no-op.
-    if (session.mode !== "payment" || meta.kind !== "course" || !courseId) {
+    // Only handle our one-off course PaymentIntents; anything else is a no-op.
+    if (meta.kind !== "course" || !courseId) {
       return { granted: false };
     }
-    // Ownership: never let one member confirm another's checkout session.
-    // Fail CLOSED — if the session carries no owner identity at all (never true
-    // for sessions this app creates, which always stamp client_reference_id +
-    // metadata.userId), reject rather than trusting the caller.
-    if (!ownerId || ownerId !== userId) {
-      throw new ForbiddenException("This checkout does not belong to you");
+    // Ownership: never let one member confirm another's payment. Fail CLOSED —
+    // reject if the intent carries no owner (never true for intents this app
+    // creates, which always stamp metadata.userId), rather than trusting the id
+    // the browser sent.
+    if (!meta.userId || meta.userId !== userId) {
+      throw new ForbiddenException("This payment does not belong to you");
     }
-    if (session.payment_status !== "paid") {
+    if (pi.status !== "succeeded") {
       return { granted: false };
     }
-    const pi = session.payment_intent;
-    const paymentIntentId = typeof pi === "string" ? pi : (pi?.id ?? null);
     await this.grantCoursePurchase({
       userId,
       courseId,
-      sessionId: session.id,
-      paymentIntentId,
-      amount: session.amount_total ?? null,
-      currency: session.currency ?? null,
+      paymentIntentId: pi.id,
+      amount: pi.amount_received ?? pi.amount ?? null,
+      currency: pi.currency ?? null,
     });
     return { granted: true };
   }
 
   // Upsert the course-scoped entitlement for a paid one-off purchase. Idempotent
   // on the (userId, courseId, STRIPE) grant: a webhook replay re-asserts ACTIVE
-  // with the same session; a re-purchase after a refund re-activates the row.
+  // with the same PaymentIntent; a re-purchase after a refund re-activates the
+  // row with the new one. The inline confirm and the webhook both call this for
+  // the same payment — the upsert + dedupeKey make that convergent, not double.
   private async grantCoursePurchase(input: {
     userId: string;
     courseId: string;
-    sessionId: string;
-    paymentIntentId: string | null;
+    paymentIntentId: string;
     amount: number | null;
     currency: string | null;
   }): Promise<void> {
@@ -510,14 +551,12 @@ export class BillingService implements OnModuleInit {
         courseId: input.courseId,
         source: "STRIPE",
         status: "ACTIVE",
-        stripeCheckoutSessionId: input.sessionId,
         stripePaymentIntentId: input.paymentIntentId,
         amount: input.amount,
         currency: input.currency,
       },
       update: {
         status: "ACTIVE",
-        stripeCheckoutSessionId: input.sessionId,
         stripePaymentIntentId: input.paymentIntentId,
         amount: input.amount,
         currency: input.currency,
@@ -526,12 +565,12 @@ export class BillingService implements OnModuleInit {
     });
 
     // Admin notification once per genuine new/reactivated grant (the unique
-    // dedupeKey on the session is the backstop against webhook + inline-confirm
-    // both firing for the same purchase).
+    // dedupeKey on the PaymentIntent is the backstop against the webhook +
+    // inline-confirm both firing for the same purchase).
     const isNewGrant =
       !prev ||
       prev.status !== "ACTIVE" ||
-      prev.stripeCheckoutSessionId !== input.sessionId;
+      prev.stripePaymentIntentId !== input.paymentIntentId;
     if (isNewGrant) {
       await this.notify({
         type: "PAYMENT_SUCCEEDED",
@@ -543,38 +582,35 @@ export class BillingService implements OnModuleInit {
             : ""
         }`,
         userId: input.userId,
-        dedupeKey: `course:purchase:${input.sessionId}`,
+        dedupeKey: `course:purchase:${input.paymentIntentId}`,
       });
     }
   }
 
-  // Dispatch a Stripe Checkout Session event to the course-purchase grant. Only
-  // one-off (mode=payment) COURSE sessions are handled — subscription-mode
-  // checkouts reconcile via customer.subscription.* events and are ignored here.
-  private async handleCheckoutSessionEvent(
-    session: Stripe.Checkout.Session,
+  // Backstop for the one-off course purchase: grant on the Stripe
+  // payment_intent.succeeded webhook. Only COURSE intents are handled
+  // (metadata.kind==="course"); a subscription's first-invoice PaymentIntent
+  // carries {userId,levelId} instead and reconciles via customer.subscription.*.
+  private async handleCoursePaymentIntentEvent(
+    pi: Stripe.PaymentIntent,
   ): Promise<void> {
-    if (session.mode !== "payment") return;
-    if (session.payment_status !== "paid") return;
-    const meta = session.metadata ?? {};
+    if (pi.status !== "succeeded") return;
+    const meta = pi.metadata ?? {};
     if (meta.kind !== "course") return;
     const courseId = meta.courseId;
-    const userId = session.client_reference_id || meta.userId;
+    const userId = meta.userId;
     if (!courseId || !userId) {
       this.logger.warn(
-        `[course-purchase] session ${session.id} missing courseId/userId metadata`,
+        `[course-purchase] payment_intent ${pi.id} missing courseId/userId metadata`,
       );
       return;
     }
-    const pi = session.payment_intent;
-    const paymentIntentId = typeof pi === "string" ? pi : (pi?.id ?? null);
     await this.grantCoursePurchase({
       userId,
       courseId,
-      sessionId: session.id,
-      paymentIntentId,
-      amount: session.amount_total ?? null,
-      currency: session.currency ?? null,
+      paymentIntentId: pi.id,
+      amount: pi.amount_received ?? pi.amount ?? null,
+      currency: pi.currency ?? null,
     });
   }
 
@@ -1372,12 +1408,13 @@ export class BillingService implements OnModuleInit {
             event.id,
           );
           break;
-        // One-off course purchase (mode=payment). async_payment_succeeded covers
-        // delayed methods that settle after the initial redirect.
-        case "checkout.session.completed":
-        case "checkout.session.async_payment_succeeded":
-          await this.handleCheckoutSessionEvent(
-            event.data.object as Stripe.Checkout.Session,
+        // One-off course purchase (embedded one-time PaymentIntent). The inline
+        // confirm grants immediately; this is the backstop when the tab closes
+        // before confirm. The kind==="course" guard inside skips subscription
+        // invoice PaymentIntents, which also emit this event.
+        case "payment_intent.succeeded":
+          await this.handleCoursePaymentIntentEvent(
+            event.data.object as Stripe.PaymentIntent,
           );
           break;
         // Payment reversed — revoke any one-off course grant tied to the charge.
