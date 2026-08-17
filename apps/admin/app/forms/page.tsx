@@ -21,6 +21,8 @@ import { ApiError, api } from "@/lib/api";
 import { apiUrl, webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { usePersistedDraft } from "@/lib/usePersistedDraft";
+import DraftRestoredBanner from "@/components/DraftRestoredBanner";
 import { STR } from "@lms/types";
 import { Button } from "@lms/ui";
 
@@ -181,6 +183,10 @@ export default function FormsPage() {
   const [form, setForm] = useState<EditorState>(newForm());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Arms draft persistence only once the editor is fully SEEDED. openEdit sets
+  // mode="edit" before its async fetch resolves, so without this the draft hook
+  // would capture its baseline against stale form/editingId (see below).
+  const [editorReady, setEditorReady] = useState(false);
 
   const [audiences, setAudiences] = useState<AudienceDTO[]>([]);
   const [audiencesError, setAudiencesError] = useState<string | null>(null);
@@ -307,12 +313,14 @@ export default function FormsPage() {
     setFormError(null);
     setMergeFields([]);
     setMode("edit");
+    setEditorReady(true); // seeded synchronously → arm drafts now
     void loadAudiences();
   }
 
   async function openEdit(id: string) {
     setFormError(null);
     setMode("edit");
+    setEditorReady(false); // don't arm drafts until the fetched form is seeded
     void loadAudiences();
     try {
       const f = await api.getForm(id);
@@ -330,6 +338,7 @@ export default function FormsPage() {
         afterSubmit: f.redirectUrl ? "redirect" : "message",
         status: f.status,
       });
+      setEditorReady(true); // form is seeded → safe to arm drafts
       if (f.audienceId) void loadMergeFields(f.audienceId);
     } catch (err) {
       setFormError(
@@ -341,8 +350,21 @@ export default function FormsPage() {
   function backToList() {
     setMode("list");
     setEditingId(null);
+    setEditorReady(false);
     void load();
   }
+
+  // Persist the in-progress form-builder editor so a half-built form resumes on
+  // reopen / reload. `open` is gated on editorReady so the baseline is captured
+  // against the fully-seeded form (openEdit seeds asynchronously).
+  const draft = usePersistedDraft({
+    formKey: "forms-editor",
+    version: 1,
+    entityId: editingId,
+    open: mode === "edit" && editorReady,
+    data: form,
+    restore: (d) => setForm(d),
+  });
 
   // Create/update return exactly the FormAdminRow the list renders (same
   // toAdminRow mapper as the list, `submissionCount` and `audienceName`
@@ -456,8 +478,10 @@ export default function FormsPage() {
           ? await api.updateForm(editingId, buildPayload())
           : await api.createForm(buildPayload()),
       );
+      draft.clearSaved(); // saved successfully → drop the persisted draft
       setMode("list");
       setEditingId(null);
+      setEditorReady(false);
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Failed to save form",
@@ -745,8 +769,6 @@ export default function FormsPage() {
           ← Back to forms
         </Button>
       </div>
-
-      {formError && <p className="error">{formError}</p>}
 
       <form onSubmit={save}>
         <div
@@ -1191,6 +1213,12 @@ export default function FormsPage() {
           </div>
         </div>
 
+        {draft.restored && <DraftRestoredBanner onDiscard={draft.discard} />}
+        {formError && (
+          <p className="error" role="alert">
+            {formError}
+          </p>
+        )}
         <div className="row-actions" style={{ marginTop: 16 }}>
           <Button type="submit" disabled={saving}>
             {saving

@@ -13,6 +13,8 @@ import { ApiError, api } from "@/lib/api";
 import { classAccentIndex } from "@/lib/class-accent";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { usePersistedDraft } from "@/lib/usePersistedDraft";
+import DraftRestoredBanner from "@/components/DraftRestoredBanner";
 import RowMenu from "@/components/RowMenu";
 import { STR, CLASS_ACCENTS as ACCENT_SLOTS } from "@lms/types";
 import { Button } from "@lms/ui";
@@ -188,6 +190,9 @@ export default function LiveSessionsPage() {
   const [form, setForm] = useState<EditorState>(newSession());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // Arms draft persistence only once the editor is fully SEEDED — openEdit sets
+  // mode="edit" before its async fetch resolves (see openEdit below).
+  const [editorReady, setEditorReady] = useState(false);
 
   const zones = tzOptions();
 
@@ -220,11 +225,13 @@ export default function LiveSessionsPage() {
     setForm(newSession());
     setFormError(null);
     setMode("edit");
+    setEditorReady(true); // seeded synchronously → arm drafts now
   }
 
   async function openEdit(id: string) {
     setFormError(null);
     setMode("edit");
+    setEditorReady(false); // don't arm drafts until the fetched session is seeded
     try {
       const s = await api.getLiveSession(id);
       const tz = s.timezone ?? browserTz();
@@ -247,6 +254,7 @@ export default function LiveSessionsPage() {
         durationMin: s.durationMin,
         joinLeadMin: s.joinLeadMin,
       });
+      setEditorReady(true); // session is seeded → safe to arm drafts
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Failed to load session",
@@ -257,8 +265,40 @@ export default function LiveSessionsPage() {
   function backToList() {
     setMode("list");
     setEditingId(null);
+    setEditorReady(false);
     void load();
   }
+
+  // Persist the in-progress session editor so it resumes on reopen / reload.
+  // `open` waits for editorReady so the baseline is captured against the seeded
+  // form. The two write-only SECRET fields (joinUrl, password) are stripped from
+  // the persisted data — a Zoom URL often embeds the passcode, so neither may
+  // touch localStorage — and restore MERGES so it can't wipe what's being typed.
+  const draft = usePersistedDraft({
+    formKey: "live-session",
+    version: 1,
+    entityId: editingId,
+    open: mode === "edit" && editorReady,
+    // Every editor field EXCEPT the two write-only secrets (password, joinUrl).
+    data: {
+      title: form.title,
+      description: form.description,
+      provider: form.provider,
+      audience: form.audience,
+      levelIds: form.levelIds,
+      replaceUrl: form.replaceUrl,
+      hasJoinUrl: form.hasJoinUrl,
+      replacePassword: form.replacePassword,
+      clearPassword: form.clearPassword,
+      hasPassword: form.hasPassword,
+      startsAtLocal: form.startsAtLocal,
+      timezone: form.timezone,
+      durationMin: form.durationMin,
+      joinLeadMin: form.joinLeadMin,
+    },
+    // Merge so restoring never wipes the secrets the admin may be typing.
+    restore: (d) => setForm((f) => ({ ...f, ...d })),
+  });
 
   // Create/update/publish all return the full AdminLiveSessionDTO through the
   // same toAdminDTO mapper the list uses (targets included, so `audienceLabel`
@@ -371,8 +411,10 @@ export default function LiveSessionsPage() {
         };
         applySession(await api.createLiveSession(payload));
       }
+      draft.clearSaved(); // saved successfully → drop the persisted draft
       setMode("list");
       setEditingId(null);
+      setEditorReady(false);
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Failed to save session",
@@ -650,8 +692,6 @@ export default function LiveSessionsPage() {
         </Button>
       </div>
 
-      {formError && <p className="error">{formError}</p>}
-
       <form onSubmit={save} style={{ maxWidth: 720 }}>
         <div className="card">
           <div className="field">
@@ -897,6 +937,12 @@ export default function LiveSessionsPage() {
           </div>
         </div>
 
+        {draft.restored && <DraftRestoredBanner onDiscard={draft.discard} />}
+        {formError && (
+          <p className="error" role="alert">
+            {formError}
+          </p>
+        )}
         <div className="row-actions" style={{ marginTop: 16 }}>
           <Button type="submit" disabled={saving}>
             {saving

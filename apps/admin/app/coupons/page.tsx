@@ -7,6 +7,8 @@ import { ApiError, api } from "@/lib/api";
 import { qk } from "@/lib/queries";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
+import { usePersistedDraft } from "@/lib/usePersistedDraft";
+import DraftRestoredBanner from "@/components/DraftRestoredBanner";
 import { STR, formatMoney } from "@lms/types";
 import { Button } from "@lms/ui";
 
@@ -98,6 +100,38 @@ export default function CouponsPage() {
     setLevelId("");
   }
 
+  // Persist the half-filled "Create coupon" form so it survives a reload / tab
+  // switch. Create-only (no edit), so entityId is null; `open` follows the RBAC
+  // gate so it never arms before auth resolves or without permission.
+  const draft = usePersistedDraft({
+    formKey: "coupons",
+    version: 1,
+    entityId: null,
+    open: canRead,
+    data: {
+      code,
+      discountType,
+      value,
+      currency,
+      duration,
+      durationInMonths,
+      maxRedemptions,
+      expiresAt,
+      levelId,
+    },
+    restore: (d) => {
+      setCode(d.code);
+      setDiscountType(d.discountType);
+      setValue(d.value);
+      setCurrency(d.currency);
+      setDuration(d.duration);
+      setDurationInMonths(d.durationInMonths);
+      setMaxRedemptions(d.maxRedemptions);
+      setExpiresAt(d.expiresAt);
+      setLevelId(d.levelId);
+    },
+  });
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -128,6 +162,7 @@ export default function CouponsPage() {
       // Stripe lists promotion codes newest-first, so the new code goes on top.
       // Levels are untouched by a coupon create, so they need no refresh.
       const created = await api.createCoupon(input);
+      draft.clearSaved(); // created successfully → drop the persisted draft
       resetForm();
       queryClient.setQueryData<CouponDTO[]>(qk.coupons, (prev = []) => [
         created,
@@ -344,6 +379,7 @@ export default function CouponsPage() {
             </select>
           </div>
 
+          {draft.restored && <DraftRestoredBanner onDiscard={draft.discard} />}
           {pageError && <p className="error">{pageError}</p>}
           <div className="row-actions">
             <Button type="submit" disabled={saving}>
