@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { api, setCachedMe, storePreviewPair } from "@/lib/api";
 
 // Handoff landing for the admin "preview the member site" flow. The admin
@@ -13,7 +13,6 @@ import { api, setCachedMe, storePreviewPair } from "@/lib/api";
 // history. The member never types anything: the handoff is the sole credential.
 function PreviewExchange() {
   const params = useSearchParams();
-  const router = useRouter();
   const handoff = params.get("token");
   // Only allow same-origin internal paths (no open redirect via ?to=). Must be
   // a single leading slash: reject "//host" (protocol-relative) and "/\\host",
@@ -43,16 +42,21 @@ function PreviewExchange() {
         try {
           setCachedMe(await api.me());
         } catch {
-          /* non-fatal — the banner will resolve via useMe() shortly */
+          /* non-fatal — the banner will resolve via /auth/me on the next load */
         }
-        router.replace(to);
+        // HARD navigation (not router.replace): a full document load remounts
+        // the whole app with the token already in localStorage, so the preview
+        // banner + every query seed from one consistent, token-present state on
+        // ANY destination. A soft SPA nav leaves the persistent root layout
+        // (and the banner's token snapshot) stuck on the pre-token guest state.
+        window.location.replace(to);
       } catch {
         // Expired/already-used/invalid handoff, or a transient network error —
         // all land on the same "preview ended" state (no member data shown).
         setFailed(true);
       }
     })();
-  }, [expired, handoff, router, to]);
+  }, [expired, handoff, to]);
 
   if (failed) {
     return (

@@ -22,7 +22,7 @@ import {
 import { useState } from "react";
 import { ApiError } from "@lms/types";
 
-import { clearToken, getCachedMe, getToken } from "./api";
+import { clearToken, getPreviewPair, getToken } from "./api";
 
 export const STALE = {
   // Same 15s the mobile app settled on: fresh enough that another admin's
@@ -50,9 +50,11 @@ function onApiError(error: unknown): void {
   if (!getToken()) return;
   // A preview session that expired (or was revoked via "End preview") must land
   // on the friendly "preview ended" screen, NOT the member login — the
-  // synthetic preview member has no password to sign back in with. Read the
-  // flag BEFORE clearToken() wipes the me-cache.
-  const wasPreview = getCachedMe()?.isPreview === true;
+  // synthetic preview member has no password to sign back in with. Identify the
+  // session by the preview-pair (written on handoff, and NOT nulled by the
+  // toggle) rather than the me-cache, which can be transiently null mid-toggle
+  // and would misroute a preview 401 to /login. Read BEFORE clearToken() wipes it.
+  const wasPreview = getPreviewPair() != null;
   clearToken();
   if (wasPreview) {
     if (window.location.pathname !== "/preview") {
