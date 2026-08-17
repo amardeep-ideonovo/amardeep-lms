@@ -20,6 +20,12 @@ export interface AuthUser {
   firstName: string | null;
   lastName: string | null;
   avatarUrl: string | null; // profile photo URL (served from /media); null if unset
+  // Set only for the synthetic admin "preview member" (never a real member):
+  // `isPreview` marks the read-only site-preview session; `previewMode` tells
+  // the web whether this session sees paid content ("unlocked") or the
+  // paywalled/upsell view ("locked"), driving the preview banner + its toggle.
+  isPreview?: boolean;
+  previewMode?: "locked" | "unlocked";
 }
 export interface AuthAdmin {
   id: string;
@@ -65,6 +71,8 @@ export const ADMIN_SECTIONS = [
   { key: "certificates", label: "Certificates" },
   { key: "projects", label: "Projects" },
   { key: "liveSessions", label: "Live Sessions" },
+  // Read-only: the only capability is "start a preview of the member site".
+  { key: "sitePreview", label: "Site Preview", readOnly: true },
 ] as const;
 export type AdminSection = (typeof ADMIN_SECTIONS)[number]["key"];
 

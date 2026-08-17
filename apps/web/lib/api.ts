@@ -78,6 +78,17 @@ function apiBase(): string {
 
 const TOKEN_KEY = "lms_member_token";
 const ME_CACHE_KEY = "lms_member_me";
+// Admin "preview as member" holds BOTH read-only session tokens (see the
+// site-preview backend) so the preview banner can flip between the paywalled
+// (locked) and paid (unlocked) views without another admin round-trip.
+const PREVIEW_PAIR_KEY = "lms_preview_pair";
+
+export type PreviewMode = "locked" | "unlocked";
+interface PreviewPair {
+  unlockedToken: string;
+  lockedToken: string;
+  active: PreviewMode;
+}
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -93,6 +104,54 @@ export function clearToken(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(ME_CACHE_KEY);
+  window.localStorage.removeItem(PREVIEW_PAIR_KEY);
+}
+
+// ---------- Admin site-preview session (both tokens + which is active) ----------
+
+export function getPreviewPair(): PreviewPair | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(PREVIEW_PAIR_KEY);
+    return raw ? (JSON.parse(raw) as PreviewPair) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Persist both preview session tokens and make one active (defaults to the
+// unlocked/paid view). Also writes the active token to the normal member-token
+// slot so every existing call path (getToken/AuthGate/api) just works.
+export function storePreviewPair(
+  unlockedToken: string,
+  lockedToken: string,
+  active: PreviewMode = "unlocked",
+): void {
+  if (typeof window === "undefined") return;
+  const pair: PreviewPair = { unlockedToken, lockedToken, active };
+  try {
+    window.localStorage.setItem(PREVIEW_PAIR_KEY, JSON.stringify(pair));
+  } catch {
+    /* private mode / quota — non-fatal; token slot below is what matters */
+  }
+  setToken(active === "unlocked" ? unlockedToken : lockedToken);
+}
+
+// Flip the active preview session (banner toggle). Returns false if there's no
+// stored pair (not a preview session). Caller reloads so queries refetch under
+// the new entitlement.
+export function setActivePreview(mode: PreviewMode): boolean {
+  const pair = getPreviewPair();
+  if (!pair) return false;
+  const next: PreviewPair = { ...pair, active: mode };
+  try {
+    window.localStorage.setItem(PREVIEW_PAIR_KEY, JSON.stringify(next));
+  } catch {
+    /* non-fatal */
+  }
+  setToken(mode === "unlocked" ? pair.unlockedToken : pair.lockedToken);
+  setCachedMe(null); // force a fresh /auth/me for the new identity's previewMode
+  return true;
 }
 
 // Last-known member profile, cached so the nav avatar paints instantly on
@@ -165,6 +224,14 @@ export const api = {
       auth: false,
     }),
   me: () => request<AuthUser>("/auth/me"),
+  // Admin site-preview: exchange the short-lived handoff (from the admin
+  // dashboard) for the two read-only preview session tokens. Tokenless — no
+  // member session exists yet, same convention as login/signup.
+  exchangePreview: (handoff: string) =>
+    request<{ unlockedToken: string; lockedToken: string }>(
+      "/site-preview/exchange",
+      { method: "POST", body: { handoff }, auth: false },
+    ),
   updateMe: (input: UpdateProfileInput) =>
     request<AuthUser>("/auth/me", { method: "PATCH", body: input }),
   // Member profile photo upload (multipart; the cropper hands us a JPEG blob).

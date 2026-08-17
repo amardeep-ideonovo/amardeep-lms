@@ -22,6 +22,9 @@ export const ERROR_CODES = [
   "CURRENT_PASSWORD_INCORRECT",
   "PASSWORD_UNCHANGED",
   "RESET_LINK_INVALID",
+  // admin site-preview (no-account member-site preview)
+  "PREVIEW_LINK_INVALID",
+  "PREVIEW_READ_ONLY",
   // live sessions (pre-existing precedent, now part of the family)
   "OUTSIDE_WINDOW",
 ] as const;

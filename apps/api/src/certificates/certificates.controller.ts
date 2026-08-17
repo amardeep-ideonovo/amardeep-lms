@@ -43,8 +43,11 @@ export class CertificatesController {
     @CurrentUser() principal: AuthenticatedPrincipal,
     @Body() dto: ClaimCertificateDto,
   ) {
-    // Certificates belong to members; an admin token has no member identity.
-    if (principal.isAdmin) throw new ForbiddenException("Members only");
+    // Certificates belong to members; an admin token has no member identity,
+    // and a read-only preview session must never mint a real Certificate row
+    // (the global PreviewReadOnlyGuard also 403s this POST — belt and braces).
+    if (principal.isAdmin || principal.isPreview)
+      throw new ForbiddenException("Members only");
     return this.certificates.claim(principal.sub, dto);
   }
 

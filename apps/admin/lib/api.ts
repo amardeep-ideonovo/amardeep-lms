@@ -335,6 +335,10 @@ export const api = {
       password,
     }),
   me: () => request<AuthAdmin>("GET", "/auth/me"),
+  // Start a no-account "preview the member site" session: returns a 60s handoff
+  // the admin opens at <webUrl>/preview?token=…. Gated by sitePreview:read.
+  startSitePreview: () =>
+    request<{ handoff: string }>("POST", "/admin/site-preview"),
   // The API bumps tokenVersion (revoking other sessions) and returns a fresh
   // token for THIS session — store it so the current session survives.
   changeOwnPassword: async (currentPassword: string, newPassword: string) => {

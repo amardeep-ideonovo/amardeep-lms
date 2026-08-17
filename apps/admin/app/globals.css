@@ -392,6 +392,57 @@ a {
 .topbar-spacer {
   flex: 1;
 }
+/* Quick actions in the dark top bar (View site / Preview as member). Ghost
+   pills that read on the ink background; collapse to icon-only on small
+   screens so they stay reachable without crowding the search box. */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.topbar-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+.topbar-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+.topbar-action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.topbar-action svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+@media (max-width: 900px) {
+  .topbar-action-label {
+    display: none;
+  }
+  .topbar-action {
+    width: 34px;
+    padding: 0;
+    justify-content: center;
+  }
+}
 .topbar-search {
   position: relative;
   display: flex;

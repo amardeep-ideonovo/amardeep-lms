@@ -5,6 +5,7 @@ import "@lms/ui/tokens.css";
 import "./globals.css";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import PreviewBanner from "@/components/PreviewBanner";
 import { ToastProvider } from "@/components/Toast";
 import { QueryProvider } from "@/lib/query";
 import {
@@ -108,6 +109,11 @@ export default async function RootLayout({
         <script src="/env.js" defer />
         <QueryProvider>
           <ToastProvider>
+            {/* Admin "preview the member site" banner — renders only during a
+                preview session (no-op for real members and guests). Inside
+                QueryProvider so it can read /auth/me; above Nav so it sits at the
+                very top of every page. */}
+            <PreviewBanner />
             <Nav
               initialHeader={header}
               initialMenu={headerMenu}

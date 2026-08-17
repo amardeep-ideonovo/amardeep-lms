@@ -151,7 +151,10 @@ export class MembersService {
   // (ReportsService) applies the EXACT same class/status/search filters as the
   // on-screen list (ignoring pagination). Kept in one place so parity can't drift.
   buildListWhere(query: ListMembersQueryDto = {}): Prisma.UserWhereInput {
-    const and: Prisma.UserWhereInput[] = [];
+    // Never surface the synthetic admin "preview member" rows in the members
+    // list, its counts, or the members export (which reuses this WHERE). They
+    // are not real members. Applied first so it's part of every derived query.
+    const and: Prisma.UserWhereInput[] = [{ isPreview: false }];
 
     const q = query.q?.trim();
     if (q) {
@@ -204,17 +207,23 @@ export class MembersService {
    */
   async stats(): Promise<MemberStatsDTO> {
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    // Exclude the synthetic preview members from every KPI (they aren't members).
     const [total, activeSubs, pastDue, newThisWeek] = await Promise.all([
-      this.prisma.user.count(),
+      this.prisma.user.count({ where: { isPreview: false } }),
       this.prisma.user.count({
         where: {
+          isPreview: false,
           levels: {
             some: { source: "STRIPE", status: { in: ["ACTIVE", "PAST_DUE"] } },
           },
         },
       }),
-      this.prisma.user.count({ where: this.statusWhere("past_due") }),
-      this.prisma.user.count({ where: { createdAt: { gte: weekAgo } } }),
+      this.prisma.user.count({
+        where: { AND: [this.statusWhere("past_due"), { isPreview: false }] },
+      }),
+      this.prisma.user.count({
+        where: { createdAt: { gte: weekAgo }, isPreview: false },
+      }),
     ]);
     return { total, activeSubs, pastDue, newThisWeek };
   }

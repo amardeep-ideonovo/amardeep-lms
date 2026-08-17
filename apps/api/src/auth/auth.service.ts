@@ -96,6 +96,16 @@ export class AuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       avatarUrl: user.avatarUrl ?? null,
+      // Only present for the synthetic preview members — tells the web app it's
+      // a read-only preview session and which mode (locked/unlocked) is active,
+      // driving the preview banner + its toggle. Omitted for real members.
+      ...(user.isPreview
+        ? {
+            isPreview: true,
+            previewMode:
+              user.previewMode === "unlocked" ? "unlocked" : "locked",
+          }
+        : {}),
     };
   }
 

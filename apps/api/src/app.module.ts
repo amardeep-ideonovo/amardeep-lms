@@ -38,6 +38,8 @@ import { SupportModule } from "./support/support.module";
 import { HealthModule } from "./health/health.module";
 import { ControlPlaneModule } from "./control-plane/control-plane.module";
 import { ContentPackModule } from "./content-pack/content-pack.module";
+import { SitePreviewModule } from "./site-preview/site-preview.module";
+import { PreviewReadOnlyGuard } from "./site-preview/preview-read-only.guard";
 
 @Module({
   imports: [
@@ -94,9 +96,15 @@ import { ContentPackModule } from "./content-pack/content-pack.module";
     LiveModule,
     SupportModule,
     ContentPackModule,
+    SitePreviewModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: GlobalThrottlerGuard },
+    // Read-only guard for admin "preview member" sessions: 403s any write verb
+    // carrying a preview JWT, so the synthetic preview users can never mutate
+    // data (keeps their "no relational rows" isolation invariant). Runs on
+    // every request; cheap (verb allowlist + one HMAC decode only when needed).
+    { provide: APP_GUARD, useClass: PreviewReadOnlyGuard },
     // D6: every HTTP error body carries a machine-readable `code`
     // ("UNSPECIFIED" for legacy string-only throws) — one response shape.
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
