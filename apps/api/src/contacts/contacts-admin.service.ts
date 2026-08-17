@@ -22,6 +22,7 @@ import type {
   UpdateSegmentInput,
   UpsertAudienceFieldInput,
 } from "@lms/types";
+import { slugify as toSlug } from "../common/slugify";
 import { PrismaService } from "../prisma/prisma.service";
 
 // Admin-facing CRUD for the in-house list system (Audiences / Fields / Contacts
@@ -35,15 +36,13 @@ export class ContactsAdminService {
     return email.trim().toLowerCase();
   }
 
-  // Slugify a user-supplied slug (or null to clear it). Empty -> null.
+  // Normalize a user-supplied audience slug (or null to clear it). Empty -> null.
+  // Delegates to the shared @lms/types slugify so audience URLs derive the same
+  // way as classes/courses/blog/pages (this also gains NFKD diacritic-stripping
+  // over the previous local rule, e.g. "Café VIPs" -> "cafe-vips").
   private slugify(input?: string | null): string | null {
     if (input == null) return null;
-    const s = input
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-    return s || null;
+    return toSlug(input) || null;
   }
 
   // ───────────────────────── mappers ─────────────────────────

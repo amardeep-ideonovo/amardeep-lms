@@ -14,6 +14,7 @@ import type {
   LessonDTO,
   LessonNoteDTO,
 } from "@lms/types";
+import { slugify } from "../common/slugify";
 import type { LessonNote } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AccessService } from "./access.service";
@@ -145,22 +146,11 @@ export class LmsService {
   // Readable URL slug from a course title ("Course 1" -> "course-1"), unique
   // among courses (suffix -2, -3 on collision). null when the title has no
   // slug-able characters.
-  private slugify(input: string): string {
-    return input
-      .toLowerCase()
-      .normalize("NFKD")
-      .replace(/[̀-ͯ]/g, "") // strip diacritics
-      .replace(/[^a-z0-9\s-]/g, "")
-      .trim()
-      .replace(/[\s_-]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-  }
-
   private async courseSlugFor(
     title: string,
     ignoreId?: string,
   ): Promise<string | null> {
-    const base = this.slugify(title);
+    const base = slugify(title);
     if (!base) return null;
     for (let n = 1; ; n += 1) {
       const candidate = n === 1 ? base : `${base}-${n}`;

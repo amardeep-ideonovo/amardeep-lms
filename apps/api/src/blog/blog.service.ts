@@ -8,6 +8,7 @@ import type {
   PostListItem,
   PostStatus,
 } from "@lms/types";
+import { slugify } from "../common/slugify";
 import sanitizeHtml from "sanitize-html";
 import { ALLOWED_STYLES } from "../common/sanitize-styles";
 import { PrismaService } from "../prisma/prisma.service";
@@ -176,7 +177,7 @@ export class BlogService {
     dto: CreatePostDto,
     authorId: string,
   ): Promise<PostAdminRow> {
-    const slug = await this.uniquePostSlug(this.slugify(dto.title));
+    const slug = await this.uniquePostSlug(slugify(dto.title) || "post");
     const status: PostStatus = dto.status ?? "DRAFT";
     // authorId comes from the JWT. If it no longer maps to an Admin (e.g. a token
     // issued before a DB reseed), fall back to an authorless post rather than
@@ -249,7 +250,7 @@ export class BlogService {
   }
 
   async createCategory(dto: CreatePostCategoryDto): Promise<PostCategoryDTO> {
-    const slug = await this.uniqueCategorySlug(this.slugify(dto.name));
+    const slug = await this.uniqueCategorySlug(slugify(dto.name) || "post");
     const cat = await this.prisma.postCategory.create({
       data: { name: dto.name.trim(), slug, order: dto.order ?? 0 },
     });
@@ -335,19 +336,6 @@ export class BlogService {
   }
 
   // ---------- slugs ----------
-
-  private slugify(input: string): string {
-    return (
-      input
-        .toLowerCase()
-        .normalize("NFKD")
-        .replace(/[̀-ͯ]/g, "") // strip diacritics
-        .replace(/[^a-z0-9\s-]/g, "")
-        .trim()
-        .replace(/[\s_-]+/g, "-")
-        .replace(/^-+|-+$/g, "") || "post"
-    );
-  }
 
   private async uniquePostSlug(base: string): Promise<string> {
     let slug = base;

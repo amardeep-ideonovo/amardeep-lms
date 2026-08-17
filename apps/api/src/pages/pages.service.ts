@@ -12,6 +12,7 @@ import type {
   PuckComponentData,
   PuckDocument,
 } from "@lms/types";
+import { slugify } from "../common/slugify";
 import type { Prisma } from "@prisma/client";
 import sanitizeHtml from "sanitize-html";
 import { ALLOWED_STYLES } from "../common/sanitize-styles";
@@ -170,7 +171,7 @@ export class PagesService {
     authorId: string,
   ): Promise<PageAdminRow> {
     const wantsCustom = !!dto.slug?.trim();
-    const base = this.slugify(dto.slug?.trim() || dto.title);
+    const base = slugify(dto.slug?.trim() || dto.title) || "page";
     const slug = await this.resolveSlug(base, wantsCustom);
     const status: PageStatus = dto.status ?? "DRAFT";
     // authorId comes from the JWT. If it no longer maps to an Admin (e.g. a token
@@ -207,7 +208,7 @@ export class PagesService {
     // Slug only changes when explicitly provided (stable URLs, like WordPress).
     let slug: string | undefined;
     if (dto.slug !== undefined) {
-      const base = this.slugify(dto.slug);
+      const base = slugify(dto.slug) || "page";
       slug =
         base === existing.slug
           ? existing.slug
@@ -339,19 +340,6 @@ export class PagesService {
   }
 
   // ---------- slugs ----------
-
-  private slugify(input: string): string {
-    return (
-      input
-        .toLowerCase()
-        .normalize("NFKD")
-        .replace(/[̀-ͯ]/g, "") // strip diacritics
-        .replace(/[^a-z0-9\s-]/g, "")
-        .trim()
-        .replace(/[\s_-]+/g, "-")
-        .replace(/^-+|-+$/g, "") || "page"
-    );
-  }
 
   // Resolve a free, non-reserved slug. `strict` (explicit custom slug) errors on
   // conflict; otherwise (derived from title) it auto-suffixes -2, -3, … `ignoreId`
