@@ -45,8 +45,10 @@ function ClassCard({
         : cls.categories?.map((c) => c.name).join(" · ") || "";
   const meta =
     cls.owned && notStarted && counts ? `${counts} · Not started` : counts;
-  const style: React.CSSProperties = cls.imageUrl
-    ? ({ "--card-img": `url(${cls.imageUrl})` } as React.CSSProperties)
+  // Square thumbnail is authored for tiles; fall back to the wide cover.
+  const tileImg = cls.thumbnailUrl ?? cls.imageUrl;
+  const style: React.CSSProperties = tileImg
+    ? ({ "--card-img": `url(${tileImg})` } as React.CSSProperties)
     : {};
   return (
     <Link

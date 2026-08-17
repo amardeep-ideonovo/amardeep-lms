@@ -103,7 +103,6 @@ model AuditLog {
 enum LevelType {
   PAID
   FREE
-  MANUAL
 }
 
 model Level {
@@ -117,7 +116,8 @@ model Level {
   stripeProductId       String? // prod_… for PAID levels
   paypalProductId       String? // PayPal catalog product id (lazy-provisioned when PayPal is active)
   // ----- MasterClass-style landing-page fields (all optional) -----
-  imageUrl              String? // hero/cover image for the class page
+  imageUrl              String? // wide hero/cover image for the class landing page
+  thumbnailUrl          String? // square thumbnail for the dashboard/class tiles (imageUrl stays the wide cover)
   description           String? // marketing description
   trailerUrl            String? // trailer: Vimeo/MP4 URL or a Gallery video URL
   skills                Json      @default("[]") // [{ title, imageUrl }] — "Skills You'll Learn"

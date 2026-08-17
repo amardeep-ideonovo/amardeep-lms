@@ -10,6 +10,7 @@ import type {
   LevelDTO,
   LevelType,
 } from "@lms/types";
+import { slugify } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
@@ -32,7 +33,7 @@ type PriceForm = {
   installments: string; // number of payments, then lifetime; "" = ongoing sub
 };
 
-const LEVEL_TYPES: LevelType[] = ["PAID", "FREE", "MANUAL"];
+const LEVEL_TYPES: LevelType[] = ["PAID", "FREE"];
 
 // An archive/unarchive write. `archived` is the row's CURRENT state (true →
 // unarchive); `current` is the pre-write slice the rollback restores.
@@ -72,6 +73,9 @@ export default function ClassesPage() {
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  // Whether the admin has hand-edited the slug. While false, the slug live-fills
+  // from the name; once they type in the slug box we stop clobbering it.
+  const [slugEdited, setSlugEdited] = useState(false);
   const [type, setType] = useState<LevelType>("PAID");
   const [published, setPublished] = useState(false);
   const [audienceTags, setAudienceTags] = useState<string[]>([]);
@@ -84,6 +88,7 @@ export default function ClassesPage() {
   const [prices, setPrices] = useState<PriceForm[]>([emptyPrice()]);
   // ----- landing-page (MasterClass-style) fields -----
   const [imageUrl, setImageUrl] = useState("");
+  const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [description, setDescription] = useState("");
   const [trailerUrl, setTrailerUrl] = useState("");
   const [skills, setSkills] = useState<{ title: string; imageUrl: string }[]>(
@@ -184,6 +189,7 @@ export default function ClassesPage() {
     setEditingId(null);
     setName("");
     setSlug("");
+    setSlugEdited(false); // a fresh create live-fills the slug from the name
     setType("PAID");
     setPublished(false);
     setAudienceTags([]);
@@ -193,6 +199,7 @@ export default function ClassesPage() {
     setPrices([emptyPrice()]);
     setCategoryIds([]);
     setImageUrl("");
+    setThumbnailUrl("");
     setDescription("");
     setTrailerUrl("");
     setSkills([]);
@@ -212,6 +219,7 @@ export default function ClassesPage() {
     setEditingId(level.id);
     setName(level.name);
     setSlug(level.slug ?? "");
+    setSlugEdited(true); // editing an existing class must not clobber its slug
     setType(level.type);
     setPublished(level.published);
     setAudienceTags(level.audienceTags ?? []);
@@ -220,6 +228,7 @@ export default function ClassesPage() {
     setAudienceName(level.audienceName ?? null);
     setCategoryIds(level.categories?.map((c) => c.id) ?? []);
     setImageUrl(level.imageUrl ?? "");
+    setThumbnailUrl(level.thumbnailUrl ?? "");
     setDescription(level.description ?? "");
     setTrailerUrl(level.trailerUrl ?? "");
     setCertificateTemplateId(level.certificateTemplateId ?? "");
@@ -273,13 +282,17 @@ export default function ClassesPage() {
           : audienceTags;
       const input: CreateLevelInput = {
         name: name.trim(),
-        slug: slug.trim(),
+        // When untouched, send "" so the server derives the slug from the name
+        // AND keeps its uniqueness suffixing (-2/-3); the box was just a live
+        // preview. When the admin typed a slug, send it explicitly.
+        slug: slugEdited ? slug.trim() : "",
         type,
         published,
         audienceTags: finalTags,
         audienceId: audienceId || undefined,
         categoryIds,
         imageUrl: imageUrl.trim(),
+        thumbnailUrl: thumbnailUrl.trim(),
         description: description.trim(),
         trailerUrl: trailerUrl.trim(),
         skills: skills
@@ -517,8 +530,6 @@ export default function ClassesPage() {
   const planPill = (lvl: LevelDTO) => {
     if (lvl.type === "FREE")
       return <span className="badge badge--ok">Free</span>;
-    if (lvl.type === "MANUAL")
-      return <span className="badge badge--neutral">Manual</span>;
     const p = lvl.prices[0];
     const label = p
       ? `${(p.amount / 100).toLocaleString(undefined, {
@@ -565,7 +576,13 @@ export default function ClassesPage() {
                     <label>{STR.labels.name}</label>
                     <input
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setName(v);
+                        // Live-fill the slug from the name until the admin edits
+                        // the slug field themselves.
+                        if (!slugEdited) setSlug(slugify(v));
+                      }}
                       required
                     />
                   </div>
@@ -649,7 +666,10 @@ export default function ClassesPage() {
                   </label>
                   <input
                     value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
+                    onChange={(e) => {
+                      setSlug(e.target.value);
+                      setSlugEdited(true);
+                    }}
                     placeholder="e.g. class-1"
                   />
                   <span className="muted" style={{ fontSize: 12 }}>
@@ -800,16 +820,29 @@ export default function ClassesPage() {
                   )}
                 </div>
 
-                <div className="field">
-                  <label>
-                    Class image{" "}
-                    <span className="muted">(landing-page hero)</span>
-                  </label>
-                  <MediaPicker
-                    value={imageUrl}
-                    onChange={setImageUrl}
-                    aspect={16 / 9}
-                  />
+                <div className="form-row">
+                  <div className="field">
+                    <label>
+                      Square thumbnail{" "}
+                      <span className="muted">(class tiles)</span>
+                    </label>
+                    <MediaPicker
+                      value={thumbnailUrl}
+                      onChange={setThumbnailUrl}
+                      aspect={1}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>
+                      Cover image{" "}
+                      <span className="muted">(landing-page hero)</span>
+                    </label>
+                    <MediaPicker
+                      value={imageUrl}
+                      onChange={setImageUrl}
+                      aspect={16 / 9}
+                    />
+                  </div>
                 </div>
 
                 <div className="field">

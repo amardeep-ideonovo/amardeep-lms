@@ -60,7 +60,7 @@ function AllPlansInner() {
   }, [router]);
 
   const subByLevel = new Map(subs.map((s) => [s.levelId, s]));
-  // Every PAID level is a purchasable plan; FREE/MANUAL levels aren't listed.
+  // Every PAID level is a purchasable plan; FREE levels aren't listed.
   const planLevels = (levels || []).filter((l) => l.type === "PAID");
   // Group by enrollment: the member's current plans first, then the rest.
   const currentPlans = planLevels.filter((l) => subByLevel.has(l.id));

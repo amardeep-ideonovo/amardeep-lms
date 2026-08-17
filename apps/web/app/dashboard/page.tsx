@@ -145,8 +145,10 @@ function ClassCard({
       : cls.progress && cls.progress.total > 0
         ? `${cls.progress.total} lesson${cls.progress.total === 1 ? "" : "s"}`
         : cls.categories?.map((c) => c.name).join(" · ") || "";
-  const style: React.CSSProperties = cls.imageUrl
-    ? ({ "--card-img": `url(${cls.imageUrl})` } as React.CSSProperties)
+  // Square thumbnail is authored for tiles; fall back to the wide cover.
+  const tileImg = cls.thumbnailUrl ?? cls.imageUrl;
+  const style: React.CSSProperties = tileImg
+    ? ({ "--card-img": `url(${tileImg})` } as React.CSSProperties)
     : {};
   return (
     <Link

@@ -2,7 +2,7 @@
 // This is the single source of truth all four apps build against.
 
 // ---------- Enums (mirror Prisma) ----------
-export type LevelType = "PAID" | "FREE" | "MANUAL";
+export type LevelType = "PAID" | "FREE";
 export type UserLevelSource = "STRIPE" | "MANUAL" | "PAYPAL";
 // Payment processor a subscription lives on. The admin-selected ACTIVE provider
 // (PUT /admin/settings/payment-provider) governs NEW checkouts only — existing
@@ -190,7 +190,8 @@ export interface LevelDTO {
   prices: PriceDTO[];
   categories: LevelCategoryDTO[]; // admin-only grouping ("Classes" categories)
   // ----- MasterClass-style landing-page fields -----
-  imageUrl: string | null; // hero/cover image
+  imageUrl: string | null; // wide hero/cover image (landing page)
+  thumbnailUrl: string | null; // square thumbnail (dashboard/class tiles)
   description: string | null;
   trailerUrl: string | null; // Vimeo/MP4 or Gallery video URL
   featuredCourseId: string | null; // course whose lessons are the curriculum
@@ -254,7 +255,8 @@ export interface CreateLevelInput {
   audienceTags?: string[]; // tag names applied within the in-house audience on grant
   audienceId?: string; // in-house Audience id to capture granted members into (omit = default "Members" audience)
   categoryIds?: string[]; // admin-only class categories to assign
-  imageUrl?: string; // hero/cover image (Gallery URL)
+  imageUrl?: string; // wide hero/cover image (Gallery URL)
+  thumbnailUrl?: string; // square thumbnail (Gallery URL) for class tiles
   description?: string;
   trailerUrl?: string; // Vimeo/MP4 or Gallery video URL
   featuredCourseId?: string; // course supplying the curriculum
@@ -594,7 +596,8 @@ export interface ClassTileDTO {
   id: string;
   name: string;
   slug: string | null;
-  imageUrl: string | null;
+  imageUrl: string | null; // wide cover (fallback for the tile if no thumbnail)
+  thumbnailUrl: string | null; // square thumbnail preferred on the tile
   owned: boolean;
   categories: LevelCategoryDTO[];
   // Lesson progress for OWNED classes (null for catalog tiles the member doesn't

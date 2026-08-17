@@ -8,6 +8,24 @@
 // keeps its bespoke Intl call.
 
 /**
+ * URL-slug from arbitrary text ("Modern Science" → "modern-science"). This is a
+ * VERBATIM port of the API's server-side slugify (levels.service.ts) so a
+ * client-side live preview (the class form autofills the slug as you type)
+ * matches exactly what the server would generate on save. The server stays the
+ * uniqueness backstop (it appends -2/-3 on collision).
+ */
+export function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "") // strip diacritics
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
  * Money from minor units (Stripe-style cents). The try/catch keeps a missing
  * Intl locale from ever crashing a billing surface (mobile's Hermes lesson).
  */

@@ -591,6 +591,9 @@ export default function ClassMemberArea({
 
   /* ----- Guest / not a member: buy card + about + trailer + closing ----- */
   const vimeo = trailerUrl ? vimeoEmbed(trailerUrl) : null;
+  // No priceLabel ⇔ the class has no active price, so checkoutHref would 404.
+  // Show the marketing without a dead "Get Class" link (admins hand-grant it).
+  const purchasable = priceLabel != null;
   return (
     <>
       <div className="ik-cols" style={{ marginTop: 0 }}>
@@ -665,13 +668,15 @@ export default function ClassMemberArea({
               Starting at <b style={{ color: "var(--text)" }}>{priceLabel}</b>
             </p>
           )}
-          <Link
-            href={checkoutHref}
-            className="ik-cta ik-cta--block"
-            style={{ marginTop: 16 }}
-          >
-            Get Class
-          </Link>
+          {purchasable && (
+            <Link
+              href={checkoutHref}
+              className="ik-cta ik-cta--block"
+              style={{ marginTop: 16 }}
+            >
+              Get Class
+            </Link>
+          )}
           <p
             style={{
               color: "var(--text-muted)",
@@ -687,8 +692,10 @@ export default function ClassMemberArea({
               >
                 Watch the trailer ↓
               </a>
-            ) : (
+            ) : purchasable ? (
               "Full lifetime access."
+            ) : (
+              "Enrollment is by invitation."
             )}
           </p>
         </aside>
@@ -696,46 +703,46 @@ export default function ClassMemberArea({
 
       {skills}
 
-      <section
-        className="ik-panel"
-        style={{ marginTop: 30, textAlign: "center", padding: "40px 24px" }}
-      >
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: 1.4,
-            textTransform: "uppercase",
-            color: "var(--teal-text)",
-          }}
+      {purchasable && (
+        <section
+          className="ik-panel"
+          style={{ marginTop: 30, textAlign: "center", padding: "40px 24px" }}
         >
-          Start today
-        </div>
-        <h2
-          style={{
-            fontSize: 24,
-            fontWeight: 700,
-            color: "var(--text)",
-            margin: "10px 0 18px",
-          }}
-        >
-          Begin {name}
-        </h2>
-        <Link
-          href={checkoutHref}
-          className="ik-cta"
-          style={{ padding: "13px 34px" }}
-        >
-          Get Class
-        </Link>
-        {priceLabel && (
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: 1.4,
+              textTransform: "uppercase",
+              color: "var(--teal-text)",
+            }}
+          >
+            Start today
+          </div>
+          <h2
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              color: "var(--text)",
+              margin: "10px 0 18px",
+            }}
+          >
+            Begin {name}
+          </h2>
+          <Link
+            href={checkoutHref}
+            className="ik-cta"
+            style={{ padding: "13px 34px" }}
+          >
+            Get Class
+          </Link>
           <p
             style={{ color: "var(--text-muted)", fontSize: 14, marginTop: 16 }}
           >
             Starting at {priceLabel}
           </p>
-        )}
-      </section>
+        </section>
+      )}
     </>
   );
 }

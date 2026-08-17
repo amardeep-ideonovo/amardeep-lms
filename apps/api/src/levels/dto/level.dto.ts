@@ -59,7 +59,7 @@ export class CreateLevelDto {
   @IsBoolean()
   published?: boolean;
 
-  @IsIn(["PAID", "FREE", "MANUAL"])
+  @IsIn(["PAID", "FREE"])
   type!: LevelType;
 
   // Tag names applied within the in-house audience on grant.
@@ -87,7 +87,11 @@ export class CreateLevelDto {
   // ----- MasterClass-style landing-page fields -----
   @IsOptional()
   @IsString()
-  imageUrl?: string;
+  imageUrl?: string; // wide hero/cover
+
+  @IsOptional()
+  @IsString()
+  thumbnailUrl?: string; // square thumbnail for class tiles
 
   @IsOptional()
   @IsString()
@@ -129,7 +133,7 @@ export class UpdateLevelDto {
   published?: boolean;
 
   @IsOptional()
-  @IsIn(["PAID", "FREE", "MANUAL"])
+  @IsIn(["PAID", "FREE"])
   type?: LevelType;
 
   // Tag names applied within the in-house audience on grant.
@@ -160,7 +164,11 @@ export class UpdateLevelDto {
   // ----- MasterClass-style landing-page fields -----
   @IsOptional()
   @IsString()
-  imageUrl?: string;
+  imageUrl?: string; // wide hero/cover
+
+  @IsOptional()
+  @IsString()
+  thumbnailUrl?: string; // square thumbnail for class tiles
 
   @IsOptional()
   @IsString()
