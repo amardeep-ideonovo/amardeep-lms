@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import DraftRestoredBanner from "./DraftRestoredBanner";
 
 /**
  * Pinned footer for an admin form modal. It lives OUTSIDE the scrolling
@@ -27,16 +28,7 @@ export function ModalFooter({
 }) {
   return (
     <div className="modal-footer">
-      {draftRestored && (
-        <div className="alert-warning modal-footer__draft" role="status">
-          <span>Draft restored — you have unsaved changes from earlier.</span>
-          {onDiscardDraft && (
-            <button type="button" className="linklike" onClick={onDiscardDraft}>
-              Discard
-            </button>
-          )}
-        </div>
-      )}
+      {draftRestored && <DraftRestoredBanner onDiscard={onDiscardDraft} />}
       {error && (
         <p className="error" role="alert">
           {error}
