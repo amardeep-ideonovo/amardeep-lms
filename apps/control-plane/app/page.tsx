@@ -92,14 +92,14 @@ export default function SalesPage() {
             Book a demo
           </Link>
           <Link href="/signup" className="btn btn-primary">
-            Get your instance
+            Get your academy
           </Link>
         </nav>
 
         <div className="hero">
           <div className="hero-left">
             <span className="badge-pill">
-              1 LICENSE = YOUR OWN ISOLATED INSTANCES
+              1 LICENSE = YOUR OWN ISOLATED ACADEMIES
             </span>
             <h1 className="hero-h1">
               Your own academy.
@@ -284,7 +284,7 @@ export default function SalesPage() {
             <div className="eyebrow">PRICING</div>
             <h2 className="pricing-h2">One license. Your whole platform.</h2>
             <p className="pricing-sub">
-              Every plan runs fully isolated instances — pick the size that fits
+              Every plan runs fully isolated academies — pick the size that fits
               your academy.
             </p>
           </div>
@@ -335,7 +335,7 @@ export default function SalesPage() {
             </div>
           </div>
           <Link href="/signup" className="btn btn-primary btn-lg">
-            Get your instance
+            Get your academy
           </Link>
           <Link href="/signup" className="hero-ghost">
             Book a demo

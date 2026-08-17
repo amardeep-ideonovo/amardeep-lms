@@ -202,7 +202,7 @@ function LaunchAcademyCard({
               ? "License suspended"
               : busy
                 ? "Starting the boot…"
-                : "Provision my instance"}
+                : "Provision my academy"}
           </button>
         </form>
       </div>
@@ -330,7 +330,7 @@ function InstanceDashboard({
                     .catch(() => {}),
               },
               {
-                label: "View instance details",
+                label: "View academy details",
                 onSelect: () => router.push("/portal/instance"),
               },
             ]}
@@ -363,7 +363,7 @@ function InstanceDashboard({
       <div className="grid-thirds">
         <div className="card">
           <div className="card-head baseline" style={{ marginBottom: 8 }}>
-            <span className="card-title">Instance health</span>
+            <span className="card-title">Academy health</span>
             <div className="card-head-spacer" />
             {instance.metrics && (
               <span className="card-sub" style={{ fontSize: 11.5 }}>

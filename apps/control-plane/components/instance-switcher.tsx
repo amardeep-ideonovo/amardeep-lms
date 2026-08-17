@@ -17,7 +17,7 @@ export function InstanceSwitcher({
   onSelect: (id: string) => void;
 }) {
   return (
-    <div className="iswitch" role="tablist" aria-label="Your instances">
+    <div className="iswitch" role="tablist" aria-label="Your academies">
       {instances.map((inst) => {
         const status = displayStatus(inst);
         const active = inst.id === selectedId;

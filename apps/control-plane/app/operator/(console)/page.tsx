@@ -109,7 +109,7 @@ export default function OperatorDashboard() {
             <Icon name="package" size={17} />
           </span>
           <span>
-            <span className="stat-label">Running instances</span>
+            <span className="stat-label">Running academies</span>
             <span className="stat-value">{runningCount}</span>
             <span className="stat-note tone-success">
               of {fleet.stats.licenses} licenses
@@ -162,7 +162,7 @@ export default function OperatorDashboard() {
       <div className="grid-main-rail">
         <div className="card">
           <div className="card-head" style={{ marginBottom: 6 }}>
-            <span className="card-title">All instances</span>
+            <span className="card-title">All academies</span>
             <span className="card-sub">
               {fleet.stats.licenses} licenses · {runningCount} running
             </span>
@@ -220,7 +220,7 @@ export default function OperatorDashboard() {
             </colgroup>
             <thead>
               <tr>
-                <th>Instance</th>
+                <th>Academy</th>
                 <th>{STR.labels.version}</th>
                 <th>Health</th>
                 <th>Members</th>
@@ -317,7 +317,7 @@ export default function OperatorDashboard() {
                 <tr>
                   <td colSpan={7}>
                     <span className="empty-note">
-                      No instances match — clear the search or filter.
+                      No academies match — clear the search or filter.
                     </span>
                   </td>
                 </tr>
@@ -359,8 +359,8 @@ export default function OperatorDashboard() {
                 <div key={host.name} className="host-row">
                   <span className="host-name">{host.name}</span>
                   <span className="host-count">
-                    {host.instanceCount} instance
-                    {host.instanceCount === 1 ? "" : "s"}
+                    {host.instanceCount}{" "}
+                    {host.instanceCount === 1 ? "academy" : "academies"}
                   </span>
                   <span className="bar" style={{ height: 8 }}>
                     <span
@@ -456,7 +456,7 @@ export default function OperatorDashboard() {
               </p>
             </>
           }
-          confirmLabel="Destroy instance"
+          confirmLabel="Destroy academy"
           onConfirm={() => destroyInstance(destroyTarget.id)}
           onClose={() => setDestroyTarget(null)}
         />

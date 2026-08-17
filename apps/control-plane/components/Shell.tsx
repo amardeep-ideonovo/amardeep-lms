@@ -52,7 +52,7 @@ const OPERATOR_NAV: NavGroup[] = [
   {
     label: "FLEET",
     items: [
-      { label: "Instances", href: "/operator", icon: "package" },
+      { label: "Academies", href: "/operator", icon: "package" },
       {
         label: "Provisioning",
         href: "/operator/provisioning",
@@ -94,7 +94,7 @@ function portalNav(multiInstance: boolean): NavGroup[] {
       items: [
         { label: "Overview", href: "/portal", icon: "grid" },
         {
-          label: multiInstance ? "My instances" : "My instance",
+          label: multiInstance ? "My academies" : "My academy",
           href: "/portal/instance",
           icon: "package",
         },
@@ -125,7 +125,7 @@ function titleFor(role: ShellRole, nav: NavGroup[], pathname: string): string {
       if (item.href === path) return item.label;
     }
   }
-  return role === "operator" ? "Instances" : "Overview";
+  return role === "operator" ? "Academies" : "Overview";
 }
 
 export function Shell({
@@ -292,7 +292,7 @@ export function Shell({
                 <Icon name="search" size={14} />
                 <input
                   type="search"
-                  placeholder="Search instances, clients…"
+                  placeholder="Search academies, clients…"
                   value={fleet?.ui.instanceQuery ?? ""}
                   onChange={(e) => setInstanceQuery(e.target.value)}
                 />
@@ -310,7 +310,7 @@ export function Shell({
                 className="btn btn-primary"
                 onClick={() => setProvisionOpen(true)}
               >
-                + Provision instance
+                + Provision academy
               </button>
             </>
           ) : (
@@ -336,7 +336,7 @@ export function Shell({
             <div className="suspend-banner" role="alert">
               <Icon name="alert-triangle" size={16} />
               <span>
-                <b>License suspended</b> — your instances keep running, but
+                <b>License suspended</b> — your academies keep running, but
                 portal actions are disabled. Contact support to reactivate.
               </span>
             </div>
@@ -371,11 +371,11 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     const slug = id.trim().toLowerCase();
     if (!/^[a-z0-9][a-z0-9-]{1,30}$/.test(slug)) {
-      setError("Instance id must be a short slug (a–z, 0–9, dashes).");
+      setError("Academy id must be a short slug (a–z, 0–9, dashes).");
       return;
     }
     if (instanceIdTaken(slug)) {
-      setError(`Instance id "${slug}" is already taken.`);
+      setError(`Academy id "${slug}" is already taken.`);
       return;
     }
     if (!domain.trim()) {
@@ -408,7 +408,7 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal title="Provision instance" onClose={onClose} width={460}>
+    <Modal title="Provision academy" onClose={onClose} width={460}>
       <form onSubmit={submit}>
         <div className="modal-body">
           <p className="modal-note">
@@ -421,7 +421,7 @@ function ProvisionModal({ onClose }: { onClose: () => void }) {
             alongside it.
           </p>
           <Field
-            label="Instance id"
+            label="Academy id"
             hint="Compose project + database become lms_<id>."
           >
             <input
