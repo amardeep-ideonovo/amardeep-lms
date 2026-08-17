@@ -9,6 +9,7 @@ import {
 import * as fs from "fs";
 import * as path from "path";
 import type {
+  CheckoutCourseDTO,
   CompleteLessonResponse,
   CourseCard,
   LessonDTO,
@@ -141,6 +142,42 @@ export class LmsService {
         ? { activeLevels, purchased, completedByCourse }
         : null;
     return courses.map((c) => this.toCourseCard(c, ctx));
+  }
+
+  // Public, unauthenticated resolve for the one-off course checkout page. 404s
+  // unless the course is individually purchasable (priceActive && priceAmount>0)
+  // — the same buyable gate the billing service enforces — so the checkout page
+  // can never render a chargeable form for a free/disabled course. Returns only
+  // checkout-safe fields (no lessons, levels, or per-viewer lock state); the
+  // "already have access" check happens later, in the authenticated intent call.
+  async checkoutCourseBySlugOrId(idOrSlug: string): Promise<CheckoutCourseDTO> {
+    const course = await this.prisma.course.findFirst({
+      where: {
+        archivedAt: null,
+        OR: [{ slug: idOrSlug }, { id: idOrSlug }],
+      },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        coverImageUrl: true,
+        priceAmount: true,
+        priceCurrency: true,
+        priceActive: true,
+      },
+    });
+    if (!course || !course.priceActive || (course.priceAmount ?? 0) <= 0) {
+      throw new NotFoundException("Checkout not found");
+    }
+    return {
+      id: course.id,
+      slug: course.slug,
+      title: course.title,
+      coverImageUrl: course.coverImageUrl,
+      priceAmount: course.priceAmount ?? 0,
+      priceCurrency: course.priceCurrency,
+      priceActive: course.priceActive,
+    };
   }
 
   // Readable URL slug from a course title ("Course 1" -> "course-1"), unique

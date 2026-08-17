@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import type { CourseCard, LessonDTO } from "@lms/types";
 import { STR, formatMoney } from "@lms/types";
 import { Button } from "@lms/ui";
@@ -14,7 +14,6 @@ import ProgressBar from "@/components/ProgressBar";
 function CourseInner() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const search = useSearchParams();
   const courseId = params.id;
   const [lessons, setLessons] = useState<LessonDTO[] | null>(null);
   const [course, setCourse] = useState<CourseCard | null>(null);
@@ -25,33 +24,10 @@ function CourseInner() {
   const [courseLoaded, setCourseLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
-  const [buying, setBuying] = useState(false);
-  // True once we return from a successful Stripe checkout. If the course is still
-  // locked (webhook lag / a failed inline confirm), we show a "finalizing" panel
-  // with a Refresh instead of re-offering the Buy button — which would otherwise
-  // invite a second payment.
-  const [justPaid, setJustPaid] = useState(false);
-  // Bumped by the Refresh button to re-run the load (re-checks the grant).
-  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     let active = true;
     async function run() {
-      // Returning from a successful one-off checkout: confirm the grant BEFORE
-      // loading lessons so the page opens unlocked without waiting on the webhook.
-      const purchase = search.get("purchase");
-      const sessionId = search.get("session_id");
-      if (purchase === "success" && sessionId) {
-        setJustPaid(true);
-        try {
-          await api.confirmCoursePurchase(sessionId);
-        } catch {
-          /* webhook is the backstop; the load below shows the real state */
-        }
-        // Strip the checkout params so a refresh/back never re-confirms.
-        if (active) router.replace(`/courses/${courseId}`);
-      }
-
       // Course card (cover + title + one-off price). Awaited so the locked panel
       // has price info before it renders (no flash), and courseLoaded flips even
       // on failure so we fall back to the generic panel rather than hanging.
@@ -93,48 +69,17 @@ function CourseInner() {
     return () => {
       active = false;
     };
-  }, [courseId, router, search, reloadTick]);
+  }, [courseId, router]);
 
-  async function buyCourse() {
-    if (buying) return;
-    setBuying(true);
-    try {
-      const { url } = await api.courseCheckout(courseId);
-      // Hand off to Stripe's hosted checkout; we return to
-      // /courses/<id>?purchase=success&session_id=… where the effect confirms.
-      window.location.href = url;
-    } catch (err) {
-      setBuying(false);
-      setError(
-        err instanceof Error ? err.message : "Could not start checkout.",
-      );
-    }
+  // Buy a one-off course: hand off to the site's own branded in-app checkout,
+  // which grants access and lands on the thank-you page (no hosted redirect).
+  function buyCourse() {
+    router.push(`/checkout/course/${courseId}`);
   }
 
   // One dark canvas wraps every state (locked / error / loading / lessons).
   let body: ReactNode;
-  if (locked && justPaid) {
-    // Paid, but access isn't active yet (webhook lag or a failed inline confirm).
-    // Never re-show Buy here — that risks a second charge.
-    body = (
-      <div className="locked-panel">
-        <div className="lock-icon">⏳</div>
-        <h2>Finalizing your purchase…</h2>
-        <p>
-          Payment received. Access can take a moment to activate — this usually
-          only takes a few seconds.
-        </p>
-        <div className="locked-actions">
-          <Button type="button" onClick={() => setReloadTick((t) => t + 1)}>
-            Refresh
-          </Button>
-          <Link href="/account" className="btn btn-secondary">
-            Go to my account
-          </Link>
-        </div>
-      </div>
-    );
-  } else if (locked && !courseLoaded) {
+  if (locked && !courseLoaded) {
     // Still resolving whether the course is purchasable — avoid flashing the
     // wrong locked panel before the course card (and its price) arrives.
     body = (
@@ -158,13 +103,8 @@ function CourseInner() {
               membership.
             </p>
             <div className="locked-actions">
-              <Button
-                type="button"
-                onClick={buyCourse}
-                disabled={buying}
-                aria-busy={buying}
-              >
-                {buying ? "Starting checkout…" : `Buy this course · ${price}`}
+              <Button type="button" onClick={buyCourse}>
+                {`Buy this course · ${price}`}
               </Button>
               <Link href="/account" className="btn btn-secondary">
                 View membership plans
@@ -262,21 +202,7 @@ function CourseInner() {
 export default function CoursePage() {
   return (
     <AuthGate>
-      {/* CourseInner reads useSearchParams (checkout return params) — Suspense
-          keeps Next's prerender happy, mirroring the checkout thank-you page. */}
-      <Suspense
-        fallback={
-          <div className="course-cinema">
-            <div className="cd-wrap">
-              <div className="centered-state">
-                <div className="spinner" aria-label={STR.common.loadingLabel} />
-              </div>
-            </div>
-          </div>
-        }
-      >
-        <CourseInner />
-      </Suspense>
+      <CourseInner />
     </AuthGate>
   );
 }

@@ -34,19 +34,20 @@ export class CancelSubDto {
   mode!: "immediate" | "period_end";
 }
 
-// Start a one-off (one-time) course purchase — Stripe mode=payment checkout.
-export class CourseCheckoutDto {
+// Start a one-off (one-time) course purchase — embedded Stripe Elements
+// PaymentIntent for a single course; returns a client secret.
+export class CourseIntentDto {
   @IsString()
   @MinLength(1)
   courseId!: string;
 }
 
-// Confirm a one-off course purchase inline after the Stripe redirect (grants
-// immediately without waiting on the webhook).
-export class CoursePurchaseConfirmDto {
+// Confirm a one-off course purchase inline after Stripe.js confirms the card
+// (grants immediately; the payment_intent.succeeded webhook is the backstop).
+export class CourseIntentConfirmDto {
   @IsString()
   @MinLength(1)
-  sessionId!: string;
+  paymentIntentId!: string;
 }
 
 // PayPal checkout step 1: lazily provision the billing plan for a price.

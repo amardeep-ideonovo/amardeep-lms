@@ -21,8 +21,8 @@ import { BillingService } from "./billing.service";
 import {
   CancelSubDto,
   CheckoutDto,
-  CourseCheckoutDto,
-  CoursePurchaseConfirmDto,
+  CourseIntentConfirmDto,
+  CourseIntentDto,
   CouponValidateDto,
   PayPalActivateDto,
   PayPalPrepareDto,
@@ -48,28 +48,26 @@ export class BillingController {
     return this.billing.createPortal(principal.sub);
   }
 
-  // One-off course purchase: start a mode=payment checkout for a single course.
+  // One-off course purchase: start an embedded one-time PaymentIntent for a
+  // single course; returns a client secret for Stripe Elements.
   @UseGuards(JwtAuthGuard)
-  @Post("course/checkout")
-  courseCheckout(
+  @Post("course/intent")
+  courseIntent(
     @CurrentUser() principal: AuthenticatedPrincipal,
-    @Body() dto: CourseCheckoutDto,
+    @Body() dto: CourseIntentDto,
   ) {
-    return this.billing.createCoursePurchaseCheckout(
-      principal.sub,
-      dto.courseId,
-    );
+    return this.billing.createCourseIntent(principal.sub, dto.courseId);
   }
 
-  // Confirm a course purchase inline after the Stripe redirect (grants without
-  // waiting on the webhook). Ownership of the session is enforced in the service.
+  // Confirm a course purchase inline after Stripe.js confirms the card (grants
+  // without waiting on the webhook). Ownership is enforced in the service.
   @UseGuards(JwtAuthGuard)
-  @Post("course/confirm")
-  confirmCoursePurchase(
+  @Post("course/confirm-intent")
+  confirmCourseIntent(
     @CurrentUser() principal: AuthenticatedPrincipal,
-    @Body() dto: CoursePurchaseConfirmDto,
+    @Body() dto: CourseIntentConfirmDto,
   ) {
-    return this.billing.confirmCoursePurchase(principal.sub, dto.sessionId);
+    return this.billing.confirmCourseIntent(principal.sub, dto.paymentIntentId);
   }
 
   @UseGuards(JwtAuthGuard)
