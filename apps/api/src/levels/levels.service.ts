@@ -575,6 +575,11 @@ export class LevelsService {
     });
     if (!level || level.type !== "FREE" || !level.published) return;
     const users = await this.prisma.user.findMany({
+      // Skip the synthetic preview members: they must never acquire a real
+      // UserLevel row (it would break their "no relational rows" isolation and
+      // inflate per-class member counts). Unlocked preview already "holds"
+      // every published class via AccessService.
+      where: { isPreview: false },
       select: { id: true, email: true },
     });
     if (!users.length) return;

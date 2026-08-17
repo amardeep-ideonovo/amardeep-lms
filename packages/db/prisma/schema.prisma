@@ -32,6 +32,15 @@ model User {
   updatedAt        DateTime @updatedAt
   emailOptOut      Boolean  @default(false) // set by the email unsubscribe webhook
   tokenVersion     Int      @default(0) // bumped on password change/reset; invalidates live JWTs (see JwtStrategy)
+  // Synthetic per-instance "preview member": lets an admin view the member site
+  // without an account. Read-only (blocked by PreviewReadOnlyGuard), holds NO
+  // relational rows, and is hidden from every member-enumeration surface
+  // (members list/stats, reports, search) via `isPreview: false` filters.
+  // `previewMode` selects the two hidden identities: "unlocked" gets an
+  // entitlement bypass in AccessService (holds every published class), "locked"
+  // owns nothing (the paywalled/upsell view). Null for real members.
+  isPreview    Boolean @default(false)
+  previewMode  String? // "locked" | "unlocked" (only set when isPreview)
 
   levels       UserLevel[]
   progress     LessonProgress[]

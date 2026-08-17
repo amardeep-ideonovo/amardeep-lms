@@ -46,6 +46,7 @@ export class SearchService {
         this.prisma.user
           .findMany({
             where: {
+              isPreview: false, // never surface the synthetic preview members
               OR: [
                 { email: like },
                 { firstName: like },

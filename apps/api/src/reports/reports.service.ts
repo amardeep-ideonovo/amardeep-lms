@@ -122,7 +122,9 @@ export class ReportsService {
   ): Promise<void> {
     // Date range -> signup (createdAt); class -> holds an ACTIVE grant for the level.
     const r = this.range(filter);
-    const where: Prisma.UserWhereInput = whereOverride ?? {};
+    // Exclude synthetic preview members. The override path (members-page export)
+    // already carries `isPreview: false` via MembersService.buildListWhere.
+    const where: Prisma.UserWhereInput = whereOverride ?? { isPreview: false };
     if (!whereOverride && (r.gte || r.lte)) {
       where.createdAt = {
         ...(r.gte ? { gte: r.gte } : {}),
@@ -278,6 +280,7 @@ export class ReportsService {
     const [users, memberships, courseLevels, courses, progress] =
       await Promise.all([
         this.prisma.user.findMany({
+          where: { isPreview: false }, // never list the synthetic preview members
           select: { id: true, firstName: true, lastName: true, email: true },
           orderBy: { createdAt: "desc" },
         }),

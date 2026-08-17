@@ -9,8 +9,10 @@ import type {
   AdminSection,
   AuthAdmin,
 } from "@lms/types";
-import { api, clearToken, getToken } from "@/lib/api";
+import { ApiError, api, clearToken, getToken } from "@/lib/api";
+import { webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "./AdminAuthProvider";
+import { useToast } from "./ToastProvider";
 import NotificationBell from "./NotificationBell";
 import { mobileNav, useMobileNavOpen } from "./mobile-nav";
 
@@ -153,9 +155,11 @@ export default function Topbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { can, isSuperAdmin, me } = useAdminAuth();
+  const toast = useToast();
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const [q, setQ] = useState("");
   const [resp, setResp] = useState<AdminSearchResponse | null>(null);
@@ -289,6 +293,28 @@ export default function Topbar() {
     router.replace("/login");
   };
 
+  // No-account "preview as member": open a blank tab synchronously (popup-blocker
+  // safe), mint a short-lived handoff, then point the tab at the member site's
+  // /preview exchange. Same pattern as pages/page.tsx's "add page".
+  const previewAsMember = async () => {
+    setAvatarOpen(false);
+    const win = window.open("", "_blank");
+    setPreviewLoading(true);
+    try {
+      const { handoff } = await api.startSitePreview();
+      const url = `${webUrl()}/preview?token=${encodeURIComponent(handoff)}`;
+      if (win) win.location.href = url;
+      else window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      if (win) win.close();
+      toast(
+        err instanceof ApiError ? err.message : "Couldn’t start the preview.",
+      );
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp")) setOpen(true);
     if (e.key === "ArrowDown") {
@@ -413,6 +439,39 @@ export default function Topbar() {
           </div>
         )}
       </div>
+
+      {can("sitePreview", "read") && (
+        <div className="topbar-actions">
+          <button
+            type="button"
+            className="topbar-action"
+            onClick={previewAsMember}
+            disabled={previewLoading}
+            aria-busy={previewLoading}
+            title="Preview the member site (no account needed) — toggle locked/unlocked in the banner"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle
+                cx="12"
+                cy="12"
+                r="3"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              />
+            </svg>
+            <span className="topbar-action-label">
+              {previewLoading ? "Starting…" : "Preview site"}
+            </span>
+          </button>
+        </div>
+      )}
 
       <NotificationBell />
 

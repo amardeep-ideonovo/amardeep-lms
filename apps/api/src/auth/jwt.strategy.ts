@@ -58,7 +58,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, tokenVersion: true },
+      select: { id: true, tokenVersion: true, isPreview: true },
     });
     if (!user) {
       throw new UnauthorizedException(
@@ -76,6 +76,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       email: payload.email,
       username: payload.username,
       isAdmin: false,
+      // Authoritative from the DB row (not merely the claim): a real member can
+      // never be treated as a preview session even if a token said so.
+      isPreview: user.isPreview,
     };
   }
 }

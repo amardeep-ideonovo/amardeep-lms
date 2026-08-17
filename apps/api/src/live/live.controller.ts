@@ -1,4 +1,10 @@
-import { Controller, Get, Param, UseGuards } from "@nestjs/common";
+import {
+  Controller,
+  ForbiddenException,
+  Get,
+  Param,
+  UseGuards,
+} from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -35,6 +41,10 @@ export class LiveController {
     @CurrentUser() p: AuthenticatedPrincipal,
     @Param("id") id: string,
   ) {
+    // Preview sessions never receive real meeting secrets (and never write a
+    // join-audit row) — even though the unlocked preview is "entitled".
+    if (p.isPreview)
+      throw new ForbiddenException("Preview mode can't join live sessions");
     return this.live.credentialsForUser(p.sub, id);
   }
 
@@ -44,6 +54,8 @@ export class LiveController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Get(":id/zoom")
   zoom(@CurrentUser() p: AuthenticatedPrincipal, @Param("id") id: string) {
+    if (p.isPreview)
+      throw new ForbiddenException("Preview mode can't join live sessions");
     return this.live.zoomEmbedForUser(p.sub, id);
   }
 }

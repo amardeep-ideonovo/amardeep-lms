@@ -1,14 +1,32 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
+import { SitePreviewService } from "../site-preview/site-preview.service";
 
 // Resolves the set of levelIds a user currently holds with status ACTIVE.
 // Centralized so the access rule is computed identically for dashboard,
 // course list and lesson access.
 @Injectable()
 export class AccessService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly sitePreview: SitePreviewService,
+  ) {}
 
   async activeLevelIds(userId: string): Promise<Set<string>> {
+    // The UNLOCKED admin preview member "holds" every published class, so all
+    // paid/level-gated content resolves as a paying member's would — with no
+    // change to isCourseLocked or any of its call sites (getLesson, dashboard,
+    // my-classes, live). The LOCKED preview identity is deliberately NOT matched
+    // here → it falls through to the real query below (owns nothing) and sees
+    // the paywalled/upsell view. ownsCourse/purchasedCourseIds stay untouched,
+    // so no spurious "owns"/"purchasable" state leaks in either mode.
+    if (await this.sitePreview.isUnlockedPreviewUser(userId)) {
+      const levels = await this.prisma.level.findMany({
+        where: { published: true, archivedAt: null },
+        select: { id: true },
+      });
+      return new Set(levels.map((l) => l.id));
+    }
     const rows = await this.prisma.userLevel.findMany({
       where: { userId, status: "ACTIVE" },
       select: { levelId: true },

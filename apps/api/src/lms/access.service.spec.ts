@@ -2,10 +2,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { AccessService } from "./access.service";
 
-// canAccessLiveSessionWith is pure (no Prisma), so it's constructed with a null
-// client. This is the gate that decides who sees the live-session bar and who
-// can be handed the join credentials — its correctness is load-bearing.
-const svc = new AccessService(null as never);
+// canAccessLiveSessionWith is pure (no Prisma / no SitePreviewService), so it's
+// constructed with null deps. This is the gate that decides who sees the
+// live-session bar and who can be handed the join credentials — its correctness
+// is load-bearing.
+const svc = new AccessService(null as never, null as never);
 
 test("LEVELS: visible only when the active set intersects a target", () => {
   const active = new Set(["lvl_a", "lvl_b"]);

@@ -13,6 +13,11 @@ export interface JwtPayload {
   // Optional so tokens minted before this shipped are treated as tv=0 (no mass
   // logout on deploy) — see JwtStrategy.validate. Download tokens omit it.
   tv?: number;
+  // Set only on the synthetic admin "preview member" sessions (see
+  // site-preview module). PreviewReadOnlyGuard keys on this claim to 403 any
+  // write; JwtStrategy re-derives it authoritatively from the DB row for
+  // req.user, so the claim alone can never elevate a real member.
+  isPreview?: boolean;
 }
 
 // What gets attached to req.user after JwtStrategy validates the token. For
