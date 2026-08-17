@@ -16,6 +16,8 @@ import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
 import MediaPicker from "@/components/MediaPicker";
+import ModalFooter from "@/components/ModalFooter";
+import { usePersistedDraft } from "@/lib/usePersistedDraft";
 import { STR } from "@lms/types";
 import { Button } from "@lms/ui";
 
@@ -68,6 +70,33 @@ export default function BlogPage() {
 
   const [newCategory, setNewCategory] = useState("");
   const modalRef = useModalA11y();
+
+  const draft = usePersistedDraft({
+    formKey: "blog",
+    version: 1,
+    entityId: editingId,
+    open: modalOpen,
+    data: {
+      title: form.title,
+      excerpt: form.excerpt,
+      content: form.content,
+      coverImageUrl: form.coverImageUrl,
+      categoryIds: form.categoryIds,
+      tags: form.tags,
+      status: form.status,
+    },
+    restore: (d) => {
+      setForm({
+        title: d.title,
+        excerpt: d.excerpt,
+        content: d.content,
+        coverImageUrl: d.coverImageUrl,
+        categoryIds: d.categoryIds,
+        tags: d.tags,
+        status: d.status,
+      });
+    },
+  });
 
   // Load failures surface from the queries, mutation failures from `error`;
   // one slot renders both (a mutation's message wins while set, as before).
@@ -192,6 +221,7 @@ export default function BlogPage() {
           ? await api.updatePost(editingId, buildPayload())
           : await api.createPost(buildPayload()),
       );
+      draft.clearSaved();
       setModalOpen(false);
       resetForm();
     } catch (err) {
@@ -462,9 +492,8 @@ export default function BlogPage() {
                 ×
               </button>
             </div>
-            <div className="modal-body">
-              {formError && <p className="error">{formError}</p>}
-              <form onSubmit={submit}>
+            <form onSubmit={submit} className="modal-form">
+              <div className="modal-body">
                 <div className="field">
                   <label>{STR.labels.title}</label>
                   <input
@@ -561,7 +590,12 @@ export default function BlogPage() {
                     />
                   </div>
                 </div>
-
+              </div>
+              <ModalFooter
+                error={formError}
+                draftRestored={draft.restored}
+                onDiscardDraft={draft.discard}
+              >
                 <div className="row-actions">
                   <Button
                     type="submit"
@@ -585,8 +619,8 @@ export default function BlogPage() {
                     {STR.common.cancel}
                   </Button>
                 </div>
-              </form>
-            </div>
+              </ModalFooter>
+            </form>
           </div>
         </div>
       )}

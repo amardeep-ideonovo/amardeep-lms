@@ -13,6 +13,7 @@ import { ApiError, api } from "@/lib/api";
 import { useModalA11y } from "@/lib/useModalA11y";
 import { dialog } from "@/components/DialogProvider";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
+import ModalFooter from "@/components/ModalFooter";
 import { PASSWORD_MIN, STR } from "@lms/types";
 import { Button } from "@lms/ui";
 
@@ -316,9 +317,8 @@ function AdminModal({
             ×
           </button>
         </div>
-        <div className="modal-body">
-          {err && <p className="error">{err}</p>}
-          <form onSubmit={submit}>
+        <form onSubmit={submit} className="modal-form">
+          <div className="modal-body">
             {mode === "create" && (
               <>
                 <div className="field">
@@ -412,7 +412,8 @@ function AdminModal({
                 </table>
               </div>
             )}
-
+          </div>
+          <ModalFooter error={err}>
             <div className="row-actions" style={{ marginTop: 16 }}>
               <Button type="submit" disabled={busy}>
                 {busy
@@ -430,8 +431,8 @@ function AdminModal({
                 {STR.common.cancel}
               </Button>
             </div>
-          </form>
-        </div>
+          </ModalFooter>
+        </form>
       </div>
     </div>
   );

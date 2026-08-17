@@ -13,6 +13,8 @@ import type {
 import { slugify } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useModalA11y } from "@/lib/useModalA11y";
+import { usePersistedDraft } from "@/lib/usePersistedDraft";
+import ModalFooter from "@/components/ModalFooter";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
@@ -111,6 +113,52 @@ export default function ClassesPage() {
   const [audiences, setAudiences] = useState<AudienceDTO[]>([]);
 
   const modalRef = useModalA11y();
+
+  // Persist a half-filled class form to localStorage so it resumes if the modal
+  // is closed and reopened. Scattered-state adapter: gather() lists the same
+  // fields resetForm/startEdit seed; restore() writes a saved snapshot back.
+  const draft = usePersistedDraft({
+    formKey: "classes",
+    version: 1,
+    entityId: editingId,
+    open: modalOpen,
+    data: {
+      categoryIds,
+      name,
+      slug,
+      slugEdited,
+      type,
+      published,
+      audienceTags,
+      audienceId,
+      audienceName,
+      prices,
+      imageUrl,
+      thumbnailUrl,
+      description,
+      trailerUrl,
+      skills,
+      certificateTemplateId,
+    },
+    restore: (d) => {
+      setCategoryIds(d.categoryIds);
+      setName(d.name);
+      setSlug(d.slug);
+      setSlugEdited(d.slugEdited);
+      setType(d.type);
+      setPublished(d.published);
+      setAudienceTags(d.audienceTags);
+      setAudienceId(d.audienceId);
+      setAudienceName(d.audienceName);
+      setPrices(d.prices);
+      setImageUrl(d.imageUrl);
+      setThumbnailUrl(d.thumbnailUrl);
+      setDescription(d.description);
+      setTrailerUrl(d.trailerUrl);
+      setSkills(d.skills);
+      setCertificateTemplateId(d.certificateTemplateId);
+    },
+  });
 
   async function load() {
     setLoading(true);
@@ -316,6 +364,7 @@ export default function ClassesPage() {
           ? prev.map((l) => (l.id === saved.id ? saved : l))
           : [...prev, saved],
       );
+      draft.clearSaved(); // saved successfully → drop the persisted draft
       setModalOpen(false);
       resetForm();
     } catch (err) {
@@ -568,9 +617,8 @@ export default function ClassesPage() {
                 ×
               </button>
             </div>
-            <div className="modal-body">
-              {formError && <p className="error">{formError}</p>}
-              <form onSubmit={onSubmit}>
+            <form onSubmit={onSubmit} className="modal-form">
+              <div className="modal-body">
                 <div className="form-row">
                   <div className="field">
                     <label>{STR.labels.name}</label>
@@ -956,7 +1004,12 @@ export default function ClassesPage() {
                     + Add skill
                   </Button>
                 </div>
-
+              </div>
+              <ModalFooter
+                error={formError}
+                draftRestored={draft.restored}
+                onDiscardDraft={draft.discard}
+              >
                 <div className="row-actions">
                   <Button type="submit" disabled={saving}>
                     {saving
@@ -973,8 +1026,8 @@ export default function ClassesPage() {
                     {STR.common.cancel}
                   </Button>
                 </div>
-              </form>
-            </div>
+              </ModalFooter>
+            </form>
           </div>
         </div>
       )}

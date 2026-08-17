@@ -1691,6 +1691,46 @@ select:-webkit-autofill:focus {
   width: 100%;
 }
 
+/* ---------- form-modal footer (pinned actions + errors) ----------
+   A form modal wraps its scrolling .modal-body + a pinned .modal-footer in a
+   .modal-form, so the header stays put, the body scrolls, and Save/Cancel (plus
+   any save error) never scroll out of reach. These rules only bite INSIDE
+   .modal-form — an un-migrated modal (a bare .modal-body child of .modal) keeps
+   its old behaviour, so the roll-out can be incremental. */
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+.modal-form .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.modal-footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-soft);
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+}
+/* The footer stacks top→bottom: draft banner, save error, then the actions.
+   Drop the shared vertical margins so the flex gap alone spaces them. */
+.modal-footer .alert-warning,
+.modal-footer .error {
+  margin: 0;
+}
+.modal-footer__draft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 /* ---------- avatar cropper ---------- */
 .modal--crop {
   max-width: min(380px, calc(100vw - 20px));

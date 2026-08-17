@@ -14,6 +14,8 @@ import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 import RichTextEditor from "@/components/RichTextEditor";
+import ModalFooter from "@/components/ModalFooter";
+import { usePersistedDraft } from "@/lib/usePersistedDraft";
 import LessonMediaFields, {
   type LessonMediaState,
   emptyLessonMedia,
@@ -78,6 +80,34 @@ export default function CoursesPage() {
   const [form, setForm] = useState({ ...EMPTY_COURSE });
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const draft = usePersistedDraft({
+    formKey: "courses",
+    version: 1,
+    entityId: editingId,
+    open: modalOpen,
+    data: {
+      title: form.title,
+      description: form.description,
+      levelIds: form.levelIds,
+      thumbnailUrl: form.thumbnailUrl,
+      coverImageUrl: form.coverImageUrl,
+      priceInput: form.priceInput,
+      priceCurrency: form.priceCurrency,
+      priceActive: form.priceActive,
+    },
+    restore: (d) =>
+      setForm({
+        title: d.title,
+        description: d.description,
+        levelIds: d.levelIds,
+        thumbnailUrl: d.thumbnailUrl,
+        coverImageUrl: d.coverImageUrl,
+        priceInput: d.priceInput,
+        priceCurrency: d.priceCurrency,
+        priceActive: d.priceActive,
+      }),
+  });
 
   // expanded course -> lessons
   const [openCourse, setOpenCourse] = useState<string | null>(null);
@@ -215,10 +245,12 @@ export default function CoursesPage() {
         setCourses((prev) =>
           prev.map((c) => (c.id === saved.id ? { ...c, ...saved } : c)),
         );
+        draft.clearSaved();
         setModalOpen(false);
         resetForm();
       } else {
         await api.createCourse(buildPayload());
+        draft.clearSaved();
         setModalOpen(false);
         resetForm();
         // Refetch on create only: placement needs `order`, which the list sorts
@@ -468,9 +500,8 @@ export default function CoursesPage() {
                 ×
               </button>
             </div>
-            <div className="modal-body">
-              {formError && <p className="error">{formError}</p>}
-              <form onSubmit={submitCourse}>
+            <form onSubmit={submitCourse} className="modal-form">
+              <div className="modal-body">
                 <div className="field">
                   <label>{STR.labels.title}</label>
                   <input
@@ -606,7 +637,13 @@ export default function CoursesPage() {
                     </span>
                   )}
                 </div>
+              </div>
 
+              <ModalFooter
+                error={formError}
+                draftRestored={draft.restored}
+                onDiscardDraft={draft.discard}
+              >
                 <div className="row-actions">
                   <Button
                     type="submit"
@@ -626,8 +663,8 @@ export default function CoursesPage() {
                     {STR.common.cancel}
                   </Button>
                 </div>
-              </form>
-            </div>
+              </ModalFooter>
+            </form>
           </div>
         </div>
       )}
@@ -773,9 +810,8 @@ function CourseLessons({
                 ×
               </button>
             </div>
-            <div className="modal-body">
-              {error && <p className="error">{error}</p>}
-              <form onSubmit={addLesson}>
+            <form onSubmit={addLesson} className="modal-form">
+              <div className="modal-body">
                 {/* Full-width: title + description */}
                 <div className="field">
                   <label>{STR.labels.title}</label>
@@ -907,7 +943,9 @@ function CourseLessons({
                     </div>
                   </div>
                 </div>
+              </div>
 
+              <ModalFooter error={error}>
                 <div className="row-actions" style={{ marginTop: 22 }}>
                   <Button type="submit" disabled={saving}>
                     {saving ? "Adding…" : "Add lesson"}
@@ -916,8 +954,8 @@ function CourseLessons({
                     {STR.common.cancel}
                   </Button>
                 </div>
-              </form>
-            </div>
+              </ModalFooter>
+            </form>
           </div>
         </div>
       )}

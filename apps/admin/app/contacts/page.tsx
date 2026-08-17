@@ -11,6 +11,8 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useModalA11y } from "@/lib/useModalA11y";
+import { usePersistedDraft } from "@/lib/usePersistedDraft";
+import ModalFooter from "@/components/ModalFooter";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR } from "@lms/types";
@@ -98,6 +100,28 @@ export default function ContactsPage() {
   const [draft, setDraft] = useState<ContactDraft>(emptyDraft());
   const [savingContact, setSavingContact] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
+
+  const persistedDraft = usePersistedDraft({
+    formKey: "contacts",
+    version: 1,
+    entityId: editingId,
+    open: editorOpen,
+    data: {
+      email: draft.email,
+      firstName: draft.firstName,
+      lastName: draft.lastName,
+      status: draft.status,
+      tags: draft.tags,
+    },
+    restore: (d) =>
+      setDraft({
+        email: d.email,
+        firstName: d.firstName,
+        lastName: d.lastName,
+        status: d.status,
+        tags: d.tags,
+      }),
+  });
 
   // ----- side panels (fields + segments) -----
   const [fields, setFields] = useState<AudienceFieldDTO[]>([]);
@@ -326,6 +350,7 @@ export default function ContactsPage() {
           tags: tagsFromString(draft.tags),
         });
       }
+      persistedDraft.clearSaved();
       closeEditor();
       await refreshAll();
     } catch (err) {
@@ -788,9 +813,8 @@ export default function ContactsPage() {
                 ×
               </button>
             </div>
-            <form onSubmit={saveContact}>
+            <form onSubmit={saveContact} className="modal-form">
               <div className="modal-body">
-                {editorError && <p className="error">{editorError}</p>}
                 <div className="field">
                   <label>{STR.labels.email}</label>
                   <input
@@ -860,14 +884,11 @@ export default function ContactsPage() {
                   </p>
                 )}
               </div>
-              <div
-                className="modal-header"
-                style={{
-                  borderTop: "1px solid var(--border)",
-                  borderBottom: "none",
-                }}
+              <ModalFooter
+                error={editorError}
+                draftRestored={persistedDraft.restored}
+                onDiscardDraft={persistedDraft.discard}
               >
-                <span />
                 <div className="row-actions">
                   <Button
                     type="button"
@@ -884,7 +905,7 @@ export default function ContactsPage() {
                         : "Add contact"}
                   </Button>
                 </div>
-              </div>
+              </ModalFooter>
             </form>
           </div>
         </div>
