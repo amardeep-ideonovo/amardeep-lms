@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
   api,
@@ -20,11 +18,11 @@ import { qk } from "@/lib/queries";
 // exits cleanly. It's a convenience marker, NOT an access control — the backend
 // owns what the preview session may see and forbids all writes.
 export default function PreviewBanner() {
-  const router = useRouter();
-  // Only observe /auth/me when a session token exists, so logged-out visitors
-  // never fire an extra (and 401-ing) request. Shares the qk.me cache with the
-  // rest of the app, seeded from the paint-fast me-cache.
-  const [hasToken] = useState(() => !!getToken());
+  // Observe /auth/me only when a session token is present RIGHT NOW — checked
+  // live each render, NOT snapshotted once at mount — so the banner reacts to a
+  // token that appears after this persistent (never-remounting) component first
+  // mounted. Logged-out visitors still never fire an (401-ing) request. Shares
+  // the qk.me cache with the app, seeded from the paint-fast me-cache.
   const { data: me } = useQuery({
     queryKey: qk.me,
     queryFn: async () => {
@@ -32,7 +30,7 @@ export default function PreviewBanner() {
       setCachedMe(u);
       return u;
     },
-    enabled: hasToken,
+    enabled: typeof window !== "undefined" && !!getToken(),
     initialData: () => getCachedMe() ?? undefined,
   });
 
@@ -55,7 +53,9 @@ export default function PreviewBanner() {
     } catch {
       /* ignore */
     }
-    router.replace("/");
+    // HARD navigation so the app remounts as a clean guest (token now cleared);
+    // a soft nav would leave this persistent banner showing stale preview state.
+    window.location.assign("/");
   }
 
   return (
