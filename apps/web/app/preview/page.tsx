@@ -15,9 +15,14 @@ function PreviewExchange() {
   const params = useSearchParams();
   const router = useRouter();
   const handoff = params.get("token");
-  // Only allow same-origin internal paths (no open redirect via ?to=).
+  // Only allow same-origin internal paths (no open redirect via ?to=). Must be
+  // a single leading slash: reject "//host" (protocol-relative) and "/\\host",
+  // both of which the browser would resolve to an external origin.
   const rawTo = params.get("to") ?? "/dashboard";
-  const to = rawTo.startsWith("/") ? rawTo : "/dashboard";
+  const to =
+    rawTo.startsWith("/") && !rawTo.startsWith("//") && !rawTo.startsWith("/\\")
+      ? rawTo
+      : "/dashboard";
   const expired = params.get("expired") === "1";
 
   const [failed, setFailed] = useState(expired || !handoff);
