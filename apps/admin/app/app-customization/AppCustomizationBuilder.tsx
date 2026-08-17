@@ -373,7 +373,6 @@ function hslToHex(h: number, s: number, l: number): string {
 // MUST mirror paletteFrom() in apps/mobile/src/theme.ts.
 function chromeColor(p: AppThemePalette, mode: "light" | "dark"): string {
   if (mode === "dark") return p.bg;
-  if (p.text.toLowerCase() === "#17171d") return "#101014";
   const t = hexToHsl(p.text);
   return hslToHex(t.h, t.s < 0.08 ? t.s : 0.37, 0.175);
 }
@@ -381,8 +380,8 @@ function chromeColor(p: AppThemePalette, mode: "light" | "dark"): string {
 // Teal CTA gradient: stock primary pins the design values; custom primaries
 // get a same-hue ramp.
 function ctaGradient(primary: string): string {
-  if (primary.toLowerCase() === "#34c9a2")
-    return "linear-gradient(100deg, #4dd1ae, #2aa283)";
+  if (primary.toLowerCase() === "#3cc4b2")
+    return "linear-gradient(100deg, #4fcdb8, #2f9d8e)";
   const { h, s, l } = hexToHsl(primary);
   const start = hslToHex(h, Math.max(s, 0.35), Math.min(0.62, l + 0.06));
   const end = hslToHex(h, Math.max(s, 0.35), Math.max(0.18, l - 0.11));
@@ -398,7 +397,7 @@ function onColor(hex: string): string {
     return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
   });
   const lum = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
-  return lum > 0.45 ? "#101014" : "#ffffff";
+  return lum > 0.45 ? "#101828" : "#ffffff";
 }
 
 // A phone-frame mock of the app's dashboard, styled entirely from the draft

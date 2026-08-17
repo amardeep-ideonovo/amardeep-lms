@@ -83,7 +83,7 @@ const CheckIcon = ({ size = 13 }: { size?: number }) => (
   >
     <path
       d="M20 6 9 17l-5-5"
-      stroke="#299e7f"
+      stroke="#2a9d8d"
       strokeWidth="2.4"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -92,7 +92,7 @@ const CheckIcon = ({ size = 13 }: { size?: number }) => (
 );
 const PlayGlyph = ({
   size = 11,
-  fill = "#74726c", // AA muted (SVG attr needs a literal; keep in step with --muted)
+  fill = "#777394", // AA muted (SVG attr needs a literal; keep in step with --muted)
 }: {
   size?: number;
   fill?: string;
@@ -133,7 +133,7 @@ function BandRing({ pct }: { pct: number }) {
         cy="36"
         r="30.5"
         fill="none"
-        stroke="#34c9a2"
+        stroke="#3cc4b2"
         strokeWidth="7"
         strokeLinecap="round"
         strokeDasharray={`${arc} ${C}`}
@@ -178,7 +178,7 @@ function CertRing({ pct }: { pct: number }) {
         cy="42"
         r="36"
         fill="none"
-        stroke="#34c9a2"
+        stroke="#3cc4b2"
         strokeWidth="8"
         strokeLinecap="round"
         strokeDasharray={`${arc} ${C}`}

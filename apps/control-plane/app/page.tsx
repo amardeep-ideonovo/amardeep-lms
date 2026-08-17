@@ -168,7 +168,7 @@ export default function SalesPage() {
                     cy="17"
                     r="13"
                     fill="none"
-                    stroke="#30b895"
+                    stroke="#35b3a2"
                     strokeWidth="4"
                     strokeLinecap="round"
                     strokeDasharray="58.8 81.7"

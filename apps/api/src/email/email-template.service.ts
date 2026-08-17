@@ -326,10 +326,10 @@ const WELCOME_MJML = `<mjml>
       <mj-all font-family="Helvetica, Arial, sans-serif" />
     </mj-attributes>
     <mj-style>
-      .cta a { color: #101014 !important; }
+      .cta a { color: #ffffff !important; }
     </mj-style>
   </mj-head>
-  <mj-body background-color="#f5f2ec">
+  <mj-body background-color="#f4f3f8">
     <mj-section padding="32px 0 12px">
       <mj-column>
         <mj-text align="center" font-size="13px" letter-spacing="2px" color="#1f7a62" text-transform="uppercase" font-weight="700">
@@ -339,16 +339,16 @@ const WELCOME_MJML = `<mjml>
     </mj-section>
     <mj-section background-color="#ffffff" border-radius="16px" padding="8px" css-class="card">
       <mj-column padding="24px">
-        <mj-text font-size="22px" font-weight="700" color="#101014" padding-bottom="12px">
+        <mj-text font-size="22px" font-weight="700" color="#221c3d" padding-bottom="12px">
           Welcome, {{firstName}}!
         </mj-text>
-        <mj-text font-size="15px" line-height="1.7" color="#55534d" padding-bottom="24px">
+        <mj-text font-size="15px" line-height="1.7" color="#55506e" padding-bottom="24px">
           Your {{brand}} account is ready. Jump back in any time to pick up right where you left off — your classes, lessons and progress are all waiting.
         </mj-text>
-        <mj-button href="{{url}}" background-color="#34c9a2" color="#101014" border-radius="10px" font-weight="600" font-size="15px" inner-padding="13px 26px" align="left" css-class="cta">
+        <mj-button href="{{url}}" background-color="#2f9d8e" color="#ffffff" border-radius="10px" font-weight="600" font-size="15px" inner-padding="13px 26px" align="left" css-class="cta">
           Go to {{brand}}
         </mj-button>
-        <mj-text font-size="13px" line-height="1.6" color="#8b8a87" padding-top="24px">
+        <mj-text font-size="13px" line-height="1.6" color="#8b87a3" padding-top="24px">
           If the button doesn't work, copy and paste this link into your browser:<br />
           <a href="{{url}}" style="color:#1f7a62;">{{url}}</a>
         </mj-text>
@@ -381,10 +381,10 @@ const PASSWORD_RESET_MJML = `<mjml>
       <mj-all font-family="Helvetica, Arial, sans-serif" />
     </mj-attributes>
     <mj-style>
-      .cta a { color: #101014 !important; }
+      .cta a { color: #ffffff !important; }
     </mj-style>
   </mj-head>
-  <mj-body background-color="#f5f2ec">
+  <mj-body background-color="#f4f3f8">
     <mj-section padding="32px 0 12px">
       <mj-column>
         <mj-text align="center" font-size="13px" letter-spacing="2px" color="#1f7a62" text-transform="uppercase" font-weight="700">
@@ -394,20 +394,20 @@ const PASSWORD_RESET_MJML = `<mjml>
     </mj-section>
     <mj-section background-color="#ffffff" border-radius="16px" padding="8px" css-class="card">
       <mj-column padding="24px">
-        <mj-text font-size="22px" font-weight="700" color="#101014" padding-bottom="12px">
+        <mj-text font-size="22px" font-weight="700" color="#221c3d" padding-bottom="12px">
           Reset your password
         </mj-text>
-        <mj-text font-size="15px" line-height="1.7" color="#55534d" padding-bottom="24px">
+        <mj-text font-size="15px" line-height="1.7" color="#55506e" padding-bottom="24px">
           Hi {{firstName}}, we received a request to reset the password for your {{brand}} account. Click the button below to choose a new one. This link expires in {{expiresMinutes}} minutes and can only be used once.
         </mj-text>
-        <mj-button href="{{{resetUrl}}}" background-color="#34c9a2" color="#101014" border-radius="10px" font-weight="600" font-size="15px" inner-padding="13px 26px" align="left" css-class="cta">
+        <mj-button href="{{{resetUrl}}}" background-color="#2f9d8e" color="#ffffff" border-radius="10px" font-weight="600" font-size="15px" inner-padding="13px 26px" align="left" css-class="cta">
           Choose a new password
         </mj-button>
-        <mj-text font-size="13px" line-height="1.6" color="#8b8a87" padding-top="24px">
+        <mj-text font-size="13px" line-height="1.6" color="#8b87a3" padding-top="24px">
           If the button doesn't work, copy and paste this link into your browser:<br />
           <a href="{{{resetUrl}}}" style="color:#1f7a62;">{{{resetUrl}}}</a>
         </mj-text>
-        <mj-text font-size="13px" line-height="1.6" color="#8b8a87" padding-top="16px">
+        <mj-text font-size="13px" line-height="1.6" color="#8b87a3" padding-top="16px">
           Didn't request this? You can safely ignore this email — your password won't change until you set a new one.
         </mj-text>
       </mj-column>

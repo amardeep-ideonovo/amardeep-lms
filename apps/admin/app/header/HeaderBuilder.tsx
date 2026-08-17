@@ -48,7 +48,7 @@ function makeCta(): HeaderCta {
     label: "Get started",
     // P3b: pre-Spark indigo default (#4f46e5) retired for the Spark teal.
     // Affects NEW CTAs only — persisted configs keep their stored color.
-    bgColor: "#34c9a2",
+    bgColor: "#3cc4b2",
     textColor: "#ffffff",
     paddingX: 16,
     paddingY: 9,
@@ -822,7 +822,7 @@ function HeaderEditor({
               linkColor when unset; saved configs keep their stored color. */}
           <ColorField
             label="Active color"
-            value={config.menuActiveColor ?? "#34c9a2"}
+            value={config.menuActiveColor ?? "#3cc4b2"}
             disabled={ro}
             onChange={(v) => updConfig({ menuActiveColor: v })}
           />

@@ -2479,7 +2479,7 @@ async function seedCertificateTemplates() {
 
 async function seedAppConfig() {
   // The app mirrors the "Spark" design (Spotlight Academy brand pack, direction
-  // 5B): cream content under ink #101014 chrome with a teal #34c9a2 accent.
+  // 5B): cream content under ink #221c3d chrome with a teal #3cc4b2 accent.
   // The app ships LIGHT by default; DARK is the all-ink variant. Both palettes
   // are the cross-stack defaults in apps/mobile/src/theme.ts /
   // apps/api/src/site/app-config.service.ts. Admins can still recolor live via
@@ -2494,23 +2494,23 @@ async function seedAppConfig() {
     splashUrl: null,
     colorScheme: "light",
     light: {
-      bg: "#f5f2ec",
+      bg: "#f4f3f8",
       surface: "#ffffff",
-      surfaceMuted: "#f0ede4",
-      border: "#e6e2d7",
-      text: "#17171d",
-      textMuted: "#8b8a87",
-      primary: "#34c9a2",
+      surfaceMuted: "#f1eff7",
+      border: "#e4e1ee",
+      text: "#272144",
+      textMuted: "#8b87a3",
+      primary: "#3cc4b2",
       danger: "#e04848",
     },
     dark: {
-      bg: "#101014",
-      surface: "#17171d",
-      surfaceMuted: "#1e1e26",
-      border: "#2a2a33",
+      bg: "#221c3d",
+      surface: "#272144",
+      surfaceMuted: "#322b52",
+      border: "#3a3460",
       text: "#ffffff",
-      textMuted: "#a4a3a9",
-      primary: "#34c9a2",
+      textMuted: "#a7a3bd",
+      primary: "#3cc4b2",
       danger: "#ea4f4f",
     },
   } as Prisma.InputJsonValue;

@@ -196,7 +196,7 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       paddingVertical: 11,
       paddingHorizontal: 18,
       // colors.primary so the CTA glow tracks the brand accent (the old
-      // #30b895 literal was the pre-Spark teal).
+      // #35b3a2 literal was the pre-Spark teal).
       shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.35,

@@ -214,7 +214,7 @@ export default function DashboardPage() {
     {
       label: "Total members",
       value: can("members", "read") ? totalMembers : null,
-      tint: "rgba(48, 184, 149,.13)",
+      tint: "rgba(53, 179, 162,.13)",
       color: "var(--teal-text)",
       delta:
         newThisWeek > 0

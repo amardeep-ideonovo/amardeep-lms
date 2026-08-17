@@ -56,9 +56,9 @@ const fieldStyle: CSSProperties = {
 // (identical to the CSS --accent-* tokens), not var().
 const CLASS_ACCENTS = ACCENT_SLOTS.map((a) => a.color);
 // Donut mix palette: success, ink, warning, muted. P3b aligned the grey
-// segment with the token system's AA --muted (#8b8a87 → #74726c); keep in
+// segment with the token system's AA --muted (#8b87a3 → #777394); keep in
 // step with packages/ui/tokens.css.
-const MIX_COLORS = ["#30b895", "#17171d", "#f6a623", "#74726c"];
+const MIX_COLORS = ["#35b3a2", "#272144", "#f6a623", "#777394"];
 
 // A subscription row that is currently billing (both providers use raw
 // Stripe-style statuses in this DTO).
@@ -275,7 +275,7 @@ export default function ReportsPage() {
                     cy="75"
                     r={R}
                     fill="none"
-                    stroke="#f0ede4"
+                    stroke="#f1eff7"
                     strokeWidth="16"
                   />
                   {slices.map((s) => (
@@ -298,7 +298,7 @@ export default function ReportsPage() {
                     textAnchor="middle"
                     fontSize="20"
                     fontWeight="700"
-                    fill="#17171d"
+                    fill="#272144"
                     fontFamily="inherit"
                   >
                     {mixTotal.toLocaleString()}
@@ -308,7 +308,7 @@ export default function ReportsPage() {
                     y="88"
                     textAnchor="middle"
                     fontSize="10"
-                    fill="#74726c"
+                    fill="#777394"
                     fontFamily="inherit"
                   >
                     active subs

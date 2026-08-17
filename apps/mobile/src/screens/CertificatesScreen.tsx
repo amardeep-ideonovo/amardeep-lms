@@ -147,7 +147,7 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
               end={{ x: 1, y: 1 }}
               style={styles.seal}
             >
-              {/* Spark rule: glyphs on the teal CTA gradient are INK (onCta),
+              {/* Ink Hero: glyphs on the teal CTA gradient are white (onCta),
                   not white — the white literal here was a brand bug. */}
               <Ionicons name="ribbon-outline" size={20} color={colors.onCta} />
             </LinearGradient>
@@ -163,7 +163,7 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
               style={styles.heroBtn}
               radius={9}
               icon={
-                // onCta: the icon must match the ink CTA label beside it
+                // onCta: the icon must match the white CTA label beside it
                 // (white-on-teal was a brand bug).
                 <Ionicons
                   name="download-outline"
@@ -325,7 +325,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       alignItems: "center",
       justifyContent: "center",
       // colors.primary so the seal glow tracks the brand accent (the old
-      // #30b895 literal was the pre-Spark teal).
+      // #35b3a2 literal was the pre-Spark teal).
       shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.4,

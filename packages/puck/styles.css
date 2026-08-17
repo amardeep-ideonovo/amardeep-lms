@@ -6,17 +6,17 @@
  */
 .lmspb-root {
   /* Brand follows the site theme when the host app defines --primary (the
-     member site does: teal #2aa283); the fallback matches that Spark
+     member site does: teal #2f9d8e); the fallback matches that Spark
      cross-stack default. Labels on brand fills are INK (Spark ink-on-teal,
-     same as the web --on-primary token). */
-  --lmspb-brand: var(--primary, #2aa283);
-  --lmspb-brand-contrast: #101014;
-  --lmspb-fg: #17171d;
-  --lmspb-muted-fg: #8b8a87;
-  --lmspb-muted-bg: #f0ede4;
-  --lmspb-dark-bg: #101014;
+     same as the web --on-primary token; reverted to WHITE for Ink Hero). */
+  --lmspb-brand: var(--primary, #2f9d8e);
+  --lmspb-brand-contrast: #ffffff;
+  --lmspb-fg: #272144;
+  --lmspb-muted-fg: #8b87a3;
+  --lmspb-muted-bg: #f1eff7;
+  --lmspb-dark-bg: #221c3d;
   --lmspb-dark-fg: #ffffff;
-  --lmspb-border: #e6e2d7;
+  --lmspb-border: #e4e1ee;
   --lmspb-radius: 12px;
   --lmspb-maxw: 1100px;
   color: var(--lmspb-fg);
@@ -378,10 +378,10 @@
    class names are kept so existing pages/editor code keep compiling. */
 .cms-dark .lmspb-root,
 .lmspb-root.lmspb-dark {
-  --lmspb-fg: #17171d;
-  --lmspb-muted-fg: #8b8a87;
-  --lmspb-muted-bg: #f0ede4;
-  --lmspb-border: #e6e2d7;
+  --lmspb-fg: #272144;
+  --lmspb-muted-fg: #8b87a3;
+  --lmspb-muted-bg: #f1eff7;
+  --lmspb-border: #e4e1ee;
   color: var(--lmspb-fg);
 }
 .cms-dark .lmspb-card,
@@ -392,7 +392,7 @@
 }
 .cms-dark .lmspb-bg-muted,
 .lmspb-root.lmspb-dark .lmspb-bg-muted {
-  background: #f0ede4;
+  background: #f1eff7;
 }
 
 /* ---- Divider ---- */
@@ -491,13 +491,13 @@
 
 /* Shadows (Ink Hero ink-tinted) */
 .lmspb-sh-soft {
-  box-shadow: 0 2px 10px rgba(23, 23, 29, 0.05);
+  box-shadow: 0 2px 10px rgba(39, 33, 68, 0.05);
 }
 .lmspb-sh-medium {
-  box-shadow: 0 8px 24px rgba(23, 23, 29, 0.1);
+  box-shadow: 0 8px 24px rgba(39, 33, 68, 0.1);
 }
 .lmspb-sh-large {
-  box-shadow: 0 14px 40px rgba(16, 16, 20, 0.12);
+  box-shadow: 0 14px 40px rgba(20, 15, 45, 0.12);
 }
 
 /* Hide per device (breakpoint matches the grid collapse at 720px) */

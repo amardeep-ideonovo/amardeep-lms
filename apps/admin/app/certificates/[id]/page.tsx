@@ -46,8 +46,8 @@ const SAMPLE: Record<CertificateFieldKind, string> = {
 
 // Starter layout for new templates — centered name/class, date + serial in
 // the bottom corners (all adjustable, of course). Field colors are Spark
-// tokens by value (P3b: #101828 → ink-900 #101014, #52525b → text-soft
-// #55534d; keep in step with packages/ui/tokens.css) — they're persisted
+// tokens by value (P3b: #101828 → ink-900 #221c3d, #52525b → text-soft
+// #55506e; keep in step with packages/ui/tokens.css) — they're persisted
 // per-template data, so only NEW templates pick these up; existing saved
 // templates keep their stored colors.
 const DEFAULT_FIELDS: CertificateFieldLayout[] = [
@@ -60,7 +60,7 @@ const DEFAULT_FIELDS: CertificateFieldLayout[] = [
     align: "center",
     fontFamily: "greatvibes",
     fontSizePct: 7,
-    color: "#101014",
+    color: "#221c3d",
     uppercase: false,
   },
   {
@@ -72,7 +72,7 @@ const DEFAULT_FIELDS: CertificateFieldLayout[] = [
     align: "center",
     fontFamily: "playfair",
     fontSizePct: 3.6,
-    color: "#101014",
+    color: "#221c3d",
     uppercase: false,
   },
   {
@@ -84,7 +84,7 @@ const DEFAULT_FIELDS: CertificateFieldLayout[] = [
     align: "left",
     fontFamily: "inter",
     fontSizePct: 1.6,
-    color: "#55534d",
+    color: "#55506e",
     uppercase: false,
   },
   {
@@ -96,7 +96,7 @@ const DEFAULT_FIELDS: CertificateFieldLayout[] = [
     align: "right",
     fontFamily: "inter",
     fontSizePct: 1.3,
-    color: "#55534d",
+    color: "#55506e",
     uppercase: false,
     letterSpacing: 0.06,
   },

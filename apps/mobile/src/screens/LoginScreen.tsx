@@ -226,7 +226,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       // Ink shadow literal kept: same tint as theme.ts elevatedShadow() but a
       // deeper auth-card geometry (offset/opacity/radius differ), so the
       // helper doesn't apply.
-      shadowColor: "#0b0b0e",
+      shadowColor: "#140f2d",
       shadowOffset: { width: 0, height: 14 },
       shadowOpacity: 0.25,
       shadowRadius: 24,

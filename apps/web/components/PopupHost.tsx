@@ -211,7 +211,7 @@ function PopupCard({
             border: `1px solid ${s.borderColor || "var(--border)"}`,
             borderRadius: s.borderRadius,
             padding: s.padding,
-            boxShadow: "0 14px 40px rgba(16, 16, 20,0.18)",
+            boxShadow: "0 14px 40px rgba(20, 15, 45,0.18)",
             position: "relative",
           }}
         >
@@ -229,7 +229,7 @@ function PopupCard({
               border: "none",
               background: darkBg
                 ? "rgba(255,255,255,0.14)"
-                : "rgba(23, 23, 29,0.08)",
+                : "rgba(39, 33, 68,0.08)",
               color: darkBg ? "var(--paper-0)" : "var(--text)",
               fontSize: 16,
               lineHeight: 1,

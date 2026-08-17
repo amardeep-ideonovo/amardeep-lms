@@ -69,7 +69,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       justifyContent: "center",
       // CTA glow (iOS; Android elevation is skipped — it needs an opaque
       // bg and the gradient wrapper has none). colors.primary so the glow
-      // tracks the brand accent (the old #30b895 literal was the pre-Spark
+      // tracks the brand accent (the old #35b3a2 literal was the pre-Spark
       // teal and stayed teal on recolored instances).
       shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 8 },
@@ -82,7 +82,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       justifyContent: "center",
       gap: 8,
     },
-    // Spark rule: labels on the teal CTA gradient are INK, not white — onCta
+    // Ink Hero: labels on the teal CTA gradient are white (onCta tracks the
     // resolves against the lighter gradient stop (theme.ts).
     label: { color: colors.onCta, fontSize: 12.5, fontFamily: fonts.semibold },
     disabled: { opacity: 0.55 },
