@@ -11,12 +11,12 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { qk } from "@/lib/queries";
-import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import RichTextEditor from "@/components/RichTextEditor";
 import MediaPicker from "@/components/MediaPicker";
 import ModalFooter from "@/components/ModalFooter";
+import FormModal from "@/components/FormModal";
 import { usePersistedDraft } from "@/lib/usePersistedDraft";
 import { STR } from "@lms/types";
 import { Button } from "@lms/ui";
@@ -69,7 +69,6 @@ export default function BlogPage() {
   const editingIdRef = useRef<string | null>(null);
 
   const [newCategory, setNewCategory] = useState("");
-  const modalRef = useModalA11y();
 
   const draft = usePersistedDraft({
     formKey: "blog",
@@ -474,155 +473,126 @@ export default function BlogPage() {
       </div>
 
       {modalOpen && (
-        <div
-          ref={modalRef}
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
+        <FormModal
+          title={editingId ? "Edit post" : "New post"}
+          onClose={closeModal}
+          onSubmit={submit}
         >
-          <div className="modal">
-            <div className="modal-header">
-              <h2>{editingId ? "Edit post" : "New post"}</h2>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={closeModal}
-                aria-label={STR.common.close}
-              >
-                ×
-              </button>
+          <div className="modal-body">
+            <div className="field">
+              <label>{STR.labels.title}</label>
+              <input
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                autoFocus
+                required
+              />
             </div>
-            <form onSubmit={submit} className="modal-form">
-              <div className="modal-body">
-                <div className="field">
-                  <label>{STR.labels.title}</label>
-                  <input
-                    value={form.title}
-                    onChange={(e) =>
-                      setForm({ ...form, title: e.target.value })
-                    }
-                    autoFocus
-                    required
-                  />
-                </div>
 
-                <div className="field">
-                  <label>
-                    Excerpt{" "}
-                    <span className="muted">(summary for cards + SEO)</span>
-                  </label>
-                  <textarea
-                    value={form.excerpt}
-                    onChange={(e) =>
-                      setForm({ ...form, excerpt: e.target.value })
-                    }
-                    style={{ minHeight: 60 }}
-                  />
-                </div>
+            <div className="field">
+              <label>
+                Excerpt <span className="muted">(summary for cards + SEO)</span>
+              </label>
+              <textarea
+                value={form.excerpt}
+                onChange={(e) => setForm({ ...form, excerpt: e.target.value })}
+                style={{ minHeight: 60 }}
+              />
+            </div>
 
-                <div className="field">
-                  <label>Content</label>
-                  <RichTextEditor
-                    value={form.content}
-                    onChange={(html) =>
-                      setForm((f) => ({ ...f, content: html }))
-                    }
-                  />
-                </div>
+            <div className="field">
+              <label>Content</label>
+              <RichTextEditor
+                value={form.content}
+                onChange={(html) => setForm((f) => ({ ...f, content: html }))}
+              />
+            </div>
 
-                <div className="field">
-                  <label>Featured image</label>
-                  <MediaPicker
-                    value={form.coverImageUrl}
-                    onChange={(url) =>
-                      setForm((f) => ({ ...f, coverImageUrl: url }))
-                    }
-                    aspect={16 / 9}
-                  />
-                </div>
+            <div className="field">
+              <label>Featured image</label>
+              <MediaPicker
+                value={form.coverImageUrl}
+                onChange={(url) =>
+                  setForm((f) => ({ ...f, coverImageUrl: url }))
+                }
+                aspect={16 / 9}
+              />
+            </div>
 
-                <div className="field">
-                  <label>Categories</label>
-                  {categories.length === 0 ? (
-                    <p className="muted">No categories yet — add one above.</p>
-                  ) : (
-                    <div className="checkbox-list">
-                      {categories.map((c) => (
-                        <label key={c.id}>
-                          <input
-                            type="checkbox"
-                            checked={form.categoryIds.includes(c.id)}
-                            onChange={() => toggleCategory(c.id)}
-                          />
-                          {c.name}
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="form-row">
-                  <div className="field">
-                    <label>{STR.labels.status}</label>
-                    <select
-                      value={form.status}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          status: e.target.value as PostStatus,
-                        })
-                      }
-                    >
-                      <option value="DRAFT">Draft</option>
-                      <option value="PUBLISHED">Published</option>
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label>
-                      Tags <span className="muted">(comma-separated)</span>
+            <div className="field">
+              <label>Categories</label>
+              {categories.length === 0 ? (
+                <p className="muted">No categories yet — add one above.</p>
+              ) : (
+                <div className="checkbox-list">
+                  {categories.map((c) => (
+                    <label key={c.id}>
+                      <input
+                        type="checkbox"
+                        checked={form.categoryIds.includes(c.id)}
+                        onChange={() => toggleCategory(c.id)}
+                      />
+                      {c.name}
                     </label>
-                    <input
-                      value={form.tags}
-                      onChange={(e) =>
-                        setForm({ ...form, tags: e.target.value })
-                      }
-                      placeholder="news, writing"
-                    />
-                  </div>
+                  ))}
                 </div>
+              )}
+            </div>
+
+            <div className="form-row">
+              <div className="field">
+                <label>{STR.labels.status}</label>
+                <select
+                  value={form.status}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      status: e.target.value as PostStatus,
+                    })
+                  }
+                >
+                  <option value="DRAFT">Draft</option>
+                  <option value="PUBLISHED">Published</option>
+                </select>
               </div>
-              <ModalFooter
-                error={formError}
-                draftRestored={draft.restored}
-                onDiscardDraft={draft.discard}
-              >
-                <div className="row-actions">
-                  <Button
-                    type="submit"
-                    // Blocked until the body has loaded — saving a blank editor
-                    // over a loaded post would replace its entire content.
-                    disabled={saving || detailState !== "ready"}
-                  >
-                    {detailState === "loading"
-                      ? STR.common.loading
-                      : saving
-                        ? STR.common.saving
-                        : editingId
-                          ? "Save changes"
-                          : "Publish post"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={closeModal}
-                  >
-                    {STR.common.cancel}
-                  </Button>
-                </div>
-              </ModalFooter>
-            </form>
+              <div className="field">
+                <label>
+                  Tags <span className="muted">(comma-separated)</span>
+                </label>
+                <input
+                  value={form.tags}
+                  onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                  placeholder="news, writing"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+          <ModalFooter
+            error={formError}
+            draftRestored={draft.restored}
+            onDiscardDraft={draft.discard}
+          >
+            <div className="row-actions">
+              <Button
+                type="submit"
+                // Blocked until the body has loaded — saving a blank editor
+                // over a loaded post would replace its entire content.
+                disabled={saving || detailState !== "ready"}
+              >
+                {detailState === "loading"
+                  ? STR.common.loading
+                  : saving
+                    ? STR.common.saving
+                    : editingId
+                      ? "Save changes"
+                      : "Publish post"}
+              </Button>
+              <Button type="button" variant="secondary" onClick={closeModal}>
+                {STR.common.cancel}
+              </Button>
+            </div>
+          </ModalFooter>
+        </FormModal>
       )}
     </div>
   );

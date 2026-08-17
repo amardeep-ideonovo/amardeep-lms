@@ -9,12 +9,12 @@ import type {
   LevelDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
-import { useModalA11y } from "@/lib/useModalA11y";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import MediaPicker from "@/components/MediaPicker";
 import RichTextEditor from "@/components/RichTextEditor";
 import ModalFooter from "@/components/ModalFooter";
+import FormModal from "@/components/FormModal";
 import { usePersistedDraft } from "@/lib/usePersistedDraft";
 import LessonMediaFields, {
   type LessonMediaState,
@@ -111,8 +111,6 @@ export default function CoursesPage() {
 
   // expanded course -> lessons
   const [openCourse, setOpenCourse] = useState<string | null>(null);
-
-  const courseModalRef = useModalA11y();
 
   async function load() {
     setLoading(true);
@@ -482,192 +480,162 @@ export default function CoursesPage() {
       </div>
 
       {modalOpen && (
-        <div
-          ref={courseModalRef}
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
+        <FormModal
+          title={editingId ? "Edit course" : "New course"}
+          onClose={closeModal}
+          onSubmit={submitCourse}
         >
-          <div className="modal">
-            <div className="modal-header">
-              <h2>{editingId ? "Edit course" : "New course"}</h2>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={closeModal}
-                aria-label={STR.common.close}
-              >
-                ×
-              </button>
+          <div className="modal-body">
+            <div className="field">
+              <label>{STR.labels.title}</label>
+              <input
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                autoFocus
+                required
+              />
             </div>
-            <form onSubmit={submitCourse} className="modal-form">
-              <div className="modal-body">
-                <div className="field">
-                  <label>{STR.labels.title}</label>
-                  <input
-                    value={form.title}
-                    onChange={(e) =>
-                      setForm({ ...form, title: e.target.value })
-                    }
-                    autoFocus
-                    required
-                  />
-                </div>
 
-                <div className="field">
-                  <label>{STR.labels.description}</label>
-                  <RichTextEditor
-                    value={form.description}
-                    onChange={(html) => setForm({ ...form, description: html })}
-                  />
-                </div>
+            <div className="field">
+              <label>{STR.labels.description}</label>
+              <RichTextEditor
+                value={form.description}
+                onChange={(html) => setForm({ ...form, description: html })}
+              />
+            </div>
 
-                <div className="form-row">
-                  <div className="field">
-                    <label>
-                      Square thumbnail{" "}
-                      <span className="muted">(course cards)</span>
-                    </label>
-                    <MediaPicker
-                      value={form.thumbnailUrl}
-                      onChange={(url) =>
-                        setForm({ ...form, thumbnailUrl: url })
-                      }
-                      aspect={1}
-                    />
-                  </div>
-                  <div className="field">
-                    <label>
-                      Cover image{" "}
-                      <span className="muted">(course page hero)</span>
-                    </label>
-                    <MediaPicker
-                      value={form.coverImageUrl}
-                      onChange={(url) =>
-                        setForm({ ...form, coverImageUrl: url })
-                      }
-                      aspect={16 / 9}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="field">
-                    <label>
-                      One-time lifetime purchase price{" "}
-                      <span className="muted">
-                        (blank = not sold individually)
-                      </span>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      inputMode="decimal"
-                      placeholder="e.g. 25.00"
-                      value={form.priceInput}
-                      onChange={(e) =>
-                        setForm({ ...form, priceInput: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="field">
-                    <label>
-                      Currency <span className="muted">(3-letter code)</span>
-                    </label>
-                    <input
-                      maxLength={3}
-                      placeholder="usd"
-                      value={form.priceCurrency}
-                      onChange={(e) =>
-                        setForm({ ...form, priceCurrency: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="field">
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={form.priceActive}
-                      onChange={(e) =>
-                        setForm({ ...form, priceActive: e.target.checked })
-                      }
-                    />
-                    Available for one-off purchase
-                  </label>
-                  <p className="muted">
-                    A member who lacks membership access can buy lifetime access
-                    to just this course — a one-time charge (no renewals),
-                    through the site’s own branded card checkout. Uncheck to
-                    pause sales without losing the price.
-                  </p>
-                </div>
-
-                <div className="field">
-                  <label>Classes (unlock access — at least one required)</label>
-                  {levels.length === 0 ? (
-                    <p className="muted">
-                      No classes yet — create a class first; every course must
-                      belong to one.
-                    </p>
-                  ) : (
-                    <div className="checkbox-list">
-                      {levels.map((l) => (
-                        <label key={l.id}>
-                          <input
-                            type="checkbox"
-                            checked={form.levelIds.includes(l.id)}
-                            onChange={() => toggleLevel(l.id)}
-                          />
-                          {l.name}
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                  {levels.length > 0 && form.levelIds.length === 0 && (
-                    <span className="muted" style={{ fontSize: 12 }}>
-                      Select at least one class to save.
-                    </span>
-                  )}
-                </div>
+            <div className="form-row">
+              <div className="field">
+                <label>
+                  Square thumbnail <span className="muted">(course cards)</span>
+                </label>
+                <MediaPicker
+                  value={form.thumbnailUrl}
+                  onChange={(url) => setForm({ ...form, thumbnailUrl: url })}
+                  aspect={1}
+                />
               </div>
+              <div className="field">
+                <label>
+                  Cover image <span className="muted">(course page hero)</span>
+                </label>
+                <MediaPicker
+                  value={form.coverImageUrl}
+                  onChange={(url) => setForm({ ...form, coverImageUrl: url })}
+                  aspect={16 / 9}
+                />
+              </div>
+            </div>
 
-              <ModalFooter
-                error={formError}
-                draftRestored={draft.restored}
-                onDiscardDraft={draft.discard}
+            <div className="form-row">
+              <div className="field">
+                <label>
+                  One-time lifetime purchase price{" "}
+                  <span className="muted">(blank = not sold individually)</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  placeholder="e.g. 25.00"
+                  value={form.priceInput}
+                  onChange={(e) =>
+                    setForm({ ...form, priceInput: e.target.value })
+                  }
+                />
+              </div>
+              <div className="field">
+                <label>
+                  Currency <span className="muted">(3-letter code)</span>
+                </label>
+                <input
+                  maxLength={3}
+                  placeholder="usd"
+                  value={form.priceCurrency}
+                  onChange={(e) =>
+                    setForm({ ...form, priceCurrency: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <div className="field">
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                }}
               >
-                <div className="row-actions">
-                  <Button
-                    type="submit"
-                    disabled={saving || form.levelIds.length === 0}
-                  >
-                    {saving
-                      ? STR.common.saving
-                      : editingId
-                        ? "Save changes"
-                        : "Create course"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={closeModal}
-                  >
-                    {STR.common.cancel}
-                  </Button>
+                <input
+                  type="checkbox"
+                  checked={form.priceActive}
+                  onChange={(e) =>
+                    setForm({ ...form, priceActive: e.target.checked })
+                  }
+                />
+                Available for one-off purchase
+              </label>
+              <p className="muted">
+                A member who lacks membership access can buy lifetime access to
+                just this course — a one-time charge (no renewals), through the
+                site’s own branded card checkout. Uncheck to pause sales without
+                losing the price.
+              </p>
+            </div>
+
+            <div className="field">
+              <label>Classes (unlock access — at least one required)</label>
+              {levels.length === 0 ? (
+                <p className="muted">
+                  No classes yet — create a class first; every course must
+                  belong to one.
+                </p>
+              ) : (
+                <div className="checkbox-list">
+                  {levels.map((l) => (
+                    <label key={l.id}>
+                      <input
+                        type="checkbox"
+                        checked={form.levelIds.includes(l.id)}
+                        onChange={() => toggleLevel(l.id)}
+                      />
+                      {l.name}
+                    </label>
+                  ))}
                 </div>
-              </ModalFooter>
-            </form>
+              )}
+              {levels.length > 0 && form.levelIds.length === 0 && (
+                <span className="muted" style={{ fontSize: 12 }}>
+                  Select at least one class to save.
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+
+          <ModalFooter
+            error={formError}
+            draftRestored={draft.restored}
+            onDiscardDraft={draft.discard}
+          >
+            <div className="row-actions">
+              <Button
+                type="submit"
+                disabled={saving || form.levelIds.length === 0}
+              >
+                {saving
+                  ? STR.common.saving
+                  : editingId
+                    ? "Save changes"
+                    : "Create course"}
+              </Button>
+              <Button type="button" variant="secondary" onClick={closeModal}>
+                {STR.common.cancel}
+              </Button>
+            </div>
+          </ModalFooter>
+        </FormModal>
       )}
     </div>
   );
@@ -695,7 +663,6 @@ function CourseLessons({
   // upload endpoint needs the new lesson's id).
   const [noteFiles, setNoteFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
-  const lessonModalRef = useModalA11y();
 
   async function load() {
     setLoading(true);
@@ -793,172 +760,151 @@ function CourseLessons({
       </Button>
 
       {showAdd && (
-        <div
-          ref={lessonModalRef}
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
+        <FormModal
+          title={`Add lesson — ${courseTitle}`}
+          onClose={closeAdd}
+          onSubmit={addLesson}
+          maxWidth={860}
         >
-          <div className="modal" style={{ maxWidth: 860 }}>
-            <div className="modal-header">
-              <h2>Add lesson — {courseTitle}</h2>
-              <button
-                type="button"
-                className="modal-close"
-                onClick={closeAdd}
-                aria-label={STR.common.close}
-              >
-                ×
-              </button>
+          <div className="modal-body">
+            {/* Full-width: title + description */}
+            <div className="field">
+              <label>{STR.labels.title}</label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                autoFocus
+              />
             </div>
-            <form onSubmit={addLesson} className="modal-form">
-              <div className="modal-body">
-                {/* Full-width: title + description */}
+            <div className="field">
+              <label>
+                Description <span className="muted">(shown on the lesson)</span>
+              </label>
+              <RichTextEditor value={content} onChange={setContent} />
+            </div>
+
+            {/* Two columns: media on the left, metadata on the right. */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+                columnGap: 28,
+                rowGap: 20,
+                alignItems: "start",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 18,
+                }}
+              >
+                <LessonMediaFields
+                  state={media}
+                  onChange={setMedia}
+                  name="add-lesson-media"
+                />
                 <div className="field">
-                  <label>{STR.labels.title}</label>
+                  <label>
+                    Duration <span className="muted">(mm:ss, optional)</span>
+                  </label>
                   <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                    autoFocus
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    placeholder="e.g. 12:30"
+                    style={{ maxWidth: 160 }}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 18,
+                }}
+              >
+                <div className="field">
+                  <label>Thumbnail</label>
+                  <MediaPicker
+                    value={thumbnailUrl}
+                    onChange={setThumbnailUrl}
+                    aspect={16 / 9}
                   />
                 </div>
                 <div className="field">
                   <label>
-                    Description{" "}
-                    <span className="muted">(shown on the lesson)</span>
+                    Notes{" "}
+                    <span className="muted">
+                      (downloadable files, optional)
+                    </span>
                   </label>
-                  <RichTextEditor value={content} onChange={setContent} />
-                </div>
-
-                {/* Two columns: media on the left, metadata on the right. */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-                    columnGap: 28,
-                    rowGap: 20,
-                    alignItems: "start",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 18,
-                    }}
+                  {noteFiles.length > 0 && (
+                    <ul className="notes-list">
+                      {noteFiles.map((f, i) => (
+                        <li key={i} className="note-item">
+                          <span
+                            style={{
+                              flex: 1,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {f.name}
+                          </span>
+                          <span className="muted">{formatBytes(f.size)}</span>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() =>
+                              setNoteFiles((fs) => fs.filter((_, j) => j !== i))
+                            }
+                          >
+                            {STR.common.remove}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <label
+                    className="btn btn--ghost btn--sm file-btn"
+                    style={{ marginTop: noteFiles.length ? 8 : 0 }}
                   >
-                    <LessonMediaFields
-                      state={media}
-                      onChange={setMedia}
-                      name="add-lesson-media"
+                    + Add files
+                    <input
+                      type="file"
+                      multiple
+                      hidden
+                      onChange={(e) => {
+                        const picked = e.target.files
+                          ? Array.from(e.target.files)
+                          : [];
+                        if (picked.length)
+                          setNoteFiles((fs) => [...fs, ...picked]);
+                        e.target.value = "";
+                      }}
                     />
-                    <div className="field">
-                      <label>
-                        Duration{" "}
-                        <span className="muted">(mm:ss, optional)</span>
-                      </label>
-                      <input
-                        value={duration}
-                        onChange={(e) => setDuration(e.target.value)}
-                        placeholder="e.g. 12:30"
-                        style={{ maxWidth: 160 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 18,
-                    }}
-                  >
-                    <div className="field">
-                      <label>Thumbnail</label>
-                      <MediaPicker
-                        value={thumbnailUrl}
-                        onChange={setThumbnailUrl}
-                        aspect={16 / 9}
-                      />
-                    </div>
-                    <div className="field">
-                      <label>
-                        Notes{" "}
-                        <span className="muted">
-                          (downloadable files, optional)
-                        </span>
-                      </label>
-                      {noteFiles.length > 0 && (
-                        <ul className="notes-list">
-                          {noteFiles.map((f, i) => (
-                            <li key={i} className="note-item">
-                              <span
-                                style={{
-                                  flex: 1,
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {f.name}
-                              </span>
-                              <span className="muted">
-                                {formatBytes(f.size)}
-                              </span>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                onClick={() =>
-                                  setNoteFiles((fs) =>
-                                    fs.filter((_, j) => j !== i),
-                                  )
-                                }
-                              >
-                                {STR.common.remove}
-                              </Button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      <label
-                        className="btn btn--ghost btn--sm file-btn"
-                        style={{ marginTop: noteFiles.length ? 8 : 0 }}
-                      >
-                        + Add files
-                        <input
-                          type="file"
-                          multiple
-                          hidden
-                          onChange={(e) => {
-                            const picked = e.target.files
-                              ? Array.from(e.target.files)
-                              : [];
-                            if (picked.length)
-                              setNoteFiles((fs) => [...fs, ...picked]);
-                            e.target.value = "";
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </div>
+                  </label>
                 </div>
               </div>
-
-              <ModalFooter error={error}>
-                <div className="row-actions" style={{ marginTop: 22 }}>
-                  <Button type="submit" disabled={saving}>
-                    {saving ? "Adding…" : "Add lesson"}
-                  </Button>
-                  <Button type="button" variant="secondary" onClick={closeAdd}>
-                    {STR.common.cancel}
-                  </Button>
-                </div>
-              </ModalFooter>
-            </form>
+            </div>
           </div>
-        </div>
+
+          <ModalFooter error={error}>
+            <div className="row-actions" style={{ marginTop: 22 }}>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Adding…" : "Add lesson"}
+              </Button>
+              <Button type="button" variant="secondary" onClick={closeAdd}>
+                {STR.common.cancel}
+              </Button>
+            </div>
+          </ModalFooter>
+        </FormModal>
       )}
     </div>
   );

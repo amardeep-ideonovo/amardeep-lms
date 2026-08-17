@@ -10,9 +10,9 @@ import type {
   SegmentDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
-import { useModalA11y } from "@/lib/useModalA11y";
 import { usePersistedDraft } from "@/lib/usePersistedDraft";
 import ModalFooter from "@/components/ModalFooter";
+import FormModal from "@/components/FormModal";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { STR } from "@lms/types";
@@ -126,8 +126,6 @@ export default function ContactsPage() {
   // ----- side panels (fields + segments) -----
   const [fields, setFields] = useState<AudienceFieldDTO[]>([]);
   const [segments, setSegments] = useState<SegmentDTO[]>([]);
-
-  const modalRef = useModalA11y();
 
   const canCreate = can("contacts", "create");
   const canEdit = can("contacts", "edit");
@@ -800,115 +798,98 @@ export default function ContactsPage() {
 
       {/* ---------------- Contact editor modal ---------------- */}
       {editorOpen && (
-        <div
-          ref={modalRef}
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
+        <FormModal
+          title={editingId ? "Edit contact" : "New contact"}
+          onClose={closeEditor}
+          onSubmit={saveContact}
+          wide
+          maxWidth={520}
         >
-          <div className="modal modal--wide" style={{ maxWidth: 520 }}>
-            <div className="modal-header">
-              <h2>{editingId ? "Edit contact" : "New contact"}</h2>
-              <button className="modal-close" onClick={closeEditor}>
-                ×
-              </button>
+          <div className="modal-body">
+            <div className="field">
+              <label>{STR.labels.email}</label>
+              <input
+                type="email"
+                value={draft.email}
+                onChange={(e) => setDraft({ ...draft, email: e.target.value })}
+                required
+                autoFocus
+              />
             </div>
-            <form onSubmit={saveContact} className="modal-form">
-              <div className="modal-body">
-                <div className="field">
-                  <label>{STR.labels.email}</label>
-                  <input
-                    type="email"
-                    value={draft.email}
-                    onChange={(e) =>
-                      setDraft({ ...draft, email: e.target.value })
-                    }
-                    required
-                    autoFocus
-                  />
-                </div>
-                <div className="form-row">
-                  <div className="field">
-                    <label>{STR.labels.firstName}</label>
-                    <input
-                      value={draft.firstName}
-                      onChange={(e) =>
-                        setDraft({ ...draft, firstName: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="field">
-                    <label>{STR.labels.lastName}</label>
-                    <input
-                      value={draft.lastName}
-                      onChange={(e) =>
-                        setDraft({ ...draft, lastName: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="field">
-                  <label>{STR.labels.status}</label>
-                  <select
-                    value={draft.status}
-                    onChange={(e) =>
-                      setDraft({
-                        ...draft,
-                        status: e.target.value as ContactStatus,
-                      })
-                    }
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {STATUS_LABEL[s]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field">
-                  <label>
-                    Tags <span className="muted">(comma-separated)</span>
-                  </label>
-                  <input
-                    value={draft.tags}
-                    onChange={(e) =>
-                      setDraft({ ...draft, tags: e.target.value })
-                    }
-                    placeholder="e.g. lead, webinar"
-                  />
-                </div>
-                {fields.length > 0 && (
-                  <p className="muted" style={{ fontSize: 12 }}>
-                    Custom fields for this audience:{" "}
-                    {fields.map((f) => f.tag).join(", ")}.
-                  </p>
-                )}
+            <div className="form-row">
+              <div className="field">
+                <label>{STR.labels.firstName}</label>
+                <input
+                  value={draft.firstName}
+                  onChange={(e) =>
+                    setDraft({ ...draft, firstName: e.target.value })
+                  }
+                />
               </div>
-              <ModalFooter
-                error={editorError}
-                draftRestored={persistedDraft.restored}
-                onDiscardDraft={persistedDraft.discard}
+              <div className="field">
+                <label>{STR.labels.lastName}</label>
+                <input
+                  value={draft.lastName}
+                  onChange={(e) =>
+                    setDraft({ ...draft, lastName: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <div className="field">
+              <label>{STR.labels.status}</label>
+              <select
+                value={draft.status}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    status: e.target.value as ContactStatus,
+                  })
+                }
               >
-                <div className="row-actions">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={closeEditor}
-                  >
-                    {STR.common.cancel}
-                  </Button>
-                  <Button type="submit" disabled={savingContact}>
-                    {savingContact
-                      ? STR.common.saving
-                      : editingId
-                        ? "Save changes"
-                        : "Add contact"}
-                  </Button>
-                </div>
-              </ModalFooter>
-            </form>
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>
+                Tags <span className="muted">(comma-separated)</span>
+              </label>
+              <input
+                value={draft.tags}
+                onChange={(e) => setDraft({ ...draft, tags: e.target.value })}
+                placeholder="e.g. lead, webinar"
+              />
+            </div>
+            {fields.length > 0 && (
+              <p className="muted" style={{ fontSize: 12 }}>
+                Custom fields for this audience:{" "}
+                {fields.map((f) => f.tag).join(", ")}.
+              </p>
+            )}
           </div>
-        </div>
+          <ModalFooter
+            error={editorError}
+            draftRestored={persistedDraft.restored}
+            onDiscardDraft={persistedDraft.discard}
+          >
+            <div className="row-actions">
+              <Button type="button" variant="secondary" onClick={closeEditor}>
+                {STR.common.cancel}
+              </Button>
+              <Button type="submit" disabled={savingContact}>
+                {savingContact
+                  ? STR.common.saving
+                  : editingId
+                    ? "Save changes"
+                    : "Add contact"}
+              </Button>
+            </div>
+          </ModalFooter>
+        </FormModal>
       )}
     </div>
   );

@@ -10,10 +10,10 @@ import {
   type AdminSection,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
-import { useModalA11y } from "@/lib/useModalA11y";
 import { dialog } from "@/components/DialogProvider";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import ModalFooter from "@/components/ModalFooter";
+import FormModal from "@/components/FormModal";
 import { PASSWORD_MIN, STR } from "@lms/types";
 import { Button } from "@lms/ui";
 
@@ -247,7 +247,6 @@ function AdminModal({
   );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const modalRef = useModalA11y();
 
   const toggle = (section: AdminSection, action: AdminAction) => {
     setPerms((prev) => {
@@ -298,142 +297,127 @@ function AdminModal({
 
   // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
   return (
-    <div
-      ref={modalRef}
-      className="modal-overlay"
-      role="dialog"
-      aria-modal="true"
+    <FormModal
+      title={mode === "create" ? "Add admin" : `Edit ${admin?.email}`}
+      onClose={onClose}
+      onSubmit={submit}
+      maxWidth={660}
+      closeDisabled={busy}
     >
-      <div className="modal" style={{ maxWidth: 660 }}>
-        <div className="modal-header">
-          <h2>{mode === "create" ? "Add admin" : `Edit ${admin?.email}`}</h2>
-          <button
-            type="button"
-            className="modal-close"
-            aria-label={STR.common.close}
-            disabled={busy}
-            onClick={onClose}
-          >
-            ×
-          </button>
-        </div>
-        <form onSubmit={submit} className="modal-form">
-          <div className="modal-body">
-            {mode === "create" && (
-              <>
-                <div className="field">
-                  <label htmlFor="adm-email">{STR.labels.email}</label>
-                  <input
-                    id="adm-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="adm-pw">Temporary password</label>
-                  <input
-                    id="adm-pw"
-                    type="text"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    minLength={8}
-                    required
-                  />
-                  <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                    Share this with the new admin; they can change it after
-                    signing in.
-                  </p>
-                </div>
-              </>
-            )}
-
-            <label
-              style={{
-                display: "flex",
-                gap: 8,
-                alignItems: "center",
-                margin: "10px 0",
-              }}
-            >
+      <div className="modal-body">
+        {mode === "create" && (
+          <>
+            <div className="field">
+              <label htmlFor="adm-email">{STR.labels.email}</label>
               <input
-                type="checkbox"
-                checked={superAdmin}
-                onChange={(e) => setSuperAdmin(e.target.checked)}
+                id="adm-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
               />
-              <span>
-                <strong>Full access (super admin)</strong> — manages everything,
-                including other admins
-              </span>
-            </label>
-
-            {!superAdmin && (
-              <div className="table-wrap">
-                <table className="table perms-matrix">
-                  <thead>
-                    <tr>
-                      <th>Section</th>
-                      {ADMIN_ACTIONS.map((a) => (
-                        <th key={a} style={{ textTransform: "capitalize" }}>
-                          {a}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {ADMIN_SECTIONS.map((s) => (
-                      <tr key={s.key}>
-                        <td>
-                          {s.label}
-                          {isReadOnly(s) ? (
-                            <span className="muted"> (read-only)</span>
-                          ) : null}
-                        </td>
-                        {ADMIN_ACTIONS.map((a) => {
-                          const disabled = isReadOnly(s) && a !== "read";
-                          return (
-                            <td key={a} style={{ textAlign: "center" }}>
-                              {disabled ? (
-                                <span className="muted">—</span>
-                              ) : (
-                                <input
-                                  type="checkbox"
-                                  checked={perms[s.key]?.[a] === true}
-                                  onChange={() => toggle(s.key, a)}
-                                />
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-          <ModalFooter error={err}>
-            <div className="row-actions" style={{ marginTop: 16 }}>
-              <Button type="submit" disabled={busy}>
-                {busy
-                  ? STR.common.saving
-                  : mode === "create"
-                    ? "Create admin"
-                    : "Save changes"}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onClose}
-                disabled={busy}
-              >
-                {STR.common.cancel}
-              </Button>
             </div>
-          </ModalFooter>
-        </form>
+            <div className="field">
+              <label htmlFor="adm-pw">Temporary password</label>
+              <input
+                id="adm-pw"
+                type="text"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                minLength={8}
+                required
+              />
+              <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                Share this with the new admin; they can change it after signing
+                in.
+              </p>
+            </div>
+          </>
+        )}
+
+        <label
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            margin: "10px 0",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={superAdmin}
+            onChange={(e) => setSuperAdmin(e.target.checked)}
+          />
+          <span>
+            <strong>Full access (super admin)</strong> — manages everything,
+            including other admins
+          </span>
+        </label>
+
+        {!superAdmin && (
+          <div className="table-wrap">
+            <table className="table perms-matrix">
+              <thead>
+                <tr>
+                  <th>Section</th>
+                  {ADMIN_ACTIONS.map((a) => (
+                    <th key={a} style={{ textTransform: "capitalize" }}>
+                      {a}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ADMIN_SECTIONS.map((s) => (
+                  <tr key={s.key}>
+                    <td>
+                      {s.label}
+                      {isReadOnly(s) ? (
+                        <span className="muted"> (read-only)</span>
+                      ) : null}
+                    </td>
+                    {ADMIN_ACTIONS.map((a) => {
+                      const disabled = isReadOnly(s) && a !== "read";
+                      return (
+                        <td key={a} style={{ textAlign: "center" }}>
+                          {disabled ? (
+                            <span className="muted">—</span>
+                          ) : (
+                            <input
+                              type="checkbox"
+                              checked={perms[s.key]?.[a] === true}
+                              onChange={() => toggle(s.key, a)}
+                            />
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-    </div>
+      <ModalFooter error={err}>
+        <div className="row-actions" style={{ marginTop: 16 }}>
+          <Button type="submit" disabled={busy}>
+            {busy
+              ? STR.common.saving
+              : mode === "create"
+                ? "Create admin"
+                : "Save changes"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            disabled={busy}
+          >
+            {STR.common.cancel}
+          </Button>
+        </div>
+      </ModalFooter>
+    </FormModal>
   );
 }
