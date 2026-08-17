@@ -381,8 +381,8 @@ export function CapOverrideModal({
         <div className="modal-body">
           <p className="modal-note">
             Plan default ({plan?.name ?? client.license.planId}):{" "}
-            <b>{planCap}</b>{" "}
-            {planCap === 1 ? "academy" : "academies"} · currently using {owned}.
+            <b>{planCap}</b> {planCap === 1 ? "academy" : "academies"} ·
+            currently using {owned}.
           </p>
           <Field
             label="Cap override"

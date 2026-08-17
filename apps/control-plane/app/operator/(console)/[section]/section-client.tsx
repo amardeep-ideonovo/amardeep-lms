@@ -177,8 +177,8 @@ function ProvisioningView({ fleet }: { fleet: FleetState }) {
         ))}
         {provisioning.length === 0 && (
           <div className="empty-note">
-            Nothing booting right now — use “+ Provision academy” in the top
-            bar to bring up a new isolated stack.
+            Nothing booting right now — use “+ Provision academy” in the top bar
+            to bring up a new isolated stack.
           </div>
         )}
       </div>
