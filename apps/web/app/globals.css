@@ -249,6 +249,43 @@ a {
   text-decoration: none;
 }
 
+/* ---------- Admin "preview the member site" banner (PreviewBanner.tsx). Shown
+   only during a read-only preview session; sits above the nav. ---------- */
+.preview-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--ink-900);
+  color: var(--surface);
+  font-size: 14px;
+  line-height: 1.3;
+  text-align: center;
+}
+.preview-banner-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+.preview-banner-btn {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: transparent;
+  color: var(--surface);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.preview-banner-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
 /* ---------- Nav — Ink Hero band top row (frame 2a). Flat #221c3d, 66px row,
    full-width with 40px gutters; the admin Header builder still overrides via
    the inline --hdr-* vars. ---------- */

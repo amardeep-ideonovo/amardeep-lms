@@ -59,36 +59,18 @@ export default function PreviewBanner() {
   }
 
   return (
-    <div
-      role="status"
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 1000,
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 12,
-        padding: "8px 16px",
-        background: "var(--ink-900)",
-        color: "var(--surface)",
-        fontSize: 14,
-        lineHeight: 1.3,
-        textAlign: "center",
-      }}
-    >
+    <div role="status" className="preview-banner">
       <span>
         <strong>Preview mode</strong> — viewing the member site as a{" "}
         {mode === "unlocked" ? "member with full access" : "visitor (locked)"}.
         Changes can’t be saved.
       </span>
-      <span style={{ display: "inline-flex", gap: 8 }}>
+      <span className="preview-banner-actions">
         {canToggle && (
           <button
             type="button"
+            className="preview-banner-btn"
             onClick={toggle}
-            style={previewBtnStyle}
             aria-label={`Switch to the ${
               mode === "unlocked" ? "locked" : "unlocked"
             } view`}
@@ -96,22 +78,10 @@ export default function PreviewBanner() {
             {mode === "unlocked" ? "Show locked view" : "Show unlocked view"}
           </button>
         )}
-        <button type="button" onClick={exit} style={previewBtnStyle}>
+        <button type="button" className="preview-banner-btn" onClick={exit}>
           Exit preview
         </button>
       </span>
     </div>
   );
 }
-
-const previewBtnStyle: React.CSSProperties = {
-  appearance: "none",
-  border: "1px solid rgba(255,255,255,0.5)",
-  background: "transparent",
-  color: "var(--surface)",
-  borderRadius: 999,
-  padding: "3px 12px",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer",
-};
