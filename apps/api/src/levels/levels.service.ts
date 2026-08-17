@@ -18,6 +18,7 @@ import type {
   PublicClassListItem,
   SkillDTO,
 } from "@lms/types";
+import { slugify } from "../common/slugify";
 import { PrismaService } from "../prisma/prisma.service";
 import { AccessService } from "../lms/access.service";
 import { CertificatesService } from "../certificates/certificates.service";
@@ -1119,17 +1120,6 @@ export class LevelsService {
 
   // ---------- checkout slug ----------
 
-  private slugify(input: string): string {
-    return input
-      .toLowerCase()
-      .normalize("NFKD")
-      .replace(/[̀-ͯ]/g, "") // strip diacritics
-      .replace(/[^a-z0-9\s-]/g, "")
-      .trim()
-      .replace(/[\s_-]+/g, "-")
-      .replace(/^-+|-+$/g, "");
-  }
-
   // Resolve a class's URL slug. An explicit admin-typed slug must be unique
   // (else 409). When none is given, auto-derive a stable, unique slug from the
   // class name ("Class 1" -> "class-1", then "-2", "-3"… on collision) so the
@@ -1140,7 +1130,7 @@ export class LevelsService {
     ignoreId?: string,
     fallbackName?: string,
   ): Promise<string | null> {
-    const explicit = raw !== undefined ? this.slugify(raw) : "";
+    const explicit = raw !== undefined ? slugify(raw) : "";
     if (explicit) {
       const clash = await this.prisma.level.findFirst({
         where: { slug: explicit, NOT: ignoreId ? { id: ignoreId } : undefined },
@@ -1152,7 +1142,7 @@ export class LevelsService {
       return explicit;
     }
     // No explicit slug — derive one from the name (auto, uniqueness-suffixed).
-    const base = fallbackName ? this.slugify(fallbackName) : "";
+    const base = fallbackName ? slugify(fallbackName) : "";
     if (!base) return null;
     return this.ensureUniqueLevelSlug(base, ignoreId);
   }
