@@ -49,7 +49,7 @@ export default function LoginPage() {
         </Link>
         <h1 className="login-title">Sign in to your academy</h1>
         <p className="login-sub">
-          Your license, instance, backups, apps &amp; billing.
+          Your license, academy, backups, apps &amp; billing.
         </p>
         <form method="post" className="login-form" onSubmit={submit}>
           <Field label={STR.labels.email}>

@@ -129,7 +129,7 @@ function seedPlans(): Plan[] {
       instanceCap: 1,
       appTrack: "none",
       features: [
-        "1 instance · your domain",
+        "1 academy · your domain",
         "Up to 500 members",
         "Web only (no mobile apps)",
         "Weekly backups",
@@ -147,7 +147,7 @@ function seedPlans(): Plan[] {
       instanceCap: 1,
       appTrack: "shared",
       features: [
-        "1 instance · your domain",
+        "1 academy · your domain",
         "Up to 5,000 members",
         "iOS & Android via the shared Spotlight app",
         "Daily backups + restore drills",
@@ -166,7 +166,7 @@ function seedPlans(): Plan[] {
       instanceCap: 3,
       appTrack: "whitelabel",
       features: [
-        "Up to 3 instances",
+        "Up to 3 academies",
         "Unlimited members",
         "White-label apps on your store accounts",
         "Dedicated host & SLA 99.9%",
@@ -611,9 +611,9 @@ function seedState(): FleetState {
         { name: "Batch 2", size: 12, note: "6 remaining", state: "active" },
       ],
       policy: [
-        "Canary instances soak for 24h before any batch starts.",
-        "Health regression on any instance halts the wave automatically.",
-        "Each instance updates in its own backup-checkpointed window.",
+        "Canary academies soak for 24h before any batch starts.",
+        "Health regression on any academy halts the wave automatically.",
+        "Each academy updates in its own backup-checkpointed window.",
         "Client-scheduled updates (“Update tonight”) jump the queue at 02:00.",
       ],
     },
@@ -632,7 +632,7 @@ function seedState(): FleetState {
         id: "a-disk-vps2",
         severity: "warning",
         title: "Disk at 82% on vps-2",
-        meta: "10 instances on host",
+        meta: "10 academies on host",
         action: "Inspect",
         at: "2026-07-05T22:30:00Z",
         resolved: false,
@@ -1005,7 +1005,7 @@ export function clientsOnPlan(s: FleetState, planId: string): number {
 /** "Includes …" one-liner for license cards. */
 export function licenseSummary(s: FleetState, license: License): string {
   const cap = effectiveCap(s, license);
-  return `${cap} instance${cap === 1 ? "" : "s"} · ${trackLabel(effectiveTrack(s, license))}`;
+  return `${cap} ${cap === 1 ? "academy" : "academies"} · ${trackLabel(effectiveTrack(s, license))}`;
 }
 
 // ---------- client/instance helpers (pure) ----------
@@ -1314,7 +1314,7 @@ export async function provisionInstance(
   await latency();
   const id = input.id.trim().toLowerCase();
   if (state.instances.some((i) => i.id === id)) {
-    return { ok: false, error: `Instance id "${id}" is already taken.` };
+    return { ok: false, error: `Academy id "${id}" is already taken.` };
   }
   const plan = getPlan(state, input.planId);
   if (!plan) return { ok: false, error: "Pick a plan from the catalog." };
@@ -1474,7 +1474,7 @@ export async function provisionOwnInstance(
   if (owned.length >= cap) {
     return {
       ok: false,
-      error: `Instance limit reached — ${owned.length} of ${cap} used. Upgrade the plan or raise the cap.`,
+      error: `Academy limit reached — ${owned.length} of ${cap} used. Upgrade the plan or raise the cap.`,
     };
   }
 
@@ -1635,7 +1635,7 @@ export async function suspendLicense(clientId: string): Promise<void> {
     avatarSeed: state.operator.avatarSeed,
     prefix: "Suspended the license for ",
     target: client.academyName,
-    suffix: " — portal actions disabled, instances keep running",
+    suffix: " — portal actions disabled, academies keep running",
   });
 }
 
@@ -1681,7 +1681,7 @@ export async function resumeLicense(clientId: string): Promise<void> {
     avatarSeed: state.operator.avatarSeed,
     prefix: "Resumed the license for ",
     target: client.academyName,
-    suffix: revived.length > 0 ? " — parked instances restarted" : "",
+    suffix: revived.length > 0 ? " — parked academies restarted" : "",
   });
 }
 
@@ -1738,8 +1738,8 @@ export async function setLicenseCapOverride(
     avatarSeed: state.operator.avatarSeed,
     prefix:
       cap === null
-        ? "Cleared the instance-cap override for "
-        : "Overrode the instance cap for ",
+        ? "Cleared the academy-cap override for "
+        : "Overrode the academy cap for ",
     target: client.academyName,
     suffix: ` — ${before} → ${after}${cap === null ? " (plan default)" : ""}`,
   });

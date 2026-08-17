@@ -13,7 +13,7 @@ export function AddHostModal({ onClose }: { onClose: () => void }) {
     <Modal title="Add host" onClose={onClose} width={400}>
       <div className="modal-body">
         <p className="modal-note">
-          Registers a VPS with the fleet. New instances are placed on the
+          Registers a VPS with the fleet. New academies are placed on the
           least-loaded host.
         </p>
         <Field label="Host name">

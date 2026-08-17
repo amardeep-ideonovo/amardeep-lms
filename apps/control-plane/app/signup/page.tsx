@@ -54,8 +54,8 @@ export default function SignupPage() {
         <div className="signup-head">
           <h1 className="signup-h1">Start your academy</h1>
           <p className="signup-sub">
-            Account, plan, checkout — then your own fully isolated instance
-            boots in minutes.
+            Account, plan, checkout — then your own fully isolated academy boots
+            in minutes.
           </p>
         </div>
       </div>

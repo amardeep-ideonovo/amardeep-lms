@@ -68,7 +68,7 @@ export default function PortalSection({
       <div className="stack page-in">
         <div className="card onboard-card">
           <div className="card-head" style={{ marginBottom: 6 }}>
-            <span className="card-title">No instance yet</span>
+            <span className="card-title">No academy yet</span>
           </div>
           <p className="modal-note" style={{ marginBottom: 14, maxWidth: 460 }}>
             Your {plan?.name ?? "current"} license is active, but{" "}
@@ -197,7 +197,7 @@ function InstanceView({ instance }: { instance: Instance }) {
           </div>
           <div className="kv-grid">
             <div className="kv">
-              <span className="kv-k">Instance id</span>
+              <span className="kv-k">Academy id</span>
               <span className="kv-v mono">{instance.id}</span>
             </div>
             <div className="kv">
@@ -241,7 +241,7 @@ function InstanceView({ instance }: { instance: Instance }) {
             Your database, media, and job queue run in containers namespaced{" "}
             <span className="mono">{instance.dbName}</span>. Stripe, email, and
             video keys live in your own admin Settings, encrypted with your
-            instance's key.
+            academy's key.
           </p>
         </div>
 
@@ -569,7 +569,7 @@ function MobileView({
         </div>
         <p className="modal-note" style={{ marginTop: 8, maxWidth: 640 }}>
           Builds run on the per-client EAS track: the binary is branded to{" "}
-          {instance.clientName}, points at your instance's API, and is submitted
+          {instance.clientName}, points at your academy's API, and is submitted
           to the stores under your accounts. The platform team handles signing,
           review notes, and rollout.
         </p>
@@ -658,7 +658,7 @@ function BillingView({
             · {client.license.cardBrand} •••• {client.license.cardLast4}
             <br />
             Includes {licenseSummary(fleet, client.license)} — covering{" "}
-            {owned.length} of {cap} instance slot{cap === 1 ? "" : "s"}
+            {owned.length} of {cap} academy slot{cap === 1 ? "" : "s"}
           </div>
           <div
             className="card-btn-row"

@@ -177,8 +177,8 @@ function ProvisioningView({ fleet }: { fleet: FleetState }) {
         ))}
         {provisioning.length === 0 && (
           <div className="empty-note">
-            Nothing booting right now — use “+ Provision instance” in the top
-            bar to bring up a new isolated stack.
+            Nothing booting right now — use “+ Provision academy” in the top bar
+            to bring up a new isolated stack.
           </div>
         )}
       </div>
@@ -211,7 +211,7 @@ function UpdatesView({ fleet }: { fleet: FleetState }) {
         <table className="itable">
           <thead>
             <tr>
-              <th>Instance</th>
+              <th>Academy</th>
               <th>Current</th>
               <th>Target</th>
               <th>State</th>
@@ -269,7 +269,7 @@ function BackupsView({ fleet }: { fleet: FleetState }) {
       <table className="itable">
         <thead>
           <tr>
-            <th>Instance</th>
+            <th>Academy</th>
             <th>Schedule</th>
             <th>Last run</th>
             <th>Size</th>
@@ -369,7 +369,7 @@ function PlansView({ fleet }: { fleet: FleetState }) {
               <th>Order</th>
               <th>{STR.labels.plan}</th>
               <th>Price</th>
-              <th>Instance cap</th>
+              <th>Academy cap</th>
               <th>App track</th>
               <th>Clients</th>
               <th>{STR.labels.status}</th>
@@ -419,8 +419,8 @@ function PlansView({ fleet }: { fleet: FleetState }) {
                   </td>
                   <td>${plan.priceMonthly}/mo</td>
                   <td>
-                    {plan.instanceCap} instance
-                    {plan.instanceCap === 1 ? "" : "s"}
+                    {plan.instanceCap}{" "}
+                    {plan.instanceCap === 1 ? "academy" : "academies"}
                   </td>
                   <td>
                     <Pill tone={trackTone(plan.appTrack)}>
@@ -474,7 +474,7 @@ function PlansView({ fleet }: { fleet: FleetState }) {
         </div>
         {[
           "Active plans render on the sales page and the signup wizard in this order — features verbatim, featured plans get the ribbon.",
-          "Every license points at a plan: price, instance cap and app track follow it live (per-license overrides win).",
+          "Every license points at a plan: price, academy cap and app track follow it live (per-license overrides win).",
           "Deactivating a plan hides it from sale — existing licenses keep it until you change their plan.",
           "Price edits reprice every active license on the plan and the fleet MRR immediately.",
         ].map((line, idx) => (
@@ -556,7 +556,7 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
               <th>Client</th>
               <th>{STR.labels.plan}</th>
               <th>Price</th>
-              <th>Instances</th>
+              <th>Academies</th>
               <th>App track</th>
               <th>{STR.labels.status}</th>
               <th>Since</th>
@@ -609,7 +609,7 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
                           onSelect: () => setDialog({ kind: "plan", client }),
                         },
                         {
-                          label: "Override instance cap…",
+                          label: "Override academy cap…",
                           onSelect: () => setDialog({ kind: "cap", client }),
                         },
                         {
@@ -618,8 +618,8 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
                         },
                         {
                           label: atCap
-                            ? `Provision instance (at cap ${owned.length}/${cap})`
-                            : "Provision instance for client…",
+                            ? `Provision academy (at cap ${owned.length}/${cap})`
+                            : "Provision academy for client…",
                           disabled: atCap || suspended,
                           onSelect: () =>
                             setDialog({ kind: "provision", client }),
@@ -692,10 +692,10 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
               <div className="warn-box">
                 The portal shows a “License suspended” banner and every mutating
                 action is disabled. Their{" "}
-                {clientInstances(fleet, dialog.client.id).length} instance
+                {clientInstances(fleet, dialog.client.id).length}{" "}
                 {clientInstances(fleet, dialog.client.id).length === 1
-                  ? " keeps"
-                  : "s keep"}{" "}
+                  ? "academy keeps"
+                  : "academies keep"}{" "}
                 running — members are not interrupted.
               </div>
               <p className="modal-note">
@@ -718,7 +718,7 @@ function LicensesView({ fleet }: { fleet: FleetState }) {
             <p className="modal-note">
               Billing restarts at $
               {getPlan(fleet, dialog.client.license.planId)?.priceMonthly ?? 0}
-              /mo, the portal banner clears, and any parked instances come back
+              /mo, the portal banner clears, and any parked academies come back
               up.
             </p>
           }
@@ -754,7 +754,7 @@ function ClientsView({ fleet }: { fleet: FleetState }) {
           <tr>
             <th>Client</th>
             <th>Owner</th>
-            <th>Instances</th>
+            <th>Academies</th>
             <th>Members</th>
             <th>Open tickets</th>
             <th>License</th>
@@ -970,8 +970,8 @@ function HostsView({ fleet }: { fleet: FleetState }) {
                 {host.name}
               </span>
               <span className="card-sub">
-                {host.region} · {host.instanceCount} instance
-                {host.instanceCount === 1 ? "" : "s"}
+                {host.region} · {host.instanceCount}{" "}
+                {host.instanceCount === 1 ? "academy" : "academies"}
               </span>
             </div>
             {(
@@ -1111,7 +1111,7 @@ function SettingsView({ fleet }: { fleet: FleetState }) {
               onChange={(e) => setBackupWindow(e.target.value)}
             />
             <span className="field-hint">
-              Nightly pg_dump + uploads snapshot, per instance.
+              Nightly pg_dump + uploads snapshot, per academy.
             </span>
           </label>
           <label className="field">
@@ -1122,7 +1122,7 @@ function SettingsView({ fleet }: { fleet: FleetState }) {
               onChange={(e) => setCanarySize(e.target.value)}
             />
             <span className="field-hint">
-              Instances updated first in every rollout, with a 24h soak.
+              Academies updated first in every rollout, with a 24h soak.
             </span>
           </label>
           <label className="field">
@@ -1133,7 +1133,7 @@ function SettingsView({ fleet }: { fleet: FleetState }) {
               onChange={(e) => setPortBase(e.target.value)}
             />
             <span className="field-hint">
-              Each instance gets three host ports (API/WEB/ADMIN) above this.
+              Each academy gets three host ports (API/WEB/ADMIN) above this.
             </span>
           </label>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1167,7 +1167,7 @@ function SettingsView({ fleet }: { fleet: FleetState }) {
         <p className="modal-note" style={{ marginBottom: 12 }}>
           Built once by{" "}
           <span className="mono">deploy/instance/build-images.sh</span>; every
-          instance runs these images with its own env — no per-client rebuild.
+          academy runs these images with its own env — no per-client rebuild.
         </p>
         <div className="kv-grid" style={{ gridTemplateColumns: "1fr" }}>
           <div className="kv">

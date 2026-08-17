@@ -119,7 +119,7 @@ export function PlanEditorModal({
     if (!Number.isFinite(priceNum) || priceNum < 0)
       return setError("Monthly price must be a number (USD).");
     if (!Number.isInteger(capNum) || capNum < 1)
-      return setError("Instance cap must be a whole number of 1 or more.");
+      return setError("Academy cap must be a whole number of 1 or more.");
     const input: PlanInput = {
       name: name.trim(),
       blurb: blurb.trim(),
@@ -179,8 +179,8 @@ export function PlanEditorModal({
               />
             </Field>
             <Field
-              label="Instance cap"
-              hint="How many instances a license may run."
+              label="Academy cap"
+              hint="How many academies a license may run."
             >
               <input
                 className="input mono"
@@ -204,7 +204,7 @@ export function PlanEditorModal({
           >
             <textarea
               className="input"
-              placeholder={"1 instance · your domain\nUp to 5,000 members"}
+              placeholder={"1 academy · your domain\nUp to 5,000 members"}
               value={features}
               onChange={(e) => setFeatures(e.target.value)}
             />
@@ -289,7 +289,7 @@ export function ChangeLicensePlanModal({
                 </span>
                 <span className="radio-sub">
                   {tooSmall
-                    ? `Needs a cap of ${owned}+ — the client runs ${owned} instances`
+                    ? `Needs a cap of ${owned}+ — the client runs ${owned} academies`
                     : `${p.blurb} · cap ${p.instanceCap} · ${trackLabel(p.appTrack)}`}
                 </span>
               </span>
@@ -360,7 +360,7 @@ export function CapOverrideModal({
       }
       if (n < owned) {
         setError(
-          `The client already runs ${owned} instances — the cap can't go below that.`,
+          `The client already runs ${owned} academies — the cap can't go below that.`,
         );
         return;
       }
@@ -373,7 +373,7 @@ export function CapOverrideModal({
 
   return (
     <Modal
-      title={`Instance cap — ${client.academyName}`}
+      title={`Academy cap — ${client.academyName}`}
       onClose={onClose}
       width={420}
     >
@@ -381,8 +381,8 @@ export function CapOverrideModal({
         <div className="modal-body">
           <p className="modal-note">
             Plan default ({plan?.name ?? client.license.planId}):{" "}
-            <b>{planCap}</b> instance
-            {planCap === 1 ? "" : "s"} · currently using {owned}.
+            <b>{planCap}</b> {planCap === 1 ? "academy" : "academies"} ·
+            currently using {owned}.
           </p>
           <Field
             label="Cap override"
@@ -491,7 +491,7 @@ export function ProvisionForClientModal({
     e.preventDefault();
     if (!name.trim())
       return setError(
-        "Give the instance a name — it appears on the member site.",
+        "Give the academy a name — it appears on the member site.",
       );
     setBusy(true);
     const result = await provisionOwnInstance(
@@ -528,7 +528,7 @@ export function ProvisionForClientModal({
           )}
           {!suspended && atCap && (
             <div className="warn-box">
-              Instance limit reached — {owned} of {cap} used. Change the plan or
+              Academy limit reached — {owned} of {cap} used. Change the plan or
               override the cap first.
             </div>
           )}
@@ -563,7 +563,7 @@ export function ProvisionForClientModal({
             className="btn btn-primary"
             disabled={busy || atCap || suspended}
           >
-            {busy ? "Provisioning…" : "Provision instance"}
+            {busy ? "Provisioning…" : "Provision academy"}
           </button>
         </div>
       </form>

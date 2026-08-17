@@ -25,7 +25,7 @@ export function RolloutCard({ rollout }: { rollout: Rollout }) {
       </div>
       <div className="rollout-meta">
         <span>
-          {rollout.updated} of {rollout.total} instances updated
+          {rollout.updated} of {rollout.total} academies updated
         </span>
         <span className="rollout-pct">{pct}%</span>
       </div>
@@ -90,11 +90,11 @@ export function RolloutCard({ rollout }: { rollout: Rollout }) {
           body={
             <>
               <div className="warn-box">
-                In-flight instance updates will finish, but no new instances
+                In-flight academy updates will finish, but no new academies
                 start on {rollout.targetVersion} until you resume.
               </div>
               <p className="modal-note">
-                {rollout.total - rollout.updated} instances are still waiting on
+                {rollout.total - rollout.updated} academies are still waiting on
                 the current wave.
               </p>
             </>

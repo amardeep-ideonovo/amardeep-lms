@@ -54,7 +54,7 @@ export function ProvisionSlots({
       {!underCap && (
         <div className="card onboard-card">
           <div className="card-head" style={{ marginBottom: 4 }}>
-            <span className="card-title">Instance limit reached</span>
+            <span className="card-title">Academy limit reached</span>
             <div className="card-head-spacer" />
             <Pill tone="neutral">
               {owned.length} of {cap} used
@@ -66,9 +66,9 @@ export function ProvisionSlots({
           >
             {upgradeTarget
               ? cap === 1
-                ? "Your plan includes a single instance — upgrade your plan to launch more academies on this license."
-                : "Every instance slot on your license is in use — upgrade your plan to add more."
-              : "Every instance slot on your license is in use — contact support to raise the cap."}
+                ? "Your plan includes a single academy — upgrade your plan to launch more academies on this license."
+                : "Every academy slot on your license is in use — upgrade your plan to add more."
+              : "Every academy slot on your license is in use — contact support to raise the cap."}
           </p>
           {upgradeTarget && (
             <button
@@ -115,7 +115,7 @@ function ProvisionAnotherCard({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError("Give the new instance a name — it appears on its member site.");
+      setError("Give the new academy a name — it appears on its member site.");
       return;
     }
     setError(null);
@@ -139,9 +139,9 @@ function ProvisionAnotherCard({
           <Icon name="arrow-up" size={15} />
         </span>
         <span style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <span className="card-title">Provision another instance</span>
+          <span className="card-title">Provision another academy</span>
           <span className="card-sub">
-            {used} of {cap} instances used on your license
+            {used} of {cap} academies used on your license
           </span>
         </span>
         <div className="card-head-spacer" />
@@ -151,7 +151,7 @@ function ProvisionAnotherCard({
             className="btn btn-primary"
             onClick={() => setExpanded(true)}
           >
-            + New instance
+            + New academy
           </button>
         )}
       </div>
@@ -185,7 +185,7 @@ function ProvisionAnotherCard({
           {error && <p className="form-error">{error}</p>}
           <div style={{ display: "flex", gap: 9 }}>
             <button type="submit" className="btn btn-primary" disabled={busy}>
-              {busy ? "Starting the boot…" : "Provision instance"}
+              {busy ? "Starting the boot…" : "Provision academy"}
             </button>
             <button
               type="button"

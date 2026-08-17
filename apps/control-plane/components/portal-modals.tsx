@@ -83,8 +83,8 @@ export function RestoreModal({
           ))}
         </div>
         <Field
-          label={`Type the instance id (${instance.id}) to confirm`}
-          hint="The restore runs against this instance's own volumes only."
+          label={`Type the academy id (${instance.id}) to confirm`}
+          hint="The restore runs against this academy's own volumes only."
         >
           <input
             className="input mono"
@@ -187,7 +187,7 @@ export function RequestBuildModal({
       <div className="modal-body">
         <p className="modal-note">
           Queues a white-label build on the per-client EAS track. The binary
-          points at this instance's API and ships from your own store accounts.
+          points at this academy's API and ships from your own store accounts.
         </p>
         <label className={`radio-row${ios ? " checked" : ""}`}>
           <input
@@ -260,7 +260,7 @@ export function ManageBillingModal({
         <p className="modal-note">
           {plan?.name ?? client.license.planId} — ${plan?.priceMonthly ?? 0}
           /month · renews {client.license.renewsAt}. One license covers every
-          instance. In production this opens the hosted billing portal.
+          academy. In production this opens the hosted billing portal.
         </p>
         <Field label="Card brand">
           <select
@@ -351,9 +351,9 @@ export function UpgradeModal({
                 </span>
                 <span className="radio-sub">
                   {tooSmall
-                    ? `Not available — you run ${owned} instances (this plan caps at ${p.instanceCap})`
-                    : `${p.blurb ? `${p.blurb} · ` : ""}${p.instanceCap} instance${
-                        p.instanceCap === 1 ? "" : "s"
+                    ? `Not available — you run ${owned} academies (this plan caps at ${p.instanceCap})`
+                    : `${p.blurb ? `${p.blurb} · ` : ""}${p.instanceCap} ${
+                        p.instanceCap === 1 ? "academy" : "academies"
                       } · ${trackLabel(p.appTrack)}`}
                 </span>
               </span>
@@ -361,8 +361,8 @@ export function UpgradeModal({
           );
         })}
         <p className="modal-note">
-          Changes prorate on the next invoice. Your instances are untouched —
-          the new instance cap and app track apply immediately.
+          Changes prorate on the next invoice. Your academies are untouched —
+          the new academy cap and app track apply immediately.
         </p>
       </div>
       <div className="modal-actions">
