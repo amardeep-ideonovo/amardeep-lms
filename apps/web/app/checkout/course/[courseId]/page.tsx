@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { AuthUser, BillingConfigDTO } from "@lms/types";
-import { PASSWORD_MIN, STR } from "@lms/types";
+import { STR } from "@lms/types";
 import {
   ApiError,
   confirmCourseIntent,
@@ -20,39 +20,23 @@ import {
   type CheckoutProductOption,
   type CourseCheckoutConfig,
 } from "@/lib/checkout-config";
+import {
+  EMAIL_RE,
+  FALLBACK_BILLING,
+  MIN_PASSWORD,
+  SUBMIT_STAGE_LABELS,
+} from "@/lib/checkout-ui";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
-import CountrySelect from "@/components/checkout/CountrySelect";
+import {
+  BillingFields,
+  CheckoutAuthBanner,
+  IdentityFields,
+  SectionHead,
+} from "@/components/checkout/CheckoutFields";
 import LoginModal from "@/components/checkout/LoginModal";
 import PaymentSection, {
   type PaymentHandle,
 } from "@/components/checkout/PaymentSection";
-
-// Fallback when the public billing config can't be reached: Stripe mock mode
-// (the page stays fully usable in dev without keys).
-const FALLBACK_BILLING: BillingConfigDTO = {
-  provider: "stripe",
-  publishableKey: null,
-  paypalClientId: null,
-  paypalMode: null,
-};
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD = PASSWORD_MIN.member;
-
-const SUBMIT_STAGE_LABELS = {
-  account: "Setting up your account…",
-  paying: "Confirming payment…",
-  activating: "Activating your access…",
-} as const;
-
-function SectionHead({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="co-section-head">
-      <span>{children}</span>
-      <span className="co-rule" />
-    </div>
-  );
-}
 
 // One-off course checkout — the site's OWN branded card checkout for a one-time
 // LIFETIME course purchase. Mirrors the level checkout page but strips it to the
@@ -311,35 +295,15 @@ export default function CourseCheckoutPage() {
       <div className="dp-wrap">
         <div className="co-page">
           {/* Auth banner */}
-          {user ? (
-            <div className="co-auth-banner">
-              <span>
-                Logged in as <strong>{user.email}</strong>
-              </span>
-              <button
-                type="button"
-                className="co-linkbtn"
-                onClick={() => {
-                  logout();
-                  applyUser(null);
-                  setPassword("");
-                }}
-              >
-                Log out
-              </button>
-            </div>
-          ) : (
-            <div className="co-auth-banner co-auth-banner--ghost">
-              <span>Already have an account?</span>
-              <button
-                type="button"
-                className="co-linkbtn"
-                onClick={() => setShowLogin(true)}
-              >
-                Already a member?
-              </button>
-            </div>
-          )}
+          <CheckoutAuthBanner
+            email={user?.email ?? null}
+            onLogout={() => {
+              logout();
+              applyUser(null);
+              setPassword("");
+            }}
+            onShowLogin={() => setShowLogin(true)}
+          />
 
           <form onSubmit={onSubmit} noValidate>
             {/* YOUR COURSE — the single one-time purchase */}
@@ -355,55 +319,25 @@ export default function CourseCheckoutPage() {
             </div>
 
             {/* Email + (conditional) Password */}
-            <input
-              className="co-input"
-              type="email"
-              placeholder={STR.labels.email}
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              aria-label={STR.labels.email}
+            <IdentityFields
+              email={email}
+              onEmail={setEmail}
+              showPassword={!user}
+              password={password}
+              onPassword={setPassword}
+              minPassword={MIN_PASSWORD}
             />
-            {!user && (
-              <input
-                className="co-input"
-                type="password"
-                placeholder={`Password (${MIN_PASSWORD}+ characters)`}
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                aria-label={STR.labels.password}
-              />
-            )}
 
             {/* BILLING INFORMATION */}
-            <SectionHead>BILLING INFORMATION</SectionHead>
-            <div className="co-grid2">
-              <input
-                className="co-input"
-                placeholder={STR.labels.firstName}
-                autoComplete="given-name"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                aria-label={STR.labels.firstName}
-              />
-              <input
-                className="co-input"
-                placeholder={STR.labels.lastName}
-                autoComplete="family-name"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                aria-label={STR.labels.lastName}
-              />
-            </div>
-            <CountrySelect value={country} onChange={setCountry} />
-            <input
-              className="co-input"
-              placeholder="Address"
-              autoComplete="street-address"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              aria-label="Address"
+            <BillingFields
+              firstName={firstName}
+              onFirstName={setFirstName}
+              lastName={lastName}
+              onLastName={setLastName}
+              country={country}
+              onCountry={setCountry}
+              address={address}
+              onAddress={setAddress}
             />
 
             {/* PAYMENT INFORMATION */}
