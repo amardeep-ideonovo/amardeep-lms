@@ -411,9 +411,21 @@ export default function CoursesPage() {
                         )}
                       </td>
                       <td>
-                        {course.createdBy?.name ||
-                          course.createdBy?.email ||
-                          "—"}
+                        <span
+                          title={course.createdBy?.email ?? undefined}
+                          style={{
+                            display: "inline-block",
+                            maxWidth: 180,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            verticalAlign: "bottom",
+                          }}
+                        >
+                          {course.createdBy?.name ||
+                            course.createdBy?.email ||
+                            "—"}
+                        </span>
                       </td>
                       <td>
                         <div className="row-actions">

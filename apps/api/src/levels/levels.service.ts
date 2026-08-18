@@ -731,6 +731,8 @@ export class LevelsService {
         prices: { where: { active: true } },
         categories: { orderBy: { order: "asc" } },
         audience: { select: { name: true } },
+        // So the created row shows "Created by" immediately (no page refresh).
+        createdBy: { select: { id: true, name: true, email: true } },
       },
     });
     if (dto.featuredCourseId) {
@@ -743,11 +745,12 @@ export class LevelsService {
       return this.toDTO(
         level as LevelWithPrices,
         await this.activeMemberCount(level.id),
+        true,
       );
     }
     // 0 is the true count here, not a placeholder: the class was created moments
     // ago, so no grant can reference it yet.
-    return this.toDTO(level as LevelWithPrices, 0);
+    return this.toDTO(level as LevelWithPrices, 0, true);
   }
 
   async update(id: string, dto: UpdateLevelDto): Promise<LevelDTO> {
@@ -883,6 +886,7 @@ export class LevelsService {
         prices: { where: { active: true } },
         categories: { orderBy: { order: "asc" } },
         audience: { select: { name: true } },
+        createdBy: { select: { id: true, name: true, email: true } },
       },
     });
     // An existing class can hold members, and the admin list renders this
@@ -890,6 +894,7 @@ export class LevelsService {
     return this.toDTO(
       fresh as LevelWithPrices,
       await this.activeMemberCount(id),
+      true,
     );
   }
 
