@@ -60,6 +60,8 @@ type LevelWithPrices = {
     installments: number | null;
   }[];
   categories: { id: string; name: string; order: number }[];
+  // Included only for admin queries; absent (→ createdBy null) member-side.
+  createdBy?: { id: string; name: string | null; email: string } | null;
 };
 
 @Injectable()
@@ -74,7 +76,11 @@ export class LevelsService {
     private readonly certificates: CertificatesService,
   ) {}
 
-  private toDTO(level: LevelWithPrices, memberCount = 0): LevelDTO {
+  private toDTO(
+    level: LevelWithPrices,
+    memberCount = 0,
+    includeCreator = false,
+  ): LevelDTO {
     return {
       id: level.id,
       name: level.name,
@@ -107,6 +113,14 @@ export class LevelsService {
         order: c.order,
       })),
       memberCount,
+      createdBy:
+        includeCreator && level.createdBy
+          ? {
+              id: level.createdBy.id,
+              name: level.createdBy.name,
+              email: level.createdBy.email,
+            }
+          : null,
     };
   }
 
@@ -150,6 +164,8 @@ export class LevelsService {
         prices: { where: { active: true } },
         categories: { orderBy: { order: "asc" } },
         audience: { select: { name: true } },
+        // Creator is admin-only; only surfaced when includeCounts (admin list).
+        createdBy: { select: { id: true, name: true, email: true } },
       },
       orderBy: { createdAt: "asc" },
     });
@@ -157,7 +173,7 @@ export class LevelsService {
       ? await this.activeMemberCounts()
       : new Map<string, number>();
     return levels.map((l) =>
-      this.toDTO(l as LevelWithPrices, counts.get(l.id) ?? 0),
+      this.toDTO(l as LevelWithPrices, counts.get(l.id) ?? 0, includeCounts),
     );
   }
 
@@ -212,7 +228,12 @@ export class LevelsService {
     });
     if (!level) throw new NotFoundException("Class not found");
     // Curriculum PREVIEW = the featured course's lessons (a teaser for guests).
-    const lessons = (level.featuredCourse?.lessons ?? []).map((l) => ({
+    // A draft/archived featured course exposes nothing publicly — its lesson
+    // titles/thumbnails stay hidden until it's published.
+    const fc = level.featuredCourse;
+    const previewLessons =
+      fc && fc.published && !fc.archivedAt ? fc.lessons : [];
+    const lessons = previewLessons.map((l) => ({
       title: l.title,
       durationSeconds: l.durationSeconds,
       thumbnailUrl: l.thumbnailUrl,
@@ -223,7 +244,12 @@ export class LevelsService {
     // page ("N / N lessons"). Without this the hero showed only the featured
     // course's lessons (e.g. "3 lessons") while the owner card said "6 / 6".
     const classCourses = await this.prisma.course.findMany({
-      where: { courseLevels: { some: { levelId: level.id } } },
+      where: {
+        courseLevels: { some: { levelId: level.id } },
+        // Public headline count: only published, non-archived courses count.
+        published: true,
+        archivedAt: null,
+      },
       include: { lessons: { select: { durationSeconds: true } } },
     });
     const lessonCount = classCourses.reduce((n, c) => n + c.lessons.length, 0);
@@ -297,7 +323,11 @@ export class LevelsService {
     if (owned.size > 0) {
       const [courses, completedByCourse] = await Promise.all([
         this.prisma.course.findMany({
-          where: { courseLevels: { some: { levelId: { in: [...owned] } } } },
+          where: {
+            courseLevels: { some: { levelId: { in: [...owned] } } },
+            published: true,
+            archivedAt: null,
+          },
           select: {
             id: true,
             courseLevels: { select: { levelId: true } },
@@ -362,7 +392,11 @@ export class LevelsService {
 
     const [courses, completedByCourse] = await Promise.all([
       this.prisma.course.findMany({
-        where: { courseLevels: { some: { levelId: { in: levelIds } } } },
+        where: {
+          courseLevels: { some: { levelId: { in: levelIds } } },
+          published: true,
+          archivedAt: null,
+        },
         orderBy: { order: "asc" },
         select: {
           id: true,
@@ -495,7 +529,12 @@ export class LevelsService {
 
     const [courses, completedByCourse, startedByCourse] = await Promise.all([
       this.prisma.course.findMany({
-        where: { courseLevels: { some: { levelId: level.id } } },
+        // Members only see published, non-archived courses in their class.
+        where: {
+          courseLevels: { some: { levelId: level.id } },
+          published: true,
+          archivedAt: null,
+        },
         orderBy: { order: "asc" },
         include: {
           courseLevels: { select: { levelId: true } },
@@ -611,7 +650,7 @@ export class LevelsService {
     }
   }
 
-  async create(dto: CreateLevelDto): Promise<LevelDTO> {
+  async create(dto: CreateLevelDto, createdById?: string): Promise<LevelDTO> {
     const slug = await this.resolveLevelSlug(dto.slug, undefined, dto.name);
     let stripeProductId: string | null = null;
     const priceRows: {
@@ -664,6 +703,7 @@ export class LevelsService {
         name: dto.name,
         slug,
         published: dto.published ?? false,
+        createdById: createdById ?? null,
         type: dto.type,
         audienceTags: dto.audienceTags ?? undefined,
         audienceId: dto.audienceId ?? null,

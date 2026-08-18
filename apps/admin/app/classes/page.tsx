@@ -577,20 +577,32 @@ export default function ClassesPage() {
   const planPill = (lvl: LevelDTO) => {
     if (lvl.type === "FREE")
       return <span className="badge badge--ok">Free</span>;
-    const p = lvl.prices[0];
-    const label = p
-      ? `${(p.amount / 100).toLocaleString(undefined, {
-          style: "currency",
-          currency: p.currency || "USD",
-          minimumFractionDigits: p.amount % 100 === 0 ? 0 : 2,
-        })}/${p.interval === "year" ? "yr" : "mo"}`
-      : "Paid";
-    return <span className="badge badge--ink">{label}</span>;
+    if (lvl.prices.length === 0)
+      return <span className="badge badge--ink">Paid</span>;
+    // One badge per price so monthly + yearly both show.
+    return (
+      <span style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        {lvl.prices.map((p) => (
+          <span key={p.id} className="badge badge--ink">
+            {`${(p.amount / 100).toLocaleString(undefined, {
+              style: "currency",
+              currency: p.currency || "USD",
+              minimumFractionDigits: p.amount % 100 === 0 ? 0 : 2,
+            })}/${p.interval === "year" ? "yr" : "mo"}`}
+          </span>
+        ))}
+      </span>
+    );
   };
 
   const gridCols = courses
-    ? "2.4fr .7fr .7fr .8fr .9fr 1fr .3fr"
-    : "2.4fr .8fr .9fr 1fr .3fr";
+    ? "2.4fr .7fr .7fr .8fr .9fr 1fr 1fr .3fr"
+    : "2.4fr .8fr .9fr 1fr 1fr .3fr";
+
+  // The full level being edited (creator display is immutable + read-only).
+  const editingLevel = editingId
+    ? (levels.find((l) => l.id === editingId) ?? null)
+    : null;
 
   return (
     <div>
@@ -603,6 +615,12 @@ export default function ClassesPage() {
           onSubmit={onSubmit}
         >
           <div className="modal-body">
+            {editingLevel?.createdBy && (
+              <p className="muted" style={{ margin: "0 0 8px", fontSize: 12 }}>
+                Created by{" "}
+                {editingLevel.createdBy.name || editingLevel.createdBy.email}
+              </p>
+            )}
             <div className="form-row">
               <div className="field">
                 <label>{STR.labels.name}</label>
@@ -1072,6 +1090,7 @@ export default function ClassesPage() {
               {courses && <span>Lessons</span>}
               <span>Enrolled</span>
               <span>{STR.labels.plan}</span>
+              <span>Created by</span>
               <span>{STR.labels.status}</span>
               <span />
             </div>
@@ -1133,6 +1152,9 @@ export default function ClassesPage() {
                     {lvl.memberCount}
                   </span>
                   <span>{planPill(lvl)}</span>
+                  <span className="mini-cell">
+                    {lvl.createdBy?.name || lvl.createdBy?.email || "—"}
+                  </span>
                   <span
                     className={
                       lvl.published

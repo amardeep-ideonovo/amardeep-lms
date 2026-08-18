@@ -243,6 +243,29 @@ export default function CoursesPage() {
     }
   }
 
+  async function togglePublish(course: CourseCard) {
+    setError(null);
+    setRowBusy(course.id);
+    try {
+      // The write returns the full CourseCard, so the response IS the row —
+      // reuse it to flip the badge + button in place.
+      const saved = await api.updateCourse(course.id, {
+        published: !course.published,
+      });
+      setCourses((prev) =>
+        prev.map((c) => (c.id === saved.id ? { ...c, ...saved } : c)),
+      );
+    } catch (err) {
+      // The API 400s ("Add at least one lesson before publishing this course.")
+      // when publishing a course with no lessons, so surface err.message.
+      setError(
+        err instanceof ApiError ? err.message : "Failed to update course",
+      );
+    } finally {
+      setRowBusy(null);
+    }
+  }
+
   // Map a course's assigned level IDs to their display names (skips any
   // dangling IDs whose level was since deleted).
   const levelNamesFor = (ids: string[]) =>
@@ -343,6 +366,8 @@ export default function CoursesPage() {
                   <th></th>
                   <th>{STR.labels.title}</th>
                   <th>{STR.labels.class}</th>
+                  <th>Status</th>
+                  <th>Created by</th>
                   <th></th>
                 </tr>
               </thead>
@@ -379,6 +404,18 @@ export default function CoursesPage() {
                         )}
                       </td>
                       <td>
+                        {course.published ? (
+                          <span className="badge badge--ok">Published</span>
+                        ) : (
+                          <span className="badge">Draft</span>
+                        )}
+                      </td>
+                      <td>
+                        {course.createdBy?.name ||
+                          course.createdBy?.email ||
+                          "—"}
+                      </td>
+                      <td>
                         <div className="row-actions">
                           <Button
                             variant="secondary"
@@ -400,6 +437,33 @@ export default function CoursesPage() {
                           >
                             {STR.common.edit}
                           </Button>
+                          {(() => {
+                            const blocked =
+                              !course.published && course.lessonCount === 0;
+                            const btn = (
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => togglePublish(course)}
+                                disabled={rowBusy === course.id || blocked}
+                              >
+                                {course.published ? "Unpublish" : "Publish"}
+                              </Button>
+                            );
+                            // A disabled button doesn't fire its own tooltip
+                            // reliably, so wrap it — the .tip span catches the
+                            // hover and explains why publishing is blocked.
+                            return blocked ? (
+                              <span
+                                className="tip"
+                                data-tip="Add at least one lesson before publishing"
+                              >
+                                {btn}
+                              </span>
+                            ) : (
+                              btn
+                            );
+                          })()}
                           <Button
                             variant="danger"
                             size="sm"
@@ -415,10 +479,19 @@ export default function CoursesPage() {
                     </tr>
                     {openCourse === course.id && (
                       <tr>
-                        <td colSpan={4} style={{ padding: 0 }}>
+                        <td colSpan={6} style={{ padding: 0 }}>
                           <CourseLessons
                             courseId={course.id}
                             courseTitle={course.title}
+                            onLessonCountChange={(id, count) =>
+                              setCourses((prev) =>
+                                prev.map((c) =>
+                                  c.id === id
+                                    ? { ...c, lessonCount: count }
+                                    : c,
+                                ),
+                              )
+                            }
                           />
                         </td>
                       </tr>
@@ -438,6 +511,21 @@ export default function CoursesPage() {
           onSubmit={submitCourse}
         >
           <div className="modal-body">
+            {(() => {
+              // Creator is immutable, so it lives only in the courses state (the
+              // form holds editable fields). Look the row up by editingId and
+              // show it read-only when editing an existing course that has one.
+              const editingCourse = editingId
+                ? courses.find((c) => c.id === editingId)
+                : null;
+              const creator = editingCourse?.createdBy;
+              if (!creator) return null;
+              return (
+                <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
+                  Created by {creator.name || creator.email}
+                </p>
+              );
+            })()}
             <div className="field">
               <label>{STR.labels.title}</label>
               <input
@@ -538,9 +626,13 @@ export default function CoursesPage() {
 function CourseLessons({
   courseId,
   courseTitle,
+  onLessonCountChange,
 }: {
   courseId: string;
   courseTitle: string;
+  // Keeps the parent row's lessonCount in sync so the Publish button
+  // enables/disables live as lessons are added/removed (no reload needed).
+  onLessonCountChange?: (courseId: string, count: number) => void;
 }) {
   const [lessons, setLessons] = useState<LessonDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -562,7 +654,9 @@ function CourseLessons({
     setLoading(true);
     setError(null);
     try {
-      setLessons(await api.listCourseLessons(courseId));
+      const list = await api.listCourseLessons(courseId);
+      setLessons(list);
+      onLessonCountChange?.(courseId, list.length);
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Failed to load lessons",

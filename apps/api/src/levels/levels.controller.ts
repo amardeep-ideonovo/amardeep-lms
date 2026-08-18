@@ -104,8 +104,11 @@ export class LevelsController {
   @UseGuards(PermissionsGuard)
   @RequirePermission("classes", "create")
   @Post()
-  create(@Body() dto: CreateLevelDto) {
-    return this.levels.create(dto);
+  create(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: CreateLevelDto,
+  ) {
+    return this.levels.create(dto, principal.sub);
   }
 
   @UseGuards(PermissionsGuard)
