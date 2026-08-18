@@ -5313,7 +5313,9 @@ a.card:hover {
 }
 /* Progressive enhancement: browsers without backdrop-filter get a more opaque
    panel so the block never reads as translucent-over-nothing. */
-@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+@supports not (
+  (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))
+) {
   .ik-class-cta {
     background: rgba(19, 15, 36, 0.72);
   }
