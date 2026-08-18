@@ -90,6 +90,7 @@ import type {
   PostAdminListRow,
   PostAdminRow,
   PostCategoryDTO,
+  PostTagDTO,
   SubscriptionRowDTO,
   SubscriptionCancelMode,
   CreatePopupInput,
@@ -731,6 +732,11 @@ export const api = {
     request<PostCategoryDTO>("POST", "/admin/blog/categories", { name, order }),
   deletePostCategory: (id: string) =>
     request<void>("DELETE", `/admin/blog/categories/${id}`),
+  listPostTags: () => request<PostTagDTO[]>("GET", "/blog/tags"),
+  createPostTag: (name: string, order?: number) =>
+    request<PostTagDTO>("POST", "/admin/blog/tags", { name, order }),
+  deletePostTag: (id: string) =>
+    request<void>("DELETE", `/admin/blog/tags/${id}`),
 
   // pages (CMS / Puck visual builder)
   listPages: () => request<PageListItem[]>("GET", "/admin/pages"),

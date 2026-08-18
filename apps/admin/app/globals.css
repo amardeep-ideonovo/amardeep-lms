@@ -1469,6 +1469,16 @@ select:-webkit-autofill:focus {
 .checkbox-list input {
   width: auto;
 }
+/* A single inline checkbox + its label (e.g. a "Featured" toggle in a form). */
+.checkbox-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+}
+.checkbox-inline input {
+  width: auto;
+}
 
 /* ---------- login (ink band + white card + teal CTA) ---------- */
 .login-wrap {
@@ -1575,6 +1585,11 @@ select:-webkit-autofill:focus {
 .badge--draft {
   background: var(--warning-tint);
   color: var(--warning-text);
+}
+/* The single hero post highlighted at the top of the public blog. */
+.badge--featured {
+  background: var(--info-tint);
+  color: var(--info-text);
 }
 /* Status badge tints — used by subscriptions + notifications. */
 .badge--ok {

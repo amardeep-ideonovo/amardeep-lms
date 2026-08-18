@@ -117,8 +117,8 @@ export function BlogPostScreen({ route }: ScreenProps<"BlogPost">) {
       {post.tags.length > 0 ? (
         <View style={styles.tags}>
           {post.tags.map((t) => (
-            <Text key={t} style={styles.tag}>
-              #{t}
+            <Text key={t.id} style={styles.tag}>
+              #{t.name}
             </Text>
           ))}
         </View>

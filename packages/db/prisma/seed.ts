@@ -164,6 +164,7 @@ async function wipeDatabase() {
     prisma.popup.deleteMany(),
     prisma.post.deleteMany(),
     prisma.postCategory.deleteMany(),
+    prisma.tag.deleteMany(),
     prisma.page.deleteMany(),
     prisma.menuItem.deleteMany(),
     prisma.menu.deleteMany(),
@@ -955,6 +956,15 @@ async function retireStaleSeedRows() {
       },
     }),
   );
+  await stale(
+    "post tag(s)",
+    prisma.tag.deleteMany({
+      where: {
+        id: { startsWith: "seed-tag-" },
+        NOT: { id: { in: POST_TAGS.map(([id]) => id) } },
+      },
+    }),
+  );
 }
 
 // ---------- baseline purge: no demo debris on real client instances ----------
@@ -1031,6 +1041,9 @@ async function purgeDemoDebris() {
     prisma.postCategory.deleteMany({
       where: { id: { startsWith: "seed-postcat-" } },
     }),
+  );
+  await purge(
+    prisma.tag.deleteMany({ where: { id: { startsWith: "seed-tag-" } } }),
   );
   await purge(
     prisma.page.deleteMany({ where: { id: { startsWith: "seed-page-" } } }),
@@ -1220,6 +1233,14 @@ const POST_CATEGORIES: Array<[string, string, string, number]> = [
   ["seed-postcat-habits", "Habits & Mindset", "habits-and-mindset", 4],
 ];
 
+// Managed blog tags (curated, like categories). Posts reference these by id.
+const POST_TAGS: Array<[string, string, string, number]> = [
+  ["seed-tag-announcement", "Announcement", "announcement", 0],
+  ["seed-tag-platform", "Platform", "platform", 1],
+  ["seed-tag-roadmap", "Roadmap", "roadmap", 2],
+  ["seed-tag-cooking", "Cooking", "cooking", 3],
+];
+
 type PostSeed = {
   id: string;
   slug: string;
@@ -1229,7 +1250,9 @@ type PostSeed = {
   status: "PUBLISHED" | "DRAFT";
   publishedAt: string | null;
   categoryIds: string[];
-  tags: string[];
+  tagIds: string[];
+  /** The single hero post shown at the top of the public blog. */
+  featured?: boolean;
   /** Explicit uploaded cover (admin-authored posts); wins over theme/art below. */
   coverImageUrl?: string;
   /** Cover art theme; omitted = subject-free panel. */
@@ -1251,7 +1274,8 @@ const POSTS: PostSeed[] = [
     status: "PUBLISHED",
     publishedAt: "2026-05-01T09:00:00Z",
     categoryIds: ["seed-postcat-news"],
-    tags: ["announcement", "platform"],
+    tagIds: ["seed-tag-announcement", "seed-tag-platform"],
+    featured: true,
   },
   {
     id: "seed-post-draft",
@@ -1263,7 +1287,7 @@ const POSTS: PostSeed[] = [
     status: "DRAFT",
     publishedAt: null,
     categoryIds: ["seed-postcat-featured"],
-    tags: ["roadmap"],
+    tagIds: ["seed-tag-roadmap"],
   },
   // ----- catalog content (admin-authored, codified 2026-08-12) -----
   {
@@ -1277,7 +1301,7 @@ const POSTS: PostSeed[] = [
     status: "PUBLISHED",
     publishedAt: "2026-08-12T12:00:00Z",
     categoryIds: [],
-    tags: ["cooking"],
+    tagIds: ["seed-tag-cooking"],
     coverImageUrl: media("1786536528401-fel5b2.jpg"),
   },
 ];
@@ -1287,6 +1311,13 @@ const POST_IDS = POSTS.map((p) => p.id);
 async function seedBlog(adminId: string) {
   for (const [id, name, slug, order] of POST_CATEGORIES) {
     await prisma.postCategory.upsert({
+      where: { id },
+      update: { name, slug, order },
+      create: { id, name, slug, order },
+    });
+  }
+  for (const [id, name, slug, order] of POST_TAGS) {
+    await prisma.tag.upsert({
       where: { id },
       update: { name, slug, order },
       create: { id, name, slug, order },
@@ -1303,20 +1334,22 @@ async function seedBlog(adminId: string) {
         p.coverImageUrl ??
         (p.theme ? art(p.theme, p.artIndex ?? 0) : generalArt(p.artIndex ?? 0)),
       status: p.status,
+      featured: p.featured ?? false,
       publishedAt: p.publishedAt ? new Date(p.publishedAt) : null,
       authorId: adminId,
-      tags: p.tags,
     };
     await prisma.post.upsert({
       where: { id: p.id },
       update: {
         ...data,
         categories: { set: p.categoryIds.map((id) => ({ id })) },
+        tags: { set: p.tagIds.map((id) => ({ id })) },
       },
       create: {
         id: p.id,
         ...data,
         categories: { connect: p.categoryIds.map((id) => ({ id })) },
+        tags: { connect: p.tagIds.map((id) => ({ id })) },
       },
     });
   }

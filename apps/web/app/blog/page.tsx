@@ -115,9 +115,14 @@ export default async function BlogIndexPage() {
     failed = true;
   }
 
-  // Lead with the most recent post that actually has a cover image, so rich
-  // content headlines the page instead of being buried under empty posts.
-  const featured = posts.find((p) => p.coverImageUrl) ?? posts[0] ?? null;
+  // Lead with the admin-chosen hero post. If none is flagged, fall back to the
+  // most recent post that actually has a cover image, so rich content still
+  // headlines the page instead of being buried under empty posts.
+  const featured =
+    posts.find((p) => p.featured) ??
+    posts.find((p) => p.coverImageUrl) ??
+    posts[0] ??
+    null;
   const rest = featured ? posts.filter((p) => p.id !== featured.id) : posts;
 
   const breadcrumbLd = {

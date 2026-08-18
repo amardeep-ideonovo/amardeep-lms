@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -35,11 +36,15 @@ export class CreatePostDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  tags?: string[];
+  tagIds?: string[];
 
   @IsOptional()
   @IsIn(STATUSES)
   status?: PostStatus;
+
+  @IsOptional()
+  @IsBoolean()
+  featured?: boolean;
 }
 
 export class UpdatePostDto {
@@ -68,14 +73,28 @@ export class UpdatePostDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  tags?: string[];
+  tagIds?: string[];
 
   @IsOptional()
   @IsIn(STATUSES)
   status?: PostStatus;
+
+  @IsOptional()
+  @IsBoolean()
+  featured?: boolean;
 }
 
 export class CreatePostCategoryDto {
+  @IsString()
+  @MinLength(1)
+  name!: string;
+
+  @IsOptional()
+  @IsInt()
+  order?: number;
+}
+
+export class CreatePostTagDto {
   @IsString()
   @MinLength(1)
   name!: string;

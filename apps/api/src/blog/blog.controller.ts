@@ -25,6 +25,7 @@ import { BlogService } from "./blog.service";
 import {
   CreatePostCategoryDto,
   CreatePostDto,
+  CreatePostTagDto,
   UpdatePostDto,
 } from "./dto/blog.dto";
 import {
@@ -64,6 +65,11 @@ export class BlogController {
   @Get("blog/categories")
   listCategories() {
     return this.blog.listCategories();
+  }
+
+  @Get("blog/tags")
+  listTags() {
+    return this.blog.listTags();
   }
 
   @Get("blog/posts/:slug")
@@ -125,6 +131,20 @@ export class BlogController {
   @Delete("admin/blog/categories/:id")
   deleteCategory(@Param("id") id: string) {
     return this.blog.deleteCategory(id);
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission("blog", "create")
+  @Post("admin/blog/tags")
+  createTag(@Body() dto: CreatePostTagDto) {
+    return this.blog.createTag(dto);
+  }
+
+  @UseGuards(PermissionsGuard)
+  @RequirePermission("blog", "delete")
+  @Delete("admin/blog/tags/:id")
+  deleteTag(@Param("id") id: string) {
+    return this.blog.deleteTag(id);
   }
 
   // Upload a featured image. Saved to <images>/blog-post/<timestamp>.<ext>

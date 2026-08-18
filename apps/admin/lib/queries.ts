@@ -32,6 +32,7 @@ export const qk = {
   menus: ["menus"] as const,
   blogPosts: ["blogPosts"] as const,
   blogCategories: ["blogCategories"] as const,
+  blogTags: ["blogTags"] as const,
   coupons: ["coupons"] as const,
   levels: ["levels"] as const,
 };
