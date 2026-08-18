@@ -83,7 +83,12 @@ export function LiveSessionBar({
               ? `LIVE · IN ${countdown(startsIn)}`
               : `LIVE · ${fmtSessionWhen(s.startsAt)}`;
         return (
-          <Press key={s.id} style={styles.card} onPress={() => onOpen(s)}>
+          <Press
+            key={s.id}
+            style={styles.card}
+            accessibilityRole="button"
+            onPress={() => onOpen(s)}
+          >
             <View style={styles.info}>
               <View style={styles.eyebrowRow}>
                 <View style={styles.dot} />

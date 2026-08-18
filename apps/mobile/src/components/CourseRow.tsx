@@ -26,6 +26,7 @@ export function CourseRow({
       style={[styles.card, locked && styles.cardLocked]}
       onPress={onPress}
       disabled={locked}
+      accessibilityRole="button"
     >
       <View style={styles.cardRow}>
         {course.thumbnailUrl ? (

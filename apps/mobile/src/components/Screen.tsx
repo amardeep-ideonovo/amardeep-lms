@@ -1,13 +1,8 @@
 import React from "react";
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { STR } from "@lms/types";
 
+import { Button } from "./Button";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
@@ -38,13 +33,14 @@ export function ErrorState({
     <Centered>
       <Text style={styles.errorText}>{message}</Text>
       {onRetry ? (
-        <TouchableOpacity
-          style={styles.retry}
+        <Button
+          variant="secondary"
+          label={STR.common.retry}
           onPress={onRetry}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.retryText}>{STR.common.retry}</Text>
-        </TouchableOpacity>
+          // Centered under the error text — Button's default alignSelf:flex-start
+          // would otherwise pin it to the left of the Centered container.
+          style={{ alignSelf: "center" }}
+        />
       ) : null}
     </Centered>
   );
@@ -80,16 +76,5 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontSize: 15,
       textAlign: "center",
       fontFamily: fonts.regular,
-    },
-    retry: {
-      backgroundColor: colors.surfaceMuted,
-      borderRadius: 8,
-      paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.sm,
-    },
-    retryText: {
-      color: colors.text,
-      fontWeight: "600",
-      fontFamily: fonts.semibold,
     },
   });

@@ -204,6 +204,7 @@ function BlockButton(p: Props) {
       <TouchableOpacity
         style={[styles.btn, variantStyle]}
         activeOpacity={0.85}
+        accessibilityRole="button"
         onPress={() => {
           onInteract?.();
           openHref(p.href);
@@ -223,6 +224,8 @@ function FaqRow({ q, a }: { q: string; a: string }) {
       <TouchableOpacity
         style={styles.faqHead}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
         onPress={() => setOpen((o) => !o)}
       >
         <Text style={styles.faqQ}>{q}</Text>
@@ -418,6 +421,7 @@ function CardsBlock(p: Props) {
             key={i}
             style={styles.card}
             activeOpacity={0.85}
+            accessibilityRole="button"
             onPress={() => {
               onInteract?.();
               openHref(it.href);
@@ -643,6 +647,7 @@ function MenuBlock({ menuId }: { menuId: string }) {
             depth ? { marginLeft: depth * spacing.md } : null,
           ]}
           activeOpacity={0.7}
+          accessibilityRole="button"
           onPress={() => {
             onInteract?.();
             openHref(item.href);

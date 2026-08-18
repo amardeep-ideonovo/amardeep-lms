@@ -25,7 +25,11 @@ export function ClassTile({
   const styles = useScopedStyles(makeStyles);
   const { colors } = useScopedTheme();
   return (
-    <Press style={[styles.tile, style]} onPress={onPress}>
+    <Press
+      style={[styles.tile, style]}
+      onPress={onPress}
+      accessibilityRole="button"
+    >
       <View style={styles.media}>
         {cls.imageUrl ? (
           <Image

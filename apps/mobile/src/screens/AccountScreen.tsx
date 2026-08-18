@@ -23,6 +23,7 @@ import { PASSWORD_MIN, STR } from "@lms/types";
 
 import { api } from "../api";
 import { useAuth } from "../auth";
+import { Button } from "../components/Button";
 import { Chip } from "../components/Chip";
 import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
@@ -523,37 +524,35 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       </View>
                     )}
                     <View style={styles.avatarActions}>
-                      <TouchableOpacity
-                        style={[styles.btnSecondary, styles.grow]}
+                      <Button
+                        variant="secondary"
+                        style={styles.grow}
                         onPress={pickAvatar}
                         disabled={!!avatarBusy}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.btnSecondaryText}>
-                          {avatarBusy === "pick"
+                        label={
+                          avatarBusy === "pick"
                             ? "Uploading…"
                             : user.avatarUrl
                               ? "Change photo"
-                              : "Add photo"}
-                        </Text>
-                      </TouchableOpacity>
+                              : "Add photo"
+                        }
+                      />
                       {/* The optimistic remove clears `avatarUrl` immediately,
                           which would yank this button out from under the tap —
                           keep it mounted for the in-flight window so its
                           "Removing…" state still reads. */}
                       {user.avatarUrl || avatarBusy === "remove" ? (
-                        <TouchableOpacity
-                          style={[styles.btnSecondary, styles.grow]}
+                        <Button
+                          variant="secondary"
+                          style={styles.grow}
                           onPress={removeAvatar}
                           disabled={!!avatarBusy}
-                          activeOpacity={0.8}
-                        >
-                          <Text style={styles.btnSecondaryText}>
-                            {avatarBusy === "remove"
+                          label={
+                            avatarBusy === "remove"
                               ? "Removing…"
-                              : STR.common.remove}
-                          </Text>
-                        </TouchableOpacity>
+                              : STR.common.remove
+                          }
+                        />
                       ) : null}
                     </View>
                   </View>
@@ -575,24 +574,18 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                     <Text style={styles.detailValue}>{user.username}</Text>
                   </View>
                   <View style={styles.actionsRow}>
-                    <TouchableOpacity
-                      style={[styles.btnSecondary, styles.grow]}
+                    <Button
+                      variant="secondary"
+                      style={styles.grow}
                       onPress={startEdit}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.btnSecondaryText}>
-                        {STR.common.edit}
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.btnSecondary, styles.grow]}
+                      label={STR.common.edit}
+                    />
+                    <Button
+                      variant="secondary"
+                      style={styles.grow}
                       onPress={startPwEdit}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.btnSecondaryText}>
-                        Change password
-                      </Text>
-                    </TouchableOpacity>
+                      label="Change password"
+                    />
                   </View>
                 </>
               ) : mode === "edit" ? (
@@ -650,21 +643,19 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       onPress={saveProfile}
                       disabled={saving}
                       activeOpacity={0.8}
+                      accessibilityRole="button"
                     >
                       <Text style={styles.btnPrimaryText}>
                         {saving ? STR.common.saving : "Save changes"}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.btnSecondary, styles.grow]}
+                    <Button
+                      variant="secondary"
+                      style={styles.grow}
                       onPress={() => setMode("view")}
                       disabled={saving}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.btnSecondaryText}>
-                        {STR.common.cancel}
-                      </Text>
-                    </TouchableOpacity>
+                      label={STR.common.cancel}
+                    />
                   </View>
                 </>
               ) : (
@@ -724,21 +715,19 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       onPress={savePassword}
                       disabled={pwSaving}
                       activeOpacity={0.8}
+                      accessibilityRole="button"
                     >
                       <Text style={styles.btnPrimaryText}>
                         {pwSaving ? STR.common.saving : "Update password"}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.btnSecondary, styles.grow]}
+                    <Button
+                      variant="secondary"
+                      style={styles.grow}
                       onPress={() => setMode("view")}
                       disabled={pwSaving}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.btnSecondaryText}>
-                        {STR.common.cancel}
-                      </Text>
-                    </TouchableOpacity>
+                      label={STR.common.cancel}
+                    />
                   </View>
                 </>
               )}
@@ -776,6 +765,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                             setCancelFor(sub);
                           }}
                           activeOpacity={0.7}
+                          accessibilityRole="button"
                         >
                           <Text style={styles.cancelLink}>
                             {STR.common.cancel}
@@ -787,20 +777,18 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                 })
               )}
               <View style={styles.actionsRow}>
-                <TouchableOpacity
-                  style={[styles.btnSecondary, styles.grow]}
+                <Button
+                  variant="secondary"
+                  style={styles.grow}
                   onPress={() => navigation.navigate("Plans")}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.btnSecondaryText}>View all plans</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.btnSecondary, styles.grow]}
+                  label="View all plans"
+                />
+                <Button
+                  variant="secondary"
+                  style={styles.grow}
                   onPress={() => navigation.navigate("Payments")}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.btnSecondaryText}>Payment history</Text>
-                </TouchableOpacity>
+                  label="Payment history"
+                />
               </View>
             </View>
 
@@ -812,6 +800,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                 style={styles.moreRow}
                 onPress={() => navigation.navigate("Certificates")}
                 activeOpacity={0.7}
+                accessibilityRole="button"
               >
                 <Text style={styles.moreText}>My certificates</Text>
                 <Text style={styles.moreChevron}>›</Text>
@@ -820,6 +809,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                 style={[styles.moreRow, styles.moreRowDivider]}
                 onPress={() => navigation.navigate("Blog")}
                 activeOpacity={0.7}
+                accessibilityRole="button"
               >
                 <Text style={styles.moreText}>Blog</Text>
                 <Text style={styles.moreChevron}>›</Text>
@@ -843,6 +833,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                   onPress={openPortal}
                   disabled={portalBusy}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.btnPrimaryText}>
                     {portalBusy ? "Opening…" : "Update card details"}
@@ -867,13 +858,12 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                 Permanently delete your account and all your data. This can't be
                 undone.
               </Text>
-              <TouchableOpacity
-                style={styles.btnDanger}
+              <Button
+                variant="danger"
+                block
                 onPress={openDelete}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.btnDangerText}>Delete account</Text>
-              </TouchableOpacity>
+                label="Delete account"
+              />
             </View>
 
             <Text style={styles.storeNote}>
@@ -886,6 +876,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
           style={styles.signOut}
           onPress={signOut}
           activeOpacity={0.8}
+          accessibilityRole="button"
         >
           <Text style={styles.signOutText}>Sign out</Text>
         </TouchableOpacity>
@@ -914,24 +905,21 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
             {cancelError ? (
               <Text style={styles.formError}>{cancelError}</Text>
             ) : null}
-            <TouchableOpacity
-              style={[styles.btnDanger, cancelBusy && styles.btnDisabled]}
+            <Button
+              variant="danger"
+              block
               onPress={doCancelMembership}
               disabled={cancelBusy}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.btnDangerText}>
-                {cancelBusy ? "Canceling…" : "Cancel membership"}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.btnSecondary, styles.modalKeep]}
+              label={cancelBusy ? "Canceling…" : "Cancel membership"}
+            />
+            <Button
+              variant="secondary"
+              block
+              style={styles.modalKeep}
               onPress={() => setCancelFor(null)}
               disabled={cancelBusy}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.btnSecondaryText}>Keep membership</Text>
-            </TouchableOpacity>
+              label="Keep membership"
+            />
           </View>
         </View>
       </Modal>
@@ -953,15 +941,12 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                 ) : deleteLoadError ? (
                   <>
                     <Text style={styles.formError}>{deleteLoadError}</Text>
-                    <TouchableOpacity
-                      style={styles.btnSecondary}
+                    <Button
+                      variant="secondary"
+                      block
                       onPress={loadDeleteSummary}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.btnSecondaryText}>
-                        {STR.common.retry}
-                      </Text>
-                    </TouchableOpacity>
+                      label={STR.common.retry}
+                    />
                   </>
                 ) : deleteSummary ? (
                   <>
@@ -1047,26 +1032,25 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       </Text>
                     </ScrollView>
 
-                    <TouchableOpacity
-                      style={styles.btnDanger}
+                    <Button
+                      variant="danger"
+                      block
                       onPress={() => {
                         setDeleteError(null);
                         setDeleteStep("confirm");
                       }}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.btnDangerText}>Continue</Text>
-                    </TouchableOpacity>
+                      label="Continue"
+                    />
                   </>
                 ) : null}
 
-                <TouchableOpacity
-                  style={[styles.btnSecondary, styles.modalKeep]}
+                <Button
+                  variant="secondary"
+                  block
+                  style={styles.modalKeep}
                   onPress={closeDelete}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.btnSecondaryText}>Keep my account</Text>
-                </TouchableOpacity>
+                  label="Keep my account"
+                />
               </>
             ) : (
               <>
@@ -1087,32 +1071,31 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                   autoCapitalize="none"
                   editable={!deleteBusy}
                 />
-                <TouchableOpacity
-                  style={[styles.btnDanger, deleteBusy && styles.btnDisabled]}
+                <Button
+                  variant="danger"
+                  block
                   onPress={doDeleteAccount}
                   disabled={deleteBusy}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.btnDangerText}>
-                    {deleteBusy
+                  label={
+                    deleteBusy
                       ? "Deleting…"
                       : deleteSummary && deleteSummary.subscriptions.length > 0
                         ? "Cancel subscription & delete account"
-                        : "Delete account"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.btnSecondary, styles.modalKeep]}
+                        : "Delete account"
+                  }
+                />
+                <Button
+                  variant="secondary"
+                  block
+                  style={styles.modalKeep}
                   onPress={() => {
                     if (deleteBusy) return;
                     setDeleteError(null);
                     setDeleteStep("review");
                   }}
                   disabled={deleteBusy}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.btnSecondaryText}>{STR.common.back}</Text>
-                </TouchableOpacity>
+                  label={STR.common.back}
+                />
               </>
             )}
           </View>
@@ -1274,8 +1257,10 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     avatarActions: { flex: 1, flexDirection: "row", gap: spacing.sm },
     btnPrimary: {
       backgroundColor: colors.primary,
-      borderRadius: 10,
-      paddingVertical: 12,
+      // Match the shared Button's metrics so a flat primary and a secondary
+      // Button sitting in the same actions row line up (radius/height).
+      borderRadius: 12,
+      paddingVertical: 13,
       alignItems: "center",
     },
     btnPrimaryText: {
@@ -1283,20 +1268,6 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontSize: 15,
       fontWeight: "700",
       fontFamily: fonts.bold,
-    },
-    btnSecondary: {
-      backgroundColor: colors.surfaceMuted,
-      borderWidth: 1,
-      borderColor: colors.borderSoft,
-      borderRadius: 10,
-      paddingVertical: 12,
-      alignItems: "center",
-    },
-    btnSecondaryText: {
-      color: colors.text,
-      fontSize: 15,
-      fontWeight: "600",
-      fontFamily: fonts.semibold,
     },
     btnDisabled: { opacity: 0.6 },
     empty: {
@@ -1413,21 +1384,6 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       lineHeight: 21,
       marginBottom: spacing.md,
       fontFamily: fonts.regular,
-    },
-    btnDanger: {
-      backgroundColor: colors.danger,
-      borderRadius: 10,
-      paddingVertical: 12,
-      alignItems: "center",
-    },
-    btnDangerText: {
-      // Literal kept: label on the danger fill. The theme has no onDanger
-      // token (P3b did not add one), and white is what theme.ts's onColor()
-      // yields for both stock danger reds; heroText/onCta are the wrong roles.
-      color: "#ffffff",
-      fontSize: 15,
-      fontWeight: "700",
-      fontFamily: fonts.bold,
     },
     modalKeep: { marginTop: spacing.sm },
     deleteScroll: { maxHeight: 300, marginBottom: spacing.md },

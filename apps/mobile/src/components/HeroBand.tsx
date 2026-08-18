@@ -127,7 +127,11 @@ export function HeroBand({
           </View>
         ) : null}
         {buttonLabel && onButtonPress ? (
-          <Press style={styles.button} onPress={onButtonPress}>
+          <Press
+            style={styles.button}
+            onPress={onButtonPress}
+            accessibilityRole="button"
+          >
             {/* Teal CTA gradient (design --teal-grad) */}
             <LinearGradient
               colors={[colors.ctaStart, colors.ctaEnd]}

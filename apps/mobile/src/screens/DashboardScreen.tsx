@@ -334,6 +334,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
                 <TouchableOpacity
                   onPress={() => navigation.navigate("Classes")}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.sectionLink}>View all</Text>
                 </TouchableOpacity>
@@ -345,6 +346,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
                   <Press
                     key={c.id}
                     style={styles.continueRow}
+                    accessibilityRole="button"
                     onPress={() => openClass(c)}
                   >
                     {c.imageUrl ? (
@@ -389,6 +391,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
                 <TouchableOpacity
                   onPress={() => navigation.navigate("Classes")}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.sectionLink}>All {classes.length}</Text>
                 </TouchableOpacity>
@@ -405,7 +408,11 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
                   return (
                     // The photo-tint layers need a fixed-size inner box — the
                     // Press wrapper only shrink-wraps it.
-                    <Press key={c.id} onPress={() => openClass(c)}>
+                    <Press
+                      key={c.id}
+                      accessibilityRole="button"
+                      onPress={() => openClass(c)}
+                    >
                       <View style={styles.classCard}>
                         {c.imageUrl ? (
                           <Image
@@ -462,6 +469,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
           <TouchableOpacity
             style={styles.browseAll}
             activeOpacity={0.7}
+            accessibilityRole="button"
             onPress={() =>
               navigation.navigate("CourseList", {
                 title: "All courses",

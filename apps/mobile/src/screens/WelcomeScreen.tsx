@@ -46,7 +46,11 @@ export function WelcomeScreen({ onStart }: { onStart: () => void }) {
           { paddingBottom: Math.max(insets.bottom, spacing.lg) },
         ]}
       >
-        <Pressable onPress={onStart} style={styles.button}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onStart}
+          style={styles.button}
+        >
           <Text style={styles.buttonText}>Start here</Text>
         </Pressable>
       </View>
