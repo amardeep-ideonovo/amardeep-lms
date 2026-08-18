@@ -108,14 +108,7 @@ export default function ZoomEmbed({
             <button
               type="button"
               onClick={onUnavailable}
-              className="live-hint"
-              style={{
-                background: "none",
-                border: "none",
-                textDecoration: "underline",
-                cursor: "pointer",
-                marginTop: 8,
-              }}
+              className="live-hint live-hint--link"
             >
               Having trouble? Join in Zoom directly instead
             </button>
