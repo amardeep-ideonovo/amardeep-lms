@@ -345,9 +345,6 @@ export default function CoursesPage() {
                 aria-label="Search courses"
               />
             </div>
-            <Button size="sm" onClick={openCreate}>
-              + Add new course
-            </Button>
           </div>
         </div>
         {loading ? (

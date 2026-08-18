@@ -409,7 +409,7 @@ export default function ContactsPage() {
         </div>
         {canCreate && (
           <div className="row-actions">
-            <Button onClick={createAudience}>+ Add audience</Button>
+            <Button onClick={createAudience}>+ Add new audience</Button>
           </div>
         )}
       </div>
@@ -561,7 +561,7 @@ export default function ContactsPage() {
                   </h2>
                   {canCreate && (
                     <Button size="sm" onClick={openCreate}>
-                      + Add contact
+                      + Add new contact
                     </Button>
                   )}
                 </div>
@@ -877,15 +877,15 @@ export default function ContactsPage() {
             onDiscardDraft={persistedDraft.discard}
           >
             <div className="row-actions">
-              <Button type="button" variant="secondary" onClick={closeEditor}>
-                {STR.common.cancel}
-              </Button>
               <Button type="submit" disabled={savingContact}>
                 {savingContact
                   ? STR.common.saving
                   : editingId
                     ? "Save changes"
                     : "Add contact"}
+              </Button>
+              <Button type="button" variant="secondary" onClick={closeEditor}>
+                {STR.common.cancel}
               </Button>
             </div>
           </ModalFooter>
@@ -1016,7 +1016,7 @@ function SegmentsPanel({
         <h2 style={{ fontSize: 16 }}>Segments</h2>
         {canCreate && (
           <Button size="sm" onClick={create}>
-            + New
+            + Add new segment
           </Button>
         )}
       </div>

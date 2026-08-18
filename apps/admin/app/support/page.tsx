@@ -85,8 +85,8 @@ export default function SupportPage() {
           <Button variant="secondary" onClick={load} disabled={loading}>
             {loading ? "Refreshing…" : "Refresh"}
           </Button>
-          <Link href="/support/new" className="btn">
-            + New ticket
+          <Link href="/support/new" className="btn btn--primary">
+            + Add new ticket
           </Link>
         </div>
       </div>

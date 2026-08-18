@@ -345,7 +345,7 @@ export default function EmailTemplatesPage() {
         </div>
         {canCreate && (
           <div className="row-actions">
-            <Button onClick={openCreate}>+ New template</Button>
+            <Button onClick={openCreate}>+ Add new template</Button>
           </div>
         )}
       </div>

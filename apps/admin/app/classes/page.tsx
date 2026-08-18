@@ -1069,7 +1069,7 @@ export default function ClassesPage() {
           />
         </div>
         {can("classes", "create") && (
-          <Button onClick={openCreate}>+ New class</Button>
+          <Button onClick={openCreate}>+ Add new class</Button>
         )}
       </div>
 
@@ -1078,7 +1078,7 @@ export default function ClassesPage() {
         {loading ? (
           <p className="muted">{STR.common.loading}</p>
         ) : levels.length === 0 ? (
-          <p className="muted">No classes yet — click “+ New class”.</p>
+          <p className="muted">No classes yet — click “+ Add new class”.</p>
         ) : (
           <>
             <div

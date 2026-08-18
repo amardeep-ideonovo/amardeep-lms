@@ -1,7 +1,7 @@
 "use client";
 
 // Projects → Lists: the standalone "WEB QUEUE" workspace. The page owns the list
-// picker (tabs), "+ New list" and the per-list Workflows panel; the actual queue
+// picker (tabs), "+ Add new list" and the per-list Workflows panel; the actual queue
 // TABLE (typed columns, inline-editable cells, add-column/add-row, the per-item
 // 💬 detail card) lives in the reusable <QueueTable/> component, shared with the
 // channel List tabs in app/projects/page.tsx. Admin-only; gated on `projects`.
@@ -170,7 +170,7 @@ export default function ProjectListsPage() {
               ⚡ Workflows
             </Button>
           )}
-          {canCreate && <Button onClick={createList}>+ New list</Button>}
+          {canCreate && <Button onClick={createList}>+ Add new list</Button>}
         </div>
       </div>
 

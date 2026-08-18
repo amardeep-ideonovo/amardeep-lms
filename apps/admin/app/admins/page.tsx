@@ -132,7 +132,7 @@ export default function AdminsPage() {
           </p>
         </div>
         <Button onClick={() => setModal({ mode: "create" })}>
-          + Add admin
+          + Add new admin
         </Button>
       </div>
 
