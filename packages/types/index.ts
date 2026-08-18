@@ -176,6 +176,14 @@ export interface SkillDTO {
   title: string;
   imageUrl: string | null;
 }
+// The admin who created a class/course, for the admin "Created by" display.
+// null when the record predates the created-by field or the admin was deleted.
+export interface CreatedByRef {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
 export interface LevelDTO {
   id: string;
   name: string;
@@ -202,6 +210,9 @@ export interface LevelDTO {
   // Distinct members currently holding this level (ACTIVE). Only populated for
   // admin requests; 0 for member-facing calls so subscriber counts aren't leaked.
   memberCount: number;
+  // The admin who created this class (admin view only; null member-side). null
+  // when it predates the field or the creating admin was deleted.
+  createdBy: CreatedByRef | null;
 }
 
 // Public, unauthenticated checkout resolution (GET /levels/checkout/:slugOrId) —
@@ -542,6 +553,10 @@ export interface CourseCard {
   completedCount: number; // lessons the viewer has completed (0 for admin/no context)
   startedCount?: number; // lessons the viewer has opened at least once (drives "In progress")
   archivedAt?: string | null; // ISO when soft-archived (admin view only); null = active
+  published?: boolean; // Draft/Published — members only see published; admin view only
+  // The admin who created this course (admin view only; null member-side). null
+  // when it predates the field or the creating admin was deleted.
+  createdBy?: CreatedByRef | null;
 }
 // Downloadable lesson attachment (PDFs, docs, …). The file itself is never
 // public — `downloadUrl` points at an access-checked API route the client
@@ -786,6 +801,9 @@ export interface CreateCourseInput {
   coverImageUrl?: string;
   levelIds?: string[];
   order?: number;
+  // Draft/Published. The server rejects published:true when the course has zero
+  // lessons. Omit to leave unchanged on update; defaults to draft on create.
+  published?: boolean;
 }
 export type UpdateCourseInput = Partial<CreateCourseInput>;
 

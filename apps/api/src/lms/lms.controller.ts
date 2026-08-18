@@ -120,8 +120,11 @@ export class LmsController {
   @UseGuards(PermissionsGuard)
   @RequirePermission("courses", "create")
   @Post("courses")
-  createCourse(@Body() dto: CreateCourseDto) {
-    return this.lms.createCourse(dto);
+  createCourse(
+    @CurrentUser() principal: AuthenticatedPrincipal,
+    @Body() dto: CreateCourseDto,
+  ) {
+    return this.lms.createCourse(dto, principal.sub);
   }
 
   @UseGuards(PermissionsGuard)

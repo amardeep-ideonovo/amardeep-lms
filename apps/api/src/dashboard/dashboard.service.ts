@@ -20,6 +20,8 @@ export class DashboardService {
   async build(userId: string): Promise<DashboardResponse> {
     const [courses, activeLevels, completedByCourse] = await Promise.all([
       this.prisma.course.findMany({
+        // Member dashboard: only published, non-archived courses are ever shown.
+        where: { archivedAt: null, published: true },
         orderBy: { order: "asc" },
         include: {
           courseLevels: { select: { levelId: true } },

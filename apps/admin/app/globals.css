@@ -1607,6 +1607,40 @@ select:-webkit-autofill:focus {
   color: #fff;
 }
 
+/* Hover tooltip: wrap any control (even a disabled one) in a .tip span and set
+   data-tip="…". The bubble appears immediately above, centred, on hover — used
+   e.g. to explain why a disabled Publish button is blocked. */
+.tip {
+  position: relative;
+  display: inline-flex;
+}
+.tip[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(3px);
+  z-index: 50;
+  padding: 6px 9px;
+  border-radius: 7px;
+  background: var(--ink-800);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(20, 16, 38, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease;
+}
+.tip[data-tip]:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 /* ---------- featured image preview ---------- */
 .cover-preview {
   margin-top: 8px;

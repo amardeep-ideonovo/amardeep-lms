@@ -78,6 +78,8 @@ model Admin {
   media             MediaAsset[]
   notificationReads AdminNotificationRead[]
   liveSessions      LiveSession[]           @relation("AdminLiveSessions")
+  createdLevels     Level[]                 @relation("LevelCreatedBy")
+  createdCourses    Course[]                @relation("CourseCreatedBy")
 }
 
 // Append-only trace of privileged admin actions (password resets, manual level
@@ -123,6 +125,7 @@ model Level {
   featuredCourseId      String? // course whose lessons appear as the curriculum
   // Completion-certificate template override; null = use the default template.
   certificateTemplateId String?
+  createdById           String? // Admin who created this class (audit; null = pre-dates the field or the admin was deleted)
   createdAt             DateTime  @default(now())
   archivedAt            DateTime? // soft-archive: hidden from members, grants/certs kept (vs hard delete)
 
@@ -130,6 +133,7 @@ model Level {
   userLevels          UserLevel[]
   courseLevels        CourseLevel[]
   categories          LevelCategory[]
+  createdBy           Admin?               @relation("LevelCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   featuredCourse      Course?              @relation("ClassFeaturedCourse", fields: [featuredCourseId], references: [id], onDelete: SetNull)
   certificateTemplate CertificateTemplate? @relation(fields: [certificateTemplateId], references: [id], onDelete: SetNull)
   certificates        Certificate[]
@@ -221,11 +225,17 @@ model Course {
   thumbnailUrl  String? // squared thumbnail shown on course cards
   coverImageUrl String? // wide cover/hero image shown on the course page
   order         Int      @default(0)
+  // Draft/Published: members only ever see published courses. A course can't be
+  // published with zero lessons (enforced in the service). Defaults to draft;
+  // the add-published migration backfills existing courses-with-lessons to true.
+  published     Boolean  @default(false)
+  createdById   String? // Admin who created this course (audit; null = pre-dates the field or the admin was deleted)
   createdAt     DateTime @default(now())
   archivedAt    DateTime? // soft-archive: hidden from members (vs hard delete)
 
   lessons          Lesson[]
   courseLevels     CourseLevel[]
+  createdBy        Admin?        @relation("CourseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   featuredInLevels Level[]       @relation("ClassFeaturedCourse")
 }
 

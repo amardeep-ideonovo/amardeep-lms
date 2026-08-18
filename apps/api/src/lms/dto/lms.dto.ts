@@ -2,6 +2,7 @@ import {
   ArrayMinSize,
   ArrayNotEmpty,
   IsArray,
+  IsBoolean,
   IsInt,
   IsOptional,
   IsString,
@@ -41,6 +42,11 @@ export class CreateCourseDto {
   @IsOptional()
   @IsInt()
   order?: number;
+
+  // Ignored on create (a new course has no lessons, so it starts as a draft).
+  @IsOptional()
+  @IsBoolean()
+  published?: boolean;
 }
 
 export class UpdateCourseDto {
@@ -72,6 +78,11 @@ export class UpdateCourseDto {
   @IsOptional()
   @IsInt()
   order?: number;
+
+  // Draft/Published toggle. The service rejects true when the course has 0 lessons.
+  @IsOptional()
+  @IsBoolean()
+  published?: boolean;
 }
 
 export class CreateLessonDto {

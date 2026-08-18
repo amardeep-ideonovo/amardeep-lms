@@ -63,7 +63,8 @@ export async function buildHrefMaps(
       : Promise.resolve([]),
     courseIds.length
       ? prisma.course.findMany({
-          where: { id: { in: courseIds } },
+          // Drop nav links to draft/archived courses (same as draft posts above).
+          where: { id: { in: courseIds }, published: true, archivedAt: null },
           select: { id: true },
         })
       : Promise.resolve([]),

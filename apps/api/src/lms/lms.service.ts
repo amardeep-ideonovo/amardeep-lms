@@ -52,6 +52,8 @@ export class LmsService {
   private static readonly COURSE_CARD_INCLUDE = {
     courseLevels: { select: { levelId: true } },
     _count: { select: { lessons: true } },
+    // Creator is surfaced admin-side only (nulled member-side in toCourseCard).
+    createdBy: { select: { id: true, name: true, email: true } },
   } as const;
 
   // The ONE place a Course row becomes a CourseCard. The write paths used to
@@ -68,9 +70,11 @@ export class LmsService {
       description: string | null;
       thumbnailUrl: string | null;
       coverImageUrl: string | null;
+      published: boolean;
       archivedAt: Date | null;
       courseLevels: { levelId: string }[];
       _count: { lessons: number };
+      createdBy?: { id: string; name: string | null; email: string } | null;
     },
     ctx: {
       activeLevels: Set<string>;
@@ -79,6 +83,10 @@ export class LmsService {
   ): CourseCard {
     const assigned = c.courseLevels.map((cl) => cl.levelId);
     const locked = ctx ? isCourseLocked(assigned, ctx.activeLevels) : false;
+    // ctx null = admin/no-viewer → surface published + creator; members get
+    // neither (they only ever receive published courses, and an admin's email
+    // must not leak to them).
+    const isAdminView = ctx === null;
     return {
       id: c.id,
       slug: c.slug,
@@ -91,6 +99,15 @@ export class LmsService {
       lessonCount: c._count.lessons,
       completedCount: ctx?.completedByCourse.get(c.id) ?? 0,
       archivedAt: c.archivedAt ? c.archivedAt.toISOString() : null,
+      published: c.published,
+      createdBy:
+        isAdminView && c.createdBy
+          ? {
+              id: c.createdBy.id,
+              name: c.createdBy.name,
+              email: c.createdBy.email,
+            }
+          : null,
     };
   }
 
@@ -99,9 +116,9 @@ export class LmsService {
     includeArchived = false,
   ): Promise<CourseCard[]> {
     const courses = await this.prisma.course.findMany({
-      // Members never see archived courses; admins (includeArchived) see all so
-      // they can badge + unarchive them.
-      where: includeArchived ? {} : { archivedAt: null },
+      // Members only ever see PUBLISHED, non-archived courses; admins
+      // (includeArchived) see all so they can badge, publish + unarchive them.
+      where: includeArchived ? {} : { archivedAt: null, published: true },
       // createdAt breaks the tie: every course is created with order 0, so
       // `order` alone left the list free to reshuffle equal-order courses
       // between reads. With a total order the sequence is stable, which also
@@ -148,7 +165,10 @@ export class LmsService {
     }
   }
 
-  async createCourse(dto: CreateCourseDto): Promise<CourseCard> {
+  async createCourse(
+    dto: CreateCourseDto,
+    createdById?: string,
+  ): Promise<CourseCard> {
     const course = await this.prisma.course.create({
       data: {
         title: dto.title,
@@ -157,6 +177,10 @@ export class LmsService {
         thumbnailUrl: dto.thumbnailUrl ?? null,
         coverImageUrl: dto.coverImageUrl ?? null,
         order: dto.order ?? 0,
+        createdById: createdById ?? null,
+        // A new course has no lessons yet, so it always starts as a draft — it
+        // can only be published later (via updateCourse), once it has lessons.
+        published: false,
         // levelIds is required + non-empty (DTO-validated): always link ≥1 class.
         courseLevels: { create: dto.levelIds.map((levelId) => ({ levelId })) },
       },
@@ -166,8 +190,19 @@ export class LmsService {
   }
 
   async updateCourse(id: string, dto: UpdateCourseDto): Promise<CourseCard> {
-    const existing = await this.prisma.course.findUnique({ where: { id } });
+    const existing = await this.prisma.course.findUnique({
+      where: { id },
+      include: { _count: { select: { lessons: true } } },
+    });
     if (!existing) throw new NotFoundException("Course not found");
+
+    // A course can't be published without lessons — an empty course would show
+    // members a blank curriculum. Unpublishing (false) is always allowed.
+    if (dto.published === true && existing._count.lessons === 0) {
+      throw new BadRequestException(
+        "Add at least one lesson before publishing this course.",
+      );
+    }
 
     // Backfill a URL slug for courses created before slugs existed; keep an
     // existing slug stable across title edits so bookmarked URLs don't break.
@@ -188,6 +223,7 @@ export class LmsService {
           thumbnailUrl: dto.thumbnailUrl ?? undefined,
           coverImageUrl: dto.coverImageUrl ?? undefined,
           order: dto.order ?? undefined,
+          published: dto.published ?? undefined,
         },
       });
       // Replace level assignments wholesale when provided.
@@ -277,6 +313,11 @@ export class LmsService {
     // Access gate (member context only; admins pass through). Mirrors getLesson
     // so a locked course never leaks its lesson list or content.
     if (userId) {
+      // A draft/archived course doesn't exist as far as a member is concerned
+      // (matches the listCourses filter; NotFound doesn't reveal the draft).
+      if (!course.published || course.archivedAt) {
+        throw new NotFoundException("Course not found");
+      }
       const assigned = course.courseLevels.map((cl) => cl.levelId);
       const activeLevels = await this.access.activeLevelIds(userId);
       if (isCourseLocked(assigned, activeLevels)) {
@@ -477,6 +518,10 @@ export class LmsService {
       },
     });
     if (!lesson) throw new NotFoundException("Lesson not found");
+    // A lesson inside a draft/archived course doesn't exist for a member.
+    if (!lesson.course.published || lesson.course.archivedAt) {
+      throw new NotFoundException("Lesson not found");
+    }
 
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
     const activeLevels = await this.access.activeLevelIds(userId);
@@ -530,6 +575,10 @@ export class LmsService {
       },
     });
     if (!lesson) throw new NotFoundException("Lesson not found");
+    // A lesson inside a draft/archived course doesn't exist for a member.
+    if (!lesson.course.published || lesson.course.archivedAt) {
+      throw new NotFoundException("Lesson not found");
+    }
 
     // Same access gate as viewing.
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
@@ -655,6 +704,10 @@ export class LmsService {
       },
     });
     if (!lesson) throw new NotFoundException("Lesson not found");
+    // A lesson inside a draft/archived course doesn't exist for a member.
+    if (!lesson.course.published || lesson.course.archivedAt) {
+      throw new NotFoundException("Lesson not found");
+    }
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
     const activeLevels = await this.access.activeLevelIds(userId);
     if (isCourseLocked(assigned, activeLevels)) {
@@ -790,6 +843,10 @@ export class LmsService {
       throw new NotFoundException("Note not found");
     }
     if (!principal.isAdmin) {
+      // A note inside a draft/archived course doesn't exist for a member.
+      if (!note.lesson.course.published || note.lesson.course.archivedAt) {
+        throw new NotFoundException("Note not found");
+      }
       const assigned = note.lesson.course.courseLevels.map((cl) => cl.levelId);
       const activeLevels = await this.access.activeLevelIds(principal.sub);
       if (isCourseLocked(assigned, activeLevels)) {

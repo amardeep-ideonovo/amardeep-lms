@@ -261,6 +261,7 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
       title: "Welcome & Orientation",
       description: "Open intro course available to every member (QA fixture).",
       order: 100,
+      published: true,
       thumbnailUrl: generalArt(0),
       coverImageUrl: generalArt(0),
     },
@@ -269,6 +270,7 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
       title: "Welcome & Orientation",
       description: "Open intro course available to every member (QA fixture).",
       order: 100,
+      published: true,
       thumbnailUrl: generalArt(0),
       coverImageUrl: generalArt(0),
     },
@@ -280,6 +282,7 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
       description:
         "Gated course used by the access-control tests (QA fixture).",
       order: 101,
+      published: true,
       thumbnailUrl: generalArt(1),
       coverImageUrl: generalArt(1),
     },
@@ -289,6 +292,7 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
       description:
         "Gated course used by the access-control tests (QA fixture).",
       order: 101,
+      published: true,
       thumbnailUrl: generalArt(1),
       coverImageUrl: generalArt(1),
     },
@@ -782,6 +786,7 @@ async function seedCatalog() {
         slug: course.slug,
         description: course.description,
         order: c,
+        published: true, // catalog courses are live (they carry lessons)
         thumbnailUrl: course.thumbnailUrl,
         coverImageUrl: course.coverImageUrl,
       };

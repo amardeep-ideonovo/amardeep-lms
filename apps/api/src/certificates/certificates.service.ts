@@ -67,7 +67,13 @@ export class CertificatesService {
     const map = new Map<string, LevelCompletion>();
     if (!levelIds.length) return map;
     const joins = await this.prisma.courseLevel.findMany({
-      where: { levelId: { in: levelIds } },
+      where: {
+        levelId: { in: levelIds },
+        // Certificate math counts only published, non-archived courses: a member
+        // can never open a draft/archived course's lessons, so counting them
+        // would make totalLessons unreachable or pick a hidden terminal lesson.
+        course: { published: true, archivedAt: null },
+      },
       select: {
         levelId: true,
         course: {
