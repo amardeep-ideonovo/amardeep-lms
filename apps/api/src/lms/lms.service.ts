@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -9,7 +8,6 @@ import {
 import * as fs from "fs";
 import * as path from "path";
 import type {
-  CheckoutCourseDTO,
   CompleteLessonResponse,
   CourseCard,
   LessonDTO,
@@ -61,7 +59,7 @@ export class LmsService {
   // for courses that had lessons, and omitted `archivedAt` entirely.
   //
   // `ctx` is the viewer's access context; null means an admin/no-viewer context,
-  // where nothing is locked, nothing is completed and nothing is purchasable.
+  // where nothing is locked and nothing is completed.
   private toCourseCard(
     c: {
       id: string;
@@ -70,28 +68,17 @@ export class LmsService {
       description: string | null;
       thumbnailUrl: string | null;
       coverImageUrl: string | null;
-      priceAmount: number | null;
-      priceCurrency: string;
-      priceActive: boolean;
       archivedAt: Date | null;
       courseLevels: { levelId: string }[];
       _count: { lessons: number };
     },
     ctx: {
       activeLevels: Set<string>;
-      purchased: Set<string>;
       completedByCourse: Map<string, number>;
     } | null,
   ): CourseCard {
     const assigned = c.courseLevels.map((cl) => cl.levelId);
-    const owns = ctx?.purchased.has(c.id) ?? false;
-    const locked = ctx
-      ? isCourseLocked(assigned, ctx.activeLevels, owns)
-      : false;
-    // "Buy this course" is offered only to a member for whom the course is
-    // LOCKED and a one-off price is configured + active. Admin view (no ctx →
-    // locked false) never flags purchasable.
-    const hasOneOffPrice = c.priceActive && (c.priceAmount ?? 0) > 0;
+    const locked = ctx ? isCourseLocked(assigned, ctx.activeLevels) : false;
     return {
       id: c.id,
       slug: c.slug,
@@ -103,10 +90,6 @@ export class LmsService {
       locked,
       lessonCount: c._count.lessons,
       completedCount: ctx?.completedByCourse.get(c.id) ?? 0,
-      purchasable: locked && hasOneOffPrice,
-      priceAmount: c.priceAmount,
-      priceCurrency: c.priceCurrency,
-      priceActive: c.priceActive,
       archivedAt: c.archivedAt ? c.archivedAt.toISOString() : null,
     };
   }
@@ -127,57 +110,20 @@ export class LmsService {
       include: LmsService.COURSE_CARD_INCLUDE,
     });
 
-    // Resolve the three per-request access inputs together (mirrors
+    // Resolve the per-request access inputs together (mirrors
     // dashboard.service.build) rather than serially.
-    const [activeLevels, purchased, completedByCourse] = userId
+    const [activeLevels, completedByCourse] = userId
       ? await Promise.all([
           this.access.activeLevelIds(userId),
-          this.access.purchasedCourseIds(userId),
           this.access.completedCountByCourse(userId),
         ])
-      : [null, null, null];
+      : [null, null];
 
     const ctx =
-      activeLevels && purchased && completedByCourse
-        ? { activeLevels, purchased, completedByCourse }
+      activeLevels && completedByCourse
+        ? { activeLevels, completedByCourse }
         : null;
     return courses.map((c) => this.toCourseCard(c, ctx));
-  }
-
-  // Public, unauthenticated resolve for the one-off course checkout page. 404s
-  // unless the course is individually purchasable (priceActive && priceAmount>0)
-  // — the same buyable gate the billing service enforces — so the checkout page
-  // can never render a chargeable form for a free/disabled course. Returns only
-  // checkout-safe fields (no lessons, levels, or per-viewer lock state); the
-  // "already have access" check happens later, in the authenticated intent call.
-  async checkoutCourseBySlugOrId(idOrSlug: string): Promise<CheckoutCourseDTO> {
-    const course = await this.prisma.course.findFirst({
-      where: {
-        archivedAt: null,
-        OR: [{ slug: idOrSlug }, { id: idOrSlug }],
-      },
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        coverImageUrl: true,
-        priceAmount: true,
-        priceCurrency: true,
-        priceActive: true,
-      },
-    });
-    if (!course || !course.priceActive || (course.priceAmount ?? 0) <= 0) {
-      throw new NotFoundException("Checkout not found");
-    }
-    return {
-      id: course.id,
-      slug: course.slug,
-      title: course.title,
-      coverImageUrl: course.coverImageUrl,
-      priceAmount: course.priceAmount ?? 0,
-      priceCurrency: course.priceCurrency,
-      priceActive: course.priceActive,
-    };
   }
 
   // Readable URL slug from a course title ("Course 1" -> "course-1"), unique
@@ -211,11 +157,6 @@ export class LmsService {
         thumbnailUrl: dto.thumbnailUrl ?? null,
         coverImageUrl: dto.coverImageUrl ?? null,
         order: dto.order ?? 0,
-        priceAmount: dto.priceAmount ?? null,
-        priceCurrency: dto.priceCurrency
-          ? dto.priceCurrency.toLowerCase()
-          : undefined,
-        priceActive: dto.priceActive ?? undefined,
         // levelIds is required + non-empty (DTO-validated): always link ≥1 class.
         courseLevels: { create: dto.levelIds.map((levelId) => ({ levelId })) },
       },
@@ -247,14 +188,6 @@ export class LmsService {
           thumbnailUrl: dto.thumbnailUrl ?? undefined,
           coverImageUrl: dto.coverImageUrl ?? undefined,
           order: dto.order ?? undefined,
-          // priceAmount is nullable: `undefined` leaves it unchanged, explicit
-          // `null` clears the one-off price (course reverts to level-gated).
-          priceAmount:
-            dto.priceAmount === undefined ? undefined : dto.priceAmount,
-          priceCurrency: dto.priceCurrency
-            ? dto.priceCurrency.toLowerCase()
-            : undefined,
-          priceActive: dto.priceActive ?? undefined,
         },
       });
       // Replace level assignments wholesale when provided.
@@ -288,18 +221,6 @@ export class LmsService {
       },
     });
     if (!existing) throw new NotFoundException("Course not found");
-    // Guard: refuse to hard-delete a course that members still own. UserCourse
-    // is Cascade, so deleting wipes lifetime one-off purchases along with their
-    // Stripe payment-correlation fields (breaking refund/chargeback handling).
-    // Archive it instead.
-    const active = await this.prisma.userCourse.count({
-      where: { courseId: id, status: "ACTIVE" },
-    });
-    if (active > 0) {
-      throw new ConflictException(
-        `Cannot delete: ${active} member(s) own this course. Archive it instead.`,
-      );
-    }
     // DB cascades lessons/levels/notes; clean up the note files on disk too.
     const files = existing.lessons.flatMap((l) =>
       l.notes.map((n) => n.filename),
@@ -310,9 +231,8 @@ export class LmsService {
   }
 
   /**
-   * Soft-archive a course: hide it from members while KEEPING every lifetime
-   * purchase (UserCourse) + its payment correlation. The ergonomic alternative
-   * to a hard delete when members still own the course.
+   * Soft-archive a course: hide it from members without hard-deleting it (its
+   * lessons and level assignments are kept, so it can be unarchived intact).
    */
   async archiveCourse(id: string): Promise<{ ok: true }> {
     const existing = await this.prisma.course.findUnique({ where: { id } });
@@ -358,11 +278,8 @@ export class LmsService {
     // so a locked course never leaks its lesson list or content.
     if (userId) {
       const assigned = course.courseLevels.map((cl) => cl.levelId);
-      const [activeLevels, owns] = await Promise.all([
-        this.access.activeLevelIds(userId),
-        this.access.ownsCourse(userId, course.id),
-      ]);
-      if (isCourseLocked(assigned, activeLevels, owns)) {
+      const activeLevels = await this.access.activeLevelIds(userId);
+      if (isCourseLocked(assigned, activeLevels)) {
         throw new ForbiddenException("You do not have access to this course");
       }
     }
@@ -562,11 +479,8 @@ export class LmsService {
     if (!lesson) throw new NotFoundException("Lesson not found");
 
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
-    const [activeLevels, owns] = await Promise.all([
-      this.access.activeLevelIds(userId),
-      this.access.ownsCourse(userId, lesson.courseId),
-    ]);
-    if (isCourseLocked(assigned, activeLevels, owns)) {
+    const activeLevels = await this.access.activeLevelIds(userId);
+    if (isCourseLocked(assigned, activeLevels)) {
       throw new ForbiddenException("You do not have access to this lesson");
     }
 
@@ -619,11 +533,8 @@ export class LmsService {
 
     // Same access gate as viewing.
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
-    const [activeLevels, owns] = await Promise.all([
-      this.access.activeLevelIds(userId),
-      this.access.ownsCourse(userId, lesson.courseId),
-    ]);
-    if (isCourseLocked(assigned, activeLevels, owns)) {
+    const activeLevels = await this.access.activeLevelIds(userId);
+    if (isCourseLocked(assigned, activeLevels)) {
       throw new ForbiddenException("You do not have access to this lesson");
     }
 
@@ -745,11 +656,8 @@ export class LmsService {
     });
     if (!lesson) throw new NotFoundException("Lesson not found");
     const assigned = lesson.course.courseLevels.map((cl) => cl.levelId);
-    const [activeLevels, owns] = await Promise.all([
-      this.access.activeLevelIds(userId),
-      this.access.ownsCourse(userId, lesson.courseId),
-    ]);
-    if (isCourseLocked(assigned, activeLevels, owns)) {
+    const activeLevels = await this.access.activeLevelIds(userId);
+    if (isCourseLocked(assigned, activeLevels)) {
       throw new ForbiddenException("You do not have access to this lesson");
     }
     const pos = Math.max(0, Math.floor(positionSeconds));
@@ -883,11 +791,8 @@ export class LmsService {
     }
     if (!principal.isAdmin) {
       const assigned = note.lesson.course.courseLevels.map((cl) => cl.levelId);
-      const [activeLevels, owns] = await Promise.all([
-        this.access.activeLevelIds(principal.sub),
-        this.access.ownsCourse(principal.sub, note.lesson.courseId),
-      ]);
-      if (isCourseLocked(assigned, activeLevels, owns)) {
+      const activeLevels = await this.access.activeLevelIds(principal.sub);
+      if (isCourseLocked(assigned, activeLevels)) {
         throw new ForbiddenException("You do not have access to this lesson");
       }
     }

@@ -4,8 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { CourseCard, LessonDTO } from "@lms/types";
-import { STR, formatMoney } from "@lms/types";
-import { Button } from "@lms/ui";
+import { STR } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
@@ -17,20 +16,14 @@ function CourseInner() {
   const courseId = params.id;
   const [lessons, setLessons] = useState<LessonDTO[] | null>(null);
   const [course, setCourse] = useState<CourseCard | null>(null);
-  // Tracked separately from `course` so the locked panel can distinguish "still
-  // resolving whether this course is purchasable" from "resolved: not purchasable"
-  // — without this, a 403 that lands before the course card loads would flash the
-  // generic panel (and hide the Buy button) until the card arrives.
-  const [courseLoaded, setCourseLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     let active = true;
     async function run() {
-      // Course card (cover + title + one-off price). Awaited so the locked panel
-      // has price info before it renders (no flash), and courseLoaded flips even
-      // on failure so we fall back to the generic panel rather than hanging.
+      // Course card (cover + title + description for the content view). Best
+      // effort — the lessons call below drives the locked/error/content states.
       try {
         const cs = await api.courses();
         if (active)
@@ -38,9 +31,7 @@ function CourseInner() {
             cs.find((c) => c.slug === courseId || c.id === courseId) ?? null,
           );
       } catch {
-        /* price/cover are best-effort; generic locked panel is the fallback */
-      } finally {
-        if (active) setCourseLoaded(true);
+        /* cover/title are best-effort; the page still renders without them */
       }
 
       // Lessons drive the page (locked / error / content).
@@ -71,54 +62,17 @@ function CourseInner() {
     };
   }, [courseId, router]);
 
-  // Buy a one-off course: hand off to the site's own branded in-app checkout,
-  // which grants access and lands on the thank-you page (no hosted redirect).
-  function buyCourse() {
-    router.push(`/checkout/course/${courseId}`);
-  }
-
   // One dark canvas wraps every state (locked / error / loading / lessons).
   let body: ReactNode;
-  if (locked && !courseLoaded) {
-    // Still resolving whether the course is purchasable — avoid flashing the
-    // wrong locked panel before the course card (and its price) arrives.
-    body = (
-      <div className="centered-state">
-        <div className="spinner" aria-label={STR.common.loadingLabel} />
-      </div>
-    );
-  } else if (locked) {
-    const price =
-      course?.purchasable && course.priceAmount != null
-        ? formatMoney(course.priceAmount, course.priceCurrency ?? "usd")
-        : null;
+  if (locked) {
     body = (
       <div className="locked-panel">
         <div className="lock-icon">🔒</div>
         <h2>This course is locked</h2>
-        {price ? (
-          <>
-            <p>
-              Buy this course for lifetime access — or unlock it with a
-              membership.
-            </p>
-            <div className="locked-actions">
-              <Button type="button" onClick={buyCourse}>
-                {`Buy this course · ${price}`}
-              </Button>
-              <Link href="/account" className="btn btn-secondary">
-                View membership plans
-              </Link>
-            </div>
-          </>
-        ) : (
-          <>
-            <p>You need an active membership level to view these lessons.</p>
-            <Link href="/account" className="btn btn-primary">
-              View plans
-            </Link>
-          </>
-        )}
+        <p>You need an active membership level to view these lessons.</p>
+        <Link href="/account" className="btn btn-primary">
+          View plans
+        </Link>
       </div>
     );
   } else if (error) {

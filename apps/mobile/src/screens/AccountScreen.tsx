@@ -1018,17 +1018,6 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                         </View>
                       ) : null}
 
-                      {deleteSummary.lifetimeCourses.length > 0 ? (
-                        <View style={styles.deleteGroup}>
-                          <Text style={styles.deleteGroupLabel}>Courses</Text>
-                          {deleteSummary.lifetimeCourses.map((c) => (
-                            <Text key={c.id} style={styles.deleteItem}>
-                              {c.title} — lifetime access lost
-                            </Text>
-                          ))}
-                        </View>
-                      ) : null}
-
                       {deleteSummary.lifetimeLevels.length > 0 ? (
                         <View style={styles.deleteGroup}>
                           <Text style={styles.deleteGroupLabel}>

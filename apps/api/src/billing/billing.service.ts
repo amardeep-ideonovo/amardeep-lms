@@ -1,20 +1,17 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
   OnModuleInit,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { isCourseLocked } from "../common/access.util";
 import type { Prisma } from "@prisma/client";
 import type Stripe from "stripe";
 import type {
   BillingConfigDTO,
   CouponPreviewDTO,
   CouponValidateInput,
-  CourseIntentResult,
   InvoiceDTO,
   MemberBillingDTO,
   MySubscriptionDTO,
@@ -323,313 +320,14 @@ export class BillingService implements OnModuleInit {
     return { url: session.url };
   }
 
-  // ---------- One-off course purchase (embedded Stripe Elements, one-time PI) ----------
-
-  // Start a one-off, one-time PaymentIntent to buy LIFETIME access to a single
-  // course through the site's OWN branded checkout — mirrors subscribe()'s
-  // customer plumbing but pays a one-time charge and grants a course-scoped
-  // UserCourse rather than a UserLevel.
-  async createCourseIntent(
-    userId: string,
-    courseId: string,
-  ): Promise<CourseIntentResult> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException("User not found");
-
-    const course = await this.prisma.course.findUnique({
-      where: { id: courseId },
-      include: { courseLevels: { select: { levelId: true } } },
-    });
-    if (!course) throw new NotFoundException("Course not found");
-
-    // Individually purchasable only when a one-off price is set AND active.
-    const amount = course.priceAmount ?? 0;
-    if (!course.priceActive || amount <= 0) {
-      throw new BadRequestException(
-        "This course is not available for purchase",
-      );
-    }
-
-    // Never sell access the member already has: block when the course isn't
-    // LOCKED for them — i.e. it's open, their levels already unlock it, or they
-    // already bought it. Same rule as the access gate (single source of truth).
-    const assigned = course.courseLevels.map((cl) => cl.levelId);
-    const [activeRows, ownedRow] = await Promise.all([
-      this.prisma.userLevel.findMany({
-        where: { userId: user.id, status: "ACTIVE" },
-        select: { levelId: true },
-      }),
-      this.prisma.userCourse.findFirst({
-        where: {
-          userId: user.id,
-          courseId,
-          status: "ACTIVE",
-          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-        },
-        select: { id: true },
-      }),
-    ]);
-    const activeLevels = new Set(activeRows.map((r) => r.levelId));
-    if (!isCourseLocked(assigned, activeLevels, !!ownedRow)) {
-      throw new BadRequestException("You already have access to this course");
-    }
-
-    const customerId = await this.stripe.ensureCustomer({
-      existingCustomerId: user.stripeCustomerId,
-      email: user.email,
-      userId: user.id,
-    });
-    if (customerId !== user.stripeCustomerId) {
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { stripeCustomerId: customerId },
-      });
-    }
-
-    const currency = course.priceCurrency.toLowerCase();
-    const coursePis = await this.stripe.listCoursePaymentIntents(
-      customerId,
-      courseId,
-    );
-
-    // (a) Self-heal a paid-but-ungranted purchase. isCourseLocked already ruled
-    // out an ACTIVE grant, so a SUCCEEDED course PI here means the member paid
-    // but the grant never landed (inline confirm failed AND the webhook hasn't
-    // arrived). Grant it inline instead of charging again — this closes the
-    // "still locked after paying → re-click Buy → second charge" gap. Skip a
-    // REFUNDED charge (its money was returned) so a re-purchase after a refund
-    // still starts a fresh charge rather than re-granting for free.
-    for (const pi of coursePis) {
-      if (pi.status !== "succeeded") continue;
-      const chargeId =
-        typeof pi.latest_charge === "string"
-          ? pi.latest_charge
-          : (pi.latest_charge?.id ?? null);
-      const charge = chargeId
-        ? await this.stripe.retrieveCharge(chargeId)
-        : null;
-      if (charge && !charge.refunded) {
-        await this.grantCoursePurchase({
-          userId: user.id,
-          courseId,
-          paymentIntentId: pi.id,
-          amount: pi.amount_received ?? pi.amount ?? null,
-          currency: pi.currency ?? null,
-        });
-        return { status: "paid", clientSecret: null, paymentIntentId: pi.id };
-      }
-    }
-
-    // (b) Reuse an already-OPEN PaymentIntent at the CURRENT price instead of
-    // minting a second one — the real double-charge guard on a re-click / two
-    // tabs. Skip one whose amount/currency drifted (an admin changed the price
-    // since it was created) so the member is charged the price they now see.
-    // client_secret is redacted in list responses, so re-fetch to get a usable
-    // one.
-    const open = coursePis.find(
-      (pi) =>
-        [
-          "requires_payment_method",
-          "requires_confirmation",
-          "requires_action",
-          "processing",
-        ].includes(pi.status) &&
-        pi.amount === amount &&
-        pi.currency === currency,
-    );
-    if (open) {
-      const full = await this.stripe.retrievePaymentIntent(open.id);
-      if (full.client_secret) {
-        return {
-          status: "requires_payment",
-          clientSecret: full.client_secret,
-          paymentIntentId: full.id,
-        };
-      }
-    }
-
-    // (c) Nothing reusable — mint a fresh one-time PaymentIntent.
-    const intent = await this.stripe.createCoursePaymentIntent({
-      customerId,
-      amount,
-      currency: course.priceCurrency,
-      userId: user.id,
-      courseId,
-    });
-    return {
-      // A fresh PI is never already-succeeded, but keep the branch honest.
-      status: intent.status === "succeeded" ? "paid" : "requires_payment",
-      clientSecret: intent.clientSecret,
-      paymentIntentId: intent.paymentIntentId,
-    };
-  }
-
-  // Confirm a one-off course purchase inline after Stripe.js confirms the card:
-  // re-fetch the PaymentIntent, verify it's a SUCCEEDED course purchase that
-  // belongs to THIS caller, then grant (idempotent). Reflects the purchase
-  // immediately without waiting on the webhook (which is the backstop).
-  async confirmCourseIntent(
-    userId: string,
-    paymentIntentId: string,
-  ): Promise<{ granted: boolean }> {
-    const pi = await this.stripe.retrievePaymentIntent(paymentIntentId);
-    const meta = pi.metadata ?? {};
-    const courseId = meta.courseId;
-    // Only handle our one-off course PaymentIntents; anything else is a no-op.
-    if (meta.kind !== "course" || !courseId) {
-      return { granted: false };
-    }
-    // Ownership: never let one member confirm another's payment. Fail CLOSED —
-    // reject if the intent carries no owner (never true for intents this app
-    // creates, which always stamp metadata.userId), rather than trusting the id
-    // the browser sent.
-    if (!meta.userId || meta.userId !== userId) {
-      throw new ForbiddenException("This payment does not belong to you");
-    }
-    if (pi.status !== "succeeded") {
-      return { granted: false };
-    }
-    await this.grantCoursePurchase({
-      userId,
-      courseId,
-      paymentIntentId: pi.id,
-      amount: pi.amount_received ?? pi.amount ?? null,
-      currency: pi.currency ?? null,
-    });
-    return { granted: true };
-  }
-
-  // Upsert the course-scoped entitlement for a paid one-off purchase. Idempotent
-  // on the (userId, courseId, STRIPE) grant: a webhook replay re-asserts ACTIVE
-  // with the same PaymentIntent; a re-purchase after a refund re-activates the
-  // row with the new one. The inline confirm and the webhook both call this for
-  // the same payment — the upsert + dedupeKey make that convergent, not double.
-  private async grantCoursePurchase(input: {
-    userId: string;
-    courseId: string;
-    paymentIntentId: string;
-    amount: number | null;
-    currency: string | null;
-  }): Promise<void> {
-    const [user, course] = await Promise.all([
-      this.prisma.user.findUnique({
-        where: { id: input.userId },
-        select: { id: true, email: true },
-      }),
-      this.prisma.course.findUnique({
-        where: { id: input.courseId },
-        select: { id: true, title: true },
-      }),
-    ]);
-    if (!user || !course) {
-      this.logger.warn(
-        `[course-purchase] skip grant — user or course missing (user=${input.userId} course=${input.courseId})`,
-      );
-      return;
-    }
-
-    const prev = await this.prisma.userCourse.findUnique({
-      where: {
-        userId_courseId_source: {
-          userId: input.userId,
-          courseId: input.courseId,
-          source: "STRIPE",
-        },
-      },
-    });
-
-    await this.prisma.userCourse.upsert({
-      where: {
-        userId_courseId_source: {
-          userId: input.userId,
-          courseId: input.courseId,
-          source: "STRIPE",
-        },
-      },
-      create: {
-        userId: input.userId,
-        courseId: input.courseId,
-        source: "STRIPE",
-        status: "ACTIVE",
-        stripePaymentIntentId: input.paymentIntentId,
-        amount: input.amount,
-        currency: input.currency,
-      },
-      update: {
-        status: "ACTIVE",
-        stripePaymentIntentId: input.paymentIntentId,
-        amount: input.amount,
-        currency: input.currency,
-        expiresAt: null,
-      },
-    });
-
-    // Admin notification once per genuine new/reactivated grant (the unique
-    // dedupeKey on the PaymentIntent is the backstop against the webhook +
-    // inline-confirm both firing for the same purchase).
-    const isNewGrant =
-      !prev ||
-      prev.status !== "ACTIVE" ||
-      prev.stripePaymentIntentId !== input.paymentIntentId;
-    if (isNewGrant) {
-      await this.notify({
-        type: "PAYMENT_SUCCEEDED",
-        severity: "INFO",
-        title: "Course purchased",
-        body: `${user.email} bought ${course.title}${
-          input.amount != null
-            ? ` — ${this.formatMoney(input.amount, input.currency)}`
-            : ""
-        }`,
-        userId: input.userId,
-        dedupeKey: `course:purchase:${input.paymentIntentId}`,
-      });
-    }
-  }
-
-  // Backstop for the one-off course purchase: grant on the Stripe
-  // payment_intent.succeeded webhook. Only COURSE intents are handled
-  // (metadata.kind==="course"); a subscription's first-invoice PaymentIntent
-  // carries {userId,levelId} instead and reconciles via customer.subscription.*.
-  private async handleCoursePaymentIntentEvent(
-    pi: Stripe.PaymentIntent,
-  ): Promise<void> {
-    if (pi.status !== "succeeded") return;
-    const meta = pi.metadata ?? {};
-    if (meta.kind !== "course") return;
-    const courseId = meta.courseId;
-    const userId = meta.userId;
-    if (!courseId || !userId) {
-      this.logger.warn(
-        `[course-purchase] payment_intent ${pi.id} missing courseId/userId metadata`,
-      );
-      return;
-    }
-    await this.grantCoursePurchase({
-      userId,
-      courseId,
-      paymentIntentId: pi.id,
-      amount: pi.amount_received ?? pi.amount ?? null,
-      currency: pi.currency ?? null,
-    });
-  }
-
-  // Revoke one-off course access when the payment is reversed. A FULL refund or a
-  // dispute/chargeback withdraws the money, so the course entitlement must not
-  // survive — otherwise a member keeps lifetime access after being made whole.
-  // Partial refunds keep access (they retained part of the payment).
+  // Revoke SUBSCRIPTION (class/level) access when the payment is reversed. A FULL
+  // refund or a dispute/chargeback withdraws the money, so the subscription is
+  // canceled and the member's UserLevel revoked. Partial refunds keep access.
   private async handleChargeRefunded(charge: Stripe.Charge): Promise<void> {
     // Only a FULL refund revokes; Stripe sets `refunded` true once fully refunded.
     if (!charge.refunded) return;
     // Subscription-backed (class/level) access — resolve charge->invoice->sub.
     await this.revokeSubscriptionByCharge(charge, "refund");
-    // One-off course access tied to the PaymentIntent.
-    const pi =
-      typeof charge.payment_intent === "string"
-        ? charge.payment_intent
-        : (charge.payment_intent?.id ?? null);
-    if (!pi) return;
-    await this.revokeCoursePurchaseByPaymentIntent(pi, "refund");
   }
 
   private async handleChargeDisputeCreated(
@@ -646,21 +344,12 @@ export class BillingService implements OnModuleInit {
       const charge = await this.stripe.retrieveCharge(chargeId);
       await this.revokeSubscriptionByCharge(charge, "chargeback");
     }
-    // One-off course access tied to the PaymentIntent.
-    const pi =
-      typeof dispute.payment_intent === "string"
-        ? dispute.payment_intent
-        : (dispute.payment_intent?.id ?? null);
-    if (!pi) return;
-    await this.revokeCoursePurchaseByPaymentIntent(pi, "chargeback");
   }
 
   // Revoke SUBSCRIPTION-backed (class/level) access when a subscription charge
-  // is reversed. The course path only covers one-off UserCourse grants; a
-  // subscription invoice charge has no UserCourse row, so without this a member
-  // keeps class access after a chargeback/refund. Resolve charge->invoice->
-  // subscription, cancel it, and reconcile (flips the member's UserLevel to
-  // CANCELED + drops audience tags).
+  // is reversed, so a member can't keep class access after a chargeback/refund.
+  // Resolve charge->invoice->subscription, cancel it, and reconcile (flips the
+  // member's UserLevel to CANCELED + drops audience tags).
   //
   // Idempotent: skips the cancel when the sub is already canceled, so a
   // duplicate/retried event — or dispute-then-refund on the same charge, or a
@@ -677,7 +366,7 @@ export class BillingService implements OnModuleInit {
     reason: "refund" | "chargeback",
   ): Promise<void> {
     const invoiceRef = charge.invoice;
-    if (!invoiceRef) return; // not a subscription charge — course path handles one-offs
+    if (!invoiceRef) return; // not a subscription charge — nothing to revoke
     const invoiceId =
       typeof invoiceRef === "string" ? invoiceRef : (invoiceRef.id ?? null);
     if (!invoiceId) return;
@@ -715,54 +404,6 @@ export class BillingService implements OnModuleInit {
     this.logger.log(
       `[subscription] revoked access for sub=${subId} after ${reason}`,
     );
-  }
-
-  // Flip any ACTIVE course grant tied to this PaymentIntent to REFUNDED (access
-  // revoked). Idempotent: a replayed refund/dispute event finds no ACTIVE row and
-  // is a no-op. Notifies admins once per (payment intent, reason).
-  private async revokeCoursePurchaseByPaymentIntent(
-    paymentIntentId: string,
-    reason: "refund" | "chargeback",
-  ): Promise<void> {
-    const rows = await this.prisma.userCourse.findMany({
-      where: {
-        stripePaymentIntentId: paymentIntentId,
-        source: "STRIPE",
-        status: "ACTIVE",
-      },
-    });
-    for (const row of rows) {
-      await this.prisma.userCourse.update({
-        where: { id: row.id },
-        data: { status: "REFUNDED" },
-      });
-      const [user, course] = await Promise.all([
-        this.prisma.user.findUnique({
-          where: { id: row.userId },
-          select: { email: true },
-        }),
-        this.prisma.course.findUnique({
-          where: { id: row.courseId },
-          select: { title: true },
-        }),
-      ]);
-      await this.notify({
-        type: "PAYMENT_FAILED",
-        severity: "WARNING",
-        title:
-          reason === "chargeback"
-            ? "Course access revoked (chargeback)"
-            : "Course access revoked (refund)",
-        body: `${user?.email ?? row.userId} — access to ${
-          course?.title ?? row.courseId
-        } revoked after a ${reason}`,
-        userId: row.userId,
-        dedupeKey: `course:revoke:${reason}:${paymentIntentId}:${row.id}`,
-      });
-      this.logger.log(
-        `[course-purchase] revoked grant ${row.id} (user=${row.userId} course=${row.courseId}) after ${reason} pi=${paymentIntentId}`,
-      );
-    }
   }
 
   // ---------- Member's own subscriptions ----------
@@ -1408,16 +1049,7 @@ export class BillingService implements OnModuleInit {
             event.id,
           );
           break;
-        // One-off course purchase (embedded one-time PaymentIntent). The inline
-        // confirm grants immediately; this is the backstop when the tab closes
-        // before confirm. The kind==="course" guard inside skips subscription
-        // invoice PaymentIntents, which also emit this event.
-        case "payment_intent.succeeded":
-          await this.handleCoursePaymentIntentEvent(
-            event.data.object as Stripe.PaymentIntent,
-          );
-          break;
-        // Payment reversed — revoke any one-off course grant tied to the charge.
+        // Payment reversed — revoke subscription (class/level) access.
         case "charge.refunded":
           await this.handleChargeRefunded(event.data.object as Stripe.Charge);
           break;

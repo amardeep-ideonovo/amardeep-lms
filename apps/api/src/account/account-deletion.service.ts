@@ -37,7 +37,7 @@ type Actor = { kind: "self" } | { kind: "admin"; adminId: string };
  *     — dropping either arm makes the address mailable again), and any queued
  *     automation mail is canceled.
  *  3. Delete the User last, inside a transaction, cascading UserLevel /
- *     UserCourse / LessonProgress / Certificate. The row's absence instantly
+ *     LessonProgress / Certificate. The row's absence instantly
  *     invalidates every JWT (JwtStrategy re-checks the row per request) and
  *     kills outstanding password-reset tokens (they fingerprint the row).
  *  4. Unlink on-disk files (certificate PDFs bake in the member's name; avatar)
@@ -64,34 +64,17 @@ export class AccountDeletionService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException("Member not found");
 
-    const [
-      subscriptions,
-      certificates,
-      lifetimeCoursesRows,
-      lifetimeLevelRows,
-      completedLessons,
-    ] = await Promise.all([
-      this.billing.getMySubscriptionDetails(userId),
-      this.certificates.mine(userId),
-      this.prisma.userCourse.findMany({
-        where: { userId, status: "ACTIVE" },
-        include: { course: { select: { title: true } } },
-        orderBy: { grantedAt: "desc" },
-      }),
-      this.prisma.userLevel.findMany({
-        where: { userId, lifetime: true },
-        include: { level: { select: { name: true } } },
-      }),
-      this.prisma.lessonProgress.count({ where: { userId } }),
-    ]);
+    const [subscriptions, certificates, lifetimeLevelRows, completedLessons] =
+      await Promise.all([
+        this.billing.getMySubscriptionDetails(userId),
+        this.certificates.mine(userId),
+        this.prisma.userLevel.findMany({
+          where: { userId, lifetime: true },
+          include: { level: { select: { name: true } } },
+        }),
+        this.prisma.lessonProgress.count({ where: { userId } }),
+      ]);
 
-    const lifetimeCourses = lifetimeCoursesRows.map((uc) => ({
-      id: uc.courseId,
-      title: uc.course.title,
-      amount: uc.amount ?? null,
-      currency: uc.currency ?? null,
-      grantedAt: uc.grantedAt.toISOString(),
-    }));
     const lifetimeLevels = lifetimeLevelRows.map((ul) => ({
       levelId: ul.levelId,
       levelName: ul.level.name,
@@ -101,13 +84,11 @@ export class AccountDeletionService {
       email: user.email,
       subscriptions,
       certificates,
-      lifetimeCourses,
       lifetimeLevels,
       completedLessons,
       hasPaymentHistory:
         !!user.stripeCustomerId ||
         subscriptions.length > 0 ||
-        lifetimeCourses.length > 0 ||
         lifetimeLevels.length > 0,
     };
   }
@@ -250,7 +231,7 @@ export class AccountDeletionService {
           data: { userId: null },
         });
 
-        // e) Finally delete the member — cascades UserLevel / UserCourse /
+        // e) Finally delete the member — cascades UserLevel /
         //    LessonProgress / Certificate.
         await tx.user.delete({ where: { id: userId } });
       });

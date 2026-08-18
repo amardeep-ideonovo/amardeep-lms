@@ -34,22 +34,6 @@ export class CancelSubDto {
   mode!: "immediate" | "period_end";
 }
 
-// Start a one-off (one-time) course purchase — embedded Stripe Elements
-// PaymentIntent for a single course; returns a client secret.
-export class CourseIntentDto {
-  @IsString()
-  @MinLength(1)
-  courseId!: string;
-}
-
-// Confirm a one-off course purchase inline after Stripe.js confirms the card
-// (grants immediately; the payment_intent.succeeded webhook is the backstop).
-export class CourseIntentConfirmDto {
-  @IsString()
-  @MinLength(1)
-  paymentIntentId!: string;
-}
-
 // PayPal checkout step 1: lazily provision the billing plan for a price.
 export class PayPalPrepareDto {
   // Local Price.id (preferred) or a stripePriceId — the server resolves both.
