@@ -5329,7 +5329,7 @@ a.card:hover {
 .ik-class-cta .ik-class-fill {
   height: 7px;
   border-radius: 4px;
-  background: linear-gradient(90deg, #7ce4d2, #ffffff);
+  background: linear-gradient(90deg, var(--teal-on-dark), #ffffff);
 }
 .ik-class-cta .ik-class-btn {
   margin-top: 12px;
@@ -6196,7 +6196,7 @@ a.ik-lesson--current:hover {
    AFTER the responsive band block so --header padding wins on every width.
 --------------------------------------------------------------------------- */
 .ik-band--header {
-  padding: 0 0 46px;
+  padding: 0 0 72px;
 }
 .ik-band--header .ik-band-inner {
   padding-left: 28px;

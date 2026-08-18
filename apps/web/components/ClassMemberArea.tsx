@@ -252,7 +252,7 @@ function CourseAccordion({
   return (
     <section className="ik-panel ik-panel--snug">
       <Link
-        href={`/courses/${course.slug ?? course.id}`}
+        href={`/courses/${course.slug || course.id}`}
         className="ik-course-head"
         aria-label={`Open course: ${course.title}`}
       >
