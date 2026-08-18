@@ -11,7 +11,7 @@ import type {
   SubscriptionDetailDTO,
 } from "@lms/types";
 import { PASSWORD_MIN, STR, formatMoney } from "@lms/types";
-import { Button } from "@lms/ui";
+import { Button, buttonClass } from "@lms/ui";
 import { ApiError, api, clearToken } from "@/lib/api";
 import { qk, useMe, useMySubscriptions } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
@@ -1000,7 +1000,10 @@ function AccountInner() {
               flexWrap: "wrap",
             }}
           >
-            <Link href="/pricing/all" className="btn btn-secondary">
+            <Link
+              href="/pricing/all"
+              className={buttonClass({ variant: "secondary" })}
+            >
               View all plans
             </Link>
             {/* Opens the full payment history in a new tab. */}
@@ -1008,7 +1011,7 @@ function AccountInner() {
               href="/account/payments"
               target="_blank"
               rel="noopener noreferrer"
-              className="btn btn-secondary"
+              className={buttonClass({ variant: "secondary" })}
             >
               Payment history ↗
             </a>

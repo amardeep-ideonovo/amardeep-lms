@@ -3638,20 +3638,20 @@ a.card:hover {
 }
 
 /* buttons */
-.account-cinema .btn-secondary {
+.account-cinema :is(.btn-secondary, .btn--secondary) {
   background: var(--ac-panel-2);
   color: var(--ac-text);
   border-color: var(--ac-border);
 }
-.account-cinema .btn-secondary:hover:not(:disabled) {
+.account-cinema :is(.btn-secondary, .btn--secondary):hover:not(:disabled) {
   background: var(--surface-hover);
 }
-.account-cinema .btn-primary {
+.account-cinema :is(.btn-primary, .btn--primary) {
   background: var(--teal-grad);
   color: var(--on-primary);
   box-shadow: var(--shadow-primary);
 }
-.account-cinema .btn-primary:hover:not(:disabled) {
+.account-cinema :is(.btn-primary, .btn--primary):hover:not(:disabled) {
   filter: brightness(0.94);
 }
 
@@ -3767,12 +3767,12 @@ a.card:hover {
 .account-cinema .modal-close {
   color: var(--ac-muted);
 }
-.account-cinema .btn-danger {
+.account-cinema :is(.btn-danger, .btn--danger) {
   background: var(--fill-danger);
   color: var(--danger-text);
   border-color: rgba(224, 72, 72, 0.3);
 }
-.account-cinema .btn-danger:hover:not(:disabled) {
+.account-cinema :is(.btn-danger, .btn--danger):hover:not(:disabled) {
   background: rgba(224, 72, 72, 0.16);
 }
 
@@ -4005,12 +4005,12 @@ a.card:hover {
 .course-cinema .locked-panel p {
   color: var(--cd-muted);
 }
-.course-cinema .btn-primary {
+.course-cinema :is(.btn-primary, .btn--primary) {
   background: var(--teal-grad);
   color: var(--on-primary);
   box-shadow: var(--shadow-primary);
 }
-.course-cinema .btn-primary:hover:not(:disabled) {
+.course-cinema :is(.btn-primary, .btn--primary):hover:not(:disabled) {
   filter: brightness(0.94);
 }
 .course-cinema .alert-error {
@@ -4061,12 +4061,12 @@ a.card:hover {
 .course-cinema .download-size {
   color: var(--cd-muted);
 }
-.course-cinema .btn-secondary {
+.course-cinema :is(.btn-secondary, .btn--secondary) {
   background: var(--cd-panel-2);
   color: var(--cd-text);
   border-color: var(--cd-border);
 }
-.course-cinema .btn-secondary:hover:not(:disabled) {
+.course-cinema :is(.btn-secondary, .btn--secondary):hover:not(:disabled) {
   background: var(--surface-hover);
 }
 
@@ -4172,12 +4172,12 @@ a.card:hover {
 }
 
 /* buttons */
-.dark-page .btn-secondary {
+.dark-page :is(.btn-secondary, .btn--secondary) {
   background: transparent;
   color: var(--dp-text);
   border-color: var(--dp-border);
 }
-.dark-page .btn-secondary:hover:not(:disabled) {
+.dark-page :is(.btn-secondary, .btn--secondary):hover:not(:disabled) {
   background: var(--surface-hover);
 }
 

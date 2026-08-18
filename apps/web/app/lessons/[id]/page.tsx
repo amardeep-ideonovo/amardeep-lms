@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
+import { buttonClass } from "@lms/ui";
 import type {
   ClassCertificateStatusDTO,
   CourseCard,
@@ -416,7 +417,7 @@ function LessonInner() {
             <p>
               Your current membership doesn’t include access to this lesson.
             </p>
-            <Link href="/account" className="btn btn-primary">
+            <Link href="/account" className={buttonClass()}>
               Upgrade membership
             </Link>
           </div>

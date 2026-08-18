@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { buttonClass } from "@lms/ui";
 import { STR } from "@lms/types";
 import { api } from "@/lib/api";
 
@@ -66,7 +67,7 @@ function ThankYouInner() {
           </p>
 
           <div className="thankyou-actions">
-            <Link href="/dashboard" className="btn btn-primary">
+            <Link href="/dashboard" className={buttonClass()}>
               Go to dashboard
             </Link>
             {receiptUrl ? (
@@ -74,12 +75,15 @@ function ThankYouInner() {
                 href={receiptUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="btn btn-secondary"
+                className={buttonClass({ variant: "secondary" })}
               >
                 View receipt ↗
               </a>
             ) : (
-              <Link href="/account/payments" className="btn btn-secondary">
+              <Link
+                href="/account/payments"
+                className={buttonClass({ variant: "secondary" })}
+              >
                 {loadingReceipt ? "Loading receipt…" : "View receipt"}
               </Link>
             )}
