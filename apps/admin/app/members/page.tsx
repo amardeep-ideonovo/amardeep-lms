@@ -521,17 +521,17 @@ export default function MembersPage() {
               <div className="dialog-actions">
                 <Button
                   type="button"
-                  variant="secondary"
-                  onClick={() => setGrantFor(null)}
-                >
-                  {STR.common.cancel}
-                </Button>
-                <Button
-                  type="button"
                   disabled={!grantLevelId || busy === grantFor.id}
                   onClick={addLevel}
                 >
                   {busy === grantFor.id ? "Adding…" : "Add class"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setGrantFor(null)}
+                >
+                  {STR.common.cancel}
                 </Button>
               </div>
             </div>

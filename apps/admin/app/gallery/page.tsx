@@ -145,7 +145,7 @@ export default function MediaPage() {
           </p>
         </div>
         <Button onClick={() => fileRef.current?.click()}>
-          + Add Media File
+          + Add new media file
         </Button>
         <input
           ref={fileRef}
@@ -191,7 +191,7 @@ export default function MediaPage() {
           <p className="muted">{STR.common.loading}</p>
         ) : items.length === 0 ? (
           <p className="muted">
-            No media yet. Click “Add Media File” to upload your first file.
+            No media yet. Click “Add new media file” to upload your first file.
           </p>
         ) : (
           <>

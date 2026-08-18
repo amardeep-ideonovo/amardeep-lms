@@ -344,7 +344,7 @@ export default function CampaignsPage() {
         </div>
         {canCreate && (
           <div className="row-actions">
-            <Button onClick={openCreate}>+ New campaign</Button>
+            <Button onClick={openCreate}>+ Add new campaign</Button>
           </div>
         )}
       </div>

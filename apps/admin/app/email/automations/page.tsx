@@ -226,7 +226,7 @@ export default function AutomationsPage() {
         </div>
         {canCreate && (
           <div className="row-actions">
-            <Button onClick={openCreate}>+ New automation</Button>
+            <Button onClick={openCreate}>+ Add new automation</Button>
           </div>
         )}
       </div>

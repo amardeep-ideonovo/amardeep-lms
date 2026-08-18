@@ -150,8 +150,8 @@ function TemplatesTab({
           class editor).
         </p>
         {canCreate && (
-          <Link href="/certificates/new" className="btn">
-            New template
+          <Link href="/certificates/new" className="btn btn--primary">
+            + Add new template
           </Link>
         )}
       </div>
@@ -218,7 +218,10 @@ function TemplatesTab({
                 {t.imageWidth}×{t.imageHeight} · {t.issuedCount} issued
               </p>
               <div style={{ display: "flex", gap: 8 }}>
-                <Link href={`/certificates/${t.id}`} className="btn btn--sm">
+                <Link
+                  href={`/certificates/${t.id}`}
+                  className="btn btn--secondary btn--sm"
+                >
                   {STR.common.edit}
                 </Link>
                 {canDelete && (
