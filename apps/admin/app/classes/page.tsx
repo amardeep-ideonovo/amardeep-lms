@@ -1152,7 +1152,16 @@ export default function ClassesPage() {
                     {lvl.memberCount}
                   </span>
                   <span>{planPill(lvl)}</span>
-                  <span className="mini-cell">
+                  <span
+                    className="mini-cell"
+                    title={lvl.createdBy?.email ?? undefined}
+                    style={{
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {lvl.createdBy?.name || lvl.createdBy?.email || "—"}
                   </span>
                   <span
