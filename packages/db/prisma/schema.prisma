@@ -398,6 +398,17 @@ model PostCategory {
   posts Post[]
 }
 
+// Managed blog tag — mirrors PostCategory (a curated list the admin maintains),
+// replacing the old free-text Post.tags String[]. Post <-> Tag is a Prisma
+// implicit many-to-many (join table _PostToTag).
+model Tag {
+  id    String @id @default(cuid())
+  name  String
+  slug  String @unique
+  order Int    @default(0)
+  posts Post[]
+}
+
 model Post {
   id            String         @id @default(cuid())
   slug          String         @unique // URL key: /blog/:slug
@@ -406,11 +417,12 @@ model Post {
   content       String         @default("") // sanitized HTML (rich text)
   coverImageUrl String? // featured image (URL); used as hero + og:image
   status        PostStatus     @default(DRAFT)
+  featured      Boolean        @default(false) // the ONE hero post on the public blog (only one true at a time)
   publishedAt   DateTime? // set when first published; drives public ordering
   authorId      String?
   author        Admin?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
   categories    PostCategory[] // many-to-many: a post can be in several categories
-  tags          String[]       @default([])
+  tags          Tag[] // many-to-many: managed tags (was a free-text String[])
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 

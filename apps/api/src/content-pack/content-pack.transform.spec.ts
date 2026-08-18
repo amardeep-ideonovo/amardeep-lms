@@ -234,6 +234,7 @@ const samplePack = (): ContentPack => ({
     menuLocationAssignments: [],
     menuItems: [],
     postCategories: [],
+    tags: [],
     posts: [],
     pages: [],
     forms: [],

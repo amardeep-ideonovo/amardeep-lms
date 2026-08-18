@@ -8,6 +8,7 @@ import type {
   PostAdminRow,
   PostCategoryDTO,
   PostStatus,
+  PostTagDTO,
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { qk } from "@/lib/queries";
@@ -27,8 +28,9 @@ const EMPTY = {
   content: "",
   coverImageUrl: "",
   categoryIds: [] as string[],
-  tags: "",
+  tagIds: [] as string[],
   status: "DRAFT" as PostStatus,
+  featured: false,
 };
 
 export default function BlogPage() {
@@ -47,9 +49,16 @@ export default function BlogPage() {
     queryFn: () => api.listPostCategories(),
     enabled: canRead,
   });
+  const tagsQuery = useQuery({
+    queryKey: qk.blogTags,
+    queryFn: () => api.listPostTags(),
+    enabled: canRead,
+  });
   const posts = postsQuery.data ?? [];
   const categories = categoriesQuery.data ?? [];
-  const loading = postsQuery.isPending || categoriesQuery.isPending;
+  const tags = tagsQuery.data ?? [];
+  const loading =
+    postsQuery.isPending || categoriesQuery.isPending || tagsQuery.isPending;
   const [error, setError] = useState<string | null>(null); // page-level (mutation) errors
 
   // Create/edit happens in a modal.
@@ -69,10 +78,11 @@ export default function BlogPage() {
   const editingIdRef = useRef<string | null>(null);
 
   const [newCategory, setNewCategory] = useState("");
+  const [newTag, setNewTag] = useState("");
 
   const draft = usePersistedDraft({
     formKey: "blog",
-    version: 1,
+    version: 2,
     entityId: editingId,
     open: modalOpen,
     data: {
@@ -81,8 +91,9 @@ export default function BlogPage() {
       content: form.content,
       coverImageUrl: form.coverImageUrl,
       categoryIds: form.categoryIds,
-      tags: form.tags,
+      tagIds: form.tagIds,
       status: form.status,
+      featured: form.featured,
     },
     restore: (d) => {
       setForm({
@@ -91,15 +102,17 @@ export default function BlogPage() {
         content: d.content,
         coverImageUrl: d.coverImageUrl,
         categoryIds: d.categoryIds,
-        tags: d.tags,
+        tagIds: d.tagIds,
         status: d.status,
+        featured: d.featured,
       });
     },
   });
 
   // Load failures surface from the queries, mutation failures from `error`;
   // one slot renders both (a mutation's message wins while set, as before).
-  const loadFailure = postsQuery.error ?? categoriesQuery.error;
+  const loadFailure =
+    postsQuery.error ?? categoriesQuery.error ?? tagsQuery.error;
   const pageError =
     error ??
     (loadFailure
@@ -112,14 +125,18 @@ export default function BlogPage() {
   // list rows and mutation responses through the same toAdminRow), so apply the
   // response to the cached list instead of refetching. GET /admin/blog/posts is
   // ordered by createdAt desc: a new post goes first, an edited one keeps its
-  // slot.
+  // slot. Featured is a single hero, so a saved featured post also clears the
+  // flag on every other cached row (matching the server transaction).
   function applyPost(row: PostAdminRow) {
-    queryClient.setQueryData<PostAdminListRow[]>(qk.blogPosts, (prev = []) =>
-      (prev.some((p) => p.id === row.id)
-        ? prev.map((p) => (p.id === row.id ? row : p))
-        : [row, ...prev]
-      ).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    );
+    queryClient.setQueryData<PostAdminListRow[]>(qk.blogPosts, (prev = []) => {
+      const others = prev.filter((p) => p.id !== row.id);
+      return [
+        row,
+        ...(row.featured
+          ? others.map((p) => ({ ...p, featured: false }))
+          : others),
+      ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    });
   }
 
   // Not dismissable by accident (backdrop/Escape) — use ×/Cancel/Save.
@@ -153,8 +170,9 @@ export default function BlogPage() {
       content: "",
       coverImageUrl: "",
       categoryIds: post.categoryIds,
-      tags: post.tags.join(", "),
+      tagIds: post.tagIds,
       status: post.status,
+      featured: post.featured,
     });
     setFormError(null);
     setDetailState("loading");
@@ -168,8 +186,9 @@ export default function BlogPage() {
         content: full.content ?? "",
         coverImageUrl: full.coverImageUrl ?? "",
         categoryIds: full.categoryIds,
-        tags: full.tags.join(", "),
+        tagIds: full.tagIds,
         status: full.status,
+        featured: full.featured,
       });
       setDetailState("ready");
     } catch (err) {
@@ -189,11 +208,9 @@ export default function BlogPage() {
       content: form.content || undefined,
       coverImageUrl: form.coverImageUrl.trim() || undefined,
       categoryIds: form.categoryIds,
-      tags: form.tags
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean),
+      tagIds: form.tagIds,
       status: form.status,
+      featured: form.featured,
     };
   }
 
@@ -203,6 +220,15 @@ export default function BlogPage() {
       categoryIds: f.categoryIds.includes(id)
         ? f.categoryIds.filter((x) => x !== id)
         : [...f.categoryIds, id],
+    }));
+  }
+
+  function toggleTag(id: string) {
+    setForm((f) => ({
+      ...f,
+      tagIds: f.tagIds.includes(id)
+        ? f.tagIds.filter((x) => x !== id)
+        : [...f.tagIds, id],
     }));
   }
 
@@ -243,6 +269,21 @@ export default function BlogPage() {
     } catch (err) {
       setError(
         err instanceof ApiError ? err.message : "Failed to update status",
+      );
+    }
+  }
+
+  // Set (or clear) the single featured hero. applyPost clears the flag on every
+  // other row when this one becomes featured, mirroring the server transaction.
+  async function toggleFeatured(post: PostAdminListRow) {
+    setError(null);
+    try {
+      applyPost(await api.updatePost(post.id, { featured: !post.featured }));
+    } catch (err) {
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : "Failed to update featured post",
       );
     }
   }
@@ -320,6 +361,50 @@ export default function BlogPage() {
     }
   }
 
+  async function createTag(e: FormEvent) {
+    e.preventDefault();
+    if (!newTag.trim()) return;
+    setError(null);
+    try {
+      // Same shape as categories: the response is the full PostTagDTO and the
+      // list is ordered by `order` asc, so sending `tags.length` lands it last.
+      const tag = await api.createPostTag(newTag.trim(), tags.length);
+      setNewTag("");
+      queryClient.setQueryData<PostTagDTO[]>(qk.blogTags, (prev = []) =>
+        [...prev, tag].sort((a, b) => a.order - b.order),
+      );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to create tag");
+    }
+  }
+
+  async function removeTag(t: PostTagDTO) {
+    if (
+      !(await dialog.confirm({
+        message: `${STR.confirm.removeEntity(`tag “${t.name}”`)} Posts keep everything else and simply lose this tag.`,
+        danger: true,
+      }))
+    )
+      return;
+    setError(null);
+    try {
+      await api.deletePostTag(t.id);
+      // If the open form references this tag, drop it from the selection.
+      setForm((f) => ({
+        ...f,
+        tagIds: f.tagIds.filter((id) => id !== t.id),
+      }));
+      // Refetch both lists: deleting a tag also detaches it from every post,
+      // and the {ok:true} response carries none of those post rows.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: qk.blogPosts }),
+        queryClient.invalidateQueries({ queryKey: qk.blogTags }),
+      ]);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to remove tag");
+    }
+  }
+
   const fmtDate = (iso: string | null) =>
     iso
       ? new Date(iso).toLocaleDateString(undefined, {
@@ -355,42 +440,71 @@ export default function BlogPage() {
 
       {pageError && <p className="error">{pageError}</p>}
 
-      <div className="card">
-        <h2>New category</h2>
-        <form onSubmit={createCategory} className="row-actions">
-          <input
-            placeholder="Category name"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-          />
-          <Button type="submit">Add category</Button>
-        </form>
-        {categories.length > 0 && (
-          <div className="chips" style={{ marginTop: 12 }}>
-            {categories.map((c) => (
-              <span key={c.id} className="chip chip--muted">
-                {c.name}
-                <button
-                  type="button"
-                  className="chip-x"
-                  aria-label={`Remove ${c.name}`}
-                  title={`Remove ${c.name}`}
-                  onClick={() => removeCategory(c)}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
+      <div className="form-row">
+        <div className="card">
+          <h2>New category</h2>
+          <form onSubmit={createCategory} className="row-actions">
+            <input
+              placeholder="Category name"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+            />
+            <Button type="submit">Add category</Button>
+          </form>
+          {categories.length > 0 && (
+            <div className="chips" style={{ marginTop: 12 }}>
+              {categories.map((c) => (
+                <span key={c.id} className="chip chip--muted">
+                  {c.name}
+                  <button
+                    type="button"
+                    className="chip-x"
+                    aria-label={`Remove ${c.name}`}
+                    title={`Remove ${c.name}`}
+                    onClick={() => removeCategory(c)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <h2>New tag</h2>
+          <form onSubmit={createTag} className="row-actions">
+            <input
+              placeholder="Tag name"
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+            />
+            <Button type="submit">Add tag</Button>
+          </form>
+          {tags.length > 0 && (
+            <div className="chips" style={{ marginTop: 12 }}>
+              {tags.map((t) => (
+                <span key={t.id} className="chip chip--muted">
+                  {t.name}
+                  <button
+                    type="button"
+                    className="chip-x"
+                    aria-label={`Remove ${t.name}`}
+                    title={`Remove ${t.name}`}
+                    onClick={() => removeTag(t)}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="card">
         <div className="card-head">
           <h2>All posts</h2>
-          <Button size="sm" onClick={openCreate}>
-            + Add new post
-          </Button>
         </div>
         {loading ? (
           <p className="muted">{STR.common.loading}</p>
@@ -413,14 +527,27 @@ export default function BlogPage() {
               <tbody>
                 {posts.map((post) => (
                   <tr key={post.id}>
-                    <td>{post.title}</td>
+                    <td>
+                      {post.featured && (
+                        <span
+                          className="badge badge--featured"
+                          title="Featured hero post"
+                          style={{ marginRight: 6 }}
+                        >
+                          ★ Featured
+                        </span>
+                      )}
+                      {post.title}
+                    </td>
                     <td className="muted">
                       {post.categories.length
                         ? post.categories.map((c) => c.name).join(", ")
                         : "—"}
                     </td>
                     <td className="muted">
-                      {post.tags.length ? post.tags.join(", ") : "—"}
+                      {post.tags.length
+                        ? post.tags.map((t) => t.name).join(", ")
+                        : "—"}
                     </td>
                     <td className="muted">{post.author?.name ?? "—"}</td>
                     <td className="muted">
@@ -454,6 +581,18 @@ export default function BlogPage() {
                           {post.status === "PUBLISHED"
                             ? "Unpublish"
                             : "Publish"}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => toggleFeatured(post)}
+                          title={
+                            post.featured
+                              ? "Remove this post as the featured hero"
+                              : "Make this the featured hero post"
+                          }
+                        >
+                          {post.featured ? "Unfeature" : "Feature"}
                         </Button>
                         <Button
                           variant="danger"
@@ -539,32 +678,57 @@ export default function BlogPage() {
               )}
             </div>
 
-            <div className="form-row">
-              <div className="field">
-                <label>{STR.labels.status}</label>
-                <select
-                  value={form.status}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      status: e.target.value as PostStatus,
-                    })
-                  }
-                >
-                  <option value="DRAFT">Draft</option>
-                  <option value="PUBLISHED">Published</option>
-                </select>
-              </div>
-              <div className="field">
-                <label>
-                  Tags <span className="muted">(comma-separated)</span>
-                </label>
+            <div className="field">
+              <label>Tags</label>
+              {tags.length === 0 ? (
+                <p className="muted">No tags yet — add one above.</p>
+              ) : (
+                <div className="checkbox-list">
+                  {tags.map((t) => (
+                    <label key={t.id}>
+                      <input
+                        type="checkbox"
+                        checked={form.tagIds.includes(t.id)}
+                        onChange={() => toggleTag(t.id)}
+                      />
+                      {t.name}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="field">
+              <label className="checkbox-inline">
                 <input
-                  value={form.tags}
-                  onChange={(e) => setForm({ ...form, tags: e.target.value })}
-                  placeholder="news, writing"
+                  type="checkbox"
+                  checked={form.featured}
+                  onChange={(e) =>
+                    setForm({ ...form, featured: e.target.checked })
+                  }
                 />
-              </div>
+                Featured post{" "}
+                <span className="muted">
+                  (the single hero shown at the top of the public blog —
+                  choosing this un-features any other post)
+                </span>
+              </label>
+            </div>
+
+            <div className="field">
+              <label>{STR.labels.status}</label>
+              <select
+                value={form.status}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    status: e.target.value as PostStatus,
+                  })
+                }
+              >
+                <option value="DRAFT">Draft</option>
+                <option value="PUBLISHED">Published</option>
+              </select>
             </div>
           </div>
           <ModalFooter

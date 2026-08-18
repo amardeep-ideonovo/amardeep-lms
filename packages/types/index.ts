@@ -831,6 +831,13 @@ export interface PostCategoryDTO {
   slug: string;
   order: number;
 }
+// Managed blog tag — same shape/behaviour as a category (curated list).
+export interface PostTagDTO {
+  id: string;
+  name: string;
+  slug: string;
+  order: number;
+}
 export interface PostAuthorDTO {
   id: string;
   name: string; // display name (no credentials ever exposed)
@@ -843,8 +850,9 @@ export interface PostListItem {
   excerpt: string | null;
   coverImageUrl: string | null;
   categories: PostCategoryDTO[];
-  tags: string[];
+  tags: PostTagDTO[];
   author: PostAuthorDTO | null;
+  featured: boolean; // the single hero post on the public blog
   publishedAt: string | null; // ISO
 }
 // Public detail = card + sanitized HTML body.
@@ -862,9 +870,11 @@ export interface PostAdminListRow {
   slug: string;
   title: string;
   status: PostStatus;
+  featured: boolean; // the single hero post on the public blog
   categoryIds: string[];
   categories: PostCategoryDTO[];
-  tags: string[];
+  tagIds: string[];
+  tags: PostTagDTO[];
   author: PostAuthorDTO | null;
   publishedAt: string | null; // ISO
   createdAt: string; // ISO
@@ -884,11 +894,17 @@ export interface CreatePostInput {
   content?: string; // HTML (sanitized server-side)
   coverImageUrl?: string;
   categoryIds?: string[];
-  tags?: string[];
+  tagIds?: string[]; // managed Tag ids (was free-text tags)
   status?: PostStatus; // default DRAFT
+  featured?: boolean; // making one featured un-features every other post
 }
 export type UpdatePostInput = Partial<CreatePostInput>;
 export interface CreatePostCategoryInput {
+  name: string;
+  order?: number;
+}
+// A managed blog tag is created exactly like a category.
+export interface CreatePostTagInput {
   name: string;
   order?: number;
 }
@@ -2553,6 +2569,7 @@ export const ROUTES = {
   listPublishedPosts: "GET /blog/posts", // -> PostListItem[]
   getPublishedPost: "GET /blog/posts/:slug", // -> PostDetailDTO (404 if draft/missing)
   listPostCategories: "GET /blog/categories", // -> PostCategoryDTO[]
+  listPostTags: "GET /blog/tags", // -> PostTagDTO[]
 
   // blog — ADMIN (full CRUD, includes drafts)
   adminListPosts: "GET /admin/blog/posts", // -> PostAdminListRow[] (no body — see adminGetPost)
@@ -2562,6 +2579,8 @@ export const ROUTES = {
   adminDeletePost: "DELETE /admin/blog/posts/:id",
   adminCreatePostCategory: "POST /admin/blog/categories", // body CreatePostCategoryInput
   adminDeletePostCategory: "DELETE /admin/blog/categories/:id", // posts become uncategorized
+  adminCreatePostTag: "POST /admin/blog/tags", // body CreatePostTagInput
+  adminDeletePostTag: "DELETE /admin/blog/tags/:id", // posts lose the tag
   adminUploadBlogImage: "POST /admin/blog/upload", // multipart {file} -> {url}; post images
 
   // pages — PUBLIC (no auth): only PUBLISHED pages are visible

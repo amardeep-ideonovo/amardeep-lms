@@ -56,7 +56,9 @@ export default async function BlogPostPage({ params }: Params) {
       : undefined,
     publisher: { "@type": "Organization", name: siteName },
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
-    keywords: post.tags.length ? post.tags.join(", ") : undefined,
+    keywords: post.tags.length
+      ? post.tags.map((t) => t.name).join(", ")
+      : undefined,
     articleSection: post.categories.map((c) => c.name),
     url,
   };
@@ -129,8 +131,8 @@ export default async function BlogPostPage({ params }: Params) {
         {post.tags.length > 0 && (
           <div className="post-tags">
             {post.tags.map((t) => (
-              <span key={t} className="post-tag">
-                #{t}
+              <span key={t.id} className="post-tag">
+                #{t.name}
               </span>
             ))}
           </div>

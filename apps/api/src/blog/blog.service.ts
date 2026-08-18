@@ -7,6 +7,7 @@ import type {
   PostDetailDTO,
   PostListItem,
   PostStatus,
+  PostTagDTO,
 } from "@lms/types";
 import { slugify } from "../common/slugify";
 import sanitizeHtml from "sanitize-html";
@@ -15,6 +16,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import {
   CreatePostCategoryDto,
   CreatePostDto,
+  CreatePostTagDto,
   UpdatePostDto,
 } from "./dto/blog.dto";
 
@@ -83,11 +85,12 @@ type PostRow = {
   content: string;
   coverImageUrl: string | null;
   status: PostStatus;
+  featured: boolean;
   publishedAt: Date | null;
-  tags: string[];
+  tags: { id: string; name: string; slug: string; order: number }[];
   createdAt: Date;
   updatedAt: Date;
-  author: { id: string; email: string } | null;
+  author: { id: string; name: string | null; email: string } | null;
   categories: { id: string; name: string; slug: string; order: number }[];
 };
 
@@ -100,8 +103,9 @@ export class BlogService {
 
   // Only ever load non-secret author fields alongside a post.
   private static readonly REL = {
-    author: { select: { id: true, email: true } },
+    author: { select: { id: true, name: true, email: true } },
     categories: true,
+    tags: true,
   } as const;
 
   // ---------- public reads ----------
@@ -139,6 +143,16 @@ export class BlogService {
     }));
   }
 
+  async listTags(): Promise<PostTagDTO[]> {
+    const tags = await this.prisma.tag.findMany({ orderBy: { order: "asc" } });
+    return tags.map((t) => ({
+      id: t.id,
+      name: t.name,
+      slug: t.slug,
+      order: t.order,
+    }));
+  }
+
   // ---------- admin ----------
 
   // Table rows only. `select` (not `include`) so the heavy body columns are
@@ -152,11 +166,12 @@ export class BlogService {
         slug: true,
         title: true,
         status: true,
+        featured: true,
         publishedAt: true,
         tags: true,
         createdAt: true,
         updatedAt: true,
-        author: { select: { id: true, email: true } },
+        author: { select: { id: true, name: true, email: true } },
         categories: true,
       },
     });
@@ -186,22 +201,36 @@ export class BlogService {
       where: { id: authorId },
       select: { id: true },
     });
-    const post = await this.prisma.post.create({
-      data: {
-        slug,
-        title: dto.title.trim(),
-        excerpt: dto.excerpt?.trim() || null,
-        content: dto.content ? sanitizeHtml(dto.content, SANITIZE_OPTS) : "",
-        coverImageUrl: dto.coverImageUrl?.trim() || null,
-        status,
-        publishedAt: status === "PUBLISHED" ? new Date() : null,
-        categories: dto.categoryIds?.length
-          ? { connect: dto.categoryIds.map((id) => ({ id })) }
-          : undefined,
-        tags: dto.tags ?? [],
-        authorId: author ? authorId : null,
-      },
-      include: BlogService.REL,
+    const featured = dto.featured ?? false;
+    // Featured is a SINGLE hero: creating a featured post un-features every
+    // other one, atomically.
+    const post = await this.prisma.$transaction(async (tx) => {
+      if (featured) {
+        await tx.post.updateMany({
+          where: { featured: true },
+          data: { featured: false },
+        });
+      }
+      return tx.post.create({
+        data: {
+          slug,
+          title: dto.title.trim(),
+          excerpt: dto.excerpt?.trim() || null,
+          content: dto.content ? sanitizeHtml(dto.content, SANITIZE_OPTS) : "",
+          coverImageUrl: dto.coverImageUrl?.trim() || null,
+          status,
+          featured,
+          publishedAt: status === "PUBLISHED" ? new Date() : null,
+          categories: dto.categoryIds?.length
+            ? { connect: dto.categoryIds.map((id) => ({ id })) }
+            : undefined,
+          tags: dto.tagIds?.length
+            ? { connect: dto.tagIds.map((id) => ({ id })) }
+            : undefined,
+          authorId: author ? authorId : null,
+        },
+        include: BlogService.REL,
+      });
     });
     return this.toAdminRow(post);
   }
@@ -216,28 +245,40 @@ export class BlogService {
       publishedAt = new Date();
     }
 
-    const post = await this.prisma.post.update({
-      where: { id },
-      data: {
-        title: dto.title?.trim() ?? undefined,
-        excerpt:
-          dto.excerpt !== undefined ? dto.excerpt.trim() || null : undefined,
-        content:
-          dto.content !== undefined
-            ? sanitizeHtml(dto.content, SANITIZE_OPTS)
+    const post = await this.prisma.$transaction(async (tx) => {
+      // Single hero: featuring this post un-features every OTHER post.
+      if (dto.featured === true) {
+        await tx.post.updateMany({
+          where: { featured: true, NOT: { id } },
+          data: { featured: false },
+        });
+      }
+      return tx.post.update({
+        where: { id },
+        data: {
+          title: dto.title?.trim() ?? undefined,
+          excerpt:
+            dto.excerpt !== undefined ? dto.excerpt.trim() || null : undefined,
+          content:
+            dto.content !== undefined
+              ? sanitizeHtml(dto.content, SANITIZE_OPTS)
+              : undefined,
+          coverImageUrl:
+            dto.coverImageUrl !== undefined
+              ? dto.coverImageUrl.trim() || null
+              : undefined,
+          status: dto.status ?? undefined,
+          featured: dto.featured ?? undefined,
+          publishedAt,
+          categories: dto.categoryIds
+            ? { set: dto.categoryIds.map((id) => ({ id })) }
             : undefined,
-        coverImageUrl:
-          dto.coverImageUrl !== undefined
-            ? dto.coverImageUrl.trim() || null
+          tags: dto.tagIds
+            ? { set: dto.tagIds.map((id) => ({ id })) }
             : undefined,
-        status: dto.status ?? undefined,
-        publishedAt,
-        categories: dto.categoryIds
-          ? { set: dto.categoryIds.map((id) => ({ id })) }
-          : undefined,
-        tags: dto.tags ?? undefined,
-      },
-      include: BlogService.REL,
+        },
+        include: BlogService.REL,
+      });
     });
     return this.toAdminRow(post);
   }
@@ -268,13 +309,34 @@ export class BlogService {
     return { ok: true };
   }
 
+  async createTag(dto: CreatePostTagDto): Promise<PostTagDTO> {
+    const slug = await this.uniqueTagSlug(slugify(dto.name) || "tag");
+    const tag = await this.prisma.tag.create({
+      data: { name: dto.name.trim(), slug, order: dto.order ?? 0 },
+    });
+    return { id: tag.id, name: tag.name, slug: tag.slug, order: tag.order };
+  }
+
+  // Delete a tag. Posts carrying it keep everything else and simply lose the tag
+  // (the Post<->Tag join rows are removed by the m2m cascade).
+  async deleteTag(id: string): Promise<{ ok: true }> {
+    const existing = await this.prisma.tag.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundException("Tag not found");
+    await this.prisma.tag.delete({ where: { id } });
+    return { ok: true };
+  }
+
   // ---------- mappers ----------
 
   private toAuthor(
-    a: { id: string; email: string } | null,
+    a: { id: string; name: string | null; email: string } | null,
   ): PostAuthorDTO | null {
     if (!a) return null;
-    return { id: a.id, name: a.email.split("@")[0] || a.email };
+    // Prefer the admin's real display name; fall back to the email local-part.
+    return {
+      id: a.id,
+      name: a.name?.trim() || a.email.split("@")[0] || a.email,
+    };
   }
 
   private toCategories(
@@ -288,6 +350,17 @@ export class BlogService {
     }));
   }
 
+  private toTags(
+    tags: { id: string; name: string; slug: string; order: number }[],
+  ): PostTagDTO[] {
+    return tags.map((t) => ({
+      id: t.id,
+      name: t.name,
+      slug: t.slug,
+      order: t.order,
+    }));
+  }
+
   private toListItem(p: PostRow): PostListItem {
     return {
       id: p.id,
@@ -296,8 +369,9 @@ export class BlogService {
       excerpt: p.excerpt,
       coverImageUrl: p.coverImageUrl,
       categories: this.toCategories(p.categories),
-      tags: p.tags,
+      tags: this.toTags(p.tags),
       author: this.toAuthor(p.author),
+      featured: p.featured,
       publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
     };
   }
@@ -316,9 +390,11 @@ export class BlogService {
       slug: p.slug,
       title: p.title,
       status: p.status,
+      featured: p.featured,
       categoryIds: p.categories.map((c) => c.id),
       categories: this.toCategories(p.categories),
-      tags: p.tags,
+      tagIds: p.tags.map((t) => t.id),
+      tags: this.toTags(p.tags),
       author: this.toAuthor(p.author),
       publishedAt: p.publishedAt ? p.publishedAt.toISOString() : null,
       createdAt: p.createdAt.toISOString(),
@@ -358,6 +434,18 @@ export class BlogService {
       const hit = await this.prisma.postCategory.findUnique({
         where: { slug },
       });
+      if (!hit) return slug;
+      n += 1;
+      slug = `${base}-${n}`;
+    }
+  }
+
+  private async uniqueTagSlug(base: string): Promise<string> {
+    let slug = base;
+    let n = 1;
+
+    while (true) {
+      const hit = await this.prisma.tag.findUnique({ where: { slug } });
       if (!hit) return slug;
       n += 1;
       slug = `${base}-${n}`;
