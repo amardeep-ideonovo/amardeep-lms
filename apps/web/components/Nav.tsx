@@ -360,7 +360,7 @@ export default function Nav({
               aria-label="Close menu"
               onClick={() => setDrawer(false)}
             >
-              ✕
+              ×
             </button>
             <div className="nav-drawer-links">
               {drawerItems.length ? (

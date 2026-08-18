@@ -423,8 +423,8 @@ function ClassLiveCard({
       </div>
       <Link
         href={`/live/${session.id}`}
-        className="ik-ghost ik-ghost--sm"
-        style={{ marginTop: 14, width: "100%" }}
+        className="ik-cta ik-cta--block"
+        style={{ marginTop: 14 }}
       >
         {session.isLive || session.canJoinNow ? "Join now" : "View session"}
       </Link>
