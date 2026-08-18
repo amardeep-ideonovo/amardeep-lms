@@ -24,7 +24,7 @@ import LessonMediaFields, {
   validateLessonMedia,
 } from "@/components/LessonMediaFields";
 import { STR, formatBytes } from "@lms/types";
-import { Button } from "@lms/ui";
+import { Button, buttonClass } from "@lms/ui";
 
 const EMPTY_COURSE = {
   title: "",
@@ -868,7 +868,11 @@ function CourseLessons({
                     </ul>
                   )}
                   <label
-                    className="btn btn--ghost btn--sm file-btn"
+                    className={buttonClass({
+                      variant: "ghost",
+                      size: "sm",
+                      className: "file-btn",
+                    })}
                     style={{ marginTop: noteFiles.length ? 8 : 0 }}
                   >
                     + Add files
@@ -1162,7 +1166,11 @@ function LessonRow({
               </ul>
             )}
             <label
-              className="btn btn--ghost btn--sm file-btn"
+              className={buttonClass({
+                variant: "ghost",
+                size: "sm",
+                className: "file-btn",
+              })}
               style={{ marginTop: 8 }}
             >
               {uploadingNotes ? "Uploading…" : "+ Add files"}

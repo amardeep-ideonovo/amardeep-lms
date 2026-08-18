@@ -11,7 +11,7 @@ import { webUrl } from "@/lib/runtime-env";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
 import { SEARCH_DEBOUNCE_MS, STR } from "@lms/types";
-import { Button } from "@lms/ui";
+import { Button, buttonClass } from "@lms/ui";
 
 // Member-site origin for "copy verify link" comes from webUrl() at call time
 // (runtime per-instance value) — NEXT_PUBLIC_* would bake localhost into the
@@ -150,7 +150,7 @@ function TemplatesTab({
           class editor).
         </p>
         {canCreate && (
-          <Link href="/certificates/new" className="btn btn--primary">
+          <Link href="/certificates/new" className={buttonClass()}>
             + Add new template
           </Link>
         )}
@@ -220,7 +220,7 @@ function TemplatesTab({
               <div style={{ display: "flex", gap: 8 }}>
                 <Link
                   href={`/certificates/${t.id}`}
-                  className="btn btn--secondary btn--sm"
+                  className={buttonClass({ variant: "secondary", size: "sm" })}
                 >
                   {STR.common.edit}
                 </Link>

@@ -10,7 +10,7 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { STR } from "@lms/types";
-import { Button } from "@lms/ui";
+import { Button, buttonClass } from "@lms/ui";
 
 const PRIORITIES: { value: SupportTicketPriority; label: string }[] = [
   { value: "LOW", label: "Low" },
@@ -69,7 +69,7 @@ export default function NewSupportTicketPage() {
             this thread.
           </p>
         </div>
-        <Link href="/support" className="btn btn--ghost">
+        <Link href="/support" className={buttonClass({ variant: "ghost" })}>
           ← Back to support
         </Link>
       </div>
@@ -142,7 +142,7 @@ export default function NewSupportTicketPage() {
           >
             {saving ? "Opening…" : "Open ticket"}
           </Button>
-          <Link href="/support" className="btn btn--ghost">
+          <Link href="/support" className={buttonClass({ variant: "ghost" })}>
             {STR.common.cancel}
           </Link>
         </div>

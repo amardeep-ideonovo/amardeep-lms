@@ -15,7 +15,7 @@ import {
 } from "@/lib/mutations";
 import { withBase } from "@/lib/base-path";
 import { STR } from "@lms/types";
-import { Button } from "@lms/ui";
+import { Button, buttonClass } from "@lms/ui";
 
 // The public "View" link opens on the member site — origin from webUrl() at
 // render time (runtime per-instance value; NEXT_PUBLIC_* would bake the
@@ -295,7 +295,10 @@ export default function PagesPage() {
                           Rename
                         </Button>
                         <a
-                          className="btn btn--ghost btn--sm"
+                          className={buttonClass({
+                            variant: "ghost",
+                            size: "sm",
+                          })}
                           href={`${webUrl()}/${p.slug}`}
                           target="_blank"
                           rel="noopener noreferrer"

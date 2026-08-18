@@ -13,7 +13,7 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { STR } from "@lms/types";
-import { Button } from "@lms/ui";
+import { Button, buttonClass } from "@lms/ui";
 
 const STATUS_META: Record<SupportTicketStatus, { label: string; cls: string }> =
   {
@@ -277,7 +277,7 @@ export default function SupportThreadPage() {
       <div>
         <div className="page-header with-action">
           <h1>Support</h1>
-          <Link href="/support" className="btn btn--ghost">
+          <Link href="/support" className={buttonClass({ variant: "ghost" })}>
             ← Back to support
           </Link>
         </div>
@@ -314,7 +314,7 @@ export default function SupportThreadPage() {
             </span>
           </div>
         </div>
-        <Link href="/support" className="btn btn--ghost">
+        <Link href="/support" className={buttonClass({ variant: "ghost" })}>
           ← Back to support
         </Link>
       </div>

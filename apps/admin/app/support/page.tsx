@@ -10,7 +10,7 @@ import type {
 } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { STR } from "@lms/types";
-import { Button } from "@lms/ui";
+import { Button, buttonClass } from "@lms/ui";
 
 const STATUS_META: Record<SupportTicketStatus, { label: string; cls: string }> =
   {
@@ -85,7 +85,7 @@ export default function SupportPage() {
           <Button variant="secondary" onClick={load} disabled={loading}>
             {loading ? "Refreshing…" : "Refresh"}
           </Button>
-          <Link href="/support/new" className="btn btn--primary">
+          <Link href="/support/new" className={buttonClass()}>
             + Add new ticket
           </Link>
         </div>

@@ -14,22 +14,58 @@ import { forwardRef } from "react";
 // too. Set type="button" at the call site when you mean a non-submitting
 // action (as the raw markup already did).
 
-type Variant = "primary" | "secondary" | "danger" | "danger-solid" | "add";
-type Size = "md" | "sm";
+export type ButtonVariant =
+  "primary" | "secondary" | "ghost" | "danger" | "danger-solid" | "add";
+export type ButtonSize = "md" | "sm";
 
-const VARIANT_CLASS: Record<Variant, string> = {
+const VARIANT_CLASS: Record<ButtonVariant, string> = {
   primary: "btn--primary",
   secondary: "btn--secondary",
+  ghost: "btn--ghost",
   danger: "btn--danger",
   "danger-solid": "btn--danger-solid",
   add: "btn--add",
 };
 
+export type ButtonClassOptions = {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  block?: boolean;
+  iconOnly?: boolean;
+  /** Extra classes appended after the canonical `btn--*` ones. */
+  className?: string;
+};
+
+// The single source of truth for a button's class list. `<Button>` uses it, and
+// so must anything that CAN'T be a <button> but should look like one — a
+// navigation is an <a>/<Link> (native middle-click, new-tab, prefetch), and a
+// file picker is a <label> wrapping a hidden <input>. Those spread this onto
+// their className instead of hand-writing `btn btn--primary`, so every button-
+// shaped control shares one definition.
+export function buttonClass({
+  variant = "primary",
+  size = "md",
+  block = false,
+  iconOnly = false,
+  className,
+}: ButtonClassOptions = {}): string {
+  return [
+    "btn",
+    VARIANT_CLASS[variant],
+    size === "sm" && "btn--sm",
+    block && "btn--block",
+    iconOnly && "btn--icon",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   /** Visual role. Default "primary". */
-  variant?: Variant;
+  variant?: ButtonVariant;
   /** "sm" = the compact toolbar/table size. Default "md". */
-  size?: Size;
+  size?: ButtonSize;
   /** Full-width (width: 100%). */
   block?: boolean;
   /** Square icon-only button — pass an aria-label (the label lives there). */
@@ -49,16 +85,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref,
   ) {
-    const cls = [
-      "btn",
-      VARIANT_CLASS[variant],
-      size === "sm" && "btn--sm",
-      block && "btn--block",
-      iconOnly && "btn--icon",
-      className,
-    ]
-      .filter(Boolean)
-      .join(" ");
+    const cls = buttonClass({ variant, size, block, iconOnly, className });
     return (
       <button ref={ref} className={cls} {...rest}>
         {children}

@@ -13,6 +13,7 @@ import type {
   MemberStatsDTO,
 } from "@lms/types";
 import { STR } from "@lms/types";
+import { buttonClass } from "@lms/ui";
 
 // NOTE (Ink Hero): the frame's "Weekly revenue" bar chart is intentionally
 // omitted — the API has no revenue-over-time endpoint (only on-demand .xlsx
@@ -406,7 +407,7 @@ export default function DashboardPage() {
                 {sessionWhen(nextSession)}
               </div>
               <div className="live-next-spacer" />
-              <Link href="/live-sessions" className="btn">
+              <Link href="/live-sessions" className={buttonClass()}>
                 Manage session
               </Link>
             </div>
