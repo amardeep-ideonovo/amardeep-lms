@@ -64,14 +64,19 @@ export function Button({
     variant === "danger"
       ? { backgroundColor: colors.danger }
       : variant === "ghost"
-        ? { backgroundColor: "transparent", borderWidth: 1, borderColor: borderColor ?? colors.border }
+        ? {
+            backgroundColor: "transparent",
+            borderWidth: 1,
+            borderColor: borderColor ?? colors.border,
+          }
         : {
             backgroundColor: colors.surfaceMuted,
             borderWidth: 1,
             borderColor: borderColor ?? colors.borderSoft,
           };
 
-  const labelColor = variant === "danger" ? onColor(colors.danger) : colors.text;
+  const labelColor =
+    variant === "danger" ? onColor(colors.danger) : colors.text;
 
   return (
     <Press
@@ -94,7 +99,9 @@ export function Button({
         ) : (
           <View style={styles.row}>
             {icon}
-            <Text style={[styles.label, { color: labelColor }, textStyle]}>{label}</Text>
+            <Text style={[styles.label, { color: labelColor }, textStyle]}>
+              {label}
+            </Text>
           </View>
         )}
       </View>
@@ -111,7 +118,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
   label: { fontSize: 15, fontFamily: fonts.semibold },
   disabled: { opacity: 0.55 },
 });
