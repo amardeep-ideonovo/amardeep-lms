@@ -160,7 +160,7 @@ function ClassCard({
       {meta && <div className="ik-class-meta">{meta}</div>}
       <div className="ik-class-spacer" />
       {cls.owned ? (
-        <>
+        <div className="ik-class-cta">
           <div className="ik-class-prog">
             <span>Progress</span>
             <span>{pct}%</span>
@@ -171,7 +171,7 @@ function ClassCard({
           <span className="ik-class-btn">
             {started ? "Continue Class" : "Start Class"}
           </span>
-        </>
+        </div>
       ) : (
         <span className="ik-class-btn">View Class</span>
       )}

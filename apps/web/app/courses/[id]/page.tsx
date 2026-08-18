@@ -9,6 +9,7 @@ import { ApiError, api, clearToken } from "@/lib/api";
 import { buttonClass } from "@lms/ui";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
+import PageBand from "@/components/PageBand";
 import ProgressBar from "@/components/ProgressBar";
 
 function CourseInner() {
@@ -87,16 +88,6 @@ function CourseInner() {
   } else {
     body = (
       <>
-        <div className="breadcrumb">
-          <Link href="/dashboard">Dashboard</Link> / Course
-        </div>
-
-        {course?.coverImageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={course.coverImageUrl} alt="" className="course-cover" />
-        )}
-
-        <h1 className="page-title">{course?.title ?? "Lessons"}</h1>
         {course?.description ? (
           <div
             className="page-sub rich-text"
@@ -147,8 +138,16 @@ function CourseInner() {
   }
 
   return (
-    <div className="course-cinema">
+    <div className="course-cinema has-band">
       <PopupHost context={{ type: "courses" }} />
+      <PageBand
+        crumbs={[
+          { href: "/dashboard", label: "Dashboard" },
+          { label: "Course" },
+        ]}
+        title={course?.title ?? "Course"}
+        imageUrl={course?.coverImageUrl ?? undefined}
+      />
       <div className="cd-wrap">{body}</div>
     </div>
   );

@@ -90,6 +90,24 @@ const CheckIcon = ({ size = 13 }: { size?: number }) => (
     />
   </svg>
 );
+// Chevron affordance on the (now clickable) course header row.
+const ChevronIcon = ({ size = 18 }: { size?: number }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
+    <path
+      d="m9 6 6 6-6 6"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
 const PlayGlyph = ({
   size = 11,
   fill = "#777394", // AA muted (SVG attr needs a literal; keep in step with --muted)
@@ -233,7 +251,11 @@ function CourseAccordion({
 
   return (
     <section className="ik-panel ik-panel--snug">
-      <div className="ik-course-head">
+      <Link
+        href={`/courses/${course.slug ?? course.id}`}
+        className="ik-course-head"
+        aria-label={`Open course: ${course.title}`}
+      >
         <span className="ik-course-num">Course {index + 1}</span>
         {course.thumbnailUrl || course.coverImageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -258,7 +280,10 @@ function CourseAccordion({
         ) : (
           <span className="ik-pill ik-pill--todo">Not started</span>
         )}
-      </div>
+        <span className="ik-course-go">
+          <ChevronIcon />
+        </span>
+      </Link>
       {lessons === null ? (
         <div className="ik-lesson-group">
           {[0, 1].map((i) => (

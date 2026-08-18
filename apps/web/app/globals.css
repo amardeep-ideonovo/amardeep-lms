@@ -4885,7 +4885,7 @@ a.card:hover {
 /* ---- ink band (page header) — merges seamlessly with the nav above ---- */
 .ik-band {
   background: var(--ink-900);
-  padding: 0 40px 110px;
+  padding: 0 40px 176px;
   color: #fff;
   /* Force-dark pinning for anything rendered on the band. */
   --text: var(--paper-0);
@@ -4902,7 +4902,7 @@ a.card:hover {
   background-size: cover;
   background-position: center 28%;
   /* Give the cover photo real height instead of a thin strip. */
-  min-height: 380px;
+  min-height: 460px;
 }
 .ik-band--photo::before {
   content: "";
@@ -4924,7 +4924,7 @@ a.card:hover {
 .ik-band-inner {
   max-width: 1160px;
   margin: 0 auto;
-  padding-top: 34px;
+  padding-top: 66px;
 }
 .ik-band-inner--crumbs {
   padding-top: 30px;
@@ -4940,15 +4940,16 @@ a.card:hover {
 }
 .ik-band-title {
   color: #fff;
-  font-size: 27px;
-  font-weight: 600;
-  line-height: 1.25;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.22;
+  letter-spacing: -0.01em;
   margin: 0;
 }
 .ik-band-sub {
   color: rgba(255, 255, 255, 0.55);
-  font-size: 14px;
-  margin: 6px 0 0;
+  font-size: 14.5px;
+  margin: 8px 0 0;
 }
 .ik-crumbs {
   display: flex;
@@ -5007,7 +5008,7 @@ a.card:hover {
 /* ---- overlap main column: -78px over the band, 1160 content ---- */
 .ik-main {
   max-width: 1240px;
-  margin: -78px auto 0;
+  margin: -92px auto 0;
   padding: 0 40px 40px;
 }
 /* main column on band-less pages */
@@ -5119,8 +5120,8 @@ a.card:hover {
   min-width: 0;
 }
 .ik-overview-title {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 19px;
+  font-weight: 700;
   color: var(--text);
 }
 .ik-overview-stats {
@@ -5169,8 +5170,9 @@ a.card:hover {
   gap: 16px;
 }
 .ik-section-title {
-  font-size: 21px;
-  font-weight: 600;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--text);
   margin: 0;
 }
@@ -5292,6 +5294,46 @@ a.card:hover {
 .ik-class-btn:hover {
   background: #fff;
   transform: translateY(-1px);
+}
+
+/* Frosted "glass" footer block: lifts the progress bar + CTA off the photo so
+   they stay legible over any cover image (the row/bar used to sit straight on
+   the picture). backdrop-filter blurs the card's own background image behind
+   it; the rgba + border give it an edge. */
+.ik-class-cta {
+  display: flex;
+  flex-direction: column;
+  background: rgba(19, 15, 36, 0.42);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  backdrop-filter: blur(14px) saturate(1.3);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 14px;
+  padding: 13px 14px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+}
+/* Progressive enhancement: browsers without backdrop-filter get a more opaque
+   panel so the block never reads as translucent-over-nothing. */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .ik-class-cta {
+    background: rgba(19, 15, 36, 0.72);
+  }
+}
+.ik-class-cta .ik-class-prog {
+  margin-bottom: 8px;
+}
+.ik-class-cta .ik-class-track {
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.28);
+}
+.ik-class-cta .ik-class-fill {
+  height: 7px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #7ce4d2, #ffffff);
+}
+.ik-class-cta .ik-class-btn {
+  margin-top: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
 /* ---- two-column content grid (continue-learning / rails) ---- */
@@ -5568,6 +5610,28 @@ a.ik-row:hover,
    (keeps each state's text colour: teal done / dark %, muted not-started). */
 .ik-course-head .ik-pill {
   background: #fff;
+}
+/* The course header is a link to the course page (mirrors the lesson rows,
+   which were already links). A chevron affordance + hover brighten signal it. */
+.ik-course-go {
+  flex: none;
+  display: inline-flex;
+  color: var(--ink-800);
+  opacity: 0.5;
+  transition:
+    transform var(--dur-fast) var(--ease),
+    opacity var(--dur-fast) var(--ease);
+}
+a.ik-course-head {
+  cursor: pointer;
+  transition: filter var(--dur-fast) var(--ease);
+}
+a.ik-course-head:hover {
+  filter: brightness(1.03);
+}
+a.ik-course-head:hover .ik-course-go {
+  transform: translateX(3px);
+  opacity: 1;
 }
 
 .ik-lesson {
@@ -6096,10 +6160,13 @@ a.ik-lesson--current:hover {
 /* ---- responsive band ---- */
 @media (max-width: 900px) {
   .ik-band {
-    padding: 0 24px 96px;
+    padding: 0 24px 148px;
+  }
+  .ik-band-inner {
+    padding-top: 54px;
   }
   .ik-band--photo {
-    min-height: 300px;
+    min-height: 360px;
   }
   .ik-main {
     padding: 0 24px 40px;
@@ -6110,7 +6177,7 @@ a.ik-lesson--current:hover {
     gap: 18px;
   }
   .ik-band-title {
-    font-size: 24px;
+    font-size: 26px;
   }
   .ik-overview {
     padding: 22px;
@@ -6119,6 +6186,40 @@ a.ik-lesson--current:hover {
   .ik-cert-foot {
     padding: 16px 18px;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Shared page header on the bespoke "cinema" pages (Blog, Account, Course).
+   These pages already break out full-bleed like .ink-page, so we only drop the
+   wrapper's top pad (band meets the nav), swap the band to the shorter header
+   variant, and align its inner column to each page's content width. Declared
+   AFTER the responsive band block so --header padding wins on every width.
+--------------------------------------------------------------------------- */
+.ik-band--header {
+  padding: 0 0 46px;
+}
+.ik-band--header .ik-band-inner {
+  padding-left: 28px;
+  padding-right: 28px;
+}
+.blog-cinema.has-band,
+.account-cinema.has-band,
+.course-cinema.has-band {
+  padding-top: 0;
+}
+.account-cinema.has-band .ik-band-inner {
+  max-width: 920px;
+}
+.course-cinema.has-band .ik-band-inner {
+  max-width: 860px;
+}
+.blog-cinema.has-band .ik-band-inner {
+  max-width: 1180px;
+}
+.blog-cinema.has-band .bc-wrap,
+.account-cinema.has-band .ac-wrap,
+.course-cinema.has-band .cd-wrap {
+  padding-top: 30px;
 }
 
 /* ---- class-detail extras: skills grid, trailer, live-card title ---- */
