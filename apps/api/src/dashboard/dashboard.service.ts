@@ -18,25 +18,21 @@ export class DashboardService {
    * clients render a flat course list.
    */
   async build(userId: string): Promise<DashboardResponse> {
-    const [courses, activeLevels, purchased, completedByCourse] =
-      await Promise.all([
-        this.prisma.course.findMany({
-          orderBy: { order: "asc" },
-          include: {
-            courseLevels: { select: { levelId: true } },
-            _count: { select: { lessons: true } },
-          },
-        }),
-        this.access.activeLevelIds(userId),
-        this.access.purchasedCourseIds(userId),
-        this.access.completedCountByCourse(userId),
-      ]);
+    const [courses, activeLevels, completedByCourse] = await Promise.all([
+      this.prisma.course.findMany({
+        orderBy: { order: "asc" },
+        include: {
+          courseLevels: { select: { levelId: true } },
+          _count: { select: { lessons: true } },
+        },
+      }),
+      this.access.activeLevelIds(userId),
+      this.access.completedCountByCourse(userId),
+    ]);
 
     const courseCards = courses.map((c) => {
       const assigned = c.courseLevels.map((cl) => cl.levelId);
-      const owns = purchased.has(c.id);
-      const locked = isCourseLocked(assigned, activeLevels, owns);
-      const hasOneOffPrice = c.priceActive && (c.priceAmount ?? 0) > 0;
+      const locked = isCourseLocked(assigned, activeLevels);
       return {
         id: c.id,
         title: c.title,
@@ -47,10 +43,6 @@ export class DashboardService {
         locked,
         lessonCount: c._count.lessons,
         completedCount: completedByCourse.get(c.id) ?? 0,
-        purchasable: locked && hasOneOffPrice,
-        priceAmount: c.priceAmount,
-        priceCurrency: c.priceCurrency,
-        priceActive: c.priceActive,
       };
     });
 

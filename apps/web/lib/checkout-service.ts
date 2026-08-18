@@ -6,7 +6,6 @@ import type {
   AuthUser,
   BillingConfigDTO,
   CouponPreviewDTO,
-  CourseIntentResult,
   LevelDTO,
   PayPalPrepareResult,
   SignupInput,
@@ -68,21 +67,6 @@ export function subscribe(input: SubscribeInput): Promise<SubscribeResult> {
 
 export function syncSubscriptions(): Promise<{ ok: true }> {
   return api.syncSubscriptions();
-}
-
-// One-off course purchase (embedded Elements, one-time PaymentIntent). Mint the
-// intent (client secret) then, after Stripe.js confirms the card, grant inline;
-// the payment_intent.succeeded webhook is the server-side backstop.
-export function createCourseIntent(
-  courseId: string,
-): Promise<CourseIntentResult> {
-  return api.createCourseIntent({ courseId });
-}
-
-export function confirmCourseIntent(
-  paymentIntentId: string,
-): Promise<{ granted: boolean }> {
-  return api.confirmCourseIntent({ paymentIntentId });
 }
 
 // PayPal checkout (active provider = paypal): provision the plan, then verify

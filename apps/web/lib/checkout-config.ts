@@ -7,7 +7,7 @@
 // `resolveCheckoutConfig()` also falls back to treating the route param as a
 // raw Level id, so existing /checkout/<levelId> links (e.g. from the pricing
 // page) keep working unchanged.
-import type { CheckoutCourseDTO, PriceDTO } from "@lms/types";
+import type { PriceDTO } from "@lms/types";
 import { formatMoney } from "@lms/types";
 import { api } from "./api";
 
@@ -104,54 +104,6 @@ export async function resolveCheckoutConfig(
       levelId: level.id,
       heading: level.name,
       options: level.prices.map((p) => priceToOption(level.name, p)),
-    };
-  } catch {
-    return null; // 404 / network → the page shows "Checkout not found"
-  }
-}
-
-// ─── One-off course checkout (single one-time option) ────────────────────────
-// The course checkout mirrors a level checkout but sells LIFETIME access to a
-// single course for a one-time charge. There's exactly one option (no plans,
-// no coupons/PayPal in phase 1); payment is keyed on `courseId`, not a Stripe
-// price id, so the option's price-id fields are null by design.
-export type CourseCheckoutConfig = {
-  slug: string; // URL key: /checkout/course/<slug or id>
-  courseId: string; // backend Course id this purchase grants
-  heading: string; // course title (also used for the thank-you ?class=)
-  coverImageUrl: string | null;
-  options: CheckoutProductOption[]; // exactly one, kind: "one_time"
-};
-
-function courseToOption(c: CheckoutCourseDTO): CheckoutProductOption {
-  return {
-    key: c.id,
-    title: c.title,
-    subLabel: "ONE-TIME PURCHASE · LIFETIME ACCESS",
-    priceText: formatMoney(c.priceAmount, c.priceCurrency),
-    kind: "one_time",
-    stripePriceId: null, // one-time PI is minted from the course, not a price_ id
-    localPriceId: null, // the wire id is the courseId (config.courseId), not this
-    amount: c.priceAmount,
-    currency: c.priceCurrency,
-  };
-}
-
-// Resolve a route param (course id OR slug) to a one-off checkout config.
-// Returns null when the course isn't individually purchasable (the resolver
-// 404s unless priceActive && priceAmount>0) so the page shows "not found".
-export async function resolveCourseCheckoutConfig(
-  idOrSlug: string,
-): Promise<CourseCheckoutConfig | null> {
-  try {
-    const course = await api.checkoutCourse(idOrSlug);
-    if (!course || !course.priceActive || course.priceAmount <= 0) return null;
-    return {
-      slug: course.slug ?? course.id,
-      courseId: course.id,
-      heading: course.title,
-      coverImageUrl: course.coverImageUrl,
-      options: [courseToOption(course)],
     };
   } catch {
     return null; // 404 / network → the page shows "Checkout not found"

@@ -381,17 +381,6 @@ test("summary reports true stakes and omits nothing it has", async () => {
   ];
   h.svc["certificates"].mine = async () => [{ id: "cert1" } as any];
   const prisma = h.svc["prisma"];
-  prisma.userCourse = {
-    findMany: async () => [
-      {
-        courseId: "co1",
-        amount: 4900,
-        currency: "usd",
-        grantedAt: new Date("2026-01-01"),
-        course: { title: "Advanced Linework" },
-      },
-    ],
-  };
   prisma.userLevel = {
     findMany: async () => [{ levelId: "l1", level: { name: "Lifetime Club" } }],
   };
@@ -401,7 +390,6 @@ test("summary reports true stakes and omits nothing it has", async () => {
   assert.equal(s.email, "member@example.com");
   assert.equal(s.subscriptions.length, 1);
   assert.equal(s.certificates.length, 1);
-  assert.equal(s.lifetimeCourses[0].title, "Advanced Linework");
   assert.equal(s.lifetimeLevels[0].levelName, "Lifetime Club");
   assert.equal(s.completedLessons, 38);
   assert.equal(s.hasPaymentHistory, true);

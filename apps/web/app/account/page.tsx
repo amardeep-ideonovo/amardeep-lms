@@ -307,22 +307,6 @@ function DangerZoneSection() {
                     </div>
                   )}
 
-                  {summary.lifetimeCourses.length > 0 && (
-                    <div style={{ marginBottom: 14 }}>
-                      <strong>Lifetime courses</strong>
-                      <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
-                        {summary.lifetimeCourses.map((c) => (
-                          <li key={c.id} style={{ marginBottom: 6 }}>
-                            {c.title}{" "}
-                            {c.amount != null
-                              ? `(${formatMoney(c.amount, c.currency ?? "usd")} — lifetime access, destroyed)`
-                              : "(lifetime access, destroyed)"}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
                   {summary.lifetimeLevels.length > 0 && (
                     <div style={{ marginBottom: 14 }}>
                       <strong>Lifetime plans</strong>

@@ -17,9 +17,8 @@ export class AccessService {
     // paid/level-gated content resolves as a paying member's would — with no
     // change to isCourseLocked or any of its call sites (getLesson, dashboard,
     // my-classes, live). The LOCKED preview identity is deliberately NOT matched
-    // here → it falls through to the real query below (owns nothing) and sees
-    // the paywalled/upsell view. ownsCourse/purchasedCourseIds stay untouched,
-    // so no spurious "owns"/"purchasable" state leaks in either mode.
+    // here → it falls through to the real query below (holds nothing) and sees
+    // the paywalled/upsell view.
     if (await this.sitePreview.isUnlockedPreviewUser(userId)) {
       const levels = await this.prisma.level.findMany({
         where: { published: true, archivedAt: null },
@@ -32,39 +31,6 @@ export class AccessService {
       select: { levelId: true },
     });
     return new Set(rows.map((r) => r.levelId));
-  }
-
-  // The courseIds a user has bought directly (an ACTIVE UserCourse — a one-off
-  // course purchase or a manual grant), excluding any that have lapsed. Resolved
-  // once per request (exactly like activeLevelIds) and passed to isCourseLocked
-  // as its third input, so a purchased course unlocks regardless of levels.
-  async purchasedCourseIds(userId: string): Promise<Set<string>> {
-    const now = new Date();
-    const rows = await this.prisma.userCourse.findMany({
-      where: {
-        userId,
-        status: "ACTIVE",
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-      },
-      select: { courseId: true },
-    });
-    return new Set(rows.map((r) => r.courseId));
-  }
-
-  // Single-course entitlement check for the per-lesson gates (cheaper than
-  // resolving the whole set when only one course is in play).
-  async ownsCourse(userId: string, courseId: string): Promise<boolean> {
-    const now = new Date();
-    const row = await this.prisma.userCourse.findFirst({
-      where: {
-        userId,
-        courseId,
-        status: "ACTIVE",
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-      },
-      select: { id: true },
-    });
-    return !!row;
   }
 
   // Pure entitlement predicate for a live session, evaluated against a
