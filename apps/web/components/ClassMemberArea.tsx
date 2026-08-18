@@ -8,7 +8,7 @@ import type {
   LessonDTO,
   LiveSessionBarDTO,
 } from "@lms/types";
-import { api, getToken } from "@/lib/api";
+import { ApiError, api, getToken } from "@/lib/api";
 import { fmtDuration, fmtTotalMinutes } from "@/lib/memberData";
 import CertificateClaimButton from "@/components/CertificateClaimButton";
 
@@ -47,23 +47,43 @@ type Ownership = {
   certificate: ClassCertificateStatusDTO | null;
 };
 
+const GUEST: Ownership = { owned: false, courses: [], certificate: null };
+
+// A THROWN error from myClassCourses is never a legit "not owned" — the API
+// returns 200 `{ owned: false }` for that. A throw means we couldn't reach/read
+// the API: a transient network blip, or (the bug this guards) apiBase() falling
+// back to localhost because window.__ENV__ / the runtime origin hadn't resolved
+// yet on a cold load. So retry a few times (letting the env settle) instead of
+// permanently sticking on the guest view; only a 401/404 won't self-heal.
+async function fetchOwnership(slugOrId: string): Promise<Ownership> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await api.myClassCourses(slugOrId);
+      return {
+        owned: res.owned,
+        courses: res.courses,
+        certificate: res.certificate ?? null,
+      };
+    } catch (e) {
+      // Bad token or class truly gone — won't fix itself, don't spin.
+      if (e instanceof ApiError && (e.status === 401 || e.status === 404))
+        return GUEST;
+      if (attempt === 2) return GUEST;
+      await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
+    }
+  }
+  return GUEST;
+}
+
 // In-flight de-dup so the two instances (hero ring + body) share ONE request,
 // while a later remount (e.g. returning after completing a lesson) refetches
 // fresh progress instead of reading a stale forever-cache.
 const inflight = new Map<string, Promise<Ownership>>();
 function resolveOwnership(slugOrId: string): Promise<Ownership> {
-  if (!getToken())
-    return Promise.resolve({ owned: false, courses: [], certificate: null });
+  if (!getToken()) return Promise.resolve(GUEST);
   let p = inflight.get(slugOrId);
   if (!p) {
-    p = api
-      .myClassCourses(slugOrId)
-      .then((res) => ({
-        owned: res.owned,
-        courses: res.courses,
-        certificate: res.certificate ?? null,
-      }))
-      .catch(() => ({ owned: false, courses: [], certificate: null }));
+    p = fetchOwnership(slugOrId);
     inflight.set(slugOrId, p);
     void p.finally(() => {
       setTimeout(() => inflight.delete(slugOrId), 0);
