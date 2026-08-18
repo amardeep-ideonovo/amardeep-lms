@@ -16,6 +16,7 @@ import { ApiError, api, clearToken } from "@/lib/api";
 import { qk, useMe, useMySubscriptions } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
 import AvatarCropper from "@/components/AvatarCropper";
+import PageBand from "@/components/PageBand";
 import { useModalA11y } from "@/lib/useModalA11y";
 
 // Avatar fallback initials from the member's name, else username/email.
@@ -691,11 +692,12 @@ function AccountInner() {
     [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "—";
 
   return (
-    <div className="account-cinema">
+    <div className="account-cinema has-band">
+      <PageBand
+        title="Account"
+        subtitle="Manage your membership and billing."
+      />
       <div className="ac-wrap">
-        <h1 className="page-title">Account</h1>
-        <p className="page-sub">Manage your membership and billing.</p>
-
         <Suspense fallback={null}>
           <CheckoutBanner />
         </Suspense>

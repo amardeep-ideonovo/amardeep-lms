@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import type { PostListItem } from "@lms/types";
 import { fetchPublishedPosts } from "@/lib/api";
 import { absoluteUrl, buildMetadata, jsonLdScript } from "@/lib/seo";
+import PageBand from "@/components/PageBand";
 
 // Public, server-rendered (no auth). Dynamic so content is always fresh and we
 // never try to reach the API at build time.
@@ -168,13 +169,9 @@ export default async function BlogIndexPage() {
         />
       )}
 
-      <div className="blog-cinema">
+      <div className="blog-cinema has-band">
+        <PageBand title="Blog" subtitle={BLOG_DESCRIPTION} />
         <div className="bc-wrap">
-          <div className="bc-head">
-            <h1>Blog</h1>
-            <p>{BLOG_DESCRIPTION}</p>
-          </div>
-
           {failed ? (
             <div className="bc-alert">
               Couldn’t load posts right now. Please try again later.
