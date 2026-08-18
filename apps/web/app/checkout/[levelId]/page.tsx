@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { buttonClass } from "@lms/ui";
 import type { AuthUser, BillingConfigDTO, CouponPreviewDTO } from "@lms/types";
 import { STR } from "@lms/types";
 import {
@@ -448,7 +449,10 @@ export default function CheckoutPage() {
               We couldn’t find a plan for “{slugOrId}”. The link may be out of
               date.
             </p>
-            <Link href="/pricing/all" className="btn btn-primary press">
+            <Link
+              href="/pricing/all"
+              className={buttonClass({ className: "press" })}
+            >
               View all plans
             </Link>
           </div>

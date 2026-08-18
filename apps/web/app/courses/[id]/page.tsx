@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import type { CourseCard, LessonDTO } from "@lms/types";
 import { STR } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
+import { buttonClass } from "@lms/ui";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
 import ProgressBar from "@/components/ProgressBar";
@@ -70,7 +71,7 @@ function CourseInner() {
         <div className="lock-icon">🔒</div>
         <h2>This course is locked</h2>
         <p>You need an active membership level to view these lessons.</p>
-        <Link href="/account" className="btn btn-primary">
+        <Link href="/account" className={buttonClass()}>
           View plans
         </Link>
       </div>
