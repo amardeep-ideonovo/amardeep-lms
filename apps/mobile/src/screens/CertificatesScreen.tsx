@@ -22,8 +22,8 @@ import type { MyCertificateDTO } from "@lms/types";
 import { certificateDownloadUrl } from "../api";
 import { useMyCertificates, useMyClasses, useRefreshOnFocus } from "../queries";
 import { accentIndexMap, classAccent } from "../class-colors";
+import { Button } from "../components/Button";
 import { CtaButton } from "../components/CtaButton";
-import { Press } from "../components/Press";
 import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { fmtDate } from "../format";
@@ -175,18 +175,26 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
               busy={busyCertId === hero.id}
               onPress={() => openPdf(hero)}
             />
-            <Press
-              style={styles.ghostBtn}
-              onPress={() => sharePdf(hero)}
+            <Button
+              variant="ghost"
+              style={{ flex: 1 }}
+              radius={9}
+              icon={
+                <Ionicons
+                  name="share-outline"
+                  size={13}
+                  color={colors.heroText}
+                />
+              }
+              // Ink surface: keep the label + hairline light (Button ghost
+              // defaults to colors.text / colors.border, which are dark on the
+              // light app theme and vanish on this ink card in dark mode).
+              textStyle={{ color: colors.heroText, fontSize: 11.5 }}
+              borderColor="rgba(255,255,255,0.25)"
+              label="Share"
               disabled={busyCertId === hero.id}
-            >
-              <Ionicons
-                name="share-outline"
-                size={13}
-                color={colors.heroText}
-              />
-              <Text style={styles.ghostBtnText}>Share</Text>
-            </Press>
+              onPress={() => sharePdf(hero)}
+            />
           </View>
         </View>
       ) : (
@@ -215,6 +223,7 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
           key={c.id}
           style={styles.certRow}
           activeOpacity={0.8}
+          accessibilityRole="button"
           onPress={() => openPdf(c)}
           disabled={busyCertId === c.id}
         >
@@ -358,22 +367,6 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     },
     heroActions: { flexDirection: "row", gap: 9, marginTop: 16 },
     heroBtn: { flex: 1 },
-    ghostBtn: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 7,
-      borderWidth: 1,
-      borderColor: "rgba(255,255,255,0.25)",
-      borderRadius: 9,
-      paddingVertical: 10,
-    },
-    ghostBtnText: {
-      color: colors.heroText,
-      fontSize: 11.5,
-      fontFamily: fonts.semibold,
-    },
 
     actionError: {
       color: colors.danger,

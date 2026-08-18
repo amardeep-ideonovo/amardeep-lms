@@ -12,7 +12,8 @@ import {
 import type { ClassCertificateStatusDTO, MyCertificateDTO } from "@lms/types";
 import { STR } from "@lms/types";
 import { api, certificateDownloadUrl } from "../api";
-import { Press } from "./Press";
+import { Button } from "./Button";
+import { CtaButton } from "./CtaButton";
 import { useStyles, useTheme } from "../theme-provider";
 import { formColumn } from "../responsive";
 import { spacing, type Theme } from "../theme";
@@ -86,27 +87,21 @@ export default function CertificateClaim({
     <View style={styles.wrap}>
       {claimed ? (
         <>
-          <Press style={styles.button} onPress={download} disabled={claiming}>
-            {claiming ? (
-              <ActivityIndicator color={colors.onPrimary} />
-            ) : (
-              <Text style={styles.buttonText}>Download certificate</Text>
-            )}
-          </Press>
+          <CtaButton
+            label="Download certificate"
+            onPress={download}
+            busy={claiming}
+            style={{ alignSelf: "stretch" }}
+          />
           {serial ? <Text style={styles.serial}>{serial}</Text> : null}
         </>
       ) : (
-        <Press
-          style={styles.button}
+        <CtaButton
+          label="🎓 Get certificate"
           onPress={() => (status.needsName ? setAskName(true) : claim())}
-          disabled={claiming}
-        >
-          {claiming ? (
-            <ActivityIndicator color={colors.onPrimary} />
-          ) : (
-            <Text style={styles.buttonText}>🎓 Get certificate</Text>
-          )}
-        </Press>
+          busy={claiming}
+          style={{ alignSelf: "stretch" }}
+        />
       )}
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -133,6 +128,7 @@ export default function CertificateClaim({
                 disabled={claiming || !name.trim()}
                 onPress={() => claim(name.trim())}
                 activeOpacity={0.8}
+                accessibilityRole="button"
               >
                 {claiming ? (
                   <ActivityIndicator color={colors.onPrimary} />
@@ -140,13 +136,12 @@ export default function CertificateClaim({
                   <Text style={styles.buttonText}>Issue</Text>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.buttonGhost, styles.modalBtn]}
+              <Button
+                variant="ghost"
+                label={STR.common.cancel}
                 onPress={() => setAskName(false)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.buttonGhostText}>{STR.common.cancel}</Text>
-              </TouchableOpacity>
+                style={styles.modalBtn}
+              />
             </View>
           </View>
         </View>
@@ -169,19 +164,6 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontSize: 15.5,
       fontWeight: "700",
       fontFamily: fonts.bold,
-    },
-    buttonGhost: {
-      borderRadius: 11,
-      paddingVertical: 13,
-      alignItems: "center",
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    buttonGhostText: {
-      color: colors.text,
-      fontSize: 15.5,
-      fontWeight: "600",
-      fontFamily: fonts.semibold,
     },
     serial: {
       color: colors.textMuted,

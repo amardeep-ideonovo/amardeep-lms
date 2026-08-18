@@ -21,7 +21,7 @@ import { WEB_BASE_URL } from "../config";
 import { fmtTotalDuration, money, vimeoEmbed, stripHtml } from "../format";
 import { CourseRow } from "../components/CourseRow";
 import { ErrorState } from "../components/Screen";
-import { Press } from "../components/Press";
+import { CtaButton } from "../components/CtaButton";
 import { PopupHost } from "../components/PopupHost";
 import { Badge, Chip } from "../components/Chip";
 import { Skeleton } from "../components/Skeleton";
@@ -272,9 +272,11 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
             ) : null}
             {!owned ? (
               <View style={styles.buyCard}>
-                <Press style={styles.buyBtn} onPress={openCheckout}>
-                  <Text style={styles.buyBtnText}>Get Class</Text>
-                </Press>
+                <CtaButton
+                  label="Get Class"
+                  onPress={openCheckout}
+                  style={{ alignSelf: "stretch" }}
+                />
                 <Text style={styles.buySub}>
                   {priceLabel ? (
                     <>
@@ -362,12 +364,13 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
             <View style={styles.closing}>
               <Text style={styles.closingEyebrow}>Start today</Text>
               <Text style={styles.closingTitle}>Begin {cls.name}</Text>
-              <Press
-                style={[styles.buyBtn, styles.closingBtn]}
+              <CtaButton
+                label="Get Class"
                 onPress={openCheckout}
-              >
-                <Text style={styles.buyBtnText}>Get Class</Text>
-              </Press>
+                // Centered content-width pill in the closing section (distinct
+                // from the full-width buy-card CTA above).
+                style={{ alignSelf: "center" }}
+              />
               {priceLabel ? (
                 <Text style={styles.closingPrice}>
                   Starting at {priceLabel}
@@ -553,19 +556,6 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       gap: spacing.sm,
       alignItems: "center",
     },
-    buyBtn: {
-      alignSelf: "stretch",
-      backgroundColor: colors.primary,
-      borderRadius: 11,
-      paddingVertical: 12,
-      alignItems: "center",
-    },
-    buyBtnText: {
-      color: colors.onPrimary,
-      fontSize: 15,
-      fontWeight: "700",
-      fontFamily: fonts.bold,
-    },
     buySub: {
       color: colors.textMuted,
       fontSize: 13,
@@ -603,7 +593,6 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       fontFamily: fonts.display,
       textAlign: "center",
     },
-    closingBtn: { alignSelf: "center", paddingHorizontal: 28 },
     closingPrice: {
       color: colors.textMuted,
       fontSize: 13,

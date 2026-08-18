@@ -124,6 +124,7 @@ export function FormEmbed({ formId }: { formId: string }) {
         style={[styles.submit, submitting && styles.submitDisabled]}
         onPress={onSubmit}
         disabled={submitting}
+        accessibilityRole="button"
       >
         <Text style={styles.submitText}>
           {submitting ? "Submitting…" : "Submit"}
@@ -152,6 +153,8 @@ function FieldInput({
       <TouchableOpacity
         style={styles.checkboxRow}
         activeOpacity={0.7}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked }}
         onPress={() => onChange(f.name, !checked)}
       >
         <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
@@ -173,6 +176,8 @@ function FieldInput({
         <TouchableOpacity
           style={[styles.input, styles.selectRow]}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: open }}
           onPress={() => setOpen((o) => !o)}
         >
           <Text style={current ? styles.selectValue : styles.selectPlaceholder}>
@@ -187,6 +192,7 @@ function FieldInput({
                 key={o}
                 style={styles.option}
                 activeOpacity={0.7}
+                accessibilityRole="button"
                 onPress={() => {
                   onChange(f.name, o);
                   setOpen(false);

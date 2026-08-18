@@ -461,6 +461,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
                 key={n.id}
                 style={styles.noteRow}
                 activeOpacity={0.8}
+                accessibilityRole="button"
                 onPress={() => saveNote(n)}
                 disabled={savingNoteId === n.id}
               >
@@ -545,6 +546,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
               <Press
                 key={l.id}
                 style={styles.upNextRow}
+                accessibilityRole="button"
                 onPress={() =>
                   navigation.push("Lesson", {
                     lessonId: l.id,

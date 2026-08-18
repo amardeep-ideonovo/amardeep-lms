@@ -109,7 +109,7 @@ function luminance(hex: string): number {
 // #3cc4b2 has a luminance of ~0.44 — just under the threshold — so it resolves
 // to WHITE button labels (matching the web CSS --on-primary token); the stock
 // teal CTA gradient is white-labelled too (onCta below).
-function onColor(hex: string): string {
+export function onColor(hex: string): string {
   return luminance(hex) > 0.45 ? "#101828" : "#ffffff";
 }
 

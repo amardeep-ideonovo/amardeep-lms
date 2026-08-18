@@ -30,6 +30,7 @@ export function LockedPanel({
         <TouchableOpacity
           style={styles.cta}
           activeOpacity={0.85}
+          accessibilityRole="button"
           onPress={onPress}
         >
           <Text style={styles.ctaText}>{ctaLabel}</Text>

@@ -109,6 +109,7 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
                   </Text>
                 ) : null}
                 <TouchableOpacity
+                  accessibilityRole="button"
                   onPress={() =>
                     navigation.navigate("Main", { screen: "Profile" })
                   }
@@ -131,6 +132,7 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
                 key={l.id}
                 style={styles.card}
                 disabled={!l.published}
+                accessibilityRole="button"
                 onPress={() => openLanding(l)}
               >
                 <Text style={styles.name}>{l.name}</Text>

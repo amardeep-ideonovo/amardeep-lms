@@ -198,6 +198,7 @@ export function SignupScreen({ navigation }: Props) {
           <TouchableOpacity
             onPress={() => navigation.navigate("Login")}
             activeOpacity={0.7}
+            accessibilityRole="button"
             style={styles.linkButton}
           >
             <Text style={styles.linkText}>

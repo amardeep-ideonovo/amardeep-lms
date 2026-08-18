@@ -50,6 +50,7 @@ function InvoiceRow({ inv }: { inv: InvoiceDTO }) {
           <TouchableOpacity
             onPress={() => Linking.openURL(receiptUrl).catch(() => {})}
             activeOpacity={0.7}
+            accessibilityRole="button"
           >
             <Text style={styles.receipt}>Receipt ↗</Text>
           </TouchableOpacity>

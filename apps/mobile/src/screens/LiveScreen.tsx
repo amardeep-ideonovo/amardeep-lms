@@ -133,7 +133,12 @@ export function LiveScreen({ navigation }: TabScreenProps<"Live">) {
           const isLive = ph === "live";
           const joinable = isLive || ph === "joinable";
           return (
-            <Press key={s.id} style={styles.card} onPress={() => open(s)}>
+            <Press
+              key={s.id}
+              style={styles.card}
+              accessibilityRole="button"
+              onPress={() => open(s)}
+            >
               <View style={styles.topRow}>
                 <View
                   style={[

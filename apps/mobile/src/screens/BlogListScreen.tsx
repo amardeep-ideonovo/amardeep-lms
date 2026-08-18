@@ -75,7 +75,11 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
       data={rest}
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
-        <Press style={styles.heroWrap} onPress={() => open(featured)}>
+        <Press
+          style={styles.heroWrap}
+          accessibilityRole="button"
+          onPress={() => open(featured)}
+        >
           <HeroBand
             eyebrow="Featured"
             title={featured.title}
@@ -95,7 +99,11 @@ export function BlogListScreen({ navigation }: ScreenProps<"Blog">) {
         </Press>
       }
       renderItem={({ item }) => (
-        <Press style={styles.card} onPress={() => open(item)}>
+        <Press
+          style={styles.card}
+          accessibilityRole="button"
+          onPress={() => open(item)}
+        >
           {item.coverImageUrl ? (
             <Image
               source={{ uri: item.coverImageUrl }}

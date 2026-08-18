@@ -136,6 +136,7 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
           <TouchableOpacity
             style={styles.row}
             activeOpacity={0.8}
+            accessibilityRole="button"
             onPress={() =>
               navigation.navigate("Lesson", {
                 lessonId: item.id,

@@ -17,7 +17,7 @@ import type { LiveJoinCredentialsDTO, LiveSessionBarDTO } from "@lms/types";
 import { ApiError, api } from "../api";
 import { useLiveSession } from "../queries";
 import { ErrorState, Loading } from "../components/Screen";
-import { Press } from "../components/Press";
+import { CtaButton } from "../components/CtaButton";
 import { contentColumn } from "../responsive";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
@@ -154,9 +154,7 @@ export function LiveSessionScreen({ route }: ScreenProps<"LiveSession">) {
             <Text style={styles.hint}>
               Opens the {provider} app · {hostOf(creds.joinUrl)}
             </Text>
-            <Press style={styles.btn} onPress={join}>
-              <Text style={styles.btnText}>Join {provider} meeting</Text>
-            </Press>
+            <CtaButton label={`Join ${provider} meeting`} onPress={join} />
             {creds.password ? (
               <View style={styles.passRow}>
                 <Text style={styles.passLabel}>PASSCODE</Text>

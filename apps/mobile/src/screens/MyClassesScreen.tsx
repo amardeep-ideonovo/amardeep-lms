@@ -145,7 +145,11 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
       {active ? (
         <>
           {/* ---------- active class ink card ---------- */}
-          <Press style={styles.activeCard} onPress={() => openClass(active)}>
+          <Press
+            style={styles.activeCard}
+            accessibilityRole="button"
+            onPress={() => openClass(active)}
+          >
             {active.imageUrl ? (
               <Image
                 source={{ uri: active.imageUrl }}
@@ -194,6 +198,7 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
                       c.locked && styles.courseLocked,
                     ]}
                     disabled={c.locked}
+                    accessibilityRole="button"
                     onPress={() =>
                       navigation.navigate("Course", {
                         courseId: c.id,
@@ -248,6 +253,7 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
                       .color,
                   },
                 ]}
+                accessibilityRole="button"
                 onPress={() => navigation.navigate("Certificates")}
               >
                 <View style={[styles.courseThumb, styles.courseThumbEmpty]}>
@@ -300,6 +306,7 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
               <Press
                 key={c.id}
                 style={styles.otherRow}
+                accessibilityRole="button"
                 onPress={() => openClass(c)}
               >
                 {c.imageUrl ? (

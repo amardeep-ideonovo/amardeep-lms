@@ -162,6 +162,7 @@ export function ConnectScreen({
               returnKeyType="go"
             />
             <Pressable
+              accessibilityRole="button"
               onPress={connectByCode}
               disabled={busy || !code.trim()}
               style={[
@@ -197,6 +198,7 @@ export function ConnectScreen({
               returnKeyType="go"
             />
             <Pressable
+              accessibilityRole="button"
               onPress={connectByUrl}
               disabled={busy || !serverUrl.trim()}
               style={[
@@ -222,6 +224,8 @@ export function ConnectScreen({
 
         {!!DIRECTORY_URL && (
           <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: advanced }}
             onPress={() => {
               setAdvanced((a) => !a);
               setError(null);
