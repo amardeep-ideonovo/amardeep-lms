@@ -1180,17 +1180,34 @@ a.card:hover {
   transform: translateY(0);
 }
 
+/* `btn--ghost` is the shared @lms/ui <Button>'s alias for the secondary/outline
+   role — grouped so the two can't drift, matching admin (docs/coding-standards.md
+   D5). */
 .btn-secondary,
-.btn--secondary {
+.btn--secondary,
+.btn--ghost {
   background: transparent;
   color: var(--text);
   border-color: var(--border);
 }
 
 .btn-secondary:hover:not(:disabled),
-.btn--secondary:hover:not(:disabled) {
+.btn--secondary:hover:not(:disabled),
+.btn--ghost:hover:not(:disabled) {
   background: var(--surface-hover);
   transform: translateY(-1px);
+}
+
+/* Parity with admin's `btn--add` (dashed "add another row" affordance) so the
+   shared <Button variant="add"> is styled in web too. */
+.btn--add {
+  background: #eef4ff;
+  color: #2563eb;
+  border: 1px dashed #93b4f7;
+  box-shadow: none;
+}
+.btn--add:hover:not(:disabled) {
+  background: #e0ebff;
 }
 
 .btn:disabled {

@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { MemberRow } from "@lms/types";
-import { Button } from "@lms/ui";
+import { Button, buttonClass } from "@lms/ui";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import { dialog } from "@/components/DialogProvider";
@@ -204,7 +204,10 @@ export default function EditMemberPage() {
               <Button type="submit" disabled={saving}>
                 {saving ? STR.common.saving : "Save changes"}
               </Button>
-              <Link href="/members" className="btn btn--ghost">
+              <Link
+                href="/members"
+                className={buttonClass({ variant: "ghost" })}
+              >
                 {STR.common.cancel}
               </Link>
             </div>

@@ -18,7 +18,7 @@ import {
   EditorDesktopNotice,
   useIsNarrow,
 } from "@/components/EditorDesktopNotice";
-import { Button } from "@lms/ui";
+import { Button, buttonClass } from "@lms/ui";
 
 // Visual certificate-template editor. The right side renders the uploaded
 // artwork with the dynamic text fields as draggable boxes; everything is
@@ -346,7 +346,10 @@ export default function CertificateTemplateEditorPage() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {savedAt && <span className="muted">Saved ✓</span>}
-          <Link href="/certificates" className="btn btn--ghost">
+          <Link
+            href="/certificates"
+            className={buttonClass({ variant: "ghost" })}
+          >
             {STR.common.back}
           </Link>
           {!isNew && can("certificates", "delete") && (

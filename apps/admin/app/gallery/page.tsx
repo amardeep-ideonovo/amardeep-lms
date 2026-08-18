@@ -9,7 +9,7 @@ import FormModal from "@/components/FormModal";
 import ModalFooter from "@/components/ModalFooter";
 import { dialog } from "@/components/DialogProvider";
 import { STR, formatBytes, formatDateLong } from "@lms/types";
-import { Button } from "@lms/ui";
+import { Button, buttonClass } from "@lms/ui";
 
 const PAGE_SIZE = 40;
 
@@ -678,7 +678,7 @@ function MediaDetails({
                   href={asset.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="btn btn--ghost btn--sm"
+                  className={buttonClass({ variant: "ghost", size: "sm" })}
                 >
                   Open ↗
                 </a>

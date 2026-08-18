@@ -3,8 +3,13 @@
 // @lms/puck. Web/admin only: mobile is React Native and shares code through
 // @lms/types instead (ApiError, formatters, constants, strings).
 
-export { Button } from "./button";
-export type { ButtonProps } from "./button";
+export { Button, buttonClass } from "./button";
+export type {
+  ButtonProps,
+  ButtonVariant,
+  ButtonSize,
+  ButtonClassOptions,
+} from "./button";
 export { useModalA11y } from "./use-modal-a11y";
 export { ToastProvider, useToast } from "./toast";
 export { createRequest } from "./request";

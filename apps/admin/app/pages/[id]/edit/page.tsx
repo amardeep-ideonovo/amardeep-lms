@@ -27,7 +27,7 @@ import {
   useIsNarrow,
 } from "@/components/EditorDesktopNotice";
 import { STR } from "@lms/types";
-import { Button } from "@lms/ui";
+import { Button, buttonClass } from "@lms/ui";
 
 type PageData = Data<PageProps, RootProps>;
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -362,7 +362,7 @@ export default function PageEditor() {
         {status === "PUBLISHED" && (
           <>
             <a
-              className="btn btn--ghost btn--sm"
+              className={buttonClass({ variant: "ghost", size: "sm" })}
               href={`${webUrl()}/${slug}`}
               target="_blank"
               rel="noopener noreferrer"
