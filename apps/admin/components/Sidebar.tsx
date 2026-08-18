@@ -535,6 +535,35 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: "Commerce",
+    items: [
+      {
+        href: "/members",
+        label: "Members",
+        section: "members",
+        icon: I.members,
+      },
+      {
+        href: "/subscriptions",
+        label: "Subscriptions",
+        section: "subscriptions",
+        icon: I.subscriptions,
+      },
+      {
+        href: "/coupons",
+        label: "Coupons",
+        section: "coupons",
+        icon: I.coupons,
+      },
+      {
+        href: "/reports",
+        label: "Reports",
+        section: "reports",
+        icon: I.reports,
+      },
+    ],
+  },
+  {
     label: "Marketing",
     items: [
       {
@@ -583,35 +612,6 @@ const GROUPS: NavGroup[] = [
         label: "Lists",
         section: "projects",
         icon: I.lists,
-      },
-    ],
-  },
-  {
-    label: "Commerce",
-    items: [
-      {
-        href: "/members",
-        label: "Members",
-        section: "members",
-        icon: I.members,
-      },
-      {
-        href: "/subscriptions",
-        label: "Subscriptions",
-        section: "subscriptions",
-        icon: I.subscriptions,
-      },
-      {
-        href: "/coupons",
-        label: "Coupons",
-        section: "coupons",
-        icon: I.coupons,
-      },
-      {
-        href: "/reports",
-        label: "Reports",
-        section: "reports",
-        icon: I.reports,
       },
     ],
   },
