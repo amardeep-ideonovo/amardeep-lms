@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { headers } from "next/headers";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "@lms/ui/tokens.css";
@@ -15,6 +16,7 @@ import {
   fetchSiteHeader,
 } from "@/lib/api";
 import { SITE_DESCRIPTION, SITE_URL, getSiteName } from "@/lib/seo";
+import { runtimeEnv } from "@/lib/runtime-env";
 
 // Spark single typeface — Plus Jakarta Sans (owner's call over the pack's
 // Space Grotesk), exposed as a CSS var consumed by globals.css (BOTH
@@ -101,12 +103,21 @@ export default async function RootLayout({
   return (
     <html lang="en" className={jakarta.variable}>
       <body>
-        {/* Per-instance runtime config. `defer` keeps HTML parsing (and the
-            SSR'd first paint) from blocking on this request while still
-            executing before Next's own deferred bundles in document order —
-            window.__ENV__ (API/web origins) is set when lib/api.ts runs; its
-            only reader looks it up at call time, never at module eval. */}
-        <script src="/env.js" defer />
+        {/* Per-instance runtime config, set BEFORE any hydration so the client's
+            apiBase() is never read before window.__ENV__ exists. `beforeInteractive`
+            guarantees this inline script runs ahead of Next's (async) bundle and
+            page hydration — the previous deferred external /env.js raced React:
+            when the ownership effect won, apiBase() fell back to localhost, the
+            my-courses fetch failed, and owned-gated views (the class page) stuck
+            on the guest state. Inlined from the request-time env (this layout is
+            dynamic — see headers() above), so ONE image still serves any instance.
+            `<` is escaped to prevent a </script> breakout. */}
+        <Script id="runtime-env" strategy="beforeInteractive">
+          {`window.__ENV__=${JSON.stringify(runtimeEnv()).replace(
+            /</g,
+            "\\u003c",
+          )};`}
+        </Script>
         <QueryProvider>
           <ToastProvider>
             {/* Admin "preview the member site" banner — renders only during a

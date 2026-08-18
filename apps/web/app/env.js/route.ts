@@ -1,25 +1,15 @@
 import { NextResponse } from "next/server";
+import { runtimeEnv } from "@/lib/runtime-env";
 
-// Per-instance runtime config, served as JavaScript and loaded BEFORE the app
-// bundle (see the <script> in app/layout.tsx). Route handlers are always
-// dynamic, so these values are read at REQUEST time from the container's
-// environment — letting ONE prebuilt image serve any provisioned instance
-// without a rebuild. `window.__ENV__` is what lib/api.ts reads in the browser.
+// Per-instance runtime config, served as JavaScript. The app now sets
+// `window.__ENV__` via an inline, synchronous <script> in app/layout.tsx
+// (loaded before hydration, no race); this route is kept so any external
+// reference to /env.js still resolves. Route handlers are always dynamic, so
+// the values are read at REQUEST time from the container's environment.
 export const dynamic = "force-dynamic";
 
 export function GET() {
-  const apiUrl = (
-    process.env.RUNTIME_API_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    "http://localhost:3000"
-  ).replace(/\/$/, "");
-  const webUrl = (
-    process.env.RUNTIME_WEB_URL ||
-    process.env.NEXT_PUBLIC_WEB_URL ||
-    "http://localhost:3002"
-  ).replace(/\/$/, "");
-
-  const body = `window.__ENV__=${JSON.stringify({ apiUrl, webUrl })};`;
+  const body = `window.__ENV__=${JSON.stringify(runtimeEnv())};`;
   return new NextResponse(body, {
     headers: {
       "content-type": "application/javascript; charset=utf-8",
