@@ -5037,6 +5037,16 @@ a.card:hover {
     transform var(--dur-fast) var(--ease),
     box-shadow var(--dur-fast) var(--ease);
 }
+/* The scope rules `.ink-page a` / `.blog-cinema a` set `color: inherit` at
+   specificity (0,1,1), which outranks `.ik-cta`'s own (0,1,0)
+   `color: var(--on-primary)`. So a LINK-based CTA (`<a>`/`<Link className="ik-cta">`,
+   e.g. the "Get Class" buy button) inherited its container's text colour instead
+   of the on-teal label: white on the dark band (looked fine by accident), but
+   dark #272144 on a light `.ik-panel`. Re-assert the label colour for the anchor
+   form — this rule follows the scope rules, so it wins the (0,1,1) tie. */
+a.ik-cta {
+  color: var(--on-primary);
+}
 .ik-cta:hover {
   filter: brightness(0.94);
   transform: translateY(-1px);
