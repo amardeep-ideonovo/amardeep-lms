@@ -126,6 +126,7 @@ export class ContentPackService {
       menuLocationAssignments,
       menuItems,
       postCategories,
+      tags,
       postsRaw,
       pages,
       forms,
@@ -149,8 +150,12 @@ export class ContentPackService {
       this.prisma.menuLocationAssignment.findMany(),
       this.prisma.menuItem.findMany(),
       this.prisma.postCategory.findMany(),
+      this.prisma.tag.findMany(),
       this.prisma.post.findMany({
-        include: { categories: { select: { id: true } } },
+        include: {
+          categories: { select: { id: true } },
+          tags: { select: { id: true } },
+        },
       }),
       this.prisma.page.findMany(),
       this.prisma.form.findMany(),
@@ -166,9 +171,10 @@ export class ContentPackService {
       ...rest,
       categoryIds: (categories as Array<{ id: string }>).map((c) => c.id),
     }));
-    const posts = (postsRaw as any[]).map(({ categories, ...rest }) => ({
+    const posts = (postsRaw as any[]).map(({ categories, tags, ...rest }) => ({
       ...rest,
       categoryIds: (categories as Array<{ id: string }>).map((c) => c.id),
+      tagIds: (tags as Array<{ id: string }>).map((t) => t.id),
     }));
 
     return {
@@ -185,6 +191,7 @@ export class ContentPackService {
       menuLocationAssignments,
       menuItems,
       postCategories,
+      tags,
       posts,
       pages,
       forms,
@@ -430,12 +437,27 @@ export class ContentPackService {
     menuItems.forEach((m) => (m.parentId = null));
 
     const postCategories = norm("postCategory", content.postCategories);
+    // `content.tags` is absent in packs built before managed tags existed —
+    // default to [] so an older DemoPack still imports.
+    const tags = norm("tag", content.tags ?? []);
     const posts = norm("post", content.posts);
     const postCats = posts.map((p) => ({
       id: p.id,
       categoryIds: (p.categoryIds ?? []) as string[],
     }));
-    posts.forEach((p) => delete p.categoryIds);
+    const postTags = posts.map((p) => ({
+      id: p.id,
+      tagIds: (p.tagIds ?? []) as string[],
+    }));
+    posts.forEach((p) => {
+      delete p.categoryIds;
+      delete p.tagIds;
+      // Packs built before managed tags carry a free-text `tags` String[] scalar;
+      // that column is gone, so leaving it would crash createMany. Drop it — the
+      // legacy free-text tags are not reconstructed (a re-published pack ships
+      // tagIds + the Tag rows, which reconnect below).
+      delete p.tags;
+    });
 
     const pages = norm("page", content.pages);
     const forms = norm("form", content.forms);
@@ -489,6 +511,7 @@ export class ContentPackService {
           await tx.menuItem.update({ where: { id }, data: { parentId } });
         }
         await createMany(tx.postCategory, postCategories);
+        await createMany(tx.tag, tags); // before Post (implicit Post<->Tag m2m)
         await createMany(tx.post, posts);
         for (const { id, categoryIds } of postCats) {
           if (categoryIds.length) {
@@ -497,6 +520,18 @@ export class ContentPackService {
               data: {
                 categories: {
                   connect: categoryIds.map((cid) => ({ id: cid })),
+                },
+              },
+            });
+          }
+        }
+        for (const { id, tagIds } of postTags) {
+          if (tagIds.length) {
+            await tx.post.update({
+              where: { id },
+              data: {
+                tags: {
+                  connect: tagIds.map((tid) => ({ id: tid })),
                 },
               },
             });

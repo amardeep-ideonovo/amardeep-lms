@@ -61,6 +61,7 @@ export interface PackContent {
   menuLocationAssignments: PackRow[];
   menuItems: PackRow[];
   postCategories: PackRow[];
+  tags: PackRow[];
   posts: PackRow[];
   pages: PackRow[];
   forms: PackRow[];
