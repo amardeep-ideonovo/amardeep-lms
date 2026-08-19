@@ -1,5 +1,7 @@
 import { Fragment, type ReactNode } from "react";
+import { preload } from "react-dom";
 import Link from "next/link";
+import BandPhoto from "./BandPhoto";
 
 /**
  * Shared "ink band" page header — the same dark greeting band used across the
@@ -27,6 +29,9 @@ export default function PageBand({
   children?: ReactNode;
 }) {
   const hasCrumbs = !!crumbs && crumbs.length > 0;
+  // Fetch the cover at HTML parse time; the BandPhoto layer fades it in when
+  // decoded instead of hard-flipping the band.
+  if (imageUrl) preload(imageUrl, { as: "image" });
   return (
     <header
       className={
@@ -34,8 +39,8 @@ export default function PageBand({
           ? "ik-band ik-band--header ik-band--photo"
           : "ik-band ik-band--header"
       }
-      style={imageUrl ? { backgroundImage: `url(${imageUrl})` } : undefined}
     >
+      {imageUrl && <BandPhoto url={imageUrl} />}
       <div
         className={
           hasCrumbs ? "ik-band-inner ik-band-inner--crumbs" : "ik-band-inner"

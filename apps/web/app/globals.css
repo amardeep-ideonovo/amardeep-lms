@@ -4899,15 +4899,30 @@ a.card:hover {
 }
 .ik-band--photo {
   position: relative;
+  overflow: hidden;
+  /* Give the cover photo real height instead of a thin strip. The photo itself
+     is the .ik-band-photo-img child layer (fades in when decoded) — the band
+     paints its navy base immediately, never a hard flip. */
+  min-height: 460px;
+}
+.ik-band-photo-img {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   background-size: cover;
   background-position: center 28%;
-  /* Give the cover photo real height instead of a thin strip. */
-  min-height: 460px;
+  opacity: 0;
+  transition: opacity 450ms var(--ease);
+  pointer-events: none;
+}
+.ik-band-photo-img.is-on {
+  opacity: 1;
 }
 .ik-band--photo::before {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 1;
   /* Lighter scrim: dark enough at the top for the white title/breadcrumb, then
      opens up through the middle so the cover image is actually visible. */
   background: linear-gradient(
@@ -4918,8 +4933,15 @@ a.card:hover {
     rgba(34, 28, 61, 0.66) 100%
   );
 }
-.ik-band--photo > * {
+.ik-band--photo > *:not(.ik-band-photo-img) {
   position: relative;
+  z-index: 2;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ik-class-photo,
+  .ik-band-photo-img {
+    transition: none;
+  }
 }
 .ik-band-inner {
   max-width: 1160px;
@@ -5216,8 +5238,11 @@ a.ik-cta {
   }
 }
 .ik-class-card {
-  /* Keep the category colour + title legible at the top, then fade the scrim
-     right down so the class PHOTO reads through the body of the tile. */
+  /* The card itself paints only the PLACEHOLDER (category scrim over the ink
+     base); the photo is a child layer (.ik-class-photo) that fades in when
+     decoded, so tiles never hard-flip from tint to picture. */
+  position: relative;
+  overflow: hidden;
   background:
     linear-gradient(
       180deg,
@@ -5226,7 +5251,7 @@ a.ik-cta {
       rgba(var(--cls-dark), 0.1) 60%,
       rgba(var(--cls-dark), 0.34) 100%
     ),
-    var(--card-img, linear-gradient(150deg, #37315e, #221c3d)) center/cover;
+    linear-gradient(150deg, #37315e, #221c3d);
   border-radius: 18px;
   padding: 22px;
   display: flex;
@@ -5237,6 +5262,34 @@ a.ik-cta {
   transition:
     transform var(--dur-fast) var(--ease),
     box-shadow var(--dur-fast) var(--ease);
+}
+/* Photo layer: same scrim stack over the tile image so the loaded composite is
+   byte-identical to the old single background; opacity is all that animates. */
+.ik-class-photo {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(var(--cls-base), 0.82) 0%,
+      rgba(var(--cls-base), 0.3) 30%,
+      rgba(var(--cls-dark), 0.1) 60%,
+      rgba(var(--cls-dark), 0.34) 100%
+    ),
+    var(--card-img) center/cover;
+  opacity: 0;
+  transition: opacity 400ms var(--ease);
+  pointer-events: none;
+}
+.ik-class-photo.is-on {
+  opacity: 1;
+}
+/* Card content sits above the photo layer. :where() keeps specificity at 0 so
+   the elements' own rules still win. */
+.ik-class-card > :where(:not(.ik-class-photo)) {
+  position: relative;
+  z-index: 1;
 }
 .ik-class-card:hover {
   transform: translateY(-3px);

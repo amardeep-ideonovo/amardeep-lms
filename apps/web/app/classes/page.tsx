@@ -13,6 +13,7 @@ import {
 import { useMemberDashboard } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
+import { useImageLoaded } from "@/lib/use-image-loaded";
 
 type Filter = "all" | "progress" | "new" | "done";
 
@@ -50,12 +51,19 @@ function ClassCard({
   const style: React.CSSProperties = tileImg
     ? ({ "--card-img": `url(${tileImg})` } as React.CSSProperties)
     : {};
+  const photoReady = useImageLoaded(tileImg);
   return (
     <Link
       href={href}
       className={`ik-class-card ${notStarted ? "ik-class-card--tall " : ""}${classColorClass(colorIdx)}`}
       style={style}
     >
+      {tileImg && (
+        <span
+          className={photoReady ? "ik-class-photo is-on" : "ik-class-photo"}
+          aria-hidden="true"
+        />
+      )}
       <div className="ik-class-title">{cls.name}</div>
       {meta && <div className="ik-class-meta">{meta}</div>}
       <div className="ik-class-spacer" />
