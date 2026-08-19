@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "@lms/ui/tokens.css";
 import "./globals.css";
@@ -85,6 +85,9 @@ export default async function RootLayout({
   // the site header for THIS route at SSR, so a header hidden on this
   // section/page never paints on first load — no flash-then-hide on refresh.
   const path = headers().get("x-pathname") || undefined;
+  // Signed-in hint (set alongside the localStorage token) — lets SSR reserve
+  // the nav account chip's space so it doesn't pop in at hydration.
+  const authedHint = cookies().get("lms_authed")?.value === "1";
 
   // The header menu depends on the header (which menu it points at), but the
   // footer and app config do NOT — so chain the menu directly onto the header
@@ -129,6 +132,7 @@ export default async function RootLayout({
               initialHeader={header}
               initialMenu={headerMenu}
               brandTitle={appConfig?.title ?? null}
+              authedHint={authedHint}
             />
             <main className="container">{children}</main>
             <Footer config={footer} brandTitle={appConfig?.title ?? null} />
