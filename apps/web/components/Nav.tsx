@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
   AuthUser,
   ResolvedHeader,
@@ -19,6 +19,11 @@ import {
 } from "@/lib/api";
 import { MenuLink, flattenChildren, isExternal } from "./MenuLink";
 import SpotlightLogo from "./SpotlightLogo";
+
+// Nav is SSR'd; useLayoutEffect is a no-op on the server that React warns
+// about, so alias it (same pattern as ClassMemberArea).
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 // Avatar fallback initials from the member's name, else username/email.
 function avatarInitials(u: AuthUser): string {
@@ -68,7 +73,11 @@ export default function Nav({
   const h = header;
   const menuId = h?.menuId ?? null;
 
-  useEffect(() => {
+  // Pre-paint (layout effect), not post-paint: the account chip must be in the
+  // FIRST frame the member sees after hydration. With a passive effect the nav
+  // painted logged-out first, then the avatar/name popped in and shifted the
+  // row — the "account name takes time" jitter.
+  useIsomorphicLayoutEffect(() => {
     setAuthed(!!getToken());
   }, [pathname]);
 
@@ -267,7 +276,17 @@ export default function Nav({
             </span>
           )}
         </span>
-        {me && <span className="nav-profile-name">{profileName}</span>}
+        {me ? (
+          <span className="nav-profile-name">{profileName}</span>
+        ) : (
+          // First-ever session (no cached profile yet): hold the name's space
+          // with a shimmer bar so the chip doesn't widen when /auth/me lands.
+          <span
+            className="ik-skel ik-skel--ink"
+            style={{ width: 88, height: 12, borderRadius: 6 }}
+            aria-hidden="true"
+          />
+        )}
       </button>
       {profileOpen && (
         <div className="nav-avatar-menu" role="menu">
