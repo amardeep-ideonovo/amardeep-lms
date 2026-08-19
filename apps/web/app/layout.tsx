@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { preload } from "react-dom";
 import { cookies, headers } from "next/headers";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "@lms/ui/tokens.css";
@@ -103,6 +104,10 @@ export default async function RootLayout({
     fetchAppConfig(),
     headerPromise.then((h) => fetchHeaderMenu(h?.menuId)),
   ]);
+  // A builder-uploaded header logo sizes itself from the image (height 32px,
+  // width auto) — fetch it at HTML parse time so it's decoded before first
+  // paint and the brand area doesn't widen mid-load on a cold visit.
+  if (header?.logoUrl) preload(header.logoUrl, { as: "image" });
   return (
     <html lang="en" className={jakarta.variable}>
       <body>
