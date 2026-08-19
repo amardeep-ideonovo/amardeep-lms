@@ -81,10 +81,20 @@ export default function Nav({
     setAuthed(!!getToken());
   }, [pathname]);
 
+  // The `authed` state is set by the layout effect above, but on a member's
+  // hard load the FIRST passive-effect pass still runs with the initial
+  // `false` closure (the corrected pass follows immediately). Skip that stale
+  // pass wherever `authed` gates work: it was double-fetching the builder
+  // header + menus on every load, and — worse — the profile effect's !authed
+  // branch WIPED the me-cache each load before refetching it (so one failed
+  // /auth/me left the next visit nameless).
+  const authedIsStale = () => authed !== !!getToken();
+
   // Re-resolve which header applies to this path + visitor (audience/page
   // rules) on navigation and on login/logout. The SSR'd initialHeader covers
   // the first paint; a null result -> the built-in fallback rendered below.
   useEffect(() => {
+    if (authedIsStale()) return;
     let alive = true;
     fetchSiteHeader(pathname)
       .then((m) => alive && setHeader(m))
@@ -92,9 +102,11 @@ export default function Nav({
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, authed]);
 
   useEffect(() => {
+    if (authedIsStale()) return;
     let alive = true;
     // The chosen menu (or the HEADER-location menu when none is picked).
     const headerMenu = menuId
@@ -108,6 +120,7 @@ export default function Nav({
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, menuId, authed]);
 
   useEffect(() => setDrawer(false), [pathname]);
@@ -115,6 +128,7 @@ export default function Nav({
   // Load (or clear) the member's profile for the account dropdown, keeping the
   // cache in sync so the next refresh paints instantly.
   useEffect(() => {
+    if (authedIsStale()) return;
     if (!authed) {
       setMe(null);
       setCachedMe(null);
@@ -132,6 +146,7 @@ export default function Nav({
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authed]);
 
   // Close the account dropdown on outside click or navigation.
