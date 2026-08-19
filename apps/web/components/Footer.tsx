@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import type { FooterConfig, ResolvedMenu } from "@lms/types";
-import { api, footerSubscribe } from "@/lib/api";
+import { api, fetchFooter, footerSubscribe } from "@/lib/api";
 import { MenuLink, flattenChildren, isExternal } from "./MenuLink";
 
 // Site footer from the admin "Footer" builder: logo · menu · email opt-in, plus a
@@ -21,8 +21,26 @@ export default function Footer({
 }) {
   const pathname = usePathname();
   const [menu, setMenu] = useState<ResolvedMenu | null>(null);
+  // Live config, seeded from the SSR'd prop. The SSR value sits behind two
+  // small caches (the API's config TTL + Next's stale-while-revalidate data
+  // cache), so an admin's footer edit used to need SEVERAL hard reloads to
+  // surface. Re-resolve fresh on every navigation — exactly what Nav does for
+  // the header — and reconcile in place; a fetch failure keeps the last good
+  // config (availability over freshness).
+  const [live, setLive] = useState<FooterConfig | null>(config ?? null);
+  useEffect(() => {
+    let alive = true;
+    fetchFooter()
+      .then((fresh) => {
+        if (alive && fresh) setLive(fresh);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [pathname]);
 
-  const f = config ?? null;
+  const f = live;
   const menuId = f?.menuId ?? null;
   const enabled = !!f?.enabled;
 
