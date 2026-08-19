@@ -96,9 +96,22 @@ export function getToken(): string | null {
   return window.localStorage.getItem(TOKEN_KEY);
 }
 
+// Signed-in HINT the server can read (the JWT itself stays in localStorage,
+// invisible to SSR): lets the root layout SSR the nav with the account chip's
+// space reserved, so the chip doesn't pop in at hydration and shift the
+// header. Carries no identity — just "a session exists on this browser".
+export const AUTH_HINT_COOKIE = "lms_authed";
+export function setAuthHintCookie(on: boolean): void {
+  if (typeof document === "undefined") return;
+  document.cookie = on
+    ? `${AUTH_HINT_COOKIE}=1; path=/; max-age=31536000; samesite=lax`
+    : `${AUTH_HINT_COOKIE}=; path=/; max-age=0; samesite=lax`;
+}
+
 export function setToken(token: string): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(TOKEN_KEY, token);
+  setAuthHintCookie(true);
 }
 
 export function clearToken(): void {
@@ -106,6 +119,7 @@ export function clearToken(): void {
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(ME_CACHE_KEY);
   window.localStorage.removeItem(PREVIEW_PAIR_KEY);
+  setAuthHintCookie(false);
   // Instant-paint snapshots (dashboard / certificates / class ownership) are
   // member data — never leave them behind after logout/expiry/preview-end.
   clearMemberCaches();

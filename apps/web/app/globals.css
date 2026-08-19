@@ -4899,18 +4899,28 @@ a.card:hover {
 }
 .ik-band--photo {
   position: relative;
-  overflow: hidden;
   /* Give the cover photo real height instead of a thin strip. The photo itself
      is the .ik-band-photo-img child layer (fades in when decoded) — the band
      paints its navy base immediately, never a hard flip. */
   min-height: 460px;
 }
+/* Photo + its ink scrim as ONE fading layer (same pattern as the class cards):
+   the scrim can never sit above anything except its own photo, so the panels
+   that overlap the band (.ik-main pulls up over it) are untouched. ⚠ Do NOT
+   z-index the scrim separately — an explicit z lifts it over the overlapping
+   course/cert panels and paints a dark wash across them. */
 .ik-band-photo-img {
   position: absolute;
   inset: 0;
-  z-index: 0;
-  background-size: cover;
-  background-position: center 28%;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(34, 28, 61, 0.8) 0%,
+      rgba(34, 28, 61, 0.46) 42%,
+      rgba(34, 28, 61, 0.36) 68%,
+      rgba(34, 28, 61, 0.66) 100%
+    ),
+    var(--band-img) center 28% / cover;
   opacity: 0;
   transition: opacity 450ms var(--ease);
   pointer-events: none;
@@ -4918,24 +4928,8 @@ a.card:hover {
 .ik-band-photo-img.is-on {
   opacity: 1;
 }
-.ik-band--photo::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  /* Lighter scrim: dark enough at the top for the white title/breadcrumb, then
-     opens up through the middle so the cover image is actually visible. */
-  background: linear-gradient(
-    180deg,
-    rgba(34, 28, 61, 0.8) 0%,
-    rgba(34, 28, 61, 0.46) 42%,
-    rgba(34, 28, 61, 0.36) 68%,
-    rgba(34, 28, 61, 0.66) 100%
-  );
-}
 .ik-band--photo > *:not(.ik-band-photo-img) {
   position: relative;
-  z-index: 2;
 }
 @media (prefers-reduced-motion: reduce) {
   .ik-class-photo,

@@ -15,6 +15,7 @@ import {
   fetchSiteHeader,
   getCachedMe,
   getToken,
+  setAuthHintCookie,
   setCachedMe,
 } from "@/lib/api";
 import { MenuLink, flattenChildren, isExternal } from "./MenuLink";
@@ -44,16 +45,22 @@ export default function Nav({
   initialHeader,
   initialMenu,
   brandTitle,
+  authedHint,
 }: {
   initialHeader?: ResolvedHeader | null;
   initialMenu?: ResolvedMenu | null;
   // Cross-platform brand name (AppConfig.title) — the same source the mobile
   // app uses. Falls back to "LMS" when unset, so web and apps stay aligned.
   brandTitle?: string | null;
+  // SSR-known "a session exists" hint (cookie set alongside the token): lets
+  // the server render the account chip's placeholder so the chip doesn't pop
+  // in at hydration and shift the header on every hard load.
+  authedHint?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const [authed, setAuthed] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const [header, setHeader] = useState<ResolvedHeader | null>(
     initialHeader ?? null,
   );
@@ -78,7 +85,13 @@ export default function Nav({
   // painted logged-out first, then the avatar/name popped in and shifted the
   // row — the "account name takes time" jitter.
   useIsomorphicLayoutEffect(() => {
-    setAuthed(!!getToken());
+    const has = !!getToken();
+    setAuthed(has);
+    setHydrated(true);
+    // Sessions from before the hint cookie existed self-heal here, so their
+    // next hard load gets the reserved chip too.
+    if (has && !document.cookie.includes("lms_authed=1"))
+      setAuthHintCookie(true);
   }, [pathname]);
 
   // The `authed` state is set by the layout effect above, but on a member's
@@ -268,67 +281,85 @@ export default function Nav({
 
   // Account dropdown: avatar button → menu with name/email, Account, Log out.
   // Mirrors the admin topbar avatar menu. Only shown to signed-in members.
+  // Before hydration, the SSR'd auth-hint keeps the chip's footprint reserved
+  // (shimmer avatar + name bar) so the header never shifts when the real chip
+  // takes over pre-paint; a stale hint (cookie but no token) collapses after
+  // the layout effect — the pre-cookie behavior, only for that edge.
   const profileName = me
     ? [me.firstName, me.lastName].filter(Boolean).join(" ") || me.username
     : "Your account";
-  const ProfileMenu = authed ? (
-    <div className="nav-profile" ref={profileRef}>
-      <button
-        type="button"
-        className="nav-profile-btn"
-        title="Account"
-        aria-haspopup="menu"
-        aria-expanded={profileOpen}
-        onClick={() => setProfileOpen((v) => !v)}
-      >
-        <span className="nav-avatar">
-          {me?.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={me.avatarUrl} alt="" className="nav-avatar-img" />
-          ) : (
-            <span className="nav-avatar-initials">
-              {me ? avatarInitials(me) : ""}
-            </span>
-          )}
-        </span>
-        {me ? (
-          <span className="nav-profile-name">{profileName}</span>
-        ) : (
-          // First-ever session (no cached profile yet): hold the name's space
-          // with a shimmer bar so the chip doesn't widen when /auth/me lands.
+  const ProfileMenu =
+    !authed && authedHint && !hydrated ? (
+      <div className="nav-profile" aria-hidden="true">
+        <span className="nav-profile-btn">
+          <span
+            className="ik-skel ik-skel--ink"
+            style={{ width: 30, height: 30, borderRadius: 999, flex: "none" }}
+          />
           <span
             className="ik-skel ik-skel--ink"
             style={{ width: 88, height: 12, borderRadius: 6 }}
-            aria-hidden="true"
           />
-        )}
-      </button>
-      {profileOpen && (
-        <div className="nav-avatar-menu" role="menu">
-          <div className="nav-avatar-head">
-            <div className="nav-avatar-name">{profileName}</div>
-            {me?.email && <div className="nav-avatar-email">{me.email}</div>}
+        </span>
+      </div>
+    ) : authed ? (
+      <div className="nav-profile" ref={profileRef}>
+        <button
+          type="button"
+          className="nav-profile-btn"
+          title="Account"
+          aria-haspopup="menu"
+          aria-expanded={profileOpen}
+          onClick={() => setProfileOpen((v) => !v)}
+        >
+          <span className="nav-avatar">
+            {me?.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={me.avatarUrl} alt="" className="nav-avatar-img" />
+            ) : (
+              <span className="nav-avatar-initials">
+                {me ? avatarInitials(me) : ""}
+              </span>
+            )}
+          </span>
+          {me ? (
+            <span className="nav-profile-name">{profileName}</span>
+          ) : (
+            // First-ever session (no cached profile yet): hold the name's space
+            // with a shimmer bar so the chip doesn't widen when /auth/me lands.
+            <span
+              className="ik-skel ik-skel--ink"
+              style={{ width: 88, height: 12, borderRadius: 6 }}
+              aria-hidden="true"
+            />
+          )}
+        </button>
+        {profileOpen && (
+          <div className="nav-avatar-menu" role="menu">
+            <div className="nav-avatar-head">
+              <div className="nav-avatar-name">{profileName}</div>
+              {me?.email && <div className="nav-avatar-email">{me.email}</div>}
+            </div>
+            <Link
+              href="/account"
+              role="menuitem"
+              className="nav-avatar-item"
+              onClick={() => setProfileOpen(false)}
+            >
+              Your account
+            </Link>
+            <button
+              type="button"
+              role="menuitem"
+              className="nav-avatar-item nav-avatar-item--danger"
+              onClick={logout}
+            >
+              Log out
+            </button>
           </div>
-          <Link
-            href="/account"
-            role="menuitem"
-            className="nav-avatar-item"
-            onClick={() => setProfileOpen(false)}
-          >
-            Your account
-          </Link>
-          <button
-            type="button"
-            role="menuitem"
-            className="nav-avatar-item nav-avatar-item--danger"
-            onClick={logout}
-          >
-            Log out
-          </button>
-        </div>
-      )}
-    </div>
-  ) : null;
+        )}
+      </div>
+    ) : null;
 
   return (
     <header className="nav" style={styleVars}>
