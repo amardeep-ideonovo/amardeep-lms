@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { STR } from "@lms/types";
 import { getToken } from "@/lib/api";
+
+// SSR'd (the fallback is the server-painted skeleton); the gate must open in a
+// LAYOUT effect so a client-side navigation shows the page content in its very
+// first frame instead of flashing the fallback for one frame. useLayoutEffect
+// warns on the server; alias it (same pattern as Nav/ClassMemberArea).
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 // Client-side auth wrapper: redirects to /login when no member token is present.
 // Wrap protected pages with this so unauthenticated users never see content.
@@ -24,7 +31,7 @@ export default function AuthGate({
   const router = useRouter();
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!getToken()) {
       router.replace("/login");
       return;

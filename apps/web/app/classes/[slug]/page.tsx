@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { preload } from "react-dom";
 import { notFound } from "next/navigation";
 import type { ClassPublicDTO } from "@lms/types";
 import { formatMoney } from "@lms/types";
 import { fetchClassPage } from "@/lib/api";
 import { buildMetadata } from "@/lib/seo";
 import { stripHtml } from "@/lib/stripHtml";
+import BandPhoto from "@/components/BandPhoto";
 import ClassMemberArea from "@/components/ClassMemberArea";
 import PopupHost from "@/components/PopupHost";
 
@@ -58,17 +60,18 @@ export default async function ClassPage({ params }: Params) {
     totalLabel ? `${totalLabel} of video` : null,
   ].filter(Boolean);
 
+  // Start the hero photo download at HTML parse time (before CSS/hydration)
+  // so the fade-in layer usually has it by first paint.
+  if (cls.imageUrl) preload(cls.imageUrl, { as: "image" });
+
   return (
     <article className="ink-page">
       <PopupHost context={{ type: "classes" }} />
 
-      {/* ---- band hero: class photo under an ink scrim + breadcrumb/title ---- */}
-      <header
-        className={cls.imageUrl ? "ik-band ik-band--photo" : "ik-band"}
-        style={
-          cls.imageUrl ? { backgroundImage: `url(${cls.imageUrl})` } : undefined
-        }
-      >
+      {/* ---- band hero: class photo (fades in when decoded) under an ink
+           scrim + breadcrumb/title ---- */}
+      <header className={cls.imageUrl ? "ik-band ik-band--photo" : "ik-band"}>
+        {cls.imageUrl && <BandPhoto url={cls.imageUrl} />}
         <div className="ik-band-inner ik-band-inner--crumbs">
           <nav className="ik-crumbs" aria-label="Breadcrumb">
             <Link href="/classes">My Classes</Link>
