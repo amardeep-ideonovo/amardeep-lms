@@ -6162,25 +6162,13 @@ a.ik-lesson--current:hover {
 .ik-band-inner {
   animation: ikPageIn 200ms var(--ease) both;
 }
-/* Opacity-only glide-in for content that resolves client-side after first
-   paint (the class page's ownership-gated section): late arrivals fade in
-   instead of popping. No transform — the skeleton it replaces is the same
-   shape, so there's nothing to shift. */
-.ik-reveal {
-  animation: ikReveal 220ms var(--ease) both;
-}
-@keyframes ikReveal {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
+/* NOTE deliberately NO fade on the skeleton→content swap: the skeletons match
+   the real layout's shape, so content replaces them in place instantly. A
+   mount-time opacity fade here made the section BLANK for its duration (the
+   skeleton unmounts, the content is still transparent) — worse than a swap. */
 @media (prefers-reduced-motion: reduce) {
   .ik-main,
-  .ik-band-inner,
-  .ik-reveal {
+  .ik-band-inner {
     animation: none;
   }
 }
