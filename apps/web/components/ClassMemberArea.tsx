@@ -327,7 +327,12 @@ function CourseAccordion({
       </Link>
       {lessons === null ? (
         <div className="ik-lesson-group">
-          {[0, 1].map((i) => (
+          {/* One skeleton row per real lesson (the count is on the course
+              card), so the accordion doesn't grow when the rows land. */}
+          {Array.from(
+            { length: Math.max(1, Math.min(course.lessonCount || 2, 6)) },
+            (_, i) => i,
+          ).map((i) => (
             <div key={i} className="ik-lesson">
               <span className="ik-lesson-num" aria-hidden="true" />
               <span className="ik-skel" style={{ width: 56, height: 38 }} />
@@ -634,7 +639,18 @@ export default function ClassMemberArea({
 
   /* ===================== HERO RING (band) ===================== */
   if (slot === "hero-ring") {
-    if (!resolved || !owned) return null;
+    // Hold the ring's 72px space with a shimmer while ownership resolves so
+    // the band doesn't get a late pop-in; tokenless guests resolve in a tick,
+    // so for them this is at most a single frame.
+    if (!resolved)
+      return (
+        <span
+          className="ik-skel ik-skel--ink"
+          style={{ width: 72, height: 72, borderRadius: "50%", flex: "none" }}
+          aria-hidden="true"
+        />
+      );
+    if (!owned) return null;
     return <BandRing pct={totals.pct} />;
   }
 
@@ -729,11 +745,7 @@ export default function ClassMemberArea({
     ).length;
     return (
       <>
-        <div
-          className="ik-cols ik-reveal"
-          style={{ marginTop: 0 }}
-          id="your-courses"
-        >
+        <div className="ik-cols" style={{ marginTop: 0 }} id="your-courses">
           <div className="ik-stack">
             {courses.length === 0 ? (
               <div className="ik-panel" style={{ color: "var(--text-muted)" }}>
@@ -790,7 +802,7 @@ export default function ClassMemberArea({
   const purchasable = priceLabel != null;
   return (
     <>
-      <div className="ik-cols ik-reveal" style={{ marginTop: 0 }}>
+      <div className="ik-cols" style={{ marginTop: 0 }}>
         <div className="ik-stack">
           <section className="ik-panel">
             <div className="ik-panel-head">
