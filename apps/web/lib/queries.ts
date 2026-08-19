@@ -25,8 +25,10 @@
 // `enabled`, over calling refetch() directly.
 
 import { useQuery } from "@tanstack/react-query";
+import type { ClassExtrasDTO, ClassTileDTO } from "@lms/types";
 
-import { api, setCachedMe } from "./api";
+import { api, getToken, setCachedMe } from "./api";
+import { readMemberCache, writeMemberCache } from "./member-cache";
 import { fetchMemberDashboard } from "./memberData";
 
 export const qk = {
@@ -37,15 +39,49 @@ export const qk = {
   myCertificates: ["myCertificates"] as const,
 };
 
+// localStorage snapshot keys (lib/member-cache.ts): the dashboard payload and
+// the certificate list are seeded as initialData so a reload paints the REAL
+// page instantly instead of a skeleton, then the normal staleTime-driven
+// refetch revalidates in the background and updates in place. The query cache
+// itself is memory-only (rebuilt every page load) — these snapshots are what
+// carry the last-known answer across reloads. extras is a Map at runtime, so
+// it round-trips through the snapshot as a plain object.
+const DASH_CACHE_KEY = "dash";
+const CERTS_CACHE_KEY = "certs";
+type DashSnapshot = {
+  classes: ClassTileDTO[];
+  extras: Record<string, ClassExtrasDTO>;
+};
+type CertsSnapshot = Awaited<ReturnType<typeof api.myCertificates>>;
+
 // Class tiles + per-class enrichment (counts, next lesson) in ONE request.
 // fetchMemberDashboard is the single call that replaced the 17-request
-// per-class fan-out (PR #44) and stays the queryFn verbatim. Read by
-// /dashboard, /classes and /certificates; a focus refetch revalidates in the
-// background and updates in place instead of discarding the rendered page.
+// per-class fan-out (PR #44). Read by /dashboard, /classes and /certificates;
+// a focus refetch revalidates in the background and updates in place instead
+// of discarding the rendered page.
 export function useMemberDashboard() {
   return useQuery({
     queryKey: qk.memberDashboard,
-    queryFn: fetchMemberDashboard,
+    queryFn: async () => {
+      const d = await fetchMemberDashboard();
+      writeMemberCache<DashSnapshot>(DASH_CACHE_KEY, getToken(), {
+        classes: d.classes,
+        extras: Object.fromEntries(d.extras),
+      });
+      return d;
+    },
+    initialData: () => {
+      const c = readMemberCache<DashSnapshot>(DASH_CACHE_KEY, getToken());
+      if (!c) return undefined;
+      return {
+        classes: c.data.classes,
+        extras: new Map(Object.entries(c.data.extras ?? {})),
+      };
+    },
+    // Stamp the snapshot's real age so staleTime still triggers the background
+    // refetch — initial data without a timestamp would count as fresh.
+    initialDataUpdatedAt: () =>
+      readMemberCache<DashSnapshot>(DASH_CACHE_KEY, getToken())?.t,
   });
 }
 
@@ -83,9 +119,18 @@ export function useMyInvoices() {
 }
 
 // Earned class-completion certificates (/certificates grid + dashboard count).
+// Snapshot-seeded like the dashboard so the count/grid paint instantly.
 export function useMyCertificates() {
   return useQuery({
     queryKey: qk.myCertificates,
-    queryFn: () => api.myCertificates(),
+    queryFn: async () => {
+      const list = await api.myCertificates();
+      writeMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, getToken(), list);
+      return list;
+    },
+    initialData: () =>
+      readMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, getToken())?.data,
+    initialDataUpdatedAt: () =>
+      readMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, getToken())?.t,
   });
 }
