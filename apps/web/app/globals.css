@@ -6162,9 +6162,25 @@ a.ik-lesson--current:hover {
 .ik-band-inner {
   animation: ikPageIn 200ms var(--ease) both;
 }
+/* Opacity-only glide-in for content that resolves client-side after first
+   paint (the class page's ownership-gated section): late arrivals fade in
+   instead of popping. No transform — the skeleton it replaces is the same
+   shape, so there's nothing to shift. */
+.ik-reveal {
+  animation: ikReveal 220ms var(--ease) both;
+}
+@keyframes ikReveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .ik-main,
-  .ik-band-inner {
+  .ik-band-inner,
+  .ik-reveal {
     animation: none;
   }
 }

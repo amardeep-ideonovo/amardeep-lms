@@ -1,6 +1,7 @@
 // Typed fetch client for the member web app.
 // Talks to the NestJS API; auth via member JWT stored in localStorage.
 import { createRequest } from "@lms/ui";
+import { clearMemberCaches } from "./member-cache";
 import type {
   AuthUser,
   BillingConfigDTO,
@@ -105,6 +106,9 @@ export function clearToken(): void {
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(ME_CACHE_KEY);
   window.localStorage.removeItem(PREVIEW_PAIR_KEY);
+  // Instant-paint snapshots (dashboard / certificates / class ownership) are
+  // member data — never leave them behind after logout/expiry/preview-end.
+  clearMemberCaches();
 }
 
 // ---------- Admin site-preview session (both tokens + which is active) ----------

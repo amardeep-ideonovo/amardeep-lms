@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type {
   ClassCertificateStatusDTO,
@@ -9,8 +9,28 @@ import type {
   LiveSessionBarDTO,
 } from "@lms/types";
 import { ApiError, api, getToken } from "@/lib/api";
+import { readMemberCache, writeMemberCache } from "@/lib/member-cache";
 import { fmtDuration, fmtTotalMinutes } from "@/lib/memberData";
 import CertificateClaimButton from "@/components/CertificateClaimButton";
+
+// This component is SSR'd (the skeleton + skills are the crawlable output), so
+// the cache seed must run in a layout effect — client-only, but BEFORE the
+// browser paints — never in a useState initializer (hydration mismatch).
+// useLayoutEffect on the server is a no-op that React warns about; alias it.
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+// Last-known ownership snapshot per class (lib/member-cache.ts): lets a repeat
+// visit paint the member's courses — or the guest marketing — instantly and
+// revalidate in the background, instead of holding the whole section blank for
+// the my-courses round-trip on every load.
+type OwnershipSnapshot = {
+  owned: boolean;
+  courses: CourseCard[];
+  certificate: ClassCertificateStatusDTO | null;
+  lessons: Record<string, LessonDTO[]>;
+};
+const classCacheKey = (slugOrId: string) => `class:${slugOrId}`;
 
 // Vimeo URL -> player embed URL; null for non-Vimeo (then we use <video>).
 // title/byline/portrait are suppressed for the same reason the lesson player
@@ -53,10 +73,13 @@ const GUEST: Ownership = { owned: false, courses: [], certificate: null };
 // returns 200 `{ owned: false }` for that. A throw means we couldn't reach/read
 // the API: a transient network blip, or (the bug this guards) apiBase() falling
 // back to localhost because window.__ENV__ / the runtime origin hadn't resolved
-// yet on a cold load. So retry a few times (letting the env settle) instead of
-// permanently sticking on the guest view; only a 401/404 won't self-heal.
+// yet on a cold load. So retry a few times (letting the env settle); if the
+// network never settles, REJECT — the caller then keeps its cache-seeded
+// snapshot (a flaky connection must not downgrade a member to the guest
+// marketing) and only falls back to guest when it has nothing at all. A
+// 401/404 is authoritative (bad token / class gone) and resolves guest.
 async function fetchOwnership(slugOrId: string): Promise<Ownership> {
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; ; attempt++) {
     try {
       const res = await api.myClassCourses(slugOrId);
       return {
@@ -65,14 +88,12 @@ async function fetchOwnership(slugOrId: string): Promise<Ownership> {
         certificate: res.certificate ?? null,
       };
     } catch (e) {
-      // Bad token or class truly gone — won't fix itself, don't spin.
       if (e instanceof ApiError && (e.status === 401 || e.status === 404))
         return GUEST;
-      if (attempt === 2) return GUEST;
+      if (attempt === 2) throw e;
       await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
     }
   }
-  return GUEST;
 }
 
 // In-flight de-dup so the two instances (hero ring + body) share ONE request,
@@ -506,32 +527,70 @@ export default function ClassMemberArea({
     Map<string, LessonDTO[]>
   >(new Map());
 
+  // Paint the last-known answer BEFORE the first frame (layout effect: after
+  // hydration, before paint) — a repeat visitor never sees the skeleton or a
+  // section popping in. The live revalidation below still runs and reconciles.
+  const seededRef = useRef(false);
+  useIsomorphicLayoutEffect(() => {
+    const snap = readMemberCache<OwnershipSnapshot>(
+      classCacheKey(slugOrId),
+      getToken(),
+    );
+    if (!snap) return;
+    seededRef.current = true;
+    setOwned(snap.data.owned);
+    setCourses(snap.data.courses);
+    setCertificate(snap.data.certificate);
+    setLessonsByCourse(new Map(Object.entries(snap.data.lessons ?? {})));
+    setResolved(true);
+  }, [slugOrId]);
+
   useEffect(() => {
     let active = true;
-    void resolveOwnership(slugOrId).then((res) => {
-      if (!active) return;
-      setOwned(res.owned);
-      setCourses(res.courses);
-      setCertificate(res.certificate);
-      setResolved(true);
-    });
+    resolveOwnership(slugOrId)
+      .then((res) => {
+        if (!active) return;
+        setOwned(res.owned);
+        setCourses(res.courses);
+        setCertificate(res.certificate);
+        setResolved(true);
+      })
+      .catch(() => {
+        if (!active) return;
+        // Network never settled. With a seeded snapshot, keep it (stale beats a
+        // wrong downgrade to the buy view); with nothing, show the guest view —
+        // the pre-snapshot behavior.
+        if (!seededRef.current) {
+          setOwned(false);
+          setCourses([]);
+          setCertificate(null);
+          setResolved(true);
+        }
+      });
     return () => {
       active = false;
     };
   }, [slugOrId]);
 
-  // Owned body only: load each course's lessons for the accordion rows.
+  // Owned body only: load each course's lessons for the accordion rows. Keyed
+  // on the course-ID SET (not array identity) so the cache-seed → fresh-data
+  // handoff doesn't refetch the same lessons twice; the one fetch per course
+  // set is itself the revalidation of any cached rows.
+  const courseIdsKey = useMemo(
+    () => courses.map((c) => c.id).join(","),
+    [courses],
+  );
   useEffect(() => {
-    if (slot !== "body" || !owned || courses.length === 0) return;
+    if (slot !== "body" || !owned || courseIdsKey === "") return;
     let active = true;
     void Promise.all(
-      courses.map((c) =>
+      courseIdsKey.split(",").map((id) =>
         api
-          .courseLessons(c.id)
+          .courseLessons(id)
           .then(
-            (ls) => [c.id, [...ls].sort((a, b) => a.order - b.order)] as const,
+            (ls) => [id, [...ls].sort((a, b) => a.order - b.order)] as const,
           )
-          .catch(() => [c.id, [] as LessonDTO[]] as const),
+          .catch(() => [id, [] as LessonDTO[]] as const),
       ),
     ).then((entries) => {
       if (!active) return;
@@ -540,7 +599,20 @@ export default function ClassMemberArea({
     return () => {
       active = false;
     };
-  }, [slot, owned, courses]);
+  }, [slot, owned, courseIdsKey]);
+
+  // Snapshot every settled state — member AND guest — so the next visit to
+  // this class paints instantly (guests otherwise re-suffer the blank gap on
+  // every load). Tokenless visitors write nothing (writeMemberCache no-ops).
+  useEffect(() => {
+    if (!resolved) return;
+    writeMemberCache<OwnershipSnapshot>(classCacheKey(slugOrId), getToken(), {
+      owned,
+      courses,
+      certificate,
+      lessons: Object.fromEntries(lessonsByCourse),
+    });
+  }, [resolved, owned, courses, certificate, lessonsByCourse, slugOrId]);
 
   const totals = useMemo(() => {
     const totalLessons = courses.reduce((n, c) => n + c.lessonCount, 0);
@@ -567,12 +639,58 @@ export default function ClassMemberArea({
   }
 
   /* ===================== BODY ===================== */
-  // Unresolved placeholder keeps skills in the guest position — that's also
-  // the SSR output, so crawlers index the skills markup.
+  // First-visit placeholder (also the SSR output, so crawlers index the skills
+  // markup): a two-column skeleton shaped like BOTH resolved layouts (member
+  // accordions+rail / guest about+buy-card), so the real content replaces it
+  // in place instead of shoving the page around. Repeat visits skip straight
+  // past this via the snapshot seed above.
   if (!resolved)
     return (
       <>
-        <div style={{ minHeight: 160 }} aria-hidden />
+        <div className="ik-cols" style={{ marginTop: 0 }} aria-hidden>
+          <div className="ik-stack">
+            <div className="ik-panel ik-panel--snug">
+              <div
+                className="ik-skel"
+                style={{
+                  height: 74,
+                  borderRadius: "16px 16px 0 0",
+                  margin: "-18px -22px 14px",
+                }}
+              />
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "10px 0",
+                  }}
+                >
+                  <div className="ik-skel" style={{ width: 56, height: 38 }} />
+                  <div
+                    className="ik-skel"
+                    style={{ width: "55%", height: 13 }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="ik-stack">
+            <div className="ik-panel">
+              <div className="ik-skel" style={{ width: "70%", height: 16 }} />
+              <div
+                className="ik-skel"
+                style={{ width: "45%", height: 13, marginTop: 10 }}
+              />
+              <div
+                className="ik-skel"
+                style={{ height: 42, marginTop: 16, borderRadius: 9 }}
+              />
+            </div>
+          </div>
+        </div>
         {skills}
       </>
     );
@@ -584,7 +702,11 @@ export default function ClassMemberArea({
     ).length;
     return (
       <>
-        <div className="ik-cols" style={{ marginTop: 0 }} id="your-courses">
+        <div
+          className="ik-cols ik-reveal"
+          style={{ marginTop: 0 }}
+          id="your-courses"
+        >
           <div className="ik-stack">
             {courses.length === 0 ? (
               <div className="ik-panel" style={{ color: "var(--text-muted)" }}>
@@ -641,7 +763,7 @@ export default function ClassMemberArea({
   const purchasable = priceLabel != null;
   return (
     <>
-      <div className="ik-cols" style={{ marginTop: 0 }}>
+      <div className="ik-cols ik-reveal" style={{ marginTop: 0 }}>
         <div className="ik-stack">
           <section className="ik-panel">
             <div className="ik-panel-head">
