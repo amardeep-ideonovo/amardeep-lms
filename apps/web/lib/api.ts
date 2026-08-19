@@ -539,10 +539,16 @@ export async function fetchAppConfig(): Promise<AppConfig | null> {
 // ---------- Site footer (PUBLIC) ----------
 // SSR'd in the root layout; null on failure so the layout never 500s.
 export async function fetchFooter(): Promise<FooterConfig | null> {
+  const isServer = typeof window === "undefined";
   try {
     return await request<FooterConfig>("/site/footer", {
       auth: false,
-      revalidate: PUBLIC_TTL_SECONDS,
+      // Server (SSR): TTL-cached for render perf — but Next's data cache
+      // serves STALE-while-revalidating, so an SSR-only footer needed several
+      // hard reloads to surface an admin edit. The client pass (Footer.tsx
+      // re-resolves per navigation, like Nav does for the header) omits the
+      // TTL → request() forces no-store → always fresh, reconciled in place.
+      ...(isServer ? { revalidate: PUBLIC_TTL_SECONDS } : {}),
     });
   } catch {
     return null;
