@@ -27,7 +27,7 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ClassExtrasDTO, ClassTileDTO } from "@lms/types";
 
-import { api, getToken, setCachedMe } from "./api";
+import { api, getCachedMe, getToken, setCachedMe } from "./api";
 import { readMemberCache, writeMemberCache } from "./member-cache";
 import { fetchMemberDashboard } from "./memberData";
 
@@ -98,6 +98,10 @@ export function useMe() {
       setCachedMe(u);
       return u;
     },
+    // Paint the cached profile immediately; updatedAt 0 marks it stale so the
+    // live /auth/me still fires right away and reconciles in place.
+    initialData: () => getCachedMe() ?? undefined,
+    initialDataUpdatedAt: 0,
   });
 }
 

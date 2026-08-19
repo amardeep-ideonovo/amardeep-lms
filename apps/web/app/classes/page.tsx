@@ -134,11 +134,13 @@ function ClassesInner() {
         </div>
         <div className="ik-main">
           <div className="ik-class-grid ik-class-grid--3">
+            {/* Same height as the real .ik-class-card (min-height 300) so the
+                grid doesn't grow when the tiles arrive. */}
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
                 className="ik-skel"
-                style={{ height: 218, borderRadius: 18 }}
+                style={{ height: 300, borderRadius: 18 }}
               />
             ))}
           </div>

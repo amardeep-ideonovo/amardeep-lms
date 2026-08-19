@@ -640,53 +640,79 @@ export default function ClassMemberArea({
 
   /* ===================== BODY ===================== */
   // First-visit placeholder (also the SSR output, so crawlers index the skills
-  // markup): a two-column skeleton shaped like BOTH resolved layouts (member
-  // accordions+rail / guest about+buy-card), so the real content replaces it
+  // markup): a two-column skeleton shaped like the REAL curriculum — the
+  // server-known lessonCount sizes the accordion skeletons (≈3 lessons/course
+  // heuristic; the public DTO doesn't carry a course count) and the rail is an
+  // ink card like the certificate card — so the resolved content replaces it
   // in place instead of shoving the page around. Repeat visits skip straight
   // past this via the snapshot seed above.
-  if (!resolved)
+  if (!resolved) {
+    const panels = Math.max(
+      1,
+      Math.min(Math.round(Math.max(lessonCount, 1) / 3) || 1, 3),
+    );
+    const rowsPer = Math.max(
+      1,
+      Math.min(Math.ceil(Math.max(lessonCount, 1) / panels), 4),
+    );
     return (
       <>
         <div className="ik-cols" style={{ marginTop: 0 }} aria-hidden>
           <div className="ik-stack">
-            <div className="ik-panel ik-panel--snug">
-              <div
-                className="ik-skel"
-                style={{
-                  height: 74,
-                  borderRadius: "16px 16px 0 0",
-                  margin: "-18px -22px 14px",
-                }}
-              />
-              {[0, 1, 2].map((i) => (
+            {Array.from({ length: panels }, (_, p) => (
+              <div key={p} className="ik-panel ik-panel--snug">
                 <div
-                  key={i}
+                  className="ik-skel"
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "10px 0",
+                    height: 74,
+                    borderRadius: "16px 16px 0 0",
+                    margin: "-18px -22px 14px",
                   }}
-                >
-                  <div className="ik-skel" style={{ width: 56, height: 38 }} />
+                />
+                {Array.from({ length: rowsPer }, (_, i) => (
                   <div
-                    className="ik-skel"
-                    style={{ width: "55%", height: 13 }}
-                  />
-                </div>
-              ))}
-            </div>
+                    key={i}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 12,
+                      padding: "10px 0",
+                    }}
+                  >
+                    <div
+                      className="ik-skel"
+                      style={{ width: 56, height: 38 }}
+                    />
+                    <div
+                      className="ik-skel"
+                      style={{ width: "55%", height: 13 }}
+                    />
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
           <div className="ik-stack">
-            <div className="ik-panel">
-              <div className="ik-skel" style={{ width: "70%", height: 16 }} />
+            <div className="ik-ink-card">
               <div
-                className="ik-skel"
-                style={{ width: "45%", height: 13, marginTop: 10 }}
+                className="ik-skel ik-skel--ink"
+                style={{ width: 84, height: 84, borderRadius: "50%" }}
               />
               <div
-                className="ik-skel"
-                style={{ height: 42, marginTop: 16, borderRadius: 9 }}
+                className="ik-skel ik-skel--ink"
+                style={{ width: "55%", height: 15 }}
+              />
+              <div
+                className="ik-skel ik-skel--ink"
+                style={{ width: "85%", height: 12 }}
+              />
+              <div
+                className="ik-skel ik-skel--ink"
+                style={{ width: "70%", height: 12 }}
+              />
+              <div
+                className="ik-skel ik-skel--ink"
+                style={{ width: 130, height: 38, borderRadius: 9 }}
               />
             </div>
           </div>
@@ -694,6 +720,7 @@ export default function ClassMemberArea({
         {skills}
       </>
     );
+  }
 
   /* ----- Member: course accordions + certificate/live rail ----- */
   if (owned) {
