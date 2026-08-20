@@ -553,11 +553,18 @@ export const api = {
       `members-${reportStamp()}.xlsx`,
     );
   },
-  downloadSubscriptionsExport: () =>
-    downloadBlob(
-      `/admin/reports/subscriptions-export.xlsx`,
+  // Honors the on-screen status/search filters (parity with the Subscriptions
+  // list); omit them to export the whole table.
+  downloadSubscriptionsExport: (f?: { status?: string; q?: string }) => {
+    const qs = new URLSearchParams();
+    if (f?.status) qs.set("status", f.status);
+    if (f?.q) qs.set("q", f.q);
+    const s = qs.toString();
+    return downloadBlob(
+      `/admin/reports/subscriptions-export.xlsx${s ? `?${s}` : ""}`,
       `subscriptions-${reportStamp()}.xlsx`,
-    ),
+    );
+  },
 
   // in-app notifications (per-admin read state)
   listNotifications: (params?: { page?: number; pageSize?: number }) => {

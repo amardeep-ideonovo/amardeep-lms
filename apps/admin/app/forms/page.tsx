@@ -820,9 +820,6 @@ export default function FormsPage() {
             <div className="card">
               <div className="card-head">
                 <h2>Fields</h2>
-                <Button type="button" size="sm" onClick={addField}>
-                  + Add field
-                </Button>
               </div>
               {form.fields.length === 0 && (
                 <p className="muted">No fields yet — add one.</p>
@@ -953,6 +950,16 @@ export default function FormsPage() {
                   </div>
                 </div>
               ))}
+              {/* "Add field" lives at the BOTTOM of the list so the admin can
+                  keep adding without scrolling back up after each new field. */}
+              <Button
+                type="button"
+                size="sm"
+                onClick={addField}
+                style={{ marginTop: 12 }}
+              >
+                + Add field
+              </Button>
             </div>
 
             <div className="card">

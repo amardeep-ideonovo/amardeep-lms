@@ -82,6 +82,29 @@ export class ReportsService {
     return this.toBuffer(wb);
   }
 
+  // Subscriptions export driven by the Subscriptions-page filters (status +
+  // free-text search). Mirrors the on-screen `visible` predicate so a "current
+  // view" export matches exactly what the admin sees; empty filters = all rows.
+  async subscriptionsWorkbookFiltered(query: {
+    status?: string;
+    q?: string;
+  }): Promise<Buffer> {
+    const wb = this.newWorkbook();
+    let rows: SubscriptionRowDTO[];
+    try {
+      rows = await this.subscriptions.list();
+    } catch (err) {
+      this.logger.error(
+        `[reports] subscriptions export failed: ${this.msg(err)}`,
+      );
+      throw new BadGatewayException(
+        "Could not load subscriptions from Stripe. Check the Stripe configuration and try again.",
+      );
+    }
+    this.addSubscriptionsSheet(wb, this.filterSubsByView(rows, query));
+    return this.toBuffer(wb);
+  }
+
   async engagementWorkbook(filter?: ReportFilter): Promise<Buffer> {
     const wb = this.newWorkbook();
     await this.addEngagementSheet(wb, filter);
@@ -492,6 +515,32 @@ export class ReportsService {
     if (r.gte && d < r.gte) return false;
     if (r.lte && d > r.lte) return false;
     return true;
+  }
+
+  // In-memory filter that mirrors the Subscriptions page's on-screen controls
+  // (apps/admin/app/subscriptions/page.tsx): statusKey = paused ? "paused" :
+  // status, and a case-insensitive substring match on member name, email, or
+  // class name. Keeping this in lockstep with the page guarantees the "current
+  // view" export equals the displayed rows.
+  private filterSubsByView(
+    subs: SubscriptionRowDTO[],
+    f: { status?: string; q?: string },
+  ): SubscriptionRowDTO[] {
+    const status = f.status?.trim();
+    const q = f.q?.trim().toLowerCase();
+    const statusKey = (s: SubscriptionRowDTO): string =>
+      s.paused ? "paused" : s.status;
+    return subs.filter((s) => {
+      if (status && statusKey(s) !== status) return false;
+      if (q) {
+        const hit =
+          s.memberName.toLowerCase().includes(q) ||
+          (s.memberEmail ?? "").toLowerCase().includes(q) ||
+          s.levelName.toLowerCase().includes(q);
+        if (!hit) return false;
+      }
+      return true;
+    });
   }
 
   // In-memory filter for the Stripe-sourced subscription rows: by class (levelId)
