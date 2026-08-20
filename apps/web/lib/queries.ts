@@ -25,7 +25,12 @@
 // `enabled`, over calling refetch() directly.
 
 import { useQuery } from "@tanstack/react-query";
-import type { ClassExtrasDTO, ClassTileDTO } from "@lms/types";
+import type {
+  ClassExtrasDTO,
+  ClassTileDTO,
+  CourseCard,
+  LessonDTO,
+} from "@lms/types";
 
 import { api, getCachedMe, getToken, setCachedMe } from "./api";
 import { readMemberCache, writeMemberCache } from "./member-cache";
@@ -37,6 +42,10 @@ export const qk = {
   mySubscriptions: ["mySubscriptions"] as const,
   myInvoices: ["myInvoices"] as const,
   myCertificates: ["myCertificates"] as const,
+  // Parameterized keys: the stable "courseLessons" prefix lets a broad
+  // invalidate (all courses) match by prefix; the id scopes a single course.
+  courses: ["courses"] as const,
+  courseLessons: (courseId: string) => ["courseLessons", courseId] as const,
 };
 
 // localStorage snapshot keys (lib/member-cache.ts): the dashboard payload and
@@ -136,5 +145,59 @@ export function useMyCertificates() {
       readMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, getToken())?.data,
     initialDataUpdatedAt: () =>
       readMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, getToken())?.t,
+  });
+}
+
+// ---------- course page (/courses/[id]) ----------
+// The course page needs two reads: the course card (cover/title/meta/progress)
+// and its ordered lessons. Both are snapshot-seeded like the dashboard so the
+// Ink Hero page paints instantly on a repeat visit and revalidates in place —
+// the same instant-paint the class page gets from member-cache, now behind the
+// standard TanStack layer (global 401 handling, focus revalidation).
+
+const COURSES_CACHE_KEY = "courses";
+const courseLessonsCacheKey = (courseId: string) => `courseLessons:${courseId}`;
+
+// All courses the member can access. The course page finds its one course here
+// (there is no single-course member endpoint); the list is small and shared, so
+// caching it also warms any sibling course link.
+export function useCourses() {
+  return useQuery({
+    queryKey: qk.courses,
+    queryFn: async () => {
+      const list = await api.courses();
+      writeMemberCache<CourseCard[]>(COURSES_CACHE_KEY, getToken(), list);
+      return list;
+    },
+    initialData: () =>
+      readMemberCache<CourseCard[]>(COURSES_CACHE_KEY, getToken())?.data,
+    initialDataUpdatedAt: () =>
+      readMemberCache<CourseCard[]>(COURSES_CACHE_KEY, getToken())?.t,
+  });
+}
+
+// A course's lessons, ordered. A 403 (course locked for this member) surfaces
+// as the query error for the page to render its locked state; a 401 is handled
+// globally (lib/query.tsx). Sorted in the queryFn so the snapshot is stored
+// already-ordered and every reader gets the same sequence.
+export function useCourseLessons(courseId: string) {
+  return useQuery({
+    queryKey: qk.courseLessons(courseId),
+    queryFn: async () => {
+      const list = await api.courseLessons(courseId);
+      const ordered = [...list].sort((a, b) => a.order - b.order);
+      writeMemberCache<LessonDTO[]>(
+        courseLessonsCacheKey(courseId),
+        getToken(),
+        ordered,
+      );
+      return ordered;
+    },
+    initialData: () =>
+      readMemberCache<LessonDTO[]>(courseLessonsCacheKey(courseId), getToken())
+        ?.data,
+    initialDataUpdatedAt: () =>
+      readMemberCache<LessonDTO[]>(courseLessonsCacheKey(courseId), getToken())
+        ?.t,
   });
 }

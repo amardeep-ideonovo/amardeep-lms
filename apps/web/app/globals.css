@@ -5706,15 +5706,18 @@ a.ik-lesson:hover {
   box-shadow: 0 0 0 6px var(--surface-hover);
   border-radius: 4px;
 }
-/* Sequence number in front of each lesson (1..n within its course). */
+/* "Lesson N" label in front of each lesson (1..n within its course). Widened
+   from the old bare-number badge to fit the word; left-aligned so the numbers
+   still line up down the column. */
 .ik-lesson-num {
   flex: none;
-  min-width: 18px;
-  text-align: center;
-  font-size: 12.5px;
+  min-width: 58px;
+  text-align: left;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .ik-lesson-thumb {
   width: 56px;

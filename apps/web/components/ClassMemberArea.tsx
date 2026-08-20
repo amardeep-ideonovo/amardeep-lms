@@ -12,6 +12,8 @@ import { ApiError, api, getToken } from "@/lib/api";
 import { readMemberCache, writeMemberCache } from "@/lib/member-cache";
 import { fmtDuration, fmtTotalMinutes } from "@/lib/memberData";
 import CertificateClaimButton from "@/components/CertificateClaimButton";
+import { BandRing, CertRing } from "@/components/ProgressRing";
+import { CheckIcon, PlayGlyph } from "@/components/LessonGlyphs";
 
 // This component is SSR'd (the skeleton + skills are the crawlable output), so
 // the cache seed must run in a layout effect — client-only, but BEFORE the
@@ -114,24 +116,8 @@ function resolveOwnership(slugOrId: string): Promise<Ownership> {
 }
 
 /* ---------- tiny icons (paths from the frames) ---------- */
-const CheckIcon = ({ size = 13 }: { size?: number }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    aria-hidden="true"
-  >
-    <path
-      d="M20 6 9 17l-5-5"
-      stroke="#2a9d8d"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-// Chevron affordance on the (now clickable) course header row.
+// CheckIcon + PlayGlyph now live in components/LessonGlyphs.tsx (shared with the
+// course page). ChevronIcon stays here — only the course accordion header uses it.
 const ChevronIcon = ({ size = 18 }: { size?: number }) => (
   <svg
     width={size}
@@ -149,113 +135,6 @@ const ChevronIcon = ({ size = 18 }: { size?: number }) => (
     />
   </svg>
 );
-const PlayGlyph = ({
-  size = 11,
-  fill = "#777394", // AA muted (SVG attr needs a literal; keep in step with --muted)
-}: {
-  size?: number;
-  fill?: string;
-}) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    aria-hidden="true"
-  >
-    <path d="m8 5 12 7-12 7z" fill={fill} />
-  </svg>
-);
-
-/* ---------- 72px band progress ring (frame 2c hero) ---------- */
-function BandRing({ pct }: { pct: number }) {
-  const C = 2 * Math.PI * 30.5; // ≈191.6
-  const arc = Math.max(0, Math.min(100, pct)) * (C / 100);
-  return (
-    <svg
-      className="ik-ring"
-      width="72"
-      height="72"
-      viewBox="0 0 72 72"
-      aria-label={`${pct}% complete`}
-    >
-      <circle
-        cx="36"
-        cy="36"
-        r="30.5"
-        fill="none"
-        stroke="rgba(255,255,255,.15)"
-        strokeWidth="7"
-      />
-      <circle
-        cx="36"
-        cy="36"
-        r="30.5"
-        fill="none"
-        stroke="#3cc4b2"
-        strokeWidth="7"
-        strokeLinecap="round"
-        strokeDasharray={`${arc} ${C}`}
-        transform="rotate(-90 36 36)"
-      />
-      <text
-        x="36"
-        y="41.6"
-        textAnchor="middle"
-        fontSize="16"
-        fontWeight="700"
-        fill="#fff"
-      >
-        {pct}%
-      </text>
-    </svg>
-  );
-}
-
-/* ---------- 84px ink certificate ring (frame 2c rail) ---------- */
-function CertRing({ pct }: { pct: number }) {
-  const C = 2 * Math.PI * 36; // ≈226.2
-  const arc = Math.max(0, Math.min(100, pct)) * (C / 100);
-  return (
-    <svg
-      className="ik-ring"
-      width="84"
-      height="84"
-      viewBox="0 0 84 84"
-      aria-hidden="true"
-    >
-      <circle
-        cx="42"
-        cy="42"
-        r="36"
-        fill="none"
-        stroke="rgba(255,255,255,.14)"
-        strokeWidth="8"
-      />
-      <circle
-        cx="42"
-        cy="42"
-        r="36"
-        fill="none"
-        stroke="#3cc4b2"
-        strokeWidth="8"
-        strokeLinecap="round"
-        strokeDasharray={`${arc} ${C}`}
-        transform="rotate(-90 42 42)"
-      />
-      <text
-        x="42"
-        y="48.3"
-        textAnchor="middle"
-        fontSize="18"
-        fontWeight="700"
-        fill="#fff"
-      >
-        {pct}%
-      </text>
-    </svg>
-  );
-}
 
 /* ---------- one course accordion card with lesson rows (frame 2c) ---------- */
 function CourseAccordion({
@@ -359,7 +238,7 @@ function CourseAccordion({
                 }
               >
                 <span className="ik-lesson-num" aria-hidden="true">
-                  {i + 1}
+                  Lesson {i + 1}
                 </span>
                 {l.thumbnailUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -764,29 +643,54 @@ export default function ClassMemberArea({
             )}
           </div>
           <div className="ik-stack">
-            {/* certificate ink card */}
-            <section className="ik-ink-card" aria-label="Class certificate">
-              <CertRing pct={totals.pct} />
-              <div className="ik-ink-card-title">Class certificate</div>
-              <div className="ik-ink-card-text">
-                {certificate?.claimed
-                  ? `Your certificate for ${name} has been issued.`
-                  : certificate?.eligible
-                    ? `You've completed every lesson — claim your certificate for ${name}.`
-                    : courses.length > 0
-                      ? `Finish all ${courses.length} course${courses.length === 1 ? "" : "s"} to earn your certificate for ${name}.`
-                      : `Complete this class to earn your certificate.`}
-              </div>
-              {certificate && (certificate.eligible || certificate.claimed) ? (
-                <CertificateClaimButton status={certificate} />
-              ) : (
+            {/* Certificate ink card — only when a certificate is actually
+                configured for this class (level override or a default template
+                resolves; the API sends `certificate: null` otherwise). With no
+                certificate we show the plain progress card below instead, so a
+                class that doesn't offer one never dangles a dead cert promise. */}
+            {certificate ? (
+              <section className="ik-ink-card" aria-label="Class certificate">
+                <CertRing pct={totals.pct} />
+                <div className="ik-ink-card-title">Class certificate</div>
+                <div className="ik-ink-card-text">
+                  {certificate.claimed
+                    ? `Your certificate for ${name} has been issued.`
+                    : certificate.eligible
+                      ? `You've completed every lesson — claim your certificate for ${name}.`
+                      : courses.length > 0
+                        ? `Finish all ${courses.length} course${courses.length === 1 ? "" : "s"} to earn your certificate for ${name}.`
+                        : `Complete this class to earn your certificate.`}
+                </div>
+                {certificate.eligible || certificate.claimed ? (
+                  <CertificateClaimButton status={certificate} />
+                ) : (
+                  <a href="#your-courses" className="ik-ink-ghost">
+                    {coursesLeft > 0
+                      ? `${coursesLeft} course${coursesLeft === 1 ? "" : "s"} to go`
+                      : "View courses"}
+                  </a>
+                )}
+              </section>
+            ) : (
+              <section className="ik-ink-card" aria-label="Your progress">
+                <CertRing pct={totals.pct} />
+                <div className="ik-ink-card-title">Your progress</div>
+                <div className="ik-ink-card-text">
+                  {totals.totalLessons === 0
+                    ? "No lessons in this class yet."
+                    : totals.pct >= 100
+                      ? `All ${totals.totalLessons} lessons complete — nicely done.`
+                      : `${totals.done} of ${totals.totalLessons} lessons complete.`}
+                </div>
                 <a href="#your-courses" className="ik-ink-ghost">
-                  {coursesLeft > 0
-                    ? `${coursesLeft} course${coursesLeft === 1 ? "" : "s"} to go`
-                    : "View courses"}
+                  {totals.totalLessons === 0
+                    ? "View courses"
+                    : totals.pct >= 100
+                      ? "Review courses"
+                      : "Continue"}
                 </a>
-              )}
-            </section>
+              </section>
+            )}
             <ClassLiveCard className={name} imageUrl={imageUrl ?? null} />
           </div>
         </div>
