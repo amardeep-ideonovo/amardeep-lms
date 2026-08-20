@@ -156,6 +156,10 @@ export default function PopupEditor() {
   const [pages, setPages] = useState<PageListItem[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  // Edits are staged locally and only persisted when the admin clicks Save, so
+  // experimenting with an existing popup never auto-commits — leaving the editor
+  // without saving reverts. `dirty` tracks whether there are unsaved changes.
+  const [dirty, setDirty] = useState(false);
   const [stats, setStats] = useState<{
     views: number;
     clicks: number;
@@ -163,8 +167,10 @@ export default function PopupEditor() {
   } | null>(null);
 
   const latest = useRef<PopupData | null>(null);
-  const docTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const settingsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // JSON of the last-persisted Puck doc. Puck can fire an onChange on mount with
+  // the data it was just given; comparing against this snapshot means only a
+  // REAL content edit flags unsaved changes.
+  const savedDocJson = useRef<string>("");
 
   // RichText field reuses the TipTap editor (admin-only, never ships to site).
   const config = useMemo(() => {
@@ -284,6 +290,7 @@ export default function PopupEditor() {
         });
         const data = popup.data as unknown as PopupData;
         latest.current = data;
+        savedDocJson.current = JSON.stringify(data);
         setInitialData(data);
       } catch (err) {
         if (alive)
@@ -296,74 +303,74 @@ export default function PopupEditor() {
     })();
     return () => {
       alive = false;
-      if (docTimer.current) clearTimeout(docTimer.current);
-      if (settingsTimer.current) clearTimeout(settingsTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, authLoading]);
 
+  // Warn before a full-page unload (reload / close tab) while there are unsaved
+  // changes. In-app navigation is guarded on the "← Popups" button below.
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
+
   // Puck is a drag-and-drop builder — unusable on a phone. Show a gate instead.
   const narrow = useIsNarrow();
 
-  // Debounced autosave of the Puck document on every edit.
-  function scheduleSave(data: PopupData) {
+  // Stage a Puck document edit locally (no network). Only a genuine change from
+  // the last-saved snapshot flags unsaved work — this filters out Puck's
+  // mount-time onChange echo. Never clears `dirty` (settings/name may be dirty
+  // too); Save is the only thing that clears it.
+  function stageDoc(data: PopupData) {
     latest.current = data;
-    if (docTimer.current) clearTimeout(docTimer.current);
-    setSaveState("saving");
-    docTimer.current = setTimeout(
-      () =>
-        void (async () => {
-          try {
-            await api.updatePopup(id, {
-              data: (latest.current ?? undefined) as unknown as
-                PuckDocument | undefined,
-            });
-            setSaveState("saved");
-          } catch {
-            setSaveState("error");
-          }
-        })(),
-      1000,
-    );
+    if (JSON.stringify(data) !== savedDocJson.current) setDirty(true);
   }
 
-  // Debounced autosave of the popup settings (style + visibility).
-  function scheduleSettingsSave(next: Settings) {
-    if (settingsTimer.current) clearTimeout(settingsTimer.current);
+  // Persist EVERYTHING (name + settings + doc) in one write. The only save path.
+  async function saveAll() {
+    if (!settings) return;
     setSaveState("saving");
-    settingsTimer.current = setTimeout(
-      () =>
-        void (async () => {
-          try {
-            await api.updatePopup(id, { ...next });
-            setSaveState("saved");
-          } catch {
-            setSaveState("error");
-          }
-        })(),
-      600,
-    );
+    try {
+      const updated = await api.updatePopup(id, {
+        name: name.trim() || "Untitled popup",
+        ...settings,
+        data: (latest.current ?? undefined) as unknown as
+          PuckDocument | undefined,
+      });
+      setName(updated.name);
+      savedDocJson.current = JSON.stringify(latest.current ?? null);
+      setDirty(false);
+      setSaveState("saved");
+    } catch (err) {
+      setSaveState("error");
+      await dialog.notify(
+        err instanceof ApiError ? err.message : "Failed to save popup",
+      );
+    }
   }
 
   function updateSettings(patch: Partial<Settings>) {
     setSettings((s) => {
       if (!s) return s;
-      const next = { ...s, ...patch };
-      scheduleSettingsSave(next);
-      return next;
+      return { ...s, ...patch };
     });
+    setDirty(true);
   }
 
   function togglePageId(pageId: string) {
+    setDirty(true);
     setSettings((s) => {
       if (!s) return s;
       const has = s.pageIds.includes(pageId);
       const pageIds = has
         ? s.pageIds.filter((x) => x !== pageId)
         : [...s.pageIds, pageId];
-      const next = { ...s, pageIds };
-      scheduleSettingsSave(next);
-      return next;
+      return { ...s, pageIds };
     });
   }
 
@@ -377,19 +384,6 @@ export default function PopupEditor() {
       setSaveState("error");
       await dialog.notify(
         err instanceof ApiError ? err.message : "Failed to update status",
-      );
-    }
-  }
-
-  async function saveName() {
-    try {
-      const updated = await api.updatePopup(id, {
-        name: name.trim() || "Untitled popup",
-      });
-      setName(updated.name);
-    } catch (err) {
-      await dialog.notify(
-        err instanceof ApiError ? err.message : "Failed to save name",
       );
     }
   }
@@ -440,11 +434,27 @@ export default function PopupEditor() {
   const saveLabel =
     saveState === "saving"
       ? STR.common.saving
-      : saveState === "saved"
-        ? "Saved ✓"
-        : saveState === "error"
-          ? "Save failed"
-          : "";
+      : saveState === "error"
+        ? "Save failed"
+        : dirty
+          ? "Unsaved changes"
+          : saveState === "saved"
+            ? "Saved ✓"
+            : "";
+
+  // In-app back navigation guards unsaved changes (leaving = revert).
+  async function leaveEditor() {
+    if (
+      dirty &&
+      !(await dialog.confirm({
+        message:
+          "Discard unsaved changes to this popup? Your edits won’t be applied.",
+        danger: true,
+      }))
+    )
+      return;
+    router.push("/popups");
+  }
 
   const needsPageList =
     settings.pageMode === "INCLUDE" || settings.pageMode === "EXCLUDE";
@@ -473,18 +483,16 @@ export default function PopupEditor() {
           flex: "none",
         }}
       >
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => router.push("/popups")}
-        >
+        <Button variant="secondary" size="sm" onClick={leaveEditor}>
           ← Popups
         </Button>
         <input
           aria-label="Popup name"
           value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={saveName}
+          onChange={(e) => {
+            setName(e.target.value);
+            setDirty(true);
+          }}
           autoFocus
           onFocus={(e) => e.currentTarget.select()}
           placeholder="Popup name"
@@ -514,6 +522,13 @@ export default function PopupEditor() {
         </Button>
         <Button
           size="sm"
+          onClick={saveAll}
+          disabled={!dirty || saveState === "saving"}
+        >
+          {saveState === "saving" ? STR.common.saving : STR.common.save}
+        </Button>
+        <Button
+          size="sm"
           variant={status === "ACTIVE" ? "secondary" : "primary"}
           onClick={() =>
             saveStatus(status === "ACTIVE" ? "INACTIVE" : "ACTIVE")
@@ -527,12 +542,11 @@ export default function PopupEditor() {
         <Puck
           config={config}
           data={initialData}
-          onChange={(data) => scheduleSave(data)}
+          onChange={(data) => stageDoc(data)}
           // Hide Puck's built-in "Publish" button — a popup's live state is
           // controlled by the Activate/Deactivate button in our toolbar above
-          // (status ACTIVE/INACTIVE). The document autosaves via onChange, so
-          // there's nothing for Publish to do. This removes the confusing
-          // Activate-vs-Publish duplication.
+          // (status ACTIVE/INACTIVE), and content persists via our own Save
+          // button. This removes the confusing Activate-vs-Publish duplication.
           overrides={{ headerActions: () => <></> }}
         />
       </div>
@@ -575,13 +589,25 @@ export default function PopupEditor() {
               }}
             >
               <strong>Popup settings</strong>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setDrawerOpen(false)}
-              >
-                Done
-              </Button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    await saveAll();
+                    setDrawerOpen(false);
+                  }}
+                  disabled={saveState === "saving"}
+                >
+                  {saveState === "saving" ? STR.common.saving : STR.common.save}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  {STR.common.close}
+                </Button>
+              </div>
             </div>
 
             <div style={{ overflowY: "auto", padding: 16 }}>
@@ -1005,8 +1031,9 @@ export default function PopupEditor() {
                 className="muted"
                 style={{ fontSize: 12, marginTop: 16, lineHeight: 1.5 }}
               >
-                Changes save automatically. Only <strong>Active</strong> popups
-                appear to visitors.
+                Changes apply only when you click <strong>Save</strong> —
+                leaving without saving discards them. Only{" "}
+                <strong>Active</strong> popups appear to visitors.
               </p>
             </div>
           </aside>

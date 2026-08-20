@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { SubscriptionRowDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
-import { DownloadIcon, SpinnerIcon } from "@/components/ExportIcons";
+import ExportMenu from "@/components/ExportMenu";
 import { STR, formatMoney } from "@lms/types";
 import { Button } from "@lms/ui";
 
@@ -80,6 +80,20 @@ export default function SubscriptionsPage() {
     return Array.from(set);
   }, [rows]);
 
+  // Excel export. "Current view" mirrors the on-screen Status + Search filters;
+  // "All" ignores them. The server replays the same statusKey/search predicate.
+  async function runExport(filters: { status?: string; q?: string }) {
+    setExporting(true);
+    setError(null);
+    try {
+      await api.downloadSubscriptionsExport(filters);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const q = search.trim().toLowerCase();
   const visible = rows.filter((r) => {
     if (statusFilter !== "all" && statusKey(r) !== statusFilter) return false;
@@ -113,31 +127,27 @@ export default function SubscriptionsPage() {
           </p>
         </div>
         <div className="row-actions">
-          <Button
-            type="button"
-            variant="secondary"
-            iconOnly
-            disabled={exporting || loading}
-            aria-label={
-              exporting
-                ? "Exporting subscriptions…"
-                : "Download subscriptions as Excel"
-            }
-            title={exporting ? "Exporting…" : "Download Excel"}
-            onClick={async () => {
-              setExporting(true);
-              setError(null);
-              try {
-                await api.downloadSubscriptionsExport();
-              } catch (e) {
-                setError(e instanceof ApiError ? e.message : "Export failed");
-              } finally {
-                setExporting(false);
-              }
-            }}
-          >
-            {exporting ? <SpinnerIcon /> : <DownloadIcon />}
-          </Button>
+          <ExportMenu
+            busy={exporting}
+            disabled={loading}
+            label="Download subscriptions as Excel"
+            options={[
+              {
+                label: "Current view (filtered)",
+                hint: "Applies the status & search filters",
+                onSelect: () =>
+                  runExport({
+                    status: statusFilter === "all" ? undefined : statusFilter,
+                    q: search.trim() || undefined,
+                  }),
+              },
+              {
+                label: "All subscriptions",
+                hint: "Ignore filters — export everything",
+                onSelect: () => runExport({}),
+              },
+            ]}
+          />
           <Button variant="secondary" onClick={load} disabled={loading}>
             {loading ? "Refreshing…" : "Refresh"}
           </Button>
