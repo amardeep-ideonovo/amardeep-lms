@@ -47,13 +47,17 @@ export function CheckoutAuthBanner({
   );
 }
 
-// Email + (for a guest) password. `showPassword` is false once signed in.
+// Email + (for a guest) password and its confirmation. `showPassword` is false
+// once signed in. The password/confirm match-check lives in the page's
+// validate(), same as the reset-password / account forms.
 export function IdentityFields({
   email,
   onEmail,
   showPassword,
   password,
   onPassword,
+  confirmPassword,
+  onConfirmPassword,
   minPassword,
 }: {
   email: string;
@@ -61,6 +65,8 @@ export function IdentityFields({
   showPassword: boolean;
   password: string;
   onPassword: (v: string) => void;
+  confirmPassword: string;
+  onConfirmPassword: (v: string) => void;
   minPassword: number;
 }) {
   return (
@@ -75,15 +81,26 @@ export function IdentityFields({
         aria-label={STR.labels.email}
       />
       {showPassword && (
-        <input
-          className="co-input"
-          type="password"
-          placeholder={`Password (${minPassword}+ characters)`}
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => onPassword(e.target.value)}
-          aria-label={STR.labels.password}
-        />
+        <>
+          <input
+            className="co-input"
+            type="password"
+            placeholder={`Password (${minPassword}+ characters)`}
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => onPassword(e.target.value)}
+            aria-label={STR.labels.password}
+          />
+          <input
+            className="co-input"
+            type="password"
+            placeholder={STR.labels.confirmPassword}
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => onConfirmPassword(e.target.value)}
+            aria-label={STR.labels.confirmPassword}
+          />
+        </>
       )}
     </>
   );

@@ -40,6 +40,7 @@ export const STR = {
     audience: "Audience",
     class: "Class",
     confirmNewPassword: "Confirm new password",
+    confirmPassword: "Confirm password",
     date: "Date",
     description: "Description",
     email: "Email",

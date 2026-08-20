@@ -12,6 +12,7 @@ export default function SignupPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
@@ -22,6 +23,11 @@ export default function SignupPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    // Match-check lives client-side, same as the reset-password / account forms.
+    if (password !== confirmPassword) {
+      setError(STR.errors.passwordsDontMatch);
+      return;
+    }
     setLoading(true);
     try {
       const res = await api.signup({
@@ -127,6 +133,21 @@ export default function SignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
               />
               <span className="hint">{`At least ${PASSWORD_MIN.member} characters.`}</span>
+            </div>
+
+            <div className="field">
+              <label htmlFor="confirmPassword">
+                {STR.labels.confirmPassword}
+              </label>
+              <input
+                id="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                minLength={PASSWORD_MIN.member}
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
             </div>
 
             <div className="field">
