@@ -63,6 +63,7 @@ export default function CheckoutPage() {
   const [selectedKey, setSelectedKey] = useState<string>("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
@@ -203,6 +204,7 @@ export default function CheckoutPage() {
     if (!user) {
       if (password.length < MIN_PASSWORD)
         return STR.validation.passwordMin(MIN_PASSWORD);
+      if (password !== confirmPassword) return STR.errors.passwordsDontMatch;
     }
     if (!firstName.trim()) return "Enter your first name.";
     if (!lastName.trim()) return "Enter your last name.";
@@ -472,6 +474,7 @@ export default function CheckoutPage() {
               logout();
               applyUser(null);
               setPassword("");
+              setConfirmPassword("");
             }}
             onShowLogin={() => setShowLogin(true)}
           />
@@ -515,6 +518,8 @@ export default function CheckoutPage() {
               showPassword={!user}
               password={password}
               onPassword={setPassword}
+              confirmPassword={confirmPassword}
+              onConfirmPassword={setConfirmPassword}
               minPassword={MIN_PASSWORD}
             />
 

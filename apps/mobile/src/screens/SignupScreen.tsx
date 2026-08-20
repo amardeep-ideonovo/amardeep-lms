@@ -36,6 +36,7 @@ export function SignupScreen({ navigation }: Props) {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
@@ -46,12 +47,18 @@ export function SignupScreen({ navigation }: Props) {
   const canSubmit =
     email.trim().length > 0 &&
     password.length >= PASSWORD_MIN.member &&
+    confirmPassword.length > 0 &&
     firstName.trim().length > 0 &&
     lastName.trim().length > 0 &&
     !submitting;
 
   async function onSubmit() {
     if (!canSubmit) return;
+    // Match-check lives client-side, same as the account change-password form.
+    if (password !== confirmPassword) {
+      setError(STR.errors.passwordsDontMatch);
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -160,6 +167,16 @@ export function SignupScreen({ navigation }: Props) {
               textContentType="newPassword"
               value={password}
               onChangeText={setPassword}
+              editable={!submitting}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder={STR.labels.confirmPassword}
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry
+              textContentType="newPassword"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
               editable={!submitting}
             />
             <TextInput
