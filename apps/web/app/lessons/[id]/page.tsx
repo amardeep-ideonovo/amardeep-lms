@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -19,7 +20,8 @@ import type {
   LessonNoteDTO,
 } from "@lms/types";
 import { STR, formatBytes } from "@lms/types";
-import { ApiError, api, clearToken } from "@/lib/api";
+import { ApiError, api, clearToken, getToken } from "@/lib/api";
+import { readMemberCache, writeMemberCache } from "@/lib/member-cache";
 import { fmtDuration } from "@/lib/memberData";
 import AuthGate from "@/components/AuthGate";
 import PopupHost from "@/components/PopupHost";
@@ -133,6 +135,26 @@ const DownloadIcon = ({ color = "#272144" }: { color?: string }) => (
   </svg>
 );
 
+// useLayoutEffect warns on the server; alias it (same pattern as ClassMemberArea
+// / AuthGate) so the snapshot seed runs client-only but BEFORE the first paint.
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+// Last-known lesson payload, cached in localStorage (lib/member-cache.ts) so
+// switching lessons (prev/next or the rail list) paints the destination
+// INSTANTLY on a revisit and revalidates in the background — the class/course
+// page pattern. The band + rail already stay put across a switch (they derive
+// from the course's sibling list, known before the new lesson lands); this
+// removes the player/content flash too.
+type LessonSnapshot = {
+  lesson: LessonDTO;
+  siblings: LessonDTO[];
+  course: CourseCard | null;
+  completed: boolean;
+  certificates: ClassCertificateStatusDTO[];
+};
+const lessonCacheKey = (id: string) => `lesson:${id}`;
+
 function LessonInner() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -151,6 +173,33 @@ function LessonInner() {
   const [certificates, setCertificates] = useState<ClassCertificateStatusDTO[]>(
     [],
   );
+
+  // Pre-paint: seed the destination lesson from its localStorage snapshot so a
+  // revisit paints INSTANTLY; on a cache miss, clear the per-lesson body so the
+  // shape-accurate skeleton shows instead of the PREVIOUS lesson's video
+  // (siblings + course are kept so the band + rail stay put within a course).
+  // Also reset scroll — a prev/next click from the bottom should land at the top
+  // of the new lesson. The fetch effect below still runs and revalidates.
+  useIsomorphicLayoutEffect(() => {
+    const snap = readMemberCache<LessonSnapshot>(
+      lessonCacheKey(lessonId),
+      getToken(),
+    );
+    setError(null);
+    setLocked(false);
+    if (snap) {
+      setLesson(snap.data.lesson);
+      setSiblings(snap.data.siblings);
+      setCourse(snap.data.course);
+      setCompleted(snap.data.completed);
+      setCertificates(snap.data.certificates);
+    } else {
+      setLesson(null);
+      setCompleted(false);
+      setCertificates([]);
+    }
+    if (typeof window !== "undefined") window.scrollTo(0, 0);
+  }, [lessonId]);
 
   useEffect(() => {
     let active = true;
@@ -195,6 +244,51 @@ function LessonInner() {
       active = false;
     };
   }, [lessonId, router]);
+
+  // Snapshot the settled lesson so the next visit paints instantly (guests write
+  // nothing — writeMemberCache no-ops without a token).
+  useEffect(() => {
+    if (!lesson) return;
+    writeMemberCache<LessonSnapshot>(lessonCacheKey(lesson.id), getToken(), {
+      lesson,
+      siblings: siblings ?? [],
+      course,
+      completed,
+      certificates,
+    });
+  }, [lesson, siblings, course, completed, certificates]);
+
+  // Warm the ADJACENT lessons' snapshots in the background, so a prev/next click
+  // (or a rail click to a neighbour) paints instantly. The page remounts on a
+  // param nav, but the pre-paint snapshot seed above makes that remount instant
+  // whenever a snapshot already exists — this is what removes the brief skeleton
+  // on a forward walk through a course.
+  useEffect(() => {
+    if (!siblings || !lesson) return;
+    const i = siblings.findIndex((l) => l.id === lessonId);
+    if (i < 0) return;
+    const neighbourIds = [siblings[i - 1]?.id, siblings[i + 1]?.id].filter(
+      (id): id is string => !!id,
+    );
+    const token = getToken();
+    for (const id of neighbourIds) {
+      if (readMemberCache<LessonSnapshot>(lessonCacheKey(id), token)) continue;
+      api
+        .lesson(id)
+        .then((full) => {
+          writeMemberCache<LessonSnapshot>(lessonCacheKey(id), token, {
+            lesson: full,
+            siblings,
+            course,
+            completed: !!full.completed,
+            certificates: full.certificates ?? [],
+          });
+        })
+        .catch(() => {
+          /* best-effort prefetch */
+        });
+    }
+  }, [siblings, lesson, lessonId, course]);
 
   // The tick, the status pill and the rail flip before the request: the endpoint
   // behind this joins lesson+course, runs two access queries, a progress lookup,
@@ -413,6 +507,151 @@ function LessonInner() {
     siblings?.filter((l) => l.completed || l.id === (completed ? lessonId : ""))
       .length ?? 0;
 
+  // Best-known current lesson: the fetched one, else its entry in the course's
+  // sibling list — enough (title/courseId) to paint the band before the full
+  // lesson lands, so the band stays put across a switch.
+  const currentLesson =
+    lesson ?? siblings?.find((l) => l.id === lessonId) ?? null;
+
+  // Band + rail are shared by the loading and loaded states below and rendered
+  // in the SAME tree position, so React reconciles (not remounts) them across a
+  // lesson switch — they stay on screen while only the left column swaps.
+  const bandNode = (
+    <div className="ik-band">
+      <div className="ik-band-inner ik-band-inner--crumbs">
+        <nav className="ik-crumbs" aria-label="Breadcrumb">
+          <Link href="/dashboard">Dashboard</Link>
+          <span aria-hidden="true">›</span>
+          <Link
+            href={`/courses/${course?.slug ?? currentLesson?.courseId ?? ""}`}
+          >
+            {course?.title ?? "Course"}
+          </Link>
+          <span aria-hidden="true">›</span>
+          <span className="on">
+            {lessonPos ? `Lesson ${lessonPos.n}` : "Lesson"}
+          </span>
+        </nav>
+        <div className="ik-band-row" style={{ marginTop: 12 }}>
+          <div className="ik-grow">
+            {currentLesson ? (
+              <h1 className="ik-band-title" style={{ fontSize: 24 }}>
+                {currentLesson.title}
+              </h1>
+            ) : (
+              <div
+                className="ik-skel ik-skel--ink"
+                style={{ width: 380, height: 30 }}
+              />
+            )}
+          </div>
+          {lessonPos && (
+            <span className="ik-band-pill">
+              Lesson {lessonPos.n} of {lessonPos.of}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const railNode = (
+    <div className="ik-stack">
+      <section className="ik-panel ik-panel--snug" aria-label="Course lessons">
+        <div className="ik-panel-head" style={{ marginBottom: 6 }}>
+          <span className="ik-panel-title ik-panel-title--lg">
+            {course?.title ?? "This course"}
+          </span>
+          <div className="ik-grow" />
+          {siblings && siblings.length > 0 && (
+            <span className="ik-panel-note">
+              {railDone} of {siblings.length} done
+            </span>
+          )}
+        </div>
+        {siblings === null ? (
+          <div>
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="ik-lesson">
+                <span className="ik-skel" style={{ width: 56, height: 38 }} />
+                <span className="ik-lesson-main">
+                  <span
+                    className="ik-skel"
+                    style={{ width: "70%", height: 13 }}
+                  />
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          siblings.map((l) => {
+            const isCurrent = l.id === lessonId;
+            const isDone = l.completed || (isCurrent && completed);
+            const d = fmtDuration(l.durationSeconds);
+            return (
+              <Link
+                key={l.id}
+                href={`/lessons/${l.id}`}
+                className={
+                  isCurrent ? "ik-lesson ik-lesson--current" : "ik-lesson"
+                }
+                aria-current={isCurrent ? "page" : undefined}
+              >
+                {l.thumbnailUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={l.thumbnailUrl}
+                    alt=""
+                    className="ik-lesson-thumb"
+                  />
+                ) : (
+                  <span className="ik-lesson-thumb" aria-hidden="true" />
+                )}
+                <span className="ik-lesson-main">
+                  <span className="ik-lesson-title">{l.title}</span>
+                  {d && <span className="ik-lesson-dur">{d}</span>}
+                </span>
+                {isCurrent && !isDone ? (
+                  <span className="ik-resume-pill">RESUME</span>
+                ) : isDone ? (
+                  <span className="ik-lesson-state ik-lesson-state--done">
+                    <CheckIcon />
+                  </span>
+                ) : (
+                  <span className="ik-lesson-state ik-lesson-state--todo">
+                    <PlayGlyph />
+                  </span>
+                )}
+              </Link>
+            );
+          })
+        )}
+      </section>
+
+      {upNext && (
+        <Link href={`/lessons/${upNext.id}`} className="ik-upnext">
+          {upNext.thumbnailUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={upNext.thumbnailUrl} alt="" className="ik-upnext-thumb" />
+          ) : (
+            <span
+              className="ik-upnext-thumb"
+              style={{ background: "rgba(255,255,255,.1)" }}
+              aria-hidden="true"
+            />
+          )}
+          <span className="ik-upnext-main">
+            <span className="ik-upnext-label">Up next</span>
+            <span className="ik-upnext-title">{upNext.title}</span>
+          </span>
+          <span className="ik-upnext-arrow" aria-hidden="true">
+            →
+          </span>
+        </Link>
+      )}
+    </div>
+  );
+
   /* ---------- locked / error / loading states on the light canvas ---------- */
   if (locked) {
     return (
@@ -444,34 +683,40 @@ function LessonInner() {
     );
   }
   if (!lesson) {
+    // Same shell as the loaded state (shared bandNode + railNode in the same
+    // positions) so switching lessons keeps the band + course rail on screen —
+    // only the left column shows a shape-accurate skeleton until the body lands.
     return (
       <div className="ink-page">
-        <div className="ik-band">
-          <div className="ik-band-inner ik-band-inner--crumbs">
-            <div
-              className="ik-skel ik-skel--ink"
-              style={{ width: 260, height: 14 }}
-            />
-            <div
-              className="ik-skel ik-skel--ink"
-              style={{ width: 380, height: 30, marginTop: 16 }}
-            />
-          </div>
-        </div>
+        <PopupHost context={{ type: "lessons" }} />
+        {bandNode}
         <div className="ik-main">
           <div className="ik-cols ik-cols--player">
-            <div
-              className="ik-skel"
-              style={{ aspectRatio: "16/9", borderRadius: 18 }}
-            />
-            <div
-              className="ik-skel"
-              style={{
-                height: 220,
-                borderRadius: 16,
-                background: "var(--surface)",
-              }}
-            />
+            <div>
+              <div
+                className="ik-skel"
+                style={{ aspectRatio: "16/9", borderRadius: 18 }}
+              />
+              <div
+                className="ik-skel"
+                style={{
+                  height: 96,
+                  borderRadius: 16,
+                  marginTop: 16,
+                  background: "var(--surface)",
+                }}
+              />
+              <div
+                className="ik-skel"
+                style={{
+                  height: 150,
+                  borderRadius: 16,
+                  marginTop: 16,
+                  background: "var(--surface)",
+                }}
+              />
+            </div>
+            {railNode}
           </div>
         </div>
       </div>
@@ -570,34 +815,7 @@ function LessonInner() {
     <div className="ink-page">
       <PopupHost context={{ type: "lessons" }} />
 
-      {/* ---- band: breadcrumb + lesson title + position pill (frame 2d) ---- */}
-      <div className="ik-band">
-        <div className="ik-band-inner ik-band-inner--crumbs">
-          <nav className="ik-crumbs" aria-label="Breadcrumb">
-            <Link href="/dashboard">Dashboard</Link>
-            <span aria-hidden="true">›</span>
-            <Link href={`/courses/${course?.slug ?? lesson.courseId}`}>
-              {course?.title ?? "Course"}
-            </Link>
-            <span aria-hidden="true">›</span>
-            <span className="on">
-              {lessonPos ? `Lesson ${lessonPos.n}` : "Lesson"}
-            </span>
-          </nav>
-          <div className="ik-band-row" style={{ marginTop: 12 }}>
-            <div className="ik-grow">
-              <h1 className="ik-band-title" style={{ fontSize: 24 }}>
-                {lesson.title}
-              </h1>
-            </div>
-            {lessonPos && (
-              <span className="ik-band-pill">
-                Lesson {lessonPos.n} of {lessonPos.of}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+      {bandNode}
 
       <div className="ik-main">
         <div className="ik-cols ik-cols--player">
@@ -797,111 +1015,7 @@ function LessonInner() {
             )}
           </div>
 
-          {/* ---- right rail: course lessons + up-next teaser ---- */}
-          <div className="ik-stack">
-            <section
-              className="ik-panel ik-panel--snug"
-              aria-label="Course lessons"
-            >
-              <div className="ik-panel-head" style={{ marginBottom: 6 }}>
-                <span className="ik-panel-title ik-panel-title--lg">
-                  {course?.title ?? "This course"}
-                </span>
-                <div className="ik-grow" />
-                {siblings && siblings.length > 0 && (
-                  <span className="ik-panel-note">
-                    {railDone} of {siblings.length} done
-                  </span>
-                )}
-              </div>
-              {siblings === null ? (
-                <div>
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="ik-lesson">
-                      <span
-                        className="ik-skel"
-                        style={{ width: 56, height: 38 }}
-                      />
-                      <span className="ik-lesson-main">
-                        <span
-                          className="ik-skel"
-                          style={{ width: "70%", height: 13 }}
-                        />
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                siblings.map((l) => {
-                  const isCurrent = l.id === lessonId;
-                  const isDone = l.completed || (isCurrent && completed);
-                  const d = fmtDuration(l.durationSeconds);
-                  return (
-                    <Link
-                      key={l.id}
-                      href={`/lessons/${l.id}`}
-                      className={
-                        isCurrent ? "ik-lesson ik-lesson--current" : "ik-lesson"
-                      }
-                      aria-current={isCurrent ? "page" : undefined}
-                    >
-                      {l.thumbnailUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={l.thumbnailUrl}
-                          alt=""
-                          className="ik-lesson-thumb"
-                        />
-                      ) : (
-                        <span className="ik-lesson-thumb" aria-hidden="true" />
-                      )}
-                      <span className="ik-lesson-main">
-                        <span className="ik-lesson-title">{l.title}</span>
-                        {d && <span className="ik-lesson-dur">{d}</span>}
-                      </span>
-                      {isCurrent && !isDone ? (
-                        <span className="ik-resume-pill">RESUME</span>
-                      ) : isDone ? (
-                        <span className="ik-lesson-state ik-lesson-state--done">
-                          <CheckIcon />
-                        </span>
-                      ) : (
-                        <span className="ik-lesson-state ik-lesson-state--todo">
-                          <PlayGlyph />
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })
-              )}
-            </section>
-
-            {upNext && (
-              <Link href={`/lessons/${upNext.id}`} className="ik-upnext">
-                {upNext.thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={upNext.thumbnailUrl}
-                    alt=""
-                    className="ik-upnext-thumb"
-                  />
-                ) : (
-                  <span
-                    className="ik-upnext-thumb"
-                    style={{ background: "rgba(255,255,255,.1)" }}
-                    aria-hidden="true"
-                  />
-                )}
-                <span className="ik-upnext-main">
-                  <span className="ik-upnext-label">Up next</span>
-                  <span className="ik-upnext-title">{upNext.title}</span>
-                </span>
-                <span className="ik-upnext-arrow" aria-hidden="true">
-                  →
-                </span>
-              </Link>
-            )}
-          </div>
+          {railNode}
         </div>
       </div>
     </div>
