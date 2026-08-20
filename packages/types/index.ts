@@ -585,8 +585,8 @@ export interface LessonDTO {
   lastPositionSeconds?: number; // video resume point for this member (0 = start)
   notes?: LessonNoteDTO[]; // downloadable attachments (present on detail views)
   // Present on member detail views ONLY when this lesson is the terminal lesson
-  // (last by order) of a class whose certificate feature is active — one entry
-  // per such class (a course can sit in several classes). Drives the
+  // (last by order) of a class that has a certificate template assigned (opt-in)
+  // — one entry per such class (a course can sit in several classes). Drives the
   // "Get certificate" button on the lesson screen.
   certificates?: ClassCertificateStatusDTO[];
 }
@@ -656,8 +656,9 @@ export interface MemberDashboardDTO {
 export interface MyClassCoursesDTO {
   owned: boolean;
   courses: CourseCard[];
-  // Certificate state for this class (owned requests only; omitted when no
-  // template resolves — feature dormant). Drives the class-page button.
+  // Certificate state for this class (owned requests only; null when the class
+  // has no certificate template assigned — certificates are opt-in per class).
+  // Drives the class page's certificate card vs. the "Your progress" card.
   certificate?: ClassCertificateStatusDTO | null;
 }
 
@@ -710,7 +711,7 @@ export interface CertificateTemplateDTO {
   imageWidth: number; // artwork pixel size, derived server-side at save
   imageHeight: number;
   fields: CertificateFieldLayout[];
-  isDefault: boolean; // exactly one template; classes without an override use it
+  isDefault: boolean; // dormant — certificates are opt-in per class (no global default is applied)
   issuedCount: number; // admin list convenience
   createdAt: string; // ISO
 }

@@ -125,7 +125,6 @@ export default function CertificateTemplateEditorPage() {
 
   const [name, setName] = useState("");
   const [artworkUrl, setArtworkUrl] = useState("");
-  const [isDefault, setIsDefault] = useState(false);
   const [fields, setFields] =
     useState<CertificateFieldLayout[]>(DEFAULT_FIELDS);
   const [selected, setSelected] = useState<CertificateFieldKind>("memberName");
@@ -144,7 +143,6 @@ export default function CertificateTemplateEditorPage() {
       .then((t) => {
         setName(t.name);
         setArtworkUrl(t.artworkUrl);
-        setIsDefault(t.isDefault);
         // Merge stored fields over the defaults so older rows still expose
         // every editable field row.
         setFields(
@@ -270,7 +268,6 @@ export default function CertificateTemplateEditorPage() {
           name: name.trim(),
           artworkUrl,
           fields,
-          isDefault,
         });
         router.replace(`/certificates/${created.id}`);
       } else {
@@ -278,9 +275,7 @@ export default function CertificateTemplateEditorPage() {
           name: name.trim(),
           artworkUrl,
           fields,
-          ...(isDefault ? { isDefault: true } : {}),
         });
-        setIsDefault(updated.isDefault);
         setFields(
           DEFAULT_FIELDS.map(
             (d) => updated.fields.find((f) => f.kind === d.kind) ?? d,
@@ -411,24 +406,6 @@ export default function CertificateTemplateEditorPage() {
               busy detail.
             </p>
           </div>
-
-          <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              type="checkbox"
-              checked={isDefault}
-              onChange={(e) => {
-                setIsDefault(e.target.checked);
-                setSavedAt(null);
-              }}
-              disabled={!canEdit || (!isNew && isDefault)}
-            />
-            <span>
-              Default template{" "}
-              <span className="muted">
-                (used by every class without its own pick)
-              </span>
-            </span>
-          </label>
 
           <hr
             style={{

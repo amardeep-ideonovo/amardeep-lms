@@ -119,9 +119,8 @@ function TemplatesTab({
     setRowBusy(t.id);
     try {
       await api.deleteCertificateTemplate(t.id);
-      // A plain delete server-side (no other template is promoted to default),
-      // so dropping the card locally matches what a reload would show — the
-      // "no default template" warning included.
+      // Plain delete server-side; any class that pointed at this template is
+      // SetNull'd (→ no certificate), matching what a reload would show.
       setRows((prev) => (prev ? prev.filter((r) => r.id !== t.id) : prev));
     } catch (e) {
       onError(e instanceof ApiError ? e.message : "Delete failed");
@@ -131,8 +130,6 @@ function TemplatesTab({
   };
 
   if (!rows) return <p className="muted">{STR.common.loading}</p>;
-
-  const hasDefault = rows.some((r) => r.isDefault);
 
   return (
     <div>
@@ -145,9 +142,9 @@ function TemplatesTab({
         }}
       >
         <p className="muted" style={{ margin: 0 }}>
-          {rows.length} template{rows.length === 1 ? "" : "s"} — the default
-          applies to every class without its own pick (set per class in the
-          class editor).
+          {rows.length} template{rows.length === 1 ? "" : "s"} — certificates
+          are optional, enabled per class: pick one of these in a class’s editor
+          to give that class a certificate.
         </p>
         {canCreate && (
           <Link href="/certificates/new" className={buttonClass()}>
@@ -156,16 +153,10 @@ function TemplatesTab({
         )}
       </div>
 
-      {!hasDefault && rows.length > 0 && (
-        <p className="error" style={{ marginBottom: 14 }}>
-          No default template — certificates are inactive for classes without an
-          explicit template. Open a template and turn on “Default”.
-        </p>
-      )}
       {rows.length === 0 && (
         <p className="muted">
-          No templates yet. Members can’t claim certificates until one exists —
-          create the first template and it becomes the default automatically.
+          No templates yet. Add one here, then enable it on the classes that
+          should award a certificate (in each class’s editor).
         </p>
       )}
 
@@ -207,9 +198,6 @@ function TemplatesTab({
                 >
                   {t.name}
                 </strong>
-                {t.isDefault && (
-                  <span className="badge badge--ok">Default</span>
-                )}
               </div>
               <p
                 className="muted"
