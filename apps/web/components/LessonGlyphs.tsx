@@ -7,7 +7,13 @@
 
 // Completed-lesson check.
 export const CheckIcon = ({ size = 13 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
     <path
       d="M20 6 9 17l-5-5"
       stroke="#2a9d8d"
@@ -26,7 +32,13 @@ export const PlayGlyph = ({
   size?: number;
   fill?: string;
 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    aria-hidden="true"
+  >
     <path d="m8 5 12 7-12 7z" fill={fill} />
   </svg>
 );

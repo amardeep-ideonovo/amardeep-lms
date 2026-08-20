@@ -149,11 +149,19 @@ function CourseInner() {
           This course is locked
         </h2>
         <p
-          style={{ color: "var(--text-muted)", fontSize: 14, margin: "0 0 18px" }}
+          style={{
+            color: "var(--text-muted)",
+            fontSize: 14,
+            margin: "0 0 18px",
+          }}
         >
           You need an active membership level to view these lessons.
         </p>
-        <Link href="/account" className="ik-cta" style={{ padding: "12px 26px" }}>
+        <Link
+          href="/account"
+          className="ik-cta"
+          style={{ padding: "12px 26px" }}
+        >
           View plans
         </Link>
       </section>
@@ -175,20 +183,26 @@ function CourseInner() {
                 margin: "-18px -22px 14px",
               }}
             />
-            {Array.from({ length: Math.max(1, Math.min(total || 3, 5)) }, (_, i) => (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  padding: "10px 0",
-                }}
-              >
-                <div className="ik-skel" style={{ width: 56, height: 38 }} />
-                <div className="ik-skel" style={{ width: "55%", height: 13 }} />
-              </div>
-            ))}
+            {Array.from(
+              { length: Math.max(1, Math.min(total || 3, 5)) },
+              (_, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "10px 0",
+                  }}
+                >
+                  <div className="ik-skel" style={{ width: 56, height: 38 }} />
+                  <div
+                    className="ik-skel"
+                    style={{ width: "55%", height: 13 }}
+                  />
+                </div>
+              ),
+            )}
           </div>
         </div>
         <div className="ik-stack">
