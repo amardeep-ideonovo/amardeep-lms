@@ -276,6 +276,14 @@ function LessonInner() {
     return i >= 0 && i + 1 < siblings.length ? siblings[i + 1] : null;
   }, [siblings, lessonId]);
 
+  // The previous lesson in the course order (drives the bottom "Previous"
+  // button; null on the first lesson). "Next" reuses upNext.
+  const prevLesson = useMemo(() => {
+    if (!siblings) return null;
+    const i = siblings.findIndex((l) => l.id === lessonId);
+    return i > 0 ? siblings[i - 1] : null;
+  }, [siblings, lessonId]);
+
   // ---- playback progress: mark started on open + save the resume point ----
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -613,12 +621,6 @@ function LessonInner() {
                   {course ? `Course: ${course.title}` : null}
                 </span>
                 <div className="ik-grow" style={{ flex: 1 }} />
-                {notes.length > 0 && (
-                  <a href="#downloads" className="ik-ghost ik-ghost--sm">
-                    <DownloadIcon />
-                    Resources
-                  </a>
-                )}
                 {completed ? (
                   <span
                     className="ik-ghost ik-ghost--sm"
@@ -747,6 +749,51 @@ function LessonInner() {
                 className="ik-lesson-content rich-text"
                 dangerouslySetInnerHTML={{ __html: lesson.content }}
               />
+            )}
+
+            {/* Previous / next lesson within the course. Rendered once the
+                sibling list is known and the course has more than one lesson;
+                the edge slots (first/last) stay in place but disabled so the
+                row keeps its left/right balance. */}
+            {siblings && siblings.length > 1 && (
+              <nav className="ik-lesson-nav" aria-label="Lesson navigation">
+                {prevLesson ? (
+                  <Link
+                    href={`/lessons/${prevLesson.id}`}
+                    className="ik-ghost ik-lesson-nav-btn"
+                    aria-label={`Previous lesson: ${prevLesson.title}`}
+                  >
+                    <span aria-hidden="true">←</span>
+                    Previous lesson
+                  </Link>
+                ) : (
+                  <span
+                    className="ik-ghost ik-lesson-nav-btn ik-lesson-nav-btn--off"
+                    aria-hidden="true"
+                  >
+                    <span>←</span>
+                    Previous lesson
+                  </span>
+                )}
+                {upNext ? (
+                  <Link
+                    href={`/lessons/${upNext.id}`}
+                    className="ik-ghost ik-lesson-nav-btn"
+                    aria-label={`Next lesson: ${upNext.title}`}
+                  >
+                    Next lesson
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                ) : (
+                  <span
+                    className="ik-ghost ik-lesson-nav-btn ik-lesson-nav-btn--off"
+                    aria-hidden="true"
+                  >
+                    Next lesson
+                    <span>→</span>
+                  </span>
+                )}
+              </nav>
             )}
           </div>
 

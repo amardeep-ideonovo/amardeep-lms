@@ -5760,6 +5760,31 @@ a.ik-lesson--current:hover {
   color: var(--text-soft);
 }
 
+/* ---- prev / next lesson nav (lesson page, below the content) ---- */
+.ik-lesson-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+/* Solid white so the buttons read against the light page (base .ik-ghost is
+   transparent, meant for placement on a white card). */
+.ik-lesson-nav-btn {
+  background: #fff;
+}
+.ik-lesson-nav-btn--off {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}
+@media (max-width: 560px) {
+  .ik-lesson-nav-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
 /* downloads as white rows */
 .ik-download {
   display: flex;
