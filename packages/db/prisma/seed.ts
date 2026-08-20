@@ -2504,13 +2504,19 @@ async function seedCertificateTemplates() {
       create: { id: t.id, ...data },
     });
   }
-  // Exactly one default: if an admin promoted another template, the re-seed
-  // restores the canonical state (full-update convention).
-  await prisma.certificateTemplate.updateMany({
-    where: { id: { notIn: templates.map((t) => t.id) }, isDefault: true },
-    data: { isDefault: false },
+  // Certificates are OPT-IN per class (no global default) — assign a template
+  // to the classes that should award one; every other class starts with none
+  // (its member surfaces show the "Your progress" card instead of a cert).
+  //   • Dance & Yoga → demonstrates the feature on the demo instance.
+  //   • seed-level-pro (QA fixture) → backs the certificate BDD scenarios.
+  // updateMany is a no-op for any id not present in a minimal seed.
+  await prisma.level.updateMany({
+    where: { id: { in: ["seed-class-dance-and-yoga", "seed-level-pro"] } },
+    data: { certificateTemplateId: "seed-cert-template-classic" },
   });
-  console.log("✓ certificate templates (classic default + spotlight dark)");
+  console.log(
+    "✓ certificate templates (classic + spotlight dark); certs enabled on Dance & Yoga + QA fixture",
+  );
 }
 
 // ---------- app customization (mobile branding) ----------

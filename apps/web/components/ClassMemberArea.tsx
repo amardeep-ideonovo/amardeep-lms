@@ -643,11 +643,11 @@ export default function ClassMemberArea({
             )}
           </div>
           <div className="ik-stack">
-            {/* Certificate ink card — only when a certificate is actually
-                configured for this class (level override or a default template
-                resolves; the API sends `certificate: null` otherwise). With no
-                certificate we show the plain progress card below instead, so a
-                class that doesn't offer one never dangles a dead cert promise. */}
+            {/* Certificate ink card — only when a certificate template is
+                assigned to this class (certificates are opt-in per class; the
+                API sends `certificate: null` otherwise). With no certificate we
+                show the plain progress card below instead, so a class that
+                doesn't offer one never dangles a dead cert promise. */}
             {certificate ? (
               <section className="ik-ink-card" aria-label="Class certificate">
                 <CertRing pct={totals.pct} />

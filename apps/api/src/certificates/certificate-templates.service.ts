@@ -206,10 +206,11 @@ export class CertificateTemplatesService {
     const fields = this.normalizeFields(
       input.fields,
     ) as unknown as Prisma.InputJsonValue;
-    // First template ever becomes the default automatically — certificates
-    // should start working the moment one template exists.
-    const count = await this.prisma.certificateTemplate.count();
-    const makeDefault = input.isDefault === true || count === 0;
+    // Certificates are OPT-IN per class (no global default) — a new template is
+    // NOT auto-promoted to anything; it joins the library and an admin enables
+    // it on the classes that should award it. (isDefault is a dormant column
+    // kept for back-compat; the admin UI no longer sets it.)
+    const makeDefault = input.isDefault === true;
     const row = await this.prisma.$transaction(async (tx) => {
       if (makeDefault) {
         await tx.certificateTemplate.updateMany({

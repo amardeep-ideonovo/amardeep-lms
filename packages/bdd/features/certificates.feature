@@ -1,9 +1,11 @@
 Feature: Class-completion certificates
   A member who completes every lesson of every course in a class can claim a
-  PDF certificate. Admins manage templates (artwork + field layout); one is
-  the default, classes may override. Uses the QA fixture class seed-level-pro
-  (one course, one lesson) — the grant it leaves behind is cleared by the
-  seed, like access_control.feature.
+  PDF certificate. Certificates are OPT-IN per class: an admin keeps a library
+  of templates (artwork + field layout) and assigns one to the classes that
+  should award a certificate — a class with no template assigned has none.
+  Uses the QA fixture class seed-level-pro (one course, one lesson; the seed
+  assigns it a template) — the grant it leaves behind is cleared by the seed,
+  like access_control.feature.
 
   Scenario: Admin creates a certificate template from uploaded artwork
     Given the admin has uploaded a test artwork image
@@ -14,17 +16,6 @@ Feature: Class-completion certificates
     Then the response status should be 201
     And the response field "name" should match "^BDD Template$"
     And the response field "artworkUrl" should match "^/media/"
-
-  @cert-default
-  Scenario: Promoting a new default demotes the previous one
-    Given the admin has uploaded a test artwork image
-    When I POST "/admin/certificate-templates" with an admin token and body:
-      """
-      { "name": "BDD Default", "artworkUrl": "__ARTWORK_URL__", "fields": [], "isDefault": true }
-      """
-    Then the response status should be 201
-    And the response field "isDefault" should match "^true$"
-    And exactly one certificate template should be the default
 
   Scenario: Claiming before completing the class is rejected
     Given the admin has granted the "seed-level-pro" level to the member

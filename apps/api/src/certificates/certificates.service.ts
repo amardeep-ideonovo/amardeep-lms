@@ -136,23 +136,20 @@ export class CertificatesService {
     return out;
   }
 
-  // Level override else the default template. null => feature dormant.
+  // A class's OWN certificate template, or null. Certificates are OPT-IN per
+  // class ("certification is optional, not compulsory") — there is NO global
+  // default fallback: a class with no certificateTemplateId has no certificate.
+  // (Level.certificateTemplateId is onDelete:SetNull, so a deleted template
+  // already nulls the class; a lingering unknown id reads as null here too.)
   private async resolveTemplateId(
     certificateTemplateId: string | null,
   ): Promise<string | null> {
-    if (certificateTemplateId) {
-      const row = await this.prisma.certificateTemplate.findUnique({
-        where: { id: certificateTemplateId },
-        select: { id: true },
-      });
-      if (row) return row.id;
-      // Stale override (template deleted) — fall through to the default.
-    }
-    const dflt = await this.prisma.certificateTemplate.findFirst({
-      where: { isDefault: true },
+    if (!certificateTemplateId) return null;
+    const row = await this.prisma.certificateTemplate.findUnique({
+      where: { id: certificateTemplateId },
       select: { id: true },
     });
-    return dflt?.id ?? null;
+    return row?.id ?? null;
   }
 
   private async needsName(userId: string): Promise<boolean> {
@@ -185,35 +182,28 @@ export class CertificatesService {
     );
     if (!terminalHere.length) return [];
 
-    const [counts, levels, certs, defaultExists, needsName] = await Promise.all(
-      [
-        this.completedCounts(userId, terminalHere),
-        this.prisma.level.findMany({
-          where: { id: { in: terminalHere.map((c) => c.levelId) } },
-          select: { id: true, name: true, certificateTemplateId: true },
-        }),
-        this.prisma.certificate.findMany({
-          where: {
-            userId,
-            levelId: { in: terminalHere.map((c) => c.levelId) },
-          },
-        }),
-        this.prisma.certificateTemplate
-          .findFirst({ where: { isDefault: true }, select: { id: true } })
-          .then((r) => !!r),
-        this.needsName(userId),
-      ],
-    );
+    const [counts, levels, certs, needsName] = await Promise.all([
+      this.completedCounts(userId, terminalHere),
+      this.prisma.level.findMany({
+        where: { id: { in: terminalHere.map((c) => c.levelId) } },
+        select: { id: true, name: true, certificateTemplateId: true },
+      }),
+      this.prisma.certificate.findMany({
+        where: {
+          userId,
+          levelId: { in: terminalHere.map((c) => c.levelId) },
+        },
+      }),
+      this.needsName(userId),
+    ]);
 
     const out: ClassCertificateStatusDTO[] = [];
     for (const completion of terminalHere) {
       const level = levels.find((l) => l.id === completion.levelId);
       if (!level) continue;
-      // Inline template resolution using the prefetched default flag (avoids a
-      // query per level); stale overrides are caught at claim time anyway.
-      const templateResolves =
-        level.certificateTemplateId !== null || defaultExists;
-      if (!templateResolves) continue;
+      // Opt-in: this lesson shows a "Get certificate" button only if its class
+      // has its OWN template selected — no global-default fallback.
+      if (level.certificateTemplateId === null) continue;
       const cert = certs.find((c) => c.levelId === level.id) ?? null;
       out.push({
         levelId: level.id,

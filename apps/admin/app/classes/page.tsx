@@ -96,10 +96,10 @@ export default function ClassesPage() {
   const [skills, setSkills] = useState<{ title: string; imageUrl: string }[]>(
     [],
   );
-  // Completion-certificate template override ('' = use the default template).
+  // Completion-certificate template for this class ('' = no certificate; opt-in).
   const [certificateTemplateId, setCertificateTemplateId] = useState("");
   const [certTemplates, setCertTemplates] = useState<
-    { id: string; name: string; isDefault: boolean }[] | null
+    { id: string; name: string }[] | null
   >(null);
   const [saving, setSaving] = useState(false);
   // Create/edit happen in a modal (opened by the top button or a row's Edit).
@@ -210,7 +210,7 @@ export default function ClassesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
-  // Certificate templates for the override select. Admins without the
+  // Certificate templates for the per-class picker. Admins without the
   // certificates section just don't see the picker (403 -> null).
   useEffect(() => {
     if (authLoading || !can("classes", "read")) return;
@@ -220,9 +220,7 @@ export default function ClassesPage() {
       .then(
         (ts) =>
           alive &&
-          setCertTemplates(
-            ts.map((t) => ({ id: t.id, name: t.name, isDefault: t.isDefault })),
-          ),
+          setCertTemplates(ts.map((t) => ({ id: t.id, name: t.name }))),
       )
       .catch(() => alive && setCertTemplates(null));
     return () => {
@@ -347,7 +345,7 @@ export default function ClassesPage() {
             title: s.title.trim(),
             imageUrl: s.imageUrl.trim() || undefined,
           })),
-        certificateTemplateId, // '' = clear back to the default template
+        certificateTemplateId, // '' = no certificate for this class (opt-in)
         prices: type === "PAID" ? cleanedPrices : [],
       };
       // Both writes now return the same fully-populated LevelDTO the list does,
@@ -906,24 +904,18 @@ export default function ClassesPage() {
             {certTemplates !== null && (
               <div className="field">
                 <label>
-                  Certificate template{" "}
+                  Certificate{" "}
                   <span className="muted">
-                    (members get it after completing every lesson)
+                    (optional — members earn it after completing every lesson)
                   </span>
                 </label>
                 <select
                   value={certificateTemplateId}
                   onChange={(e) => setCertificateTemplateId(e.target.value)}
                 >
-                  <option value="">
-                    Use default
-                    {(() => {
-                      const d = certTemplates.find((t) => t.isDefault);
-                      return d
-                        ? ` (${d.name})`
-                        : " (none set — certificates off)";
-                    })()}
-                  </option>
+                  {/* Opt-in: a class issues a certificate only when a template
+                      is picked here. "No certificate" (empty) is the default. */}
+                  <option value="">No certificate</option>
                   {certTemplates.map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.name}
