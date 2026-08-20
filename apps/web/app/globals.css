@@ -909,62 +909,6 @@ a.card:hover {
   border-radius: 999px;
 }
 
-/* ---------- Lesson list ---------- */
-.lesson-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  background: var(--surface);
-}
-
-.lesson-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
-  transition: background 0.15s;
-}
-
-.lesson-row:last-child {
-  border-bottom: none;
-}
-
-.lesson-row:hover {
-  background: var(--bg);
-}
-
-.lesson-index {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--teal-tint);
-  color: var(--teal-text);
-  font-size: 13px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.lesson-name {
-  font-weight: 500;
-  flex: 1;
-}
-
-.lesson-done {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--success-text);
-  background: var(--fill-success);
-  padding: 2px 10px;
-  border-radius: 999px;
-}
-
 /* ---------- Lesson page ---------- */
 .player-wrap {
   border-radius: var(--radius);
@@ -1002,21 +946,6 @@ a.card:hover {
   border-radius: var(--radius);
   margin: 8px 0 16px;
   display: block;
-}
-.lesson-thumb {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-.lesson-thumb--empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--teal-tint);
-  color: var(--teal-text);
-  font-size: 16px;
 }
 .lesson-hero {
   width: 100%;
@@ -3896,181 +3825,6 @@ a.card:hover {
 }
 
 /* ===========================================================================
-   Cinematic dark COURSE viewer — scoped to `.course-cinema`. Re-skins the
-   breadcrumb / progress / lesson-list / locked + loading states dark.
-   =========================================================================== */
-.course-cinema {
-  --cd-bg: var(--bg);
-  --cd-panel: var(--surface);
-  --cd-panel-2: var(--surface-inset);
-  --cd-border: var(--border);
-  --cd-border-soft: var(--border-soft);
-  --cd-text: var(--text);
-  --cd-soft: var(--text-soft);
-  --cd-muted: var(--text-muted);
-  --cd-primary: var(--primary);
-  --cd-primary-hover: var(--primary-hover);
-  --cd-green: var(--success);
-  --cd-radius: var(--radius);
-
-  position: relative;
-  left: 50%;
-  right: 50%;
-  width: 100vw;
-  margin-left: -50vw;
-  margin-right: -50vw;
-  margin-top: -32px;
-  margin-bottom: -64px;
-  min-height: 80vh;
-  background: var(--cd-bg);
-  color: var(--cd-text);
-  -webkit-font-smoothing: antialiased;
-  padding: 42px 0 64px;
-}
-.cd-wrap {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 0 28px;
-}
-
-.course-cinema .breadcrumb {
-  color: var(--cd-muted);
-}
-.course-cinema .breadcrumb a {
-  color: var(--cd-soft);
-}
-.course-cinema .breadcrumb a:hover {
-  color: var(--cd-text);
-}
-.course-cinema .page-title {
-  color: var(--cd-text);
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-.course-cinema .page-sub {
-  color: var(--cd-muted);
-}
-.course-cinema .course-cover {
-  border: 1px solid var(--cd-border-soft);
-}
-
-/* progress bar (shared ProgressBar component) */
-.course-cinema .progress-track {
-  background: var(--surface-inset);
-  border-color: transparent;
-}
-.course-cinema .progress-fill {
-  background: var(--grad-progress);
-}
-.course-cinema .progress-label {
-  color: var(--cd-soft);
-}
-
-/* lesson list */
-.course-cinema .lesson-list {
-  background: var(--cd-panel);
-  border-color: var(--cd-border-soft);
-}
-.course-cinema .lesson-row {
-  border-bottom-color: var(--cd-border-soft);
-}
-.course-cinema .lesson-row:hover {
-  background: var(--surface-hover);
-}
-.course-cinema .lesson-index {
-  background: var(--fill-primary);
-  color: var(--text-link);
-}
-.course-cinema .lesson-name {
-  color: var(--cd-text);
-}
-.course-cinema .lesson-thumb--empty {
-  background: var(--fill-primary);
-  color: var(--text-link);
-}
-.course-cinema .lesson-done {
-  color: var(--cd-green);
-  background: var(--fill-success);
-}
-
-/* locked + states */
-.course-cinema .locked-panel {
-  background: var(--cd-panel);
-  border-color: var(--cd-border-soft);
-}
-.course-cinema .locked-panel h2 {
-  color: var(--cd-text);
-}
-.course-cinema .locked-panel p {
-  color: var(--cd-muted);
-}
-.course-cinema :is(.btn-primary, .btn--primary) {
-  background: var(--teal-grad);
-  color: var(--on-primary);
-  box-shadow: var(--shadow-primary);
-}
-.course-cinema :is(.btn-primary, .btn--primary):hover:not(:disabled) {
-  filter: brightness(0.94);
-}
-.course-cinema .alert-error {
-  background: var(--fill-danger);
-  color: var(--danger-text);
-  border-color: rgba(224, 72, 72, 0.25);
-}
-.course-cinema .empty {
-  color: var(--cd-muted);
-}
-.course-cinema .spinner {
-  border-color: var(--cd-border);
-  border-top-color: var(--cd-primary);
-}
-
-@media (max-width: 640px) {
-  .course-cinema .page-title {
-    font-size: 26px;
-  }
-}
-
-/* lesson/video player page — reuses the .course-cinema dark canvas */
-.course-cinema .player-wrap {
-  border: 1px solid var(--cd-border);
-}
-.course-cinema .lesson-hero {
-  border: 1px solid var(--cd-border-soft);
-}
-.course-cinema .lesson-content {
-  background: var(--cd-panel);
-  border-color: var(--cd-border-soft);
-  color: var(--cd-soft);
-}
-.course-cinema .downloads {
-  background: var(--cd-panel);
-  border-color: var(--cd-border-soft);
-}
-.course-cinema .downloads-title {
-  color: var(--cd-text);
-}
-.course-cinema .download-item {
-  background: var(--cd-panel-2);
-  border-color: var(--cd-border);
-}
-.course-cinema .download-name {
-  color: var(--cd-text);
-}
-.course-cinema .download-size {
-  color: var(--cd-muted);
-}
-.course-cinema :is(.btn-secondary, .btn--secondary) {
-  background: var(--cd-panel-2);
-  color: var(--cd-text);
-  border-color: var(--cd-border);
-}
-.course-cinema :is(.btn-secondary, .btn--secondary):hover:not(:disabled) {
-  background: var(--surface-hover);
-}
-
-/* ===========================================================================
    PUBLIC pages — scoped to `.dark-page` (login, signup, plan catalog,
    thank-you, home). Ink Hero: the aliases now resolve to the LIGHT canvas;
    the full-bleed breakout stays. `.ik-auth` adds the ink band + overlapping
@@ -6269,22 +6023,17 @@ a.ik-lesson--current:hover {
   padding-right: 28px;
 }
 .blog-cinema.has-band,
-.account-cinema.has-band,
-.course-cinema.has-band {
+.account-cinema.has-band {
   padding-top: 0;
 }
 .account-cinema.has-band .ik-band-inner {
   max-width: 920px;
 }
-.course-cinema.has-band .ik-band-inner {
-  max-width: 860px;
-}
 .blog-cinema.has-band .ik-band-inner {
   max-width: 1180px;
 }
 .blog-cinema.has-band .bc-wrap,
-.account-cinema.has-band .ac-wrap,
-.course-cinema.has-band .cd-wrap {
+.account-cinema.has-band .ac-wrap {
   padding-top: 30px;
 }
 
