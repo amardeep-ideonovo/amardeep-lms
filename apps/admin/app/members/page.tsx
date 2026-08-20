@@ -15,7 +15,7 @@ import { ApiError, api } from "@/lib/api";
 import { dialog } from "@/components/DialogProvider";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import RowMenu from "@/components/RowMenu";
-import { DownloadIcon, SpinnerIcon } from "@/components/ExportIcons";
+import ExportMenu from "@/components/ExportMenu";
 import { STR } from "@lms/types";
 
 const PAGE_SIZE = 8; // rows per page (Ink Hero frame 2h)
@@ -59,7 +59,10 @@ function memberStatus(m: MemberRow): { label: string; cls: string } {
   }
 }
 
-const GRID = "2fr .9fr 1.5fr .6fr .8fr .3fr";
+// Member · Username · Phone · Plan · Classes · Joined · Status · actions.
+// Wider than the card on small screens — .table-wrap (min-width via
+// .mini-grid--members-wide) scrolls it horizontally instead of crushing cells.
+const GRID = "2fr .9fr 1fr .9fr 1.5fr .6fr .8fr .3fr";
 
 export default function MembersPage() {
   const router = useRouter();
@@ -195,6 +198,24 @@ export default function MembersPage() {
     }
   }
 
+  // Excel export. The dropdown offers the current filtered view (class + status
+  // + search, matching the on-screen list) or the whole table.
+  async function runMembersExport(filters: {
+    levelId?: string;
+    status?: MemberStatusFilter;
+    q?: string;
+  }) {
+    setExporting(true);
+    setError(null);
+    try {
+      await api.downloadMembersExport(filters);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   // All filtering + slicing now happens server-side — doing any of it here
   // would only filter the current page and report wrong counts.
   const members = data?.items ?? [];
@@ -286,35 +307,28 @@ export default function MembersPage() {
         <span className="filter-count">
           {totalMembers.toLocaleString()} members
         </span>
-        <Button
-          type="button"
-          variant="secondary"
+        <ExportMenu
+          busy={exporting}
           size="sm"
-          iconOnly
-          disabled={exporting}
-          aria-label={
-            exporting ? "Exporting members…" : "Download members as Excel"
-          }
-          title={exporting ? "Exporting…" : "Download Excel"}
-          onClick={async () => {
-            setExporting(true);
-            setError(null);
-            try {
-              // Honors the on-screen class/status/search filters (parity).
-              await api.downloadMembersExport({
-                levelId: filterLevel || undefined,
-                status: (filterStatus as MemberStatusFilter) || undefined,
-                q: debouncedSearch || undefined,
-              });
-            } catch (e) {
-              setError(e instanceof ApiError ? e.message : "Export failed");
-            } finally {
-              setExporting(false);
-            }
-          }}
-        >
-          {exporting ? <SpinnerIcon /> : <DownloadIcon />}
-        </Button>
+          label="Download members as Excel"
+          options={[
+            {
+              label: "Current view (filtered)",
+              hint: "Applies the class, status & search filters",
+              onSelect: () =>
+                runMembersExport({
+                  levelId: filterLevel || undefined,
+                  status: (filterStatus as MemberStatusFilter) || undefined,
+                  q: debouncedSearch || undefined,
+                }),
+            },
+            {
+              label: "All members",
+              hint: "Ignore filters — export everyone",
+              onSelect: () => runMembersExport({}),
+            },
+          ]}
+        />
       </div>
 
       {/* members table */}
@@ -332,10 +346,12 @@ export default function MembersPage() {
                 (min-width kicks in ≤680px; see globals.css). */}
             <div className="table-wrap">
               <div
-                className="mini-grid mini-grid--head"
+                className="mini-grid mini-grid--head mini-grid--members-wide"
                 style={{ gridTemplateColumns: GRID }}
               >
                 <span>{STR.labels.member}</span>
+                <span>Username</span>
+                <span>Phone</span>
                 <span>{STR.labels.plan}</span>
                 <span>Classes</span>
                 <span>Joined</span>
@@ -350,7 +366,7 @@ export default function MembersPage() {
                 const st = memberStatus(m);
                 return (
                   <div
-                    className="mini-grid"
+                    className="mini-grid mini-grid--members-wide"
                     style={{ gridTemplateColumns: GRID }}
                     key={m.id}
                   >
@@ -376,6 +392,12 @@ export default function MembersPage() {
                         <span className="mini-member-sub">{m.email}</span>
                       </span>
                     </button>
+                    <span className="mini-cell mini-cell--ellip">
+                      {m.username || "—"}
+                    </span>
+                    <span className="mini-cell mini-cell--ellip">
+                      {m.phone || "—"}
+                    </span>
                     <span className="mini-cell" style={{ fontSize: 12.5 }}>
                       {m.subscription?.planName ?? "—"}
                     </span>

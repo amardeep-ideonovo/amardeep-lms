@@ -932,11 +932,23 @@ function LessonRow({
   );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [uploadingNotes, setUploadingNotes] = useState(false);
   const [names, setNames] = useState<Record<string, string>>({});
+  // Note edits are STAGED locally and only persisted when the admin clicks Save
+  // (alongside title/media/duration). Nothing about a lesson is written until
+  // then, so a change is never auto-saved.
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
 
   const notes = lesson.notes ?? [];
+  const visibleNotes = notes.filter((n) => !pendingDeletes.has(n.id));
   const nameFor = (n: LessonNoteDTO) => names[n.id] ?? n.originalName;
+
+  // Reset all staged note edits (used when opening, cancelling, or after a Save).
+  function clearNoteStaging() {
+    setPendingFiles([]);
+    setPendingDeletes(new Set());
+    setNames({});
+  }
 
   async function saveEdits() {
     const mediaError = validateLessonMedia(media);
@@ -955,7 +967,23 @@ function LessonRow({
         thumbnailUrl: thumbnailUrl.trim(),
         durationSeconds: parseDuration(duration),
       });
+      // Flush staged note edits, in order: delete → rename → upload. Deleted
+      // notes are skipped by the rename pass so a delete always wins.
+      for (const id of pendingDeletes) {
+        await api.deleteLessonNote(lesson.id, id);
+      }
+      for (const n of notes) {
+        if (pendingDeletes.has(n.id)) continue;
+        const next = (names[n.id] ?? n.originalName).trim();
+        if (next && next !== n.originalName) {
+          await api.renameLessonNote(lesson.id, n.id, next);
+        }
+      }
+      if (pendingFiles.length) {
+        await api.uploadLessonNotes(lesson.id, pendingFiles);
+      }
       setEditing(false);
+      clearNoteStaging();
       await onChanged();
     } catch (e) {
       setErr(e instanceof ApiError ? e.message : "Failed to save lesson");
@@ -964,42 +992,25 @@ function LessonRow({
     }
   }
 
-  async function onPickNotes(e: ChangeEvent<HTMLInputElement>) {
+  // Stage picked files locally — they upload only when the admin clicks Save.
+  function stageFiles(e: ChangeEvent<HTMLInputElement>) {
     const files = e.target.files ? Array.from(e.target.files) : [];
+    e.target.value = ""; // allow re-picking the same file
     if (!files.length) return;
-    setUploadingNotes(true);
-    setErr(null);
-    try {
-      await api.uploadLessonNotes(lesson.id, files);
-      await onChanged();
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Notes upload failed");
-    } finally {
-      setUploadingNotes(false);
-      e.target.value = "";
-    }
+    setPendingFiles((prev) => [...prev, ...files]);
   }
 
-  async function removeNote(noteId: string) {
-    setErr(null);
-    try {
-      await api.deleteLessonNote(lesson.id, noteId);
-      await onChanged();
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Failed to remove note");
-    }
+  // Mark an existing note for deletion (applied on Save). Not removed yet.
+  function stageDelete(noteId: string) {
+    setPendingDeletes((prev) => {
+      const next = new Set(prev);
+      next.add(noteId);
+      return next;
+    });
   }
 
-  async function rename(n: LessonNoteDTO) {
-    const next = nameFor(n).trim();
-    if (!next || next === n.originalName) return;
-    setErr(null);
-    try {
-      await api.renameLessonNote(lesson.id, n.id, next);
-      await onChanged();
-    } catch (e) {
-      setErr(e instanceof ApiError ? e.message : "Rename failed");
-    }
+  function removePendingFile(idx: number) {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== idx));
   }
 
   async function download(note: LessonNoteDTO) {
@@ -1051,6 +1062,7 @@ function LessonRow({
             size="sm"
             onClick={() => {
               if (editing) {
+                clearNoteStaging(); // drop any unsaved note edits on close
                 setEditing(false);
                 return;
               }
@@ -1063,6 +1075,7 @@ function LessonRow({
               setMedia(lessonMediaFromDTO(lesson));
               setThumbnailUrl(lesson.thumbnailUrl ?? "");
               setDuration(formatDuration(lesson.durationSeconds));
+              clearNoteStaging(); // start the notes editor from a clean slate
               setErr(null);
               setEditing(true);
             }}
@@ -1117,15 +1130,16 @@ function LessonRow({
             />
           </div>
 
-          {/* Downloadable notes — edited inline here (uploads/removes apply
-              immediately; title/media/duration save with the Save button). */}
+          {/* Downloadable notes — staged inline here. Renames, removals and new
+              files are all held locally and only written when Save is clicked,
+              exactly like the lesson's other fields. */}
           <div className="field">
             <label>Notes (downloadable files)</label>
-            {notes.length === 0 ? (
+            {visibleNotes.length === 0 && pendingFiles.length === 0 ? (
               <p className="muted">No notes yet.</p>
             ) : (
               <ul className="notes-list">
-                {notes.map((n) => (
+                {visibleNotes.map((n) => (
                   <li key={n.id} className="note-item">
                     <input
                       className="note-name-input"
@@ -1139,17 +1153,6 @@ function LessonRow({
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => rename(n)}
-                      disabled={
-                        !nameFor(n).trim() ||
-                        nameFor(n).trim() === n.originalName
-                      }
-                    >
-                      Rename
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
                       onClick={() => download(n)}
                     >
                       Download
@@ -1157,7 +1160,34 @@ function LessonRow({
                     <Button
                       variant="danger"
                       size="sm"
-                      onClick={() => removeNote(n.id)}
+                      onClick={() => stageDelete(n.id)}
+                    >
+                      {STR.common.remove}
+                    </Button>
+                  </li>
+                ))}
+                {pendingFiles.map((f, idx) => (
+                  <li key={`pending-${idx}`} className="note-item">
+                    <span
+                      className="note-name-input"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {f.name}
+                    </span>
+                    <span className="muted">{formatBytes(f.size)}</span>
+                    <span className="muted" style={{ fontSize: 11 }}>
+                      new · saves on Save
+                    </span>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => removePendingFile(idx)}
                     >
                       {STR.common.remove}
                     </Button>
@@ -1173,14 +1203,8 @@ function LessonRow({
               })}
               style={{ marginTop: 8 }}
             >
-              {uploadingNotes ? "Uploading…" : "+ Add files"}
-              <input
-                type="file"
-                multiple
-                hidden
-                onChange={onPickNotes}
-                disabled={uploadingNotes}
-              />
+              + Add files
+              <input type="file" multiple hidden onChange={stageFiles} />
             </label>
           </div>
 
@@ -1191,7 +1215,10 @@ function LessonRow({
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => setEditing(false)}
+              onClick={() => {
+                clearNoteStaging();
+                setEditing(false);
+              }}
             >
               {STR.common.cancel}
             </Button>

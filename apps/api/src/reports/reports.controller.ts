@@ -2,7 +2,10 @@ import { Controller, Get, Query, Res, UseGuards } from "@nestjs/common";
 import type { Response } from "express";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
 import { RequirePermission } from "../auth/require-permission.decorator";
-import { ReportFilterDto } from "./dto/report-filter.dto";
+import {
+  ReportFilterDto,
+  SubscriptionsExportQueryDto,
+} from "./dto/report-filter.dto";
 import { ListMembersQueryDto } from "../members/dto/member.dto";
 import { ReportsService } from "./reports.service";
 
@@ -71,11 +74,14 @@ export class ReportsController {
 
   @Get("subscriptions-export.xlsx")
   @RequirePermission("subscriptions", "read")
-  async subscriptionsExport(@Res() res: Response) {
+  async subscriptionsExport(
+    @Res() res: Response,
+    @Query() query: SubscriptionsExportQueryDto,
+  ) {
     this.send(
       res,
       "subscriptions.xlsx",
-      await this.reports.subscriptionsWorkbook(),
+      await this.reports.subscriptionsWorkbookFiltered(query),
     );
   }
 

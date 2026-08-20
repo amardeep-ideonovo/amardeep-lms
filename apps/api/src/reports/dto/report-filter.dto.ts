@@ -1,4 +1,4 @@
-import { IsOptional, IsString, Matches } from "class-validator";
+import { IsOptional, IsString, Matches, MaxLength } from "class-validator";
 
 // Optional query filters for the report exports (GET /admin/reports/*.xlsx). All
 // omittable — no filter means "all data". Validated by the global ValidationPipe.
@@ -17,4 +17,21 @@ export class ReportFilterDto {
   @IsOptional()
   @IsString()
   levelId?: string;
+}
+
+// Filters for the page-scoped Subscriptions export (GET
+// /admin/reports/subscriptions-export.xlsx). Mirror the Subscriptions page's
+// on-screen controls so a "current view" export matches what's displayed.
+// `status` is a free string (raw Stripe statuses plus the derived "paused"), so
+// it is intentionally not enumerated — an unknown value simply matches nothing.
+export class SubscriptionsExportQueryDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  q?: string;
 }

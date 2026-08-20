@@ -1392,6 +1392,7 @@ select:-webkit-autofill:focus {
 }
 .row-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 /* Row overflow ("⋯") menu — keeps Edit/Delete tidy and a stray Delete behind a
@@ -1430,6 +1431,21 @@ select:-webkit-autofill:focus {
   border: none;
   border-radius: 7px;
   cursor: pointer;
+}
+/* Export dropdown (Members / Subscriptions download) — wider, with a hint line
+   under each choice. */
+.export-menu-pop {
+  min-width: 220px;
+}
+.export-menu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.export-menu-item__hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
 }
 .row-menu-item:hover {
   background: var(--surface-hover);
@@ -2377,6 +2393,22 @@ select:-webkit-autofill:focus {
   font-size: 12.5px;
   color: var(--muted);
 }
+/* Long single-line cells (username, phone) truncate with an ellipsis instead of
+   forcing the grid track wider. min-width:0 lets a grid item shrink below its
+   content width so the ellipsis can kick in. */
+.mini-cell--ellip {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The members list carries extra identity columns (username, phone), so give it
+   a floor width and let .table-wrap scroll it horizontally on narrow screens
+   rather than crushing every cell. Placed after the max-width:680px rule above
+   so it also raises that breakpoint's 600px floor for this specific grid. */
+.table-wrap .mini-grid--members-wide {
+  min-width: 940px;
+}
 
 /* initials avatar (members lists) */
 .ava {
@@ -2825,6 +2857,7 @@ select:-webkit-autofill:focus {
 .hb-color {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 .hb-color input[type="color"] {
@@ -2835,6 +2868,37 @@ select:-webkit-autofill:focus {
   border-radius: 9px;
   background: var(--surface-2);
   cursor: pointer;
+  flex: none;
+}
+/* Format selector (HEX/RGB/HSL) + editable value field beside the swatch. */
+.hb-color select.hb-fmt {
+  height: 34px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex: none;
+}
+.hb-color input.hb-color-text {
+  flex: 1 1 90px;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+.hb-color select.hb-fmt:disabled,
+.hb-color input.hb-color-text:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .hb-hex {
   font-size: 12.5px;
