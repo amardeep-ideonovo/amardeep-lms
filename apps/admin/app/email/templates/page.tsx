@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { EmailTemplateDTO } from "@lms/types";
 import { ApiError, api } from "@/lib/api";
 import { useAppBrand } from "@/lib/queries";
@@ -124,10 +131,19 @@ export default function EmailTemplatesPage() {
   const [removing, setRemoving] = useState(false);
   const [editorError, setEditorError] = useState<string | null>(null);
 
-  // preview: the rendered HTML shown in the iframe, plus the resolved subject.
+  // Live preview: the rendered HTML shown in the iframe + the resolved subject.
+  // Re-renders automatically (debounced) as the draft changes — see the effect
+  // below. `previewError` holds an MJML/render error WITHOUT clearing the last
+  // good HTML, so the panel never flashes blank mid-typing.
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewSubject, setPreviewSubject] = useState<string>("");
   const [previewing, setPreviewing] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">(
+    "desktop",
+  );
+  // Monotonic token so a slow older render can't overwrite a newer one.
+  const previewSeq = useRef(0);
 
   const canCreate = can("email", "create");
   const canEdit = can("email", "edit");
@@ -173,6 +189,7 @@ export default function EmailTemplatesPage() {
     setEditorError(null);
     setPreviewHtml(null);
     setPreviewSubject("");
+    setPreviewError(null);
   }
 
   // Start a fresh (custom) template.
@@ -183,6 +200,7 @@ export default function EmailTemplatesPage() {
     setEditorError(null);
     setPreviewHtml(null);
     setPreviewSubject("");
+    setPreviewError(null);
   }
 
   function closeEditor() {
@@ -190,6 +208,7 @@ export default function EmailTemplatesPage() {
     setSelectedId(null);
     setPreviewHtml(null);
     setPreviewSubject("");
+    setPreviewError(null);
   }
 
   const editorOpen = creating || !!selected;
@@ -261,30 +280,50 @@ export default function EmailTemplatesPage() {
     }
   }
 
-  // Render the CURRENT draft (ad-hoc; no save required) with sample vars and
-  // show the HTML in the iframe.
-  async function preview() {
-    setPreviewing(true);
-    setEditorError(null);
-    try {
-      const res = await api.previewEmailTemplate({
-        subject: draft.subject,
-        mjml: draft.mjml,
-        vars: sampleVars(csvToList(draft.variablesCsv), brand),
-      });
-      setPreviewHtml(res.html);
-      setPreviewSubject(res.subject);
-    } catch (err) {
+  // Live preview: re-render the CURRENT draft (ad-hoc, no save) with sample vars
+  // whenever the subject / MJML / variables / brand change, debounced so we
+  // render on a pause rather than on every keystroke. The render endpoint is a
+  // pure compile (Handlebars + MJML, no DB/side-effects), so this is cheap and
+  // safe to fire repeatedly. A per-request `seq` token drops stale responses,
+  // and an MJML error is surfaced inline while the last good HTML stays visible.
+  useEffect(() => {
+    if (!editorOpen) return;
+    if (!draft.mjml.trim()) {
       setPreviewHtml(null);
-      setEditorError(
-        err instanceof ApiError
-          ? err.message
-          : "Preview failed — check your MJML.",
-      );
-    } finally {
-      setPreviewing(false);
+      setPreviewSubject("");
+      setPreviewError(null);
+      return;
     }
-  }
+    const handle = setTimeout(() => {
+      const seq = ++previewSeq.current;
+      setPreviewing(true);
+      void (async () => {
+        try {
+          const res = await api.previewEmailTemplate({
+            subject: draft.subject,
+            mjml: draft.mjml,
+            vars: sampleVars(csvToList(draft.variablesCsv), brand),
+          });
+          if (seq !== previewSeq.current) return; // a newer render superseded us
+          setPreviewHtml(res.html);
+          setPreviewSubject(res.subject);
+          setPreviewError(null);
+        } catch (err) {
+          if (seq !== previewSeq.current) return;
+          // Keep the last good HTML; just flag what's wrong with the new source.
+          setPreviewError(
+            err instanceof ApiError
+              ? err.message
+              : "Preview failed — check your MJML.",
+          );
+        } finally {
+          if (seq === previewSeq.current) setPreviewing(false);
+        }
+      })();
+    }, 450);
+    return () => clearTimeout(handle);
+    // brand is this instance's title (used for sample vars); re-render if it loads late.
+  }, [editorOpen, draft.subject, draft.mjml, draft.variablesCsv, brand]);
 
   // Send a real test of the SAVED template. Only meaningful for an existing row
   // (a brand-new draft must be saved first to get an id).
@@ -576,14 +615,6 @@ export default function EmailTemplatesPage() {
                         : "Save changes"}
                   </Button>
                 )}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={preview}
-                  disabled={previewing}
-                >
-                  {previewing ? "Rendering…" : STR.common.preview}
-                </Button>
                 {!creating && selected && canEdit && (
                   <Button type="button" variant="secondary" onClick={testSend}>
                     Send test…
@@ -602,45 +633,127 @@ export default function EmailTemplatesPage() {
                 )}
               </div>
 
-              {/* ---------------- Preview ---------------- */}
-              {previewHtml !== null && (
-                <div style={{ marginTop: 18 }}>
+              {/* ---------------- Live preview ---------------- */}
+              <div style={{ marginTop: 18 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <h3 style={{ fontSize: 14, margin: 0 }}>Live preview</h3>
+                  <span className="muted" style={{ fontSize: 13, minWidth: 0 }}>
+                    Subject: {previewSubject || "—"}
+                  </span>
+                  {previewing && (
+                    <span
+                      className="muted"
+                      style={{ fontSize: 12, fontStyle: "italic" }}
+                    >
+                      Updating…
+                    </span>
+                  )}
+                  {/* Desktop / mobile width toggle — emails render very
+                      differently at phone widths, so make both one click away. */}
+                  <div
+                    style={{ marginLeft: "auto", display: "flex", gap: 6 }}
+                    role="group"
+                    aria-label="Preview width"
+                  >
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={
+                        previewDevice === "desktop" ? "primary" : "secondary"
+                      }
+                      onClick={() => setPreviewDevice("desktop")}
+                      aria-pressed={previewDevice === "desktop"}
+                    >
+                      Desktop
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={
+                        previewDevice === "mobile" ? "primary" : "secondary"
+                      }
+                      onClick={() => setPreviewDevice("mobile")}
+                      aria-pressed={previewDevice === "mobile"}
+                    >
+                      Mobile
+                    </Button>
+                  </div>
+                </div>
+
+                {previewError && (
+                  <p className="error" style={{ fontSize: 13 }}>
+                    {previewError}
+                  </p>
+                )}
+
+                {previewHtml !== null ? (
                   <div
                     style={{
                       display: "flex",
-                      alignItems: "baseline",
-                      gap: 8,
-                      marginBottom: 8,
-                    }}
-                  >
-                    <h3 style={{ fontSize: 14, margin: 0 }}>
-                      {STR.common.preview}
-                    </h3>
-                    <span className="muted" style={{ fontSize: 13 }}>
-                      Subject: {previewSubject || "—"}
-                    </span>
-                  </div>
-                  <iframe
-                    title="Email preview"
-                    srcDoc={previewHtml}
-                    sandbox=""
-                    style={{
-                      width: "100%",
-                      height: 520,
+                      justifyContent: "center",
+                      background: "var(--surface-2)",
                       border: "1px solid var(--border)",
                       borderRadius: 12,
-                      background: "var(--surface)",
+                      padding: previewDevice === "mobile" ? 16 : 0,
                     }}
-                  />
-                  <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                    Rendered with sample values for{" "}
-                    {csvToList(draft.variablesCsv).length > 0
-                      ? csvToList(draft.variablesCsv).join(", ")
-                      : "your variables"}
-                    .
-                  </p>
-                </div>
-              )}
+                  >
+                    <iframe
+                      title="Email preview"
+                      srcDoc={previewHtml}
+                      sandbox=""
+                      style={{
+                        width: previewDevice === "mobile" ? 375 : "100%",
+                        maxWidth: "100%",
+                        height: 520,
+                        border:
+                          previewDevice === "mobile"
+                            ? "1px solid var(--border)"
+                            : "none",
+                        borderRadius: 12,
+                        // The email's own mj-body paints over this; a light base
+                        // keeps a phone-frame look if it doesn't fill the width.
+                        background: "var(--surface)",
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="muted"
+                    style={{
+                      height: 200,
+                      display: "grid",
+                      placeItems: "center",
+                      textAlign: "center",
+                      border: "1px dashed var(--border)",
+                      borderRadius: 12,
+                      fontSize: 13,
+                      padding: 16,
+                    }}
+                  >
+                    {previewError
+                      ? "Fix the MJML above to see the preview."
+                      : draft.mjml.trim()
+                        ? "Rendering preview…"
+                        : "Add some MJML to see a live preview."}
+                  </div>
+                )}
+
+                <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                  Updates live as you type, using sample values for{" "}
+                  {csvToList(draft.variablesCsv).length > 0
+                    ? csvToList(draft.variablesCsv).join(", ")
+                    : "your variables"}
+                  .
+                </p>
+              </div>
             </form>
           )}
         </div>
