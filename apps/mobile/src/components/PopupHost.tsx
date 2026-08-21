@@ -133,7 +133,8 @@ async function reconcileSeen(list: PopupPublicDTO[]): Promise<void> {
         changed = true;
       }
     }
-    if (changed) await SecureStore.setItemAsync(seenKey(), JSON.stringify(seen));
+    if (changed)
+      await SecureStore.setItemAsync(seenKey(), JSON.stringify(seen));
   } catch {
     /* best-effort hygiene */
   }
