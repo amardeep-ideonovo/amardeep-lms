@@ -1,0 +1,97 @@
+name: Publish OTA
+
+# Console-dispatched over-the-air update for the SHARED mobile app (Deployments
+# P4 in the control plane). The operator console runs the preflight (runtime
+# fence, something-to-ship, workflow present) and triggers this via
+# workflow_dispatch; this job does the part that must not run on the VPS —
+# bundling the app with Metro and signing the update — then the console reads
+# the result straight from EAS.
+#
+# Secrets (repo → Settings → Secrets and variables → Actions), owner-managed:
+#   EXPO_TOKEN              — Expo access token for the amardeeplms account
+#   EXPO_OTA_PRIVATE_KEY    — PEM of apps/mobile/keys/private-key.pem (the OTA
+#                             code-signing key; unsigned updates are REJECTED by
+#                             the signed store builds)
+# Optional repo variables (defaults match production):
+#   EXPO_PUBLIC_DIRECTORY_URL, EXPO_PUBLIC_FLEET_DOMAIN
+#
+# Runtime fence: an update only reaches builds whose runtimeVersion equals this
+# checkout's app.config.ts `version` (policy: appVersion). The console refuses
+# to dispatch when main's version differs from the live builds' runtime — an
+# OTA would reach nobody; that change needs a store build instead.
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "EAS update channel"
+        required: true
+        default: production
+        type: choice
+        options: [production, preview]
+      message:
+        description: "Update message (shown on the Expo dashboard)"
+        required: false
+        default: ""
+        type: string
+
+concurrency:
+  group: ota-${{ inputs.channel }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: eas update (${{ inputs.channel }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      # Inlined into the JS bundle at export time (EXPO_PUBLIC_*): the connect
+      # flow's directory + the fleet host allowlist. `eas update` does NOT read
+      # eas.json build-profile env, so they must be in the process env here.
+      EXPO_PUBLIC_DIRECTORY_URL: ${{ vars.EXPO_PUBLIC_DIRECTORY_URL || 'https://thewebpaanda.com' }}
+      EXPO_PUBLIC_FLEET_DOMAIN: ${{ vars.EXPO_PUBLIC_FLEET_DOMAIN || 'thewebpaanda.com' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Refuse to publish unsigned
+        env:
+          KEY: ${{ secrets.EXPO_OTA_PRIVATE_KEY }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN secret is not set"; exit 1
+          fi
+          if [ -z "$KEY" ]; then
+            echo "::error::EXPO_OTA_PRIVATE_KEY secret is not set — signed store builds reject unsigned updates, so publishing would reach nobody"; exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Materialize the signing key
+        env:
+          KEY: ${{ secrets.EXPO_OTA_PRIVATE_KEY }}
+        run: |
+          mkdir -p apps/mobile/keys
+          umask 077
+          printf '%s\n' "$KEY" > apps/mobile/keys/private-key.pem
+
+      - name: Publish
+        working-directory: apps/mobile
+        run: |
+          MSG='${{ inputs.message }}'
+          [ -n "$MSG" ] || MSG="console OTA ${GITHUB_SHA::7}"
+          npx eas-cli@20.5.1 update \
+            --channel "${{ inputs.channel }}" \
+            --message "$MSG" \
+            --private-key-path keys/private-key.pem \
+            --non-interactive \
+            --json
+
+      - name: Scrub the signing key
+        if: always()
+        run: rm -f apps/mobile/keys/private-key.pem
