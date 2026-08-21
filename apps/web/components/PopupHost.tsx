@@ -21,7 +21,12 @@ import type { Data } from "@puckeditor/core";
 import { createPuckConfig } from "@lms/puck";
 import type { PageProps, RootProps } from "@lms/puck";
 import "@lms/puck/styles.css";
-import type { PopupContext, PopupPosition, PopupPublicDTO } from "@lms/types";
+import type {
+  PopupBehaviorDTO,
+  PopupContext,
+  PopupPosition,
+  PopupPublicDTO,
+} from "@lms/types";
 import { STR } from "@lms/types";
 import FormEmbed from "@/components/FormEmbed";
 import PageMenu from "@/components/PageMenu";
@@ -55,18 +60,56 @@ function isDarkBg(color: string | undefined): boolean {
 }
 
 // ---------- frequency capping (storage is best-effort; private-mode safe) ----------
+// One record per popup id under a fixed key. The record's VALUE is stamped with
+// a SIGNATURE of the fields that decide suppression (frequency + the day-count
+// ONCE_PER_DAYS uses). Because the signature travels in the value, an admin
+// changing the frequency (or the day-count) no longer matches the old record —
+// so the cap resets and the new setting takes effect on the next visit. The
+// previous code keyed by id only and kept gating on the stale timestamp, so a
+// frequency change looked like it did nothing on a device that had already seen
+// the popup. A copy/style edit leaves the signature unchanged and won't re-nag.
 const seenKey = (id: string) => `lms-popup-seen:${id}`;
+
+function freqSig(b: PopupBehaviorDTO): string {
+  return b.frequency === "ONCE_PER_DAYS"
+    ? `d:${Math.max(1, b.frequencyDays || 7)}`
+    : b.frequency;
+}
+
+// Drop the record from BOTH stores, so a popup id keeps at most one live record
+// even as its mode moves between the per-session store (ONCE_PER_SESSION) and
+// the persistent one (ONCE / ONCE_PER_DAYS), and legacy pre-signature values
+// are swept on first sight.
+function clearSeen(id: string): void {
+  try {
+    sessionStorage.removeItem(seenKey(id));
+    localStorage.removeItem(seenKey(id));
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 function isSuppressed(p: PopupPublicDTO): boolean {
   const b = p.behavior;
-  if (!b || b.frequency === "EVERY_VISIT") return false;
+  if (!b || b.frequency === "EVERY_VISIT") {
+    clearSeen(p.id); // uncapped: sweep any gate a previous capped mode left
+    return false;
+  }
   try {
-    if (b.frequency === "ONCE_PER_SESSION") {
-      return sessionStorage.getItem(seenKey(p.id)) != null;
+    const store =
+      b.frequency === "ONCE_PER_SESSION" ? sessionStorage : localStorage;
+    const raw = store.getItem(seenKey(p.id));
+    if (!raw) return false;
+    const sep = raw.indexOf("|");
+    // A record from a different mode/day-count (or the legacy id-only format)
+    // does not apply to the current setting: reset and treat as never-seen.
+    if (sep === -1 || raw.slice(0, sep) !== freqSig(b)) {
+      clearSeen(p.id);
+      return false;
     }
-    const at = Number(localStorage.getItem(seenKey(p.id)) || 0);
-    if (!at) return false;
-    if (b.frequency === "ONCE") return true;
+    if (b.frequency === "ONCE_PER_SESSION" || b.frequency === "ONCE")
+      return true;
+    const at = Number(raw.slice(sep + 1)) || 0;
     const days = Math.max(1, b.frequencyDays || 7);
     return Date.now() - at < days * 86400000;
   } catch {
@@ -78,11 +121,10 @@ function markSeen(p: PopupPublicDTO): void {
   const b = p.behavior;
   if (!b || b.frequency === "EVERY_VISIT") return;
   try {
-    if (b.frequency === "ONCE_PER_SESSION") {
-      sessionStorage.setItem(seenKey(p.id), "1");
-    } else {
-      localStorage.setItem(seenKey(p.id), String(Date.now()));
-    }
+    clearSeen(p.id); // keep exactly one record per id (drop the other store)
+    const store =
+      b.frequency === "ONCE_PER_SESSION" ? sessionStorage : localStorage;
+    store.setItem(seenKey(p.id), `${freqSig(b)}|${Date.now()}`);
   } catch {
     /* storage unavailable — popup just behaves like EVERY_VISIT */
   }

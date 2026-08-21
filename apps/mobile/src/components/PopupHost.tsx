@@ -41,6 +41,7 @@ import {
 import * as SecureStore from "expo-secure-store";
 import type {
   AppConfig,
+  PopupBehaviorDTO,
   PopupContext,
   PopupPosition,
   PopupPublicDTO,
@@ -57,46 +58,103 @@ import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
 
 // ---------- frequency capping ----------
-// Map of popupId -> last-shown epoch ms, persisted across app runs. SecureStore
-// is the storage the app already ships (token + config cache); the value is a
-// tiny JSON object. Session scope is plain module memory (cleared on relaunch).
-// Namespaced per instance (shared binary): one academy's frequency caps must
-// not silence another's popups.
+// Map of popupId -> "sig|lastShownEpochMs", persisted across app runs.
+// SecureStore is the storage the app already ships (token + config cache); the
+// value is a tiny JSON object. Each record is stamped with a SIGNATURE of the
+// fields that decide suppression (frequency + the day-count ONCE_PER_DAYS uses),
+// so an admin changing the frequency no longer matches the old record and the
+// cap resets — the prior code keyed by id only and kept gating on the stale
+// timestamp, so a frequency change did nothing on a device that had already seen
+// the popup. A copy/style edit leaves the signature unchanged and won't re-nag.
+// Session scope is plain module memory (cleared on relaunch). Namespaced per
+// instance (shared binary): one academy's caps must not silence another's.
 const seenKey = () => scopedKey("lmsPopupSeenV1");
 const sessionShown = new Set<string>();
 
-async function readSeen(): Promise<Record<string, number>> {
+function freqSig(b: PopupBehaviorDTO): string {
+  return b.frequency === "ONCE_PER_DAYS"
+    ? `d:${Math.max(1, b.frequencyDays || 7)}`
+    : b.frequency;
+}
+
+// Read the map, keeping only "sig|ts" string records. Legacy runs stored a bare
+// number per id; those are dropped here (a one-time re-show after upgrade, then
+// re-marked in the new format).
+async function readSeen(): Promise<Record<string, string>> {
   try {
     const raw = await SecureStore.getItemAsync(seenKey());
     const parsed = raw ? (JSON.parse(raw) as unknown) : null;
-    return parsed && typeof parsed === "object"
-      ? (parsed as Record<string, number>)
-      : {};
+    const out: Record<string, string> = {};
+    if (parsed && typeof parsed === "object") {
+      for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+        if (typeof v === "string") out[k] = v;
+      }
+    }
+    return out;
   } catch {
     return {};
   }
 }
 
-async function persistSeen(id: string): Promise<void> {
+// Persist the popup's cap: a sig-stamped record for the persistent modes, or a
+// deletion for the modes that don't persist (so switching a shown popup to
+// ONCE_PER_SESSION / EVERY_VISIT clears its old persisted clock).
+async function persistSeen(p: PopupPublicDTO): Promise<void> {
+  const b = p.behavior;
   try {
     const seen = await readSeen();
-    seen[id] = Date.now();
+    if (b && (b.frequency === "ONCE" || b.frequency === "ONCE_PER_DAYS")) {
+      seen[p.id] = `${freqSig(b)}|${Date.now()}`;
+    } else {
+      delete seen[p.id];
+    }
     await SecureStore.setItemAsync(seenKey(), JSON.stringify(seen));
   } catch {
     /* storage unavailable — popup behaves like EVERY_VISIT */
   }
 }
 
+// Drop persisted caps whose popup is no longer in a capped persistent mode, or
+// whose signature changed — so switching a popup back to a capped mode later
+// starts a fresh clock instead of resurrecting a stale timestamp. Best-effort
+// hygiene; the suppression decision in isSuppressed does not depend on it.
+async function reconcileSeen(list: PopupPublicDTO[]): Promise<void> {
+  try {
+    const seen = await readSeen();
+    let changed = false;
+    for (const p of list) {
+      const entry = seen[p.id];
+      if (!entry) continue;
+      const b = p.behavior;
+      const capped =
+        !!b && (b.frequency === "ONCE" || b.frequency === "ONCE_PER_DAYS");
+      if (!capped || (b && entry.slice(0, entry.indexOf("|")) !== freqSig(b))) {
+        delete seen[p.id];
+        changed = true;
+      }
+    }
+    if (changed) await SecureStore.setItemAsync(seenKey(), JSON.stringify(seen));
+  } catch {
+    /* best-effort hygiene */
+  }
+}
+
 function isSuppressed(
   p: PopupPublicDTO,
-  seen: Record<string, number>,
+  seen: Record<string, string>,
 ): boolean {
   const b = p.behavior;
   if (!b || b.frequency === "EVERY_VISIT") return false;
   if (b.frequency === "ONCE_PER_SESSION") return sessionShown.has(p.id);
-  const at = seen[p.id] || 0;
-  if (!at) return false;
+  const raw = seen[p.id];
+  if (!raw) return false;
+  const sep = raw.indexOf("|");
+  // A record from a different mode/day-count does not apply to the current
+  // setting — treat as never-seen (reconcileSeen prunes it; a display overwrites
+  // it with the new signature).
+  if (sep === -1 || raw.slice(0, sep) !== freqSig(b)) return false;
   if (b.frequency === "ONCE") return true;
+  const at = Number(raw.slice(sep + 1)) || 0;
   const days = Math.max(1, b.frequencyDays || 7);
   return Date.now() - at < days * 86400000;
 }
@@ -106,7 +164,7 @@ function markSeen(p: PopupPublicDTO): void {
   const b = p.behavior;
   if (!b || b.frequency === "EVERY_VISIT") return;
   sessionShown.add(p.id);
-  if (b.frequency !== "ONCE_PER_SESSION") void persistSeen(p.id);
+  void persistSeen(p);
 }
 
 // Native trigger approximation: IMMEDIATE/DELAY are honored exactly; SCROLL
@@ -349,6 +407,8 @@ export function PopupHost({ context }: { context: PopupContext }) {
       ]);
       // Frequency-capped popups are dropped up front (web parity).
       setPopups(list.filter((p) => !isSuppressed(p, seen)));
+      // Sweep caps left by a since-changed frequency (storage hygiene).
+      void reconcileSeen(list);
     } catch {
       setPopups([]);
     }
