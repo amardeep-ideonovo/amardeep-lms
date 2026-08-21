@@ -47,6 +47,7 @@ const TYPE_BADGE: Record<MenuItemType, string> = {
 // items (type ROUTE + fixed internal url) — picker-only sugar, no schema/API
 // change. Keys are picker values, distinct from real MenuItemType values.
 const BUILTIN_ROUTES = {
+  ROUTE_MY_CLASSES: { url: "/classes", label: "My classes" },
   ROUTE_DASHBOARD: { url: "/dashboard", label: "Dashboard" },
   ROUTE_ACCOUNT: { url: "/account", label: "Account" },
 } as const;
@@ -62,6 +63,7 @@ const ADD_TYPES: { value: AddTypeChoice; label: string }[] = [
   { value: "COURSE_INDEX", label: "Courses index" },
   { value: "BLOG_INDEX", label: "Blog index" },
   { value: "BLOG_POST", label: "Blog post" },
+  { value: "ROUTE_MY_CLASSES", label: "My classes" },
   { value: "ROUTE_DASHBOARD", label: "Dashboard" },
   { value: "ROUTE_ACCOUNT", label: "Account" },
   { value: "CUSTOM", label: "Custom link" },
@@ -756,6 +758,12 @@ export default function MenusPage() {
                     )}
                     {addType === "COURSE_INDEX" && (
                       <input value="/dashboard" disabled />
+                    )}
+                    {addType === "ROUTE_MY_CLASSES" && (
+                      <input
+                        value={BUILTIN_ROUTES.ROUTE_MY_CLASSES.url}
+                        disabled
+                      />
                     )}
                     {addType === "ROUTE_DASHBOARD" && (
                       <input
