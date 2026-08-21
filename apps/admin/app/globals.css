@@ -4924,3 +4924,32 @@ select.filter-select {
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* =========================================================================
+   Puck editor host — fill the toolbar-bounded box, not the whole viewport.
+
+   Puck hard-sets its layout root to `height: 100dvh`. Both editors (pages +
+   popups) mount <Puck> in a `flex:1; min-height:0` box that sits BELOW a
+   custom toolbar inside a `position:fixed; inset:0` column. So 100dvh makes
+   the Puck layout taller than that box by the toolbar's height — its bottom
+   (and with it the bottom of the settings sidebar's own scroll region) is
+   pushed off-screen, and because the shell is fixed there is nothing to
+   scroll: the lower fields (padding, colors, visibility) become unreachable.
+
+   Let the layout fill its already-bounded flex container instead. The direct
+   child flex-grows to the box height (overriding the 100dvh main size), and
+   the layout root is pinned to 100% for the nested-wrapper case; Puck's own
+   `._Sidebar`/`._FieldsPlugin { overflow-y:auto }` then scroll correctly.
+   ========================================================================= */
+.puck-host {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.puck-host > * {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.puck-host [class*="PuckLayout_"] {
+  height: 100% !important;
+}

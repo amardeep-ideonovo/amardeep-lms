@@ -380,7 +380,7 @@ export default function PageEditor() {
         )}
       </div>
 
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div className="puck-host" style={{ flex: 1, minHeight: 0 }}>
         <Puck
           config={config}
           data={initialData}
