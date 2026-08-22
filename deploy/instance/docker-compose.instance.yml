@@ -118,6 +118,11 @@ services:
       # provisioner alongside SENTRY_DSN. Empty = SDK falls back to the container
       # hostname (see instrument.ts).
       SENTRY_SERVER_NAME: ${SENTRY_SERVER_NAME:-}
+      # Mobile force-update floor, served on GET /app/config as minAppVersion:
+      # installed apps older than this show "Update required". Injected by the
+      # control-plane provisioner from its Mobile settings (Deployments P4);
+      # empty = the gate stays off (the app fails open on a missing value).
+      MIN_APP_VERSION: ${MIN_APP_VERSION:-}
       # Support ticketing: where this instance reaches the control plane, and the
       # per-instance bearer it authenticates with. Both are injected by the
       # provisioner (from Instance.secretsEnc + CONTROL_PLANE_PUBLIC_URL). Unset
