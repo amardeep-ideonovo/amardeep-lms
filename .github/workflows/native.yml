@@ -1,0 +1,76 @@
+name: Native build
+
+# Console-dispatched NATIVE build of the SHARED mobile app (Deployments P5 in
+# the control plane). The console runs the preflight (is a native build even
+# needed — runtime fence moved, native-surface changes since the last build)
+# and triggers this via workflow_dispatch; EAS does the actual compile in the
+# cloud. This job only hands the build off (`--no-wait`), so the run finishes
+# in a minute; progress is then read from EAS by the console's snapshot.
+#
+# Secret (owner-managed, shared with ota.yml): EXPO_TOKEN.
+# Native signing credentials (iOS certs/profiles, Android keystore) are the
+# ones EAS already holds for the project — a platform whose credentials were
+# never set up fails the EAS build with a clear message, never silently.
+#
+# Store SUBMISSION is deliberately NOT here: the submit profile still carries
+# placeholder Apple ids and no Play service account exists. When those exist,
+# submission is a one-step addition (`eas submit --latest`) with its secrets.
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platform"
+        required: true
+        default: android
+        type: choice
+        options: [android, ios, all]
+      profile:
+        description: "eas.json build profile"
+        required: true
+        default: production
+        type: choice
+        options: [production, preview]
+      message:
+        description: "Build message (for the run log)"
+        required: false
+        default: ""
+        type: string
+
+concurrency:
+  group: native-${{ inputs.platform }}-${{ inputs.profile }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: eas build (${{ inputs.platform }} · ${{ inputs.profile }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Refuse without an Expo token
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN secret is not set"; exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Hand the build to EAS
+        working-directory: apps/mobile
+        run: |
+          echo "message: ${{ inputs.message }} (${GITHUB_SHA::7})"
+          npx eas-cli@20.5.1 build \
+            --platform "${{ inputs.platform }}" \
+            --profile "${{ inputs.profile }}" \
+            --non-interactive \
+            --no-wait \
+            --json
