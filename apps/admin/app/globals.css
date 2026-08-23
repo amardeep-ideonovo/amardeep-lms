@@ -1371,6 +1371,23 @@ select:-webkit-autofill:focus {
 }
 /* Inline notice banners (theme-aware) — confirmations + warnings. */
 .alert-success,
+/* Dashboard-level standing warning: full width, above the KPI row, and spaced
+   like a card so it reads as part of the page rather than a form message. */
+.dash-alert {
+  display: block;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  line-height: 1.5;
+}
+/* The alert inherits its own text colour, which leaves an <a> inside it looking
+   exactly like prose — underline it so the one action in the banner is findable. */
+.dash-alert a {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .alert-warning {
   border-radius: 8px;
   padding: 10px 12px;

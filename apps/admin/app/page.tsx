@@ -111,6 +111,11 @@ export default function DashboardPage() {
   const [courses, setCourses] = useState<CourseCard[]>([]);
   const [sessions, setSessions] = useState<AdminLiveSessionDTO[]>([]);
   const [activity, setActivity] = useState<AdminNotificationDTO[]>([]);
+  // Whether this academy's checkout is running on the operator's shared TEST
+  // keys. Fetched here (not only on the Settings page) because the failure mode
+  // is silent: the site sells and collects nothing, and an admin who never
+  // opens Settings would never find out.
+  const [demoKeysActive, setDemoKeysActive] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -118,7 +123,7 @@ export default function DashboardPage() {
     let alive = true;
     void (async () => {
       // Fetch only what this admin may read; tolerate per-call failures.
-      const [m, l, c, s, n] = await Promise.allSettled([
+      const [m, l, c, s, n, k] = await Promise.allSettled([
         can("members", "read")
           ? Promise.all([
               api.memberStats(),
@@ -133,6 +138,11 @@ export default function DashboardPage() {
           ? api.listLiveSessions()
           : Promise.resolve([]),
         api.listNotifications({ pageSize: 6 }),
+        // Gated like the rest: an admin without `settings` access can't act on
+        // this anyway, and the academy owner is SUPER_ADMIN, who always passes.
+        can("settings", "read")
+          ? api.getStripeSettings()
+          : Promise.resolve(null),
       ]);
       if (!alive) return;
       if (m.status === "fulfilled" && m.value) {
@@ -143,6 +153,8 @@ export default function DashboardPage() {
       if (c.status === "fulfilled") setCourses(c.value);
       if (s.status === "fulfilled") setSessions(s.value);
       if (n.status === "fulfilled") setActivity(n.value.items);
+      if (k.status === "fulfilled" && k.value)
+        setDemoKeysActive(k.value.demoKeysActive);
       setLoading(false);
     })();
     return () => {
@@ -302,6 +314,19 @@ export default function DashboardPage() {
 
   return (
     <div>
+      {/* Standing warning, deliberately above the KPIs: while this is showing,
+          every "sale" on this site collects nothing. It disappears by itself the
+          moment the client saves their own Stripe keys. */}
+      {demoKeysActive && (
+        <div className="alert-warning dash-alert" role="status">
+          <strong>You&rsquo;re on demo payment keys.</strong> Checkout is
+          running on test keys that came with your sample content — cards are
+          never charged and no money reaches you.{" "}
+          <Link href="/settings">Add your own Stripe keys</Link> before you
+          start selling.
+        </div>
+      )}
+
       {/* KPI row */}
       <div className="stat-grid">
         {cards.map((c) => (

@@ -2323,6 +2323,23 @@ a.card:hover {
   color: var(--danger-text);
   border: 1px solid rgba(224, 72, 72, 0.25);
 }
+/* Sandbox/test-mode notice above the payment fields — tells a demo prospect
+   that no money moves and which card to type. */
+.co-testmode {
+  background: var(--fill-info);
+  color: var(--info-text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 14px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.co-testmode-card {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-weight: 600;
+  white-space: nowrap;
+}
 .co-notfound {
   max-width: 640px;
   margin: 0 auto;

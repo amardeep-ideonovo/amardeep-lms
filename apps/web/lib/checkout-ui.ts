@@ -10,7 +10,20 @@ export const FALLBACK_BILLING: BillingConfigDTO = {
   publishableKey: null,
   paypalClientId: null,
   paypalMode: null,
+  // Assume live until the real config says otherwise: an unreachable /billing/config
+  // must never make a real checkout claim no money will move.
+  testMode: false,
 };
+
+// Shown on the checkout when the active processor is in test/sandbox mode, so a
+// prospect running a demo knows what to type. Stripe's universal test card —
+// it is public documented test data, not a credential.
+export const TEST_CARD = {
+  number: "4242 4242 4242 4242",
+  expiry: "any future date",
+  cvc: "any 3 digits",
+  postal: "any postal code",
+} as const;
 
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

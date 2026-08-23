@@ -228,8 +228,6 @@ function wipeUploadDirs() {
 // The fixture levels stay published:false so they never appear among the six
 // real classes; "(QA fixture)" in the name explains any stray tile a BDD run
 // leaves behind (the grant cleanup below removes it on the next re-seed).
-// /checkout/stripe-test additionally needs the Stripe Test level + prices
-// recreated with EXACT ids (apps/web/lib/checkout-config.ts hard-codes them).
 
 async function seedFixtureCluster(): Promise<{ memberId: string }> {
   await prisma.level.upsert({
@@ -385,46 +383,21 @@ async function seedFixtureCluster(): Promise<{ memberId: string }> {
     where: { userId: member.id, levelId: "seed-level-pro" },
   });
 
-  // Stripe live-checkout fixture — EXACT ids referenced by
-  // apps/web/lib/checkout-config.ts CHECKOUT_LEVELS["stripe-test"] and tied to
-  // real test-mode objects in the connected Stripe account.
-  await prisma.level.upsert({
-    where: { id: "cmpshpddy0002mtv65lh9p50c" },
-    update: { name: "Stripe Test", type: "PAID", published: false },
-    create: {
-      id: "cmpshpddy0002mtv65lh9p50c",
-      name: "Stripe Test",
-      type: "PAID",
-      published: false,
-      audienceTags: [],
-    },
-  });
-  await prisma.price.upsert({
-    where: { id: "cmpshpddz0003mtv6j4e4i1lz" },
-    update: { interval: "month", amount: 1000, currency: "usd", active: true },
-    create: {
-      id: "cmpshpddz0003mtv6j4e4i1lz",
-      levelId: "cmpshpddy0002mtv65lh9p50c",
-      stripePriceId: "price_1TcoZ0L80rvd0GTRyVsyoRqk",
-      interval: "month",
-      amount: 1000,
-      currency: "usd",
-      active: true,
-    },
-  });
-  await prisma.price.upsert({
-    where: { id: "cmputofx10005kzsobri0mddw" },
-    update: { interval: "year", amount: 10000, currency: "usd", active: true },
-    create: {
-      id: "cmputofx10005kzsobri0mddw",
-      levelId: "cmpshpddy0002mtv65lh9p50c",
-      stripePriceId: "price_1TdPFuL80rvd0GTRJYnOWliT",
-      interval: "year",
-      amount: 10000,
-      currency: "usd",
-      active: true,
-    },
-  });
+  // REMOVED: the "Stripe Test" fixture level. It hard-coded two stripePriceIds
+  // from ONE developer's personal Stripe test account, and shipped on every
+  // demo-seeded instance. Its only consumer — CHECKOUT_LEVELS["stripe-test"] in
+  // apps/web/lib/checkout-config.ts — was already deleted for the same reason,
+  // and levels.checkoutBySlugOrId does NOT filter on `published`, so the level
+  // stayed publicly reachable at /checkout/<id> while being un-chargeable in any
+  // other account: a prospect who found it got "No such price".
+  //
+  // That went from latent to live when demo instances started being armed with
+  // the operator's shared Stripe sandbox keys, which is a DIFFERENT account
+  // again. Paid demo classes now provision their own Stripe Product + Price
+  // lazily on first checkout (billing.service ensureStripePrice), so no fixture
+  // needs to pin ids at all. purgeDemoDebris below still deletes these ids, so
+  // instances that already carry the fixture are cleaned up on their next
+  // baseline boot.
 
   return { memberId: member.id };
 }
@@ -979,7 +952,8 @@ async function retireStaleSeedRows() {
 // So the baseline path now removes everything the demo seed authors. Same
 // safety boundary as retireStaleSeedRows(): only "seed-"-prefixed ids (client
 // content gets cuids), plus three targeted extras —
-//   - the Stripe Test fixture (known cuids from seedFixtureCluster),
+//   - the retired Stripe Test fixture (known cuids; the seed no longer
+//     creates it, but instances seeded before its removal still carry it),
 //   - the demo member (example.com is reserved; no real member can own it),
 //   - the Footer/AppConfig singletons ONLY on an exact fingerprint match with
 //     the seeded copy. The singletons aren't seed-prefixed, and a client may

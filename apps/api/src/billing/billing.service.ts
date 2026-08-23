@@ -379,6 +379,41 @@ export class BillingService implements OnModuleInit {
     if (!subId) return;
 
     let sub = await this.stripe.retrieveSubscription(subId);
+
+    // OWNERSHIP CHECK BEFORE THE MUTATION — but ONLY on a shared account.
+    //
+    // reconcileSubscription resolves the local user itself, but it runs AFTER
+    // the cancel below, so an event for a subscription we don't own would still
+    // cancel it at Stripe. That is a live cross-tenant mutation the moment two
+    // academies share a Stripe account, which the operator's demo keys make
+    // routine: one academy's refund would cancel another academy's member.
+    //
+    // On an academy's OWN account there is no other tenant, and skipping here
+    // would be a regression: a refund for a customer whose local user is gone
+    // (member deleted, stripeCustomerId cleared) used to still cancel the
+    // subscription at Stripe and raise the CRITICAL admin alert. Losing that
+    // would leave a refunded subscription quietly billing on. So the gate is
+    // scoped to exactly the case that needs it.
+    if ((await this.stripe.tenantScope()) !== null) {
+      const subCustomerId =
+        typeof sub.customer === "string"
+          ? sub.customer
+          : (sub.customer?.id ?? null);
+      const owner = subCustomerId
+        ? await this.prisma.user.findUnique({
+            where: { stripeCustomerId: subCustomerId },
+            select: { id: true },
+          })
+        : null;
+      if (!owner) {
+        this.logger.warn(
+          `${reason} for Stripe customer ${subCustomerId} has no local user on ` +
+            `a shared account; leaving subscription ${subId} untouched`,
+        );
+        return;
+      }
+    }
+
     if (sub.status !== "canceled") {
       try {
         sub = await this.stripe.cancelSubscription(subId);
@@ -457,6 +492,12 @@ export class BillingService implements OnModuleInit {
       publishableKey,
       paypalClientId: paypalCfg?.clientId ?? null,
       paypalMode: paypalCfg?.mode ?? null,
+      // Stripe test keys are self-identifying (pk_test_…); PayPal reports its
+      // mode outright. Both are already-public values, so this leaks nothing.
+      testMode:
+        provider === "paypal"
+          ? paypalCfg?.mode === "sandbox"
+          : !!publishableKey?.startsWith("pk_test_"),
     };
   }
 

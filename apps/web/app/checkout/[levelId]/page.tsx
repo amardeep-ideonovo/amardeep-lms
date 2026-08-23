@@ -30,6 +30,7 @@ import {
   FALLBACK_BILLING,
   MIN_PASSWORD,
   SUBMIT_STAGE_LABELS,
+  TEST_CARD,
 } from "@/lib/checkout-ui";
 import { DEFAULT_COUNTRY } from "@/lib/countries";
 import {
@@ -544,13 +545,34 @@ export default function CheckoutPage() {
                 back soon.
               </div>
             ) : (
-              <PaymentSection
-                ref={payRef}
-                provider={provider}
-                publishableKey={billing.publishableKey}
-                paypalClientId={billing.paypalClientId}
-                paypal={provider === "paypal" ? paypalDriver : undefined}
-              />
+              <>
+                {billing.testMode && (
+                  <div className="co-testmode" role="status">
+                    <strong>Test mode</strong> — this checkout is connected to a
+                    payment sandbox, so no real money moves and no card is
+                    charged.{" "}
+                    {provider === "stripe" ? (
+                      <>
+                        Pay with card{" "}
+                        <code className="co-testmode-card">
+                          {TEST_CARD.number}
+                        </code>
+                        , {TEST_CARD.expiry}, {TEST_CARD.cvc},{" "}
+                        {TEST_CARD.postal}.
+                      </>
+                    ) : (
+                      <>Use your PayPal sandbox buyer account to pay.</>
+                    )}
+                  </div>
+                )}
+                <PaymentSection
+                  ref={payRef}
+                  provider={provider}
+                  publishableKey={billing.publishableKey}
+                  paypalClientId={billing.paypalClientId}
+                  paypal={provider === "paypal" ? paypalDriver : undefined}
+                />
+              </>
             )}
 
             {/* Coupon — Stripe promotion codes only; PayPal has no coupon engine. */}

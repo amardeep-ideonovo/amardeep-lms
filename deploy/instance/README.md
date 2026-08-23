@@ -62,7 +62,13 @@ driver will implement the same verbs against a hosting API.
 
 - **No Caddy.** TLS/single-domain routing belongs to the production VPS compose
   (`deploy/docker-compose.yml`) or the cloud ingress. Locally we publish ports.
-- **No provider secrets.** Stripe / PayPal / SMTP / Mux are entered per instance
-  in that instance's admin Settings (encrypted with its own `SETTINGS_ENC_KEY`).
+- **No provider secrets in env.** Stripe / PayPal / SMTP / Mux are entered per
+  instance in that instance's admin Settings (encrypted with its own
+  `SETTINGS_ENC_KEY`). The ONE exception is arranged so it doesn't break this
+  rule: an academy running on sample content can be armed with the operator's
+  shared Stripe TEST keys, and those arrive over the control plane's
+  service-token push (`POST /instance-admin/demo-payment-keys`) and are stored
+  encrypted in the same table — never as a compose variable. See
+  `docs/demo-payment-keys.md`.
 - **Mobile apps.** "Apps included" is a separate per-client EAS build track — the
   app binary points at this instance's `API_PORT`/public API URL.
