@@ -329,6 +329,10 @@ export interface BillingConfigDTO {
   publishableKey: string | null; // Stripe Elements key (pk_…)
   paypalClientId: string | null; // PayPal JS SDK client id (public)
   paypalMode: "sandbox" | "live" | null;
+  // True when the active processor is in TEST/sandbox mode — no real money can
+  // move. The checkout uses it to show the test card details, so a prospect
+  // running a demo knows what to type. Derived from the public key/mode only.
+  testMode: boolean;
 }
 // Start an embedded (Elements) subscription. `couponCode` is an optional Stripe
 // promotion code applied to the subscription.
@@ -1643,7 +1647,10 @@ export type AdminNotificationType =
   | "MEMBER_DELETED"
   | "SUPPORT_REPLY"
   | "SUPPORT_STATUS"
-  | "SUPPORT_INVITED_OPS";
+  | "SUPPORT_INVITED_OPS"
+  // A standing STATE, not an event: checkout is running on the operator's
+  // shared test keys, so nothing this academy sells collects money.
+  | "PAYMENT_KEYS_DEMO";
 
 export type AdminNotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
 

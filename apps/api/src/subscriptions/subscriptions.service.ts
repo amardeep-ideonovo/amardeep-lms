@@ -25,7 +25,19 @@ export class SubscriptionsService {
   // the assembled rows briefly so rapid re-renders / multiple admins viewing the
   // tab don't each re-sweep Stripe. Staleness is bounded to the TTL; call
   // invalidate() after a subscription mutation to reflect it immediately.
-  private stripeCache?: { at: number; rows: SubscriptionRowDTO[] };
+  //
+  // The entry also records WHICH Stripe account it was built from. An instance
+  // can switch accounts at runtime — the control plane arms or revokes the
+  // operator's shared demo keys, or the admin saves/removes their own — and a
+  // cache keyed on time alone would keep serving the previous account's rows
+  // for up to a TTL after the switch. On the shared demo account those rows
+  // belong to OTHER academies, so this is a cross-tenant leak, not just
+  // staleness.
+  private stripeCache?: {
+    at: number;
+    account: string;
+    rows: SubscriptionRowDTO[];
+  };
   private static readonly STRIPE_TTL_MS = 30_000;
 
   /** Drop the cached Stripe sweep so the next read re-fetches live. */
@@ -55,12 +67,17 @@ export class SubscriptionsService {
   }
 
   private async stripeRows(): Promise<SubscriptionRowDTO[]> {
+    const account = await this.stripe.accountFingerprint();
     const cached = this.stripeCache;
-    if (cached && Date.now() - cached.at < SubscriptionsService.STRIPE_TTL_MS) {
+    if (
+      cached &&
+      cached.account === account &&
+      Date.now() - cached.at < SubscriptionsService.STRIPE_TTL_MS
+    ) {
       return cached.rows;
     }
     const rows = await this.computeStripeRows();
-    this.stripeCache = { at: Date.now(), rows };
+    this.stripeCache = { at: Date.now(), account, rows };
     return rows;
   }
 
@@ -74,13 +91,19 @@ export class SubscriptionsService {
 
     // Per-subscription order rollup: count + most-recent invoice date. Drafts
     // aren't placed "orders" yet, so they're excluded.
+    //
+    // listAllSubscriptions() is tenant-filtered but listAllInvoices() cannot be
+    // (invoices carry no metadata of ours), so scope the invoices to the
+    // subscriptions that survived — on the operator's shared demo account the
+    // raw list also contains other instances' invoices.
+    const ourSubIds = new Set(subs.map((s) => s.id));
     const agg = new Map<string, { orders: number; lastOrder: number }>();
     for (const inv of invoices) {
       const subId =
         typeof inv.subscription === "string"
           ? inv.subscription
           : inv.subscription?.id;
-      if (!subId || inv.status === "draft") continue;
+      if (!subId || !ourSubIds.has(subId) || inv.status === "draft") continue;
       const cur = agg.get(subId) ?? { orders: 0, lastOrder: 0 };
       cur.orders += 1;
       if (inv.created > cur.lastOrder) cur.lastOrder = inv.created;

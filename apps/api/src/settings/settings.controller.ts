@@ -50,16 +50,28 @@ export class SettingsController {
   @Get("stripe")
   @RequirePermission("settings", "read")
   async getStripe() {
-    const [secret, webhook, publishable] = await Promise.all([
-      this.settings.getSecret(SETTING_KEYS.stripeSecretKey),
-      this.settings.getSecret(SETTING_KEYS.stripeWebhookSecret),
-      this.settings.getSecret(SETTING_KEYS.stripePublishableKey),
-    ]);
+    const [secret, webhook, publishable, demoStored, demoActive] =
+      await Promise.all([
+        this.settings.getSecret(SETTING_KEYS.stripeSecretKey),
+        this.settings.getSecret(SETTING_KEYS.stripeWebhookSecret),
+        this.settings.getSecret(SETTING_KEYS.stripePublishableKey),
+        this.settings.hasDemoStripeKeys(),
+        this.settings.isDemoStripeActive(),
+      ]);
     return {
       secretKeyLast4: last4(secret),
       webhookSecretLast4: last4(webhook),
       // publishable key is public — returned in full so the admin can see it.
       publishableKey: publishable ?? null,
+      // The operator's demo TEST keys, reported as booleans only — never
+      // last4. These are not this admin's credential, and the matching
+      // publishable key is already public on GET /billing/config, so
+      // publishing four more characters of the secret's account segment only
+      // narrows a credential they have no business reading.
+      demoKeysStored: demoStored,
+      // Stored AND in use — false once this admin adds a key of their own,
+      // which always wins.
+      demoKeysActive: demoActive,
     };
   }
 
@@ -70,15 +82,23 @@ export class SettingsController {
     @CurrentUser() principal: AuthenticatedPrincipal,
     @Ip() ip: string,
   ) {
-    await this.settings.setSecret(SETTING_KEYS.stripeSecretKey, dto.secretKey);
-    await this.settings.setSecret(
-      SETTING_KEYS.stripeWebhookSecret,
-      dto.webhookSecret,
-    );
-    await this.settings.setSecret(
-      SETTING_KEYS.stripePublishableKey,
-      dto.publishableKey,
-    );
+    // Wrapped so that swapping to a different Stripe account also drops the
+    // product/price ids minted on the old one — otherwise every paid checkout
+    // afterwards fails on "No such price" and never self-heals.
+    await this.settings.withStripeCredentialChange(async () => {
+      await this.settings.setSecret(
+        SETTING_KEYS.stripeSecretKey,
+        dto.secretKey,
+      );
+      await this.settings.setSecret(
+        SETTING_KEYS.stripeWebhookSecret,
+        dto.webhookSecret,
+      );
+      await this.settings.setSecret(
+        SETTING_KEYS.stripePublishableKey,
+        dto.publishableKey,
+      );
+    });
     await this.audit.write({
       actorAdminId: principal.sub,
       action: "settings.stripe_rotate",
@@ -94,7 +114,11 @@ export class SettingsController {
     @CurrentUser() principal: AuthenticatedPrincipal,
     @Ip() ip: string,
   ) {
-    await this.settings.clearStripe();
+    // Removing the client's own keys can hand billing BACK to the operator's
+    // demo keys — a different account again, so the same reset applies.
+    await this.settings.withStripeCredentialChange(() =>
+      this.settings.clearStripe(),
+    );
     await this.audit.write({
       actorAdminId: principal.sub,
       action: "settings.stripe_clear",
@@ -340,8 +364,11 @@ export class SettingsController {
           : "No PayPal webhook ID saved — subscription changes made at PayPal will not sync automatically.",
       };
     }
-    const secretKey = await this.settings.getStripeSecretKey();
-    if (!secretKey) {
+    // Effective, not own: an instance armed with the operator's demo test keys
+    // can take (fake) Stripe checkouts, so Stripe is a valid active provider
+    // there even though the client has typed no key of their own.
+    const stripeKeys = await this.settings.getEffectiveStripeKeys();
+    if (!stripeKeys) {
       throw new BadRequestException(
         "Add the Stripe secret key before making Stripe the active provider.",
       );

@@ -296,6 +296,12 @@ export interface StripeSettingsMasked {
   secretKeyLast4: string | null;
   webhookSecretLast4: string | null;
   publishableKey: string | null;
+  // The operator's demo TEST keys. Booleans only — they aren't this admin's
+  // credential, so no last4 is exposed. `stored` = present on this instance;
+  // `active` = actually in use, which stops the moment the admin saves a key
+  // of their own (their key always wins).
+  demoKeysStored: boolean;
+  demoKeysActive: boolean;
 }
 export interface ZoomSettings {
   sdkKey?: string;

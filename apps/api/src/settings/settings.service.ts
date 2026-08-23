@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../prisma/prisma.service";
+import { NotificationsService } from "../notifications/notifications.service";
 import { decryptSecret, encryptSecret } from "../common/crypto.util";
 
 // Setting keys stored (encrypted) in the Setting table.
@@ -15,6 +16,20 @@ export const SETTING_KEYS = {
   // Which processor NEW checkouts use ("stripe" | "paypal"). Existing
   // subscriptions keep billing on the provider that created them.
   paymentProvider: "payments.provider",
+  // --- Operator-managed DEMO payment credentials (Stripe TEST mode) ---
+  // Pushed in by the control plane over the service-token channel so a demo or
+  // sample-content instance can take a fake checkout out of the box. They live
+  // under their OWN keys, never `stripe.secretKey`, so they can never be
+  // mistaken for — or silently overwrite — a credential the client typed. They
+  // also deliberately have NO env fallback: a demo key that could resolve from
+  // the environment would let one stray compose var arm checkout fleet-wide.
+  demoStripeSecretKey: "stripe.demoSecretKey",
+  demoStripePublishableKey: "stripe.demoPublishableKey",
+  demoStripeWebhookSecret: "stripe.demoWebhookSecret",
+  // Identifies THIS instance on the shared demo account. Stamped into the
+  // metadata of every Stripe object we create there, so the account-wide admin
+  // reads can be filtered back down to this tenant's own rows.
+  demoStripeTenantTag: "stripe.demoTenantTag",
   // Outbound email / SMTP sender (the in-house email platform). `emailPass`
   // is the only secret; the rest are config (host/port/from), stored the same
   // way for a single source of truth + per-key env fallback.
@@ -48,6 +63,7 @@ export class SettingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /** Read & decrypt a stored secret, falling back to an env var if unset. */
@@ -86,6 +102,151 @@ export class SettingsService {
   /** Remove a stored secret entirely (so it reads back as unset). Idempotent. */
   async clearSecret(key: string): Promise<void> {
     await this.prisma.setting.deleteMany({ where: { key } });
+  }
+
+  // --- Operator-managed DEMO Stripe credentials ---
+  //
+  // Read with NO env fallback, on purpose (see SETTING_KEYS above). Each getter
+  // reflects the DB row only, so revoking is a delete and nothing else.
+
+  getDemoStripeSecretKey(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.demoStripeSecretKey);
+  }
+  getDemoStripePublishableKey(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.demoStripePublishableKey);
+  }
+  getDemoStripeWebhookSecret(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.demoStripeWebhookSecret);
+  }
+  getDemoStripeTenantTag(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.demoStripeTenantTag);
+  }
+
+  /**
+   * The Stripe credentials checkout actually runs on, resolved as ONE coherent
+   * set: the instance's own key always wins, and the operator's demo test key is
+   * only a fallback for an instance that has no key of its own. Never mixes the
+   * two — pairing a client's secret key with the demo publishable key (or the
+   * reverse) would point the browser at a different account than the server.
+   * Null when neither is configured.
+   */
+  async getEffectiveStripeKeys(): Promise<{
+    secretKey: string;
+    publishableKey: string | null;
+    webhookSecret: string | null;
+    /** True when this instance is billing through the operator's SHARED demo
+     * account — the signal every cross-tenant guard keys off. */
+    demo: boolean;
+    tenantTag: string | null;
+  } | null> {
+    const own = await this.getStripeSecretKey();
+    if (own) {
+      const [publishableKey, webhookSecret] = await Promise.all([
+        this.getStripePublishableKey(),
+        this.getStripeWebhookSecret(),
+      ]);
+      return {
+        secretKey: own,
+        publishableKey,
+        webhookSecret,
+        demo: false,
+        tenantTag: null,
+      };
+    }
+
+    // FAIL CLOSED on an unreadable own key. getSecret() reports a row it cannot
+    // decrypt as "not set" (SETTINGS_ENC_KEY rotated, ciphertext corrupted), and
+    // without this check that indistinguishability would silently promote the
+    // OPERATOR'S TEST KEYS on an academy that has its own — a client selling for
+    // real would keep taking checkouts that collect nothing. A stored-but-broken
+    // credential must break payments loudly, not quietly move them to our
+    // sandbox. (An academy that never had a key of its own has no row here, so
+    // the demo path below is unaffected.)
+    const ownRow = await this.prisma.setting.findUnique({
+      where: { key: SETTING_KEYS.stripeSecretKey },
+      select: { key: true },
+    });
+    if (ownRow) {
+      this.logger.error(
+        "stripe.secretKey is stored but unreadable — refusing to fall back to " +
+          "demo keys. Payments stay unavailable until it is re-entered.",
+      );
+      return null;
+    }
+
+    const demoSecret = await this.getDemoStripeSecretKey();
+    if (!demoSecret) return null;
+    const [publishableKey, webhookSecret, tenantTag] = await Promise.all([
+      this.getDemoStripePublishableKey(),
+      this.getDemoStripeWebhookSecret(),
+      this.getDemoStripeTenantTag(),
+    ]);
+    return {
+      secretKey: demoSecret,
+      publishableKey,
+      webhookSecret,
+      demo: true,
+      tenantTag,
+    };
+  }
+
+  /** True when checkout is running on the operator's shared demo account. */
+  async isDemoStripeActive(): Promise<boolean> {
+    return (await this.getEffectiveStripeKeys())?.demo === true;
+  }
+
+  /** True when demo keys are STORED here, whether or not they're in use (an
+   * instance whose client added their own key keeps them, dormant). Powers the
+   * admin-facing "operator test keys" badge. */
+  async hasDemoStripeKeys(): Promise<boolean> {
+    return !!(await this.getDemoStripeSecretKey());
+  }
+
+  /**
+   * Store the operator's demo credentials.
+   *
+   * The tenant tag is always rewritten. The webhook secret is three-state: a
+   * push that OMITS it leaves the stored one alone, because the control plane
+   * sends a keys-only push first as a reachability probe and that probe must not
+   * strip a working academy's signing secret; sending an explicit null is how it
+   * says "there is no webhook for you".
+   */
+  async setDemoStripe(input: {
+    secretKey: string;
+    publishableKey: string;
+    /** `undefined` = leave whatever is stored alone (used by the control
+     *  plane's keys-only reachability probe, which must not knock a working
+     *  academy off its webhook); `null` = clear it; a string = set it. */
+    webhookSecret?: string | null;
+    tenantTag: string;
+  }): Promise<void> {
+    if (input.webhookSecret !== undefined) {
+      await this.clearSecret(SETTING_KEYS.demoStripeWebhookSecret);
+    }
+    await this.clearSecret(SETTING_KEYS.demoStripeTenantTag);
+    await Promise.all([
+      this.setSecret(SETTING_KEYS.demoStripeSecretKey, input.secretKey),
+      this.setSecret(
+        SETTING_KEYS.demoStripePublishableKey,
+        input.publishableKey,
+      ),
+      this.setSecret(
+        SETTING_KEYS.demoStripeWebhookSecret,
+        input.webhookSecret ?? undefined,
+      ),
+      // (a null webhookSecret was already cleared above; setSecret no-ops on it)
+      this.setSecret(SETTING_KEYS.demoStripeTenantTag, input.tenantTag),
+    ]);
+  }
+
+  /** Revoke the operator's demo credentials (the control plane's kill switch). */
+  async clearDemoStripe(): Promise<void> {
+    await Promise.all([
+      this.clearSecret(SETTING_KEYS.demoStripeSecretKey),
+      this.clearSecret(SETTING_KEYS.demoStripePublishableKey),
+      this.clearSecret(SETTING_KEYS.demoStripeWebhookSecret),
+      this.clearSecret(SETTING_KEYS.demoStripeTenantTag),
+    ]);
   }
 
   /** Clear all Stripe credentials. */
@@ -134,6 +295,153 @@ export class SettingsService {
       this.clearSecret(SETTING_KEYS.paypalWebhookId),
       this.clearSecret(SETTING_KEYS.paypalMode),
     ]);
+  }
+
+  /**
+   * Forget every provisioned STRIPE product/price id, for exactly the reason
+   * clearPayPalProvisionedIds exists: Stripe object ids are scoped to ONE
+   * account. `price_…` minted on the operator's demo sandbox does not exist in
+   * the client's own account, and vice versa.
+   *
+   * This matters now that an academy can change Stripe account at runtime —
+   * armed with the operator's demo keys, revoked, or the client adding their
+   * own. Without this reset, every paid checkout after the switch dies on
+   * "No such price" against ids the new account has never seen, and nothing
+   * self-heals: ensureStripePrice only creates a Price when stripePriceId is
+   * null, so a stale id is permanent.
+   */
+  async clearStripeProvisionedIds(): Promise<void> {
+    await this.prisma.$transaction([
+      this.prisma.price.updateMany({
+        where: { stripePriceId: { not: null } },
+        data: { stripePriceId: null },
+      }),
+      this.prisma.level.updateMany({
+        where: { stripeProductId: { not: null } },
+        data: { stripeProductId: null },
+      }),
+      // Customer ids are account-scoped too, and this one is easy to miss:
+      // ensureCustomer RETURNS an existing stripeCustomerId without calling
+      // Stripe, so a member who bought during the demo would keep pointing at a
+      // customer in the OLD account forever. Their next checkout dies on
+      // "No such customer", and /account + the billing portal throw on every
+      // load. Nulling it makes the next checkout mint them a customer in the
+      // new account, which is exactly what a fresh start on a new account means.
+      this.prisma.user.updateMany({
+        where: { stripeCustomerId: { not: null } },
+        data: { stripeCustomerId: null },
+      }),
+      // Mirror rows index subscriptions that live in the old account: they can
+      // no longer be reconciled, cancelled or displayed. Drop the STRIPE ones so
+      // the member's billing pages show the truth (nothing) instead of rows
+      // whose every action 404s at Stripe. PayPal rows are a different rail and
+      // are left alone. Existing UserLevel grants are deliberately NOT revoked —
+      // access already sold is not ours to take away here.
+      this.prisma.subscriptionMirror.deleteMany({
+        where: { provider: "STRIPE" },
+      }),
+    ]);
+  }
+
+  /**
+   * The Stripe ACCOUNT a key belongs to, or null when it can't be determined.
+   *
+   * Modern Stripe keys embed the account id right after the `sk_test_` /
+   * `pk_live_` prefix, so two keys from one account share that segment. Legacy
+   * keys (pre-2020 accounts) do not, hence the null.
+   */
+  static stripeAccountOf(key: string | null): string | null {
+    const m = key?.match(/^[a-z]{2}_(?:test|live)_(51[A-Za-z0-9]{14,})/);
+    return m ? m[1].slice(0, 16) : null;
+  }
+
+  /**
+   * Run a Stripe-credential mutation and reconcile everything derived from it.
+   *
+   * Wrapping the mutation (rather than asking callers to remember) is the point:
+   * EVERY path that can change these credentials — the admin saving or deleting
+   * their own keys, the control plane arming or revoking demo keys — goes
+   * through here, so the derived state can never drift from the credentials.
+   * Two things are derived:
+   *
+   *  1. Provisioned Stripe ids, dropped when the ACCOUNT changed (a caller that
+   *     forgets leaves the academy permanently unable to sell).
+   *  2. The standing "you are on demo keys" notification, emitted or withdrawn
+   *     to match reality.
+   */
+  async withStripeCredentialChange<T>(mutate: () => Promise<T>): Promise<T> {
+    const before = (await this.getEffectiveStripeKeys())?.secretKey ?? null;
+    const result = await mutate();
+    const after = (await this.getEffectiveStripeKeys())?.secretKey ?? null;
+    if (SettingsService.isAccountChange(before, after)) {
+      this.logger.log(
+        "Stripe account changed — clearing provisioned product/price ids",
+      );
+      await this.clearStripeProvisionedIds();
+    }
+    await this.syncDemoKeyNotification();
+    return result;
+  }
+
+  /** Dedupe key for the standing demo-keys warning. Fixed, because the warning
+   *  is a STATE ("you are on demo keys"), not an event — re-pushing the same
+   *  keys must not stack up a second copy in the bell. */
+  private static readonly DEMO_KEYS_NOTIFICATION_KEY = "payment-keys:demo";
+
+  /**
+   * Keep the admin notification in step with whether demo keys are actually in
+   * use. Emitted when they are, DELETED when they stop being — the moment the
+   * client adds their own keys or the operator revokes, the warning is wrong and
+   * a stale "no money reaches you" sitting in the bell is worse than none.
+   *
+   * Never throws: a notification failure must not break a credential save.
+   */
+  async syncDemoKeyNotification(): Promise<void> {
+    try {
+      if (await this.isDemoStripeActive()) {
+        await this.notifications.record({
+          type: "PAYMENT_KEYS_DEMO",
+          severity: "WARNING",
+          title: "Demo payment keys are active",
+          body:
+            "Checkout is running on test keys that came with your sample " +
+            "content: cards are never charged and no money reaches you. Add " +
+            "your own Stripe keys in Settings before you start selling.",
+          dedupeKey: SettingsService.DEMO_KEYS_NOTIFICATION_KEY,
+        });
+      } else {
+        await this.prisma.adminNotification.deleteMany({
+          where: { dedupeKey: SettingsService.DEMO_KEYS_NOTIFICATION_KEY },
+        });
+      }
+    } catch (err) {
+      this.logger.warn(
+        `failed to sync the demo-payment-keys notification: ` +
+          `${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  /**
+   * Did the Stripe ACCOUNT change between these two secret keys?
+   *
+   * Compares the embedded account segment rather than the key string, because a
+   * same-account key ROTATION must NOT reset anything: the ids are all still
+   * valid in that account, and clearing them would break every live
+   * subscription's reconciliation (no local Price matches, so grants stop being
+   * renewed or revoked), orphan per-level coupons, and mint duplicate Products.
+   *
+   * Falls back to a string comparison when either key is legacy-format, where no
+   * account segment exists — conservative in the safe direction: a needless
+   * reset costs a re-mint, a missed one leaves the academy unable to sell.
+   */
+  static isAccountChange(before: string | null, after: string | null): boolean {
+    if (before === after) return false;
+    if (before === null || after === null) return true; // configured/unconfigured
+    const a = SettingsService.stripeAccountOf(before);
+    const b = SettingsService.stripeAccountOf(after);
+    if (a === null || b === null) return true; // legacy key — can't tell, assume yes
+    return a !== b;
   }
 
   /**
