@@ -16,12 +16,24 @@ export function classPct(cls: ClassTileDTO): number {
   return Math.round((p.completed / p.total) * 100);
 }
 
-/** Average completion across the given (owned) classes — the "journey" %. */
+/**
+ * Lesson-weighted completion across the given (owned) classes — the "journey" %.
+ * Pools every completed lesson over every lesson so each class counts in
+ * proportion to its length, rather than averaging per-class percentages (which
+ * over-weighted a done 1-lesson class against an untouched 5-lesson one). This
+ * matches the class/course-detail rings here and the mobile dashboard, so the
+ * headline figure is the same number everywhere. A class with null/zero-lesson
+ * progress contributes nothing (0/0) to the ratio.
+ */
 export function overallPct(owned: ClassTileDTO[]): number {
-  const withProgress = owned.filter((c) => c.progress && c.progress.total > 0);
-  if (withProgress.length === 0) return 0;
-  const sum = withProgress.reduce((n, c) => n + classPct(c), 0);
-  return Math.round(sum / withProgress.length);
+  const totals = owned.reduce(
+    (acc, c) => ({
+      done: acc.done + (c.progress?.completed ?? 0),
+      total: acc.total + (c.progress?.total ?? 0),
+    }),
+    { done: 0, total: 0 },
+  );
+  return totals.total > 0 ? Math.round((totals.done / totals.total) * 100) : 0;
 }
 
 /** "9:10" from seconds; null when unknown so callers can omit the segment. */
