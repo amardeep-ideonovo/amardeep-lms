@@ -503,7 +503,7 @@ const CLASSES: ClassSeed[] = [
     slug: "dance-and-yoga",
     type: "PAID",
     description:
-      "<h2><strong>Dance and Yoga</strong><br /><br />Experience the perfect synergy of movement and mindfulness in Dance and Yoga. This holistic course blends expressive dance techniques with grounding yoga postures to improve your flexibility, core strength, and overall well-being through solo and group exercises.</h2><p></p>",
+      "<h2>Dance and Yoga</h2><p>Experience the perfect synergy of movement and mindfulness in Dance and Yoga. This holistic course blends expressive dance techniques with grounding yoga postures to improve your flexibility, core strength, and overall well-being through solo and group exercises.</p>",
     imageUrl: media("1786530076565-jc9a33.jpg"),
     trailerUrl: "https://vimeo.com/158767648?fl=pl&fe=sh",
     categories: ["seed-lvlcat-fitness"],
