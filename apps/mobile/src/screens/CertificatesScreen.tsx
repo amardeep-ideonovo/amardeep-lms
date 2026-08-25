@@ -7,6 +7,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import {
   Image,
   Linking,
+  Platform,
   RefreshControl,
   ScrollView,
   Share,
@@ -19,7 +20,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import type { MyCertificateDTO } from "@lms/types";
 
-import { certificateDownloadUrl } from "../api";
+import {
+  certificateDownloadUrl,
+  certificateFileName,
+  downloadAndShareFile,
+} from "../api";
 import { useMyCertificates, useMyClasses, useRefreshOnFocus } from "../queries";
 import { accentIndexMap, classAccent } from "../class-colors";
 import { Button } from "../components/Button";
@@ -70,14 +75,21 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
     }
   }, [certsQuery, classesQuery]);
 
-  // Opens the access-checked PDF in the device browser (?token= URL — same
-  // contract as lesson notes).
+  // Opens the access-checked PDF. On iOS we header-auth download the file and
+  // hand it to the native share sheet (Quick Look / Save to Files) so the token
+  // never rides in a URL; elsewhere we open the short-lived ?token= URL.
   const openPdf = useCallback(async (c: MyCertificateDTO) => {
     setActionError(null);
     setBusyCertId(c.id);
     try {
-      const url = await certificateDownloadUrl(c);
-      await Linking.openURL(url);
+      if (Platform.OS === "ios") {
+        await downloadAndShareFile({
+          downloadPath: c.downloadUrl,
+          fileName: certificateFileName(c),
+        });
+      } else {
+        await Linking.openURL(await certificateDownloadUrl(c));
+      }
     } catch {
       setActionError("Could not open the certificate PDF.");
     } finally {
@@ -89,12 +101,26 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
     setActionError(null);
     setBusyCertId(c.id);
     try {
-      const url = await certificateDownloadUrl(c);
-      await Share.share({
-        message: `${c.className} — Certificate of Completion (${c.serial})\n${url}`,
-      });
+      if (Platform.OS === "ios") {
+        // Share the actual PDF file (token in the auth header, never in a URL),
+        // so no working credential link is handed to the share recipient.
+        await downloadAndShareFile({
+          downloadPath: c.downloadUrl,
+          fileName: certificateFileName(c),
+          message: `${c.className} — Certificate of Completion (${c.serial})`,
+        });
+      } else {
+        // Android/web have no RN-core file share: share a caption plus the
+        // short-lived (3 min), no-referrer ?token= link.
+        const url = await certificateDownloadUrl(c);
+        await Share.share({
+          message: `${c.className} — Certificate of Completion (${c.serial})\n${url}`,
+        });
+      }
     } catch {
-      // user dismissed the share sheet — nothing to report
+      // A share dismissal resolves (no throw), so reaching here means the
+      // download or share itself failed — surface it like openPdf does.
+      setActionError("Could not share the certificate PDF.");
     } finally {
       setBusyCertId(null);
     }
