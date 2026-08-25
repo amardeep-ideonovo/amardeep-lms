@@ -19,7 +19,8 @@
       "channel": "preview",
       "env": {
         "EXPO_PUBLIC_DIRECTORY_URL": "https://thewebpaanda.com",
-        "EXPO_PUBLIC_FLEET_DOMAIN": "thewebpaanda.com"
+        "EXPO_PUBLIC_FLEET_DOMAIN": "thewebpaanda.com",
+        "EXPO_PUBLIC_CODE_SIGNING_CERT": "./certs/certificate.pem"
       },
       "android": {
         "buildType": "apk"
@@ -31,7 +32,8 @@
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_DIRECTORY_URL": "https://thewebpaanda.com",
-        "EXPO_PUBLIC_FLEET_DOMAIN": "thewebpaanda.com"
+        "EXPO_PUBLIC_FLEET_DOMAIN": "thewebpaanda.com",
+        "EXPO_PUBLIC_CODE_SIGNING_CERT": "./certs/certificate.pem"
       },
       "android": {
         "buildType": "app-bundle"

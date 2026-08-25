@@ -26,6 +26,7 @@ import { QueryProvider, QueryAuthReset } from "./src/query";
 import { navigationRef } from "./src/nav-ref";
 import { unlockTabletOrientation } from "./src/responsive";
 import { ThemeProvider, useTheme } from "./src/theme-provider";
+import { ErrorBoundary } from "./src/components/ErrorBoundary";
 import { fonts, spacing } from "./src/theme";
 import type {
   AuthStackParamList,
@@ -443,30 +444,35 @@ export default function App() {
   if (!fontsLoaded && !fontError) return null; // native splash stays up
   return (
     <SafeAreaProvider>
-      {/* Plain flex wrapper so the AnimatedSplash overlay's absolute-fill
-          positions against the full screen (SafeAreaProvider's native layout
-          must not own the overlay). */}
-      <View style={styles.appRoot}>
-        <InstanceGate>
-          {/* QueryProvider is INSIDE InstanceGate on purpose: an academy switch
-            remounts this subtree (key=API_BASE_URL) and the new QueryClient
-            starts empty, so one instance's cache never bleeds into another.
-            QueryAuthReset (under AuthProvider) covers the other boundary —
-            a member switch on the SAME instance. See src/query.tsx. */}
-          <QueryProvider>
-            <ConfigProvider>
-              <ThemeProvider>
-                <AuthProvider>
-                  <QueryAuthReset>
-                    <ThemedApp />
-                  </QueryAuthReset>
-                </AuthProvider>
-              </ThemeProvider>
-            </ConfigProvider>
-          </QueryProvider>
-        </InstanceGate>
-        {!splashDone && <AnimatedSplash onDone={() => setSplashDone(true)} />}
-      </View>
+      {/* Outermost so a render throw ANYWHERE below (theming included) shows a
+          friendly retry screen instead of a native crash — a crash during
+          store review is an automatic rejection. */}
+      <ErrorBoundary>
+        {/* Plain flex wrapper so the AnimatedSplash overlay's absolute-fill
+            positions against the full screen (SafeAreaProvider's native layout
+            must not own the overlay). */}
+        <View style={styles.appRoot}>
+          <InstanceGate>
+            {/* QueryProvider is INSIDE InstanceGate on purpose: an academy switch
+              remounts this subtree (key=API_BASE_URL) and the new QueryClient
+              starts empty, so one instance's cache never bleeds into another.
+              QueryAuthReset (under AuthProvider) covers the other boundary —
+              a member switch on the SAME instance. See src/query.tsx. */}
+            <QueryProvider>
+              <ConfigProvider>
+                <ThemeProvider>
+                  <AuthProvider>
+                    <QueryAuthReset>
+                      <ThemedApp />
+                    </QueryAuthReset>
+                  </AuthProvider>
+                </ThemeProvider>
+              </ConfigProvider>
+            </QueryProvider>
+          </InstanceGate>
+          {!splashDone && <AnimatedSplash onDone={() => setSplashDone(true)} />}
+        </View>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }
