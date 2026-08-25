@@ -15,6 +15,7 @@ import type {
 import { PrismaService } from "../prisma/prisma.service";
 import { AppConfigService } from "../site/app-config.service";
 import { EmailService } from "./email.service";
+import { isValidTimeZone } from "../common/wallclock.util";
 
 // Page size for resolving + sending a run. We no longer cap the audience: a run
 // sends to EVERY eligible recipient, walked in deterministic (createdAt, id)
@@ -799,7 +800,12 @@ export class CampaignService {
     const runAt = input.runAt ? new Date(input.runAt) : null;
     const cron = input.cron?.trim() || null;
     // IANA tz string; blank/whitespace normalizes to null (=> UTC at runtime).
+    // Reject an unknown zone here so it can't be stored and later crash the
+    // scheduler's Intl-based cron/monthly math with a RangeError.
     const timezone = input.timezone?.trim() || null;
+    if (timezone && !isValidTimeZone(timezone)) {
+      throw new BadRequestException(`Unknown timezone: "${timezone}"`);
+    }
     return {
       cadence,
       runAt: runAt && !isNaN(runAt.getTime()) ? runAt : null,

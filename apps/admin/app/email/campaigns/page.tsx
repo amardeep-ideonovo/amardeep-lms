@@ -26,6 +26,9 @@ type Draft = {
   cadence: CampaignCadence;
   runAtLocal: string;
   cron: string;
+  // IANA zone the runAtLocal / cron times are authored in (null-equivalent "UTC"
+  // => UTC). Drives cron & weekly/monthly recurrence and how runAtLocal is read.
+  timezone: string;
 };
 
 function emptyDraft(): Draft {
@@ -37,6 +40,7 @@ function emptyDraft(): Draft {
     cadence: "ONCE",
     runAtLocal: defaultRunAt(),
     cron: "0 9 * * 1",
+    timezone: browserTimeZone(),
   };
 }
 
@@ -56,23 +60,100 @@ function toLocalInput(d: Date): string {
   )}:${pad(d.getMinutes())}`;
 }
 
-// ISO (UTC) -> local datetime-local value for editing an existing campaign.
-function isoToLocalInput(iso: string | null): string {
+// A stored UTC instant -> the "YYYY-MM-DDTHH:mm" wall time as seen in `tz`, for
+// editing an existing campaign in the zone it was authored in.
+function isoToLocalInput(iso: string | null, tz: string): string {
   if (!iso) return defaultRunAt();
   const d = new Date(iso);
   if (isNaN(d.getTime())) return defaultRunAt();
-  return toLocalInput(d);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  // Intl can emit hour "24" at midnight for hour12:false; normalize to 00.
+  const hour = String(Number(get("hour")) % 24).padStart(2, "0");
+  return `${get("year")}-${get("month")}-${get("day")}T${hour}:${get("minute")}`;
+}
+
+// Inverse: the naive "YYYY-MM-DDTHH:mm" the admin typed, interpreted as a wall
+// time in `tz`, converted to the UTC ISO instant it denotes. Mirrors the server's
+// wallclock util so the first-run instant matches the CHOSEN zone (never the
+// browser's) — the send time and the recurrence anchor then agree.
+function localInputToIso(local: string, tz: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(local.trim());
+  if (!m) return null;
+  const asUtc = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], 0);
+  return new Date(asUtc - tzOffsetMs(new Date(asUtc), tz)).toISOString();
+}
+
+// Milliseconds `tz` is ahead of UTC at instant `d` (negative west of UTC).
+function tzOffsetMs(d: Date, tz: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) =>
+    Number(parts.find((p) => p.type === t)?.value ?? "0");
+  const asUtc = Date.UTC(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour") % 24,
+    get("minute"),
+    get("second"),
+  );
+  return asUtc - d.getTime();
+}
+
+// The admin's own IANA zone — the sensible default for a new campaign.
+function browserTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
+// Zones offered in the picker: UTC first, then the runtime's full canonical list,
+// with the admin's own (possibly-alias) zone guaranteed present.
+function timeZoneList(current: string): string[] {
+  let zones: string[] = [];
+  try {
+    const sv = (
+      Intl as unknown as { supportedValuesOf?: (k: string) => string[] }
+    ).supportedValuesOf;
+    zones = sv ? sv("timeZone") : [];
+  } catch {
+    zones = [];
+  }
+  const rest = new Set(zones.filter((z) => z !== "UTC"));
+  if (current && current !== "UTC") rest.add(current);
+  return ["UTC", ...Array.from(rest).sort()];
 }
 
 function draftFromCampaign(c: CampaignDTO): Draft {
+  const timezone = c.timezone || browserTimeZone();
   return {
     name: c.name,
     templateId: c.templateId,
     audienceId: c.audienceId,
     segmentId: c.segmentId ?? "",
     cadence: c.cadence,
-    runAtLocal: isoToLocalInput(c.runAt),
+    runAtLocal: isoToLocalInput(c.runAt, timezone),
     cron: c.cron ?? "0 9 * * 1",
+    timezone,
   };
 }
 
@@ -266,9 +347,12 @@ export default function CampaignsPage() {
   // clear) so switching cadence updates the stored shape.
   function draftToInput() {
     const isCron = draft.cadence === "CRON";
+    const tz = draft.timezone || "UTC";
+    // Interpret the naive datetime-local value in the CHOSEN zone (not the
+    // browser's) so the first-run instant and the recurrence anchor agree.
     const runAtIso =
       !isCron && draft.runAtLocal
-        ? new Date(draft.runAtLocal).toISOString()
+        ? localInputToIso(draft.runAtLocal, tz)
         : null;
     return {
       name: draft.name.trim() || "Untitled campaign",
@@ -278,6 +362,7 @@ export default function CampaignsPage() {
       cadence: draft.cadence,
       runAt: runAtIso,
       cron: isCron ? draft.cron.trim() : null,
+      timezone: draft.timezone || null,
     };
   }
 
@@ -673,6 +758,30 @@ export default function CampaignsPage() {
                   />
                 </div>
               )}
+            </div>
+
+            <div className="form-row">
+              <div className="field">
+                <label>
+                  Timezone{" "}
+                  <span className="muted">
+                    (schedule times are read in this zone)
+                  </span>
+                </label>
+                <select
+                  value={draft.timezone}
+                  onChange={(e) =>
+                    setDraft({ ...draft, timezone: e.target.value })
+                  }
+                  disabled={!canEdit && !creating}
+                >
+                  {timeZoneList(draft.timezone).map((z) => (
+                    <option key={z} value={z}>
+                      {z}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {draft.cadence === "WEEKLY" || draft.cadence === "MONTHLY" ? (
