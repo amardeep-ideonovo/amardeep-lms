@@ -55,6 +55,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3000"
+      # Caddy fronts the api in this deployment; trust that one hop so req.ip
+      # and the per-IP throttles see the real client, not the proxy.
+      TRUST_PROXY: "1"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lms}?schema=public
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in deploy/.env}

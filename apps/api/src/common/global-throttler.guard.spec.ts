@@ -35,3 +35,76 @@ test("shouldSkip: skips rpc/microservice contexts", async () => {
 test("shouldSkip: still throttles http requests", async () => {
   assert.equal(await shouldSkip(ctx("http")), false);
 });
+
+// ---- getTracker: the real-client keying every per-IP limit shares ----------
+//
+// Regression guard for the 2026-08-25 login-lockout finding: behind Caddy
+// req.ip is the proxy's address for EVERY visitor, so a req.ip-keyed throttle
+// fuses the whole academy into one bucket — 5 stranger requests a minute
+// 429-locked login/signup/reset for everyone. The tracker must key on the
+// RIGHTMOST X-Forwarded-For entry (the one the trusted proxy appends), which
+// a client cannot forge through the proxy: their own header only ever ends up
+// LEFT of the entry Caddy adds.
+
+import { ProxyAwareThrottlerGuard } from "./proxy-aware-throttler.guard";
+
+function getTracker(req: Record<string, unknown>): Promise<string> {
+  const g = Object.create(ProxyAwareThrottlerGuard.prototype) as {
+    getTracker(r: Record<string, unknown>): Promise<string>;
+  };
+  return g.getTracker(req);
+}
+
+test("getTracker: two clients behind the proxy get DIFFERENT buckets", async () => {
+  const a = await getTracker({
+    ip: "172.18.0.9", // the Caddy container — identical for both
+    headers: { "x-forwarded-for": "203.0.113.7" },
+  });
+  const b = await getTracker({
+    ip: "172.18.0.9",
+    headers: { "x-forwarded-for": "198.51.100.4" },
+  });
+  assert.notEqual(a, b);
+  assert.equal(a, "203.0.113.7");
+  assert.equal(b, "198.51.100.4");
+});
+
+test("getTracker: rightmost XFF wins — a spoofed header cannot rotate buckets", async () => {
+  // The attacker sends `X-Forwarded-For: 6.6.6.6`; Caddy APPENDS the real
+  // peer. Whatever they fabricate, the rightmost (proxy-appended) entry is
+  // still their actual address — same bucket every time.
+  const spoofed = await getTracker({
+    ip: "172.18.0.9",
+    headers: { "x-forwarded-for": "6.6.6.6, 203.0.113.7" },
+  });
+  const honest = await getTracker({
+    ip: "172.18.0.9",
+    headers: { "x-forwarded-for": "203.0.113.7" },
+  });
+  assert.equal(spoofed, "203.0.113.7");
+  assert.equal(spoofed, honest);
+});
+
+test("getTracker: falls back to x-real-ip, then req.ip, then 'anon'", async () => {
+  assert.equal(
+    await getTracker({
+      ip: "10.0.0.5",
+      headers: { "x-real-ip": " 203.0.113.9 " },
+    }),
+    "203.0.113.9",
+  );
+  assert.equal(await getTracker({ ip: "10.0.0.5", headers: {} }), "10.0.0.5");
+  assert.equal(await getTracker({ headers: {} }), "anon");
+  // Degenerate header shapes must not throw or return an empty key.
+  assert.equal(
+    await getTracker({
+      ip: "10.0.0.5",
+      headers: { "x-forwarded-for": " , ," },
+    }),
+    "10.0.0.5",
+  );
+});
+
+test("GlobalThrottlerGuard inherits the proxy-aware keying (one tracker everywhere)", () => {
+  assert.ok(GlobalThrottlerGuard.prototype instanceof ProxyAwareThrottlerGuard);
+});
