@@ -81,6 +81,7 @@ export class ResendMailSender implements MailSender {
   async send(msg: OutboundMail): Promise<{ providerId: string }> {
     const apiKey = await this.settings.getEmailResendApiKey();
     const from = msg.from || (await this.resolveFrom());
+    const replyTo = await this.settings.getEmailReplyTo();
 
     // RFC 8058 one-click unsubscribe. Resend carries arbitrary headers via the
     // `headers` object, so both the bracketed List-Unsubscribe URL and the
@@ -105,6 +106,7 @@ export class ResendMailSender implements MailSender {
       body: JSON.stringify({
         from,
         to: msg.to,
+        ...(replyTo ? { reply_to: replyTo } : {}),
         subject: msg.subject,
         html: msg.html,
         text: msg.text,

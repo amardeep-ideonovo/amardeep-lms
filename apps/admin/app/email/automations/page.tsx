@@ -17,6 +17,9 @@ type Draft = {
   trigger: AutomationTrigger;
   templateId: string;
   active: boolean;
+  // Minutes to wait after the event before sending (0 = immediate). The backend
+  // parks a delayed send on a queue drained per-minute.
+  delayMinutes: number;
 };
 
 const TRIGGERS: AutomationTrigger[] = [
@@ -45,7 +48,13 @@ const TRIGGER_HINT: Record<AutomationTrigger, string> = {
 };
 
 function emptyDraft(): Draft {
-  return { name: "", trigger: "SIGNUP", templateId: "", active: true };
+  return {
+    name: "",
+    trigger: "SIGNUP",
+    templateId: "",
+    active: true,
+    delayMinutes: 0,
+  };
 }
 
 function draftFromAutomation(a: AutomationDTO): Draft {
@@ -54,6 +63,7 @@ function draftFromAutomation(a: AutomationDTO): Draft {
     trigger: a.trigger,
     templateId: a.templateId,
     active: a.active,
+    delayMinutes: a.delayMinutes ?? 0,
   };
 }
 
@@ -143,6 +153,7 @@ export default function AutomationsPage() {
       trigger: draft.trigger,
       templateId: draft.templateId,
       active: draft.active,
+      delayMinutes: draft.delayMinutes,
     };
     try {
       if (creating) {
@@ -413,6 +424,30 @@ export default function AutomationsPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="field">
+              <label>
+                Delay{" "}
+                <span className="muted">
+                  (minutes after the event; 0 = send immediately)
+                </span>
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={draft.delayMinutes}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    delayMinutes: Math.max(
+                      0,
+                      Math.floor(Number(e.target.value) || 0),
+                    ),
+                  })
+                }
+                disabled={!canEdit && !creating}
+              />
             </div>
 
             <label

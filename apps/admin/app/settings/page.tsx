@@ -609,6 +609,7 @@ function EmailSenderSection() {
   const [resendApiKey, setResendApiKey] = useState("");
   const [fromEmail, setFromEmail] = useState("");
   const [fromName, setFromName] = useState("");
+  const [replyTo, setReplyTo] = useState("");
   const [secure, setSecure] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -628,6 +629,7 @@ function EmailSenderSection() {
     setUser(s.user ?? "");
     setFromEmail(s.fromEmail ?? "");
     setFromName(s.fromName ?? "");
+    setReplyTo(s.replyTo ?? "");
     setSecure(s.secure);
   }
 
@@ -674,6 +676,7 @@ function EmailSenderSection() {
         resendApiKey: resendApiKey.trim() || undefined,
         fromEmail: fromEmail.trim() || undefined,
         fromName: fromName.trim() || undefined,
+        replyTo: replyTo.trim() || undefined,
         secure,
       });
       hydrate(updated);
@@ -862,6 +865,20 @@ function EmailSenderSection() {
               onChange={(e) => setFromName(e.target.value)}
             />
           </div>
+        </div>
+
+        <div className="field">
+          <label>
+            Reply-to{" "}
+            <span className="muted">
+              (optional — where member replies go; blank = the From address)
+            </span>
+          </label>
+          <input
+            value={replyTo}
+            placeholder="support@yourdomain.com"
+            onChange={(e) => setReplyTo(e.target.value)}
+          />
         </div>
 
         {provider === "smtp" && (

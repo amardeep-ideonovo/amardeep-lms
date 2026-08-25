@@ -955,6 +955,12 @@ export const api = {
     request<CampaignDTO>("POST", `/admin/email/campaigns/${id}/pause`),
   getCampaignStats: (id: string) =>
     request<CampaignStatsDTO>("GET", `/admin/email/campaigns/${id}/stats`),
+  testSendCampaign: (id: string, to: string) =>
+    request<EmailSendResultDTO>(
+      "POST",
+      `/admin/email/campaigns/${id}/test-send`,
+      { to },
+    ),
 
   // automations (event-triggered emails)
   listAutomations: () =>

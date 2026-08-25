@@ -43,6 +43,7 @@ export const SETTING_KEYS = {
   emailResendApiKey: "email.resendApiKey",
   emailFromEmail: "email.fromEmail",
   emailFromName: "email.fromName",
+  emailReplyTo: "email.replyTo",
   emailSecure: "email.secure",
   // Shared secret for the public provider feedback webhook (bounce/complaint
   // ingestion). The webhook is unauthenticated at the route level (providers
@@ -269,6 +270,7 @@ export class SettingsService {
       this.clearSecret(SETTING_KEYS.emailResendApiKey),
       this.clearSecret(SETTING_KEYS.emailFromEmail),
       this.clearSecret(SETTING_KEYS.emailFromName),
+      this.clearSecret(SETTING_KEYS.emailReplyTo),
       this.clearSecret(SETTING_KEYS.emailSecure),
     ]);
   }
@@ -553,6 +555,10 @@ export class SettingsService {
   }
   getEmailFromName(): Promise<string | null> {
     return this.getSecret(SETTING_KEYS.emailFromName, "EMAIL_FROM_NAME");
+  }
+  /** Optional Reply-To address stamped on every send; null when unset. */
+  getEmailReplyTo(): Promise<string | null> {
+    return this.getSecret(SETTING_KEYS.emailReplyTo, "EMAIL_REPLY_TO");
   }
   /** Implicit-TLS flag (true ≈ port 465). Default false (STARTTLS on 587). */
   async getEmailSecure(): Promise<boolean> {

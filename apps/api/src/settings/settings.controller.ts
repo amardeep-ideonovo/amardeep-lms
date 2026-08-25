@@ -143,6 +143,7 @@ export class SettingsController {
       resendApiKey,
       fromEmail,
       fromName,
+      replyTo,
       secure,
     ] = await Promise.all([
       this.settings.getEmailProvider(),
@@ -153,6 +154,7 @@ export class SettingsController {
       this.settings.getSecret(SETTING_KEYS.emailResendApiKey),
       this.settings.getSecret(SETTING_KEYS.emailFromEmail),
       this.settings.getSecret(SETTING_KEYS.emailFromName),
+      this.settings.getSecret(SETTING_KEYS.emailReplyTo),
       this.settings.getEmailSecure(),
     ]);
     return {
@@ -166,6 +168,7 @@ export class SettingsController {
       resendApiKeySet: !!resendApiKey,
       fromEmail: fromEmail ?? null,
       fromName: fromName ?? null,
+      replyTo: replyTo ?? null,
       secure,
     };
   }
@@ -186,6 +189,7 @@ export class SettingsController {
     );
     await this.settings.setSecret(SETTING_KEYS.emailFromEmail, dto.fromEmail);
     await this.settings.setSecret(SETTING_KEYS.emailFromName, dto.fromName);
+    await this.settings.setSecret(SETTING_KEYS.emailReplyTo, dto.replyTo);
     // Boolean → stable string so setSecret persists it (and 'false' isn't '').
     if (dto.secure !== undefined) {
       await this.settings.setSecret(

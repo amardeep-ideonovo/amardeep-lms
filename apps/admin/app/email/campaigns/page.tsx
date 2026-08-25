@@ -397,6 +397,39 @@ export default function CampaignsPage() {
     }
   }
 
+  // Send a real one-off copy of this campaign's email to a chosen address so the
+  // admin can see the rendered result before broadcasting. Save first (the send
+  // renders the campaign's saved template by id).
+  async function testSend() {
+    if (!selected) return;
+    if (!selected.templateId) {
+      await dialog.notify("Pick a template and save first, then send a test.");
+      return;
+    }
+    const to = await dialog.prompt({
+      message: "Send a test of this campaign's email to which address?",
+      placeholder: "you@example.com",
+      confirmLabel: "Send test",
+    });
+    if (!to || !to.trim()) return;
+    try {
+      const res = await api.testSendCampaign(selected.id, to.trim());
+      if (res.status === "SENT") {
+        await dialog.notify(`Test sent to ${res.to}.`);
+      } else {
+        await dialog.notify(
+          `Test ${res.status.toLowerCase()}${
+            res.error ? `: ${res.error}` : ""
+          }. Check your email settings under Settings → Email.`,
+        );
+      }
+    } catch (err) {
+      await dialog.notify(
+        err instanceof ApiError ? err.message : "Failed to send test",
+      );
+    }
+  }
+
   // Row actions (schedule / pause / resume). Each refreshes the list and, when
   // the acted-on campaign is open in the editor, re-syncs the draft.
   async function runAction(c: CampaignDTO, fn: () => Promise<CampaignDTO>) {
@@ -842,6 +875,11 @@ export default function CampaignsPage() {
                     : creating
                       ? "Create campaign"
                       : "Save changes"}
+                </Button>
+              )}
+              {!creating && selected && canEdit && (
+                <Button type="button" variant="secondary" onClick={testSend}>
+                  Send test
                 </Button>
               )}
               {!creating &&

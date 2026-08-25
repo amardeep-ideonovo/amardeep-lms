@@ -66,6 +66,7 @@ export class SmtpMailSender implements MailSender {
     });
 
     const from = msg.from || (await this.resolveFrom());
+    const replyTo = await this.settings.getEmailReplyTo();
 
     // RFC 8058 one-click unsubscribe. nodemailer renders `list.unsubscribe` into
     // a `List-Unsubscribe: <URL>` header (the bracketed form Gmail/Apple Mail
@@ -85,6 +86,7 @@ export class SmtpMailSender implements MailSender {
     const info = await transport.sendMail({
       from,
       to: msg.to,
+      ...(replyTo ? { replyTo } : {}),
       subject: msg.subject,
       html: msg.html,
       text: msg.text,

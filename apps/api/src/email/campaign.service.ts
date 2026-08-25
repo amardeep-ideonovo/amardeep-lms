@@ -11,6 +11,7 @@ import type {
   CampaignInput,
   CampaignStatsDTO,
   ContactFilter,
+  EmailSendResultDTO,
 } from "@lms/types";
 import { PrismaService } from "../prisma/prisma.service";
 import { AppConfigService } from "../site/app-config.service";
@@ -130,6 +131,32 @@ export class CampaignService {
       complained: byStatus.COMPLAINED,
       openRate: rate(opened),
       clickRate: rate(clicked),
+    };
+  }
+
+  // Send a one-off real copy of the campaign's template to a test address so an
+  // admin can see the actual rendered email before scheduling a broadcast. No
+  // dedupeKey (always sends) and no campaignId (a test must never count toward
+  // the campaign's stats/sentCount). Returns the EmailLog outcome for a toast.
+  async testSend(id: string, to: string): Promise<EmailSendResultDTO> {
+    const campaign = await this.prisma.campaign.findUnique({
+      where: { id },
+      select: { templateId: true },
+    });
+    if (!campaign) throw new NotFoundException("Campaign not found");
+    const brand = (await this.appConfig.read()).title;
+    const log = await this.email.sendTemplate({
+      to,
+      templateId: campaign.templateId,
+      // The same vars a real run supplies, with placeholder recipient values.
+      vars: { firstName: "there", email: to, brand },
+    });
+    return {
+      id: log.id,
+      to: log.to,
+      subject: log.subject,
+      status: log.status,
+      error: log.error,
     };
   }
 
