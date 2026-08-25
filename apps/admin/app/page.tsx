@@ -116,6 +116,12 @@ export default function DashboardPage() {
   // is silent: the site sells and collects nothing, and an admin who never
   // opens Settings would never find out.
   const [demoKeysActive, setDemoKeysActive] = useState(false);
+  // Own (non-demo) Stripe secret key stored — drives the payments checklist item.
+  const [stripeKeySet, setStripeKeySet] = useState(false);
+  // null = unknown (unloaded, or this admin can't read settings) — the warning
+  // banner and the checklist tick only react to an explicit false/true, so
+  // nothing flashes while loading and nothing nags an admin who can't act.
+  const [emailConfigured, setEmailConfigured] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -123,7 +129,7 @@ export default function DashboardPage() {
     let alive = true;
     void (async () => {
       // Fetch only what this admin may read; tolerate per-call failures.
-      const [m, l, c, s, n, k] = await Promise.allSettled([
+      const [m, l, c, s, n, k, e] = await Promise.allSettled([
         can("members", "read")
           ? Promise.all([
               api.memberStats(),
@@ -143,6 +149,11 @@ export default function DashboardPage() {
         can("settings", "read")
           ? api.getStripeSettings()
           : Promise.resolve(null),
+        // Whether the email sender can send — while it can't, password resets,
+        // welcome mail and campaigns all silently fail, so the dashboard warns.
+        can("settings", "read")
+          ? api.getEmailSettings()
+          : Promise.resolve(null),
       ]);
       if (!alive) return;
       if (m.status === "fulfilled" && m.value) {
@@ -153,8 +164,12 @@ export default function DashboardPage() {
       if (c.status === "fulfilled") setCourses(c.value);
       if (s.status === "fulfilled") setSessions(s.value);
       if (n.status === "fulfilled") setActivity(n.value.items);
-      if (k.status === "fulfilled" && k.value)
+      if (k.status === "fulfilled" && k.value) {
         setDemoKeysActive(k.value.demoKeysActive);
+        setStripeKeySet(!!k.value.secretKeyLast4);
+      }
+      if (e.status === "fulfilled" && e.value)
+        setEmailConfigured(e.value.configured);
       setLoading(false);
     })();
     return () => {
@@ -205,10 +220,18 @@ export default function DashboardPage() {
       done: paidPlans > 0,
     },
     {
-      title: "Connect Stripe & email",
-      desc: "Wire up billing and email in Settings",
+      title: "Connect payments",
+      desc: "Add your own Stripe keys so checkout collects real money",
       href: "/settings",
-      done: false,
+      // Own keys stored AND the demo test keys are no longer what checkout
+      // uses — mirrors the demo-keys warning's clearing condition.
+      done: stripeKeySet && !demoKeysActive,
+    },
+    {
+      title: "Connect email",
+      desc: "Password resets, welcome mail and campaigns need a sender",
+      href: "/settings",
+      done: emailConfigured === true,
     },
   ];
   const completed = tasks.filter((t) => t.done).length;
@@ -324,6 +347,21 @@ export default function DashboardPage() {
           never charged and no money reaches you.{" "}
           <Link href="/settings">Add your own Stripe keys</Link> before you
           start selling.
+        </div>
+      )}
+
+      {/* Same standing-warning treatment: while email is unconfigured, every
+          member email — password resets included — fails SILENTLY (the member
+          sees "check your email" and nothing arrives; only the email log
+          records it). Clears itself the moment a working sender is saved.
+          Strictly `=== false` so it never flashes while settings load and
+          never shows to an admin who can't read settings anyway. */}
+      {emailConfigured === false && (
+        <div className="alert-warning dash-alert" role="status">
+          <strong>Member emails aren&rsquo;t connected.</strong> Password
+          resets, welcome emails and campaigns won&rsquo;t send until you
+          connect an email sender.{" "}
+          <Link href="/settings">Set up email in Settings</Link>.
         </div>
       )}
 

@@ -324,6 +324,11 @@ export interface EmailSettingsMasked {
   fromName: string | null;
   replyTo: string | null;
   secure: boolean;
+  // Whether the ACTIVE provider can actually send — same rule the sender's
+  // isConfigured() applies (resend: key + From; smtp: host + user), evaluated
+  // with env fallbacks. Until this is true, every member email (password
+  // resets, welcome, campaigns) fails — the dashboard warns on it.
+  configured: boolean;
 }
 // the web app falls back to a mock payment path (UI stays fully testable).
 export interface BillingConfigDTO {
