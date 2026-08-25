@@ -1227,6 +1227,26 @@ export interface CampaignInput {
   timezone?: string | null; // IANA tz for cron/weekly/monthly schedules; null/omitted => UTC
 }
 
+// Engagement + delivery rollup for ONE campaign, aggregated from the EmailLog
+// ledger (send outcomes) and the EmailEvent feed (provider open/click/delivered
+// signals). Counts are per-recipient: the webhook dedupes events on
+// (providerId, type), so at most one OPEN / CLICK is recorded per sent message.
+// Rates are 0..1 over `sends` (messages actually handed to the provider) and are
+// 0 when there were no sends.
+export interface CampaignStatsDTO {
+  campaignId: string;
+  sends: number; // dispatched to the provider (EmailLog status SENT | BOUNCED | COMPLAINED)
+  failed: number; // never sent — suppressed / render / transport failure (status FAILED)
+  queued: number; // still in flight (status QUEUED)
+  delivered: number; // provider-confirmed deliveries (DELIVERED events; 0 if the provider omits them)
+  opened: number; // messages opened at least once (unique OPEN events)
+  clicked: number; // messages with a link click (unique CLICK events)
+  bounced: number; // bounced (EmailLog status BOUNCED)
+  complained: number; // spam complaints (EmailLog status COMPLAINED)
+  openRate: number; // opened / sends, 0..1
+  clickRate: number; // clicked / sends, 0..1
+}
+
 // ---------- Automations (event-triggered emails) ----------
 // An automation sends a template whenever its domain event fires. Triggers map
 // to wired event sites in the API (SIGNUP, CERTIFICATE_ISSUED, …). `delayMinutes`
@@ -2655,6 +2675,7 @@ export const ROUTES = {
   adminDeleteCampaign: "DELETE /admin/email/campaigns/:id", // -> { ok: true }
   adminScheduleCampaign: "POST /admin/email/campaigns/:id/schedule", // -> CampaignDTO (status SCHEDULED, nextRunAt set)
   adminPauseCampaign: "POST /admin/email/campaigns/:id/pause", // -> CampaignDTO (status PAUSED)
+  adminCampaignStats: "GET /admin/email/campaigns/:id/stats", // -> CampaignStatsDTO (delivery + open/click rollup)
 
   // automations (event-triggered emails) — ADMIN (RBAC `email`)
   adminListAutomations: "GET /admin/email/automations", // -> AutomationDTO[]

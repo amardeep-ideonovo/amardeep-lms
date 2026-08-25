@@ -5,6 +5,7 @@ import type {
   AudienceDTO,
   CampaignCadence,
   CampaignDTO,
+  CampaignStatsDTO,
   CampaignStatus,
   EmailTemplateSummaryDTO,
   SegmentDTO,
@@ -103,6 +104,11 @@ function fmt(iso: string | null): string {
   return isNaN(d.getTime()) ? "—" : d.toLocaleString();
 }
 
+// A 0..1 rate as a whole-number percent for the engagement summary.
+function pct(rate: number): string {
+  return `${Math.round(rate * 100)}%`;
+}
+
 export default function CampaignsPage() {
   const { can, loading: authLoading } = useAdminAuth();
 
@@ -119,6 +125,8 @@ export default function CampaignsPage() {
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [stats, setStats] = useState<CampaignStatsDTO | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   const canCreate = can("email", "create");
   const canEdit = can("email", "edit");
@@ -187,6 +195,31 @@ export default function CampaignsPage() {
       cancelled = true;
     };
   }, [draft.audienceId]);
+
+  // Load the delivery/engagement rollup for the selected campaign. Cleared while
+  // creating or when nothing is selected; refetched when the selection changes.
+  useEffect(() => {
+    if (creating || !selectedId) {
+      setStats(null);
+      return;
+    }
+    let cancelled = false;
+    setStatsLoading(true);
+    api
+      .getCampaignStats(selectedId)
+      .then((s) => {
+        if (!cancelled) setStats(s);
+      })
+      .catch(() => {
+        if (!cancelled) setStats(null);
+      })
+      .finally(() => {
+        if (!cancelled) setStatsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId, creating]);
 
   // Create/update/schedule/pause/resume all return the full CampaignDTO through
   // the same toDTO mapper the list uses, so apply the response instead of
@@ -660,6 +693,27 @@ export default function CampaignsPage() {
                 </span>{" "}
                 · Sent {selected.sentCount} · Next run {fmt(selected.nextRunAt)}{" "}
                 · Last run {fmt(selected.lastRunAt)}
+              </div>
+            )}
+
+            {!creating && selected && (
+              <div
+                className="muted"
+                style={{ fontSize: 13, marginTop: 0, marginBottom: 8 }}
+              >
+                {statsLoading && !stats ? (
+                  "Loading engagement…"
+                ) : stats && stats.sends > 0 ? (
+                  <>
+                    Delivered {stats.delivered} · Opened {stats.opened} (
+                    {pct(stats.openRate)}) · Clicked {stats.clicked} (
+                    {pct(stats.clickRate)}) · Bounced {stats.bounced} ·
+                    Complained {stats.complained}
+                    {stats.failed > 0 ? ` · Failed ${stats.failed}` : ""}
+                  </>
+                ) : (
+                  "No sends yet — engagement appears after the first run."
+                )}
               </div>
             )}
 
