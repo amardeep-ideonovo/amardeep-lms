@@ -336,6 +336,7 @@ export class CampaignService {
         templateId: campaign.templateId,
         vars: { firstName, email: r.email, brand },
         contactId: r.id,
+        campaignId: campaign.id,
         dedupeKey: `campaign:${campaign.id}:${runStamp}:${r.id}`,
       });
       if (log.status === "SENT") sent += 1;
