@@ -11,20 +11,28 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { WebView } from "react-native-webview";
-import { Directory, File, Paths } from "expo-file-system";
+import { Directory } from "expo-file-system";
 import * as SecureStore from "expo-secure-store";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 
-import { api, ApiError, getToken, noteDownloadUrl } from "../api";
-import { API_BASE_URL, scopedKey } from "../config";
+import {
+  api,
+  ApiError,
+  downloadAndShareFile,
+  downloadToCache,
+  noteDownloadUrl,
+  safeDownloadName,
+} from "../api";
+import { scopedKey } from "../config";
 import { Loading, ErrorState, Centered } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { Press } from "../components/Press";
@@ -190,10 +198,11 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   // "Checking certificate…" row.
   const completing = completeMutation.isPending;
 
-  // Download a note to the device. On Android we fetch the file (access-checked
-  // endpoint; auth via the Authorization header) and save it to a user-chosen
-  // folder via the Storage Access Framework — the folder is remembered so it's
-  // only asked once. On other platforms we fall back to opening the URL.
+  // Download a note to the device. Native (iOS/Android) fetch the file with the
+  // session token in the Authorization header — never in the URL. iOS then hands
+  // the local file to the share sheet ("Save to Files", …); Android saves it into
+  // a user-chosen Storage Access Framework folder, remembered so it's only asked
+  // once. Web (no native file access) falls back to opening the authenticated URL.
   async function saveNote(note: LessonNoteDTO) {
     setNoteError(null);
     setSavedMsg(null);
@@ -201,6 +210,33 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
     // early, so setting it further down left that row's `disabled` guard inert.
     setSavingNoteId(note.id);
 
+    // iOS: download with the session token in the Authorization header (never in
+    // the URL) and hand the local file to the native share sheet. The shared
+    // helper (also used by certificate downloads) owns that flow — under a name
+    // safe to write into the cache directory ("Save to Files" then suggests it).
+    if (Platform.OS === "ios") {
+      try {
+        const res = await downloadAndShareFile({
+          downloadPath: note.downloadUrl,
+          fileName: safeDownloadName(note.originalName, `note-${note.id}`),
+        });
+        // RN's Share can't tell which activity ran (Save to Files, AirDrop,
+        // Mail…), so confirm neutrally rather than claiming a device save.
+        if (res.action !== Share.dismissedAction) {
+          setSavedMsg(`Shared “${note.originalName}”.`);
+        }
+      } catch (e) {
+        setNoteError(
+          e instanceof Error ? e.message : "Could not save the file.",
+        );
+      } finally {
+        setSavingNoteId(null);
+      }
+      return;
+    }
+
+    // Web / other platforms have no native file access: open the authenticated
+    // download URL in the browser (short-lived, single-use token).
     if (Platform.OS !== "android") {
       try {
         await Linking.openURL(await noteDownloadUrl(note));
@@ -216,22 +252,17 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
 
     const SAF_DIR_KEY = scopedKey("lms.saf.dir");
     try {
-      const token = await getToken();
       const dot = note.originalName.lastIndexOf(".");
       const ext = dot > 0 ? note.originalName.slice(dot) : "";
       const base =
         dot > 0 ? note.originalName.slice(0, dot) : note.originalName;
 
-      // 1) Download to the app cache (auth via header). Non-2xx throws.
-      const tmp = new File(Paths.cache, `note-${note.id}${ext}`);
-      const dl = await File.downloadFileAsync(
-        `${API_BASE_URL}${note.downloadUrl}`,
-        tmp,
-        {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          idempotent: true,
-        },
-      );
+      // 1) Download to the app cache (auth via header — the shared
+      //    downloadToCache primitive; non-2xx throws).
+      const dl = await downloadToCache({
+        downloadPath: note.downloadUrl,
+        fileName: `note-${note.id}${ext}`,
+      });
       const bytes = await dl.bytes();
 
       // 2) Write into a user-chosen folder. The picker persists the SAF grant
@@ -260,7 +291,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
         writeInto(dir.uri);
       }
       try {
-        tmp.delete();
+        dl.delete();
       } catch {
         // best-effort cache cleanup
       }

@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Linking,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -11,7 +12,12 @@ import {
 } from "react-native";
 import type { ClassCertificateStatusDTO, MyCertificateDTO } from "@lms/types";
 import { STR } from "@lms/types";
-import { api, certificateDownloadUrl } from "../api";
+import {
+  api,
+  certificateDownloadUrl,
+  certificateFileName,
+  downloadAndShareFile,
+} from "../api";
 import { Button } from "./Button";
 import { CtaButton } from "./CtaButton";
 import { useStyles, useTheme } from "../theme-provider";
@@ -42,8 +48,15 @@ export default function CertificateClaim({
   if (!status.eligible && !claimed) return null;
 
   async function openPdf(c: MyCertificateDTO) {
-    const url = await certificateDownloadUrl(c);
-    await Linking.openURL(url);
+    if (Platform.OS === "ios") {
+      // Header-auth download + native share sheet — no token in the URL.
+      await downloadAndShareFile({
+        downloadPath: c.downloadUrl,
+        fileName: certificateFileName(c),
+      });
+      return;
+    }
+    await Linking.openURL(await certificateDownloadUrl(c));
   }
 
   async function claim(withName?: string) {

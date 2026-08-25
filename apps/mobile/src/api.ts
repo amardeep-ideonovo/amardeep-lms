@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Platform, Share } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import type {
   AppConfig,
@@ -36,7 +36,7 @@ import type {
 } from "@lms/types";
 import { STR } from "@lms/types";
 
-import { File, UploadType } from "expo-file-system";
+import { File, Paths, UploadType } from "expo-file-system";
 import {
   API_BASE_URL,
   bindingEpoch,
@@ -380,4 +380,67 @@ export async function certificateDownloadUrl(cert: {
   const urlPath = cert.downloadUrl.replace(/\/download$/, "/download-url");
   const { token } = await request<{ token: string }>(urlPath);
   return `${API_BASE_URL}${cert.downloadUrl}?token=${encodeURIComponent(token)}`;
+}
+
+// ---------- native file download + share ----------
+// Lesson notes and certificates share one security-critical flow: fetch the
+// access-checked file with the session token in the Authorization HEADER (never
+// in the URL — a query-string token leaks into server logs, browser history and
+// the Referer header), save it to the app cache, then hand the LOCAL file to the
+// native share sheet ("Save to Files", Quick Look, AirDrop…). RN's core Share
+// accepts a file:// url on iOS, so this needs no extra native module and ships
+// over OTA. iOS only: Android has no RN-core file share (notes use the Storage
+// Access Framework) and web has no native file access — both keep the ?token=
+// URL path, whose token is short-lived (3 min) and sent with Referrer-Policy:
+// no-referrer.
+
+// Sanitize a server-supplied name into a safe cache-dir leaf: replace path
+// separators and reserved characters (spaces/dots/hyphens stay, so it still
+// reads normally) so the name can't escape the cache directory.
+export function safeDownloadName(name: string, fallback: string): string {
+  const safe = name.replace(/[/\\:*?"<>|]/g, "_").trim();
+  return safe === "" || safe === "." || safe === ".." ? fallback : safe;
+}
+
+// Readable, cache-safe PDF filename for a certificate (there is no server-side
+// originalName — the file is always the class's completion PDF).
+export function certificateFileName(cert: { className: string }): string {
+  return `${safeDownloadName(cert.className, "certificate")} — Certificate.pdf`;
+}
+
+// Download an access-checked file into the app cache with the session token in
+// the Authorization header (never in the URL). Returns the local File handle.
+// The single home of the header-auth download contract — used by the iOS share
+// flow below and by the Android SAF save in LessonScreen. The caller owns the
+// cache file's lifecycle (iOS retains it for the share sheet; Android deletes it
+// after copying into the chosen folder).
+export async function downloadToCache(opts: {
+  downloadPath: string;
+  fileName: string;
+}): Promise<File> {
+  const token = await getToken();
+  const dest = new File(Paths.cache, opts.fileName);
+  return File.downloadFileAsync(`${API_BASE_URL}${opts.downloadPath}`, dest, {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    idempotent: true,
+  });
+}
+
+// Download an access-checked file (Authorization header, never a URL token) then
+// present the local file via the iOS share sheet. `message` is an optional
+// caption and MUST NOT contain a tokenised URL. Returns the Share result so
+// callers can react to dismissal. iOS only.
+export async function downloadAndShareFile(opts: {
+  downloadPath: string;
+  fileName: string;
+  message?: string;
+}) {
+  // The cache copy is retained, not a throwaway: the share sheet reads it
+  // lazily, so deleting it now could race an extension still copying it. It's
+  // the OS cache dir (reclaimed under pressure) and re-downloads overwrite it.
+  const dl = await downloadToCache({
+    downloadPath: opts.downloadPath,
+    fileName: opts.fileName,
+  });
+  return Share.share({ url: dl.uri, message: opts.message });
 }
