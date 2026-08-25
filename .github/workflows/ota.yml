@@ -82,11 +82,16 @@ jobs:
 
       - name: Publish
         working-directory: apps/mobile
+        env:
+          # Without the cert in the evaluated app config, eas update skips
+          # signing entirely — the materialized key alone is not enough.
+          EXPO_PUBLIC_CODE_SIGNING_CERT: ./certs/certificate.pem
         run: |
           MSG='${{ inputs.message }}'
           [ -n "$MSG" ] || MSG="console OTA ${GITHUB_SHA::7}"
           npx eas-cli@20.5.1 update \
             --channel "${{ inputs.channel }}" \
+            --environment "${{ inputs.channel }}" \
             --message "$MSG" \
             --private-key-path keys/private-key.pem \
             --non-interactive \
