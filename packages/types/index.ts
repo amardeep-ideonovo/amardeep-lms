@@ -308,6 +308,7 @@ export interface EmailSettingsInput {
   resendApiKey?: string;
   fromEmail?: string;
   fromName?: string;
+  replyTo?: string; // optional Reply-To address; blank/omitted = none
   secure?: boolean;
 }
 export interface EmailSettingsMasked {
@@ -321,6 +322,7 @@ export interface EmailSettingsMasked {
   resendApiKeySet: boolean;
   fromEmail: string | null;
   fromName: string | null;
+  replyTo: string | null;
   secure: boolean;
 }
 // the web app falls back to a mock payment path (UI stays fully testable).
@@ -2676,6 +2678,7 @@ export const ROUTES = {
   adminScheduleCampaign: "POST /admin/email/campaigns/:id/schedule", // -> CampaignDTO (status SCHEDULED, nextRunAt set)
   adminPauseCampaign: "POST /admin/email/campaigns/:id/pause", // -> CampaignDTO (status PAUSED)
   adminCampaignStats: "GET /admin/email/campaigns/:id/stats", // -> CampaignStatsDTO (delivery + open/click rollup)
+  adminCampaignTestSend: "POST /admin/email/campaigns/:id/test-send", // body { to } -> EmailSendResultDTO (real one-off send)
 
   // automations (event-triggered emails) — ADMIN (RBAC `email`)
   adminListAutomations: "GET /admin/email/automations", // -> AutomationDTO[]
