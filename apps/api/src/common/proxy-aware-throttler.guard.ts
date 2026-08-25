@@ -20,6 +20,15 @@ import { ThrottlerGuard } from "@nestjs/throttler";
 // API a client could fabricate the whole header and rotate buckets; the fleet
 // never exposes the API directly (loopback bind), and a direct deployment
 // that removes the proxy must strip incoming XFF at its new edge instead.
+//
+// DO NOT attach this guard (or any ThrottlerGuard) per-route on top of the
+// global APP_GUARD: both evaluate the same "default" throttler against the
+// same route context and tracker, so the SAME storage key is incremented
+// twice per request and the route's @Throttle limit silently halves (observed
+// live 2026-08-25: 429 on the 3rd of a 5-limit). @Throttle decorators alone
+// configure per-route limits — the global guard reads and enforces them. The
+// only legitimate per-route throttler is one with a DIFFERENT key-space,
+// like LiveThrottlerGuard (member-keyed).
 @Injectable()
 export class ProxyAwareThrottlerGuard extends ThrottlerGuard {
   // Only throttle HTTP. Registered subclasses can be attached to WebSocket
