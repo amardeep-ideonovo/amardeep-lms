@@ -865,10 +865,6 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                 label="Delete account"
               />
             </View>
-
-            <Text style={styles.storeNote}>
-              Plan upgrades and payments are completed on our website.
-            </Text>
           </>
         )}
 
@@ -1336,14 +1332,6 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontSize: 14,
       lineHeight: 20,
       marginBottom: spacing.md,
-      fontFamily: fonts.regular,
-    },
-    storeNote: {
-      color: colors.textMuted,
-      fontSize: 12,
-      lineHeight: 17,
-      textAlign: "center",
-      marginTop: spacing.xs,
       fontFamily: fonts.regular,
     },
     signOut: {

@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import type { LevelDTO, PriceDTO } from "@lms/types";
+import type { LevelDTO } from "@lms/types";
 
 import {
   useLevels,
@@ -26,14 +26,6 @@ import type { ScreenProps } from "../navigation";
 import { contentColumn } from "../responsive";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
-
-function lowestPrice(prices: PriceDTO[]): PriceDTO | null {
-  if (prices.length === 0) return null;
-  return prices.reduce(
-    (min, p) => (p.amount < min.amount ? p : min),
-    prices[0],
-  );
-}
 
 export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
   const styles = useStyles(makeStyles);
@@ -125,34 +117,25 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
       {available.length > 0 ? (
         <>
           <Text style={styles.sectionTitle}>Available plans</Text>
-          {available.map((l) => {
-            const low = lowestPrice(l.prices);
-            return (
-              <Press
-                key={l.id}
-                style={styles.card}
-                disabled={!l.published}
-                accessibilityRole="button"
-                onPress={() => openLanding(l)}
-              >
-                <Text style={styles.name}>{l.name}</Text>
-                <Text style={styles.meta}>
-                  {low
-                    ? `From ${money(low.amount, low.currency)} / ${low.interval}`
-                    : "Pricing coming soon"}
-                </Text>
-                {l.published ? (
-                  <Text style={styles.link}>View details →</Text>
-                ) : null}
-              </Press>
-            );
-          })}
+          {/* Store rules (Apple 3.1.1 / Play payments): no prices and no
+              purchase-steering copy for plans not owned — names + the in-app
+              landing only. */}
+          {available.map((l) => (
+            <Press
+              key={l.id}
+              style={styles.card}
+              disabled={!l.published}
+              accessibilityRole="button"
+              onPress={() => openLanding(l)}
+            >
+              <Text style={styles.name}>{l.name}</Text>
+              {l.published ? (
+                <Text style={styles.link}>View details →</Text>
+              ) : null}
+            </Press>
+          ))}
         </>
       ) : null}
-
-      <Text style={styles.note}>
-        Plan changes and payments are completed on our website.
-      </Text>
     </ScrollView>
   );
 }
@@ -213,12 +196,5 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       fontSize: 14,
       fontWeight: "700",
       fontFamily: fonts.bold,
-    },
-    note: {
-      color: colors.textMuted,
-      fontSize: 12.5,
-      textAlign: "center",
-      marginTop: spacing.md,
-      fontFamily: fonts.regular,
     },
   });

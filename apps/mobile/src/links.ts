@@ -104,10 +104,17 @@ function openPath(pathname: string, browserFallback: string): void {
       nav.navigate("Plans");
       return;
     case "checkout":
+      // NEVER hand a checkout URL to the browser: a CMS-authored "Buy now"
+      // popup/menu link would turn the app into a web-purchase funnel (Google
+      // Play payments policy / Apple 3.1.1). Land on the class's IN-APP page
+      // (neutral, price-free LockedPanel) or the plans list instead.
+      if (second) nav.navigate("Class", { slugOrId: second });
+      else nav.navigate("Plans");
+      return;
     case "login":
     case "signup":
     case "forms":
-      // Commerce/auth stays on the web.
+      // Auth + form posts stay on the web.
       openExternal(browserFallback);
       return;
     default:
