@@ -6,7 +6,12 @@ import {
 } from "@nestjs/common";
 import { CronExpressionParser } from "cron-parser";
 import { Prisma, type Campaign } from "@prisma/client";
-import type { CampaignDTO, CampaignInput, ContactFilter } from "@lms/types";
+import type {
+  CampaignDTO,
+  CampaignInput,
+  CampaignStatsDTO,
+  ContactFilter,
+} from "@lms/types";
 import { PrismaService } from "../prisma/prisma.service";
 import { AppConfigService } from "../site/app-config.service";
 import { EmailService } from "./email.service";
@@ -53,6 +58,78 @@ export class CampaignService {
     const row = await this.prisma.campaign.findUnique({ where: { id } });
     if (!row) throw new NotFoundException("Campaign not found");
     return this.toDTO(row);
+  }
+
+  // Delivery + engagement rollup for one campaign. Reads this campaign's EmailLog
+  // rows (send outcomes, correlated by the campaignId stamped at dispatch) and
+  // the EmailEvent feed for the provider open/click/delivered signals tied to
+  // those logs. Event counts are effectively unique per message — the webhook
+  // dedupes on (providerId, type) — so an OPEN count is "messages opened", not
+  // raw open pings. Bounces/complaints come from the authoritative log status
+  // (the webhook flips it), not from counting events, to avoid double meaning.
+  async stats(id: string): Promise<CampaignStatsDTO> {
+    const campaign = await this.prisma.campaign.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!campaign) throw new NotFoundException("Campaign not found");
+
+    // The campaign's send ledger. Bounded by the audience size; we need the row
+    // ids to correlate events and the statuses for the delivery breakdown.
+    const logs = await this.prisma.emailLog.findMany({
+      where: { campaignId: id },
+      select: { id: true, status: true },
+    });
+
+    const byStatus: Record<string, number> = {
+      QUEUED: 0,
+      SENT: 0,
+      FAILED: 0,
+      BOUNCED: 0,
+      COMPLAINED: 0,
+    };
+    for (const l of logs) byStatus[l.status] = (byStatus[l.status] ?? 0) + 1;
+
+    // "Sends" = messages actually handed to the provider. A BOUNCED/COMPLAINED
+    // row was sent first (the webhook flipped its status afterwards), so it still
+    // counts toward the rate denominator.
+    const sends = byStatus.SENT + byStatus.BOUNCED + byStatus.COMPLAINED;
+
+    // Provider engagement events for this campaign's messages, grouped by type
+    // over the (indexed) emailLogId set. Skip the query when there are no logs —
+    // an empty `in` is a needless round-trip.
+    const logIds = logs.map((l) => l.id);
+    let delivered = 0;
+    let opened = 0;
+    let clicked = 0;
+    if (logIds.length > 0) {
+      const groups = await this.prisma.emailEvent.groupBy({
+        by: ["type"],
+        where: { emailLogId: { in: logIds } },
+        _count: { _all: true },
+      });
+      for (const g of groups) {
+        const n = g._count._all;
+        if (g.type === "DELIVERED") delivered = n;
+        else if (g.type === "OPEN") opened = n;
+        else if (g.type === "CLICK") clicked = n;
+      }
+    }
+
+    const rate = (n: number) => (sends > 0 ? n / sends : 0);
+    return {
+      campaignId: id,
+      sends,
+      failed: byStatus.FAILED,
+      queued: byStatus.QUEUED,
+      delivered,
+      opened,
+      clicked,
+      bounced: byStatus.BOUNCED,
+      complained: byStatus.COMPLAINED,
+      openRate: rate(opened),
+      clickRate: rate(clicked),
+    };
   }
 
   async create(input: CampaignInput): Promise<CampaignDTO> {
