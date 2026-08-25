@@ -214,6 +214,14 @@ export class EmailController {
     return this.campaigns.pause(id);
   }
 
+  // Delivery + open/click rollup for the campaign detail view.
+  @UseGuards(PermissionsGuard)
+  @RequirePermission("email", "read")
+  @Get("admin/email/campaigns/:id/stats")
+  campaignStats(@Param("id") id: string) {
+    return this.campaigns.stats(id);
+  }
+
   // ───────────────────────── Automations ─────────────────────────
 
   @UseGuards(PermissionsGuard)
