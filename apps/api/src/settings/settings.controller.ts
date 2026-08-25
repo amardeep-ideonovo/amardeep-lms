@@ -157,6 +157,18 @@ export class SettingsController {
       this.settings.getSecret(SETTING_KEYS.emailReplyTo),
       this.settings.getEmailSecure(),
     ]);
+    // Whether the ACTIVE provider can actually send — the same rule its
+    // sender's isConfigured() applies (resend: key + From, smtp: host + user;
+    // see resend.sender / smtp.sender), evaluated through the env-fallback
+    // getters rather than the raw display reads above so it matches exactly
+    // what send() will do. The dashboard warns while this is false: until
+    // then every member email (password resets, welcome, campaigns) fails.
+    const configured =
+      provider === "resend"
+        ? !!(await this.settings.getEmailResendApiKey()) &&
+          !!(await this.settings.getEmailFromEmail())
+        : !!(await this.settings.getEmailHost()) &&
+          !!(await this.settings.getEmailUser());
     return {
       provider,
       // host/port/from/user are config, not secrets — returned in full.
@@ -170,6 +182,7 @@ export class SettingsController {
       fromName: fromName ?? null,
       replyTo: replyTo ?? null,
       secure,
+      configured,
     };
   }
 
