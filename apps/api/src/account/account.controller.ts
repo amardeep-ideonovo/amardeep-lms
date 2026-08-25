@@ -7,7 +7,6 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
-import { ProxyAwareThrottlerGuard } from "../common/proxy-aware-throttler.guard";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { CurrentUser } from "../auth/current-user.decorator";
 import type { AuthenticatedPrincipal } from "../auth/jwt-payload.interface";
@@ -32,7 +31,7 @@ export class AccountController {
   // Permanently delete the caller's own account. Password re-auth required;
   // rate-limited like login (it verifies a password, so it must not be a
   // brute-force oracle). 200 — no resource created; the account is gone.
-  @UseGuards(JwtAuthGuard, ProxyAwareThrottlerGuard)
+  @UseGuards(JwtAuthGuard)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("me/delete")
   @HttpCode(200)
