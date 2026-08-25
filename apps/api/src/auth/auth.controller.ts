@@ -15,7 +15,8 @@ import { memoryStorage } from "multer";
 // Relative on purpose — see packages/types/constants.ts (API value imports).
 import { MAX_AVATAR_UPLOAD_BYTES } from "../../../../packages/types/constants";
 import type { Request } from "express";
-import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import { Throttle } from "@nestjs/throttler";
+import { ProxyAwareThrottlerGuard } from "../common/proxy-aware-throttler.guard";
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { SignupDto } from "./dto/signup.dto";
@@ -32,8 +33,12 @@ import type { AuthenticatedPrincipal } from "./jwt-payload.interface";
 
 // Rate-limit overrides via env var (see .env.example). Defaults to 5/min/IP
 // for login and admin/login, which is enough for legitimate retries without
-// letting a password-spray attack run unchecked. Per-IP — `trust proxy` is
-// set in main.ts so req.ip resolves to the real client behind a CDN/LB.
+// letting a password-spray attack run unchecked. Per-IP via
+// ProxyAwareThrottlerGuard, which keys on the rightmost X-Forwarded-For entry
+// (the one Caddy appends) — NOT bare req.ip, which behind the fleet proxy is
+// the proxy's address for everyone and would fuse the whole academy into one
+// bucket (5 stranger requests/min = academy-wide login lockout). TRUST_PROXY
+// in the fleet composes additionally keeps req.ip itself correct in main.ts.
 const LOGIN_LIMIT = Number(process.env.THROTTLE_LOGIN_LIMIT) || 5;
 const LOGIN_TTL_MS = 60_000;
 // Signup is tighter — 3/min/IP — because each call creates a row and can
@@ -62,7 +67,7 @@ export class AuthController {
   // (not Nest's default 201 for POST).
   @Post("login")
   @HttpCode(200)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ProxyAwareThrottlerGuard)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
   memberLogin(@Body() dto: LoginDto) {
     return this.auth.loginMember(dto.email, dto.password);
@@ -70,7 +75,7 @@ export class AuthController {
 
   @Post("admin/login")
   @HttpCode(200)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ProxyAwareThrottlerGuard)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
   adminLogin(@Body() dto: LoginDto) {
     return this.auth.loginAdmin(dto.email, dto.password);
@@ -82,7 +87,7 @@ export class AuthController {
   // No 201 because the response shape is identical to login (token + user).
   @Post("signup")
   @HttpCode(200)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ProxyAwareThrottlerGuard)
   @Throttle({ default: { limit: SIGNUP_LIMIT, ttl: SIGNUP_TTL_MS } })
   memberSignup(@Body() dto: SignupDto) {
     return this.auth.signupMember(dto);
@@ -94,7 +99,7 @@ export class AuthController {
   // account sends an email.
   @Post("forgot-password")
   @HttpCode(200)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ProxyAwareThrottlerGuard)
   @Throttle({ default: { limit: FORGOT_LIMIT, ttl: FORGOT_TTL_MS } })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.auth.forgotPassword(dto.email);
@@ -106,7 +111,7 @@ export class AuthController {
   // hammering an unauthenticated password-writing route).
   @Post("reset-password")
   @HttpCode(200)
-  @UseGuards(ThrottlerGuard)
+  @UseGuards(ProxyAwareThrottlerGuard)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.auth.resetPassword(dto.token, dto.newPassword);
@@ -148,7 +153,7 @@ export class AuthController {
 
   // Change own password. Requires the current password; rate-limited (5/min/IP)
   // to slow brute-forcing it. 200 (not 201) — no resource is created.
-  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @UseGuards(JwtAuthGuard, ProxyAwareThrottlerGuard)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
   @Post("change-password")
   @HttpCode(200)
@@ -160,7 +165,7 @@ export class AuthController {
   }
 
   // Admin self-service password change (separate table from members).
-  @UseGuards(JwtAuthGuard, ThrottlerGuard)
+  @UseGuards(JwtAuthGuard, ProxyAwareThrottlerGuard)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
   @Post("admin/change-password")
   @HttpCode(200)
