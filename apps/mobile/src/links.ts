@@ -19,6 +19,7 @@ const RESERVED = new Set([
   "delete-account",
   "pricing",
   "checkout",
+  "help",
   "login",
   "signup",
   "forms",
@@ -98,6 +99,10 @@ function openPath(pathname: string, browserFallback: string): void {
     case "account":
       if (second === "payments") nav.navigate("Payments");
       else nav.navigate("Main", { screen: "Profile" });
+      return;
+    case "help":
+      if (second) nav.navigate("HelpdeskThread", { conversationId: second });
+      else nav.navigate("HelpdeskHome");
       return;
     case "pricing":
       // The plans LIST is native now; actual checkout stays on the web.
