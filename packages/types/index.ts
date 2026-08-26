@@ -309,6 +309,7 @@ export interface EmailSettingsInput {
   resendApiKey?: string;
   fromEmail?: string;
   fromName?: string;
+  replyTo?: string; // optional Reply-To address; blank/omitted = none
   secure?: boolean;
 }
 export interface EmailSettingsMasked {
@@ -322,7 +323,13 @@ export interface EmailSettingsMasked {
   resendApiKeySet: boolean;
   fromEmail: string | null;
   fromName: string | null;
+  replyTo: string | null;
   secure: boolean;
+  // Whether the ACTIVE provider can actually send — same rule the sender's
+  // isConfigured() applies (resend: key + From; smtp: host + user), evaluated
+  // with env fallbacks. Until this is true, every member email (password
+  // resets, welcome, campaigns) fails — the dashboard warns on it.
+  configured: boolean;
 }
 // the web app falls back to a mock payment path (UI stays fully testable).
 export interface BillingConfigDTO {
@@ -330,6 +337,10 @@ export interface BillingConfigDTO {
   publishableKey: string | null; // Stripe Elements key (pk_…)
   paypalClientId: string | null; // PayPal JS SDK client id (public)
   paypalMode: "sandbox" | "live" | null;
+  // True when the active processor is in TEST/sandbox mode — no real money can
+  // move. The checkout uses it to show the test card details, so a prospect
+  // running a demo knows what to type. Derived from the public key/mode only.
+  testMode: boolean;
 }
 // Start an embedded (Elements) subscription. `couponCode` is an optional Stripe
 // promotion code applied to the subscription.
@@ -1225,6 +1236,26 @@ export interface CampaignInput {
   timezone?: string | null; // IANA tz for cron/weekly/monthly schedules; null/omitted => UTC
 }
 
+// Engagement + delivery rollup for ONE campaign, aggregated from the EmailLog
+// ledger (send outcomes) and the EmailEvent feed (provider open/click/delivered
+// signals). Counts are per-recipient: the webhook dedupes events on
+// (providerId, type), so at most one OPEN / CLICK is recorded per sent message.
+// Rates are 0..1 over `sends` (messages actually handed to the provider) and are
+// 0 when there were no sends.
+export interface CampaignStatsDTO {
+  campaignId: string;
+  sends: number; // dispatched to the provider (EmailLog status SENT | BOUNCED | COMPLAINED)
+  failed: number; // never sent — suppressed / render / transport failure (status FAILED)
+  queued: number; // still in flight (status QUEUED)
+  delivered: number; // provider-confirmed deliveries (DELIVERED events; 0 if the provider omits them)
+  opened: number; // messages opened at least once (unique OPEN events)
+  clicked: number; // messages with a link click (unique CLICK events)
+  bounced: number; // bounced (EmailLog status BOUNCED)
+  complained: number; // spam complaints (EmailLog status COMPLAINED)
+  openRate: number; // opened / sends, 0..1
+  clickRate: number; // clicked / sends, 0..1
+}
+
 // ---------- Automations (event-triggered emails) ----------
 // An automation sends a template whenever its domain event fires. Triggers map
 // to wired event sites in the API (SIGNUP, CERTIFICATE_ISSUED, …). `delayMinutes`
@@ -1647,7 +1678,10 @@ export type AdminNotificationType =
   | "SUPPORT_STATUS"
   | "SUPPORT_INVITED_OPS"
   | "HELPDESK_ESCALATED"
-  | "HELPDESK_UNANSWERED";
+  | "HELPDESK_UNANSWERED"
+  // A standing STATE, not an event: checkout is running on the operator's
+  // shared test keys, so nothing this academy sells collects money.
+  | "PAYMENT_KEYS_DEMO";
 
 export type AdminNotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
 
@@ -2654,6 +2688,8 @@ export const ROUTES = {
   adminDeleteCampaign: "DELETE /admin/email/campaigns/:id", // -> { ok: true }
   adminScheduleCampaign: "POST /admin/email/campaigns/:id/schedule", // -> CampaignDTO (status SCHEDULED, nextRunAt set)
   adminPauseCampaign: "POST /admin/email/campaigns/:id/pause", // -> CampaignDTO (status PAUSED)
+  adminCampaignStats: "GET /admin/email/campaigns/:id/stats", // -> CampaignStatsDTO (delivery + open/click rollup)
+  adminCampaignTestSend: "POST /admin/email/campaigns/:id/test-send", // body { to } -> EmailSendResultDTO (real one-off send)
 
   // automations (event-triggered emails) — ADMIN (RBAC `email`)
   adminListAutomations: "GET /admin/email/automations", // -> AutomationDTO[]

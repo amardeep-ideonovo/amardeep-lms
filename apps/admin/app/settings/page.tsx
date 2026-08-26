@@ -234,6 +234,29 @@ function StripeSection() {
   return (
     <div className="card">
       <h2>Stripe</h2>
+      {current?.demoKeysActive && (
+        <p className="alert-warning" role="status">
+          <strong>Demo payment keys are active.</strong> This site is taking
+          checkouts through test-mode keys provided with your sample content —
+          cards are never charged and no money reaches you. Add your own Stripe
+          keys below to start taking real payments; yours replace the demo keys
+          automatically.
+        </p>
+      )}
+      {current?.demoKeysStored && !current?.demoKeysActive && (
+        <p className="muted" role="status">
+          Demo test keys are present but unused — your own Stripe keys are
+          active.
+        </p>
+      )}
+      {current?.secretKeyLast4 && !current?.publishableKey && (
+        <p className="alert-warning" role="status">
+          <strong>Checkout is turned off.</strong> A secret key is saved but no
+          publishable key, and the payment form needs both — buyers currently
+          see &ldquo;payments unavailable&rdquo;. Add your publishable key
+          (&nbsp;pk_…&nbsp;) below.
+        </p>
+      )}
       <form onSubmit={save}>
         <div className="field">
           <label>
@@ -586,6 +609,7 @@ function EmailSenderSection() {
   const [resendApiKey, setResendApiKey] = useState("");
   const [fromEmail, setFromEmail] = useState("");
   const [fromName, setFromName] = useState("");
+  const [replyTo, setReplyTo] = useState("");
   const [secure, setSecure] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -605,6 +629,7 @@ function EmailSenderSection() {
     setUser(s.user ?? "");
     setFromEmail(s.fromEmail ?? "");
     setFromName(s.fromName ?? "");
+    setReplyTo(s.replyTo ?? "");
     setSecure(s.secure);
   }
 
@@ -651,6 +676,7 @@ function EmailSenderSection() {
         resendApiKey: resendApiKey.trim() || undefined,
         fromEmail: fromEmail.trim() || undefined,
         fromName: fromName.trim() || undefined,
+        replyTo: replyTo.trim() || undefined,
         secure,
       });
       hydrate(updated);
@@ -839,6 +865,20 @@ function EmailSenderSection() {
               onChange={(e) => setFromName(e.target.value)}
             />
           </div>
+        </div>
+
+        <div className="field">
+          <label>
+            Reply-to{" "}
+            <span className="muted">
+              (optional — where member replies go; blank = the From address)
+            </span>
+          </label>
+          <input
+            value={replyTo}
+            placeholder="support@yourdomain.com"
+            onChange={(e) => setReplyTo(e.target.value)}
+          />
         </div>
 
         {provider === "smtp" && (

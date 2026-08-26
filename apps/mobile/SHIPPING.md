@@ -23,15 +23,20 @@ EAS builds pull the admin-uploaded icon/splash (Admin → App Customization,
 [assets/README.md](assets/README.md). If those fields are unset, the checked-in
 files ship instead; manual replacement (same filenames) remains the fallback.
 
-## 2. Set the production API URL — REQUIRED
+## 2. Server URLs — shared build vs white-label — REQUIRED reading
 
-The app currently points at placeholder URLs. In `eas.json`, under
-`build.preview.env` **and** `build.production.env`, set:
+The STORE build is the SHARED "connect to your academy" app. It must **NOT**
+bake `EXPO_PUBLIC_API_URL` / `EXPO_PUBLIC_WEB_ACCOUNT_URL` — baking an API URL
+locks the binary to ONE academy (see `src/config.ts`), which is the
+white-label path, not the store app. The committed `eas.json` preview and
+production profiles are already correct for the shared app: they set only
+`EXPO_PUBLIC_DIRECTORY_URL` + `EXPO_PUBLIC_FLEET_DOMAIN`, which drive the
+connect flow.
 
-- `EXPO_PUBLIC_API_URL` — your deployed API base (e.g. the Render URL), HTTPS.
-- `EXPO_PUBLIC_WEB_ACCOUNT_URL` — the member web `/account` URL, HTTPS.
-
-(Or set them as EAS environment variables / secrets in the Expo dashboard.)
+**White-label (single-academy) builds only:** set `EXPO_PUBLIC_API_URL` (the
+academy's API base, HTTPS) and `EXPO_PUBLIC_WEB_ACCOUNT_URL` (its member-web
+`/account` URL) via that client's own EAS profile or dashboard env — never in
+the committed preview/production profiles.
 
 ## 3. Apple (App Store)
 

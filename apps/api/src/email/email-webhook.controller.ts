@@ -8,11 +8,10 @@ import {
   Query,
   Req,
   UnauthorizedException,
-  UseGuards,
 } from "@nestjs/common";
 import type { RawBodyRequest } from "@nestjs/common";
 import type { Request } from "express";
-import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import { Throttle } from "@nestjs/throttler";
 import { createHmac, timingSafeEqual } from "crypto";
 import { Prisma, type EmailEventType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
@@ -65,7 +64,6 @@ export class EmailWebhookController {
   @Post("webhook")
   @HttpCode(200)
   // Public route → rate-limit by IP (mirrors auth.controller's @Throttle pattern).
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   async handle(
     @Req() req: RawBodyRequest<Request>,

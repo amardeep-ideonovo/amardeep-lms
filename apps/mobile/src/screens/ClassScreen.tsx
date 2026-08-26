@@ -1,27 +1,20 @@
 // Class landing page — native mirror of the web's /classes/[slug]
-// (hero + buy card + skills + trailer + owned course list + closing CTA).
-// Web parity by request: unowned classes show "Get Class" with the starting
-// price exactly like the website; the button hands off to the WEB checkout in
-// the browser — no purchase ever happens in-app.
+// (hero + skills + trailer + owned course list). DELIBERATELY diverges from
+// the web for non-owners: no "Get Class", no prices, no checkout handoff —
+// store rules (Apple 3.1.1 / Google Play payments) forbid steering members to
+// a web purchase, so unowned classes get the LockedPanel instead (same
+// pattern as LessonScreen).
 import React, { useEffect, useRef } from "react";
-import {
-  Image,
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { LinearGradient } from "expo-linear-gradient";
 import type { ClassCertificateStatusDTO, CourseCard } from "@lms/types";
 
 import { useClassPage, useMyClassCourses } from "../queries";
-import { WEB_BASE_URL } from "../config";
-import { fmtTotalDuration, money, vimeoEmbed, stripHtml } from "../format";
+import { fmtTotalDuration, vimeoEmbed, stripHtml } from "../format";
 import { CourseRow } from "../components/CourseRow";
 import { ErrorState } from "../components/Screen";
-import { CtaButton } from "../components/CtaButton";
+import { LockedPanel } from "../components/LockedPanel";
 import { PopupHost } from "../components/PopupHost";
 import { Badge, Chip } from "../components/Chip";
 import { Skeleton } from "../components/Skeleton";
@@ -137,18 +130,10 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
   const trailer = cls.trailerUrl ? vimeoEmbed(cls.trailerUrl) : null;
   const trailerHeight = ((contentWidth - 32) * 9) / 16;
 
-  // Cheapest price drives the "Starting at" label (web priceLabel parity).
-  const cheapest =
-    cls.prices.length > 0
-      ? cls.prices.reduce((a, b) => (a.amount <= b.amount ? a : b))
-      : null;
-  const priceLabel = cheapest
-    ? `${money(cheapest.amount, cheapest.currency)}/${cheapest.interval}`
-    : null;
-  // Checkout is a WEB handoff — the button opens the site; nothing is sold
-  // in-app.
-  const openCheckout = () =>
-    Linking.openURL(`${WEB_BASE_URL}/checkout/${slugOrId}`).catch(() => {});
+  // No prices and no checkout handoff on this screen: steering members to buy
+  // outside the app violates Google Play payments policy and Apple 3.1.1
+  // (outside the US) — the LockedPanel pattern, same as LessonScreen. The
+  // only CTA a non-owner gets is the in-app trailer.
   const scrollToTrailer = () =>
     scrollRef.current?.scrollTo({ y: trailerY.current, animated: true });
 
@@ -271,27 +256,14 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
               </View>
             ) : null}
             {!owned ? (
-              <View style={styles.buyCard}>
-                <CtaButton
-                  label="Get Class"
-                  onPress={openCheckout}
-                  style={{ alignSelf: "stretch" }}
+              <View style={styles.lockedWrap}>
+                <LockedPanel
+                  title="Not included in your membership"
+                  message="Your current membership doesn't include this class."
+                  note="You can manage your plan from your account on the web."
+                  ctaLabel={cls.trailerUrl ? "Watch the trailer" : undefined}
+                  onPress={cls.trailerUrl ? scrollToTrailer : undefined}
                 />
-                <Text style={styles.buySub}>
-                  {priceLabel ? (
-                    <>
-                      Starting at{" "}
-                      <Text style={styles.buyStrong}>{priceLabel}</Text>.
-                    </>
-                  ) : (
-                    "Full lifetime access."
-                  )}
-                </Text>
-                {cls.trailerUrl ? (
-                  <Text style={styles.buyLink} onPress={scrollToTrailer}>
-                    Watch the trailer ↓
-                  </Text>
-                ) : null}
               </View>
             ) : null}
           </View>
@@ -361,22 +333,6 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
                 </View>
               </View>
             ) : null}
-            <View style={styles.closing}>
-              <Text style={styles.closingEyebrow}>Start today</Text>
-              <Text style={styles.closingTitle}>Begin {cls.name}</Text>
-              <CtaButton
-                label="Get Class"
-                onPress={openCheckout}
-                // Centered content-width pill in the closing section (distinct
-                // from the full-width buy-card CTA above).
-                style={{ alignSelf: "center" }}
-              />
-              {priceLabel ? (
-                <Text style={styles.closingPrice}>
-                  Starting at {priceLabel}
-                </Text>
-              ) : null}
-            </View>
           </>
         )}
 
@@ -544,59 +500,11 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
     },
     courseList: { gap: spacing.sm, marginTop: spacing.xs },
     empty: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
-    // Buy card on the hero (web .cc-buy parity) — sits on the scrim, so its
-    // text uses the hero tokens.
-    buyCard: {
+    // Non-owner panel on the hero, where the buy card used to sit (store
+    // rules: no prices, no checkout — see the comment at scrollToTrailer).
+    lockedWrap: {
       marginTop: spacing.sm,
-      backgroundColor: colors.surfaceMuted,
-      borderWidth: 1,
-      borderColor: colors.borderSoft,
-      borderRadius: 14,
-      padding: spacing.md,
-      gap: spacing.sm,
-      alignItems: "center",
-    },
-    buySub: {
-      color: colors.textMuted,
-      fontSize: 13,
-      textAlign: "center",
-      fontFamily: fonts.regular,
-    },
-    buyStrong: {
-      color: colors.text,
-      fontWeight: "700",
-      fontFamily: fonts.bold,
-    },
-    buyLink: {
-      color: colors.primarySoft,
-      fontSize: 13,
-      textDecorationLine: "underline",
-      fontFamily: fonts.regular,
-    },
-    closing: {
-      alignItems: "center",
-      gap: spacing.sm,
-      paddingVertical: spacing.lg,
-    },
-    closingEyebrow: {
-      color: colors.primarySoft,
-      fontSize: 12,
-      fontWeight: "700",
-      fontFamily: fonts.bold,
-      textTransform: "uppercase",
-      letterSpacing: 1.6,
-    },
-    closingTitle: {
-      color: colors.text,
-      fontSize: 24,
-      fontWeight: "800",
-      fontFamily: fonts.display,
-      textAlign: "center",
-    },
-    closingPrice: {
-      color: colors.textMuted,
-      fontSize: 13,
-      fontFamily: fonts.regular,
+      alignSelf: "stretch",
     },
     trailer: {
       borderRadius: 14,

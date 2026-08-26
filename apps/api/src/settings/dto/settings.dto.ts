@@ -95,6 +95,10 @@ export class UpdateEmailSettingsDto {
   fromName?: string;
 
   @IsOptional()
+  @IsString()
+  replyTo?: string;
+
+  @IsOptional()
   @IsBoolean()
   secure?: boolean;
 }

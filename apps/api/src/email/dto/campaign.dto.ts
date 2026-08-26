@@ -63,6 +63,16 @@ export class CampaignDto implements CampaignInput {
   @IsString()
   @MaxLength(120)
   cron?: string | null;
+
+  // IANA zone the schedule times are authored in (e.g. "America/New_York").
+  // null/blank/omitted => UTC. The value is validated against the runtime's Intl
+  // timezone database in CampaignService (a bad zone is a 400, never a scheduler
+  // crash). Without this field the global ValidationPipe (forbidNonWhitelisted)
+  // would 400 any request that carries a timezone, so it could never be set.
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  timezone?: string | null;
 }
 
 // ---------- Automations ----------

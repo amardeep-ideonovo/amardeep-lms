@@ -23,7 +23,10 @@ import { useStyles } from "../theme-provider";
 
 function InvoiceRow({ inv }: { inv: InvoiceDTO }) {
   const styles = useStyles(makeStyles);
-  const receiptUrl = inv.hostedInvoiceUrl;
+  // PAID invoices only: an OPEN invoice's hosted page carries a live "Pay"
+  // button, which would make this link an in-app path to a web payment
+  // (Apple 3.1.1 / Play payments). A settled receipt is just a record.
+  const receiptUrl = inv.status === "paid" ? inv.hostedInvoiceUrl : null;
   return (
     <View style={styles.row}>
       <View style={styles.rowLeft}>

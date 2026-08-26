@@ -268,6 +268,19 @@ async function main() {
       })) {
         assert.equal(count, 0, `real client must boot empty (${name})`);
       }
+      // The seed must never install payment credentials. Setting rows survive
+      // SEED_WIPE and purgeDemoDebris by design, and the demo block runs only on
+      // an instance's first boot — so a credential seeded here would be
+      // effectively permanent, and an instance provisioned with sample content
+      // and later handed to a paying client would keep taking checkouts on the
+      // operator's account. Demo payment keys arrive over the control plane's
+      // revocable service-token push instead (POST /instance-admin/demo-payment-keys).
+      const settings = await db.setting.findMany({ select: { key: true } });
+      assert.deepEqual(
+        settings.map((s) => s.key).filter((k) => k.startsWith("stripe.")),
+        [],
+        "the seed must not write Stripe credentials into Setting",
+      );
     }
     console.log("PASS  real client boots empty with the owner admin only");
 
@@ -312,6 +325,15 @@ async function main() {
         where: { authorId: { not: admins[0].id } },
       });
       assert.equal(strayAuthor, 0, "demo posts must be authored by the owner");
+      // Not even a DEMO instance gets its payment keys from the seed — see the
+      // note in scenario 4. The control plane pushes them after provisioning so
+      // they stay revocable and per-instance.
+      const settings = await db.setting.findMany({ select: { key: true } });
+      assert.deepEqual(
+        settings.map((s) => s.key).filter((k) => k.startsWith("stripe.")),
+        [],
+        "the demo seed must not write Stripe credentials into Setting either",
+      );
     }
     console.log("PASS  fresh demo instance: owner is the only admin");
 

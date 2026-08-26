@@ -26,6 +26,9 @@ export interface SendTemplateInput {
   templateId?: string;
   vars: Record<string, unknown>;
   contactId?: string;
+  // Correlates this send with the campaign that triggered it; flows through to
+  // the EmailLog row so campaign mail can be filtered/aggregated by campaign.
+  campaignId?: string;
   dedupeKey?: string;
   // Security/account mail (e.g. password reset) that must reach the recipient
   // even when they've unsubscribed from marketing. Skips ONLY the suppression
@@ -140,6 +143,7 @@ export class EmailService {
       html: rendered.html,
       text: rendered.text,
       templateKey: input.templateKey,
+      campaignId: input.campaignId,
       contactId: input.contactId,
       dedupeKey: input.dedupeKey,
       transactional: input.transactional,
@@ -164,6 +168,7 @@ export class EmailService {
       subject: "",
       html: "",
       templateKey: input.templateKey,
+      campaignId: input.campaignId,
       contactId: input.contactId,
       dedupeKey: input.dedupeKey,
     };

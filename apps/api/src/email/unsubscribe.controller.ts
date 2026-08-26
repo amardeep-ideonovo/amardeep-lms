@@ -1,12 +1,5 @@
-import {
-  Controller,
-  Get,
-  Header,
-  Post,
-  Query,
-  UseGuards,
-} from "@nestjs/common";
-import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import { Controller, Get, Header, Post, Query } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { UnsubscribeService } from "./unsubscribe.service";
 import { verifyUnsubscribeToken } from "./unsubscribe.util";
 
@@ -26,7 +19,6 @@ import { verifyUnsubscribeToken } from "./unsubscribe.util";
 // Both routes are IP rate-limited (public, unauthenticated) — mirrors the
 // @Throttle pattern in auth.controller.ts.
 @Controller("unsubscribe")
-@UseGuards(ThrottlerGuard)
 @Throttle({ default: { limit: 30, ttl: 60_000 } })
 export class UnsubscribeController {
   constructor(private readonly unsubscribe: UnsubscribeService) {}

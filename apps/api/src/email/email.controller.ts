@@ -214,6 +214,26 @@ export class EmailController {
     return this.campaigns.pause(id);
   }
 
+  // Delivery + open/click rollup for the campaign detail view.
+  @UseGuards(PermissionsGuard)
+  @RequirePermission("email", "read")
+  @Get("admin/email/campaigns/:id/stats")
+  campaignStats(@Param("id") id: string) {
+    return this.campaigns.stats(id);
+  }
+
+  // Send a real test copy of a campaign's template to a chosen address (no
+  // dedupeKey, no campaignId — a test never counts toward the campaign's stats).
+  @UseGuards(PermissionsGuard)
+  @RequirePermission("email", "edit")
+  @Post("admin/email/campaigns/:id/test-send")
+  campaignTestSend(
+    @Param("id") id: string,
+    @Body() dto: TestSendDto,
+  ): Promise<EmailSendResultDTO> {
+    return this.campaigns.testSend(id, dto.to);
+  }
+
   // ───────────────────────── Automations ─────────────────────────
 
   @UseGuards(PermissionsGuard)

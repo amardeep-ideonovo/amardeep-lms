@@ -1,13 +1,5 @@
-import {
-  Controller,
-  Get,
-  Header,
-  Post,
-  Query,
-  Req,
-  UseGuards,
-} from "@nestjs/common";
-import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import { Controller, Get, Header, Post, Query, Req } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import type { Request } from "express";
 import { ContactsService } from "./contacts.service";
 
@@ -25,13 +17,13 @@ const CONFIRM_TTL_MS = 60_000;
 // signed token and, when the contact is PENDING, flip it to SUBSCRIBED.
 //
 // Throttled module-side: ContactsModule imports ThrottlerModule and these
-// routes carry @UseGuards(ThrottlerGuard)+@Throttle (mirrors AuthController).
+// routes carry @Throttle overrides, enforced per real client IP by the global
+// GlobalThrottlerGuard (mirrors AuthController — no per-route guard, see there).
 @Controller("contacts/confirm")
 export class ContactsConfirmController {
   constructor(private readonly contacts: ContactsService) {}
 
   @Get()
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: CONFIRM_LIMIT, ttl: CONFIRM_TTL_MS } })
   @Header("Content-Type", "text/html; charset=utf-8")
   // Never let a confirm page get cached/indexed.
@@ -48,7 +40,6 @@ export class ContactsConfirmController {
   // One-click / parity. Idempotent; same HTML as GET. A bad/forged token yields
   // a neutral page so we never leak which addresses are real to a prefetcher.
   @Post()
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: CONFIRM_LIMIT, ttl: CONFIRM_TTL_MS } })
   @Header("Content-Type", "text/html; charset=utf-8")
   @Header("Cache-Control", "no-store")

@@ -55,6 +55,7 @@ import type {
   EmailLogListDTO,
   CampaignDTO,
   CampaignInput,
+  CampaignStatsDTO,
   AutomationDTO,
   AutomationInput,
   CourseCard,
@@ -304,6 +305,12 @@ export interface StripeSettingsMasked {
   secretKeyLast4: string | null;
   webhookSecretLast4: string | null;
   publishableKey: string | null;
+  // The operator's demo TEST keys. Booleans only — they aren't this admin's
+  // credential, so no last4 is exposed. `stored` = present on this instance;
+  // `active` = actually in use, which stops the moment the admin saves a key
+  // of their own (their key always wins).
+  demoKeysStored: boolean;
+  demoKeysActive: boolean;
 }
 export interface ZoomSettings {
   sdkKey?: string;
@@ -1045,6 +1052,14 @@ export const api = {
     request<CampaignDTO>("POST", `/admin/email/campaigns/${id}/schedule`),
   pauseCampaign: (id: string) =>
     request<CampaignDTO>("POST", `/admin/email/campaigns/${id}/pause`),
+  getCampaignStats: (id: string) =>
+    request<CampaignStatsDTO>("GET", `/admin/email/campaigns/${id}/stats`),
+  testSendCampaign: (id: string, to: string) =>
+    request<EmailSendResultDTO>(
+      "POST",
+      `/admin/email/campaigns/${id}/test-send`,
+      { to },
+    ),
 
   // automations (event-triggered emails)
   listAutomations: () =>

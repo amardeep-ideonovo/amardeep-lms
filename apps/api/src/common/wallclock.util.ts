@@ -13,6 +13,21 @@
 // (instantFromWallClock / tzOffsetMs / wallClockIn); those can be migrated to
 // call these helpers to de-duplicate. Behavior here is copied verbatim.
 
+// True when `tz` is a zone identifier the runtime's Intl database accepts (the
+// same database wallClockIn/tzOffsetMs use), so callers can reject a bad zone at
+// the edge instead of letting Intl throw a RangeError deep in scheduling math.
+// "UTC" and the null/empty "no zone => UTC" convention both count as valid.
+export function isValidTimeZone(tz: string | null | undefined): boolean {
+  if (!tz || tz === "UTC") return true;
+  try {
+    // Constructing a formatter with an unknown timeZone throws RangeError.
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export interface WallClock {
   year: number;
   month: number; // 1-12

@@ -71,6 +71,12 @@ services:
       NODE_ENV: production
       ENV_NAME: ${ENV_NAME:-production}
       PORT: "3000"
+      # Caddy ALWAYS fronts the api in fleet deploys (the container is
+      # loopback-bound), so one proxy hop is trusted: req.ip resolves to the
+      # real client instead of the proxy for logs/audit, and the per-IP
+      # throttles key correctly. Never set this on a directly-exposed API —
+      # clients could spoof X-Forwarded-For to dodge per-IP limits.
+      TRUST_PROXY: "1"
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-lms}?schema=public
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}

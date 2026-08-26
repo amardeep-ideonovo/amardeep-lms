@@ -642,6 +642,12 @@ enum AdminNotificationType {
   INSTALLMENT_PLAN_COMPLETED // paid-in-full installment plan converted to lifetime
   CERTIFICATE_ISSUED // member claimed a class-completion certificate
   MEMBER_DELETED // a member erased their account (or an admin deleted them)
+  // Standing warning, not an event: this academy's checkout is running on the
+  // operator's shared TEST keys, so nothing it sells collects money. Emitted
+  // when those keys become ACTIVE and DELETED again the moment they stop being
+  // (the client added their own, or the operator revoked) — see
+  // SettingsService.syncDemoKeyNotification.
+  PAYMENT_KEYS_DEMO
   // ---- Support ticketing (deep-links to /support/<entityId>) ----
   SUPPORT_REPLY // the client or operator replied on a support ticket
   SUPPORT_STATUS // a support ticket was resolved / reopened / status-changed

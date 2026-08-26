@@ -10,7 +10,7 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import { Throttle } from "@nestjs/throttler";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
 import { RequirePermission } from "../auth/require-permission.decorator";
 import { PopupsService } from "./popups.service";
@@ -42,7 +42,6 @@ export class PopupsController {
   // Fire-and-forget analytics ping from the renderer (view / click / dismiss).
   // Per-IP rate limit so the unauthenticated event route can't be used to forge
   // popup metrics in bulk.
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Post("popups/:id/event")
   recordEvent(@Param("id") id: string, @Body() dto: PopupEventDto) {

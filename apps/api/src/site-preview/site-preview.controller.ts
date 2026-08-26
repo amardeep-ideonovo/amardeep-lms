@@ -6,7 +6,7 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import { Throttle, ThrottlerGuard } from "@nestjs/throttler";
+import { Throttle } from "@nestjs/throttler";
 import { PermissionsGuard } from "../auth/guards/permissions.guard";
 import { RequirePermission } from "../auth/require-permission.decorator";
 import { CurrentUser } from "../auth/current-user.decorator";
@@ -65,7 +65,6 @@ export class SitePreviewController {
   // session tokens. Tightly throttled (a handoff is single-shot in practice).
   @Post("site-preview/exchange")
   @HttpCode(200)
-  @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   exchange(
     @Body() dto: ExchangePreviewDto,
