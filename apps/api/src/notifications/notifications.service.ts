@@ -79,6 +79,8 @@ export class NotificationsService {
       title: r.title,
       body: r.body,
       userId: r.userId,
+      entityType: r.entityType,
+      entityId: r.entityId,
       createdAt: r.createdAt.toISOString(),
       read: r.reads.length > 0,
     }));

@@ -27,6 +27,12 @@ export function certDownloadScope(certId: string): DownloadScope {
   return `cert:${certId}`;
 }
 
+export function helpdeskAttachmentDownloadScope(
+  attachmentId: string,
+): DownloadScope {
+  return `hd:${attachmentId}`;
+}
+
 // A download token carries only what the download path needs — the subject and
 // the admin flag (for the lock-bypass + ownership checks) plus the purpose
 // marker and resource scope. It deliberately OMITS member PII (email/username):

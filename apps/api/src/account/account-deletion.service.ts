@@ -14,6 +14,7 @@ import { CertificatesService } from "../certificates/certificates.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { MediaStorage } from "../media/media.storage";
 import { MEDIA_ROUTE } from "../media/media.config";
+import { removeHelpdeskFiles } from "../helpdesk/helpdesk-files.util";
 
 // Who initiated the deletion — a member erasing themselves (self) or an admin
 // acting on the member's behalf (admin, for GDPR requests / support).
@@ -64,16 +65,27 @@ export class AccountDeletionService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException("Member not found");
 
-    const [subscriptions, certificates, lifetimeLevelRows, completedLessons] =
-      await Promise.all([
-        this.billing.getMySubscriptionDetails(userId),
-        this.certificates.mine(userId),
-        this.prisma.userLevel.findMany({
-          where: { userId, lifetime: true },
-          include: { level: { select: { name: true } } },
-        }),
-        this.prisma.lessonProgress.count({ where: { userId } }),
-      ]);
+    const [
+      subscriptions,
+      certificates,
+      lifetimeLevelRows,
+      completedLessons,
+      openSupportRequests,
+    ] = await Promise.all([
+      this.billing.getMySubscriptionDetails(userId),
+      this.certificates.mine(userId),
+      this.prisma.userLevel.findMany({
+        where: { userId, lifetime: true },
+        include: { level: { select: { name: true } } },
+      }),
+      this.prisma.lessonProgress.count({ where: { userId } }),
+      this.prisma.helpdeskConversation.count({
+        where: {
+          userId,
+          status: { in: ["ESCALATED", "WAITING_ON_MEMBER", "RESOLVED"] },
+        },
+      }),
+    ]);
 
     const lifetimeLevels = lifetimeLevelRows.map((ul) => ({
       levelId: ul.levelId,
@@ -90,6 +102,7 @@ export class AccountDeletionService {
         !!user.stripeCustomerId ||
         subscriptions.length > 0 ||
         lifetimeLevels.length > 0,
+      openSupportRequests,
     };
   }
 
@@ -135,6 +148,15 @@ export class AccountDeletionService {
     const certFileKeys = certRows.map((c) => c.fileKey);
     const avatarUrl = user.avatarUrl;
     const email = user.email;
+
+    // Helpdesk screenshot attachments — collect on-disk keys before the cascade
+    // removes the rows, so the files can be unlinked post-commit.
+    const helpdeskAttachmentRows =
+      await this.prisma.helpdeskAttachment.findMany({
+        where: { message: { conversation: { userId } } },
+        select: { fileKey: true },
+      });
+    const helpdeskFileKeys = helpdeskAttachmentRows.map((a) => a.fileKey);
 
     // 3) Purge in one transaction. External provider calls already happened
     //    above — nothing here reaches the network, so the 5s interactive-tx
@@ -231,6 +253,27 @@ export class AccountDeletionService {
           data: { userId: null },
         });
 
+        // d2) Drop the now-dead deep-link on admin notifications that point at
+        //     this member's helpdesk conversations. Step (c) only covers
+        //     userId-linked notifications; a helpdesk escalation carries
+        //     entityType/entityId (userId is null), so it needs its own pass.
+        //     The conversations + messages + attachments themselves cascade
+        //     from the user.delete below (HelpdeskConversation.userId is
+        //     onDelete: Cascade).
+        const helpdeskConvos = await tx.helpdeskConversation.findMany({
+          where: { userId },
+          select: { id: true },
+        });
+        if (helpdeskConvos.length > 0) {
+          await tx.adminNotification.updateMany({
+            where: {
+              entityType: "helpdesk",
+              entityId: { in: helpdeskConvos.map((c) => c.id) },
+            },
+            data: { entityType: null, entityId: null },
+          });
+        }
+
         // e) Finally delete the member — cascades UserLevel /
         //    LessonProgress / Certificate.
         await tx.user.delete({ where: { id: userId } });
@@ -255,6 +298,7 @@ export class AccountDeletionService {
     //    erasure).
     await this.certificates.unlinkCertificateFiles(certFileKeys);
     await this.deleteAvatarFile(avatarUrl);
+    await removeHelpdeskFiles(helpdeskFileKeys);
 
     // 5) Leave an admin record of the erasure (the notification body is the only
     //    place the email now legitimately survives — as the request record).

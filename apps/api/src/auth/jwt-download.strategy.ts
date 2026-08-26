@@ -10,6 +10,7 @@ import type {
 } from "./jwt-payload.interface";
 import {
   certDownloadScope,
+  helpdeskAttachmentDownloadScope,
   noteDownloadScope,
   type DownloadTokenPayload,
 } from "./download-token.util";
@@ -79,6 +80,9 @@ export class JwtDownloadStrategy extends PassportStrategy(
     }
     if (scope.startsWith("cert:")) {
       return scope === certDownloadScope(params.id ?? "");
+    }
+    if (scope.startsWith("hd:")) {
+      return scope === helpdeskAttachmentDownloadScope(params.id ?? "");
     }
     return false;
   }
