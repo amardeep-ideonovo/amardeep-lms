@@ -220,7 +220,15 @@ export default function NotificationBell() {
     // the bell lives in the persistent shell, so it stays mounted across the
     // route change and can still revert its own badge if the mark fails.
     setOpen(false);
-    if (n.userId) router.push(`/members/${n.userId}`);
+    // Explicit deep-link target wins; fall back to the member link. Without
+    // this, support and helpdesk notifications navigate nowhere.
+    if (n.entityType === "helpdesk" && n.entityId) {
+      router.push(`/helpdesk/${n.entityId}`);
+    } else if (n.entityType === "support" && n.entityId) {
+      router.push(`/support/${n.entityId}`);
+    } else if (n.userId) {
+      router.push(`/members/${n.userId}`);
+    }
   };
 
   return (
