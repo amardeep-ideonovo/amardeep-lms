@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { HelpdeskAdminArticleDTO, HelpdeskCategory } from "@lms/types";
 import { HELPDESK_CATEGORIES, STR } from "@lms/types";
 import { Button, buttonClass } from "@lms/ui";
 import { ApiError, api } from "@/lib/api";
+import { qk } from "@/lib/queries";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 
 interface FormState {
@@ -30,32 +32,32 @@ const EMPTY: FormState = {
 
 export default function HelpdeskArticlesPage() {
   const { can, loading: authLoading } = useAdminAuth();
-  const [items, setItems] = useState<HelpdeskAdminArticleDTO[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const canRead = !authLoading && can("helpdesk", "read");
+
+  const articlesQuery = useQuery({
+    queryKey: qk.helpdeskArticles,
+    queryFn: () => api.listHelpdeskArticles(),
+    enabled: canRead,
+  });
+  const items = articlesQuery.data ?? [];
+  const loading = articlesQuery.isPending;
+
   const [form, setForm] = useState<FormState>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const canEdit = can("helpdesk", "edit");
   const canCreate = can("helpdesk", "create");
   const canDelete = can("helpdesk", "delete");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setItems(await api.listHelpdeskArticles());
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to load");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (authLoading || !can("helpdesk", "read")) return;
-    void load();
-  }, [authLoading, can, load]);
+  const loadFailure =
+    articlesQuery.error instanceof ApiError
+      ? articlesQuery.error.message
+      : articlesQuery.error
+        ? "Failed to load"
+        : null;
+  const pageError = error ?? loadFailure;
 
   function edit(a: HelpdeskAdminArticleDTO) {
     setForm({
@@ -68,6 +70,9 @@ export default function HelpdeskArticlesPage() {
       sortOrder: a.sortOrder,
     });
   }
+
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: qk.helpdeskArticles });
 
   async function save() {
     setSaving(true);
@@ -90,7 +95,7 @@ export default function HelpdeskArticlesPage() {
         await api.createHelpdeskArticle(input);
       }
       setForm(EMPTY);
-      await load();
+      await invalidate();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save");
     } finally {
@@ -103,7 +108,7 @@ export default function HelpdeskArticlesPage() {
     try {
       await api.deleteHelpdeskArticle(id);
       if (form.id === id) setForm(EMPTY);
-      await load();
+      await invalidate();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to delete");
     }
@@ -132,11 +137,11 @@ export default function HelpdeskArticlesPage() {
           </p>
         </div>
         <Link href="/helpdesk" className={buttonClass({ variant: "ghost" })}>
-          ← Member support
+          ← {STR.helpdesk.adminSectionTitle}
         </Link>
       </div>
 
-      {error && <p className="error">{error}</p>}
+      {pageError && <p className="error">{pageError}</p>}
 
       {canSubmit && (
         <div className="card" style={{ marginBottom: 16 }}>

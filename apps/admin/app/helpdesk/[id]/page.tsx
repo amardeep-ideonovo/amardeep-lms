@@ -7,33 +7,16 @@ import type {
   HelpdeskAdminThreadDTO,
   HelpdeskCategory,
   HelpdeskPriority,
-  HelpdeskStatus,
 } from "@lms/types";
 import { HELPDESK_CATEGORIES, HELPDESK_PRIORITIES, STR } from "@lms/types";
 import { Button, buttonClass } from "@lms/ui";
+import {
+  STATUS_BADGE,
+  STATUS_LABEL,
+  fmtHelpdeskDateTime as fmtDateTime,
+} from "../labels";
 import { ApiError, api } from "@/lib/api";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
-
-const STATUS_LABEL: Record<HelpdeskStatus, string> = {
-  ESCALATED: "Open",
-  WAITING_ON_MEMBER: "Waiting on member",
-  RESOLVED: "Resolved",
-  CLOSED: "Closed",
-};
-const STATUS_BADGE: Record<HelpdeskStatus, string> = {
-  ESCALATED: "badge badge--warn",
-  WAITING_ON_MEMBER: "badge badge--info",
-  RESOLVED: "badge badge--ok",
-  CLOSED: "badge badge--neutral",
-};
-
-const fmtDateTime = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
 // A member screenshot: fetch a short-lived scoped token, then render via
 // ?token= (an <img> can't send an Authorization header).

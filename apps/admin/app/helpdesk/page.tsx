@@ -1,90 +1,63 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import type {
-  HelpdeskAdminListItemDTO,
-  HelpdeskStatsDTO,
-  HelpdeskStatus,
-} from "@lms/types";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { HelpdeskStatus } from "@lms/types";
 import { STR } from "@lms/types";
 import { Button, buttonClass } from "@lms/ui";
 import { ApiError, api } from "@/lib/api";
+import { qk } from "@/lib/queries";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
-
-const STATUS_TABS: { key: HelpdeskStatus | "ALL"; label: string }[] = [
-  { key: "ALL", label: "All" },
-  { key: "ESCALATED", label: "Open" },
-  { key: "WAITING_ON_MEMBER", label: "Waiting on member" },
-  { key: "RESOLVED", label: "Resolved" },
-  { key: "CLOSED", label: "Closed" },
-];
-
-const STATUS_BADGE: Record<HelpdeskStatus, string> = {
-  ESCALATED: "badge badge--warn",
-  WAITING_ON_MEMBER: "badge badge--info",
-  RESOLVED: "badge badge--ok",
-  CLOSED: "badge badge--neutral",
-};
-
-const STATUS_LABEL: Record<HelpdeskStatus, string> = {
-  ESCALATED: "Open",
-  WAITING_ON_MEMBER: "Waiting on member",
-  RESOLVED: "Resolved",
-  CLOSED: "Closed",
-};
-
-const fmtDateTime = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+import {
+  STATUS_BADGE,
+  STATUS_LABEL,
+  STATUS_TABS,
+  fmtHelpdeskDateTime,
+} from "./labels";
 
 export default function HelpdeskPage() {
   const { can, loading: authLoading } = useAdminAuth();
-  const [items, setItems] = useState<HelpdeskAdminListItemDTO[]>([]);
-  const [stats, setStats] = useState<HelpdeskStatsDTO | null>(null);
+  const queryClient = useQueryClient();
+  const canRead = !authLoading && can("helpdesk", "read");
+
   const [tab, setTab] = useState<HelpdeskStatus | "ALL">("ALL");
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.listHelpdeskConversations({
+  // Reads live in the query cache (docs/coding-standards.md D4). The key
+  // carries the filters, so changing a tab / the unread toggle refetches.
+  const listQuery = useQuery({
+    queryKey: qk.helpdeskConversations(tab, unreadOnly),
+    queryFn: () =>
+      api.listHelpdeskConversations({
         status: tab === "ALL" ? undefined : tab,
         unreadOnly: unreadOnly || undefined,
         pageSize: 50,
-      });
-      setItems(res.items);
-    } catch (err) {
-      setError(
-        err instanceof ApiError ? err.message : "Failed to load conversations",
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [tab, unreadOnly]);
+      }),
+    enabled: canRead,
+  });
+  const statsQuery = useQuery({
+    queryKey: qk.helpdeskStats,
+    queryFn: () => api.helpdeskStats(30),
+    enabled: canRead,
+  });
 
-  useEffect(() => {
-    if (authLoading || !can("helpdesk", "read")) return;
-    void load();
-    void api
-      .helpdeskStats(30)
-      .then(setStats)
-      .catch(() => undefined);
-  }, [authLoading, can, load]);
+  const items = listQuery.data?.items ?? [];
+  const stats = statsQuery.data ?? null;
+  const loading = listQuery.isPending;
+  const error =
+    listQuery.error instanceof ApiError
+      ? listQuery.error.message
+      : listQuery.error
+        ? "Failed to load conversations"
+        : null;
 
   if (authLoading) return <p className="muted">{STR.common.loading}</p>;
   if (!can("helpdesk", "read"))
     return (
       <div>
         <div className="page-header">
-          <h1>Member support</h1>
+          <h1>{STR.helpdesk.adminSectionTitle}</h1>
         </div>
         <p className="muted">{STR.errors.permissionDenied}</p>
       </div>
@@ -97,11 +70,16 @@ export default function HelpdeskPage() {
         )
       : null;
 
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ["helpdeskConversations"] });
+    void queryClient.invalidateQueries({ queryKey: qk.helpdeskStats });
+  };
+
   return (
     <div>
       <div className="page-header with-action">
         <div>
-          <h1>Member support</h1>
+          <h1>{STR.helpdesk.adminSectionTitle}</h1>
           <p className="subtitle">
             Conversations your members escalated from the help widget.
           </p>
@@ -113,11 +91,7 @@ export default function HelpdeskPage() {
           >
             FAQ articles
           </Link>
-          <Button
-            variant="secondary"
-            onClick={() => void load()}
-            disabled={loading}
-          >
+          <Button variant="secondary" onClick={refresh} disabled={loading}>
             {loading ? "Refreshing…" : "Refresh"}
           </Button>
         </div>
@@ -126,12 +100,7 @@ export default function HelpdeskPage() {
       {stats && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div
-            style={{
-              display: "flex",
-              gap: 24,
-              flexWrap: "wrap",
-              fontSize: 13,
-            }}
+            style={{ display: "flex", gap: 24, flexWrap: "wrap", fontSize: 13 }}
           >
             <span>
               <strong>{stats.cardViews}</strong> self-serve views
@@ -251,7 +220,7 @@ export default function HelpdeskPage() {
                       {t.category}
                     </td>
                     <td className="muted" style={{ fontSize: 13 }}>
-                      {fmtDateTime(t.lastMessageAt)}
+                      {fmtHelpdeskDateTime(t.lastMessageAt)}
                     </td>
                   </tr>
                 ))}

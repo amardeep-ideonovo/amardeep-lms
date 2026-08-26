@@ -35,6 +35,11 @@ export const qk = {
   blogTags: ["blogTags"] as const,
   coupons: ["coupons"] as const,
   levels: ["levels"] as const,
+  // Member helpdesk (page-local useQuery reads take their key from here).
+  helpdeskConversations: (status: string, unreadOnly: boolean) =>
+    ["helpdeskConversations", status, unreadOnly ? "unread" : "all"] as const,
+  helpdeskStats: ["helpdeskStats"] as const,
+  helpdeskArticles: ["helpdeskArticles"] as const,
 };
 
 // ---------- app brand (was lib/app-brand.ts's module cache) ----------

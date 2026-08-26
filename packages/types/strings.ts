@@ -119,6 +119,8 @@ export const STR = {
     statusWaiting: "Waiting on you",
     statusResolved: "Resolved",
     statusClosed: "Closed",
+    statusWaitingAdmin: "Waiting on member",
+    adminSectionTitle: "Member support",
     tooManyOpen: "You already have open requests — we’ll reply to those first.",
     disabled: "Support chat is unavailable right now.",
   },
