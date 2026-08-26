@@ -40,6 +40,10 @@ export const qk = {
   post: (slug: string) => ["post", slug] as const,
   lesson: (lessonId: string) => ["lesson", lessonId] as const,
   liveSession: (sessionId: string) => ["liveSession", sessionId] as const,
+  // Member helpdesk (guided support widget).
+  helpdeskConfig: ["helpdeskConfig"] as const,
+  helpdeskConversations: ["helpdeskConversations"] as const,
+  helpdeskThread: (id: string) => ["helpdeskThread", id] as const,
 };
 
 // ---------- read hooks ----------
@@ -216,4 +220,38 @@ export function propagateLessonComplete(
   // Prefix match: every ["myClassCourses", <slug>] entry.
   void queryClient.invalidateQueries({ queryKey: ["myClassCourses"] });
   void queryClient.invalidateQueries({ queryKey: qk.myCertificates });
+}
+
+// ---------- member helpdesk ----------
+
+// First-screen config (greeting, open requests, unread). Authed; short stale so
+// a newly-opened/answered request reflects fast (matches web's 15s).
+export function useHelpdeskConfig() {
+  return useQuery({
+    queryKey: qk.helpdeskConfig,
+    queryFn: api.helpdeskConfig,
+    staleTime: STALE.entitlement,
+  });
+}
+
+// The member's own conversations (the "My requests" list). Only fetched when
+// the helpdesk screen is mounted, so gate with `enabled`.
+export function useHelpdeskConversations(enabled: boolean) {
+  return useQuery({
+    queryKey: qk.helpdeskConversations,
+    queryFn: async () => (await api.helpdeskMyConversations()).items,
+    enabled,
+  });
+}
+
+// One conversation thread; polled while the screen shows it so an admin reply
+// appears without a manual pull-to-refresh. `enabled` gates the AUTOMATIC fetch
+// only — never call refetch() with a null id.
+export function useHelpdeskThread(id: string | null) {
+  return useQuery({
+    queryKey: qk.helpdeskThread(id ?? "none"),
+    queryFn: () => api.helpdeskThread(id as string),
+    enabled: !!id,
+    refetchInterval: id ? 10_000 : false,
+  });
 }

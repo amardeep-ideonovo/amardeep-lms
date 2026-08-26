@@ -814,6 +814,15 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                 <Text style={styles.moreText}>Blog</Text>
                 <Text style={styles.moreChevron}>›</Text>
               </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.moreRow, styles.moreRowDivider]}
+                onPress={() => navigation.navigate("HelpdeskHome")}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+              >
+                <Text style={styles.moreText}>{STR.helpdesk.open}</Text>
+                <Text style={styles.moreChevron}>›</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Card management is a Stripe-portal feature. PayPal members

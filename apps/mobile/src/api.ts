@@ -19,6 +19,10 @@ import type {
   LessonNoteDTO,
   LevelDTO,
   LiveCurrentDTO,
+  HelpdeskConfigDTO,
+  HelpdeskConversationSummaryDTO,
+  HelpdeskThreadDTO,
+  HelpdeskCategory,
   LiveJoinCredentialsDTO,
   LiveSessionBarDTO,
   LoginResponse,
@@ -358,6 +362,90 @@ export const api = {
       auth: false,
     }).catch(() => {});
   },
+
+  // ---- member helpdesk (guided support + escalation) ----
+  helpdeskConfig: () => request<HelpdeskConfigDTO>("/helpdesk/config"),
+  helpdeskMyConversations: () =>
+    request<{ items: HelpdeskConversationSummaryDTO[] }>(
+      "/helpdesk/me/conversations",
+    ),
+  helpdeskThread: (id: string) =>
+    request<HelpdeskThreadDTO>(
+      `/helpdesk/conversations/${encodeURIComponent(id)}`,
+    ),
+  helpdeskStart: (input: {
+    issue: string;
+    category?: HelpdeskCategory;
+    breadcrumbs?: string[];
+  }) =>
+    request<HelpdeskThreadDTO>("/helpdesk/conversations", {
+      method: "POST",
+      body: input,
+    }),
+  helpdeskReply: (id: string, body: string) =>
+    request<HelpdeskThreadDTO>(
+      `/helpdesk/conversations/${encodeURIComponent(id)}/messages`,
+      { method: "POST", body: { body } },
+    ),
+  helpdeskMarkRead: (id: string) =>
+    request<{ ok: true }>(
+      `/helpdesk/conversations/${encodeURIComponent(id)}/read`,
+      { method: "POST" },
+    ),
+  // Fire-and-forget guided-phase analytics — never thrown (mirrors
+  // recordPopupEvent). The route is JwtAuthGuard, so keep the default auth.
+  helpdeskStatEvent: (
+    category: HelpdeskCategory,
+    event: "cardView" | "resolvedYes" | "escalation",
+  ): void => {
+    request<{ ok: true }>("/helpdesk/stats/event", {
+      method: "POST",
+      body: { category, event },
+    }).catch(() => {});
+  },
+  // Upload ONE screenshot to a member message the caller just posted. RN's File
+  // uploader is single-file, so the screen calls this once per picked asset
+  // (<=3). Field name is "files" (plural) to match FilesInterceptor("files").
+  // Returns the FULL refreshed thread (the server appends the attachment).
+  uploadHelpdeskAttachment: async (
+    conversationId: string,
+    messageId: string,
+    uri: string,
+    mimeType?: string,
+  ): Promise<HelpdeskThreadDTO> => {
+    const token = await getToken();
+    const type = mimeType || "image/jpeg";
+    let result: { status: number; body: string };
+    try {
+      result = await new File(uri).upload(
+        `${API_BASE_URL}/helpdesk/conversations/${encodeURIComponent(
+          conversationId,
+        )}/messages/${encodeURIComponent(messageId)}/attachments`,
+        {
+          httpMethod: "POST",
+          uploadType: UploadType.MULTIPART,
+          fieldName: "files",
+          mimeType: type,
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        },
+      );
+    } catch {
+      throw new ApiError(0, STR.errors.network);
+    }
+    if (result.status < 200 || result.status >= 300) {
+      if (result.status === 401) onUnauthorized?.();
+      let message = `Request failed (${result.status})`;
+      try {
+        const d = JSON.parse(result.body);
+        if (d?.message)
+          message = Array.isArray(d.message) ? d.message.join(", ") : d.message;
+      } catch {
+        // non-JSON error body; keep default
+      }
+      throw new ApiError(result.status, message);
+    }
+    return JSON.parse(result.body) as HelpdeskThreadDTO;
+  },
 };
 
 // Build the (access-checked) download URL for a lesson note. The file is
@@ -380,4 +468,18 @@ export async function certificateDownloadUrl(cert: {
   const urlPath = cert.downloadUrl.replace(/\/download$/, "/download-url");
   const { token } = await request<{ token: string }>(urlPath);
   return `${API_BASE_URL}${cert.downloadUrl}?token=${encodeURIComponent(token)}`;
+}
+
+// A helpdesk screenshot: RN <Image> can't send an Authorization header, so mint
+// a short-lived, attachment-scoped download token and embed it in the URL. The
+// DTO carries no url — build the path from the attachment id.
+export async function helpdeskAttachmentUrl(
+  attachmentId: string,
+): Promise<string> {
+  const { token } = await request<{ token: string }>(
+    `/helpdesk/attachments/${encodeURIComponent(attachmentId)}/download-url`,
+  );
+  return `${API_BASE_URL}/helpdesk/attachments/${encodeURIComponent(
+    attachmentId,
+  )}/download?token=${encodeURIComponent(token)}`;
 }

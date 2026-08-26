@@ -85,6 +85,12 @@ export type RootStackParamList = {
   Certificates: undefined;
   Payments: undefined;
   Plans: undefined;
+  HelpdeskHome: undefined;
+  HelpdeskThread: {
+    conversationId: string;
+    subject?: string;
+    replyTimeNote?: string | null;
+  };
   Blog: undefined;
   BlogPost: { slug: string; title?: string };
   Page: { slug: string; title?: string };

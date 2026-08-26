@@ -50,6 +50,8 @@ import { PlansScreen } from "./src/screens/PlansScreen";
 import { BlogListScreen } from "./src/screens/BlogListScreen";
 import { BlogPostScreen } from "./src/screens/BlogPostScreen";
 import { PageScreen } from "./src/screens/PageScreen";
+import { HelpdeskScreen } from "./src/screens/HelpdeskScreen";
+import { HelpdeskThreadScreen } from "./src/screens/HelpdeskThreadScreen";
 
 // OS-level deep links (lms:// + the web origin) map straight onto the authed
 // stack — same table as src/links.ts. The Page catch-all MUST stay last.
@@ -88,6 +90,8 @@ function buildLinking(): LinkingOptions<RootStackParamList> {
         BlogPost: "blog/:slug",
         Payments: "account/payments",
         Plans: "pricing/all",
+        HelpdeskHome: "help",
+        HelpdeskThread: "help/:conversationId",
         Page: ":slug",
       },
     },
@@ -282,6 +286,16 @@ function AppNavigator() {
         name="Plans"
         component={PlansScreen}
         options={{ title: "All plans" }}
+      />
+      <AppStack.Screen
+        name="HelpdeskHome"
+        component={HelpdeskScreen}
+        options={{ title: "Support" }}
+      />
+      <AppStack.Screen
+        name="HelpdeskThread"
+        component={HelpdeskThreadScreen}
+        options={({ route }) => ({ title: route.params.subject ?? "Support" })}
       />
       <AppStack.Screen
         name="Blog"

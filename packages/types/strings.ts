@@ -107,6 +107,7 @@ export const STR = {
     sending: "Sending…",
     reply: "Reply",
     replyPlaceholder: "Write a reply…",
+    attachImage: "Attach image",
     sent: "Your request was sent — the team will get back to you.",
     signInPrompt: "Please sign in to contact support.",
     signIn: "Sign in",
