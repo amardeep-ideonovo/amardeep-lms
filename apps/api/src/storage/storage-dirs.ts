@@ -32,7 +32,8 @@ export type StorageDirId =
   | "BLOG_IMAGES_DIR"
   | "LESSON_FILES_DIR"
   | "CERT_FILES_DIR"
-  | "CERT_FONTS_DIR";
+  | "CERT_FONTS_DIR"
+  | "HELPDESK_FILES_DIR";
 
 export type StorageDirKind =
   // Member-generated files. Must land on a persistent volume, so production
@@ -75,6 +76,11 @@ export const STORAGE_DIRS: Record<StorageDirId, StorageDirSpec> = {
     kind: "readonly",
     what: "bundled certificate TTFs",
     devFallback: ["src", "certificates", "fonts"],
+  },
+  HELPDESK_FILES_DIR: {
+    kind: "writable",
+    what: "member helpdesk screenshot attachments",
+    devFallback: ["src", "files", "helpdesk"],
   },
 };
 

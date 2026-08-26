@@ -50,6 +50,7 @@ ENV MEDIA_DIR=/data/media
 ENV BLOG_IMAGES_DIR=/data/images
 ENV LESSON_FILES_DIR=/data/files
 ENV CERT_FILES_DIR=/data/files/certificates
+ENV HELPDESK_FILES_DIR=/data/files/helpdesk
 
 # Read-only repo assets, NOT member data: the TTFs ship in the image, so this
 # points into the source tree rather than the volume. The cwd fallback would

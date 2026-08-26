@@ -92,6 +92,7 @@ services:
       BLOG_IMAGES_DIR: /data/images
       LESSON_FILES_DIR: /data/files
       CERT_FILES_DIR: /data/files/certificates
+      HELPDESK_FILES_DIR: /data/files/helpdesk
       # First-admin + content seeding (see packages/db/prisma/seed.ts).
       SEED_DEMO_CONTENT: ${SEED_DEMO_CONTENT:-false}
       # On a real instance, sample content is a starting template the client

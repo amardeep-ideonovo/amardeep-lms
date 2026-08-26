@@ -17,6 +17,7 @@ const PINNED: NodeJS.ProcessEnv = {
   BLOG_IMAGES_DIR: "/data/images",
   LESSON_FILES_DIR: "/data/files",
   CERT_FILES_DIR: "/data/files/certificates",
+  HELPDESK_FILES_DIR: "/data/files/helpdesk",
   CERT_FONTS_DIR: "/app/apps/api/src/certificates/fonts",
 };
 

@@ -39,12 +39,13 @@ model User {
   // `previewMode` selects the two hidden identities: "unlocked" gets an
   // entitlement bypass in AccessService (holds every published class), "locked"
   // owns nothing (the paywalled/upsell view). Null for real members.
-  isPreview    Boolean @default(false)
-  previewMode  String? // "locked" | "unlocked" (only set when isPreview)
+  isPreview        Boolean  @default(false)
+  previewMode      String? // "locked" | "unlocked" (only set when isPreview)
 
-  levels       UserLevel[]
-  progress     LessonProgress[]
-  certificates Certificate[]
+  levels                UserLevel[]
+  progress              LessonProgress[]
+  certificates          Certificate[]
+  helpdeskConversations HelpdeskConversation[]
 }
 
 enum AdminRole {
@@ -80,6 +81,7 @@ model Admin {
   liveSessions      LiveSession[]           @relation("AdminLiveSessions")
   createdLevels     Level[]                 @relation("LevelCreatedBy")
   createdCourses    Course[]                @relation("CourseCreatedBy")
+  helpdeskAssigned  HelpdeskTicket[]        @relation("HelpdeskAssignee")
 }
 
 // Append-only trace of privileged admin actions (password resets, manual level
@@ -218,19 +220,19 @@ model LevelCategory {
 // ---------- LMS content ----------
 
 model Course {
-  id            String   @id @default(cuid())
-  slug          String?  @unique // readable URL key: /courses/<slug> (auto-derived from title)
+  id            String    @id @default(cuid())
+  slug          String?   @unique // readable URL key: /courses/<slug> (auto-derived from title)
   title         String
   description   String?
   thumbnailUrl  String? // squared thumbnail shown on course cards
   coverImageUrl String? // wide cover/hero image shown on the course page
-  order         Int      @default(0)
+  order         Int       @default(0)
   // Draft/Published: members only ever see published courses. A course can't be
   // published with zero lessons (enforced in the service). Defaults to draft;
   // the add-published migration backfills existing courses-with-lessons to true.
-  published     Boolean  @default(false)
+  published     Boolean   @default(false)
   createdById   String? // Admin who created this course (audit; null = pre-dates the field or the admin was deleted)
-  createdAt     DateTime @default(now())
+  createdAt     DateTime  @default(now())
   archivedAt    DateTime? // soft-archive: hidden from members (vs hard delete)
 
   lessons          Lesson[]
@@ -267,11 +269,11 @@ model Lesson {
 }
 
 model LessonProgress {
-  id       String @id @default(cuid())
-  userId   String
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lessonId String
-  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  id                  String    @id @default(cuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId            String
+  lesson              Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   // A row now means "the member has engaged with this lesson". startedAt is
   // stamped on first open; lastPositionSeconds is the video resume point;
   // completedAt stays null until the lesson is marked complete (so one row can
@@ -644,6 +646,9 @@ enum AdminNotificationType {
   SUPPORT_REPLY // the client or operator replied on a support ticket
   SUPPORT_STATUS // a support ticket was resolved / reopened / status-changed
   SUPPORT_INVITED_OPS // the client invited this instance into the operator conversation
+  // ---- Member helpdesk (deep-links to /helpdesk/<entityId>) ----
+  HELPDESK_ESCALATED // a member escalated a guided conversation into a ticket
+  HELPDESK_UNANSWERED // a ticket has sat without an admin reply past the sweep window
 }
 
 enum AdminNotificationSeverity {
@@ -1572,4 +1577,199 @@ model ContentPackState {
   sourceOrigin String? // PUBLIC_API_URL of the demo instance the pack was exported from
   importedAt   DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// ============================================================================
+// Member helpdesk — a member <-> admin support channel with a guided self-serve
+// front end and escalation into a ticket. DELIBERATELY SEPARATE from the
+// Support* models above: those are an admin -> OPERATOR mirror whose sync
+// selectors (support-sync.service.ts) carry no lane predicate, so any row that
+// lands in them is pushed to the control plane. Member-authored text must never
+// leave the tenant, so it lives in its own namespace with NO sync service.
+// ============================================================================
+
+enum HelpdeskStatus {
+  ESCALATED // a human ticket is open; the member is waiting on an admin
+  WAITING_ON_MEMBER // admin replied and asked something; ball is in the member's court
+  RESOLVED // admin marked it done; a member reply within the reopen window reopens it
+  CLOSED // terminal — a new member message starts a fresh conversation
+}
+
+enum HelpdeskResolution {
+  ANSWERED_BY_ADMIN
+  ABANDONED // idle-swept with no admin answer
+  ADMIN_CLOSED
+}
+
+enum HelpdeskAuthorKind {
+  MEMBER
+  ADMIN
+  SYSTEM // breadcrumb / status bubbles authored by the server
+}
+
+enum HelpdeskCategory {
+  BILLING
+  ACCESS
+  TECHNICAL
+  CERTIFICATE
+  LIVE_SESSION
+  ACCOUNT
+  OTHER
+}
+
+enum HelpdeskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model HelpdeskConversation {
+  id     String @id @default(cuid())
+  // The transcript is member-authored PII and dies with the member (CASCADE) —
+  // deliberately the opposite of SupportTicket, which has no FK so it survives
+  // its raising admin.
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status     HelpdeskStatus      @default(ESCALATED) // born escalated — the guided phase writes no row
+  resolution HelpdeskResolution?
+  subject    String              @db.VarChar(200) // first line of the member's issue
+  category   HelpdeskCategory    @default(OTHER) // pre-filled from the branch escalated from
+
+  // seq allocator, incremented inside the insert transaction so ordering is
+  // exact under identical createdAt and cursor paging is stable.
+  messageCount    Int     @default(0)
+  unreadForAdmins Boolean @default(true)
+  unreadForMember Boolean @default(false)
+  reopenCount     Int     @default(0)
+
+  lastMessageAt    DateTime  @default(now())
+  firstRespondedAt DateTime? // reporting only — no SLA clock
+  resolvedAt       DateTime?
+  closedAt         DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  messages HelpdeskMessage[]
+  ticket   HelpdeskTicket?
+
+  @@index([status, lastMessageAt]) // the admin queue
+  @@index([unreadForAdmins]) // sidebar badge
+  @@index([userId, lastMessageAt]) // "my requests" in the widget
+}
+
+model HelpdeskMessage {
+  id             String               @id @default(cuid())
+  conversationId String
+  conversation   HelpdeskConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  seq           Int
+  authorKind    HelpdeskAuthorKind
+  // ADMIN only (Admin.id). No FK: the message survives the admin's deletion and
+  // authorName carries the label captured at write time.
+  authorAdminId String?
+  authorName    String?
+
+  // Private admin note. The member-facing select is `where: { internal: false }`.
+  internal Boolean @default(false)
+
+  // Luhn-redacted before persist (a card number in member text becomes
+  // "[card ending 1234]").
+  body String @db.Text
+
+  createdAt   DateTime             @default(now())
+  attachments HelpdeskAttachment[]
+
+  @@unique([conversationId, seq])
+  @@index([conversationId, createdAt])
+}
+
+// Screenshot / image on a message. Rows cascade with the thread; the FILES on
+// disk need an explicit unlink in erasure, the retention sweep, and admin
+// redaction — a row delete does not remove bytes.
+model HelpdeskAttachment {
+  id        String          @id @default(cuid())
+  messageId String
+  message   HelpdeskMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  fileKey      String @unique // stored name under HELPDESK_FILES_DIR — never a public URL
+  originalName String
+  mimeType     String // post-re-encode (normally image/webp)
+  size         Int // bytes, post-processing
+  width        Int?
+  height       Int?
+
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+}
+
+// Admin-side overlay on the same conversation — NOT a second thread.
+// conversationId @unique is also the idempotency key: a double-tap on escalate,
+// a retry, and an admin racing the member all converge on ONE ticket.
+model HelpdeskTicket {
+  id             String               @id @default(cuid())
+  conversationId String               @unique
+  conversation   HelpdeskConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  priority    HelpdeskPriority @default(NORMAL)
+  category    HelpdeskCategory @default(OTHER)
+  escalatedAt DateTime         @default(now())
+
+  assigneeAdminId String?
+  assignee        Admin?    @relation("HelpdeskAssignee", fields: [assigneeAdminId], references: [id], onDelete: SetNull)
+  assignedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assigneeAdminId])
+}
+
+// Aggregate deflection counters — the analytics that replace stored transcripts
+// for the self-serve (non-escalated) phase. No member identifier, so it
+// survives erasure as genuinely anonymous ops data.
+model HelpdeskDayStat {
+  id          String           @id @default(cuid())
+  day         DateTime         @db.Date
+  category    HelpdeskCategory
+  cardViews   Int              @default(0)
+  resolvedYes Int              @default(0) // tapped "yes, that answered it"
+  escalations Int              @default(0)
+
+  @@unique([day, category])
+  @@index([day])
+}
+
+// Admin-authored FAQ articles shown on the "Something else" screen (mobile-app
+// help, playback troubleshooting, policies). Keyword-matched; rendered through
+// the shared sanitize-html util.
+model HelpdeskArticle {
+  id        String           @id @default(cuid())
+  slug      String           @unique
+  title     String
+  body      String           @db.Text
+  category  HelpdeskCategory @default(OTHER)
+  keywords  String[]         @default([])
+  published Boolean          @default(true)
+  sortOrder Int              @default(0)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([published, category, sortOrder])
+}
+
+// Non-secret per-instance helpdesk config. NOT AppConfig.config — sanitize()
+// there rebuilds a fixed 9-key literal and would silently drop these, and
+// GET /app/config is public. Single row (id = "singleton"); a missing row means
+// the service falls back to built-in defaults.
+model HelpdeskSettings {
+  id               String   @id @default("singleton")
+  enabled          Boolean  @default(true) // fleet-on at deploy; per-academy off switch
+  greeting         String?  @db.Text // {firstName} placeholder, rendered client-side; null = built-in default
+  replyTimeNote    String? // member-visible after escalation; free text the academy authors
+  maxOpenPerMember Int      @default(3)
+  retentionDays    Int      @default(365) // terminal convos older than N are purged; 0 = keep forever
+  updatedAt        DateTime @updatedAt
 }
