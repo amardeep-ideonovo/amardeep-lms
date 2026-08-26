@@ -369,6 +369,17 @@ const I = {
       />
     </svg>
   ),
+  helpdesk: (
+    <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
   support: (
     <svg className="ico" width="19" height="19" viewBox="0 0 24 24" fill="none">
       <path
@@ -621,6 +632,12 @@ const GROUPS: NavGroup[] = [
       { href: "/notifications", label: "Notifications", icon: I.notifications },
       { href: "/support", label: "Support", icon: I.support },
       {
+        href: "/helpdesk",
+        label: "Member support",
+        section: "helpdesk",
+        icon: I.helpdesk,
+      },
+      {
         href: "/settings",
         label: "Settings",
         section: "settings",
@@ -696,6 +713,25 @@ export default function Sidebar() {
     };
   }, [pathname]);
 
+  const [helpdeskUnread, setHelpdeskUnread] = useState(0);
+  useEffect(() => {
+    if (!getToken()) return;
+    let active = true;
+    const tick = () =>
+      api
+        .helpdeskUnreadCount()
+        .then((r) => {
+          if (active) setHelpdeskUnread(r.count);
+        })
+        .catch(() => undefined);
+    void tick();
+    const timer = setInterval(() => void tick(), 30_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [pathname]);
+
   // Hide the chrome on the login screen.
   if (pathname === "/login") return null;
   // Hide the chrome in the full-screen builders (/pages/:id/edit, /popups/:id/edit).
@@ -713,11 +749,17 @@ export default function Sidebar() {
       ? pathname === item.href
       : pathname.startsWith(item.href);
     // Live unread count overrides any static badge on the Support item.
+    const liveUnread =
+      item.href === "/support"
+        ? supportUnread
+        : item.href === "/helpdesk"
+          ? helpdeskUnread
+          : 0;
     const badge =
-      item.href === "/support" && supportUnread > 0
-        ? supportUnread > 9
+      liveUnread > 0
+        ? liveUnread > 9
           ? "9+"
-          : String(supportUnread)
+          : String(liveUnread)
         : item.badge;
     return (
       <Link

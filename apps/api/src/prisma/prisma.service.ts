@@ -208,6 +208,30 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.supportSyncState;
   }
 
+  // Member helpdesk: guided support conversations, tickets, attachments,
+  // deflection stats, FAQ articles, and per-instance settings.
+  get helpdeskConversation() {
+    return this.client.helpdeskConversation;
+  }
+  get helpdeskMessage() {
+    return this.client.helpdeskMessage;
+  }
+  get helpdeskAttachment() {
+    return this.client.helpdeskAttachment;
+  }
+  get helpdeskTicket() {
+    return this.client.helpdeskTicket;
+  }
+  get helpdeskDayStat() {
+    return this.client.helpdeskDayStat;
+  }
+  get helpdeskArticle() {
+    return this.client.helpdeskArticle;
+  }
+  get helpdeskSettings() {
+    return this.client.helpdeskSettings;
+  }
+
   get $transaction() {
     return this.client.$transaction.bind(this.client);
   }

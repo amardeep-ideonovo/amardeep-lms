@@ -58,6 +58,7 @@ jobs:
       LESSON_FILES_DIR: ${{ github.workspace }}/apps/api/src/files
       CERT_FONTS_DIR: ${{ github.workspace }}/apps/api/src/certificates/fonts
       CERT_FILES_DIR: ${{ github.workspace }}/apps/api/src/files/certificates
+      HELPDESK_FILES_DIR: ${{ github.workspace }}/apps/api/src/files/helpdesk
       # Dummy Stripe key (valid format, never used for real API calls) so the
       # payment-provider switch to "stripe" passes its "is Stripe configured?"
       # guard. Without it the @paypal-settings scenario AND its cleanup hook

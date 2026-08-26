@@ -52,6 +52,11 @@ import type {
   ResetPasswordInput,
   SignupInput,
   UpdateProfileInput,
+  HelpdeskConfigDTO,
+  HelpdeskArticleDTO,
+  HelpdeskConversationSummaryDTO,
+  HelpdeskThreadDTO,
+  HelpdeskCategory,
 } from "@lms/types";
 
 // API origin resolved at RUNTIME (not baked at build) so one prebuilt image can
@@ -457,6 +462,84 @@ export const api = {
   mySubscriptionDetails: () =>
     request<SubscriptionDetailDTO[]>("/billing/subscription-details"),
   myInvoices: () => request<InvoiceDTO[]>("/billing/invoices"),
+
+  // ---- member helpdesk (guided support + escalation) ----
+  helpdeskConfig: () => request<HelpdeskConfigDTO>("/helpdesk/config"),
+  helpdeskArticles: () => request<HelpdeskArticleDTO[]>("/helpdesk/articles"),
+  helpdeskMyConversations: () =>
+    request<{ items: HelpdeskConversationSummaryDTO[] }>(
+      "/helpdesk/me/conversations",
+    ),
+  helpdeskThread: (id: string) =>
+    request<HelpdeskThreadDTO>(
+      `/helpdesk/conversations/${encodeURIComponent(id)}`,
+    ),
+  helpdeskStart: (input: {
+    issue: string;
+    category?: HelpdeskCategory;
+    breadcrumbs?: string[];
+  }) =>
+    request<HelpdeskThreadDTO>("/helpdesk/conversations", {
+      method: "POST",
+      body: input,
+    }),
+  helpdeskReply: (id: string, body: string) =>
+    request<HelpdeskThreadDTO>(
+      `/helpdesk/conversations/${encodeURIComponent(id)}/messages`,
+      { method: "POST", body: { body } },
+    ),
+  helpdeskMarkRead: (id: string) =>
+    request<{ ok: true }>(
+      `/helpdesk/conversations/${encodeURIComponent(id)}/read`,
+      { method: "POST" },
+    ),
+  helpdeskStatEvent: (
+    category: HelpdeskCategory,
+    event: "cardView" | "resolvedYes" | "escalation",
+  ) =>
+    request<{ ok: true }>("/helpdesk/stats/event", {
+      method: "POST",
+      body: { category, event },
+    }),
+  helpdeskUploadAttachments: async (
+    conversationId: string,
+    messageId: string,
+    files: File[],
+  ): Promise<HelpdeskThreadDTO> => {
+    const token = getToken();
+    const fd = new FormData();
+    for (const f of files) fd.append("files", f, f.name);
+    const res = await fetch(
+      `${apiBase()}/helpdesk/conversations/${encodeURIComponent(
+        conversationId,
+      )}/messages/${encodeURIComponent(messageId)}/attachments`,
+      {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      },
+    );
+    if (!res.ok) {
+      let message = res.statusText;
+      try {
+        const d = await res.json();
+        message = (d && (d.message || d.error)) || message;
+        if (Array.isArray(message)) message = message.join(", ");
+      } catch {
+        /* non-JSON error body */
+      }
+      throw new ApiError(res.status, message);
+    }
+    return res.json();
+  },
+  helpdeskAttachmentToken: (attachmentId: string) =>
+    request<{ token: string }>(
+      `/helpdesk/attachments/${encodeURIComponent(attachmentId)}/download-url`,
+    ),
+  helpdeskAttachmentUrl: (attachmentId: string, token: string) =>
+    `${apiBase()}/helpdesk/attachments/${encodeURIComponent(
+      attachmentId,
+    )}/download?token=${encodeURIComponent(token)}`,
   // Member self-service: cancel own subscription at period end.
   cancelMyMembership: (subId: string) =>
     request<SubscriptionDetailDTO[]>(`/billing/subscriptions/${subId}/cancel`, {

@@ -26,6 +26,7 @@ const MIGRATION = path.join(
   REPO_ROOT,
   "deploy/scripts/migrate-media-to-volume.sh",
 );
+const BDD_WORKFLOW = path.join(REPO_ROOT, ".github/workflows/bdd.yml");
 
 /** The Dockerfile's WORKDIR — what an unpinned dir resolves its fallback against. */
 const CONTAINER_CWD = "/app";
@@ -104,6 +105,33 @@ test("the api image defaults every storage dir", () => {
       path.isAbsolute(pins.get(id)!),
       `ENV ${id}=${pins.get(id)} must be absolute — a relative path is resolved ` +
         `against the container cwd, which is the bug this pin exists to prevent.`,
+    );
+  }
+});
+
+/** `KEY:` names from the bdd workflow's job-level `env:` block. */
+function bddEnvKeys(): Set<string> {
+  const keys = new Set<string>();
+  for (const raw of read(BDD_WORKFLOW).split("\n")) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const m = /^([A-Z][A-Z0-9_]*):\s*\S/.exec(line);
+    if (m) keys.add(m[1]);
+  }
+  return keys;
+}
+
+test("the bdd workflow pins every writable storage dir", () => {
+  // BDD boots the API with ENV_NAME unset (isProduction() === true), so an
+  // unpinned writable dir aborts boot and fails the whole suite with a cryptic
+  // "API failed to start". This turns that into a fast, specific unit failure
+  // the moment a new dir is declared.
+  const keys = bddEnvKeys();
+  for (const id of WRITABLE_STORAGE_DIR_IDS) {
+    assert.ok(
+      keys.has(id),
+      `${id} is not pinned in .github/workflows/bdd.yml — the API will refuse ` +
+        `to start there (production boot guard), failing the BDD job.`,
     );
   }
 });

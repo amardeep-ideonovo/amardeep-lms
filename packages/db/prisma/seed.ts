@@ -173,6 +173,14 @@ async function wipeDatabase() {
     prisma.appConfig.deleteMany(),
     prisma.adminNotificationRead.deleteMany(),
     prisma.adminNotification.deleteMany(),
+    // Member helpdesk: child -> parent before User (conversation FKs userId).
+    prisma.helpdeskAttachment.deleteMany(),
+    prisma.helpdeskMessage.deleteMany(),
+    prisma.helpdeskTicket.deleteMany(),
+    prisma.helpdeskConversation.deleteMany(),
+    prisma.helpdeskDayStat.deleteMany(),
+    prisma.helpdeskArticle.deleteMany(),
+    prisma.helpdeskSettings.deleteMany(),
     prisma.user.deleteMany(),
     prisma.mediaAsset.deleteMany(),
     // The demo-seeded marker goes with the content it describes — a wipe +

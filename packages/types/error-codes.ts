@@ -27,6 +27,10 @@ export const ERROR_CODES = [
   "PREVIEW_READ_ONLY",
   // live sessions (pre-existing precedent, now part of the family)
   "OUTSIDE_WINDOW",
+  // member helpdesk
+  "HELPDESK_DISABLED",
+  "HELPDESK_TOO_MANY_OPEN",
+  "HELPDESK_CLOSED",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

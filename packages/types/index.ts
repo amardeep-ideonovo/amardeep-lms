@@ -71,6 +71,7 @@ export const ADMIN_SECTIONS = [
   { key: "certificates", label: "Certificates" },
   { key: "projects", label: "Projects" },
   { key: "liveSessions", label: "Live Sessions" },
+  { key: "helpdesk", label: "Member support" },
   // Read-only: the only capability is "start a preview of the member site".
   { key: "sitePreview", label: "Site Preview", readOnly: true },
 ] as const;
@@ -773,6 +774,7 @@ export interface DeleteAccountSummaryDTO {
   lifetimeLevels: { levelId: string; levelName: string }[]; // paid-in-full plans
   completedLessons: number;
   hasPaymentHistory: boolean; // in-app receipts/invoices access is lost
+  openSupportRequests: number; // open member-support conversations that will be lost
 }
 
 export interface AdminCertificateRow {
@@ -1675,6 +1677,8 @@ export type AdminNotificationType =
   | "SUPPORT_REPLY"
   | "SUPPORT_STATUS"
   | "SUPPORT_INVITED_OPS"
+  | "HELPDESK_ESCALATED"
+  | "HELPDESK_UNANSWERED"
   // A standing STATE, not an event: checkout is running on the operator's
   // shared test keys, so nothing this academy sells collects money.
   | "PAYMENT_KEYS_DEMO";
@@ -1688,6 +1692,8 @@ export interface AdminNotificationDTO {
   title: string; // short headline
   body: string; // one-line detail (member email + plan + amount)
   userId: string | null; // local User.id — deep-link to /members/<userId> when present
+  entityType: string | null; // generic deep-link kind: "support" | "helpdesk" | null
+  entityId: string | null; // target row id for the deep-link
   createdAt: string; // ISO
   read: boolean; // per-requesting-admin read state
 }
@@ -2834,3 +2840,170 @@ export * from "./class-accents";
 export * from "./api-error";
 export * from "./format";
 export * from "./error-codes";
+
+// ============================================================================
+// Member helpdesk — a guided member <-> admin support channel with escalation
+// into a ticket. Shapes shared by apps/web, apps/admin, and apps/mobile.
+// ============================================================================
+
+export const HELPDESK_CATEGORIES = [
+  "BILLING",
+  "ACCESS",
+  "TECHNICAL",
+  "CERTIFICATE",
+  "LIVE_SESSION",
+  "ACCOUNT",
+  "OTHER",
+] as const;
+export type HelpdeskCategory = (typeof HELPDESK_CATEGORIES)[number];
+
+export const HELPDESK_STATUSES = [
+  "ESCALATED",
+  "WAITING_ON_MEMBER",
+  "RESOLVED",
+  "CLOSED",
+] as const;
+export type HelpdeskStatus = (typeof HELPDESK_STATUSES)[number];
+
+export const HELPDESK_PRIORITIES = ["LOW", "NORMAL", "HIGH", "URGENT"] as const;
+export type HelpdeskPriority = (typeof HELPDESK_PRIORITIES)[number];
+
+export type HelpdeskAuthorKind = "MEMBER" | "ADMIN" | "SYSTEM";
+
+export interface HelpdeskAttachmentDTO {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  width: number | null;
+  height: number | null;
+}
+
+export interface HelpdeskMessageDTO {
+  id: string;
+  seq: number;
+  authorKind: HelpdeskAuthorKind;
+  authorName: string | null;
+  body: string;
+  attachments: HelpdeskAttachmentDTO[];
+  createdAt: string; // ISO
+}
+
+// Admin view of a message adds the private-note flag.
+export interface HelpdeskAdminMessageDTO extends HelpdeskMessageDTO {
+  internal: boolean;
+}
+
+export interface HelpdeskConversationSummaryDTO {
+  id: string;
+  subject: string;
+  status: HelpdeskStatus;
+  category: HelpdeskCategory;
+  unread: boolean; // member side
+  lastMessageAt: string; // ISO
+  createdAt: string; // ISO
+}
+
+export interface HelpdeskThreadDTO {
+  id: string;
+  subject: string;
+  status: HelpdeskStatus;
+  category: HelpdeskCategory;
+  replyTimeNote: string | null;
+  messages: HelpdeskMessageDTO[]; // internal notes excluded
+  createdAt: string;
+  lastMessageAt: string;
+}
+
+// GET /helpdesk/config — what the widget needs to render its first screen.
+export interface HelpdeskConfigDTO {
+  enabled: boolean;
+  requiresSignIn: boolean; // true when the caller is not an eligible member
+  greeting: string; // resolved; may contain a {firstName} placeholder
+  replyTimeNote: string | null;
+  maxOpenPerMember: number;
+  openConversations: HelpdeskConversationSummaryDTO[];
+  unread: number;
+}
+
+export interface HelpdeskArticleDTO {
+  id: string;
+  slug: string;
+  title: string;
+  body: string;
+  category: HelpdeskCategory;
+}
+
+// Admin view of an article (adds the fields the authoring UI edits).
+export interface HelpdeskAdminArticleDTO {
+  id: string;
+  slug: string;
+  title: string;
+  body: string;
+  category: HelpdeskCategory;
+  keywords: string[];
+  published: boolean;
+  sortOrder: number;
+  updatedAt: string;
+}
+
+export interface HelpdeskArticleInput {
+  title: string;
+  body: string;
+  category?: HelpdeskCategory;
+  keywords?: string[];
+  published?: boolean;
+  sortOrder?: number;
+}
+
+// ---- admin side ----
+export interface HelpdeskAdminListItemDTO {
+  id: string;
+  subject: string;
+  status: HelpdeskStatus;
+  category: HelpdeskCategory;
+  priority: HelpdeskPriority;
+  memberEmail: string;
+  memberName: string | null;
+  assigneeAdminId: string | null;
+  unreadForAdmins: boolean;
+  reopenCount: number;
+  lastMessageAt: string;
+  createdAt: string;
+}
+
+export interface HelpdeskAdminListDTO {
+  items: HelpdeskAdminListItemDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface HelpdeskAdminThreadDTO {
+  id: string;
+  subject: string;
+  status: HelpdeskStatus;
+  category: HelpdeskCategory;
+  priority: HelpdeskPriority;
+  resolution: string | null;
+  assigneeAdminId: string | null;
+  reopenCount: number;
+  member: { id: string; email: string; name: string | null };
+  messages: HelpdeskAdminMessageDTO[]; // internal notes included
+  createdAt: string;
+  lastMessageAt: string;
+}
+
+export interface HelpdeskStatCategoryDTO {
+  category: HelpdeskCategory;
+  cardViews: number;
+  resolvedYes: number;
+  escalations: number;
+}
+
+export interface HelpdeskStatsDTO {
+  days: number;
+  cardViews: number;
+  resolvedYes: number;
+  escalations: number;
+  byCategory: HelpdeskStatCategoryDTO[];
+}

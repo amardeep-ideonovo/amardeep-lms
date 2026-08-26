@@ -8,6 +8,7 @@ import "./globals.css";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import PreviewBanner from "@/components/PreviewBanner";
+import HelpdeskWidget from "@/components/HelpdeskWidget";
 import { ToastProvider } from "@/components/Toast";
 import { QueryProvider } from "@/lib/query";
 import {
@@ -133,6 +134,7 @@ export default async function RootLayout({
                 QueryProvider so it can read /auth/me; above Nav so it sits at the
                 very top of every page. */}
             <PreviewBanner />
+            <HelpdeskWidget />
             <Nav
               initialHeader={header}
               initialMenu={headerMenu}

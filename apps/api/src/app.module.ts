@@ -35,6 +35,7 @@ import { ReportsModule } from "./reports/reports.module";
 import { ProjectsModule } from "./projects/projects.module";
 import { LiveModule } from "./live/live.module";
 import { SupportModule } from "./support/support.module";
+import { HelpdeskModule } from "./helpdesk/helpdesk.module";
 import { HealthModule } from "./health/health.module";
 import { ControlPlaneModule } from "./control-plane/control-plane.module";
 import { ContentPackModule } from "./content-pack/content-pack.module";
@@ -95,6 +96,7 @@ import { PreviewReadOnlyGuard } from "./site-preview/preview-read-only.guard";
     ProjectsModule,
     LiveModule,
     SupportModule,
+    HelpdeskModule,
     ContentPackModule,
     SitePreviewModule,
   ],

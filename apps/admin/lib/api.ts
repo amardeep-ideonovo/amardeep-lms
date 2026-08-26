@@ -138,6 +138,14 @@ import type {
   RaiseSupportTicketInput,
   SupportReplyInput,
   SupportCsatInput,
+  HelpdeskAdminArticleDTO,
+  HelpdeskAdminListDTO,
+  HelpdeskAdminThreadDTO,
+  HelpdeskArticleInput,
+  HelpdeskStatsDTO,
+  HelpdeskStatus,
+  HelpdeskCategory,
+  HelpdeskPriority,
 } from "@lms/types";
 import { withBase } from "./base-path";
 import { apiUrl } from "./runtime-env";
@@ -615,6 +623,97 @@ export const api = {
       `/admin/support/tickets/${id}/csat`,
       input,
     ),
+
+  // member helpdesk (admin side): guided-support conversations + tickets.
+  listHelpdeskConversations: (params?: {
+    status?: HelpdeskStatus;
+    category?: HelpdeskCategory;
+    assignee?: string;
+    unreadOnly?: boolean;
+    page?: number;
+    pageSize?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.category) qs.set("category", params.category);
+    if (params?.assignee) qs.set("assignee", params.assignee);
+    if (params?.unreadOnly) qs.set("unreadOnly", "true");
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.pageSize) qs.set("pageSize", String(params.pageSize));
+    const q = qs.toString();
+    return request<HelpdeskAdminListDTO>(
+      "GET",
+      `/admin/helpdesk/conversations${q ? `?${q}` : ""}`,
+    );
+  },
+  helpdeskUnreadCount: () =>
+    request<{ count: number }>("GET", "/admin/helpdesk/unread-count"),
+  helpdeskStats: (days?: number) =>
+    request<HelpdeskStatsDTO>(
+      "GET",
+      `/admin/helpdesk/stats${days ? `?days=${days}` : ""}`,
+    ),
+  getHelpdeskConversation: (id: string) =>
+    request<HelpdeskAdminThreadDTO>(
+      "GET",
+      `/admin/helpdesk/conversations/${id}`,
+    ),
+  markHelpdeskRead: (id: string) =>
+    request<{ ok: true }>("POST", `/admin/helpdesk/conversations/${id}/read`),
+  replyHelpdeskConversation: (
+    id: string,
+    input: {
+      body: string;
+      internal?: boolean;
+      resolve?: boolean;
+      waitingOnMember?: boolean;
+    },
+  ) =>
+    request<HelpdeskAdminThreadDTO>(
+      "POST",
+      `/admin/helpdesk/conversations/${id}/messages`,
+      input,
+    ),
+  updateHelpdeskTicket: (
+    id: string,
+    input: { priority?: HelpdeskPriority; category?: HelpdeskCategory },
+  ) =>
+    request<HelpdeskAdminThreadDTO>(
+      "PATCH",
+      `/admin/helpdesk/conversations/${id}/ticket`,
+      input,
+    ),
+  resolveHelpdeskConversation: (id: string) =>
+    request<HelpdeskAdminThreadDTO>(
+      "POST",
+      `/admin/helpdesk/conversations/${id}/resolve`,
+    ),
+  closeHelpdeskConversation: (id: string) =>
+    request<HelpdeskAdminThreadDTO>(
+      "POST",
+      `/admin/helpdesk/conversations/${id}/close`,
+    ),
+  helpdeskAttachmentToken: (attachmentId: string) =>
+    request<{ token: string }>(
+      "GET",
+      `/admin/helpdesk/attachments/${attachmentId}/download-url`,
+    ),
+  helpdeskAttachmentUrl: (attachmentId: string, token: string) =>
+    `${apiUrl()}/helpdesk/attachments/${encodeURIComponent(
+      attachmentId,
+    )}/download?token=${encodeURIComponent(token)}`,
+  listHelpdeskArticles: () =>
+    request<HelpdeskAdminArticleDTO[]>("GET", "/admin/helpdesk/articles"),
+  createHelpdeskArticle: (input: HelpdeskArticleInput) =>
+    request<HelpdeskAdminArticleDTO>("POST", "/admin/helpdesk/articles", input),
+  updateHelpdeskArticle: (id: string, input: Partial<HelpdeskArticleInput>) =>
+    request<HelpdeskAdminArticleDTO>(
+      "PATCH",
+      `/admin/helpdesk/articles/${id}`,
+      input,
+    ),
+  deleteHelpdeskArticle: (id: string) =>
+    request<{ ok: true }>("DELETE", `/admin/helpdesk/articles/${id}`),
 
   // coupons (Stripe-backed; admin-only)
   listCoupons: () => request<CouponDTO[]>("GET", "/admin/coupons"),

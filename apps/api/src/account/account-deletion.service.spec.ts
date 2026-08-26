@@ -29,6 +29,8 @@ function makeHarness(opts: {
   cancelThrows?: boolean;
   defaultAudienceId?: string | null;
   userDeleteThrows?: any;
+  helpdeskConvos?: { id: string }[];
+  helpdeskFileKeys?: string[];
 }): Harness {
   const user =
     opts.user ??
@@ -90,6 +92,14 @@ function makeHarness(opts: {
         record("adminNotification.update", a);
         return {};
       },
+      updateMany: async (a: any) => {
+        record("adminNotification.updateMany", a);
+        calls.push("adminNotification.updateMany");
+        return { count: 0 };
+      },
+    },
+    helpdeskConversation: {
+      findMany: async () => opts.helpdeskConvos ?? [],
     },
     subscriptionMirror: {
       updateMany: async (a: any) => {
@@ -113,6 +123,13 @@ function makeHarness(opts: {
     certificate: {
       findMany: async () =>
         (opts.certFileKeys ?? []).map((k) => ({ fileKey: k })),
+    },
+    helpdeskAttachment: {
+      findMany: async () =>
+        (opts.helpdeskFileKeys ?? []).map((k) => ({ fileKey: k })),
+    },
+    helpdeskConversation: {
+      count: async () => (opts.helpdeskConvos ?? []).length,
     },
     $transaction: async (cb: any) => cb(tx),
   };
@@ -393,4 +410,20 @@ test("summary reports true stakes and omits nothing it has", async () => {
   assert.equal(s.lifetimeLevels[0].levelName, "Lifetime Club");
   assert.equal(s.completedLessons, 38);
   assert.equal(s.hasPaymentHistory, true);
+});
+
+test("erasure nulls the helpdesk deep-link on admin notifications", async () => {
+  const h = makeHarness({ helpdeskConvos: [{ id: "hc1" }, { id: "hc2" }] });
+  await h.svc.deleteMember("u1", {
+    password: "correct-horse",
+    actor: { kind: "self" },
+  });
+  assert.ok(
+    h.calls.includes("adminNotification.updateMany"),
+    "must null entityType/entityId on helpdesk notifications",
+  );
+  const arg = h.txOps["adminNotification.updateMany"]?.[0];
+  assert.equal(arg.where.entityType, "helpdesk");
+  assert.deepEqual(arg.where.entityId, { in: ["hc1", "hc2"] });
+  assert.deepEqual(arg.data, { entityType: null, entityId: null });
 });

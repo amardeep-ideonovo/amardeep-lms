@@ -46,6 +46,15 @@ export const qk = {
   // invalidate (all courses) match by prefix; the id scopes a single course.
   courses: ["courses"] as const,
   courseLessons: (courseId: string) => ["courseLessons", courseId] as const,
+  // Member helpdesk (guided support widget).
+  helpdeskConfig: ["helpdeskConfig"] as const,
+  helpdeskConversations: ["helpdeskConversations"] as const,
+  helpdeskThread: (id: string) => ["helpdeskThread", id] as const,
+  helpdeskArticles: ["helpdeskArticles"] as const,
+  helpdeskAttachment: (id: string) => ["helpdeskAttachment", id] as const,
+  myClasses: ["myClasses"] as const,
+  mySubStatuses: ["mySubStatuses"] as const,
+  liveCurrent: ["liveCurrent"] as const,
 };
 
 // localStorage snapshot keys (lib/member-cache.ts): the dashboard payload and
@@ -199,5 +208,79 @@ export function useCourseLessons(courseId: string) {
     initialDataUpdatedAt: () =>
       readMemberCache<LessonDTO[]>(courseLessonsCacheKey(courseId), getToken())
         ?.t,
+  });
+}
+
+// ---------------------------------------------------------------- helpdesk
+
+// The widget's first-screen config (greeting, open requests, unread). Gated on
+// a token so a logged-out visitor fires nothing (PreviewBanner pattern); the
+// widget also renders nothing without a member.
+export function useHelpdeskConfig() {
+  return useQuery({
+    queryKey: qk.helpdeskConfig,
+    queryFn: () => api.helpdeskConfig(),
+    enabled: typeof window !== "undefined" && !!getToken(),
+    staleTime: 15_000,
+  });
+}
+
+// The member's own conversations (the "My requests" screen). Only fetched when
+// that screen is open.
+export function useHelpdeskConversations(enabled: boolean) {
+  return useQuery({
+    queryKey: qk.helpdeskConversations,
+    queryFn: async () => (await api.helpdeskMyConversations()).items,
+    enabled,
+  });
+}
+
+// One conversation thread; polled while the panel shows it so an admin reply
+// appears without a manual refresh.
+export function useHelpdeskThread(id: string | null) {
+  return useQuery({
+    queryKey: qk.helpdeskThread(id ?? "none"),
+    queryFn: () => api.helpdeskThread(id as string),
+    enabled: !!id,
+    refetchInterval: id ? 10_000 : false,
+  });
+}
+
+// Admin-authored FAQ articles for the "Something else" screen.
+export function useHelpdeskArticles(enabled: boolean) {
+  return useQuery({
+    queryKey: qk.helpdeskArticles,
+    queryFn: () => api.helpdeskArticles(),
+    enabled,
+  });
+}
+
+// Every published class the member can see + which they own (the "My classes"
+// card). Reuses the existing /levels/my-classes endpoint.
+export function useMyClasses(enabled: boolean) {
+  return useQuery({
+    queryKey: qk.myClasses,
+    queryFn: () => api.myClasses(),
+    enabled,
+  });
+}
+
+// The member's paid memberships as {levelId, status} — the CHEAP read (a plain
+// DB query, unlike subscription-details which hits live Stripe/PayPal). Used to
+// surface a PAST_DUE class that has silently dropped out of "owned".
+export function useMySubStatuses(enabled: boolean) {
+  return useQuery({
+    queryKey: qk.mySubStatuses,
+    queryFn: () => api.mySubscriptions(),
+    enabled,
+  });
+}
+
+// The member's current + upcoming live sessions (the conditional live card).
+export function useLiveCurrent(enabled: boolean) {
+  return useQuery({
+    queryKey: qk.liveCurrent,
+    queryFn: () => api.liveCurrent(),
+    enabled,
   });
 }
