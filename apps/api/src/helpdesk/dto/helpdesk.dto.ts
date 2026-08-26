@@ -10,16 +10,37 @@ import {
   Min,
   MinLength,
 } from "class-validator";
-import {
-  HELPDESK_CATEGORIES,
-  HELPDESK_PRIORITIES,
-  HELPDESK_STATUSES,
-} from "@lms/types";
 import type {
   HelpdeskCategory,
   HelpdeskPriority,
   HelpdeskStatus,
 } from "@lms/types";
+
+// Local runtime arrays for @IsIn. The API runs compiled JS under plain Node,
+// which cannot require @lms/types' raw .ts — so only TYPE imports (elided at
+// build) are safe here; runtime values must be local. `satisfies` keeps these
+// in step with the shared union types (a typo or stale value fails tsc).
+const CATEGORIES = [
+  "BILLING",
+  "ACCESS",
+  "TECHNICAL",
+  "CERTIFICATE",
+  "LIVE_SESSION",
+  "ACCOUNT",
+  "OTHER",
+] as const satisfies readonly HelpdeskCategory[];
+const PRIORITIES = [
+  "LOW",
+  "NORMAL",
+  "HIGH",
+  "URGENT",
+] as const satisfies readonly HelpdeskPriority[];
+const STATUSES = [
+  "ESCALATED",
+  "WAITING_ON_MEMBER",
+  "RESOLVED",
+  "CLOSED",
+] as const satisfies readonly HelpdeskStatus[];
 
 // Member starts (escalates) a conversation.
 export class StartConversationDto {
@@ -29,7 +50,7 @@ export class StartConversationDto {
   issue!: string;
 
   @IsOptional()
-  @IsIn(HELPDESK_CATEGORIES)
+  @IsIn(CATEGORIES)
   category?: HelpdeskCategory;
 
   // The member's navigation trail (card keys they viewed). Used ONLY to choose
@@ -50,7 +71,7 @@ export class ReplyDto {
 }
 
 export class StatEventDto {
-  @IsIn(HELPDESK_CATEGORIES)
+  @IsIn(CATEGORIES)
   category!: HelpdeskCategory;
 
   @IsIn(["cardView", "resolvedYes", "escalation"])
@@ -87,21 +108,21 @@ export class AssignDto {
 
 export class UpdateTicketDto {
   @IsOptional()
-  @IsIn(HELPDESK_PRIORITIES)
+  @IsIn(PRIORITIES)
   priority?: HelpdeskPriority;
 
   @IsOptional()
-  @IsIn(HELPDESK_CATEGORIES)
+  @IsIn(CATEGORIES)
   category?: HelpdeskCategory;
 }
 
 export class AdminListQueryDto {
   @IsOptional()
-  @IsIn(HELPDESK_STATUSES)
+  @IsIn(STATUSES)
   status?: HelpdeskStatus;
 
   @IsOptional()
-  @IsIn(HELPDESK_CATEGORIES)
+  @IsIn(CATEGORIES)
   category?: HelpdeskCategory;
 
   @IsOptional()
@@ -135,7 +156,7 @@ export class ArticleCreateDto {
   body!: string;
 
   @IsOptional()
-  @IsIn(HELPDESK_CATEGORIES)
+  @IsIn(CATEGORIES)
   category?: HelpdeskCategory;
 
   @IsOptional()
@@ -169,7 +190,7 @@ export class ArticleUpdateDto {
   body?: string;
 
   @IsOptional()
-  @IsIn(HELPDESK_CATEGORIES)
+  @IsIn(CATEGORIES)
   category?: HelpdeskCategory;
 
   @IsOptional()
