@@ -4,16 +4,22 @@ name: Publish OTA
 # P4 in the control plane). The operator console runs the preflight (runtime
 # fence, something-to-ship, workflow present) and triggers this via
 # workflow_dispatch; this job does the part that must not run on the VPS —
-# bundling the app with Metro and signing the update — then the console reads
+# bundling the app with Metro and publishing to EAS — then the console reads
 # the result straight from EAS.
 #
 # Secrets (repo → Settings → Secrets and variables → Actions), owner-managed:
 #   EXPO_TOKEN              — Expo access token for the amardeeplms account
-#   EXPO_OTA_PRIVATE_KEY    — PEM of apps/mobile/keys/private-key.pem (the OTA
-#                             code-signing key; unsigned updates are REJECTED by
-#                             the signed store builds)
 # Optional repo variables (defaults match production):
 #   EXPO_PUBLIC_DIRECTORY_URL, EXPO_PUBLIC_FLEET_DOMAIN
+#
+# Updates are published UNSIGNED, deliberately: EAS rejects signed publishes
+# without an Enterprise subscription ("EAS Update code signing requires a
+# subscription to the EAS Enterprise plan"), so builds must NOT arm
+# EXPO_PUBLIC_CODE_SIGNING_CERT in eas.json — a cert-armed build demands
+# signatures this plan cannot produce and can never receive an OTA. If the
+# account ever upgrades (or updates move to a self-hosted server), re-arm the
+# cert in eas.json, restore the EXPO_OTA_PRIVATE_KEY secret + a materialize
+# step here, pass --private-key-path, and cut a fresh store build.
 #
 # Runtime fence: an update only reaches builds whose runtimeVersion equals this
 # checkout's app.config.ts `version` (policy: appVersion). The console refuses
@@ -59,33 +65,16 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Refuse to publish unsigned
-        env:
-          KEY: ${{ secrets.EXPO_OTA_PRIVATE_KEY }}
+      - name: Refuse without EAS auth
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::EXPO_TOKEN secret is not set"; exit 1
           fi
-          if [ -z "$KEY" ]; then
-            echo "::error::EXPO_OTA_PRIVATE_KEY secret is not set — signed store builds reject unsigned updates, so publishing would reach nobody"; exit 1
-          fi
 
       - run: npm ci
 
-      - name: Materialize the signing key
-        env:
-          KEY: ${{ secrets.EXPO_OTA_PRIVATE_KEY }}
-        run: |
-          mkdir -p apps/mobile/keys
-          umask 077
-          printf '%s\n' "$KEY" > apps/mobile/keys/private-key.pem
-
       - name: Publish
         working-directory: apps/mobile
-        env:
-          # Without the cert in the evaluated app config, eas update skips
-          # signing entirely — the materialized key alone is not enough.
-          EXPO_PUBLIC_CODE_SIGNING_CERT: ./certs/certificate.pem
         run: |
           MSG='${{ inputs.message }}'
           [ -n "$MSG" ] || MSG="console OTA ${GITHUB_SHA::7}"
@@ -93,10 +82,5 @@ jobs:
             --channel "${{ inputs.channel }}" \
             --environment "${{ inputs.channel }}" \
             --message "$MSG" \
-            --private-key-path keys/private-key.pem \
             --non-interactive \
             --json
-
-      - name: Scrub the signing key
-        if: always()
-        run: rm -f apps/mobile/keys/private-key.pem
