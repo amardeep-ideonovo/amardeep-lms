@@ -49,6 +49,7 @@ export default function DeleteAccountPage() {
               have to be bought again.
             </li>
             <li>All of your learning progress and completed lessons.</li>
+            <li>Any support conversations you had with your academy.</li>
           </ul>
 
           <h2 style={{ fontSize: 16, margin: "16px 0 6px" }}>
