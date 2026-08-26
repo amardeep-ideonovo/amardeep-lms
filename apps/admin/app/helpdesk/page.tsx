@@ -10,6 +10,7 @@ import { ApiError, api } from "@/lib/api";
 import { qk } from "@/lib/queries";
 import { useAdminAuth } from "@/components/AdminAuthProvider";
 import {
+  CATEGORY_LABEL,
   STATUS_BADGE,
   STATUS_LABEL,
   STATUS_TABS,
@@ -70,6 +71,12 @@ export default function HelpdeskPage() {
         )
       : null;
 
+  // Per-topic breakdown, busiest escalations first — the "which topic keeps
+  // sending people to a human" signal. Hide topics with no activity in-window.
+  const byCategory = (stats?.byCategory ?? [])
+    .filter((c) => c.cardViews + c.resolvedYes + c.escalations > 0)
+    .sort((a, b) => b.escalations - a.escalations || b.cardViews - a.cardViews);
+
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["helpdeskConversations"] });
     void queryClient.invalidateQueries({ queryKey: qk.helpdeskStats });
@@ -117,6 +124,47 @@ export default function HelpdeskPage() {
                 days)
               </span>
             )}
+          </div>
+        </div>
+      )}
+
+      {byCategory.length > 0 && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10 }}>
+            By topic — where members self-served vs escalated
+          </div>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Topic</th>
+                  <th>Views</th>
+                  <th>Resolved</th>
+                  <th>Escalated</th>
+                  <th>Deflected</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byCategory.map((c) => {
+                  const denom = c.resolvedYes + c.escalations;
+                  const rate =
+                    denom > 0
+                      ? Math.round((c.resolvedYes / denom) * 100)
+                      : null;
+                  return (
+                    <tr key={c.category}>
+                      <td>{CATEGORY_LABEL[c.category]}</td>
+                      <td>{c.cardViews}</td>
+                      <td>{c.resolvedYes}</td>
+                      <td>{c.escalations}</td>
+                      <td className="muted">
+                        {rate === null ? "—" : `${rate}%`}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -217,7 +265,7 @@ export default function HelpdeskPage() {
                       </span>
                     </td>
                     <td className="muted" style={{ fontSize: 13 }}>
-                      {t.category}
+                      {CATEGORY_LABEL[t.category]}
                     </td>
                     <td className="muted" style={{ fontSize: 13 }}>
                       {fmtHelpdeskDateTime(t.lastMessageAt)}
