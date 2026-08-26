@@ -112,6 +112,13 @@ export function HelpdeskScreen({ navigation }: ScreenProps<"HelpdeskHome">) {
     convQuery.data ?? config?.openConversations ?? [];
 
   const [composeOpen, setComposeOpen] = useState(false);
+  // Which topic accordion is expanded (mobile's equivalent of the web widget's
+  // answer view). Opening one fires a `cardView`; its foot fires `resolvedYes`.
+  const [openTopic, setOpenTopic] = useState<string | null>(null);
+  // Category an escalation is filed under. A topic's "talk to a person" seeds it
+  // with that topic's real category; the bare "Something else" path stays OTHER.
+  const [composeCategory, setComposeCategory] =
+    useState<HelpdeskCategory>("OTHER");
   const [issue, setIssue] = useState("");
   const [images, setImages] = useState<PickedImage[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -123,7 +130,7 @@ export function HelpdeskScreen({ navigation }: ScreenProps<"HelpdeskHome">) {
     mutationFn: async () => {
       const thread = await api.helpdeskStart({
         issue: issue.trim(),
-        category: "OTHER",
+        category: composeCategory,
       });
       let latest = thread;
       const msgId = lastMemberMessageId(thread);
@@ -220,27 +227,73 @@ export function HelpdeskScreen({ navigation }: ScreenProps<"HelpdeskHome">) {
         </Text>
       </View>
 
-      {TOPICS.map((t) => (
-        <Press
-          key={t.key}
-          style={styles.row}
-          accessibilityRole="button"
-          onPress={() => {
-            api.helpdeskStatEvent(t.category, "cardView");
-            t.go?.(navigation);
-          }}
-        >
-          <Text style={styles.rowLabel}>{t.label}</Text>
-          <Text style={styles.chevron}>›</Text>
-        </Press>
-      ))}
+      {TOPICS.map((t) => {
+        const expanded = openTopic === t.key;
+        return (
+          <View key={t.key}>
+            <Press
+              style={[styles.row, expanded && styles.rowExpanded]}
+              accessibilityRole="button"
+              onPress={() => {
+                const willOpen = openTopic !== t.key;
+                setOpenTopic(willOpen ? t.key : null);
+                // Opening a topic's answer is a card view (mirrors the web
+                // widget). Fire only on open so toggling closed can't inflate it.
+                if (willOpen) api.helpdeskStatEvent(t.category, "cardView");
+              }}
+            >
+              <Text style={styles.rowLabel}>{t.label}</Text>
+              <Text style={styles.chevron}>{expanded ? "⌄" : "›"}</Text>
+            </Press>
+            {expanded && (
+              <View style={styles.answerCard}>
+                <CtaButton
+                  label={STR.helpdesk.openItem}
+                  onPress={() => t.go?.(navigation)}
+                  style={styles.answerOpen}
+                />
+                <Text style={styles.footPrompt}>
+                  {STR.helpdesk.didThisHelp}
+                </Text>
+                <View style={styles.footActions}>
+                  <Button
+                    label={STR.helpdesk.yesThanks}
+                    variant="secondary"
+                    onPress={() => {
+                      // Deflected without a ticket — the numerator the web
+                      // records but mobile used to drop entirely.
+                      api.helpdeskStatEvent(t.category, "resolvedYes");
+                      setOpenTopic(null);
+                    }}
+                  />
+                  <Button
+                    label={STR.helpdesk.talkToHuman}
+                    variant="ghost"
+                    onPress={() => {
+                      // Escalate under THIS topic's real category, not OTHER.
+                      setError(null);
+                      setOpenTopic(null);
+                      setComposeCategory(t.category);
+                      setComposeOpen(true);
+                    }}
+                  />
+                </View>
+              </View>
+            )}
+          </View>
+        );
+      })}
 
       <Press
         style={styles.row}
         accessibilityRole="button"
         onPress={() => {
           setError(null);
-          setComposeOpen((v) => !v);
+          setOpenTopic(null);
+          const willOpen = !composeOpen;
+          setComposeOpen(willOpen);
+          // The bare "Something else" path has no topic, so it files as OTHER.
+          if (willOpen) setComposeCategory("OTHER");
         }}
       >
         <Text style={styles.rowLabel}>{STR.helpdesk.menuSomethingElse}</Text>
@@ -386,6 +439,34 @@ function makeStyles({ colors, fonts }: Theme) {
       flexShrink: 1,
     },
     chevron: { color: colors.textMuted, fontSize: 20, marginLeft: spacing.sm },
+    rowExpanded: {
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+    },
+    answerCard: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderTopWidth: 0,
+      borderBottomLeftRadius: 12,
+      borderBottomRightRadius: 12,
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.md,
+      paddingTop: spacing.sm,
+      gap: spacing.sm,
+    },
+    answerOpen: { alignSelf: "flex-start" },
+    footPrompt: {
+      color: colors.textMuted,
+      fontFamily: fonts.regular,
+      fontSize: 13,
+    },
+    footActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      flexWrap: "wrap",
+    },
     reqText: { flexShrink: 1, marginRight: spacing.sm },
     reqDate: {
       color: colors.textMuted,
