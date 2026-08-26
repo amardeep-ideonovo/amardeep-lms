@@ -1,5 +1,18 @@
-import type { HelpdeskStatus } from "@lms/types";
+import type { HelpdeskCategory, HelpdeskStatus } from "@lms/types";
 import { STR } from "@lms/types";
+
+// Human-readable topic names for the by-category stats and the queue's category
+// column — the raw enum values (ACCESS, TECHNICAL, …) aren't member-facing
+// language. Keyed on HelpdeskCategory so a new enum member fails tsc here.
+export const CATEGORY_LABEL: Record<HelpdeskCategory, string> = {
+  BILLING: "Payments",
+  ACCESS: "Classes & access",
+  TECHNICAL: "Courses & lessons",
+  CERTIFICATE: "Certificates",
+  LIVE_SESSION: "Live sessions",
+  ACCOUNT: "Account",
+  OTHER: "Other",
+};
 
 // Single source for the queue/thread status vocabulary (docs/coding-standards.md
 // D1) — was duplicated across the list and thread pages.
