@@ -6489,7 +6489,92 @@ a.ik-prog-row:hover {
   color: var(--teal);
   padding: 4px 0;
 }
-.helpdesk-help-foot {
+
+/* ---- guided transcript (the chat itself) --------------------------------
+   The guided phase is an append-only conversation, not a panel swap: the
+   member's choice is echoed as their own bubble and the answer arrives as a
+   bot bubble carrying that topic's account data. Reuses the .helpdesk-msg
+   bubble system the ticket thread already had. */
+.helpdesk-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.helpdesk-who {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  padding-left: 4px;
+}
+.helpdesk-msg.from-bot {
+  align-self: flex-start;
+  max-width: 92%;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.helpdesk-msg.from-bot p {
+  margin: 0;
+}
+.helpdesk-typing {
+  color: var(--muted);
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+.helpdesk-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.helpdesk-lead {
+  margin: 0;
+  font-weight: 600;
+}
+.helpdesk-reqlist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.helpdesk-articles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+/* Confirm-to-send: seeded with what the member typed, so nothing is retyped. */
+.helpdesk-sendbox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.helpdesk-replynote {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.helpdesk-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.helpdesk-input:focus {
+  outline: 2px solid var(--teal);
+  outline-offset: 1px;
+}
+
+/* A label paired with a trailing action (section headers, the "Something else"
+   escalate row). Was ".helpdesk-help-foot" back when its only job was the
+   per-answer feedback prompt. */
+.helpdesk-labelrow {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -6498,9 +6583,57 @@ a.ik-prog-row:hover {
   padding-top: 10px;
   border-top: 1px dashed var(--border);
 }
-.helpdesk-help-foot span {
+.helpdesk-labelrow span {
   font-size: 13px;
   color: var(--muted);
+}
+
+/* Forward-motion suggestions under an answer. Replaces the old "did this help?"
+   foot: an answer ends by offering the next useful thing, never by asking the
+   member to rate it (see the chat-UX audit — nobody asks per answer). */
+.helpdesk-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.helpdesk-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.helpdesk-chip:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+/* The single permanent human affordance: quiet, always present, worded as a
+   channel rather than a verdict on the bot. */
+.helpdesk-strip {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2, var(--surface));
+}
+.helpdesk-strip button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.helpdesk-strip button:hover {
+  color: var(--teal);
 }
 .helpdesk-textarea {
   width: 100%;

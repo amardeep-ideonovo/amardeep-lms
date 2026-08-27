@@ -2840,6 +2840,7 @@ export * from "./class-accents";
 export * from "./api-error";
 export * from "./format";
 export * from "./error-codes";
+export * from "./helpdesk-router";
 
 // ============================================================================
 // Member helpdesk — a guided member <-> admin support channel with escalation

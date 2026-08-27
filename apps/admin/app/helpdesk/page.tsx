@@ -64,17 +64,23 @@ export default function HelpdeskPage() {
       </div>
     );
 
-  const deflectionRate =
-    stats && stats.resolvedYes + stats.escalations > 0
-      ? Math.round(
-          (stats.resolvedYes / (stats.resolvedYes + stats.escalations)) * 100,
-        )
-      : null;
+  // Deflection is measured PASSIVELY: of the answers members opened, how many
+  // did NOT end in a ticket. The clients no longer ask "did this help?" after
+  // every answer (no mainstream support bot does), so the old
+  // resolvedYes/(resolvedYes+escalations) ratio would decay to a confident,
+  // false 0% as the 30-day window rolled over. Clamped because a member can
+  // escalate from a topic they never opened (e.g. straight from the menu).
+  const deflection = (views: number, escalations: number) =>
+    views > 0 ? Math.max(0, Math.round((1 - escalations / views) * 100)) : null;
+
+  const deflectionRate = stats
+    ? deflection(stats.cardViews, stats.escalations)
+    : null;
 
   // Per-topic breakdown, busiest escalations first — the "which topic keeps
   // sending people to a human" signal. Hide topics with no activity in-window.
   const byCategory = (stats?.byCategory ?? [])
-    .filter((c) => c.cardViews + c.resolvedYes + c.escalations > 0)
+    .filter((c) => c.cardViews + c.escalations > 0)
     .sort((a, b) => b.escalations - a.escalations || b.cardViews - a.cardViews);
 
   const refresh = () => {
@@ -113,17 +119,18 @@ export default function HelpdeskPage() {
               <strong>{stats.cardViews}</strong> self-serve views
             </span>
             <span>
-              <strong>{stats.resolvedYes}</strong> resolved without a human
-            </span>
-            <span>
               <strong>{stats.escalations}</strong> escalated
             </span>
-            {deflectionRate !== null && (
-              <span>
-                <strong>{deflectionRate}%</strong> deflected (last {stats.days}{" "}
-                days)
-              </span>
-            )}
+            <span>
+              {deflectionRate === null ? (
+                <>no self-serve views yet (last {stats.days} days)</>
+              ) : (
+                <>
+                  <strong>{deflectionRate}%</strong> deflected (last{" "}
+                  {stats.days} days)
+                </>
+              )}
+            </span>
           </div>
         </div>
       )}
@@ -139,23 +146,17 @@ export default function HelpdeskPage() {
                 <tr>
                   <th>Topic</th>
                   <th>Views</th>
-                  <th>Resolved</th>
                   <th>Escalated</th>
                   <th>Deflected</th>
                 </tr>
               </thead>
               <tbody>
                 {byCategory.map((c) => {
-                  const denom = c.resolvedYes + c.escalations;
-                  const rate =
-                    denom > 0
-                      ? Math.round((c.resolvedYes / denom) * 100)
-                      : null;
+                  const rate = deflection(c.cardViews, c.escalations);
                   return (
                     <tr key={c.category}>
                       <td>{CATEGORY_LABEL[c.category]}</td>
                       <td>{c.cardViews}</td>
-                      <td>{c.resolvedYes}</td>
                       <td>{c.escalations}</td>
                       <td className="muted">
                         {rate === null ? "—" : `${rate}%`}

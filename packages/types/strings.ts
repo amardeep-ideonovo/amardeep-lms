@@ -95,9 +95,24 @@ export const STR = {
     openItem: "Open",
     paymentHistory: "Payment history",
     noRequests: "You haven’t contacted support yet.",
-    didThisHelp: "Did this answer your question?",
-    yesThanks: "Yes, thanks",
-    talkToHuman: "No — talk to a person",
+    // The single permanent human affordance. Worded as a CHANNEL, not as a
+    // verdict on the bot — the old "No — talk to a person" fused a feedback
+    // answer with a routing action, so a member with a follow-up question had
+    // no correct button to press.
+    messageTeam: "Message the team",
+    stillStuck: "Still need help?",
+    // Chip that returns to the topic menu after an answer.
+    somethingElseChip: "Something else",
+    // --- conversation surface (the transcript) ---
+    /** Speaker label above each bot bubble. NN/g: be upfront it's a bot. */
+    botName: "Support bot",
+    typing: "…",
+    composerPlaceholder: "Ask about your account…",
+    /** Said when the deterministic router matched nothing. Never "I didn't
+     *  understand" — say what happens next instead. */
+    cantAnswer:
+      "I can’t answer that one myself — I can pass it to the team with what you wrote.",
+    sendToTeam: "Send to the team",
     articlesHeading: "Help articles",
     accountHeading: "Manage your account",
     manageAccount: "Go to account settings",
@@ -124,5 +139,19 @@ export const STR = {
     adminSectionTitle: "Member support",
     tooManyOpen: "You already have open requests — we’ll reply to those first.",
     disabled: "Support chat is unavailable right now.",
+    // Conversational read-only summaries (member's own account data, shown in
+    // the chat instead of navigating to a section). Shared by web + mobile.
+    summaryClassesCount: (n: number) =>
+      `You have ${n} purchased ${n === 1 ? "class" : "classes"}:`,
+    summaryNoClasses: "You haven’t purchased any classes yet.",
+    summaryCourseProgress: (done: number, total: number) =>
+      `${done}/${total} lessons complete`,
+    summaryNoCourses: "You don’t have any courses in progress yet.",
+    summaryLastPayment: (amount: string, item: string, date: string) =>
+      `Your last payment was ${amount} for ${item} on ${date}.`,
+    summaryNextBilling: (date: string) => `Next billing: ${date}.`,
+    summaryNoPayments: "No payments on file yet.",
+    membershipActive: "Your membership is active.",
+    membershipItem: "your membership",
   },
 } as const;
