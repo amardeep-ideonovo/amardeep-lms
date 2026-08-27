@@ -6,13 +6,16 @@
 // the widget enabled; logged-out visitors fire NO request and see nothing.
 //
 // The guided flow: greeting → topic menu (answered from the member's OWN
-// account data via existing endpoints) → "did this help?" → escalate into a
-// ticket the admin dashboard shows. No language model: every branch is a
-// button, every answer is the member's data.
+// account data via existing endpoints) → next-step suggestions. No language
+// model: every branch is a button, every answer is the member's data.
+//
+// An answer never asks the member to rate it — it offers somewhere useful to go
+// next, and the one route to a human lives permanently in the bottom strip.
+// Deflection is measured passively as 1 − escalations/cardViews.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { STR } from "@lms/types";
+import { STR, categoryForText, routeHelpdeskText } from "@lms/types";
 import type {
   ClassTileDTO,
   HelpdeskCategory,
@@ -38,16 +41,46 @@ import {
 } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 
-type View =
-  | "menu"
-  | "classes"
-  | "courses"
-  | "payments"
-  | "live"
-  | "help"
-  | "compose"
-  | "requests"
-  | "thread";
+type View = "chat" | "thread";
+
+/** Topics the web widget can answer inline from the member's own account. */
+const ANSWERABLE: HelpdeskCategory[] = [
+  "ACCESS",
+  "TECHNICAL",
+  "BILLING",
+  "LIVE_SESSION",
+];
+
+const TOPIC_LABEL: Partial<Record<HelpdeskCategory, string>> = {
+  ACCESS: STR.helpdesk.menuClasses,
+  TECHNICAL: STR.helpdesk.menuCourses,
+  BILLING: STR.helpdesk.menuPayments,
+  LIVE_SESSION: STR.helpdesk.menuLive,
+};
+
+/** The bot "thinks" for a beat so an answer reads as a reply, not a repaint. */
+const TYPING_MS = 450;
+
+type ChipDef = {
+  key: string;
+  label: string;
+  category?: HelpdeskCategory;
+  action?: "requests" | "articles";
+};
+
+type Turn = {
+  id: string;
+  role: "bot" | "member";
+  text?: string;
+  /** Render this topic's account-data card inside the bubble. */
+  answer?: HelpdeskCategory;
+  /** Render the member's existing tickets inside the bubble. */
+  requests?: boolean;
+  /** Render the academy's FAQ articles inside the bubble. */
+  articles?: boolean;
+  /** Quick replies — only ever shown under the LAST turn. */
+  chips?: ChipDef[];
+};
 
 function fireStat(
   category: HelpdeskCategory,
@@ -59,18 +92,130 @@ function fireStat(
 
 export default function HelpdeskWidget() {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<View>("menu");
-  const [trail, setTrail] = useState<string[]>([]);
+  const [view, setView] = useState<View>("chat");
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [seedCategory, setSeedCategory] = useState<HelpdeskCategory>("OTHER");
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [typing, setTyping] = useState(false);
+  const [input, setInput] = useState("");
+  /** Text the member will send to a human if they confirm. */
+  const [pendingEscalation, setPendingEscalation] = useState<string | null>(
+    null,
+  );
+  /** Editable escalation body — lifted out of ComposeView so a topic change or
+   *  a background config refetch can't destroy what the member was typing. */
+  const [draft, setDraft] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  /** Topic labels consulted this session — sent with a ticket so the admin
+   *  sees what the member already looked at before asking for a person. */
+  const [trail, setTrail] = useState<string[]>([]);
+  /** The last topic the member actually OPENED. Escalations are filed against
+   *  it for stats so the numerator and denominator share a taxonomy. */
+  const lastViewedRef = useRef<HelpdeskCategory | null>(null);
   // Render nothing until mounted so the server (no localStorage token) and the
   // first client render agree — avoids a hydration mismatch on the FAB.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  const seq = useRef(0);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  /** The bot turn currently waiting on its typing delay (at most one). */
+  const pendingReply = useRef<{
+    turn: Omit<Turn, "id" | "role">;
+    timer: ReturnType<typeof setTimeout>;
+  } | null>(null);
+  // Topics already counted this session — deflection is 1 - escalations/cardViews
+  // so the denominator must mean "distinct topics consulted", not clicks.
+  const viewedRef = useRef<Set<HelpdeskCategory>>(new Set());
+
   const config = useHelpdeskConfig();
   const me = useMe();
-  const hasToken = typeof window !== "undefined" && !!getToken();
+  // Gate on an actually-open panel: hooks must run unconditionally (they sit
+  // above the guest early-return), so the `enabled` flag is what keeps a
+  // logged-out visitor from firing these on every page load.
+  const signedIn = mounted && typeof window !== "undefined" && !!getToken();
+  const live = useLiveCurrent(signedIn && open);
+  // ALL of the member's tickets, closed ones included — config.openConversations
+  // excludes CLOSED, which used to leave closed history unreachable here.
+  const allConversations = useHelpdeskConversations(signedIn && open);
+  const hasToken = signedIn;
+
+  const greetingText = config.data?.greeting;
+  const firstName = me.data?.firstName;
+  const enabled = config.data?.enabled === true;
+  const hasLive = (live.data?.length ?? 0) > 0;
+  const waitingOnUs =
+    (config.data?.unread ?? 0) > 0 ||
+    (config.data?.openConversations.length ?? 0) > 0;
+
+  const topicChips = useCallback(
+    (exclude?: HelpdeskCategory): ChipDef[] => [
+      ...ANSWERABLE.filter(
+        (c) => c !== exclude && (c !== "LIVE_SESSION" || hasLive),
+      ).map((c) => ({ key: c, label: TOPIC_LABEL[c] ?? c, category: c })),
+      {
+        key: "articles",
+        label: STR.helpdesk.menuSomethingElse,
+        action: "articles" as const,
+      },
+      {
+        key: "requests",
+        label: STR.helpdesk.myRequests,
+        action: "requests" as const,
+      },
+    ],
+    [hasLive],
+  );
+
+  // Open with the greeting + the topic menu as quick replies.
+  useEffect(() => {
+    // Don't freeze the opening turn until the data it renders has settled —
+    // otherwise it keeps a nameless greeting and a menu missing "Live session".
+    if (!enabled || !open || me.isPending || live.isPending) return;
+    setTurns((prev) => {
+      if (prev.length > 0) return prev;
+      const greeting = (greetingText || STR.helpdesk.greetingFallback).replace(
+        /\s*\{firstName\}/g,
+        firstName ? ` ${firstName}` : "",
+      );
+      const opening: Turn[] = [
+        { id: `t${++seq.current}`, role: "bot", text: greeting },
+      ];
+      // If a reply is waiting (what the unread badge pointed at) or a request
+      // is still open, put it on screen rather than making them hunt for it.
+      if (waitingOnUs)
+        opening.push({
+          id: `t${++seq.current}`,
+          role: "bot",
+          requests: true,
+          chips: topicChips(),
+        });
+      else opening[0].chips = topicChips();
+      return opening;
+    });
+  }, [
+    enabled,
+    open,
+    greetingText,
+    firstName,
+    topicChips,
+    me.isPending,
+    live.isPending,
+  ]);
+
+  useEffect(() => {
+    const pending = timers.current;
+    return () => pending.forEach(clearTimeout);
+  }, []);
+
+  // Keep the newest message in view — a transcript that doesn't follow itself
+  // hides the answer below the fold on every turn.
+  useEffect(() => {
+    bodyRef.current?.scrollTo({
+      top: bodyRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [turns, typing, pendingEscalation, open, view]);
 
   // Never render for guests, before mount, or when the widget is turned off.
   if (!mounted || !hasToken) return null;
@@ -78,20 +223,131 @@ export default function HelpdeskWidget() {
 
   const unread = config.data?.unread ?? 0;
   const openConversations = config.data?.openConversations ?? [];
+  const conversations = allConversations.data ?? openConversations;
+  // Mirror the server's rule (helpdesk.service.ts OPEN_STATUSES): RESOLVED is
+  // reopenable and does NOT count. openConversations is "not CLOSED", which
+  // includes RESOLVED — counting it locked members out of escalating at all.
+  const atCap =
+    !!config.data &&
+    openConversations.filter(
+      (c) => c.status === "ESCALATED" || c.status === "WAITING_ON_MEMBER",
+    ).length >= (config.data.maxOpenPerMember ?? 3);
 
-  function go(next: View, label?: string, category?: HelpdeskCategory) {
-    if (label) setTrail((t) => [...t, label]);
-    if (category) {
-      setSeedCategory(category);
-      fireStat(category, "cardView");
-    }
-    setView(next);
+  /** Abandon a pending escalation, including its draft and attachments — a
+   *  screenshot picked for one message must never ride onto another ticket. */
+  function clearEscalation() {
+    setPendingEscalation(null);
+    setDraft("");
+    setFiles([]);
   }
 
-  function reset() {
-    setView("menu");
-    setTrail([]);
-    setActiveId(null);
+  /** Count a self-serve view — once per topic per visit, and only when the
+   *  answer actually contained data. */
+  function countView(category: HelpdeskCategory, hadData: boolean) {
+    if (!hadData || viewedRef.current.has(category)) return;
+    viewedRef.current.add(category);
+    fireStat(category, "cardView");
+  }
+
+  function push(turn: Omit<Turn, "id">) {
+    setTurns((t) => [...t, { ...turn, id: `t${++seq.current}` }]);
+  }
+
+  /** Land any bot turn still waiting on its typing delay, so a fast second
+   *  question can never overtake the answer to the first. */
+  function flushPending() {
+    if (!pendingReply.current) return;
+    clearTimeout(pendingReply.current.timer);
+    push({ ...pendingReply.current.turn, role: "bot" });
+    pendingReply.current = null;
+  }
+
+  function botReply(turn: Omit<Turn, "id" | "role">) {
+    setTyping(true);
+    const timer = setTimeout(() => {
+      pendingReply.current = null;
+      setTyping(false);
+      push({ ...turn, role: "bot" });
+    }, TYPING_MS);
+    pendingReply.current = { turn, timer };
+    timers.current.push(timer);
+  }
+
+  function answerTopic(category: HelpdeskCategory, echo: string) {
+    flushPending();
+    push({ role: "member", text: echo });
+    clearEscalation();
+    setTrail((t) => (t.includes(echo) ? t : [...t, echo]));
+    lastViewedRef.current = category;
+    // The cardView is fired by the answer itself once it knows whether it had
+    // anything to say — an empty card is not a self-serve success.
+    botReply({ answer: category, chips: topicChips(category) });
+  }
+
+  function showRequests(echo: string) {
+    flushPending();
+    push({ role: "member", text: echo });
+    clearEscalation();
+    // Always render the list turn and let it read the LIVE list — a frozen
+    // emptiness check told members with only closed tickets they'd never written.
+    botReply({ requests: true, chips: topicChips() });
+  }
+
+  function showArticles(echo: string) {
+    flushPending();
+    push({ role: "member", text: echo });
+    clearEscalation();
+    if (!viewedRef.current.has("OTHER")) {
+      viewedRef.current.add("OTHER");
+      fireStat("OTHER", "cardView");
+    }
+    botReply({ articles: true, chips: topicChips() });
+  }
+
+  /** Open the escalation box seeded with `text`. `echo` renders the member's
+   *  own words first (skip it when they pressed the permanent button). */
+  function startEscalation(text: string, echo = false) {
+    flushPending();
+    if (echo) push({ role: "member", text });
+    if (atCap) {
+      setPendingEscalation(null);
+      botReply({ text: STR.helpdesk.tooManyOpen, chips: topicChips() });
+      return;
+    }
+    // A NEW seed each time, so a second unmatched message replaces the first
+    // rather than silently keeping the original text.
+    setDraft(text);
+    setFiles([]);
+    setPendingEscalation(text);
+    // Keep the menu alive: an unanswered message must not strand the member.
+    botReply({
+      text: text ? STR.helpdesk.cantAnswer : STR.helpdesk.describeIssue,
+      chips: topicChips(),
+    });
+  }
+
+  function onChip(c: ChipDef) {
+    if (c.action === "requests") return showRequests(c.label);
+    if (c.action === "articles") return showArticles(c.label);
+    if (c.category) return answerTopic(c.category, c.label);
+  }
+
+  function onSend() {
+    const text = input.trim();
+    if (!text) return;
+    setInput("");
+    const intent = routeHelpdeskText(
+      text,
+      ANSWERABLE.filter((c) => c !== "LIVE_SESSION" || hasLive),
+    );
+    if (intent.kind === "topic") return answerTopic(intent.category, text);
+    if (intent.kind === "requests") return showRequests(text);
+    if (intent.kind === "human") {
+      // They asked for a person — don't tell them we couldn't understand.
+      push({ role: "member", text });
+      return startEscalation(text);
+    }
+    return startEscalation(text, true);
   }
 
   function openThread(id: string) {
@@ -99,12 +355,7 @@ export default function HelpdeskWidget() {
     setView("thread");
   }
 
-  function toCompose(category: HelpdeskCategory) {
-    setSeedCategory(category);
-    setView("compose");
-  }
-
-  const canBack = view !== "menu";
+  const lastIndex = turns.length - 1;
 
   return (
     <div className="helpdesk">
@@ -115,14 +366,12 @@ export default function HelpdeskWidget() {
           aria-label={STR.helpdesk.title}
         >
           <div className="helpdesk-head">
-            {canBack ? (
+            {view === "thread" ? (
               <button
                 type="button"
                 className="helpdesk-iconbtn"
                 aria-label={STR.helpdesk.back}
-                onClick={() =>
-                  view === "thread" ? setView("requests") : reset()
-                }
+                onClick={() => setView("chat")}
               >
                 ‹ {STR.helpdesk.back}
               </button>
@@ -138,65 +387,145 @@ export default function HelpdeskWidget() {
             </button>
           </div>
 
-          {view === "menu" && (
-            <MenuView
-              greeting={(
-                config.data?.greeting ?? STR.helpdesk.greetingFallback
-              ).replace(
-                /\s*\{firstName\}/g,
-                me.data?.firstName ? ` ${me.data.firstName}` : "",
-              )}
-              openConversations={openConversations}
-              onNavigate={go}
-              onRequests={() => setView("requests")}
-              onOpenThread={openThread}
-            />
-          )}
-          {view === "classes" && (
-            <ClassesView
-              onEscalate={() => toCompose("ACCESS")}
-              onDone={reset}
-            />
-          )}
-          {view === "courses" && (
-            <CoursesView
-              onEscalate={() => toCompose("TECHNICAL")}
-              onDone={reset}
-            />
-          )}
-          {view === "payments" && (
-            <PaymentsView
-              onEscalate={() => toCompose("BILLING")}
-              onDone={reset}
-            />
-          )}
-          {view === "live" && (
-            <LiveView
-              onEscalate={() => toCompose("LIVE_SESSION")}
-              onDone={reset}
-            />
-          )}
-          {view === "help" && (
-            <HelpView onEscalate={() => toCompose("OTHER")} />
-          )}
-          {view === "compose" && (
-            <ComposeView
-              category={seedCategory}
-              breadcrumbs={trail}
-              onSent={(thread) => openThread(thread.id)}
-            />
-          )}
-          {view === "requests" && (
-            <RequestsView
-              onOpen={openThread}
-              onNew={() => toCompose("OTHER")}
-            />
-          )}
-          {view === "thread" && activeId && (
+          {view === "thread" && activeId ? (
             <ThreadView
               id={activeId}
               replyTimeNote={config.data?.replyTimeNote ?? null}
             />
+          ) : (
+            <>
+              <div className="helpdesk-body" ref={bodyRef} role="log">
+                {turns.map((turn, i) => (
+                  <div key={turn.id} className="helpdesk-turn">
+                    {turn.role === "bot" && (
+                      <span className="helpdesk-who">
+                        {STR.helpdesk.botName}
+                      </span>
+                    )}
+                    <div
+                      className={`helpdesk-msg from-${
+                        turn.role === "member" ? "member" : "bot"
+                      }`}
+                    >
+                      {turn.text && <p>{turn.text}</p>}
+                      {turn.answer === "ACCESS" && (
+                        <ClassesView
+                          onAnswered={(had) => countView("ACCESS", had)}
+                        />
+                      )}
+                      {turn.answer === "TECHNICAL" && (
+                        <CoursesView
+                          onAnswered={(had) => countView("TECHNICAL", had)}
+                        />
+                      )}
+                      {turn.answer === "BILLING" && (
+                        <PaymentsView
+                          onAnswered={(had) => countView("BILLING", had)}
+                        />
+                      )}
+                      {turn.answer === "LIVE_SESSION" && (
+                        <LiveView
+                          onAnswered={(had) => countView("LIVE_SESSION", had)}
+                        />
+                      )}
+                      {turn.articles && <ArticlesAnswer />}
+                      {turn.requests &&
+                        (conversations.length > 0 ? (
+                          <RequestList
+                            items={conversations}
+                            onOpen={openThread}
+                          />
+                        ) : (
+                          <p>{STR.helpdesk.noRequests}</p>
+                        ))}
+                    </div>
+                    {/* Chips belong to the newest bot turn only — older menus
+                        are spent, as they are in any real bot transcript. */}
+                    {turn.role === "bot" &&
+                      i === lastIndex &&
+                      turn.chips &&
+                      turn.chips.length > 0 && (
+                        <div className="helpdesk-next">
+                          {turn.chips.map((c) => (
+                            <button
+                              key={c.key}
+                              type="button"
+                              className="helpdesk-chip"
+                              onClick={() => onChip(c)}
+                            >
+                              {c.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                ))}
+
+                {typing && (
+                  <div className="helpdesk-turn">
+                    <span className="helpdesk-who">{STR.helpdesk.botName}</span>
+                    <div className="helpdesk-msg from-bot">
+                      <p className="helpdesk-typing">{STR.helpdesk.typing}</p>
+                    </div>
+                  </div>
+                )}
+
+                {pendingEscalation !== null && !atCap && (
+                  <ComposeView
+                    text={draft}
+                    onText={setDraft}
+                    files={files}
+                    onFiles={setFiles}
+                    breadcrumbs={trail}
+                    escalationCategory={lastViewedRef.current}
+                    replyTimeNote={config.data?.replyTimeNote ?? null}
+                    onSent={(thread) => {
+                      setPendingEscalation(null);
+                      openThread(thread.id);
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* The ONE permanent, discoverable route to a person. Quiet, but
+                  always present, so no individual answer has to offer it and no
+                  member has to guess a magic word. */}
+              <div className="helpdesk-strip">
+                <button
+                  type="button"
+                  onClick={() => startEscalation("")}
+                  disabled={atCap}
+                >
+                  {atCap
+                    ? STR.helpdesk.tooManyOpen
+                    : `${STR.helpdesk.stillStuck} ${STR.helpdesk.messageTeam}`}
+                </button>
+              </div>
+
+              <form
+                className="helpdesk-composer"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  onSend();
+                }}
+              >
+                <input
+                  className="helpdesk-input"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={STR.helpdesk.composerPlaceholder}
+                  aria-label={STR.helpdesk.composerPlaceholder}
+                  maxLength={4000}
+                />
+                <button
+                  type="submit"
+                  className="helpdesk-btn is-primary"
+                  disabled={input.trim().length === 0}
+                >
+                  {STR.helpdesk.send}
+                </button>
+              </form>
+            </>
           )}
         </div>
       )}
@@ -206,10 +535,14 @@ export default function HelpdeskWidget() {
         className="helpdesk-fab"
         aria-label={STR.helpdesk.open}
         aria-expanded={open}
-        onClick={() => {
-          setOpen((v) => !v);
-          if (!open) reset();
-        }}
+        onClick={() =>
+          setOpen((v) => {
+            // Closing ends the visit: reset the per-visit cardView de-dupe so
+            // web and mobile contribute to HelpdeskDayStat on the same scale.
+            if (v) viewedRef.current.clear();
+            return !v;
+          })
+        }
       >
         {STR.helpdesk.open}
         {unread > 0 && <span className="helpdesk-badge">{unread}</span>}
@@ -218,107 +551,28 @@ export default function HelpdeskWidget() {
   );
 }
 
-// ---------------------------------------------------------------- menu
-
-function MenuView({
-  greeting,
-  openConversations,
-  onNavigate,
-  onRequests,
-  onOpenThread,
+/** The member's existing tickets, rendered inside a bot bubble. */
+function RequestList({
+  items,
+  onOpen,
 }: {
-  greeting: string;
-  openConversations: HelpdeskConversationSummaryDTO[];
-  onNavigate: (v: View, label: string, category?: HelpdeskCategory) => void;
-  onRequests: () => void;
-  onOpenThread: (id: string) => void;
+  items: HelpdeskConversationSummaryDTO[];
+  onOpen: (id: string) => void;
 }) {
-  // The live-session slot is conditional — shown only when the member actually
-  // has a session to ask about (empty menu items erode trust in the widget).
-  const live = useLiveCurrent(true);
-  const showLive = (live.data?.length ?? 0) > 0;
-
   return (
-    <div className="helpdesk-body">
-      <p className="helpdesk-greeting">{greeting}</p>
-      <div className="helpdesk-menu">
-        <MenuButton
-          label={STR.helpdesk.menuClasses}
-          onClick={() =>
-            onNavigate("classes", STR.helpdesk.menuClasses, "ACCESS")
-          }
-        />
-        <MenuButton
-          label={STR.helpdesk.menuCourses}
-          onClick={() =>
-            onNavigate("courses", STR.helpdesk.menuCourses, "TECHNICAL")
-          }
-        />
-        <MenuButton
-          label={STR.helpdesk.menuPayments}
-          onClick={() =>
-            onNavigate("payments", STR.helpdesk.menuPayments, "BILLING")
-          }
-        />
-        {showLive && (
-          <MenuButton
-            label={STR.helpdesk.menuLive}
-            onClick={() =>
-              onNavigate("live", STR.helpdesk.menuLive, "LIVE_SESSION")
-            }
-          />
-        )}
-        <MenuButton
-          label={STR.helpdesk.menuSomethingElse}
-          onClick={() =>
-            onNavigate("help", STR.helpdesk.menuSomethingElse, "OTHER")
-          }
-        />
-      </div>
-
-      {openConversations.length > 0 && (
-        <>
-          <div className="helpdesk-help-foot">
-            <span>{STR.helpdesk.myRequests}</span>
-            <button
-              type="button"
-              className="helpdesk-btn is-link"
-              onClick={onRequests}
-            >
-              {STR.helpdesk.viewAll}
-            </button>
-          </div>
-          {openConversations.slice(0, 3).map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className="helpdesk-menu-item"
-              onClick={() => onOpenThread(c.id)}
-            >
-              <span>{c.subject}</span>
-              <StatusPill status={c.status} />
-            </button>
-          ))}
-        </>
-      )}
+    <div className="helpdesk-reqlist">
+      {items.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          className="helpdesk-menu-item"
+          onClick={() => onOpen(c.id)}
+        >
+          <span>{c.subject}</span>
+          <StatusPill status={c.status} />
+        </button>
+      ))}
     </div>
-  );
-}
-
-function MenuButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" className="helpdesk-menu-item" onClick={onClick}>
-      <span>{label}</span>
-      <span className="chev" aria-hidden="true">
-        ›
-      </span>
-    </button>
   );
 }
 
@@ -333,42 +587,6 @@ function StatusPill({ status }: { status: HelpdeskThreadDTO["status"] }) {
           : STR.helpdesk.statusOpen;
   const cls = status === "WAITING_ON_MEMBER" ? "is-waiting" : "is-open";
   return <span className={`helpdesk-pill ${cls}`}>{label}</span>;
-}
-
-// A reusable "did this help?" footer under every data card.
-function HelpFoot({
-  category,
-  onEscalate,
-  onDone,
-}: {
-  category: HelpdeskCategory;
-  onEscalate: () => void;
-  onDone: () => void;
-}) {
-  return (
-    <div className="helpdesk-help-foot">
-      <span>{STR.helpdesk.didThisHelp}</span>
-      <div className="helpdesk-actions">
-        <button
-          type="button"
-          className="helpdesk-btn"
-          onClick={() => {
-            fireStat(category, "resolvedYes");
-            onDone();
-          }}
-        >
-          {STR.helpdesk.yesThanks}
-        </button>
-        <button
-          type="button"
-          className="helpdesk-btn is-primary"
-          onClick={onEscalate}
-        >
-          {STR.helpdesk.talkToHuman}
-        </button>
-      </div>
-    </div>
-  );
 }
 
 function Loading() {
@@ -442,20 +660,29 @@ function lastMemberMessageId(thread: HelpdeskThreadDTO): string | null {
   return null;
 }
 
+/** Reported once an answer settles: did it actually contain anything? */
+type OnAnswered = (hadData: boolean) => void;
+
+/** Fire `onAnswered` once, when the query settles. */
+function useAnswered(
+  onAnswered: OnAnswered | undefined,
+  settled: boolean,
+  hadData: boolean,
+) {
+  useEffect(() => {
+    if (settled) onAnswered?.(hadData);
+  }, [onAnswered, settled, hadData]);
+}
+
 // ---------------------------------------------------------------- classes
 
-function ClassesView({
-  onEscalate,
-  onDone,
-}: {
-  onEscalate: () => void;
-  onDone: () => void;
-}) {
+function ClassesView({ onAnswered }: { onAnswered?: OnAnswered }) {
   const classes = useMyClasses(true);
   const subs = useMySubStatuses(true);
+  const owned = (classes.data ?? []).filter((c) => c.owned);
+  useAnswered(onAnswered, !classes.isLoading, owned.length > 0);
   if (classes.isLoading || subs.isLoading) return <Loading />;
 
-  const owned = (classes.data ?? []).filter((c) => c.owned);
   const nameByLevel = new Map<string, string>(
     (classes.data ?? []).map((c) => [c.id, c.name]),
   );
@@ -464,7 +691,7 @@ function ClassesView({
   );
 
   return (
-    <div className="helpdesk-body">
+    <div className="helpdesk-answer">
       {pastDue.map((s) => (
         <div key={s.levelId} className="helpdesk-card is-alert">
           <h3>{nameByLevel.get(s.levelId) ?? "A class"}</h3>
@@ -480,7 +707,13 @@ function ClassesView({
       ))}
 
       {owned.length === 0 && pastDue.length === 0 && (
-        <p className="helpdesk-empty">{STR.helpdesk.noRequests}</p>
+        <p className="helpdesk-empty">{STR.helpdesk.summaryNoClasses}</p>
+      )}
+
+      {owned.length > 0 && (
+        <p className="helpdesk-lead">
+          {STR.helpdesk.summaryClassesCount(owned.length)}
+        </p>
       )}
 
       {owned.map((c: ClassTileDTO) => (
@@ -495,30 +728,23 @@ function ClassesView({
           </div>
         </div>
       ))}
-
-      <HelpFoot category="ACCESS" onEscalate={onEscalate} onDone={onDone} />
     </div>
   );
 }
 
 // ---------------------------------------------------------------- courses
 
-function CoursesView({
-  onEscalate,
-  onDone,
-}: {
-  onEscalate: () => void;
-  onDone: () => void;
-}) {
+function CoursesView({ onAnswered }: { onAnswered?: OnAnswered }) {
   const dash = useMemberDashboard();
-  if (dash.isLoading) return <Loading />;
   const data = dash.data as MemberDashboardDTO | undefined;
   const owned = (data?.classes ?? []).filter((c) => c.owned);
+  useAnswered(onAnswered, !dash.isLoading, owned.length > 0);
+  if (dash.isLoading) return <Loading />;
 
   return (
-    <div className="helpdesk-body">
+    <div className="helpdesk-answer">
       {owned.length === 0 && (
-        <p className="helpdesk-empty">{STR.helpdesk.noRequests}</p>
+        <p className="helpdesk-empty">{STR.helpdesk.summaryNoCourses}</p>
       )}
       {owned.map((c) => {
         const extra = data?.extras[c.id];
@@ -542,30 +768,24 @@ function CoursesView({
           </div>
         );
       })}
-      <HelpFoot category="TECHNICAL" onEscalate={onEscalate} onDone={onDone} />
     </div>
   );
 }
 
 // ---------------------------------------------------------------- payments
 
-function PaymentsView({
-  onEscalate,
-  onDone,
-}: {
-  onEscalate: () => void;
-  onDone: () => void;
-}) {
+function PaymentsView({ onAnswered }: { onAnswered?: OnAnswered }) {
   const subs = useMySubStatuses(true);
   const classes = useMyClasses(true);
   const show = useToast();
   const [busy, setBusy] = useState(false);
+  const rows = subs.data ?? [];
+  useAnswered(onAnswered, !subs.isLoading, rows.length > 0);
   if (subs.isLoading || classes.isLoading) return <Loading />;
 
   const nameByLevel = new Map<string, string>(
     (classes.data ?? []).map((c) => [c.id, c.name]),
   );
-  const rows = subs.data ?? [];
 
   async function openPortal() {
     setBusy(true);
@@ -582,9 +802,9 @@ function PaymentsView({
   }
 
   return (
-    <div className="helpdesk-body">
+    <div className="helpdesk-answer">
       {rows.length === 0 && (
-        <p className="helpdesk-empty">{STR.helpdesk.noRequests}</p>
+        <p className="helpdesk-empty">{STR.helpdesk.summaryNoPayments}</p>
       )}
       {rows.map((s: MySubscriptionDTO) => (
         <div
@@ -620,27 +840,20 @@ function PaymentsView({
           {STR.helpdesk.paymentHistory}
         </a>
       </div>
-
-      <HelpFoot category="BILLING" onEscalate={onEscalate} onDone={onDone} />
     </div>
   );
 }
 
 // ---------------------------------------------------------------- live
 
-function LiveView({
-  onEscalate,
-  onDone,
-}: {
-  onEscalate: () => void;
-  onDone: () => void;
-}) {
+function LiveView({ onAnswered }: { onAnswered?: OnAnswered }) {
   const live = useLiveCurrent(true);
-  if (live.isLoading) return <Loading />;
   const sessions = live.data ?? [];
+  useAnswered(onAnswered, !live.isLoading, sessions.length > 0);
+  if (live.isLoading) return <Loading />;
 
   return (
-    <div className="helpdesk-body">
+    <div className="helpdesk-answer">
       {sessions.length === 0 && (
         <p className="helpdesk-empty">{STR.helpdesk.noLiveSessions}</p>
       )}
@@ -663,23 +876,18 @@ function LiveView({
           </div>
         </div>
       ))}
-      <HelpFoot
-        category="LIVE_SESSION"
-        onEscalate={onEscalate}
-        onDone={onDone}
-      />
     </div>
   );
 }
 
 // ---------------------------------------------------------------- help / FAQ
 
-function HelpView({ onEscalate }: { onEscalate: () => void }) {
+function ArticlesAnswer() {
   const articles = useHelpdeskArticles(true);
   const [openId, setOpenId] = useState<string | null>(null);
 
   return (
-    <div className="helpdesk-body">
+    <div className="helpdesk-articles">
       {(articles.data?.length ?? 0) > 0 && (
         <>
           <p className="helpdesk-greeting">{STR.helpdesk.articlesHeading}</p>
@@ -704,17 +912,6 @@ function HelpView({ onEscalate }: { onEscalate: () => void }) {
           {STR.helpdesk.manageAccount}
         </a>
       </div>
-
-      <div className="helpdesk-help-foot">
-        <span>{STR.helpdesk.describeIssue}</span>
-        <button
-          type="button"
-          className="helpdesk-btn is-primary"
-          onClick={onEscalate}
-        >
-          {STR.helpdesk.talkToHuman}
-        </button>
-      </div>
     </div>
   );
 }
@@ -722,22 +919,41 @@ function HelpView({ onEscalate }: { onEscalate: () => void }) {
 // ---------------------------------------------------------------- compose
 
 function ComposeView({
-  category,
+  text,
+  onText,
+  files,
+  onFiles,
+  replyTimeNote,
   breadcrumbs,
+  escalationCategory,
   onSent,
 }: {
-  category: HelpdeskCategory;
+  /** Seeded with the message the router could not answer, so the member never
+   *  retypes it — and CONTROLLED by the widget so switching topics mid-draft
+   *  doesn't destroy it. */
+  text: string;
+  onText: (v: string) => void;
+  files: File[];
+  onFiles: (f: File[]) => void;
+  replyTimeNote: string | null;
+  /** Topics consulted before escalating — the admin queue shows these. */
   breadcrumbs: string[];
+  /** Topic the member actually consulted, for the deflection stat. */
+  escalationCategory: HelpdeskCategory | null;
   onSent: (thread: HelpdeskThreadDTO) => void;
 }) {
-  const [text, setText] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
   const queryClient = useQueryClient();
   const show = useToast();
 
   const mutation = useMutation({
     mutationFn: async (issue: string) => {
-      const thread = await api.helpdeskStart({ issue, category, breadcrumbs });
+      // Category comes from what is actually SENT, not the original seed — the
+      // member may have rewritten the message entirely in the box.
+      const thread = await api.helpdeskStart({
+        issue,
+        category: categoryForText(issue),
+        breadcrumbs,
+      });
       const msgId = lastMemberMessageId(thread);
       if (files.length > 0 && msgId) {
         return api.helpdeskUploadAttachments(thread.id, msgId, files);
@@ -745,7 +961,11 @@ function ComposeView({
       return thread;
     },
     onSuccess: (thread) => {
-      fireStat(category, "escalation");
+      // Attribute the escalation to the category the SERVER filed it under, so
+      // the admin's per-topic deflection numerator and denominator agree.
+      // Against the topic actually consulted when there was one, so the
+      // numerator matches the cardView denominator.
+      fireStat(escalationCategory ?? thread.category, "escalation");
       queryClient.setQueryData(qk.helpdeskThread(thread.id), thread);
       void queryClient.invalidateQueries({ queryKey: qk.helpdeskConfig });
       void queryClient.invalidateQueries({
@@ -769,62 +989,25 @@ function ComposeView({
   });
 
   return (
-    <div className="helpdesk-body">
-      <p className="helpdesk-greeting">{STR.helpdesk.describeIssue}</p>
+    <div className="helpdesk-sendbox">
       <textarea
         className="helpdesk-textarea"
         placeholder={STR.helpdesk.issuePlaceholder}
+        aria-label={STR.helpdesk.describeIssue}
         value={text}
         maxLength={4000}
-        onChange={(e) => setText(e.target.value)}
+        onChange={(e) => onText(e.target.value)}
       />
+      {replyTimeNote && <p className="helpdesk-replynote">{replyTimeNote}</p>}
       <div className="helpdesk-actions">
-        <FilePick files={files} onChange={setFiles} />
+        <FilePick files={files} onChange={onFiles} />
         <button
           type="button"
           className="helpdesk-btn is-primary"
           disabled={mutation.isPending || text.trim().length === 0}
           onClick={() => mutation.mutate(text.trim())}
         >
-          {mutation.isPending ? STR.helpdesk.sending : STR.helpdesk.send}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------- requests
-
-function RequestsView({
-  onOpen,
-  onNew,
-}: {
-  onOpen: (id: string) => void;
-  onNew: () => void;
-}) {
-  const list = useHelpdeskConversations(true);
-  if (list.isLoading) return <Loading />;
-  const items = list.data ?? [];
-
-  return (
-    <div className="helpdesk-body">
-      {items.length === 0 && (
-        <p className="helpdesk-empty">{STR.helpdesk.noRequests}</p>
-      )}
-      {items.map((c) => (
-        <button
-          key={c.id}
-          type="button"
-          className="helpdesk-menu-item"
-          onClick={() => onOpen(c.id)}
-        >
-          <span>{c.subject}</span>
-          <StatusPill status={c.status} />
-        </button>
-      ))}
-      <div className="helpdesk-actions">
-        <button type="button" className="helpdesk-btn" onClick={onNew}>
-          {STR.helpdesk.talkToHuman}
+          {mutation.isPending ? STR.helpdesk.sending : STR.helpdesk.sendToTeam}
         </button>
       </div>
     </div>
