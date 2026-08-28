@@ -10,8 +10,8 @@
 // it actually had data once its query settles — an empty card is not a
 // self-serve success and must not count a cardView. Past-due is checked BEFORE
 // the empty case, and a failed lookup is an error, never "you have none".
-import { useEffect } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 import { STR } from "@lms/types";
 import type { SubscriptionDetailDTO } from "@lms/types";
 
@@ -24,6 +24,7 @@ import {
 import { fmtDate, money } from "../format";
 import { CtaButton } from "../components/CtaButton";
 import { Skeleton } from "../components/Skeleton";
+import { useReducedMotion } from "../use-reduced-motion";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
@@ -69,7 +70,11 @@ function SummarySkeleton() {
 
 /** The visual heart of the redesign: progress as a BAR, not a fraction in
  *  prose. Track in the hairline border tone, fill in the accent, flipping to
- *  the success tone when complete — the state is legible before the numbers. */
+ *  the success tone when complete — the state is legible before the numbers.
+ *
+ *  The fill grows to its value on mount (jump-cut under OS Reduce Motion),
+ *  and the whole row is ONE screen-reader stop — "label, progress bar,
+ *  2 of 5 complete" — instead of three fragments with an unreadable "✓". */
 function ProgressRow({
   label,
   completed,
@@ -80,10 +85,44 @@ function ProgressRow({
   total: number;
 }) {
   const styles = useStyles(makeStyles);
+  const reduced = useReducedMotion();
   const pct = total > 0 ? Math.min(1, completed / total) : 0;
   const done = total > 0 && completed >= total;
+
+  const target = Math.round(pct * 100);
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduced) {
+      anim.setValue(target);
+      return;
+    }
+    Animated.timing(anim, {
+      toValue: target,
+      duration: 600,
+      easing: Easing.out(Easing.cubic),
+      // Percentage widths are layout, not transform — JS driver only.
+      useNativeDriver: false,
+    }).start();
+  }, [anim, target, reduced]);
+  const width = anim.interpolate({
+    inputRange: [0, 100],
+    outputRange: ["0%", "100%"],
+  });
+
+  const shown = Math.min(completed, total);
   return (
-    <View style={styles.progressRow}>
+    <View
+      style={styles.progressRow}
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={label}
+      accessibilityValue={{
+        min: 0,
+        max: total,
+        now: shown,
+        text: STR.helpdesk.progressSpoken(shown, total),
+      }}
+    >
       <View style={styles.progressHead}>
         <Text style={styles.progressLabel} numberOfLines={1}>
           {label}
@@ -94,12 +133,8 @@ function ProgressRow({
         </Text>
       </View>
       <View style={styles.track}>
-        <View
-          style={[
-            styles.fill,
-            done && styles.fillDone,
-            { width: `${Math.round(pct * 100)}%` },
-          ]}
+        <Animated.View
+          style={[styles.fill, done && styles.fillDone, { width }]}
         />
       </View>
     </View>

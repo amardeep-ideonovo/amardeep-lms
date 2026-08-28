@@ -6619,9 +6619,18 @@ a.ik-prog-row:hover {
   height: 100%;
   border-radius: 3px;
   background: var(--teal);
+  /* Grow to the value on mount; slide on live data updates. Disabled under
+     prefers-reduced-motion (see the widget's reduced-motion block below). */
+  animation: helpdesk-fill-grow 600ms cubic-bezier(0.33, 1, 0.68, 1);
+  transition: width 300ms ease;
 }
 .helpdesk-fill.is-done {
   background: var(--success);
+}
+@keyframes helpdesk-fill-grow {
+  from {
+    width: 0;
+  }
 }
 .helpdesk-progress-sub {
   margin: 0;
@@ -6809,8 +6818,12 @@ a.ik-prog-row:hover {
 }
 @media (prefers-reduced-motion: reduce) {
   .helpdesk-panel,
-  .helpdesk-fab {
+  .helpdesk-fab,
+  .helpdesk-fill {
     animation: none;
+  }
+  .helpdesk-fill {
+    transition: none;
   }
 }
 
