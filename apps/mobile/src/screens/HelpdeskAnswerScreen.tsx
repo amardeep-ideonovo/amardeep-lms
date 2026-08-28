@@ -2,12 +2,13 @@
 //
 // Looking something up is a there-and-back errand, not a turn appended to a
 // conversation: the member arrives from Support home, reads their own account
-// data, and leaves with the native back gesture. Nothing accumulates, so a
-// visit that touches three topics never becomes one muddled scroll.
+// data, and leaves with the native back gesture.
 //
-// The answer bodies are the same components Support home used to render inline
-// (helpdesk-summaries), so the account data, the past-due carve-out and the
-// deflection stat all behave exactly as before.
+// Visually, the answer must NOT look like the menu that led to it — that was
+// the "everything is the same white row" complaint. So the answer lives in one
+// ELEVATED card under a "From your account" eyebrow (this is live personal
+// data, not navigation), and the Related links are demoted to outline chips so
+// they read as secondary wayfinding, not more content.
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { STR } from "@lms/types";
 import type { HelpdeskCategory } from "@lms/types";
@@ -22,9 +23,9 @@ import { Press } from "../components/Press";
 import { ANSWERABLE } from "../helpdesk-answerable";
 import type { ScreenProps } from "../navigation";
 import { contentColumn } from "../responsive";
-import { spacing } from "../theme";
+import { elevatedShadow, spacing } from "../theme";
 import type { Theme } from "../theme";
-import { useStyles } from "../theme-provider";
+import { useStyles, useTheme } from "../theme-provider";
 
 const TOPIC_LABEL: Partial<Record<HelpdeskCategory, string>> = {
   ACCESS: STR.helpdesk.menuClasses,
@@ -37,6 +38,7 @@ export function HelpdeskAnswerScreen({
   navigation,
 }: ScreenProps<"HelpdeskAnswer">) {
   const styles = useStyles(makeStyles);
+  const { mode } = useTheme();
   const { category } = route.params;
 
   // Count a self-serve view only once the answer knows it actually had
@@ -49,7 +51,8 @@ export function HelpdeskAnswerScreen({
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
+      <View style={[styles.card, elevatedShadow(mode)]}>
+        <Text style={styles.eyebrow}>{STR.helpdesk.fromYourAccount}</Text>
         {category === "ACCESS" && <ClassesSummary onAnswered={onAnswered} />}
         {category === "TECHNICAL" && <CoursesSummary onAnswered={onAnswered} />}
         {category === "BILLING" && (
@@ -60,24 +63,25 @@ export function HelpdeskAnswerScreen({
       {related.length > 0 && (
         <>
           <Text style={styles.section}>{STR.helpdesk.relatedHeading}</Text>
-          {related.map((c) => (
-            <Press
-              key={c}
-              style={styles.row}
-              accessibilityRole="button"
-              onPress={() =>
-                // replace, not push: hopping between answers must not build a
-                // back-stack the member has to unwind one screen at a time.
-                navigation.replace("HelpdeskAnswer", {
-                  category: c,
-                  title: TOPIC_LABEL[c] ?? STR.helpdesk.title,
-                })
-              }
-            >
-              <Text style={styles.rowLabel}>{TOPIC_LABEL[c]}</Text>
-              <Text style={styles.chevron}>›</Text>
-            </Press>
-          ))}
+          <View style={styles.chipRow}>
+            {related.map((c) => (
+              <Press
+                key={c}
+                style={styles.chip}
+                accessibilityRole="button"
+                onPress={() =>
+                  // replace, not push: hopping between answers must not build a
+                  // back-stack the member has to unwind one screen at a time.
+                  navigation.replace("HelpdeskAnswer", {
+                    category: c,
+                    title: TOPIC_LABEL[c] ?? STR.helpdesk.title,
+                  })
+                }
+              >
+                <Text style={styles.chipText}>{TOPIC_LABEL[c]}</Text>
+              </Press>
+            ))}
+          </View>
         </>
       )}
 
@@ -101,12 +105,24 @@ function makeStyles({ colors, fonts }: Theme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
     content: { ...contentColumn, paddingVertical: spacing.md, gap: spacing.sm },
+    // Elevated + roomier than a menu row, with the accent hairline on top:
+    // the one card on the screen that holds CONTENT.
     card: {
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.borderSoft,
-      borderRadius: 14,
+      borderTopWidth: 3,
+      borderTopColor: colors.primary,
+      borderRadius: 16,
       padding: spacing.md,
+      gap: spacing.sm,
+    },
+    eyebrow: {
+      color: colors.primarySoft,
+      fontFamily: fonts.semibold,
+      fontSize: 11,
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
     },
     section: {
       color: colors.textMuted,
@@ -114,27 +130,22 @@ function makeStyles({ colors, fonts }: Theme) {
       fontSize: 12,
       textTransform: "uppercase",
       letterSpacing: 0.6,
-      marginTop: spacing.md,
-      marginBottom: spacing.xs,
+      marginTop: spacing.sm,
     },
-    row: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      backgroundColor: colors.surface,
+    chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+    chip: {
       borderWidth: 1,
-      borderColor: colors.borderSoft,
-      borderRadius: 12,
+      borderColor: colors.border,
+      borderRadius: 999,
+      backgroundColor: colors.surface,
       paddingHorizontal: spacing.md,
-      paddingVertical: 14,
+      paddingVertical: 9,
     },
-    rowLabel: {
+    chipText: {
       color: colors.text,
       fontFamily: fonts.semibold,
-      fontSize: 15,
-      flexShrink: 1,
+      fontSize: 13.5,
     },
-    chevron: { color: colors.textMuted, fontSize: 20, marginLeft: spacing.sm },
     stuck: { alignItems: "center", paddingVertical: spacing.md },
     stuckText: {
       color: colors.textMuted,

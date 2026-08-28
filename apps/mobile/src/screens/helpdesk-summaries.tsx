@@ -1,8 +1,15 @@
-// Read-only account summaries the helpdesk shows INLINE when a member opens a
-// topic — the "answer in the chat" half of the conversational rework. Each is a
-// child of the topic accordion, so its query only fires when the topic is
-// expanded (no fetch on screen mount). No navigation: the one exception is the
-// past-due "fix payment" pointer, the single remediation escape hatch.
+// Read-only account answers for the support surfaces.
+//
+// These render inside the "From your account" card on HelpdeskAnswerScreen, so
+// they are styled as DATA, not as menu rows: progress bars instead of "0/5"
+// text, a hero amount for the last payment, semantic tints for done/past-due.
+// A support answer has to look different from the menu that led to it, or the
+// whole surface reads as one undifferentiated stack of white rectangles.
+//
+// Logic contract (unchanged): each summary reports through `onAnswered` whether
+// it actually had data once its query settles — an empty card is not a
+// self-serve success and must not count a cardView. Past-due is checked BEFORE
+// the empty case, and a failed lookup is an error, never "you have none".
 import { useEffect } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { STR } from "@lms/types";
@@ -52,9 +59,76 @@ function pastDueSub(
 
 function SummarySkeleton() {
   return (
-    <View style={{ gap: spacing.xs }}>
-      <Skeleton height={16} radius={6} />
-      <Skeleton height={16} radius={6} />
+    <View style={{ gap: spacing.sm }}>
+      <Skeleton height={18} radius={6} />
+      <Skeleton height={44} radius={10} />
+      <Skeleton height={44} radius={10} />
+    </View>
+  );
+}
+
+/** The visual heart of the redesign: progress as a BAR, not a fraction in
+ *  prose. Track in the hairline border tone, fill in the accent, flipping to
+ *  the success tone when complete — the state is legible before the numbers. */
+function ProgressRow({
+  label,
+  completed,
+  total,
+}: {
+  label: string;
+  completed: number;
+  total: number;
+}) {
+  const styles = useStyles(makeStyles);
+  const pct = total > 0 ? Math.min(1, completed / total) : 0;
+  const done = total > 0 && completed >= total;
+  return (
+    <View style={styles.progressRow}>
+      <View style={styles.progressHead}>
+        <Text style={styles.progressLabel} numberOfLines={1}>
+          {label}
+        </Text>
+        <Text style={[styles.progressMeta, done && styles.progressMetaDone]}>
+          {done ? "✓ " : ""}
+          {completed}/{total}
+        </Text>
+      </View>
+      <View style={styles.track}>
+        <View
+          style={[
+            styles.fill,
+            done && styles.fillDone,
+            { width: `${Math.round(pct * 100)}%` },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
+
+function EmptyNote({ text }: { text: string }) {
+  const styles = useStyles(makeStyles);
+  return (
+    <View style={styles.empty}>
+      <Text style={styles.emptyText}>{text}</Text>
+    </View>
+  );
+}
+
+function ErrorNote() {
+  const styles = useStyles(makeStyles);
+  return (
+    <View style={styles.empty}>
+      <Text style={styles.errorText}>{STR.errors.generic}</Text>
+    </View>
+  );
+}
+
+function PastDueNote({ name }: { name: string }) {
+  const styles = useStyles(makeStyles);
+  return (
+    <View style={styles.alertBox}>
+      <Text style={styles.alertText}>{STR.helpdesk.pastDueLocked(name)}</Text>
     </View>
   );
 }
@@ -69,36 +143,28 @@ export function ClassesSummary({ onAnswered }: { onAnswered?: OnAnswered }) {
   if (classesQ.isPending) return <SummarySkeleton />;
   // A failed lookup is NOT "you have none" — saying so to a paying member is
   // worse than admitting we could not load it.
-  if (classesQ.isError)
-    return <Text style={styles.alert}>{STR.errors.generic}</Text>;
+  if (classesQ.isError) return <ErrorNote />;
 
-  const owned = (classesQ.data ?? []).filter((c) => c.owned);
+  const owned = owned0;
   const pastDue = pastDueSub(subsQ.data);
   // Past-due is checked BEFORE the empty case: a locked-out member often has
   // zero *owned* rows, and telling them they never bought anything is wrong.
   if (owned.length === 0 && !pastDue)
-    return <Text style={styles.muted}>{STR.helpdesk.summaryNoClasses}</Text>;
+    return <EmptyNote text={STR.helpdesk.summaryNoClasses} />;
+
   return (
     <View style={styles.block}>
-      {pastDue && (
-        <Text style={styles.alert}>
-          {STR.helpdesk.pastDueLocked(pastDue.levelName)}
-        </Text>
-      )}
+      {pastDue && <PastDueNote name={pastDue.levelName} />}
       <Text style={styles.lead}>
         {STR.helpdesk.summaryClassesCount(owned.length)}
       </Text>
       {owned.map((c) => (
-        <View key={c.id} style={styles.row}>
-          <Text style={styles.rowName} numberOfLines={1}>
-            {c.name}
-          </Text>
-          {c.progress && c.progress.total > 0 && (
-            <Text style={styles.rowMeta}>
-              {c.progress.completed}/{c.progress.total}
-            </Text>
-          )}
-        </View>
+        <ProgressRow
+          key={c.id}
+          label={c.name}
+          completed={c.progress?.completed ?? 0}
+          total={c.progress?.total ?? 0}
+        />
       ))}
     </View>
   );
@@ -114,28 +180,22 @@ export function CoursesSummary({ onAnswered }: { onAnswered?: OnAnswered }) {
   );
 
   if (coursesQ.isPending) return <SummarySkeleton />;
-  if (coursesQ.isError)
-    return <Text style={styles.alert}>{STR.errors.generic}</Text>;
+  if (coursesQ.isError) return <ErrorNote />;
   const mine = (coursesQ.data ?? []).filter(
     (c) => !c.locked && c.lessonCount > 0,
   );
   if (mine.length === 0)
-    return <Text style={styles.muted}>{STR.helpdesk.summaryNoCourses}</Text>;
+    return <EmptyNote text={STR.helpdesk.summaryNoCourses} />;
 
   return (
     <View style={styles.block}>
       {mine.map((c) => (
-        <View key={c.id} style={styles.row}>
-          <Text style={styles.rowName} numberOfLines={1}>
-            {c.title}
-          </Text>
-          <Text style={styles.rowMeta}>
-            {STR.helpdesk.summaryCourseProgress(
-              c.completedCount,
-              c.lessonCount,
-            )}
-          </Text>
-        </View>
+        <ProgressRow
+          key={c.id}
+          label={c.title}
+          completed={c.completedCount}
+          total={c.lessonCount}
+        />
       ))}
     </View>
   );
@@ -158,8 +218,7 @@ export function PaymentsSummary({
   );
 
   if (invoicesQ.isPending || subsQ.isPending) return <SummarySkeleton />;
-  if (invoicesQ.isError && subsQ.isError)
-    return <Text style={styles.alert}>{STR.errors.generic}</Text>;
+  if (invoicesQ.isError && subsQ.isError) return <ErrorNote />;
   const subs = subsQ.data ?? [];
   const pastDue = pastDueSub(subs);
 
@@ -167,9 +226,7 @@ export function PaymentsSummary({
   if (pastDue) {
     return (
       <View style={styles.block}>
-        <Text style={styles.alert}>
-          {STR.helpdesk.pastDueLocked(pastDue.levelName)}
-        </Text>
+        <PastDueNote name={pastDue.levelName} />
         <CtaButton
           label={STR.helpdesk.fixPayment}
           onPress={() => navigation.navigate("Payments")}
@@ -182,28 +239,35 @@ export function PaymentsSummary({
   const lastPaid = (invoicesQ.data ?? []).find((i) => i.status === "paid");
   const active = subs.find((s) => s.status?.toLowerCase() === "active");
   if (!lastPaid && subs.length === 0)
-    return <Text style={styles.muted}>{STR.helpdesk.summaryNoPayments}</Text>;
+    return <EmptyNote text={STR.helpdesk.summaryNoPayments} />;
 
   return (
     <View style={styles.block}>
       {lastPaid ? (
-        <Text style={styles.lead}>
-          {STR.helpdesk.summaryLastPayment(
-            money(lastPaid.amountPaid, lastPaid.currency),
-            lastPaid.description ?? STR.helpdesk.membershipItem,
-            fmtDate(lastPaid.created),
-          )}
-        </Text>
+        <View>
+          {/* Hero number: the fact the member came for, at a glance. */}
+          <Text style={styles.amount}>
+            {money(lastPaid.amountPaid, lastPaid.currency)}
+          </Text>
+          <Text style={styles.amountMeta}>
+            {lastPaid.description ?? STR.helpdesk.membershipItem} ·{" "}
+            {fmtDate(lastPaid.created)}
+          </Text>
+        </View>
       ) : (
-        <Text style={styles.muted}>{STR.helpdesk.summaryNoPayments}</Text>
+        <EmptyNote text={STR.helpdesk.summaryNoPayments} />
       )}
       {active?.currentPeriodEnd && (
-        <Text style={styles.line}>
-          {STR.helpdesk.summaryNextBilling(fmtDate(active.currentPeriodEnd))}
-        </Text>
+        <View style={styles.factRow}>
+          <Text style={styles.factLabel}>
+            {STR.helpdesk.summaryNextBilling(fmtDate(active.currentPeriodEnd))}
+          </Text>
+        </View>
       )}
       {active && (
-        <Text style={styles.line}>{STR.helpdesk.membershipActive}</Text>
+        <View style={styles.okBox}>
+          <Text style={styles.okText}>{STR.helpdesk.membershipActive}</Text>
+        </View>
       )}
     </View>
   );
@@ -211,48 +275,109 @@ export function PaymentsSummary({
 
 function makeStyles({ colors, fonts }: Theme) {
   return StyleSheet.create({
-    block: { gap: spacing.xs },
+    block: { gap: spacing.sm },
     lead: {
       color: colors.text,
       fontFamily: fonts.semibold,
+      fontSize: 15,
+      lineHeight: 21,
+      marginBottom: 2,
+    },
+
+    // ---- progress rows -------------------------------------------------
+    progressRow: { gap: 6, paddingVertical: 4 },
+    progressHead: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+    },
+    progressLabel: {
+      color: colors.text,
+      fontFamily: fonts.medium,
+      fontSize: 14.5,
+      flexShrink: 1,
+    },
+    progressMeta: {
+      color: colors.textMuted,
+      fontFamily: fonts.semibold,
+      fontSize: 12,
+      flexShrink: 0,
+    },
+    progressMetaDone: { color: colors.success },
+    track: {
+      height: 5,
+      borderRadius: 3,
+      backgroundColor: colors.borderSoft,
+      overflow: "hidden",
+    },
+    fill: {
+      height: "100%",
+      borderRadius: 3,
+      backgroundColor: colors.primary,
+    },
+    fillDone: { backgroundColor: colors.success },
+
+    // ---- payments hero -------------------------------------------------
+    amount: {
+      color: colors.text,
+      fontFamily: fonts.bold,
+      fontSize: 30,
+      lineHeight: 36,
+      letterSpacing: -0.5,
+    },
+    amountMeta: {
+      color: colors.textMuted,
+      fontFamily: fonts.regular,
+      fontSize: 13,
+      marginTop: 2,
+    },
+    factRow: {
+      borderTopWidth: 1,
+      borderTopColor: colors.borderSoft,
+      paddingTop: spacing.sm,
+    },
+    factLabel: {
+      color: colors.text,
+      fontFamily: fonts.medium,
+      fontSize: 13.5,
+    },
+    okBox: {
+      alignSelf: "flex-start",
+      backgroundColor: colors.successBg,
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+    },
+    okText: {
+      color: colors.success,
+      fontFamily: fonts.semibold,
+      fontSize: 12.5,
+    },
+
+    // ---- states --------------------------------------------------------
+    empty: { paddingVertical: spacing.sm, alignItems: "flex-start" },
+    emptyText: {
+      color: colors.textMuted,
+      fontFamily: fonts.regular,
       fontSize: 14,
       lineHeight: 20,
     },
-    line: {
-      color: colors.textMuted,
+    errorText: {
+      color: colors.danger,
       fontFamily: fonts.regular,
-      fontSize: 13,
-      lineHeight: 19,
+      fontSize: 13.5,
     },
-    muted: {
-      color: colors.textMuted,
-      fontFamily: fonts.regular,
-      fontSize: 13,
-      lineHeight: 19,
+    alertBox: {
+      backgroundColor: colors.dangerBg,
+      borderRadius: 10,
+      padding: spacing.sm + 2,
     },
-    alert: {
+    alertText: {
       color: colors.danger,
       fontFamily: fonts.medium,
-      fontSize: 13,
+      fontSize: 13.5,
       lineHeight: 19,
-    },
-    row: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      gap: spacing.sm,
-    },
-    rowName: {
-      color: colors.text,
-      fontFamily: fonts.regular,
-      fontSize: 14,
-      flexShrink: 1,
-    },
-    rowMeta: {
-      color: colors.textMuted,
-      fontFamily: fonts.regular,
-      fontSize: 12,
-      flexShrink: 0,
     },
     fixBtn: { alignSelf: "flex-start", marginTop: spacing.xs },
   });
