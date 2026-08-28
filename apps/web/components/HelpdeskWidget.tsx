@@ -13,7 +13,7 @@
 // next, and the one route to a human lives permanently in the bottom strip.
 // Deflection is measured passively as 1 − escalations/cardViews.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { STR, categoryForText, routeHelpdeskText } from "@lms/types";
 import type {
@@ -41,9 +41,9 @@ import {
 } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 
-type View = "chat" | "thread";
+type View = "home" | "answer" | "compose" | "thread";
 
-/** Topics the web widget can answer inline from the member's own account. */
+/** Topics the widget can answer inline from the member's own account. */
 const ANSWERABLE: HelpdeskCategory[] = [
   "ACCESS",
   "TECHNICAL",
@@ -58,30 +58,6 @@ const TOPIC_LABEL: Partial<Record<HelpdeskCategory, string>> = {
   LIVE_SESSION: STR.helpdesk.menuLive,
 };
 
-/** The bot "thinks" for a beat so an answer reads as a reply, not a repaint. */
-const TYPING_MS = 450;
-
-type ChipDef = {
-  key: string;
-  label: string;
-  category?: HelpdeskCategory;
-  action?: "requests" | "articles";
-};
-
-type Turn = {
-  id: string;
-  role: "bot" | "member";
-  text?: string;
-  /** Render this topic's account-data card inside the bubble. */
-  answer?: HelpdeskCategory;
-  /** Render the member's existing tickets inside the bubble. */
-  requests?: boolean;
-  /** Render the academy's FAQ articles inside the bubble. */
-  articles?: boolean;
-  /** Quick replies — only ever shown under the LAST turn. */
-  chips?: ChipDef[];
-};
-
 function fireStat(
   category: HelpdeskCategory,
   event: "cardView" | "resolvedYes" | "escalation",
@@ -92,262 +68,91 @@ function fireStat(
 
 export default function HelpdeskWidget() {
   const [open, setOpen] = useState(false);
-  const [view, setView] = useState<View>("chat");
+  const [view, setView] = useState<View>("home");
+  const [answer, setAnswer] = useState<HelpdeskCategory>("ACCESS");
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const [typing, setTyping] = useState(false);
   const [input, setInput] = useState("");
-  /** Text the member will send to a human if they confirm. */
-  const [pendingEscalation, setPendingEscalation] = useState<string | null>(
-    null,
-  );
-  /** Editable escalation body — lifted out of ComposeView so a topic change or
-   *  a background config refetch can't destroy what the member was typing. */
+  /** Editable message to a human — kept here so leaving the compose view and
+   *  coming back doesn't destroy what the member was typing. */
   const [draft, setDraft] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  /** Topic labels consulted this session — sent with a ticket so the admin
-   *  sees what the member already looked at before asking for a person. */
+  /** Topics consulted this visit, sent with a ticket as admin context. */
   const [trail, setTrail] = useState<string[]>([]);
-  /** The last topic the member actually OPENED. Escalations are filed against
-   *  it for stats so the numerator and denominator share a taxonomy. */
-  const lastViewedRef = useRef<HelpdeskCategory | null>(null);
   // Render nothing until mounted so the server (no localStorage token) and the
   // first client render agree — avoids a hydration mismatch on the FAB.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const seq = useRef(0);
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  /** The bot turn currently waiting on its typing delay (at most one). */
-  const pendingReply = useRef<{
-    turn: Omit<Turn, "id" | "role">;
-    timer: ReturnType<typeof setTimeout>;
-  } | null>(null);
-  // Topics already counted this session — deflection is 1 - escalations/cardViews
-  // so the denominator must mean "distinct topics consulted", not clicks.
+  /** Topics whose cardView has been counted this visit (reset on close). */
   const viewedRef = useRef<Set<HelpdeskCategory>>(new Set());
+  /** Last topic actually opened — escalations are filed against it so the
+   *  deflection numerator and denominator share one taxonomy. */
+  const lastViewedRef = useRef<HelpdeskCategory | null>(null);
 
   const config = useHelpdeskConfig();
   const me = useMe();
-  // Gate on an actually-open panel: hooks must run unconditionally (they sit
-  // above the guest early-return), so the `enabled` flag is what keeps a
-  // logged-out visitor from firing these on every page load.
   const signedIn = mounted && typeof window !== "undefined" && !!getToken();
   const live = useLiveCurrent(signedIn && open);
   // ALL of the member's tickets, closed ones included — config.openConversations
-  // excludes CLOSED, which used to leave closed history unreachable here.
+  // excludes CLOSED, which used to leave closed history unreachable.
   const allConversations = useHelpdeskConversations(signedIn && open);
-  const hasToken = signedIn;
-
-  const greetingText = config.data?.greeting;
-  const firstName = me.data?.firstName;
-  const enabled = config.data?.enabled === true;
-  const hasLive = (live.data?.length ?? 0) > 0;
-  const waitingOnUs =
-    (config.data?.unread ?? 0) > 0 ||
-    (config.data?.openConversations.length ?? 0) > 0;
-
-  const topicChips = useCallback(
-    (exclude?: HelpdeskCategory): ChipDef[] => [
-      ...ANSWERABLE.filter(
-        (c) => c !== exclude && (c !== "LIVE_SESSION" || hasLive),
-      ).map((c) => ({ key: c, label: TOPIC_LABEL[c] ?? c, category: c })),
-      {
-        key: "articles",
-        label: STR.helpdesk.menuSomethingElse,
-        action: "articles" as const,
-      },
-      {
-        key: "requests",
-        label: STR.helpdesk.myRequests,
-        action: "requests" as const,
-      },
-    ],
-    [hasLive],
-  );
-
-  // Open with the greeting + the topic menu as quick replies.
-  useEffect(() => {
-    // Don't freeze the opening turn until the data it renders has settled —
-    // otherwise it keeps a nameless greeting and a menu missing "Live session".
-    if (!enabled || !open || me.isPending || live.isPending) return;
-    setTurns((prev) => {
-      if (prev.length > 0) return prev;
-      const greeting = (greetingText || STR.helpdesk.greetingFallback).replace(
-        /\s*\{firstName\}/g,
-        firstName ? ` ${firstName}` : "",
-      );
-      const opening: Turn[] = [
-        { id: `t${++seq.current}`, role: "bot", text: greeting },
-      ];
-      // If a reply is waiting (what the unread badge pointed at) or a request
-      // is still open, put it on screen rather than making them hunt for it.
-      if (waitingOnUs)
-        opening.push({
-          id: `t${++seq.current}`,
-          role: "bot",
-          requests: true,
-          chips: topicChips(),
-        });
-      else opening[0].chips = topicChips();
-      return opening;
-    });
-  }, [
-    enabled,
-    open,
-    greetingText,
-    firstName,
-    topicChips,
-    me.isPending,
-    live.isPending,
-  ]);
-
-  useEffect(() => {
-    const pending = timers.current;
-    return () => pending.forEach(clearTimeout);
-  }, []);
-
-  // Keep the newest message in view — a transcript that doesn't follow itself
-  // hides the answer below the fold on every turn.
-  useEffect(() => {
-    bodyRef.current?.scrollTo({
-      top: bodyRef.current.scrollHeight,
-      behavior: "smooth",
-    });
-  }, [turns, typing, pendingEscalation, open, view]);
 
   // Never render for guests, before mount, or when the widget is turned off.
-  if (!mounted || !hasToken) return null;
+  if (!mounted || !signedIn) return null;
   if (config.data && !config.data.enabled) return null;
 
   const unread = config.data?.unread ?? 0;
   const openConversations = config.data?.openConversations ?? [];
   const conversations = allConversations.data ?? openConversations;
-  // Mirror the server's rule (helpdesk.service.ts OPEN_STATUSES): RESOLVED is
-  // reopenable and does NOT count. openConversations is "not CLOSED", which
-  // includes RESOLVED — counting it locked members out of escalating at all.
+  const hasLive = (live.data?.length ?? 0) > 0;
+  const topics = ANSWERABLE.filter((c) => c !== "LIVE_SESSION" || hasLive);
+  // Mirror the server's cap (helpdesk.service.ts OPEN_STATUSES): RESOLVED is
+  // reopenable and does NOT count toward it.
   const atCap =
     !!config.data &&
     openConversations.filter(
       (c) => c.status === "ESCALATED" || c.status === "WAITING_ON_MEMBER",
     ).length >= (config.data.maxOpenPerMember ?? 3);
 
-  /** Abandon a pending escalation, including its draft and attachments — a
-   *  screenshot picked for one message must never ride onto another ticket. */
-  function clearEscalation() {
-    setPendingEscalation(null);
-    setDraft("");
-    setFiles([]);
+  const greeting = (
+    config.data?.greeting ?? STR.helpdesk.greetingFallback
+  ).replace(
+    /\s*\{firstName\}/g,
+    me.data?.firstName ? ` ${me.data.firstName}` : "",
+  );
+
+  function openAnswer(category: HelpdeskCategory) {
+    const label = TOPIC_LABEL[category] ?? STR.helpdesk.title;
+    setTrail((t) => (t.includes(label) ? t : [...t, label]));
+    lastViewedRef.current = category;
+    setAnswer(category);
+    setView("answer");
   }
 
   /** Count a self-serve view — once per topic per visit, and only when the
-   *  answer actually contained data. */
+   *  answer actually contained data. An empty card is not a deflection. */
   function countView(category: HelpdeskCategory, hadData: boolean) {
     if (!hadData || viewedRef.current.has(category)) return;
     viewedRef.current.add(category);
     fireStat(category, "cardView");
   }
 
-  function push(turn: Omit<Turn, "id">) {
-    setTurns((t) => [...t, { ...turn, id: `t${++seq.current}` }]);
-  }
-
-  /** Land any bot turn still waiting on its typing delay, so a fast second
-   *  question can never overtake the answer to the first. */
-  function flushPending() {
-    if (!pendingReply.current) return;
-    clearTimeout(pendingReply.current.timer);
-    push({ ...pendingReply.current.turn, role: "bot" });
-    pendingReply.current = null;
-  }
-
-  function botReply(turn: Omit<Turn, "id" | "role">) {
-    setTyping(true);
-    const timer = setTimeout(() => {
-      pendingReply.current = null;
-      setTyping(false);
-      push({ ...turn, role: "bot" });
-    }, TYPING_MS);
-    pendingReply.current = { turn, timer };
-    timers.current.push(timer);
-  }
-
-  function answerTopic(category: HelpdeskCategory, echo: string) {
-    flushPending();
-    push({ role: "member", text: echo });
-    clearEscalation();
-    setTrail((t) => (t.includes(echo) ? t : [...t, echo]));
-    lastViewedRef.current = category;
-    // The cardView is fired by the answer itself once it knows whether it had
-    // anything to say — an empty card is not a self-serve success.
-    botReply({ answer: category, chips: topicChips(category) });
-  }
-
-  function showRequests(echo: string) {
-    flushPending();
-    push({ role: "member", text: echo });
-    clearEscalation();
-    // Always render the list turn and let it read the LIVE list — a frozen
-    // emptiness check told members with only closed tickets they'd never written.
-    botReply({ requests: true, chips: topicChips() });
-  }
-
-  function showArticles(echo: string) {
-    flushPending();
-    push({ role: "member", text: echo });
-    clearEscalation();
-    if (!viewedRef.current.has("OTHER")) {
-      viewedRef.current.add("OTHER");
-      fireStat("OTHER", "cardView");
-    }
-    botReply({ articles: true, chips: topicChips() });
-  }
-
-  /** Open the escalation box seeded with `text`. `echo` renders the member's
-   *  own words first (skip it when they pressed the permanent button). */
-  function startEscalation(text: string, echo = false) {
-    flushPending();
-    if (echo) push({ role: "member", text });
-    if (atCap) {
-      setPendingEscalation(null);
-      botReply({ text: STR.helpdesk.tooManyOpen, chips: topicChips() });
-      return;
-    }
-    // A NEW seed each time, so a second unmatched message replaces the first
-    // rather than silently keeping the original text.
-    setDraft(text);
+  function startCompose(seed: string) {
+    setDraft(seed);
     setFiles([]);
-    setPendingEscalation(text);
-    // Keep the menu alive: an unanswered message must not strand the member.
-    botReply({
-      text: text ? STR.helpdesk.cantAnswer : STR.helpdesk.describeIssue,
-      chips: topicChips(),
-    });
-  }
-
-  function onChip(c: ChipDef) {
-    if (c.action === "requests") return showRequests(c.label);
-    if (c.action === "articles") return showArticles(c.label);
-    if (c.category) return answerTopic(c.category, c.label);
+    setView("compose");
   }
 
   function onSend() {
     const text = input.trim();
     if (!text) return;
     setInput("");
-    const intent = routeHelpdeskText(
-      text,
-      ANSWERABLE.filter((c) => c !== "LIVE_SESSION" || hasLive),
-    );
-    if (intent.kind === "topic") return answerTopic(intent.category, text);
-    if (intent.kind === "requests") return showRequests(text);
-    if (intent.kind === "human") {
-      // They asked for a person — don't tell them we couldn't understand.
-      push({ role: "member", text });
-      return startEscalation(text);
-    }
-    return startEscalation(text, true);
+    const intent = routeHelpdeskText(text, topics);
+    // A question we can answer goes straight to that answer — faster than
+    // filing a ticket, and it keeps the deflection honest.
+    if (intent.kind === "topic") return openAnswer(intent.category);
+    // Anything else becomes a message to the team, pre-filled.
+    return startCompose(text);
   }
 
   function openThread(id: string) {
@@ -355,7 +160,7 @@ export default function HelpdeskWidget() {
     setView("thread");
   }
 
-  const lastIndex = turns.length - 1;
+  const canBack = view !== "home";
 
   return (
     <div className="helpdesk">
@@ -366,17 +171,21 @@ export default function HelpdeskWidget() {
           aria-label={STR.helpdesk.title}
         >
           <div className="helpdesk-head">
-            {view === "thread" ? (
+            {canBack ? (
               <button
                 type="button"
                 className="helpdesk-iconbtn"
                 aria-label={STR.helpdesk.back}
-                onClick={() => setView("chat")}
+                onClick={() => setView("home")}
               >
                 ‹ {STR.helpdesk.back}
               </button>
             ) : null}
-            <h2>{STR.helpdesk.title}</h2>
+            <h2>
+              {view === "answer"
+                ? (TOPIC_LABEL[answer] ?? STR.helpdesk.title)
+                : STR.helpdesk.title}
+            </h2>
             <button
               type="button"
               className="helpdesk-iconbtn"
@@ -387,145 +196,153 @@ export default function HelpdeskWidget() {
             </button>
           </div>
 
-          {view === "thread" && activeId ? (
+          {/* ---------------- home: a launchpad, not a transcript ------------ */}
+          {view === "home" && (
+            <div className="helpdesk-body">
+              <p className="helpdesk-greeting">{greeting}</p>
+
+              <p className="helpdesk-section">{STR.helpdesk.findAnswer}</p>
+              {topics.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className="helpdesk-menu-item"
+                  onClick={() => openAnswer(c)}
+                >
+                  <span>{TOPIC_LABEL[c]}</span>
+                  <span aria-hidden="true">›</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                className="helpdesk-menu-item"
+                onClick={() => {
+                  setAnswer("OTHER");
+                  setView("answer");
+                }}
+              >
+                <span>{STR.helpdesk.menuSomethingElse}</span>
+                <span aria-hidden="true">›</span>
+              </button>
+
+              {conversations.length > 0 && (
+                <>
+                  <p className="helpdesk-section">
+                    {STR.helpdesk.yourRequests}
+                  </p>
+                  <RequestList items={conversations} onOpen={openThread} />
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ---------------- answer: one topic, then back ------------------- */}
+          {view === "answer" && (
+            <div className="helpdesk-body">
+              {answer === "ACCESS" && (
+                <ClassesView onAnswered={(had) => countView("ACCESS", had)} />
+              )}
+              {answer === "TECHNICAL" && (
+                <CoursesView
+                  onAnswered={(had) => countView("TECHNICAL", had)}
+                />
+              )}
+              {answer === "BILLING" && (
+                <PaymentsView onAnswered={(had) => countView("BILLING", had)} />
+              )}
+              {answer === "LIVE_SESSION" && (
+                <LiveView
+                  onAnswered={(had) => countView("LIVE_SESSION", had)}
+                />
+              )}
+              {answer === "OTHER" && <ArticlesAnswer />}
+
+              {answer !== "OTHER" && (
+                <>
+                  <p className="helpdesk-section">
+                    {STR.helpdesk.relatedHeading}
+                  </p>
+                  {topics
+                    .filter((c) => c !== answer)
+                    .map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        className="helpdesk-menu-item"
+                        onClick={() => openAnswer(c)}
+                      >
+                        <span>{TOPIC_LABEL[c]}</span>
+                        <span aria-hidden="true">›</span>
+                      </button>
+                    ))}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ---------------- compose / thread ------------------------------- */}
+          {view === "compose" && (
+            <div className="helpdesk-body">
+              <ComposeView
+                text={draft}
+                onText={setDraft}
+                files={files}
+                onFiles={setFiles}
+                replyTimeNote={config.data?.replyTimeNote ?? null}
+                breadcrumbs={trail}
+                escalationCategory={lastViewedRef.current}
+                atCap={atCap}
+                onSent={(thread) => {
+                  setDraft("");
+                  setFiles([]);
+                  openThread(thread.id);
+                }}
+              />
+            </div>
+          )}
+          {view === "thread" && activeId && (
             <ThreadView
               id={activeId}
               replyTimeNote={config.data?.replyTimeNote ?? null}
             />
-          ) : (
-            <>
-              <div className="helpdesk-body" ref={bodyRef} role="log">
-                {turns.map((turn, i) => (
-                  <div key={turn.id} className="helpdesk-turn">
-                    {turn.role === "bot" && (
-                      <span className="helpdesk-who">
-                        {STR.helpdesk.botName}
-                      </span>
-                    )}
-                    <div
-                      className={`helpdesk-msg from-${
-                        turn.role === "member" ? "member" : "bot"
-                      }`}
-                    >
-                      {turn.text && <p>{turn.text}</p>}
-                      {turn.answer === "ACCESS" && (
-                        <ClassesView
-                          onAnswered={(had) => countView("ACCESS", had)}
-                        />
-                      )}
-                      {turn.answer === "TECHNICAL" && (
-                        <CoursesView
-                          onAnswered={(had) => countView("TECHNICAL", had)}
-                        />
-                      )}
-                      {turn.answer === "BILLING" && (
-                        <PaymentsView
-                          onAnswered={(had) => countView("BILLING", had)}
-                        />
-                      )}
-                      {turn.answer === "LIVE_SESSION" && (
-                        <LiveView
-                          onAnswered={(had) => countView("LIVE_SESSION", had)}
-                        />
-                      )}
-                      {turn.articles && <ArticlesAnswer />}
-                      {turn.requests &&
-                        (conversations.length > 0 ? (
-                          <RequestList
-                            items={conversations}
-                            onOpen={openThread}
-                          />
-                        ) : (
-                          <p>{STR.helpdesk.noRequests}</p>
-                        ))}
-                    </div>
-                    {/* Chips belong to the newest bot turn only — older menus
-                        are spent, as they are in any real bot transcript. */}
-                    {turn.role === "bot" &&
-                      i === lastIndex &&
-                      turn.chips &&
-                      turn.chips.length > 0 && (
-                        <div className="helpdesk-next">
-                          {turn.chips.map((c) => (
-                            <button
-                              key={c.key}
-                              type="button"
-                              className="helpdesk-chip"
-                              onClick={() => onChip(c)}
-                            >
-                              {c.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                  </div>
-                ))}
+          )}
 
-                {typing && (
-                  <div className="helpdesk-turn">
-                    <span className="helpdesk-who">{STR.helpdesk.botName}</span>
-                    <div className="helpdesk-msg from-bot">
-                      <p className="helpdesk-typing">{STR.helpdesk.typing}</p>
-                    </div>
-                  </div>
-                )}
+          {/* The permanent, quiet route to a person — on home and on every
+              answer, so no card has to offer it and nobody has to guess. */}
+          {(view === "home" || view === "answer") && (
+            <div className="helpdesk-strip">
+              <button type="button" onClick={() => startCompose("")}>
+                {STR.helpdesk.stillStuck} {STR.helpdesk.messageTeam}
+              </button>
+            </div>
+          )}
 
-                {pendingEscalation !== null && !atCap && (
-                  <ComposeView
-                    text={draft}
-                    onText={setDraft}
-                    files={files}
-                    onFiles={setFiles}
-                    breadcrumbs={trail}
-                    escalationCategory={lastViewedRef.current}
-                    replyTimeNote={config.data?.replyTimeNote ?? null}
-                    onSent={(thread) => {
-                      setPendingEscalation(null);
-                      openThread(thread.id);
-                    }}
-                  />
-                )}
-              </div>
-
-              {/* The ONE permanent, discoverable route to a person. Quiet, but
-                  always present, so no individual answer has to offer it and no
-                  member has to guess a magic word. */}
-              <div className="helpdesk-strip">
-                <button
-                  type="button"
-                  onClick={() => startEscalation("")}
-                  disabled={atCap}
-                >
-                  {atCap
-                    ? STR.helpdesk.tooManyOpen
-                    : `${STR.helpdesk.stillStuck} ${STR.helpdesk.messageTeam}`}
-                </button>
-              </div>
-
-              <form
-                className="helpdesk-composer"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  onSend();
-                }}
+          {/* One box: a recognised question opens that answer, anything else
+              becomes a message to the team pre-filled with what was typed. */}
+          {(view === "home" || view === "answer") && (
+            <form
+              className="helpdesk-composer"
+              onSubmit={(e) => {
+                e.preventDefault();
+                onSend();
+              }}
+            >
+              <input
+                className="helpdesk-input"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={STR.helpdesk.composerPlaceholder}
+                aria-label={STR.helpdesk.composerPlaceholder}
+                maxLength={4000}
+              />
+              <button
+                type="submit"
+                className="helpdesk-btn is-primary"
+                disabled={input.trim().length === 0}
               >
-                <input
-                  className="helpdesk-input"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder={STR.helpdesk.composerPlaceholder}
-                  aria-label={STR.helpdesk.composerPlaceholder}
-                  maxLength={4000}
-                />
-                <button
-                  type="submit"
-                  className="helpdesk-btn is-primary"
-                  disabled={input.trim().length === 0}
-                >
-                  {STR.helpdesk.send}
-                </button>
-              </form>
-            </>
+                {STR.helpdesk.send}
+              </button>
+            </form>
           )}
         </div>
       )}
@@ -537,9 +354,13 @@ export default function HelpdeskWidget() {
         aria-expanded={open}
         onClick={() =>
           setOpen((v) => {
-            // Closing ends the visit: reset the per-visit cardView de-dupe so
-            // web and mobile contribute to HelpdeskDayStat on the same scale.
-            if (v) viewedRef.current.clear();
+            if (v) {
+              // Closing ends the visit: reset the per-visit cardView de-dupe so
+              // web and mobile feed HelpdeskDayStat on the same scale.
+              viewedRef.current.clear();
+            } else {
+              setView("home");
+            }
             return !v;
           })
         }
@@ -551,7 +372,7 @@ export default function HelpdeskWidget() {
   );
 }
 
-/** The member's existing tickets, rendered inside a bot bubble. */
+/** The member's tickets, newest activity first. */
 function RequestList({
   items,
   onOpen,
@@ -926,6 +747,7 @@ function ComposeView({
   replyTimeNote,
   breadcrumbs,
   escalationCategory,
+  atCap,
   onSent,
 }: {
   /** Seeded with the message the router could not answer, so the member never
@@ -940,6 +762,8 @@ function ComposeView({
   breadcrumbs: string[];
   /** Topic the member actually consulted, for the deflection stat. */
   escalationCategory: HelpdeskCategory | null;
+  /** Server-mirrored open-ticket cap — say so rather than failing on send. */
+  atCap: boolean;
   onSent: (thread: HelpdeskThreadDTO) => void;
 }) {
   const queryClient = useQueryClient();
@@ -987,6 +811,11 @@ function ComposeView({
       show(msg);
     },
   });
+
+  // After the hooks, never before them — an early return above would change
+  // hook order between renders.
+  if (atCap)
+    return <p className="helpdesk-empty">{STR.helpdesk.tooManyOpen}</p>;
 
   return (
     <div className="helpdesk-sendbox">

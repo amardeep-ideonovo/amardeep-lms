@@ -84,7 +84,7 @@ export const STR = {
     close: "Close",
     back: "Back",
     greetingFallback:
-      "Hi 👋 — I can help with your classes, courses, lessons and payments. Pick a topic, or tell me what’s going on.",
+      "Hi 👋 — look up your classes, lessons and payments below, or message the team about anything else.",
     menuClasses: "My classes",
     menuCourses: "My courses & lessons",
     menuPayments: "Payments",
@@ -103,15 +103,14 @@ export const STR = {
     stillStuck: "Still need help?",
     // Chip that returns to the topic menu after an answer.
     somethingElseChip: "Something else",
-    // --- conversation surface (the transcript) ---
-    /** Speaker label above each bot bubble. NN/g: be upfront it's a bot. */
-    botName: "Support bot",
-    typing: "…",
-    composerPlaceholder: "Ask about your account…",
-    /** Said when the deterministic router matched nothing. Never "I didn't
-     *  understand" — say what happens next instead. */
-    cantAnswer:
-      "I can’t answer that one myself — I can pass it to the team with what you wrote.",
+    /** Home sections — self-serve lookups are kept apart from the human
+     *  channel, so a visit that touches three topics never becomes one scroll. */
+    findAnswer: "Find an answer",
+    yourRequests: "Your requests",
+    relatedHeading: "Related",
+    /** One box: a recognised question opens that answer, anything else becomes
+     *  a message to the team pre-filled with what was typed. */
+    composerPlaceholder: "Ask a question, or message the team…",
     sendToTeam: "Send to the team",
     articlesHeading: "Help articles",
     accountHeading: "Manage your account",

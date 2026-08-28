@@ -4,7 +4,12 @@ import type {
 } from "@react-navigation/native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { ClassTileDTO, CourseCard, LessonDTO } from "@lms/types";
+import type {
+  ClassTileDTO,
+  CourseCard,
+  LessonDTO,
+  HelpdeskCategory,
+} from "@lms/types";
 
 // Bottom-tab param list — the persistent authed shell (Home / Classes / Live /
 // Profile, per the Ink Hero design). These live INSIDE the "Main" tab
@@ -85,7 +90,12 @@ export type RootStackParamList = {
   Certificates: undefined;
   Payments: undefined;
   Plans: undefined;
-  HelpdeskHome: undefined;
+  /** `compose` asks home to open the message-the-team box (an answer screen's
+   *  "Still stuck?" hands back here rather than duplicating the composer). */
+  HelpdeskHome: { compose?: boolean } | undefined;
+  /** One topic's answer, on its own screen — self-serve lookups are a
+   *  there-and-back errand, not turns appended to a conversation. */
+  HelpdeskAnswer: { category: HelpdeskCategory; title: string };
   HelpdeskThread: {
     conversationId: string;
     subject?: string;
