@@ -20,9 +20,27 @@ const member: AuthenticatedPrincipal = {
 };
 
 // Build a service over a hand-rolled prisma mock (cast `as never` — no DI).
-function makeService(prismaOverrides: Record<string, unknown>) {
+// `sent` collects sendTemplate calls so tests can assert on the reply email.
+function makeService(
+  prismaOverrides: Record<string, unknown>,
+  sent: unknown[] = [],
+) {
   const notifications = { record: async () => undefined } as never;
-  return new HelpdeskService(prismaOverrides as never, notifications);
+  const email = {
+    sendTemplate: async (input: unknown) => {
+      sent.push(input);
+      return {} as never;
+    },
+  } as never;
+  const appConfig = { read: async () => ({ title: "Spotlight" }) } as never;
+  const config = { get: () => "https://members.example.com" } as never;
+  return new HelpdeskService(
+    prismaOverrides as never,
+    notifications,
+    email,
+    appConfig,
+    config,
+  );
 }
 
 test("start() 403s HELPDESK_DISABLED when the widget is off", async () => {
@@ -178,4 +196,108 @@ test("deleteArticle 404s a missing article", async () => {
     helpdeskArticle: { findUnique: async () => null },
   });
   await assert.rejects(() => svc.deleteArticle("nope"), NotFoundException);
+});
+
+// ───────────────── admin reply → member email ─────────────────
+
+const adminP: AuthenticatedPrincipal = {
+  sub: "a1",
+  email: "admin@example.com",
+  username: "admin",
+  isAdmin: true,
+};
+
+/** Prisma mock for adminReply. adminThread (the return read) is monkey-patched
+ *  out — these tests pin the EMAIL gate, not the thread serializer. */
+function replyPrisma(conv: Record<string, unknown>) {
+  return {
+    helpdeskConversation: {
+      findUnique: async () => conv,
+      update: async () => ({}),
+    },
+    $transaction: async (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        helpdeskMessage: { create: async () => ({}) },
+        helpdeskConversation: { update: async () => ({}) },
+        helpdeskTicket: { update: async () => ({}) },
+      }),
+  };
+}
+
+const baseConv = {
+  id: "c1",
+  status: "ESCALATED",
+  subject: "Invoice looks wrong",
+  messageCount: 3,
+  firstRespondedAt: null,
+  unreadForMember: false,
+  ticket: null,
+  user: { email: "m@example.com", firstName: "Amar" },
+};
+
+/** The fire-and-forget email chain resolves on the microtask queue. */
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
+test("adminReply emails the member on the first unseen reply", async () => {
+  const sent: Array<Record<string, unknown>> = [];
+  const svc = makeService(replyPrisma({ ...baseConv }), sent);
+  (svc as unknown as Record<string, unknown>).adminThread = async () => ({});
+
+  await svc.adminReply(adminP, "c1", { body: "We fixed your invoice." });
+  await flush();
+
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, "m@example.com");
+  assert.equal(sent[0].templateKey, "helpdesk-reply");
+  assert.equal(sent[0].transactional, true);
+  // Idempotent per message: seq = messageCount + 1.
+  assert.equal(sent[0].dedupeKey, "helpdesk-reply:c1:4");
+  const vars = sent[0].vars as Record<string, unknown>;
+  assert.equal(vars.firstName, "Amar");
+  assert.equal(vars.requestSubject, "Invoice looks wrong");
+  assert.equal(vars.replyPreview, "We fixed your invoice.");
+});
+
+test("adminReply does NOT email when an earlier reply is still unseen", async () => {
+  // unreadForMember=true means the member was already told and hasn't looked:
+  // a burst of admin messages must produce ONE email, not one per message.
+  const sent: unknown[] = [];
+  const svc = makeService(
+    replyPrisma({ ...baseConv, unreadForMember: true }),
+    sent,
+  );
+  (svc as unknown as Record<string, unknown>).adminThread = async () => ({});
+
+  await svc.adminReply(adminP, "c1", { body: "Also, one more thing." });
+  await flush();
+
+  assert.equal(sent.length, 0);
+});
+
+test("adminReply does NOT email for an internal note", async () => {
+  const sent: unknown[] = [];
+  const svc = makeService(replyPrisma({ ...baseConv }), sent);
+  (svc as unknown as Record<string, unknown>).adminThread = async () => ({});
+
+  await svc.adminReply(adminP, "c1", {
+    body: "note to self: check Stripe",
+    internal: true,
+  });
+  await flush();
+
+  assert.equal(sent.length, 0);
+});
+
+test("adminReply truncates a long reply into the email preview", async () => {
+  const sent: Array<Record<string, unknown>> = [];
+  const svc = makeService(replyPrisma({ ...baseConv }), sent);
+  (svc as unknown as Record<string, unknown>).adminThread = async () => ({});
+
+  await svc.adminReply(adminP, "c1", { body: "x".repeat(500) });
+  await flush();
+
+  const vars = sent[0].vars as Record<string, unknown>;
+  const preview = vars.replyPreview as string;
+  assert.equal(preview.length, 241); // 240 chars + the ellipsis
+  assert.ok(preview.endsWith("\u2026"));
 });
