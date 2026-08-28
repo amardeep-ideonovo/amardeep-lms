@@ -205,6 +205,21 @@ export class EmailTemplateService {
         variables: ["firstName", "brand", "resetUrl", "expiresMinutes"],
         category: "system",
       });
+      await this.upsertSystemTemplate({
+        key: "helpdesk-reply",
+        name: "Support reply",
+        subject: "{{brand}} support replied to \u201c{{requestSubject}}\u201d",
+        mjml: HELPDESK_REPLY_MJML,
+        variables: [
+          "firstName",
+          "brand",
+          "requestSubject",
+          "replyPreview",
+          "url",
+          "unsubscribeUrl",
+        ],
+        category: "system",
+      });
     } catch (err) {
       // Never let a bootstrap-time DB hiccup take down app startup.
       this.logger.warn(`ensureSystemTemplates failed: ${this.msg(err)}`);
@@ -416,6 +431,56 @@ const PASSWORD_RESET_MJML = `<mjml>
       <mj-column>
         <mj-text align="center" font-size="12px" color="#a3a19c" line-height="1.6">
           You're receiving this because a password reset was requested for your {{brand}} account.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>`;
+
+// Sent when an admin replies to a member's support request and the member has
+// not yet seen it (the service gates on unreadForMember, so a burst of replies
+// produces one email). Without this, a reply sat invisible until the member
+// happened to reopen the app — the whole point of escalating leaked away.
+const HELPDESK_REPLY_MJML = `<mjml>
+  <mj-head>
+    <mj-attributes>
+      <mj-all font-family="Helvetica, Arial, sans-serif" />
+    </mj-attributes>
+    <mj-style>
+      .cta a { color: #ffffff !important; }
+    </mj-style>
+  </mj-head>
+  <mj-body background-color="#f4f3f8">
+    <mj-section padding="32px 0 12px">
+      <mj-column>
+        <mj-text align="center" font-size="13px" letter-spacing="2px" color="#1f7a62" text-transform="uppercase" font-weight="700">
+          {{brand}}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="#ffffff" border-radius="16px" padding="8px" css-class="card">
+      <mj-column padding="24px">
+        <mj-text font-size="22px" font-weight="700" color="#221c3d" padding-bottom="12px">
+          The team replied to your request
+        </mj-text>
+        <mj-text font-size="15px" line-height="1.7" color="#55506e" padding-bottom="8px">
+          Hi {{firstName}}, there's a new reply on \u201c{{requestSubject}}\u201d:
+        </mj-text>
+        <mj-text font-size="14px" line-height="1.7" color="#221c3d" padding="14px 16px" background-color="#f4f3f8" border-radius="10px" css-class="quote">
+          {{replyPreview}}
+        </mj-text>
+        <mj-button href="{{{url}}}" background-color="#2f9d8e" color="#ffffff" border-radius="10px" font-weight="600" font-size="15px" inner-padding="13px 26px" align="left" padding-top="20px" css-class="cta">
+          Read and reply
+        </mj-button>
+        <mj-text font-size="13px" line-height="1.6" color="#8b87a3" padding-top="20px">
+          Open the site and tap \u201cGet help\u201d to see the full conversation and reply.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section padding="16px 0 32px">
+      <mj-column>
+        <mj-text align="center" font-size="12px" color="#a3a19c" line-height="1.6">
+          You're receiving this because you contacted {{brand}} support.
         </mj-text>
       </mj-column>
     </mj-section>

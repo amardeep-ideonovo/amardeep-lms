@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Logger,
 } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { Prisma } from "@prisma/client";
@@ -22,6 +23,9 @@ import type {
 import type { AuthenticatedPrincipal } from "../auth/jwt-payload.interface";
 import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
+import { EmailService } from "../email/email.service";
+import { AppConfigService } from "../site/app-config.service";
+import { ConfigService } from "@nestjs/config";
 import {
   AdminListQueryDto,
   AdminReplyDto,
@@ -81,9 +85,14 @@ type AdminThreadRow = Prisma.HelpdeskConversationGetPayload<{
 
 @Injectable()
 export class HelpdeskService {
+  private readonly logger = new Logger(HelpdeskService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly email: EmailService,
+    private readonly appConfig: AppConfigService,
+    private readonly env: ConfigService,
   ) {}
 
   private async resolveSettings(): Promise<ResolvedSettings> {
@@ -448,7 +457,10 @@ export class HelpdeskService {
   ): Promise<HelpdeskAdminThreadDTO> {
     const conv = await this.prisma.helpdeskConversation.findUnique({
       where: { id },
-      include: { ticket: true },
+      include: {
+        ticket: true,
+        user: { select: { email: true, firstName: true } },
+      },
     });
     if (!conv) throw new NotFoundException("conversation not found");
     if (conv.status === "CLOSED") {
@@ -458,6 +470,11 @@ export class HelpdeskService {
       });
     }
     const internal = dto.internal === true;
+    // Email the member about this reply — but only the FIRST reply they have
+    // not yet seen. If unreadForMember is already true they were told about an
+    // earlier reply and haven't looked yet; a burst of admin messages must
+    // produce one email, not one per message.
+    const notifyMember = !internal && !conv.unreadForMember;
     const body = redactSensitive(dto.body.trim());
     const data: Prisma.HelpdeskConversationUpdateInput = {
       messageCount: { increment: 1 },
@@ -501,7 +518,62 @@ export class HelpdeskService {
         });
       }
     });
+    if (notifyMember) {
+      // Fire-and-forget: the admin's queue UI must not wait on SMTP, and
+      // sendTemplate never throws — the catch is for the config reads.
+      void this.emailMemberAboutReply(
+        conv.user,
+        conv.subject,
+        id,
+        conv.messageCount + 1,
+        body,
+      );
+    }
     return this.adminThread(id);
+  }
+
+  /** Tell the member a human replied. Fails soft in every direction: an
+   *  academy with no member email configured just logs a FAILED EmailLog row
+   *  (the admin dashboard already surfaces that state), and nothing here can
+   *  reach the admin's request. */
+  private async emailMemberAboutReply(
+    user: { email: string; firstName: string | null },
+    subject: string,
+    conversationId: string,
+    seq: number,
+    replyBody: string,
+  ): Promise<void> {
+    try {
+      const cfg = await this.appConfig.read();
+      const url =
+        this.env.get<string>("WEB_APP_URL") || "http://localhost:3002";
+      const preview =
+        replyBody.length > 240
+          ? `${replyBody.slice(0, 240).trimEnd()}\u2026`
+          : replyBody;
+      await this.email.sendTemplate({
+        to: user.email,
+        templateKey: "helpdesk-reply",
+        vars: {
+          firstName: user.firstName?.trim() || "there",
+          brand: cfg.title,
+          requestSubject: subject,
+          replyPreview: preview,
+          url,
+        },
+        // A support reply must reach even an unsubscribed member — it is a
+        // direct response to something they asked us, not marketing.
+        transactional: true,
+        // Idempotent per message, so a retried admin request can't double-send.
+        dedupeKey: `helpdesk-reply:${conversationId}:${seq}`,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[helpdesk] reply email failed for conversation ${conversationId}: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+    }
   }
 
   async adminAssign(

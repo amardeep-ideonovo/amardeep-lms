@@ -6,6 +6,7 @@ import { HelpdeskController } from "./helpdesk.controller";
 import { HelpdeskAdminController } from "./helpdesk-admin.controller";
 import { HelpdeskService } from "./helpdesk.service";
 import { HelpdeskRetentionService } from "./helpdesk-retention.service";
+import { AppConfigService } from "../site/app-config.service";
 
 // PrismaService and NotificationsService are @Global, so no imports are needed.
 @Module({
@@ -20,6 +21,10 @@ import { HelpdeskRetentionService } from "./helpdesk-retention.service";
     }),
   ],
   controllers: [HelpdeskController, HelpdeskAdminController],
-  providers: [HelpdeskService, HelpdeskRetentionService],
+  // AppConfigService (brand title for the reply email) is a stateless reader
+  // over the global PrismaService; SiteModule doesn't export it, so provide a
+  // local instance — same pattern as AuthModule. EmailService comes from the
+  // @Global EmailModule.
+  providers: [HelpdeskService, HelpdeskRetentionService, AppConfigService],
 })
 export class HelpdeskModule {}
