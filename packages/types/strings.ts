@@ -106,6 +106,9 @@ export const STR = {
     /** Home sections — self-serve lookups are kept apart from the human
      *  channel, so a visit that touches three topics never becomes one scroll. */
     findAnswer: "Find an answer",
+    /** Eyebrow on an answer card — marks it as LIVE personal data, which is
+     *  what visually separates an answer from the menu that led to it. */
+    fromYourAccount: "From your account",
     yourRequests: "Your requests",
     relatedHeading: "Related",
     /** One box: a recognised question opens that answer, anything else becomes

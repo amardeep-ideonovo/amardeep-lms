@@ -15,7 +15,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { STR, categoryForText, routeHelpdeskText } from "@lms/types";
+import {
+  STR,
+  categoryForText,
+  formatDateLong,
+  formatMoney,
+  routeHelpdeskText,
+} from "@lms/types";
 import type {
   ClassTileDTO,
   HelpdeskCategory,
@@ -23,7 +29,6 @@ import type {
   HelpdeskMessageDTO,
   HelpdeskThreadDTO,
   LiveSessionBarDTO,
-  MemberDashboardDTO,
   MySubscriptionDTO,
 } from "@lms/types";
 import { ApiError, api, getToken } from "@/lib/api";
@@ -37,7 +42,9 @@ import {
   useMemberDashboard,
   useMe,
   useMyClasses,
+  useMyInvoices,
   useMySubStatuses,
+  useMySubscriptions,
 } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 
@@ -239,42 +246,61 @@ export default function HelpdeskWidget() {
           {/* ---------------- answer: one topic, then back ------------------- */}
           {view === "answer" && (
             <div className="helpdesk-body">
-              {answer === "ACCESS" && (
-                <ClassesView onAnswered={(had) => countView("ACCESS", had)} />
+              {/* Account answers live in ONE elevated card under a "From your
+                  account" eyebrow — live personal data must not look like the
+                  menu rows that led to it. The FAQ (OTHER) is academy content,
+                  not account data, so it stays outside the card. */}
+              {answer !== "OTHER" ? (
+                <div className="helpdesk-answer-card">
+                  <span className="helpdesk-eyebrow">
+                    {STR.helpdesk.fromYourAccount}
+                  </span>
+                  {answer === "ACCESS" && (
+                    <ClassesView
+                      onAnswered={(had) => countView("ACCESS", had)}
+                    />
+                  )}
+                  {answer === "TECHNICAL" && (
+                    <CoursesView
+                      onAnswered={(had) => countView("TECHNICAL", had)}
+                    />
+                  )}
+                  {answer === "BILLING" && (
+                    <PaymentsView
+                      onAnswered={(had) => countView("BILLING", had)}
+                    />
+                  )}
+                  {answer === "LIVE_SESSION" && (
+                    <LiveView
+                      onAnswered={(had) => countView("LIVE_SESSION", had)}
+                    />
+                  )}
+                </div>
+              ) : (
+                <ArticlesAnswer />
               )}
-              {answer === "TECHNICAL" && (
-                <CoursesView
-                  onAnswered={(had) => countView("TECHNICAL", had)}
-                />
-              )}
-              {answer === "BILLING" && (
-                <PaymentsView onAnswered={(had) => countView("BILLING", had)} />
-              )}
-              {answer === "LIVE_SESSION" && (
-                <LiveView
-                  onAnswered={(had) => countView("LIVE_SESSION", had)}
-                />
-              )}
-              {answer === "OTHER" && <ArticlesAnswer />}
 
               {answer !== "OTHER" && (
                 <>
                   <p className="helpdesk-section">
                     {STR.helpdesk.relatedHeading}
                   </p>
-                  {topics
-                    .filter((c) => c !== answer)
-                    .map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        className="helpdesk-menu-item"
-                        onClick={() => openAnswer(c)}
-                      >
-                        <span>{TOPIC_LABEL[c]}</span>
-                        <span aria-hidden="true">›</span>
-                      </button>
-                    ))}
+                  {/* Chips, not menu rows: wayfinding reads as secondary to the
+                      answer above it. */}
+                  <div className="helpdesk-next">
+                    {topics
+                      .filter((c) => c !== answer)
+                      .map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          className="helpdesk-chip"
+                          onClick={() => openAnswer(c)}
+                        >
+                          {TOPIC_LABEL[c]}
+                        </button>
+                      ))}
+                  </div>
                 </>
               )}
             </div>
@@ -495,6 +521,55 @@ function useAnswered(
   }, [onAnswered, settled, hadData]);
 }
 
+/** Progress as a BAR, not a fraction in prose — the state reads before the
+ *  numbers, which is what makes an answer look like data instead of a menu.
+ *  Track uses --surface-2 (the tokens file's own "track bars" tone); the fill
+ *  flips to the success tone when complete. */
+function ProgressRow({
+  label,
+  completed,
+  total,
+  meta,
+  href,
+}: {
+  label: string;
+  completed: number;
+  total: number;
+  meta?: string;
+  href?: string;
+}) {
+  const pct =
+    total > 0 ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+  const done = total > 0 && completed >= total;
+  return (
+    <div className="helpdesk-progress">
+      <div className="helpdesk-progress-head">
+        <span className="helpdesk-progress-label">
+          {href ? <a href={href}>{label}</a> : label}
+        </span>
+        <span className={`helpdesk-progress-meta${done ? " is-done" : ""}`}>
+          {done ? "✓ " : ""}
+          {completed}/{total}
+        </span>
+      </div>
+      <div
+        className="helpdesk-track"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={label}
+      >
+        <div
+          className={`helpdesk-fill${done ? " is-done" : ""}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {meta ? <p className="helpdesk-progress-sub">{meta}</p> : null}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- classes
 
 function ClassesView({ onAnswered }: { onAnswered?: OnAnswered }) {
@@ -538,16 +613,12 @@ function ClassesView({ onAnswered }: { onAnswered?: OnAnswered }) {
       )}
 
       {owned.map((c: ClassTileDTO) => (
-        <div key={c.id} className="helpdesk-card">
-          <div className="helpdesk-row">
-            <strong>{c.name}</strong>
-            {c.progress && c.progress.total > 0 ? (
-              <span className="helpdesk-pill is-open">
-                {c.progress.completed}/{c.progress.total}
-              </span>
-            ) : null}
-          </div>
-        </div>
+        <ProgressRow
+          key={c.id}
+          label={c.name}
+          completed={c.progress?.completed ?? 0}
+          total={c.progress?.total ?? 0}
+        />
       ))}
     </div>
   );
@@ -557,7 +628,11 @@ function ClassesView({ onAnswered }: { onAnswered?: OnAnswered }) {
 
 function CoursesView({ onAnswered }: { onAnswered?: OnAnswered }) {
   const dash = useMemberDashboard();
-  const data = dash.data as MemberDashboardDTO | undefined;
+  // No cast: fetchMemberDashboard returns extras as a Map, and the old
+  // `as MemberDashboardDTO` cast laundered it into a Record — so `extras[id]`
+  // compiled happily and was ALWAYS undefined at runtime. Every class rendered
+  // without lesson counts or the up-next line, silently.
+  const data = dash.data;
   const owned = (data?.classes ?? []).filter((c) => c.owned);
   useAnswered(onAnswered, !dash.isLoading, owned.length > 0);
   if (dash.isLoading) return <Loading />;
@@ -568,25 +643,18 @@ function CoursesView({ onAnswered }: { onAnswered?: OnAnswered }) {
         <p className="helpdesk-empty">{STR.helpdesk.summaryNoCourses}</p>
       )}
       {owned.map((c) => {
-        const extra = data?.extras[c.id];
+        const extra = data?.extras.get(c.id);
         return (
-          <div key={c.id} className="helpdesk-card">
-            <h3>{c.name}</h3>
-            {extra ? (
-              <p>
-                {extra.lessonTotal - extra.lessonsLeft}/{extra.lessonTotal}{" "}
-                lessons complete
-                {extra.next ? ` — up next: ${extra.next.lesson.title}` : ""}
-              </p>
-            ) : null}
-            {c.slug ? (
-              <div className="helpdesk-actions">
-                <a className="helpdesk-btn" href={`/classes/${c.slug}`}>
-                  {STR.helpdesk.openItem}
-                </a>
-              </div>
-            ) : null}
-          </div>
+          <ProgressRow
+            key={c.id}
+            label={c.name}
+            href={c.slug ? `/classes/${c.slug}` : undefined}
+            completed={extra ? extra.lessonTotal - extra.lessonsLeft : 0}
+            total={extra?.lessonTotal ?? 0}
+            meta={
+              extra?.next ? `Up next: ${extra.next.lesson.title}` : undefined
+            }
+          />
         );
       })}
     </div>
@@ -598,11 +666,26 @@ function CoursesView({ onAnswered }: { onAnswered?: OnAnswered }) {
 function PaymentsView({ onAnswered }: { onAnswered?: OnAnswered }) {
   const subs = useMySubStatuses(true);
   const classes = useMyClasses(true);
+  // The two facts a member actually comes here for: the last charge and the
+  // next one. Both endpoints were already consumed elsewhere; the widget just
+  // never rendered them.
+  const invoices = useMyInvoices();
+  const details = useMySubscriptions();
   const show = useToast();
   const [busy, setBusy] = useState(false);
   const rows = subs.data ?? [];
-  useAnswered(onAnswered, !subs.isLoading, rows.length > 0);
-  if (subs.isLoading || classes.isLoading) return <Loading />;
+  useAnswered(
+    onAnswered,
+    !subs.isLoading && !invoices.isPending,
+    rows.length > 0 || (invoices.data ?? []).length > 0,
+  );
+  if (subs.isLoading || classes.isLoading || invoices.isPending)
+    return <Loading />;
+
+  const lastPaid = (invoices.data ?? []).find((i) => i.status === "paid");
+  const nextBilling = (details.data ?? []).find(
+    (d) => d.status?.toLowerCase() === "active" && d.currentPeriodEnd,
+  )?.currentPeriodEnd;
 
   const nameByLevel = new Map<string, string>(
     (classes.data ?? []).map((c) => [c.id, c.name]),
@@ -624,7 +707,23 @@ function PaymentsView({ onAnswered }: { onAnswered?: OnAnswered }) {
 
   return (
     <div className="helpdesk-answer">
-      {rows.length === 0 && (
+      {lastPaid && (
+        <div className="helpdesk-hero">
+          <span className="helpdesk-amount">
+            {formatMoney(lastPaid.amountPaid, lastPaid.currency)}
+          </span>
+          <span className="helpdesk-amount-meta">
+            {lastPaid.description ?? STR.helpdesk.membershipItem} ·{" "}
+            {formatDateLong(lastPaid.created)}
+          </span>
+        </div>
+      )}
+      {nextBilling && (
+        <p className="helpdesk-fact">
+          {STR.helpdesk.summaryNextBilling(formatDateLong(nextBilling))}
+        </p>
+      )}
+      {rows.length === 0 && !lastPaid && (
         <p className="helpdesk-empty">{STR.helpdesk.summaryNoPayments}</p>
       )}
       {rows.map((s: MySubscriptionDTO) => (

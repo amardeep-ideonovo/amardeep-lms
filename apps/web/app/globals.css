@@ -6547,6 +6547,113 @@ a.ik-prog-row:hover {
   flex-direction: column;
   gap: 8px;
 }
+
+/* The one card on an answer screen that holds CONTENT — elevated, accent
+   top rail, "From your account" eyebrow. Everything else on the screen is
+   navigation and stays flat, so answer vs menu is legible at a glance. */
+.helpdesk-answer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--teal);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-card);
+}
+.helpdesk-eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal-text);
+}
+
+/* Progress bars — the tokens file names --surface-2 as the track tone. */
+.helpdesk-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 3px 0;
+}
+.helpdesk-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.helpdesk-progress-label {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.helpdesk-progress-label a {
+  color: inherit;
+  text-decoration: none;
+}
+.helpdesk-progress-label a:hover {
+  color: var(--teal-text);
+}
+.helpdesk-progress-meta {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--muted);
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.helpdesk-progress-meta.is-done {
+  color: var(--success-text);
+}
+.helpdesk-track {
+  height: 5px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.helpdesk-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--teal);
+}
+.helpdesk-fill.is-done {
+  background: var(--success);
+}
+.helpdesk-progress-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Payments hero — the fact the member came for, at a glance. */
+.helpdesk-hero {
+  display: flex;
+  flex-direction: column;
+}
+.helpdesk-amount {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.15;
+}
+.helpdesk-amount-meta {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.helpdesk-fact {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
 .helpdesk-lead {
   margin: 0;
   font-weight: 600;
