@@ -148,6 +148,9 @@ export const STR = {
     summaryNoClasses: "You haven’t purchased any classes yet.",
     summaryCourseProgress: (done: number, total: number) =>
       `${done}/${total} lessons complete`,
+    /** Spoken value of a progress bar (screen readers only, web + mobile). */
+    progressSpoken: (done: number, total: number) =>
+      `${done} of ${total} complete`,
     summaryNoCourses: "You don’t have any courses in progress yet.",
     summaryLastPayment: (amount: string, item: string, date: string) =>
       `Your last payment was ${amount} for ${item} on ${date}.`,

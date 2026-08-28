@@ -558,6 +558,10 @@ function ProgressRow({
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
+        aria-valuetext={STR.helpdesk.progressSpoken(
+          Math.min(completed, total),
+          total,
+        )}
         aria-label={label}
       >
         <div
