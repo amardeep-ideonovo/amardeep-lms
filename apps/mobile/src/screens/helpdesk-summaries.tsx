@@ -17,12 +17,13 @@ import {
 import { fmtDate, money } from "../format";
 import { CtaButton } from "../components/CtaButton";
 import { Skeleton } from "../components/Skeleton";
-import type { ScreenProps } from "../navigation";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
 
-type Nav = ScreenProps<"HelpdeskHome">["navigation"];
+/** Only what the past-due pointer actually needs. Typed structurally so the
+ *  same summary renders under Support home or an answer screen. */
+type Nav = { navigate: (screen: "Payments") => void };
 
 /** Reported once a summary settles: did it actually answer anything? An empty
  *  card is not a self-serve success, and counting it as one inflates the

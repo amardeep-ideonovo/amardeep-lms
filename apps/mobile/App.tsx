@@ -51,6 +51,7 @@ import { BlogListScreen } from "./src/screens/BlogListScreen";
 import { BlogPostScreen } from "./src/screens/BlogPostScreen";
 import { PageScreen } from "./src/screens/PageScreen";
 import { HelpdeskScreen } from "./src/screens/HelpdeskScreen";
+import { HelpdeskAnswerScreen } from "./src/screens/HelpdeskAnswerScreen";
 import { HelpdeskThreadScreen } from "./src/screens/HelpdeskThreadScreen";
 
 // OS-level deep links (lms:// + the web origin) map straight onto the authed
@@ -291,6 +292,11 @@ function AppNavigator() {
         name="HelpdeskHome"
         component={HelpdeskScreen}
         options={{ title: "Support" }}
+      />
+      <AppStack.Screen
+        name="HelpdeskAnswer"
+        component={HelpdeskAnswerScreen}
+        options={({ route }) => ({ title: route.params.title })}
       />
       <AppStack.Screen
         name="HelpdeskThread"

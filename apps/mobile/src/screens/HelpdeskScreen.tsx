@@ -1,17 +1,19 @@
-// Member support — a real conversation, not a menu.
+// Support home — a launchpad, not a conversation.
 //
-// The guided phase is an append-only TRANSCRIPT: the bot greets, the member's
-// tap or typed message is echoed as their own bubble, and the answer arrives as
-// a bot bubble carrying that topic's account data. Quick-reply chips sit under
-// the LAST bot bubble and are consumed when used — the behaviour that turns a
-// button menu into a chat (Ada and Zendesk both do exactly this).
+// A support visit is usually several unrelated errands ("what did I pay?",
+// "where's my lesson?", "why is this locked?"). Stacking them into one endless
+// transcript buried the useful answer three screens up, so self-serve lookups
+// and the human channel now live in separate places:
 //
-// No language model: every answer is the member's own data, and the composer is
-// backed by a deterministic keyword router (@lms/types helpdesk-router). When
-// nothing matches we say so and offer to pass the message to a human.
+//   home (here) → topic rows, your requests, one ask/message box
+//   answer      → HelpdeskAnswerScreen: one topic, then back
+//   thread      → HelpdeskThreadScreen: an actual conversation with a person
 //
-// An answer never asks the member to rate it. JS-only; ships via EAS OTA.
-import { useEffect, useRef, useState } from "react";
+// The one text box routes: a recognised question opens that answer screen (the
+// deterministic keyword router — no language model), anything else becomes a
+// message to the team pre-filled with what was typed, so nothing is retyped.
+// JS-only; ships via EAS OTA.
+import { useEffect, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -41,11 +43,6 @@ import {
   useHelpdeskConversations,
   useMe,
 } from "../queries";
-import {
-  ClassesSummary,
-  CoursesSummary,
-  PaymentsSummary,
-} from "./helpdesk-summaries";
 import { Button } from "../components/Button";
 import { Chip } from "../components/Chip";
 import { Press } from "../components/Press";
@@ -61,49 +58,12 @@ import { useStyles, useTheme } from "../theme-provider";
 type PickedImage = { uri: string; mimeType?: string };
 
 const MAX_FILES = 3;
-/** How long the bot "thinks" before its bubble lands. Pacing is a designed
- *  feature of every mainstream support chat — an instant answer reads as a
- *  settings panel repainting, not as a reply. */
-const TYPING_MS = 450;
 
 const TOPIC_LABEL: Partial<Record<HelpdeskCategory, string>> = {
   ACCESS: STR.helpdesk.menuClasses,
   TECHNICAL: STR.helpdesk.menuCourses,
   BILLING: STR.helpdesk.menuPayments,
 };
-
-type ChipDef = {
-  key: string;
-  label: string;
-  category?: HelpdeskCategory;
-  action?: "requests";
-};
-
-type Turn = {
-  id: string;
-  role: "bot" | "member";
-  /** Bubble text. */
-  text?: string;
-  /** Render this topic's account-data card inside the bubble. */
-  answer?: HelpdeskCategory;
-  /** Render the member's existing tickets inside the bubble. */
-  requests?: boolean;
-  /** Quick replies — only ever shown under the LAST turn. */
-  chips?: ChipDef[];
-};
-
-const topicChips = (exclude?: HelpdeskCategory): ChipDef[] => [
-  ...ANSWERABLE.filter((c) => c !== exclude).map((c) => ({
-    key: c,
-    label: TOPIC_LABEL[c] ?? c,
-    category: c,
-  })),
-  {
-    key: "requests",
-    label: STR.helpdesk.myRequests,
-    action: "requests" as const,
-  },
-];
 
 function statusChip(status: HelpdeskStatus): {
   label: string;
@@ -141,7 +101,10 @@ async function pickAttachments(): Promise<PickedImage[]> {
     .map((a) => ({ uri: a.uri, mimeType: a.mimeType }));
 }
 
-export function HelpdeskScreen({ navigation }: ScreenProps<"HelpdeskHome">) {
+export function HelpdeskScreen({
+  route,
+  navigation,
+}: ScreenProps<"HelpdeskHome">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -151,206 +114,63 @@ export function HelpdeskScreen({ navigation }: ScreenProps<"HelpdeskHome">) {
   const configQuery = useHelpdeskConfig();
   const config = configQuery.data ?? null;
   const convQuery = useHelpdeskConversations(config?.enabled === true);
+  // The full list, closed tickets included — config.openConversations excludes
+  // CLOSED, which used to leave closed history unreachable.
   const conversations: HelpdeskConversationSummaryDTO[] =
     convQuery.data ?? config?.openConversations ?? [];
 
-  const [turns, setTurns] = useState<Turn[]>([]);
-  const [typing, setTyping] = useState(false);
   const [input, setInput] = useState("");
+  /** Non-null while the member is writing to a human. */
+  const [draft, setDraft] = useState<string | null>(null);
   const [images, setImages] = useState<PickedImage[]>([]);
   const [error, setError] = useState<string | null>(null);
-  /** Text the member will send to a human if they confirm. */
-  const [pendingEscalation, setPendingEscalation] = useState<string | null>(
-    null,
-  );
-  /** Editable body of the escalation — seeded from what the member typed, but
-   *  theirs to rewrite before it becomes a ticket. */
-  const [draft, setDraft] = useState("");
-
-  const seq = useRef(0);
-  const scrollRef = useRef<ScrollView>(null);
-  // Topics already counted this visit — deflection is 1 - escalations/cardViews,
-  // so the denominator must mean "distinct topics consulted", not taps.
-  const viewedRef = useRef<Set<HelpdeskCategory>>(new Set());
-  /** Topic labels consulted this visit — sent with a ticket so the admin sees
-   *  what the member already looked at. Mobile used to send none at all. */
-  const [trail, setTrail] = useState<string[]>([]);
-  /** The last topic the member actually OPENED. Escalations are filed against
-   *  it for stats so the deflection numerator and denominator share a
-   *  taxonomy — otherwise the topic that failed to deflect reads as 100%. */
-  const lastViewedRef = useRef<HelpdeskCategory | null>(null);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  /** The bot turn currently waiting on its typing delay (at most one). */
-  const pendingReply = useRef<{
-    turn: Omit<Turn, "id" | "role">;
-    timer: ReturnType<typeof setTimeout>;
-  } | null>(null);
 
   // Mirror the server's cap (helpdesk.service.ts OPEN_STATUSES): RESOLVED is
-  // reopenable and does NOT count. openConversations is "not CLOSED".
+  // reopenable and does NOT count toward it.
   const atCap =
     !!config &&
     config.openConversations.filter(
       (c) => c.status === "ESCALATED" || c.status === "WAITING_ON_MEMBER",
     ).length >= config.maxOpenPerMember;
-  const enabled = config?.enabled === true && config.requiresSignIn !== true;
-  const hasOpenRequest = (config?.openConversations.length ?? 0) > 0;
-  const firstName = me.data?.firstName;
-  const greetingText = config?.greeting;
 
-  // Open with the greeting + the topic menu as quick replies.
+  // An answer screen's "Still stuck?" hands back here asking for the composer.
+  const wantsCompose = route.params?.compose === true;
   useEffect(() => {
-    // Wait for /auth/me so the opening line keeps the member's first name.
-    if (!enabled || me.isPending) return;
-    setTurns((prev) => {
-      if (prev.length > 0) return prev;
-      const greeting = (greetingText || STR.helpdesk.greetingFallback).replace(
-        /\s*\{firstName\}/g,
-        firstName ? ` ${firstName}` : "",
-      );
-      const opening: Turn[] = [
-        { id: `t${++seq.current}`, role: "bot", text: greeting },
-      ];
-      // If a reply is waiting (that's what the unread badge pointed at), or a
-      // request is still open, put it on screen instead of making them hunt.
-      const waiting = (config?.unread ?? 0) > 0 || hasOpenRequest;
-      if (waiting)
-        opening.push({
-          id: `t${++seq.current}`,
-          role: "bot",
-          requests: true,
-          chips: topicChips(),
-        });
-      else opening[0].chips = topicChips();
-      return opening;
+    if (!wantsCompose) return;
+    setDraft((d) => (d === null && !atCap ? "" : d));
+    navigation.setParams({ compose: undefined });
+  }, [wantsCompose, atCap, navigation]);
+
+  function openAnswer(category: HelpdeskCategory) {
+    navigation.navigate("HelpdeskAnswer", {
+      category,
+      title: TOPIC_LABEL[category] ?? STR.helpdesk.title,
     });
-  }, [
-    enabled,
-    greetingText,
-    firstName,
-    me.isPending,
-    hasOpenRequest,
-    config?.unread,
-  ]);
-
-  useEffect(() => {
-    const pending = timers.current;
-    return () => pending.forEach(clearTimeout);
-  }, []);
-
-  /** Abandon any pending escalation, including its draft and attachments —
-   *  a screenshot picked for one message must never be uploaded onto another. */
-  function clearEscalation() {
-    setPendingEscalation(null);
-    setDraft("");
-    setImages([]);
-    setError(null);
-  }
-
-  /** Count a self-serve view — once per topic per visit, and only when the
-   *  answer actually contained data. */
-  function countView(category: HelpdeskCategory, hadData: boolean) {
-    if (!hadData || viewedRef.current.has(category)) return;
-    viewedRef.current.add(category);
-    api.helpdeskStatEvent(category, "cardView");
-  }
-
-  function push(turn: Omit<Turn, "id">) {
-    setTurns((t) => [...t, { ...turn, id: `t${++seq.current}` }]);
-  }
-
-  /** Land any bot turn that is still waiting on its typing delay, so a fast
-   *  second question can never overtake the answer to the first. */
-  function flushPending() {
-    if (!pendingReply.current) return;
-    clearTimeout(pendingReply.current.timer);
-    push({ ...pendingReply.current.turn, role: "bot" });
-    pendingReply.current = null;
-  }
-
-  /** The bot replies after a beat, so an answer reads as a reply. */
-  function botReply(turn: Omit<Turn, "id" | "role">) {
-    setTyping(true);
-    const timer = setTimeout(() => {
-      pendingReply.current = null;
-      setTyping(false);
-      push({ ...turn, role: "bot" });
-    }, TYPING_MS);
-    pendingReply.current = { turn, timer };
-    timers.current.push(timer);
-  }
-
-  function answerTopic(category: HelpdeskCategory, echo: string) {
-    flushPending();
-    push({ role: "member", text: echo });
-    clearEscalation();
-    setTrail((t) => (t.includes(echo) ? t : [...t, echo]));
-    lastViewedRef.current = category;
-    // The cardView is fired by the answer itself once it knows whether it had
-    // anything to say — see onAnswered below.
-    botReply({ answer: category, chips: topicChips(category) });
-  }
-
-  function showRequests(echo: string) {
-    flushPending();
-    push({ role: "member", text: echo });
-    clearEscalation();
-    // Always render the list turn and let it read the LIVE list — freezing an
-    // emptiness check here told members with only closed tickets, or whose
-    // list had not loaded yet, that they had never contacted support.
-    botReply({ requests: true, chips: topicChips() });
-  }
-
-  /** Open the escalation box seeded with `text`. `echo` renders the member's
-   *  own words first (skip it when they pressed the permanent button). */
-  function startEscalation(text: string, echo = false) {
-    flushPending();
-    if (echo) push({ role: "member", text });
-    if (atCap) {
-      setPendingEscalation(null);
-      botReply({ text: STR.helpdesk.tooManyOpen, chips: topicChips() });
-      return;
-    }
-    // Fresh draft + fresh attachments: a picked image must never ride along
-    // with a LATER, unrelated escalation.
-    setDraft(text);
-    setImages([]);
-    setPendingEscalation(text);
-    // Keep the menu alive — an unanswered message must not strand the member.
-    botReply({
-      text: text ? STR.helpdesk.cantAnswer : STR.helpdesk.describeIssue,
-      chips: topicChips(),
-    });
-  }
-
-  function onChip(c: ChipDef) {
-    if (c.action === "requests") return showRequests(c.label);
-    if (c.category) return answerTopic(c.category, c.label);
   }
 
   function onSend() {
     const text = input.trim();
     if (!text) return;
-    setInput("");
     setError(null);
+    setInput("");
     const intent = routeHelpdeskText(text, ANSWERABLE);
-    if (intent.kind === "topic") return answerTopic(intent.category, text);
-    if (intent.kind === "requests") return showRequests(text);
-    if (intent.kind === "human") {
-      // They asked for a person — don't claim we couldn't understand.
-      push({ role: "member", text });
-      return startEscalation(text);
+    // A question we can answer goes straight to that answer — faster than
+    // filing a ticket, and it keeps the deflection honest.
+    if (intent.kind === "topic") {
+      openAnswer(intent.category);
+      return;
     }
-    return startEscalation(text, true);
+    // Anything else becomes a message to the team, pre-filled.
+    setImages([]);
+    setDraft(text);
   }
 
   const startMutation = useMutation({
     mutationFn: async () => {
-      const issue = draft.trim();
+      const issue = (draft ?? "").trim();
       const thread = await api.helpdeskStart({
         issue,
         category: categoryForText(issue),
-        breadcrumbs: trail,
       });
       let latest = thread;
       const msgId = lastMemberMessageId(thread);
@@ -367,20 +187,14 @@ export function HelpdeskScreen({ navigation }: ScreenProps<"HelpdeskHome">) {
       return latest;
     },
     onSuccess: (thread) => {
-      // Attribute to the topic actually consulted when there was one; the
-      // TICKET still carries the text-derived category for admin triage.
-      api.helpdeskStatEvent(
-        lastViewedRef.current ?? thread.category,
-        "escalation",
-      );
+      api.helpdeskStatEvent(thread.category, "escalation");
       queryClient.setQueryData(qk.helpdeskThread(thread.id), thread);
       void queryClient.invalidateQueries({ queryKey: qk.helpdeskConfig });
       void queryClient.invalidateQueries({
         queryKey: qk.helpdeskConversations,
       });
       setImages([]);
-      setDraft("");
-      setPendingEscalation(null);
+      setDraft(null);
       navigation.navigate("HelpdeskThread", {
         conversationId: thread.id,
         subject: thread.subject,
@@ -441,7 +255,10 @@ export function HelpdeskScreen({ navigation }: ScreenProps<"HelpdeskHome">) {
     }
   }
 
-  const lastIndex = turns.length - 1;
+  const greeting = (config.greeting || STR.helpdesk.greetingFallback).replace(
+    /\s*\{firstName\}/g,
+    me.data?.firstName ? ` ${me.data.firstName}` : "",
+  );
 
   return (
     <KeyboardAvoidingView
@@ -450,113 +267,66 @@ export function HelpdeskScreen({ navigation }: ScreenProps<"HelpdeskHome">) {
       keyboardVerticalOffset={Platform.OS === "ios" ? 96 : 0}
     >
       <ScrollView
-        ref={scrollRef}
         style={styles.list}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
-        onContentSizeChange={() =>
-          scrollRef.current?.scrollToEnd({ animated: true })
-        }
       >
-        {turns.map((turn, i) => {
-          const mine = turn.role === "member";
-          const isLast = i === lastIndex;
-          return (
-            <View key={turn.id} style={styles.turn}>
-              {!mine && <Text style={styles.who}>{STR.helpdesk.botName}</Text>}
-              <View
-                style={[
-                  styles.bubble,
-                  mine ? styles.bubbleMine : styles.bubbleThem,
-                ]}
-              >
-                {turn.text ? (
-                  <Text style={mine ? styles.textMine : styles.text}>
-                    {turn.text}
-                  </Text>
-                ) : null}
-                {turn.answer === "ACCESS" && (
-                  <ClassesSummary
-                    onAnswered={(had) => countView("ACCESS", had)}
-                  />
-                )}
-                {turn.answer === "TECHNICAL" && (
-                  <CoursesSummary
-                    onAnswered={(had) => countView("TECHNICAL", had)}
-                  />
-                )}
-                {turn.answer === "BILLING" && (
-                  <PaymentsSummary
-                    navigation={navigation}
-                    onAnswered={(had) => countView("BILLING", had)}
-                  />
-                )}
-                {turn.requests && conversations.length === 0 && (
-                  <Text style={styles.text}>{STR.helpdesk.noRequests}</Text>
-                )}
-                {turn.requests && conversations.length > 0 && (
-                  <View style={styles.reqList}>
-                    {conversations.map((c) => {
-                      const chip = statusChip(c.status);
-                      return (
-                        <Press
-                          key={c.id}
-                          style={styles.reqRow}
-                          accessibilityRole="button"
-                          onPress={() =>
-                            navigation.navigate("HelpdeskThread", {
-                              conversationId: c.id,
-                              subject: c.subject,
-                              replyTimeNote: null,
-                            })
-                          }
-                        >
-                          <View style={styles.reqText}>
-                            <Text style={styles.reqName} numberOfLines={1}>
-                              {c.subject}
-                            </Text>
-                            <Text style={styles.reqDate}>
-                              {fmtDate(c.lastMessageAt)}
-                            </Text>
-                          </View>
-                          <Chip label={chip.label} tone={chip.tone} />
-                        </Press>
-                      );
-                    })}
-                  </View>
-                )}
-              </View>
-              {/* Chips belong to the newest bot turn only — older menus are
-                  spent, exactly as they are in Ada/Zendesk transcripts. */}
-              {!mine && isLast && turn.chips && turn.chips.length > 0 && (
-                <View style={styles.chipRow}>
-                  {turn.chips.map((c) => (
-                    <Press
-                      key={c.key}
-                      style={styles.chip}
-                      accessibilityRole="button"
-                      onPress={() => onChip(c)}
-                    >
-                      <Text style={styles.chipText}>{c.label}</Text>
-                    </Press>
-                  ))}
-                </View>
-              )}
-            </View>
-          );
-        })}
+        <View style={styles.greetCard}>
+          <Text style={styles.greet}>{greeting}</Text>
+        </View>
 
-        {typing && (
-          <View style={styles.turn}>
-            <Text style={styles.who}>{STR.helpdesk.botName}</Text>
-            <View style={[styles.bubble, styles.bubbleThem]}>
-              <Text style={styles.typing}>{STR.helpdesk.typing}</Text>
-            </View>
-          </View>
+        <Text style={styles.section}>{STR.helpdesk.findAnswer}</Text>
+        {ANSWERABLE.map((c) => (
+          <Press
+            key={c}
+            style={styles.row}
+            accessibilityRole="button"
+            onPress={() => openAnswer(c)}
+          >
+            <Text style={styles.rowLabel}>{TOPIC_LABEL[c]}</Text>
+            <Text style={styles.chevron}>›</Text>
+          </Press>
+        ))}
+
+        {/* Work already in flight with the team, on screen the moment support
+            opens — this is what the unread badge was pointing at. */}
+        {conversations.length > 0 && (
+          <>
+            <Text style={styles.section}>{STR.helpdesk.yourRequests}</Text>
+            {conversations.map((c) => {
+              const chip = statusChip(c.status);
+              return (
+                <Press
+                  key={c.id}
+                  style={styles.row}
+                  accessibilityRole="button"
+                  onPress={() =>
+                    navigation.navigate("HelpdeskThread", {
+                      conversationId: c.id,
+                      subject: c.subject,
+                      replyTimeNote: null,
+                    })
+                  }
+                >
+                  <View style={styles.reqText}>
+                    <Text style={styles.rowLabel} numberOfLines={1}>
+                      {c.subject}
+                    </Text>
+                    <Text style={styles.reqDate}>
+                      {fmtDate(c.lastMessageAt)}
+                    </Text>
+                  </View>
+                  {c.unread ? <View style={styles.unread} /> : null}
+                  <Chip label={chip.label} tone={chip.tone} />
+                </Press>
+              );
+            })}
+          </>
         )}
 
-        {/* Confirm-to-send: the composer's escape hatch when nothing matched. */}
-        {pendingEscalation !== null && !atCap && (
+        {/* Writing to a person — opened by the composer or by an answer's
+            "Still stuck?", always seeded so nothing is retyped. */}
+        {draft !== null && !atCap && (
           <View style={styles.sendBox}>
             <TextInput
               style={styles.draft}
@@ -605,21 +375,11 @@ export function HelpdeskScreen({ navigation }: ScreenProps<"HelpdeskHome">) {
             </View>
           </View>
         )}
-      </ScrollView>
 
-      {/* The ONE permanent, discoverable route to a person — so no answer has
-          to offer it and no member has to guess a magic word. */}
-      <Press
-        style={styles.strip}
-        accessibilityRole="button"
-        onPress={() => startEscalation("")}
-      >
-        <Text style={styles.stripText}>
-          {atCap
-            ? STR.helpdesk.tooManyOpen
-            : `${STR.helpdesk.stillStuck} ${STR.helpdesk.messageTeam}`}
-        </Text>
-      </Press>
+        {atCap && (
+          <Text style={styles.capNote}>{STR.helpdesk.tooManyOpen}</Text>
+        )}
+      </ScrollView>
 
       <View style={[styles.composer, { paddingBottom: insets.bottom + 8 }]}>
         <TextInput
@@ -650,11 +410,7 @@ function makeStyles({ colors, fonts }: Theme) {
   return StyleSheet.create({
     screen: { flex: 1, backgroundColor: colors.bg },
     list: { flex: 1 },
-    listContent: {
-      ...contentColumn,
-      paddingVertical: spacing.md,
-      gap: spacing.sm,
-    },
+    content: { ...contentColumn, paddingVertical: spacing.md, gap: spacing.sm },
     skeletons: {
       flex: 1,
       backgroundColor: colors.bg,
@@ -663,85 +419,59 @@ function makeStyles({ colors, fonts }: Theme) {
     },
     skelRow: { marginBottom: spacing.xs },
 
-    turn: { gap: 2 },
-    who: {
-      color: colors.textMuted,
-      fontFamily: fonts.semibold,
-      fontSize: 11,
-      marginLeft: 4,
-    },
-    bubble: {
-      maxWidth: "92%",
-      borderRadius: 14,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: spacing.sm,
-    },
-    bubbleMine: { alignSelf: "flex-end", backgroundColor: colors.primary },
-    bubbleThem: {
-      alignSelf: "flex-start",
+    greetCard: {
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.borderSoft,
+      borderRadius: 14,
+      padding: spacing.md,
     },
-    text: {
+    greet: {
       color: colors.text,
-      fontFamily: fonts.regular,
+      fontFamily: fonts.medium,
       fontSize: 15,
-      lineHeight: 21,
+      lineHeight: 22,
     },
-    textMine: {
-      color: colors.onPrimary,
-      fontFamily: fonts.regular,
-      fontSize: 15,
-      lineHeight: 21,
-    },
-    typing: {
+    section: {
       color: colors.textMuted,
       fontFamily: fonts.semibold,
-      fontSize: 18,
-      lineHeight: 21,
+      fontSize: 12,
+      textTransform: "uppercase",
+      letterSpacing: 0.6,
+      marginTop: spacing.sm,
+      marginBottom: -2,
     },
-
-    chipRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: spacing.xs,
-      marginTop: spacing.xs,
-    },
-    chip: {
-      borderWidth: 1,
-      borderColor: colors.primary,
-      borderRadius: 999,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 7,
-    },
-    chipText: {
-      color: colors.primary,
-      fontFamily: fonts.semibold,
-      fontSize: 12.5,
-    },
-
-    reqList: { gap: spacing.xs, marginTop: spacing.xs },
-    reqRow: {
+    row: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 12,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 14,
       gap: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: colors.borderSoft,
-      paddingTop: spacing.xs,
     },
-    reqText: { flexShrink: 1 },
-    reqName: {
+    rowLabel: {
       color: colors.text,
       fontFamily: fonts.semibold,
-      fontSize: 14,
+      fontSize: 15,
+      flexShrink: 1,
     },
+    chevron: { color: colors.textMuted, fontSize: 20 },
+    reqText: { flexShrink: 1 },
     reqDate: {
       color: colors.textMuted,
       fontFamily: fonts.regular,
       fontSize: 12,
       marginTop: 2,
+    },
+    unread: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.primary,
     },
 
     sendBox: {
@@ -751,10 +481,10 @@ function makeStyles({ colors, fonts }: Theme) {
       borderRadius: 14,
       padding: spacing.md,
       gap: spacing.sm,
-      marginTop: spacing.xs,
+      marginTop: spacing.sm,
     },
     draft: {
-      minHeight: 72,
+      minHeight: 84,
       borderWidth: 1,
       borderColor: colors.border,
       borderRadius: 10,
@@ -764,18 +494,6 @@ function makeStyles({ colors, fonts }: Theme) {
       fontSize: 15,
       padding: spacing.sm,
       textAlignVertical: "top",
-    },
-    strip: {
-      alignItems: "center",
-      paddingVertical: spacing.xs,
-      borderTopWidth: 1,
-      borderTopColor: colors.borderSoft,
-      backgroundColor: colors.surface,
-    },
-    stripText: {
-      color: colors.textMuted,
-      fontFamily: fonts.semibold,
-      fontSize: 12.5,
     },
     sendActions: {
       flexDirection: "row",
@@ -795,6 +513,12 @@ function makeStyles({ colors, fonts }: Theme) {
       color: colors.danger,
       fontFamily: fonts.regular,
       fontSize: 13,
+    },
+    capNote: {
+      color: colors.textMuted,
+      fontFamily: fonts.regular,
+      fontSize: 13,
+      marginTop: spacing.sm,
     },
 
     composer: {
