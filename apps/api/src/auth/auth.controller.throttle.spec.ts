@@ -27,7 +27,10 @@ const THROTTLED_ROUTES = [
 ] as const;
 
 function handler(name: string): object {
-  const fn = (AuthController.prototype as Record<string, unknown>)[name];
+  // Deliberate reflection: routes are looked up by name off the prototype, so
+  // the class type must be laundered through `unknown` into an indexable shape.
+  const proto = AuthController.prototype as unknown as Record<string, unknown>;
+  const fn = proto[name];
   assert.equal(typeof fn, "function", `handler ${name} exists`);
   return fn as object;
 }
