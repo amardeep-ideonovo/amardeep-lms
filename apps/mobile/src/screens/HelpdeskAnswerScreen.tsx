@@ -15,6 +15,8 @@ import type { HelpdeskCategory } from "@lms/types";
 
 import { api } from "../api";
 import {
+  AccountSummary,
+  CertificatesSummary,
   ClassesSummary,
   CoursesSummary,
   PaymentsSummary,
@@ -31,6 +33,8 @@ const TOPIC_LABEL: Partial<Record<HelpdeskCategory, string>> = {
   ACCESS: STR.helpdesk.menuClasses,
   TECHNICAL: STR.helpdesk.menuCourses,
   BILLING: STR.helpdesk.menuPayments,
+  CERTIFICATE: STR.helpdesk.menuCertificates,
+  ACCOUNT: STR.helpdesk.menuAccount,
 };
 
 export function HelpdeskAnswerScreen({
@@ -58,6 +62,10 @@ export function HelpdeskAnswerScreen({
         {category === "BILLING" && (
           <PaymentsSummary navigation={navigation} onAnswered={onAnswered} />
         )}
+        {category === "CERTIFICATE" && (
+          <CertificatesSummary onAnswered={onAnswered} />
+        )}
+        {category === "ACCOUNT" && <AccountSummary onAnswered={onAnswered} />}
       </View>
 
       {related.length > 0 && (

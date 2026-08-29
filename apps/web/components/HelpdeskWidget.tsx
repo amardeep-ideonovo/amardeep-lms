@@ -33,6 +33,7 @@ import type {
   MySubscriptionDTO,
 } from "@lms/types";
 import { ApiError, api, getToken } from "@/lib/api";
+import { HELPDESK_OPEN_EVENT } from "@/lib/helpdesk-bus";
 import {
   qk,
   useHelpdeskArticles,
@@ -42,6 +43,7 @@ import {
   useLiveCurrent,
   useMemberDashboard,
   useMe,
+  useMyCertificates,
   useMyClasses,
   useMyInvoices,
   useMySubStatuses,
@@ -57,6 +59,8 @@ const ANSWERABLE: HelpdeskCategory[] = [
   "TECHNICAL",
   "BILLING",
   "LIVE_SESSION",
+  "CERTIFICATE",
+  "ACCOUNT",
 ];
 
 const TOPIC_LABEL: Partial<Record<HelpdeskCategory, string>> = {
@@ -64,6 +68,8 @@ const TOPIC_LABEL: Partial<Record<HelpdeskCategory, string>> = {
   TECHNICAL: STR.helpdesk.menuCourses,
   BILLING: STR.helpdesk.menuPayments,
   LIVE_SESSION: STR.helpdesk.menuLive,
+  CERTIFICATE: STR.helpdesk.menuCertificates,
+  ACCOUNT: STR.helpdesk.menuAccount,
 };
 
 function fireStat(
@@ -91,6 +97,22 @@ export default function HelpdeskWidget() {
   // first client render agree — avoids a hydration mismatch on the FAB.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  /** Latest openAnswer, for the contextual-entry event listener below — the
+   *  handler is registered once but must call into current state setters. */
+  const openAnswerRef = useRef<(c: HelpdeskCategory) => void>(() => {});
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      if (!getToken()) return;
+      const category = (e as CustomEvent<{ category?: HelpdeskCategory }>)
+        .detail?.category;
+      setOpen(true);
+      if (category && ANSWERABLE.includes(category))
+        openAnswerRef.current(category);
+    };
+    window.addEventListener(HELPDESK_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(HELPDESK_OPEN_EVENT, onOpen);
+  }, []);
 
   /** Topics whose cardView has been counted this visit (reset on close). */
   const viewedRef = useRef<Set<HelpdeskCategory>>(new Set());
@@ -141,6 +163,7 @@ export default function HelpdeskWidget() {
     setAnswer(category);
     setView("answer");
   }
+  openAnswerRef.current = openAnswer;
 
   function openArticle(a: HelpdeskArticleDTO) {
     setTrail((t) => (t.includes(a.title) ? t : [...t, a.title]));
@@ -318,6 +341,16 @@ export default function HelpdeskWidget() {
                   {answer === "LIVE_SESSION" && (
                     <LiveView
                       onAnswered={(had) => countView("LIVE_SESSION", had)}
+                    />
+                  )}
+                  {answer === "CERTIFICATE" && (
+                    <CertificatesView
+                      onAnswered={(had) => countView("CERTIFICATE", had)}
+                    />
+                  )}
+                  {answer === "ACCOUNT" && (
+                    <AccountView
+                      onAnswered={(had) => countView("ACCOUNT", had)}
                     />
                   )}
                 </div>
@@ -971,6 +1004,70 @@ function LiveView({ onAnswered }: { onAnswered?: OnAnswered }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- certificates
+
+function CertificatesView({ onAnswered }: { onAnswered?: OnAnswered }) {
+  const certsQ = useMyCertificates();
+  const certs = certsQ.data ?? [];
+  useAnswered(onAnswered, !certsQ.isLoading, certs.length > 0);
+  if (certsQ.isLoading) return <Loading />;
+  if (certsQ.isError)
+    return <p className="helpdesk-empty">{STR.errors.generic}</p>;
+  if (certs.length === 0)
+    return <p className="helpdesk-empty">{STR.helpdesk.summaryNoCerts}</p>;
+
+  return (
+    <div className="helpdesk-answer">
+      <p className="helpdesk-lead">
+        {STR.helpdesk.summaryCertsCount(certs.length)}
+      </p>
+      {certs.map((c) => (
+        <div key={c.id} className="helpdesk-fact-row">
+          <span className="helpdesk-fact-key">{c.className}</span>
+          <span className="helpdesk-fact-val">
+            {formatDateLong(c.issuedAt)}
+          </span>
+        </div>
+      ))}
+      <div className="helpdesk-actions">
+        <a className="helpdesk-btn" href="/certificates">
+          {STR.helpdesk.viewCertificates}
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- account
+
+function AccountView({ onAnswered }: { onAnswered?: OnAnswered }) {
+  const me = useMe();
+  useAnswered(onAnswered, !me.isLoading, !!me.data);
+  if (me.isLoading) return <Loading />;
+  if (!me.data) return <p className="helpdesk-empty">{STR.errors.generic}</p>;
+
+  const name = [me.data.firstName, me.data.lastName].filter(Boolean).join(" ");
+  return (
+    <div className="helpdesk-answer">
+      {name && <p className="helpdesk-lead">{name}</p>}
+      <div className="helpdesk-fact-row">
+        <span className="helpdesk-fact-key">{STR.labels.email}</span>
+        <span className="helpdesk-fact-val">{me.data.email}</span>
+      </div>
+      <div className="helpdesk-fact-row">
+        <span className="helpdesk-fact-key">{STR.labels.username}</span>
+        <span className="helpdesk-fact-val">{me.data.username}</span>
+      </div>
+      <p className="helpdesk-hint">{STR.helpdesk.accountManageHint}</p>
+      <div className="helpdesk-actions">
+        <a className="helpdesk-btn" href="/account">
+          {STR.helpdesk.manageAccount}
+        </a>
+      </div>
     </div>
   );
 }

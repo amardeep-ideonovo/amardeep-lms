@@ -64,6 +64,8 @@ const TOPIC_LABEL: Partial<Record<HelpdeskCategory, string>> = {
   ACCESS: STR.helpdesk.menuClasses,
   TECHNICAL: STR.helpdesk.menuCourses,
   BILLING: STR.helpdesk.menuPayments,
+  CERTIFICATE: STR.helpdesk.menuCertificates,
+  ACCOUNT: STR.helpdesk.menuAccount,
 };
 
 function statusChip(status: HelpdeskStatus): {

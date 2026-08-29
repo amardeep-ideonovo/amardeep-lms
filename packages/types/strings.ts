@@ -89,6 +89,8 @@ export const STR = {
     menuCourses: "My courses & lessons",
     menuPayments: "Payments",
     menuLive: "Live session",
+    menuCertificates: "My certificates",
+    menuAccount: "Account & sign-in",
     menuSomethingElse: "Something else",
     myRequests: "My requests",
     viewAll: "View all",
@@ -171,5 +173,16 @@ export const STR = {
     summaryNoPayments: "No payments on file yet.",
     membershipActive: "Your membership is active.",
     membershipItem: "your membership",
+    summaryCertsCount: (n: number) =>
+      `You’ve earned ${n} ${n === 1 ? "certificate" : "certificates"}:`,
+    summaryNoCerts:
+      "No certificates yet — they’re awarded when you complete a class.",
+    /** Pointer under the account card — info-only surfaces never navigate. */
+    accountManageHint: "Change your details or password in account settings.",
+    viewCertificates: "View certificates",
+    // Contextual entry points — a quiet question near the moment of need,
+    // paired with the standing "Get help" label as the action.
+    entryPayments: "Questions about a payment?",
+    entryCertificates: "Missing a certificate?",
   },
 } as const;

@@ -6740,6 +6740,51 @@ a.ik-prog-row:hover {
   margin: 0;
   font-weight: 600;
 }
+/* Key/value fact rows (certificates, account details). */
+.helpdesk-fact-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 13.5px;
+}
+.helpdesk-fact-key {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 12.5px;
+  flex: none;
+}
+.helpdesk-fact-val {
+  color: var(--text);
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.helpdesk-hint {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+/* Contextual entry link on member pages ("Questions about a payment?"). */
+.helpdesk-entry {
+  margin: 18px 0 0;
+  text-align: center;
+}
+.helpdesk-entry button {
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+.helpdesk-entry button:hover {
+  color: var(--teal-text);
+}
 .helpdesk-sendbox {
   display: flex;
   flex-direction: column;

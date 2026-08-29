@@ -8,10 +8,12 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { STR } from "@lms/types";
 import type { InvoiceDTO } from "@lms/types";
 
 import { useMyInvoices } from "../queries";
 import { Chip } from "../components/Chip";
+import { Press } from "../components/Press";
 import { EmptyState, ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { fmtDate, money } from "../format";
@@ -63,7 +65,7 @@ function InvoiceRow({ inv }: { inv: InvoiceDTO }) {
   );
 }
 
-export function PaymentsScreen(_props: ScreenProps<"Payments">) {
+export function PaymentsScreen({ navigation }: ScreenProps<"Payments">) {
   const styles = useStyles(makeStyles);
   // react-query keeps the rendered rows across refetches, so a pull-to-refresh
   // never drops the list back to skeletons and a refetch that FAILS leaves them
@@ -108,7 +110,33 @@ export function PaymentsScreen(_props: ScreenProps<"Payments">) {
       </View>
     );
   }
-  if (invoices.length === 0) return <EmptyState message="No payments yet." />;
+  // Contextual entry to support — a quiet question at the moment of need,
+  // landing on the BILLING answer (the member's own payment state) rather
+  // than a blank ticket form.
+  const helpEntry = (
+    <Press
+      style={styles.helpEntry}
+      accessibilityRole="button"
+      onPress={() =>
+        navigation.navigate("HelpdeskAnswer", {
+          category: "BILLING",
+          title: STR.helpdesk.menuPayments,
+        })
+      }
+    >
+      <Text style={styles.helpEntryText}>
+        {STR.helpdesk.entryPayments} {STR.helpdesk.open}
+      </Text>
+    </Press>
+  );
+
+  if (invoices.length === 0)
+    return (
+      <View style={styles.emptyWrap}>
+        <EmptyState message="No payments yet." />
+        {helpEntry}
+      </View>
+    );
 
   return (
     <FlatList
@@ -117,6 +145,7 @@ export function PaymentsScreen(_props: ScreenProps<"Payments">) {
       data={invoices}
       keyExtractor={(inv) => inv.id}
       renderItem={({ item }) => <InvoiceRow inv={item} />}
+      ListFooterComponent={helpEntry}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
@@ -128,6 +157,13 @@ const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
     list: { flex: 1, backgroundColor: colors.bg },
     content: { padding: spacing.md, ...contentColumn },
+    emptyWrap: { flex: 1, backgroundColor: colors.bg },
+    helpEntry: { alignItems: "center", paddingVertical: spacing.md },
+    helpEntryText: {
+      color: colors.textMuted,
+      fontFamily: fonts.semibold,
+      fontSize: 13,
+    },
     skeletons: { flex: 1, backgroundColor: colors.bg, padding: spacing.md },
     skeletonRow: { marginBottom: spacing.sm },
     row: {

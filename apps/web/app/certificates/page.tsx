@@ -10,6 +10,8 @@ import {
   classIndexMap,
   classPct,
 } from "@/lib/memberData";
+import { STR } from "@lms/types";
+import { openHelpdeskAnswer } from "@/lib/helpdesk-bus";
 import { useMemberDashboard, useMyCertificates } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
 import SpotlightLogo from "@/components/SpotlightLogo";
@@ -292,6 +294,13 @@ function CertificatesInner() {
           </section>
         )}
       </div>
+
+      {/* Contextual entry to support — lands on the CERTIFICATE answer. */}
+      <p className="helpdesk-entry">
+        <button type="button" onClick={() => openHelpdeskAnswer("CERTIFICATE")}>
+          {STR.helpdesk.entryCertificates} {STR.helpdesk.open}
+        </button>
+      </p>
     </div>
   );
 }

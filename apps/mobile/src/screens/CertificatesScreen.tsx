@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { STR } from "@lms/types";
 import type { MyCertificateDTO } from "@lms/types";
 
 import { certificateDownloadUrl } from "../api";
@@ -27,13 +28,16 @@ import { CtaButton } from "../components/CtaButton";
 import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { fmtDate } from "../format";
+import { Press } from "../components/Press";
 import type { ScreenProps } from "../navigation";
 import { contentColumn } from "../responsive";
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
 
-export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
+export function CertificatesScreen({
+  navigation,
+}: ScreenProps<"Certificates">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
 
@@ -296,12 +300,34 @@ export function CertificatesScreen(_props: ScreenProps<"Certificates">) {
           })}
         </>
       ) : null}
+
+      {/* Contextual entry to support — lands on the CERTIFICATE answer. */}
+      <Press
+        style={styles.helpEntry}
+        accessibilityRole="button"
+        onPress={() =>
+          navigation.navigate("HelpdeskAnswer", {
+            category: "CERTIFICATE",
+            title: STR.helpdesk.menuCertificates,
+          })
+        }
+      >
+        <Text style={styles.helpEntryText}>
+          {STR.helpdesk.entryCertificates} {STR.helpdesk.open}
+        </Text>
+      </Press>
     </ScrollView>
   );
 }
 
 const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
+    helpEntry: { alignItems: "center", paddingVertical: spacing.md },
+    helpEntryText: {
+      color: colors.textMuted,
+      fontFamily: fonts.semibold,
+      fontSize: 13,
+    },
     screen: { flex: 1, backgroundColor: colors.bg },
     content: { padding: spacing.md, gap: 12, ...contentColumn },
     skeletonWrap: {
