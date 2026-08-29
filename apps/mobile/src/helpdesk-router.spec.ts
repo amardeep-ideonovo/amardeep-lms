@@ -244,3 +244,14 @@ test("without articles the router behaves exactly as before", () => {
     { kind: "article", articleId: "a-schedule" },
   );
 });
+
+test("certificate and account questions now land on their own cards", () => {
+  assert.deepEqual(routeHelpdeskText("where is my certificate", ANSWERABLE), {
+    kind: "topic",
+    category: "CERTIFICATE",
+  });
+  assert.deepEqual(routeHelpdeskText("I cant log in", ANSWERABLE), {
+    kind: "topic",
+    category: "ACCOUNT",
+  });
+});

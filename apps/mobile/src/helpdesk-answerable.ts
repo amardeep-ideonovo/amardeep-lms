@@ -14,4 +14,6 @@ export const ANSWERABLE: HelpdeskCategory[] = [
   "ACCESS",
   "TECHNICAL",
   "BILLING",
+  "CERTIFICATE",
+  "ACCOUNT",
 ];

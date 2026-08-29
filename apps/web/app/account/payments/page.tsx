@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { STR, formatMoney } from "@lms/types";
+import { openHelpdeskAnswer } from "@/lib/helpdesk-bus";
 import { ApiError } from "@/lib/api";
 import { useMyInvoices } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
@@ -89,6 +90,14 @@ function PaymentsInner() {
             </table>
           )}
         </section>
+
+        {/* Contextual entry to support — opens the widget on the BILLING
+            answer (the member's own payment state), not a blank ticket. */}
+        <p className="helpdesk-entry">
+          <button type="button" onClick={() => openHelpdeskAnswer("BILLING")}>
+            {STR.helpdesk.entryPayments} {STR.helpdesk.open}
+          </button>
+        </p>
       </div>
     </div>
   );

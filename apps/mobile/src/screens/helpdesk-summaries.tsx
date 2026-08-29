@@ -17,6 +17,8 @@ import type { SubscriptionDetailDTO } from "@lms/types";
 
 import {
   useCourses,
+  useMe,
+  useMyCertificates,
   useMyClasses,
   useMyInvoices,
   useMySubscriptionDetails,
@@ -308,6 +310,68 @@ export function PaymentsSummary({
   );
 }
 
+export function CertificatesSummary({
+  onAnswered,
+}: {
+  onAnswered?: OnAnswered;
+}) {
+  const styles = useStyles(makeStyles);
+  const certsQ = useMyCertificates();
+  const certs = certsQ.data ?? [];
+  useAnswered(onAnswered, !certsQ.isPending, certs.length > 0);
+
+  if (certsQ.isPending) return <SummarySkeleton />;
+  if (certsQ.isError) return <ErrorNote />;
+  if (certs.length === 0)
+    return <EmptyNote text={STR.helpdesk.summaryNoCerts} />;
+
+  return (
+    <View style={styles.block}>
+      <Text style={styles.lead}>
+        {STR.helpdesk.summaryCertsCount(certs.length)}
+      </Text>
+      {certs.map((c) => (
+        <View key={c.id} style={styles.factRowSplit}>
+          <Text style={styles.progressLabel} numberOfLines={1}>
+            {c.className}
+          </Text>
+          <Text style={styles.progressMeta}>{fmtDate(c.issuedAt)}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function AccountSummary({ onAnswered }: { onAnswered?: OnAnswered }) {
+  const styles = useStyles(makeStyles);
+  const meQ = useMe();
+  const me = meQ.data ?? null;
+  useAnswered(onAnswered, !meQ.isPending, me !== null);
+
+  if (meQ.isPending) return <SummarySkeleton />;
+  if (meQ.isError || me === null) return <ErrorNote />;
+
+  const name = [me.firstName, me.lastName].filter(Boolean).join(" ");
+  return (
+    <View style={styles.block}>
+      {name ? <Text style={styles.lead}>{name}</Text> : null}
+      <View style={styles.factRowSplit}>
+        <Text style={styles.factKey}>{STR.labels.email}</Text>
+        <Text style={styles.factVal} numberOfLines={1}>
+          {me.email}
+        </Text>
+      </View>
+      <View style={styles.factRowSplit}>
+        <Text style={styles.factKey}>{STR.labels.username}</Text>
+        <Text style={styles.factVal} numberOfLines={1}>
+          {me.username}
+        </Text>
+      </View>
+      <Text style={styles.hint}>{STR.helpdesk.accountManageHint}</Text>
+    </View>
+  );
+}
+
 function makeStyles({ colors, fonts }: Theme) {
   return StyleSheet.create({
     block: { gap: spacing.sm },
@@ -388,6 +452,32 @@ function makeStyles({ colors, fonts }: Theme) {
       color: colors.success,
       fontFamily: fonts.semibold,
       fontSize: 12.5,
+    },
+
+    factRowSplit: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+      paddingVertical: 4,
+    },
+    factKey: {
+      color: colors.textMuted,
+      fontFamily: fonts.semibold,
+      fontSize: 12.5,
+    },
+    factVal: {
+      color: colors.text,
+      fontFamily: fonts.medium,
+      fontSize: 14,
+      flexShrink: 1,
+    },
+    hint: {
+      color: colors.textMuted,
+      fontFamily: fonts.regular,
+      fontSize: 12.5,
+      lineHeight: 18,
+      marginTop: 2,
     },
 
     // ---- states --------------------------------------------------------
