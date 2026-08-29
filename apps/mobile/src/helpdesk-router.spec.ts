@@ -178,7 +178,11 @@ test("multi-word keywords match as phrases", () => {
 test("a title-only match fires only when no topic claims the message", () => {
   // Two title words, no topic word anywhere → the article answers.
   assert.deepEqual(
-    routeHelpdeskText("what are the studio opening hours", ANSWERABLE, ARTICLES),
+    routeHelpdeskText(
+      "what are the studio opening hours",
+      ANSWERABLE,
+      ARTICLES,
+    ),
     { kind: "article", articleId: "a-schedule" },
   );
   // A topic word in the sentence → the topic keeps the message; incidental
@@ -194,14 +198,21 @@ test("one short incidental title word is below the bar", () => {
     routeHelpdeskText("hours and hours of fun", ANSWERABLE, []),
     { kind: "unknown" },
   );
-  assert.deepEqual(routeHelpdeskText("nothing relevant here", ANSWERABLE, ARTICLES), {
-    kind: "unknown",
-  });
+  assert.deepEqual(
+    routeHelpdeskText("nothing relevant here", ANSWERABLE, ARTICLES),
+    {
+      kind: "unknown",
+    },
+  );
 });
 
 test("an explicit ask for a person still beats an article keyword", () => {
   assert.deepEqual(
-    routeHelpdeskText("I read the refund article, talk to someone", ANSWERABLE, ARTICLES),
+    routeHelpdeskText(
+      "I read the refund article, talk to someone",
+      ANSWERABLE,
+      ARTICLES,
+    ),
     { kind: "human" },
   );
 });
