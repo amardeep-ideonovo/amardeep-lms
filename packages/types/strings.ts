@@ -109,6 +109,8 @@ export const STR = {
     /** Eyebrow on an answer card — marks it as LIVE personal data, which is
      *  what visually separates an answer from the menu that led to it. */
     fromYourAccount: "From your account",
+    /** Eyebrow on a help-article card — academy content, not account data. */
+    helpArticleEyebrow: "Help article",
     yourRequests: "Your requests",
     relatedHeading: "Related",
     /** One box: a recognised question opens that answer, anything else becomes

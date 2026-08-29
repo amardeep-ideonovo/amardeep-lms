@@ -133,7 +133,8 @@ export default function HelpdeskArticlesPage() {
         <div>
           <h1>FAQ articles</h1>
           <p className="subtitle">
-            Shown to members on the help widget’s “Something else” screen.
+            Listed on the members’ Support home — and when a member types a
+            question, keywords route it straight to the matching article.
           </p>
         </div>
         <Link href="/helpdesk" className={buttonClass({ variant: "ghost" })}>
@@ -198,6 +199,14 @@ export default function HelpdeskArticlesPage() {
                 value={form.keywords}
                 onChange={(e) => setForm({ ...form, keywords: e.target.value })}
               />
+              <p
+                className="muted"
+                style={{ fontSize: 12.5, margin: "4px 0 0" }}
+              >
+                When a member types a question into support, these words route
+                it to this article — a keyword here outranks the built-in
+                topics, and multi-word keywords like “log in” match as phrases.
+              </p>
             </div>
           </div>
           <label

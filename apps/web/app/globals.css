@@ -6638,6 +6638,20 @@ a.ik-prog-row:hover {
   color: var(--muted);
 }
 
+/* Help-article body — admin-authored plain text, split into paragraphs. */
+.helpdesk-article-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.helpdesk-article-body p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-line;
+}
+
 /* Payments hero — the fact the member came for, at a glance. */
 .helpdesk-hero {
   display: flex;

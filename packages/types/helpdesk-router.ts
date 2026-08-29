@@ -34,6 +34,7 @@ const TOPIC_WORDS: { category: HelpdeskCategory; words: readonly string[] }[] =
         "charged",
         "card",
         "refund",
+        "refunds",
         "refunded",
         "subscription",
         "subscribe",
@@ -42,7 +43,6 @@ const TOPIC_WORDS: { category: HelpdeskCategory; words: readonly string[] }[] =
         "receipt",
         "price",
         "cost",
-        "charged",
         "money",
       ],
     },
@@ -219,9 +219,20 @@ function tokenize(raw: string): Set<string> {
   );
 }
 
+/** What the router needs to know about a help article. Structural on purpose —
+ *  both surfaces pass their fetched `HelpdeskArticleDTO`s straight in, and an
+ *  API that predates keywords simply yields no keyword hits. */
+export type RoutableArticle = {
+  id: string;
+  title: string;
+  keywords?: readonly string[];
+};
+
 export type HelpdeskIntent =
   /** Answerable from the member's own account — render that topic's card. */
   | { kind: "topic"; category: HelpdeskCategory }
+  /** An admin-authored help article answers this — render it. */
+  | { kind: "article"; articleId: string }
   /** "show my requests" */
   | { kind: "requests" }
   /** An explicit ask for a human — hand straight over, no guessing. */
@@ -236,10 +247,22 @@ export type HelpdeskIntent =
  * (web and mobile differ — mobile has no live-session card). A category we
  * recognise but cannot answer still beats "unknown": it pre-fills the ticket
  * with the right category instead of dumping the member into OTHER.
+ *
+ * `articles` is this academy's published FAQ. Precedence, in order:
+ *   1. an explicit ask for a human (never trapped behind content),
+ *   2. "my tickets",
+ *   3. an article with a KEYWORD hit — the admin typed those keywords for
+ *      exactly this academy, which outranks the product-wide topic vocabulary
+ *      ("how do refunds work" should open the refund POLICY, not the member's
+ *      last payment),
+ *   4. a topic card,
+ *   5. an article matched only on its title words — incidental language, so it
+ *      only fires when no topic claims the message.
  */
 export function routeHelpdeskText(
   raw: string,
   answerable: readonly HelpdeskCategory[],
+  articles: readonly RoutableArticle[] = [],
 ): HelpdeskIntent {
   const tokens = tokenize(raw);
   if (tokens.size === 0) return { kind: "unknown" };
@@ -257,11 +280,63 @@ export function routeHelpdeskText(
   if (REQUEST_PHRASES.some((ph) => text.includes(ph)))
     return { kind: "requests" };
 
+  const article = bestArticle(tokens, text, articles);
+  if (article?.keywordHit) return { kind: "article", articleId: article.id };
+
   const best = bestCategory(tokens, text);
-  if (!best) return { kind: "unknown" };
-  return answerable.includes(best)
-    ? { kind: "topic", category: best }
-    : { kind: "unknown" };
+  if (best)
+    return answerable.includes(best)
+      ? { kind: "topic", category: best }
+      : { kind: "unknown" };
+
+  if (article) return { kind: "article", articleId: article.id };
+  return { kind: "unknown" };
+}
+
+/** Best-matching article, or null when nothing clears the bar.
+ *
+ *  A keyword counts as a hit whether it is one word (token match) or a phrase
+ *  ("log in" — phrase match against the normalized text). Title words score
+ *  half a keyword, and only words longer than three letters, so "How do
+ *  refunds work" doesn't match every message containing "how". The bar is one
+ *  keyword or two title words; ties keep the server's order (admin sortOrder). */
+function bestArticle(
+  tokens: Set<string>,
+  text: string,
+  articles: readonly RoutableArticle[],
+): { id: string; keywordHit: boolean } | null {
+  let best: { id: string; keywordHit: boolean } | null = null;
+  let bestScore = 0;
+  for (const a of articles) {
+    let keywordHits = 0;
+    for (const rawKw of a.keywords ?? []) {
+      const kw = normalize(rawKw).trim();
+      if (!kw) continue;
+      if (kw.includes(" ")) {
+        if (text.includes(` ${kw} `)) keywordHits += 1;
+      } else if (tokens.has(kw)) {
+        keywordHits += 1;
+      }
+    }
+    let titleHits = 0;
+    for (const w of tokenize(a.title)) {
+      if (w.length > 3 && tokens.has(w)) titleHits += 1;
+    }
+    const score = keywordHits * 2 + titleHits;
+    if (score < 2) continue;
+    // Keyword-hit articles and title-only articles sit in DIFFERENT precedence
+    // tiers (see routeHelpdeskText), so a keyword hit outranks any title-only
+    // score before scores are compared at all.
+    const beats =
+      best === null ||
+      (keywordHits > 0 && !best.keywordHit) ||
+      (keywordHits > 0 === best.keywordHit && score > bestScore);
+    if (beats) {
+      bestScore = score;
+      best = { id: a.id, keywordHit: keywordHits > 0 };
+    }
+  }
+  return best;
 }
 
 /** Highest-scoring topic group, ties broken toward the MORE SPECIFIC group
