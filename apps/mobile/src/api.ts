@@ -389,6 +389,16 @@ export const api = {
       `/helpdesk/conversations/${encodeURIComponent(id)}/messages`,
       { method: "POST", body: { body } },
     ),
+  helpdeskResolve: (id: string) =>
+    request<HelpdeskThreadDTO>(
+      `/helpdesk/conversations/${encodeURIComponent(id)}/resolve`,
+      { method: "POST" },
+    ),
+  helpdeskRate: (id: string, input: { up: boolean; note?: string }) =>
+    request<HelpdeskThreadDTO>(
+      `/helpdesk/conversations/${encodeURIComponent(id)}/rate`,
+      { method: "POST", body: input },
+    ),
   helpdeskMarkRead: (id: string) =>
     request<{ ok: true }>(
       `/helpdesk/conversations/${encodeURIComponent(id)}/read`,

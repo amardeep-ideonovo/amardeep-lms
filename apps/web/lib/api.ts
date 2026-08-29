@@ -493,6 +493,16 @@ export const api = {
       `/helpdesk/conversations/${encodeURIComponent(id)}/read`,
       { method: "POST" },
     ),
+  helpdeskResolve: (id: string) =>
+    request<HelpdeskThreadDTO>(
+      `/helpdesk/conversations/${encodeURIComponent(id)}/resolve`,
+      { method: "POST" },
+    ),
+  helpdeskRate: (id: string, input: { up: boolean; note?: string }) =>
+    request<HelpdeskThreadDTO>(
+      `/helpdesk/conversations/${encodeURIComponent(id)}/rate`,
+      { method: "POST", body: input },
+    ),
   helpdeskStatEvent: (
     category: HelpdeskCategory,
     event: "cardView" | "resolvedYes" | "escalation",

@@ -139,6 +139,17 @@ export const STR = {
     statusWaiting: "Waiting on you",
     statusResolved: "Resolved",
     statusClosed: "Closed",
+    /** Member closes their own request — reversible (a reply reopens it). */
+    markResolved: "Mark as resolved",
+    // Once-per-resolution CSAT. Deliberately the ONLY feedback ask in the whole
+    // helpdesk (the per-answer nags were removed on industry evidence): one
+    // quiet question after a request is resolved, never a modal, never twice.
+    csatPrompt: "Did this sort it out?",
+    csatYes: "👍 Yes",
+    csatNo: "👎 No",
+    csatThanks: "Thanks for the feedback.",
+    csatNotePlaceholder: "What could we have done better? (optional)",
+    csatSendNote: "Send",
     statusWaitingAdmin: "Waiting on member",
     adminSectionTitle: "Member support",
     tooManyOpen: "You already have open requests — we’ll reply to those first.",

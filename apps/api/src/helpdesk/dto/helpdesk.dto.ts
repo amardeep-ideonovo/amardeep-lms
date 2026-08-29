@@ -78,6 +78,17 @@ export class StatEventDto {
   event!: "cardView" | "resolvedYes" | "escalation";
 }
 
+// Once-per-resolution CSAT. The note is optional and only solicited on 👎.
+export class RateConversationDto {
+  @IsBoolean()
+  up!: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
+
 // ---- admin ----
 export class AdminReplyDto {
   @IsString()

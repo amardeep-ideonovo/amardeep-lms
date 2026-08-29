@@ -31,6 +31,7 @@ import {
   AdminReplyDto,
   ArticleCreateDto,
   ArticleUpdateDto,
+  RateConversationDto,
   ReplyDto,
   StartConversationDto,
   StatEventDto,
@@ -349,6 +350,136 @@ export class HelpdeskService {
     return { ok: true };
   }
 
+  /** The member closes their own request. Reversible by design — replying to a
+   *  RESOLVED conversation reopens it, so no confirmation stands in the way. */
+  async resolveAsMember(
+    userId: string,
+    id: string,
+  ): Promise<HelpdeskThreadDTO> {
+    const conv = await this.prisma.helpdeskConversation.findFirst({
+      where: { id, userId },
+    });
+    if (!conv) throw new NotFoundException("conversation not found");
+    if (conv.status === "CLOSED") {
+      throw new ConflictException({
+        code: "HELPDESK_CLOSED",
+        message: "This request is closed. Please start a new one.",
+      });
+    }
+    if (conv.status !== "RESOLVED") {
+      await this.prisma.helpdeskConversation.update({
+        where: { id },
+        data: {
+          status: "RESOLVED",
+          resolution: "MEMBER_RESOLVED",
+          resolvedAt: new Date(),
+        },
+      });
+      // Good news for the queue, not an action item — so a notification, not
+      // an unread flag.
+      this.notifications
+        .record({
+          type: "HELPDESK_ESCALATED",
+          severity: "INFO",
+          title: "A member resolved their own request",
+          body: "A member marked their support request as resolved.",
+          entityType: "helpdesk",
+          entityId: id,
+          dedupeKey: `helpdesk:member-resolved:${id}:${conv.reopenCount}`,
+        })
+        .catch(() => undefined);
+    }
+    return this.threadForMember(userId, id);
+  }
+
+  /** Once-per-resolution CSAT. The first rating writes the day-stat counters;
+   *  a flip moves the tally on the ORIGINAL rating day; a repeat with the same
+   *  value may only add/refresh the note. Only ratable once resolved. */
+  async rateAsMember(
+    userId: string,
+    id: string,
+    dto: RateConversationDto,
+  ): Promise<HelpdeskThreadDTO> {
+    const conv = await this.prisma.helpdeskConversation.findFirst({
+      where: { id, userId },
+    });
+    if (!conv) throw new NotFoundException("conversation not found");
+    if (conv.status !== "RESOLVED" && conv.status !== "CLOSED") {
+      throw new ConflictException({
+        code: "HELPDESK_NOT_RESOLVED",
+        message: "You can rate a request once it is resolved.",
+      });
+    }
+    const note =
+      dto.note !== undefined
+        ? dto.note.trim().slice(0, 500) || null
+        : undefined;
+    if (conv.satisfactionUp === null) {
+      const day = startOfUtcDay(new Date());
+      await this.prisma.$transaction(async (tx) => {
+        await tx.helpdeskConversation.update({
+          where: { id },
+          data: {
+            satisfactionUp: dto.up,
+            satisfactionAt: new Date(),
+            ...(note !== undefined ? { satisfactionNote: note } : {}),
+          },
+        });
+        await tx.helpdeskDayStat.upsert({
+          where: { day_category: { day, category: conv.category } },
+          create: {
+            day,
+            category: conv.category,
+            ratedUp: dto.up ? 1 : 0,
+            ratedDown: dto.up ? 0 : 1,
+          },
+          update: dto.up
+            ? { ratedUp: { increment: 1 } }
+            : { ratedDown: { increment: 1 } },
+        });
+      });
+    } else if (conv.satisfactionUp !== dto.up) {
+      // Mis-taps happen; move the tally where the rating originally landed.
+      const day = startOfUtcDay(conv.satisfactionAt ?? new Date());
+      await this.prisma.$transaction(async (tx) => {
+        await tx.helpdeskConversation.update({
+          where: { id },
+          data: {
+            satisfactionUp: dto.up,
+            satisfactionAt: new Date(),
+            ...(note !== undefined ? { satisfactionNote: note } : {}),
+          },
+        });
+        const row = await tx.helpdeskDayStat.findUnique({
+          where: { day_category: { day, category: conv.category } },
+        });
+        await tx.helpdeskDayStat.upsert({
+          where: { day_category: { day, category: conv.category } },
+          create: {
+            day,
+            category: conv.category,
+            ratedUp: dto.up ? 1 : 0,
+            ratedDown: dto.up ? 0 : 1,
+          },
+          update: {
+            ratedUp: dto.up
+              ? { increment: 1 }
+              : { set: Math.max(0, (row?.ratedUp ?? 0) - 1) },
+            ratedDown: dto.up
+              ? { set: Math.max(0, (row?.ratedDown ?? 0) - 1) }
+              : { increment: 1 },
+          },
+        });
+      });
+    } else if (note !== undefined) {
+      await this.prisma.helpdeskConversation.update({
+        where: { id },
+        data: { satisfactionNote: note },
+      });
+    }
+    return this.threadForMember(userId, id);
+  }
+
   async recordStat(dto: StatEventDto): Promise<{ ok: true }> {
     const day = startOfUtcDay(new Date());
     const update: Prisma.HelpdeskDayStatUpdateInput =
@@ -659,10 +790,14 @@ export class HelpdeskService {
     let cardViews = 0;
     let resolvedYes = 0;
     let escalations = 0;
+    let ratedUp = 0;
+    let ratedDown = 0;
     for (const r of rows) {
       cardViews += r.cardViews;
       resolvedYes += r.resolvedYes;
       escalations += r.escalations;
+      ratedUp += r.ratedUp;
+      ratedDown += r.ratedDown;
       const agg = byCategory.get(r.category) ?? {
         cardViews: 0,
         resolvedYes: 0,
@@ -678,6 +813,8 @@ export class HelpdeskService {
       cardViews,
       resolvedYes,
       escalations,
+      ratedUp,
+      ratedDown,
       byCategory: [...byCategory.entries()].map(([category, v]) => ({
         category:
           category as HelpdeskStatsDTO["byCategory"][number]["category"],
@@ -928,6 +1065,7 @@ function toThread(
     category: c.category,
     replyTimeNote,
     messages: c.messages.map(toMessage),
+    satisfactionUp: c.satisfactionUp ?? null,
     createdAt: c.createdAt.toISOString(),
     lastMessageAt: c.lastMessageAt.toISOString(),
   };
@@ -966,6 +1104,8 @@ function toAdminThread(r: AdminThreadRow): HelpdeskAdminThreadDTO {
     reopenCount: r.reopenCount,
     member: { id: r.user.id, email: r.user.email, name: memberName(r.user) },
     messages: r.messages.map(toAdminMessage),
+    satisfactionUp: r.satisfactionUp ?? null,
+    satisfactionNote: r.satisfactionNote ?? null,
     createdAt: r.createdAt.toISOString(),
     lastMessageAt: r.lastMessageAt.toISOString(),
   };

@@ -22,6 +22,7 @@ import { api, ApiError, helpdeskAttachmentUrl } from "../api";
 import { qk, useHelpdeskThread } from "../queries";
 import { Button } from "../components/Button";
 import { CtaButton } from "../components/CtaButton";
+import { Press } from "../components/Press";
 import { EmptyState, ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import type { ScreenProps } from "../navigation";
@@ -115,6 +116,19 @@ export function HelpdeskThreadScreen({ route }: ScreenProps<"HelpdeskThread">) {
       .catch(() => undefined);
   }, [conversationId, queryClient]);
 
+  const resolveMutation = useMutation({
+    scope: { id: `helpdesk:${conversationId}` },
+    mutationFn: () => api.helpdeskResolve(conversationId),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(qk.helpdeskThread(conversationId), updated);
+      void queryClient.invalidateQueries({ queryKey: qk.helpdeskConfig });
+      void queryClient.invalidateQueries({
+        queryKey: qk.helpdeskConversations,
+      });
+    },
+    onError: () => setError(STR.errors.generic),
+  });
+
   const replyMutation = useMutation({
     scope: { id: `helpdesk:${conversationId}` },
     mutationFn: async () => {
@@ -169,6 +183,9 @@ export function HelpdeskThreadScreen({ route }: ScreenProps<"HelpdeskThread">) {
     );
 
   const closed = thread.status === "CLOSED";
+  const isOpen =
+    thread.status === "ESCALATED" || thread.status === "WAITING_ON_MEMBER";
+  const resolved = thread.status === "RESOLVED" || closed;
 
   async function onPickImages() {
     try {
@@ -196,6 +213,28 @@ export function HelpdeskThreadScreen({ route }: ScreenProps<"HelpdeskThread">) {
           <Text style={styles.replyNote}>{replyTimeNote}</Text>
         ) : null}
         {closed && <EmptyState message={STR.helpdesk.statusClosed} />}
+
+        {/* The member's own way out — reversible (a reply reopens), so a
+            single quiet tap with no confirmation. */}
+        {isOpen && (
+          <Press
+            style={styles.resolveLink}
+            accessibilityRole="button"
+            onPress={() => resolveMutation.mutate()}
+            disabled={resolveMutation.isPending}
+          >
+            <Text style={styles.resolveText}>
+              ✓ {STR.helpdesk.markResolved}
+            </Text>
+          </Press>
+        )}
+
+        {resolved && (
+          <CsatCard
+            conversationId={conversationId}
+            satisfactionUp={thread.satisfactionUp}
+          />
+        )}
       </ScrollView>
 
       {!closed && (
@@ -247,6 +286,83 @@ export function HelpdeskThreadScreen({ route }: ScreenProps<"HelpdeskThread">) {
         </View>
       )}
     </KeyboardAvoidingView>
+  );
+}
+
+/** Once-per-resolution CSAT — the ONLY feedback ask in the helpdesk. Prompt
+ *  renders only while resolved and unrated; a past-session rating renders
+ *  nothing. A 👎 opens one optional note box. */
+function CsatCard({
+  conversationId,
+  satisfactionUp,
+}: {
+  conversationId: string;
+  satisfactionUp: boolean | null;
+}) {
+  const styles = useStyles(makeStyles);
+  const { colors } = useTheme();
+  const queryClient = useQueryClient();
+  const [ratedNow, setRatedNow] = useState<boolean | null>(null);
+  const [note, setNote] = useState("");
+  const [noteSent, setNoteSent] = useState(false);
+
+  const rate = useMutation({
+    scope: { id: `helpdesk:${conversationId}` },
+    mutationFn: (input: { up: boolean; note?: string }) =>
+      api.helpdeskRate(conversationId, input),
+    onSuccess: (updated, input) => {
+      queryClient.setQueryData(qk.helpdeskThread(conversationId), updated);
+      setRatedNow(input.up);
+      if (input.note !== undefined) setNoteSent(true);
+    },
+  });
+
+  if (satisfactionUp !== null && ratedNow === null) return null;
+
+  if (ratedNow !== null) {
+    return (
+      <View style={styles.csat}>
+        <Text style={styles.csatThanks}>{STR.helpdesk.csatThanks}</Text>
+        {ratedNow === false && !noteSent && (
+          <View style={styles.csatNoteRow}>
+            <TextInput
+              style={styles.csatNoteInput}
+              value={note}
+              onChangeText={setNote}
+              placeholder={STR.helpdesk.csatNotePlaceholder}
+              placeholderTextColor={colors.textMuted}
+              maxLength={500}
+            />
+            <Button
+              label={STR.helpdesk.csatSendNote}
+              variant="secondary"
+              onPress={() => rate.mutate({ up: false, note: note.trim() })}
+              disabled={rate.isPending || note.trim().length === 0}
+            />
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.csat}>
+      <Text style={styles.csatPrompt}>{STR.helpdesk.csatPrompt}</Text>
+      <View style={styles.csatActions}>
+        <Button
+          label={STR.helpdesk.csatYes}
+          variant="secondary"
+          onPress={() => rate.mutate({ up: true })}
+          disabled={rate.isPending}
+        />
+        <Button
+          label={STR.helpdesk.csatNo}
+          variant="secondary"
+          onPress={() => rate.mutate({ up: false })}
+          disabled={rate.isPending}
+        />
+      </View>
+    </View>
   );
 }
 
@@ -353,6 +469,49 @@ function makeStyles({ colors, fonts }: Theme) {
       gap: spacing.sm,
     },
     sendBtn: { flexShrink: 0 },
+    resolveLink: { alignSelf: "center", paddingVertical: 10 },
+    resolveText: {
+      color: colors.textMuted,
+      fontFamily: fonts.semibold,
+      fontSize: 13,
+    },
+    csat: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSoft,
+      borderRadius: 12,
+      padding: spacing.md,
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    csatPrompt: {
+      color: colors.text,
+      fontFamily: fonts.semibold,
+      fontSize: 14.5,
+    },
+    csatThanks: {
+      color: colors.textMuted,
+      fontFamily: fonts.regular,
+      fontSize: 13.5,
+    },
+    csatActions: { flexDirection: "row", gap: spacing.sm },
+    csatNoteRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      alignItems: "center",
+    },
+    csatNoteInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 10,
+      backgroundColor: colors.bg,
+      color: colors.text,
+      fontFamily: fonts.regular,
+      fontSize: 13.5,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 8,
+    },
     errorText: {
       color: colors.danger,
       fontFamily: fonts.regular,

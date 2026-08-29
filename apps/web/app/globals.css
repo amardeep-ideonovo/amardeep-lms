@@ -6638,6 +6638,65 @@ a.ik-prog-row:hover {
   color: var(--muted);
 }
 
+/* Member self-resolve — a quiet exit, not a CTA. */
+.helpdesk-resolve {
+  align-self: center;
+  margin-top: 6px;
+  padding: 6px 12px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+.helpdesk-resolve:hover {
+  color: var(--teal-text);
+}
+
+/* Once-per-resolution CSAT card. */
+.helpdesk-csat {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-soft, var(--border));
+  border-radius: 12px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.helpdesk-csat-prompt {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.helpdesk-csat-thanks {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.helpdesk-csat-actions {
+  display: flex;
+  gap: 8px;
+}
+.helpdesk-csat-note {
+  display: flex;
+  gap: 8px;
+}
+.helpdesk-csat-note input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--text);
+}
+
 /* Help-article body — admin-authored plain text, split into paragraphs. */
 .helpdesk-article-body {
   display: flex;
