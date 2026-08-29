@@ -314,7 +314,15 @@ export default function HelpdeskThreadPage() {
           <p className="muted" style={{ fontSize: 12 }}>
             {thread.assigneeAdminId ? "Assigned" : "Unassigned"}
             {thread.reopenCount > 0 ? ` · reopened ×${thread.reopenCount}` : ""}
+            {thread.satisfactionUp !== null
+              ? ` · member rated ${thread.satisfactionUp ? "👍" : "👎"}`
+              : ""}
           </p>
+          {thread.satisfactionNote && (
+            <p className="muted" style={{ fontSize: 12, fontStyle: "italic" }}>
+              “{thread.satisfactionNote}”
+            </p>
+          )}
           {canEdit && !closed && (
             <div className="row-actions" style={{ flexDirection: "column" }}>
               <Button

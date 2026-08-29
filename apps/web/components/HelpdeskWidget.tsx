@@ -529,6 +529,90 @@ function Loading() {
 
 // Private image: fetch a short-lived scoped token, then render via ?token= (an
 // <img> can't send an Authorization header).
+/** Once-per-resolution CSAT — deliberately the ONLY feedback ask in the whole
+ *  helpdesk. Renders the prompt only while the request is resolved and
+ *  unrated; after a past-session rating it renders nothing (no eternal
+ *  "thanks" banner). A 👎 opens one optional note box. */
+function CsatCard({
+  id,
+  satisfactionUp,
+  onUpdated,
+}: {
+  id: string;
+  satisfactionUp: boolean | null;
+  onUpdated: (t: HelpdeskThreadDTO) => void;
+}) {
+  const show = useToast();
+  const [ratedNow, setRatedNow] = useState<boolean | null>(null);
+  const [note, setNote] = useState("");
+  const [noteSent, setNoteSent] = useState(false);
+
+  const rate = useMutation({
+    scope: { id: `helpdesk:${id}` },
+    mutationFn: (input: { up: boolean; note?: string }) =>
+      api.helpdeskRate(id, input),
+    onSuccess: (updated, input) => {
+      onUpdated(updated);
+      setRatedNow(input.up);
+      if (input.note !== undefined) setNoteSent(true);
+    },
+    onError: () => show(STR.errors.generic),
+  });
+
+  if (satisfactionUp !== null && ratedNow === null) return null;
+
+  if (ratedNow !== null) {
+    return (
+      <div className="helpdesk-csat">
+        <p className="helpdesk-csat-thanks">{STR.helpdesk.csatThanks}</p>
+        {ratedNow === false && !noteSent && (
+          <div className="helpdesk-csat-note">
+            <input
+              type="text"
+              value={note}
+              maxLength={500}
+              placeholder={STR.helpdesk.csatNotePlaceholder}
+              onChange={(e) => setNote(e.target.value)}
+            />
+            <button
+              type="button"
+              className="helpdesk-btn"
+              disabled={rate.isPending || note.trim().length === 0}
+              onClick={() => rate.mutate({ up: false, note: note.trim() })}
+            >
+              {STR.helpdesk.csatSendNote}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="helpdesk-csat">
+      <p className="helpdesk-csat-prompt">{STR.helpdesk.csatPrompt}</p>
+      <div className="helpdesk-csat-actions">
+        <button
+          type="button"
+          className="helpdesk-btn"
+          disabled={rate.isPending}
+          onClick={() => rate.mutate({ up: true })}
+        >
+          {STR.helpdesk.csatYes}
+        </button>
+        <button
+          type="button"
+          className="helpdesk-btn"
+          disabled={rate.isPending}
+          onClick={() => rate.mutate({ up: false })}
+        >
+          {STR.helpdesk.csatNo}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AttachmentThumb({
   attachmentId,
   name,
@@ -1068,8 +1152,24 @@ function ThreadView({
     },
   });
 
+  const resolve = useMutation({
+    scope: { id: `helpdesk:${id}` },
+    mutationFn: () => api.helpdeskResolve(id),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(qk.helpdeskThread(id), updated);
+      void queryClient.invalidateQueries({ queryKey: qk.helpdeskConfig });
+      void queryClient.invalidateQueries({
+        queryKey: qk.helpdeskConversations,
+      });
+    },
+    onError: () => show(STR.errors.generic),
+  });
+
   const data = thread.data;
   const closed = data?.status === "CLOSED";
+  const open =
+    data?.status === "ESCALATED" || data?.status === "WAITING_ON_MEMBER";
+  const resolved = data?.status === "RESOLVED" || closed;
 
   return (
     <>
@@ -1102,6 +1202,29 @@ function ThreadView({
           </div>
         )}
         {replyTimeNote && <p className="helpdesk-note">{replyTimeNote}</p>}
+
+        {/* The member's own way out: one quiet, reversible tap — replying to
+            a resolved request reopens it, so no confirmation is needed. */}
+        {open && (
+          <button
+            type="button"
+            className="helpdesk-resolve"
+            disabled={resolve.isPending}
+            onClick={() => resolve.mutate()}
+          >
+            ✓ {STR.helpdesk.markResolved}
+          </button>
+        )}
+
+        {resolved && data && (
+          <CsatCard
+            id={id}
+            satisfactionUp={data.satisfactionUp}
+            onUpdated={(updated) =>
+              queryClient.setQueryData(qk.helpdeskThread(id), updated)
+            }
+          />
+        )}
       </div>
 
       {!closed && (

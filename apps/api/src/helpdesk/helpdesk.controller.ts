@@ -25,6 +25,7 @@ import { CurrentUser } from "../auth/current-user.decorator";
 import type { AuthenticatedPrincipal } from "../auth/jwt-payload.interface";
 import { HelpdeskService } from "./helpdesk.service";
 import {
+  RateConversationDto,
   ReplyDto,
   StartConversationDto,
   StatEventDto,
@@ -98,6 +99,24 @@ export class HelpdeskController {
   @Post("conversations/:id/read")
   read(@CurrentUser() p: AuthenticatedPrincipal, @Param("id") id: string) {
     return this.helpdesk.markReadMember(p.sub, id);
+  }
+
+  // The member closes their own request. Reversible — a later reply reopens.
+  @UseGuards(JwtAuthGuard)
+  @Post("conversations/:id/resolve")
+  resolve(@CurrentUser() p: AuthenticatedPrincipal, @Param("id") id: string) {
+    return this.helpdesk.resolveAsMember(p.sub, id);
+  }
+
+  // Once-per-resolution CSAT.
+  @UseGuards(JwtAuthGuard)
+  @Post("conversations/:id/rate")
+  rate(
+    @CurrentUser() p: AuthenticatedPrincipal,
+    @Param("id") id: string,
+    @Body() dto: RateConversationDto,
+  ) {
+    return this.helpdesk.rateAsMember(p.sub, id, dto);
   }
 
   // Attach up to 3 images to a member message the caller just posted. The image

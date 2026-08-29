@@ -1605,6 +1605,7 @@ enum HelpdeskResolution {
   ANSWERED_BY_ADMIN
   ABANDONED // idle-swept with no admin answer
   ADMIN_CLOSED
+  MEMBER_RESOLVED // the member marked their own request done
 }
 
 enum HelpdeskAuthorKind {
@@ -1654,6 +1655,13 @@ model HelpdeskConversation {
   firstRespondedAt DateTime? // reporting only — no SLA clock
   resolvedAt       DateTime?
   closedAt         DateTime?
+
+  // Once-per-resolution CSAT: null = never asked/answered. The note is only
+  // solicited on a thumbs-down. Aggregates live in HelpdeskDayStat (ratedUp/
+  // ratedDown) so they survive conversation retention.
+  satisfactionUp   Boolean?
+  satisfactionNote String?   @db.VarChar(500)
+  satisfactionAt   DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -1741,8 +1749,10 @@ model HelpdeskDayStat {
   day         DateTime         @db.Date
   category    HelpdeskCategory
   cardViews   Int              @default(0)
-  resolvedYes Int              @default(0) // tapped "yes, that answered it"
+  resolvedYes Int              @default(0) // tapped "yes, that answered it" (legacy per-answer buttons)
   escalations Int              @default(0)
+  ratedUp     Int              @default(0) // once-per-resolution CSAT 👍
+  ratedDown   Int              @default(0) // once-per-resolution CSAT 👎
 
   @@unique([day, category])
   @@index([day])

@@ -301,3 +301,193 @@ test("adminReply truncates a long reply into the email preview", async () => {
   assert.equal(preview.length, 241); // 240 chars + the ellipsis
   assert.ok(preview.endsWith("\u2026"));
 });
+
+// --- member self-resolve + once-per-resolution CSAT -------------------------
+
+/** Prisma mock for resolve/rate. threadForMember (the return read) is
+ *  monkey-patched off; `writes` collects conversation updates and day-stat
+ *  upserts so tests can assert exactly what was persisted. */
+function csatPrisma(
+  conv: Record<string, unknown>,
+  writes: Array<Record<string, unknown>>,
+  dayRow: Record<string, unknown> | null = null,
+) {
+  const tx = {
+    helpdeskConversation: {
+      update: async (args: Record<string, unknown>) => {
+        writes.push({ table: "conversation", ...args });
+        return {};
+      },
+    },
+    helpdeskDayStat: {
+      findUnique: async () => dayRow,
+      upsert: async (args: Record<string, unknown>) => {
+        writes.push({ table: "dayStat", ...args });
+        return {};
+      },
+    },
+  };
+  return {
+    helpdeskConversation: {
+      findFirst: async () => conv,
+      update: tx.helpdeskConversation.update,
+    },
+    helpdeskDayStat: tx.helpdeskDayStat,
+    $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+  };
+}
+
+const patchThreadRead = (svc: HelpdeskService) => {
+  (svc as unknown as Record<string, unknown>).threadForMember = async () => ({
+    id: "c1",
+  });
+};
+
+test("resolveAsMember flips an open conversation to RESOLVED as MEMBER_RESOLVED", async () => {
+  const writes: Array<Record<string, unknown>> = [];
+  const svc = makeService(
+    csatPrisma({ id: "c1", status: "ESCALATED", reopenCount: 0 }, writes),
+  );
+  patchThreadRead(svc);
+
+  await svc.resolveAsMember("u1", "c1");
+
+  const upd = writes.find((w) => w.table === "conversation") as {
+    data: Record<string, unknown>;
+  };
+  assert.equal(upd.data.status, "RESOLVED");
+  assert.equal(upd.data.resolution, "MEMBER_RESOLVED");
+  assert.ok(upd.data.resolvedAt instanceof Date);
+});
+
+test("resolveAsMember is idempotent on RESOLVED and rejects CLOSED", async () => {
+  const writes: Array<Record<string, unknown>> = [];
+  const svc = makeService(
+    csatPrisma({ id: "c1", status: "RESOLVED", reopenCount: 0 }, writes),
+  );
+  patchThreadRead(svc);
+  await svc.resolveAsMember("u1", "c1");
+  assert.equal(writes.length, 0); // no second write
+
+  const svc2 = makeService(
+    csatPrisma({ id: "c1", status: "CLOSED", reopenCount: 0 }, []),
+  );
+  await assert.rejects(
+    () => svc2.resolveAsMember("u1", "c1"),
+    (e: unknown) => {
+      assert.ok(e instanceof ConflictException);
+      assert.equal(
+        (e.getResponse() as { code?: string }).code,
+        "HELPDESK_CLOSED",
+      );
+      return true;
+    },
+  );
+});
+
+test("rateAsMember requires a resolved conversation", async () => {
+  const svc = makeService(
+    csatPrisma({ id: "c1", status: "ESCALATED", satisfactionUp: null }, []),
+  );
+  await assert.rejects(
+    () => svc.rateAsMember("u1", "c1", { up: true }),
+    (e: unknown) => {
+      assert.ok(e instanceof ConflictException);
+      assert.equal(
+        (e.getResponse() as { code?: string }).code,
+        "HELPDESK_NOT_RESOLVED",
+      );
+      return true;
+    },
+  );
+});
+
+test("first rating writes the conversation and increments the day stat once", async () => {
+  const writes: Array<Record<string, unknown>> = [];
+  const svc = makeService(
+    csatPrisma(
+      {
+        id: "c1",
+        status: "RESOLVED",
+        category: "BILLING",
+        satisfactionUp: null,
+      },
+      writes,
+    ),
+  );
+  patchThreadRead(svc);
+
+  await svc.rateAsMember("u1", "c1", { up: true });
+
+  const conv = writes.find((w) => w.table === "conversation") as {
+    data: Record<string, unknown>;
+  };
+  assert.equal(conv.data.satisfactionUp, true);
+  assert.ok(conv.data.satisfactionAt instanceof Date);
+  const stat = writes.find((w) => w.table === "dayStat") as {
+    create: Record<string, unknown>;
+    update: Record<string, unknown>;
+  };
+  assert.equal((stat.create as { ratedUp: number }).ratedUp, 1);
+  assert.deepEqual(stat.update, { ratedUp: { increment: 1 } });
+});
+
+test("repeat rating with the same value only updates the note — never the tally", async () => {
+  const writes: Array<Record<string, unknown>> = [];
+  const svc = makeService(
+    csatPrisma(
+      {
+        id: "c1",
+        status: "RESOLVED",
+        category: "BILLING",
+        satisfactionUp: false,
+        satisfactionAt: new Date(),
+      },
+      writes,
+    ),
+  );
+  patchThreadRead(svc);
+
+  await svc.rateAsMember("u1", "c1", { up: false, note: "  too slow  " });
+
+  assert.equal(writes.filter((w) => w.table === "dayStat").length, 0);
+  const conv = writes.find((w) => w.table === "conversation") as {
+    data: Record<string, unknown>;
+  };
+  assert.equal(conv.data.satisfactionNote, "too slow");
+  assert.equal("satisfactionUp" in conv.data, false);
+});
+
+test("a flipped rating moves the tally on the original rating day", async () => {
+  const writes: Array<Record<string, unknown>> = [];
+  const svc = makeService(
+    csatPrisma(
+      {
+        id: "c1",
+        status: "RESOLVED",
+        category: "OTHER",
+        satisfactionUp: false,
+        satisfactionAt: new Date("2026-08-01T10:00:00Z"),
+      },
+      writes,
+      { ratedUp: 0, ratedDown: 3 },
+    ),
+  );
+  patchThreadRead(svc);
+
+  await svc.rateAsMember("u1", "c1", { up: true });
+
+  const stat = writes.find((w) => w.table === "dayStat") as {
+    where: { day_category: { day: Date } };
+    update: Record<string, unknown>;
+  };
+  // Adjusted on the ORIGINAL day, not today.
+  assert.equal(
+    stat.where.day_category.day.toISOString(),
+    "2026-08-01T00:00:00.000Z",
+  );
+  assert.deepEqual(stat.update, {
+    ratedUp: { increment: 1 },
+    ratedDown: { set: 2 },
+  });
+});

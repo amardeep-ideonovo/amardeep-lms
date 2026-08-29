@@ -2911,6 +2911,9 @@ export interface HelpdeskThreadDTO {
   category: HelpdeskCategory;
   replyTimeNote: string | null;
   messages: HelpdeskMessageDTO[]; // internal notes excluded
+  /** Once-per-resolution CSAT — null until the member rates. Clients show the
+   *  rating prompt only while this is null and the request is resolved. */
+  satisfactionUp: boolean | null;
   createdAt: string;
   lastMessageAt: string;
 }
@@ -2993,6 +2996,8 @@ export interface HelpdeskAdminThreadDTO {
   reopenCount: number;
   member: { id: string; email: string; name: string | null };
   messages: HelpdeskAdminMessageDTO[]; // internal notes included
+  satisfactionUp: boolean | null;
+  satisfactionNote: string | null;
   createdAt: string;
   lastMessageAt: string;
 }
@@ -3009,5 +3014,8 @@ export interface HelpdeskStatsDTO {
   cardViews: number;
   resolvedYes: number;
   escalations: number;
+  /** Once-per-resolution CSAT totals over the window. */
+  ratedUp: number;
+  ratedDown: number;
   byCategory: HelpdeskStatCategoryDTO[];
 }

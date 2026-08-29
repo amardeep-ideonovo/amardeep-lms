@@ -131,6 +131,18 @@ export default function HelpdeskPage() {
                 </>
               )}
             </span>
+            {stats.ratedUp + stats.ratedDown > 0 && (
+              <span>
+                <strong>
+                  {Math.round(
+                    (stats.ratedUp / (stats.ratedUp + stats.ratedDown)) * 100,
+                  )}
+                  %
+                </strong>{" "}
+                CSAT ({stats.ratedUp + stats.ratedDown}{" "}
+                {stats.ratedUp + stats.ratedDown === 1 ? "rating" : "ratings"})
+              </span>
+            )}
           </div>
         </div>
       )}
