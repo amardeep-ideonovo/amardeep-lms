@@ -42,6 +42,7 @@ export const qk = {
   liveSession: (sessionId: string) => ["liveSession", sessionId] as const,
   // Member helpdesk (guided support widget).
   helpdeskConfig: ["helpdeskConfig"] as const,
+  helpdeskArticles: ["helpdeskArticles"] as const,
   helpdeskConversations: ["helpdeskConversations"] as const,
   helpdeskThread: (id: string) => ["helpdeskThread", id] as const,
 };
@@ -231,6 +232,16 @@ export function useHelpdeskConfig() {
     queryKey: qk.helpdeskConfig,
     queryFn: api.helpdeskConfig,
     staleTime: STALE.entitlement,
+  });
+}
+
+// This academy's published FAQ — listed on Support home, fed to the composer's
+// router, and read by the article screen. Gated so it only loads with support.
+export function useHelpdeskArticles(enabled: boolean) {
+  return useQuery({
+    queryKey: qk.helpdeskArticles,
+    queryFn: api.helpdeskArticles,
+    enabled,
   });
 }
 

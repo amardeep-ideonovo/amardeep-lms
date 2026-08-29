@@ -96,6 +96,8 @@ export type RootStackParamList = {
   /** One topic's answer, on its own screen — self-serve lookups are a
    *  there-and-back errand, not turns appended to a conversation. */
   HelpdeskAnswer: { category: HelpdeskCategory; title: string };
+  /** One admin-authored help article, same there-and-back shape. */
+  HelpdeskArticle: { articleId: string; title: string };
   HelpdeskThread: {
     conversationId: string;
     subject?: string;

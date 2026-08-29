@@ -19,6 +19,7 @@ import type {
   LessonNoteDTO,
   LevelDTO,
   LiveCurrentDTO,
+  HelpdeskArticleDTO,
   HelpdeskConfigDTO,
   HelpdeskConversationSummaryDTO,
   HelpdeskThreadDTO,
@@ -365,6 +366,7 @@ export const api = {
 
   // ---- member helpdesk (guided support + escalation) ----
   helpdeskConfig: () => request<HelpdeskConfigDTO>("/helpdesk/config"),
+  helpdeskArticles: () => request<HelpdeskArticleDTO[]>("/helpdesk/articles"),
   helpdeskMyConversations: () =>
     request<{ items: HelpdeskConversationSummaryDTO[] }>(
       "/helpdesk/me/conversations",

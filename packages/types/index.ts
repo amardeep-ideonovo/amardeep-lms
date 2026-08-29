@@ -2932,6 +2932,9 @@ export interface HelpdeskArticleDTO {
   title: string;
   body: string;
   category: HelpdeskCategory;
+  /** Admin-authored routing keywords — the composer matches typed questions
+   *  against these client-side (helpdesk-router.ts). */
+  keywords: string[];
 }
 
 // Admin view of an article (adds the fields the authoring UI edits).

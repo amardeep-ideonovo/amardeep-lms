@@ -146,3 +146,90 @@ test("categoryForText files an escalation under the right bucket", () => {
   assert.equal(categoryForText("I was charged twice"), "BILLING");
   assert.equal(categoryForText("the weather is nice"), "OTHER");
 });
+
+// --- the article tier: admin-authored FAQ matched from the composer ---------
+
+const ARTICLES = [
+  {
+    id: "a-refund",
+    title: "Refund policy",
+    keywords: ["refund", "refunds", "money back"],
+  },
+  { id: "a-login", title: "Trouble signing in", keywords: ["log in"] },
+  { id: "a-schedule", title: "Studio opening hours", keywords: [] },
+];
+
+test("a keyword hit routes to the article — and outranks the topic map", () => {
+  // "refund" is also a BILLING word, but the admin wrote a refund POLICY for
+  // this academy; the member asked about policy, not their own last payment.
+  assert.deepEqual(
+    routeHelpdeskText("how do refunds work", ANSWERABLE, ARTICLES),
+    { kind: "article", articleId: "a-refund" },
+  );
+});
+
+test("multi-word keywords match as phrases", () => {
+  assert.deepEqual(
+    routeHelpdeskText("I want my money back", ANSWERABLE, ARTICLES),
+    { kind: "article", articleId: "a-refund" },
+  );
+});
+
+test("a title-only match fires only when no topic claims the message", () => {
+  // Two title words, no topic word anywhere → the article answers.
+  assert.deepEqual(
+    routeHelpdeskText("what are the studio opening hours", ANSWERABLE, ARTICLES),
+    { kind: "article", articleId: "a-schedule" },
+  );
+  // A topic word in the sentence → the topic keeps the message; incidental
+  // title language must not shadow account answers.
+  assert.deepEqual(
+    routeHelpdeskText("opening my payment history", ANSWERABLE, ARTICLES),
+    { kind: "topic", category: "BILLING" },
+  );
+});
+
+test("one short incidental title word is below the bar", () => {
+  assert.deepEqual(
+    routeHelpdeskText("hours and hours of fun", ANSWERABLE, []),
+    { kind: "unknown" },
+  );
+  assert.deepEqual(routeHelpdeskText("nothing relevant here", ANSWERABLE, ARTICLES), {
+    kind: "unknown",
+  });
+});
+
+test("an explicit ask for a person still beats an article keyword", () => {
+  assert.deepEqual(
+    routeHelpdeskText("I read the refund article, talk to someone", ANSWERABLE, ARTICLES),
+    { kind: "human" },
+  );
+});
+
+test("a keyword-hit article beats a higher-scoring title-only article", () => {
+  // "refund policy details" scores the policy article twice by title, but the
+  // keyworded article owns the word — tiers, then scores.
+  const rival = [
+    { id: "t-only", title: "Refund policy details explained", keywords: [] },
+    { id: "kw", title: "Getting your money back", keywords: ["refund"] },
+  ];
+  assert.deepEqual(
+    routeHelpdeskText("refund policy details", ANSWERABLE, rival),
+    { kind: "article", articleId: "kw" },
+  );
+});
+
+test("without articles the router behaves exactly as before", () => {
+  assert.deepEqual(routeHelpdeskText("how do refunds work", ANSWERABLE), {
+    kind: "topic",
+    category: "BILLING",
+  });
+  // An API that predates keywords sends articles without the field — no crash,
+  // titles still count.
+  assert.deepEqual(
+    routeHelpdeskText("what are the studio opening hours", ANSWERABLE, [
+      { id: "a-schedule", title: "Studio opening hours" },
+    ]),
+    { kind: "article", articleId: "a-schedule" },
+  );
+});

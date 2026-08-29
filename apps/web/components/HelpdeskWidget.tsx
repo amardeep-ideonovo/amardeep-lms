@@ -24,6 +24,7 @@ import {
 } from "@lms/types";
 import type {
   ClassTileDTO,
+  HelpdeskArticleDTO,
   HelpdeskCategory,
   HelpdeskConversationSummaryDTO,
   HelpdeskMessageDTO,
@@ -48,7 +49,7 @@ import {
 } from "@/lib/queries";
 import { useToast } from "@/components/Toast";
 
-type View = "home" | "answer" | "compose" | "thread";
+type View = "home" | "answer" | "article" | "compose" | "thread";
 
 /** Topics the widget can answer inline from the member's own account. */
 const ANSWERABLE: HelpdeskCategory[] = [
@@ -77,6 +78,7 @@ export default function HelpdeskWidget() {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("home");
   const [answer, setAnswer] = useState<HelpdeskCategory>("ACCESS");
+  const [articleId, setArticleId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   /** Editable message to a human — kept here so leaving the compose view and
@@ -100,6 +102,10 @@ export default function HelpdeskWidget() {
   const me = useMe();
   const signedIn = mounted && typeof window !== "undefined" && !!getToken();
   const live = useLiveCurrent(signedIn && open);
+  // This academy's published FAQ — listed on home, and fed to the composer's
+  // router so a typed question can open the matching article directly.
+  const articlesQuery = useHelpdeskArticles(signedIn && open);
+  const articles = articlesQuery.data ?? [];
   // ALL of the member's tickets, closed ones included — config.openConversations
   // excludes CLOSED, which used to leave closed history unreachable.
   const allConversations = useHelpdeskConversations(signedIn && open);
@@ -136,6 +142,16 @@ export default function HelpdeskWidget() {
     setView("answer");
   }
 
+  function openArticle(a: HelpdeskArticleDTO) {
+    setTrail((t) => (t.includes(a.title) ? t : [...t, a.title]));
+    // Articles carry a category, so a read-then-escalate files against the
+    // same bucket its cardView counted under — one taxonomy, both directions.
+    lastViewedRef.current = a.category;
+    countView(a.category, true);
+    setArticleId(a.id);
+    setView("article");
+  }
+
   /** Count a self-serve view — once per topic per visit, and only when the
    *  answer actually contained data. An empty card is not a deflection. */
   function countView(category: HelpdeskCategory, hadData: boolean) {
@@ -154,10 +170,14 @@ export default function HelpdeskWidget() {
     const text = input.trim();
     if (!text) return;
     setInput("");
-    const intent = routeHelpdeskText(text, topics);
+    const intent = routeHelpdeskText(text, topics, articles);
     // A question we can answer goes straight to that answer — faster than
     // filing a ticket, and it keeps the deflection honest.
     if (intent.kind === "topic") return openAnswer(intent.category);
+    if (intent.kind === "article") {
+      const a = articles.find((x) => x.id === intent.articleId);
+      if (a) return openArticle(a);
+    }
     // Anything else becomes a message to the team, pre-filled.
     return startCompose(text);
   }
@@ -168,6 +188,10 @@ export default function HelpdeskWidget() {
   }
 
   const canBack = view !== "home";
+  const activeArticle =
+    view === "article" && articleId
+      ? (articles.find((a) => a.id === articleId) ?? null)
+      : null;
 
   return (
     <div className="helpdesk">
@@ -191,7 +215,9 @@ export default function HelpdeskWidget() {
             <h2>
               {view === "answer"
                 ? (TOPIC_LABEL[answer] ?? STR.helpdesk.title)
-                : STR.helpdesk.title}
+                : view === "article"
+                  ? (activeArticle?.title ?? STR.helpdesk.title)
+                  : STR.helpdesk.title}
             </h2>
             <button
               type="button"
@@ -231,6 +257,25 @@ export default function HelpdeskWidget() {
                 <span>{STR.helpdesk.menuSomethingElse}</span>
                 <span aria-hidden="true">›</span>
               </button>
+
+              {articles.length > 0 && (
+                <>
+                  <p className="helpdesk-section">
+                    {STR.helpdesk.articlesHeading}
+                  </p>
+                  {articles.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className="helpdesk-menu-item"
+                      onClick={() => openArticle(a)}
+                    >
+                      <span>{a.title}</span>
+                      <span aria-hidden="true">›</span>
+                    </button>
+                  ))}
+                </>
+              )}
 
               {conversations.length > 0 && (
                 <>
@@ -306,6 +351,48 @@ export default function HelpdeskWidget() {
             </div>
           )}
 
+          {/* ---------------- article: one FAQ entry, then back -------------- */}
+          {view === "article" && activeArticle && (
+            <div className="helpdesk-body">
+              <div className="helpdesk-answer-card">
+                <span className="helpdesk-eyebrow">
+                  {STR.helpdesk.helpArticleEyebrow}
+                </span>
+                <div className="helpdesk-article-body">
+                  {activeArticle.body
+                    .split(/\n{2,}/)
+                    .filter((p) => p.trim())
+                    .map((p, i) => (
+                      <p key={i}>{p}</p>
+                    ))}
+                </div>
+              </div>
+
+              {articles.length > 1 && (
+                <>
+                  <p className="helpdesk-section">
+                    {STR.helpdesk.relatedHeading}
+                  </p>
+                  <div className="helpdesk-next">
+                    {articles
+                      .filter((a) => a.id !== activeArticle.id)
+                      .slice(0, 4)
+                      .map((a) => (
+                        <button
+                          key={a.id}
+                          type="button"
+                          className="helpdesk-chip"
+                          onClick={() => openArticle(a)}
+                        >
+                          {a.title}
+                        </button>
+                      ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {/* ---------------- compose / thread ------------------------------- */}
           {view === "compose" && (
             <div className="helpdesk-body">
@@ -335,7 +422,7 @@ export default function HelpdeskWidget() {
 
           {/* The permanent, quiet route to a person — on home and on every
               answer, so no card has to offer it and nobody has to guess. */}
-          {(view === "home" || view === "answer") && (
+          {(view === "home" || view === "answer" || view === "article") && (
             <div className="helpdesk-strip">
               <button type="button" onClick={() => startCompose("")}>
                 {STR.helpdesk.stillStuck} {STR.helpdesk.messageTeam}
@@ -345,7 +432,7 @@ export default function HelpdeskWidget() {
 
           {/* One box: a recognised question opens that answer, anything else
               becomes a message to the team pre-filled with what was typed. */}
-          {(view === "home" || view === "answer") && (
+          {(view === "home" || view === "answer" || view === "article") && (
             <form
               className="helpdesk-composer"
               onSubmit={(e) => {
@@ -806,30 +893,12 @@ function LiveView({ onAnswered }: { onAnswered?: OnAnswered }) {
 
 // ---------------------------------------------------------------- help / FAQ
 
+/** The "Something else" catch-all. Articles used to live here as accordions;
+ *  they now sit on home as rows and route from the composer, so this keeps
+ *  only the account-settings pointer. */
 function ArticlesAnswer() {
-  const articles = useHelpdeskArticles(true);
-  const [openId, setOpenId] = useState<string | null>(null);
-
   return (
     <div className="helpdesk-articles">
-      {(articles.data?.length ?? 0) > 0 && (
-        <>
-          <p className="helpdesk-greeting">{STR.helpdesk.articlesHeading}</p>
-          {(articles.data ?? []).map((a) => (
-            <div key={a.id} className="helpdesk-card">
-              <button
-                type="button"
-                className="helpdesk-btn is-link"
-                onClick={() => setOpenId((id) => (id === a.id ? null : a.id))}
-              >
-                {a.title}
-              </button>
-              {openId === a.id && <p>{a.body}</p>}
-            </div>
-          ))}
-        </>
-      )}
-
       <p className="helpdesk-greeting">{STR.helpdesk.accountHeading}</p>
       <div className="helpdesk-actions">
         <a className="helpdesk-btn" href="/account">

@@ -39,6 +39,7 @@ import { api, ApiError } from "../api";
 import { ANSWERABLE } from "../helpdesk-answerable";
 import {
   qk,
+  useHelpdeskArticles,
   useHelpdeskConfig,
   useHelpdeskConversations,
   useMe,
@@ -114,6 +115,10 @@ export function HelpdeskScreen({
   const configQuery = useHelpdeskConfig();
   const config = configQuery.data ?? null;
   const convQuery = useHelpdeskConversations(config?.enabled === true);
+  // This academy's published FAQ — listed below the topics and fed to the
+  // composer's router so a typed question can open the matching article.
+  const articlesQuery = useHelpdeskArticles(config?.enabled === true);
+  const articles = articlesQuery.data ?? [];
   // The full list, closed tickets included — config.openConversations excludes
   // CLOSED, which used to leave closed history unreachable.
   const conversations: HelpdeskConversationSummaryDTO[] =
@@ -148,17 +153,28 @@ export function HelpdeskScreen({
     });
   }
 
+  function openArticle(id: string, title: string) {
+    navigation.navigate("HelpdeskArticle", { articleId: id, title });
+  }
+
   function onSend() {
     const text = input.trim();
     if (!text) return;
     setError(null);
     setInput("");
-    const intent = routeHelpdeskText(text, ANSWERABLE);
+    const intent = routeHelpdeskText(text, ANSWERABLE, articles);
     // A question we can answer goes straight to that answer — faster than
     // filing a ticket, and it keeps the deflection honest.
     if (intent.kind === "topic") {
       openAnswer(intent.category);
       return;
+    }
+    if (intent.kind === "article") {
+      const a = articles.find((x) => x.id === intent.articleId);
+      if (a) {
+        openArticle(a.id, a.title);
+        return;
+      }
     }
     // Anything else becomes a message to the team, pre-filled.
     setImages([]);
@@ -287,6 +303,26 @@ export function HelpdeskScreen({
             <Text style={styles.chevron}>›</Text>
           </Press>
         ))}
+
+        {/* Academy-authored FAQ — hidden entirely until the admin writes one. */}
+        {articles.length > 0 && (
+          <>
+            <Text style={styles.section}>{STR.helpdesk.articlesHeading}</Text>
+            {articles.map((a) => (
+              <Press
+                key={a.id}
+                style={styles.row}
+                accessibilityRole="button"
+                onPress={() => openArticle(a.id, a.title)}
+              >
+                <Text style={styles.rowLabel} numberOfLines={1}>
+                  {a.title}
+                </Text>
+                <Text style={styles.chevron}>›</Text>
+              </Press>
+            ))}
+          </>
+        )}
 
         {/* Work already in flight with the team, on screen the moment support
             opens — this is what the unread badge was pointing at. */}

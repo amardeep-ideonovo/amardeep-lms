@@ -156,6 +156,9 @@ export class HelpdeskService {
       title: a.title,
       body: a.body,
       category: a.category,
+      // The composer's router matches typed questions against these
+      // client-side — see packages/types/helpdesk-router.ts.
+      keywords: a.keywords,
     }));
   }
 
