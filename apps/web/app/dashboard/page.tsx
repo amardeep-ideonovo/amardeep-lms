@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { AuthUser, ClassTileDTO } from "@lms/types";
+import { STR } from "@lms/types";
 import { ApiError, getCachedMe } from "@/lib/api";
 import {
   type ClassExtras,
@@ -258,6 +259,11 @@ function DashboardInner() {
       : null;
   const resumeLabel = featuredNext?.lesson.title ?? featured?.name ?? null;
 
+  // The overview card is what .ik-main is meant to pull up into the band. With
+  // nothing enrolled it isn't rendered, so the main column would drag the bare
+  // "Explore Classes" heading onto the navy instead — see .ik-main--flush.
+  const hasOverlapCard = enrolled.length > 0;
+
   // Continue-learning queue: next incomplete lesson per enrolled class.
   const queue = enrolled
     .map((c) => ({ cls: c, next: extras.get(c.id)?.next ?? null }))
@@ -269,7 +275,7 @@ function DashboardInner() {
   return (
     <div className="ink-page">
       {/* ---- ink band: greeting + Resume CTA (frame 2a) ---- */}
-      <div className="ik-band">
+      <div className={hasOverlapCard ? "ik-band" : "ik-band ik-band--short"}>
         <div className="ik-band-inner">
           <div className="ik-band-row">
             <div className="ik-grow">
@@ -295,7 +301,7 @@ function DashboardInner() {
         </div>
       </div>
 
-      <div className="ik-main">
+      <div className={hasOverlapCard ? "ik-main" : "ik-main ik-main--flush"}>
         {/* ---- overlap overview card ---- */}
         {enrolled.length > 0 && (
           <section className="ik-overview" aria-label="My learning overview">
@@ -416,7 +422,9 @@ function DashboardInner() {
         {available.length > 0 && (
           <section>
             <div className="ik-section-head">
-              <h2 className="ik-section-title">Explore More Classes</h2>
+              <h2 className="ik-section-title">
+                {STR.classes.exploreHeading(enrolled.length > 0)}
+              </h2>
             </div>
             <div className="ik-class-grid">
               {available.map((c) => (

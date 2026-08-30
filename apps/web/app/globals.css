@@ -4989,9 +4989,6 @@ a.ik-cta {
   grid-template-columns: repeat(4, 1fr);
   gap: 22px;
 }
-.ik-class-grid--3 {
-  grid-template-columns: repeat(3, 1fr);
-}
 @media (max-width: 1100px) {
   .ik-class-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -5059,9 +5056,6 @@ a.ik-cta {
 .ik-class-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 10px 26px rgba(var(--cls-base), 0.4);
-}
-.ik-class-card--tall {
-  min-height: 320px;
 }
 /* A subtle shadow behind the top text keeps the title readable now that the
    scrim is lighter and the photo shows through. */
@@ -6048,6 +6042,24 @@ a.ik-lesson--current:hover {
   .ik-cert-foot {
     padding: 16px 18px;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Band + main column are a MATCHED PAIR: the band reserves 176px of bottom
+   padding for the card that .ik-main pulls -92px up into (the dashboard's
+   overview card, or a page's leading card grid). A page whose main column does
+   NOT lead with a card must opt out of BOTH halves with these modifiers —
+   otherwise the first section heading is dragged onto the navy, where it still
+   paints in the page's dark --text (.ik-main is a SIBLING of .ik-band, so it
+   never inherits the band's force-dark text pinning) and reads as invisible,
+   and the cards under it hang half inside the band. Declared AFTER the
+   responsive band block so the shorter padding wins on every width.
+--------------------------------------------------------------------------- */
+.ik-band--short {
+  padding-bottom: 56px;
+}
+.ik-main--flush {
+  margin-top: 30px;
 }
 
 /* ---------------------------------------------------------------------------

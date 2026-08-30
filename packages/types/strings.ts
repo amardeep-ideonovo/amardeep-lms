@@ -78,6 +78,15 @@ export const STR = {
     removeEntity: (thing: string) => `Remove ${thing}?`,
     cannotBeUndone: "This can’t be undone.",
   },
+  classes: {
+    /** Section heading over the tiles the member does NOT own. "More" is
+        comparative — it only reads right once they own something to have more
+        THAN. With an empty membership the whole page is the catalogue, so the
+        heading drops it. Shared by the web dashboard, /classes and the mobile
+        dashboard; keeping the branch here is what stops the three drifting. */
+    exploreHeading: (ownsAny: boolean) =>
+      ownsAny ? "Explore More Classes" : "Explore Classes",
+  },
   helpdesk: {
     open: "Get help",
     title: "Support",
