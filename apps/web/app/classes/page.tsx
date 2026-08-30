@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ClassTileDTO } from "@lms/types";
+import { STR } from "@lms/types";
 import { ApiError } from "@/lib/api";
 import {
   type ClassExtras,
@@ -55,7 +56,7 @@ function ClassCard({
   return (
     <Link
       href={href}
-      className={`ik-class-card ${notStarted ? "ik-class-card--tall " : ""}${classColorClass(colorIdx)}`}
+      className={`ik-class-card ${classColorClass(colorIdx)}`}
       style={style}
     >
       {tileImg && (
@@ -141,10 +142,10 @@ function ClassesInner() {
           </div>
         </div>
         <div className="ik-main">
-          <div className="ik-class-grid ik-class-grid--3">
+          <div className="ik-class-grid">
             {/* Same height as the real .ik-class-card (min-height 300) so the
                 grid doesn't grow when the tiles arrive. */}
-            {[0, 1, 2, 3, 4, 5].map((i) => (
+            {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
               <div
                 key={i}
                 className="ik-skel"
@@ -169,6 +170,11 @@ function ClassesInner() {
   const shown =
     filter === "all" ? owned : owned.filter((c) => bucketOf(c) === filter);
 
+  // With nothing owned the main column leads with the bare "Explore Classes"
+  // heading rather than a card, so it must not pull up into the band
+  // (see .ik-main--flush) — same defect the dashboard had with nothing enrolled.
+  const hasOverlapCard = owned.length > 0;
+
   const chips: { key: Filter; label: string; n: number }[] = [
     { key: "all", label: "All", n: counts.all },
     { key: "progress", label: "In progress", n: counts.progress },
@@ -180,7 +186,7 @@ function ClassesInner() {
     <div className="ink-page">
       <PopupHost context={{ type: "classes" }} />
       {/* ---- band: title + membership line + filter chips (frame 2b) ---- */}
-      <div className="ik-band">
+      <div className={hasOverlapCard ? "ik-band" : "ik-band ik-band--short"}>
         <div className="ik-band-inner">
           <h1 className="ik-band-title">My Classes</h1>
           <p className="ik-band-sub">
@@ -211,9 +217,9 @@ function ClassesInner() {
         </div>
       </div>
 
-      <div className="ik-main">
+      <div className={hasOverlapCard ? "ik-main" : "ik-main ik-main--flush"}>
         {shown.length > 0 ? (
-          <div className="ik-class-grid ik-class-grid--3">
+          <div className="ik-class-grid">
             {shown.map((c) => (
               <ClassCard
                 key={c.id}
@@ -237,13 +243,13 @@ function ClassesInner() {
           <section>
             <div
               className="ik-section-head"
-              style={{
-                marginTop: shown.length > 0 || owned.length > 0 ? 30 : 0,
-              }}
+              style={{ marginTop: hasOverlapCard ? 30 : 0 }}
             >
-              <h2 className="ik-section-title">Explore More Classes</h2>
+              <h2 className="ik-section-title">
+                {STR.classes.exploreHeading(owned.length > 0)}
+              </h2>
             </div>
-            <div className="ik-class-grid ik-class-grid--3">
+            <div className="ik-class-grid">
               {explore.map((c) => (
                 <ClassCard
                   key={c.id}

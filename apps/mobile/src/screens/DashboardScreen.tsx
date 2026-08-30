@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import type { AuthUser, ClassTileDTO } from "@lms/types";
+import { STR } from "@lms/types";
 
 import {
   useMyClasses,
@@ -451,7 +452,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
           {available.length > 0 ? (
             <>
               <Text style={[styles.sectionTitle, styles.exploreTitle]}>
-                Explore More Classes
+                {STR.classes.exploreHeading(owned.length > 0)}
               </Text>
               <View style={styles.grid}>
                 {available.map((c) => (

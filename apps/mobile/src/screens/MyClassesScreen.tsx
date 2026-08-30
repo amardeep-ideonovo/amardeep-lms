@@ -15,6 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import type { ClassTileDTO, CourseCard } from "@lms/types";
+import { STR } from "@lms/types";
 
 import { useMyClasses, useMyClassCourses, useRefreshOnFocus } from "../queries";
 import { accentIndexMap, classAccent } from "../class-colors";
@@ -350,7 +351,9 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
       {available.length > 0 ? (
         <>
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Explore more classes</Text>
+            <Text style={styles.sectionTitle}>
+              {STR.classes.exploreHeadingSentence(owned.length > 0)}
+            </Text>
             <Text style={styles.sectionMeta}>{available.length}</Text>
           </View>
           <View style={styles.grid}>
