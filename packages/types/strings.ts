@@ -86,6 +86,12 @@ export const STR = {
         dashboard; keeping the branch here is what stops the three drifting. */
     exploreHeading: (ownsAny: boolean) =>
       ownsAny ? "Explore More Classes" : "Explore Classes",
+    /** Sentence-case sibling. Mobile "My Classes" titles its sections in
+        sentence case ("Also enrolled", "No classes yet"), so it takes this one
+        rather than the title-case form the dashboards use. The casing split is
+        pre-existing; both forms drop "More" on the same condition. */
+    exploreHeadingSentence: (ownsAny: boolean) =>
+      ownsAny ? "Explore more classes" : "Explore classes",
   },
   helpdesk: {
     open: "Get help",
