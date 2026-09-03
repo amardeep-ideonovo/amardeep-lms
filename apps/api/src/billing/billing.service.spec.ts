@@ -228,3 +228,85 @@ test("on the academy's OWN account, a refund with no local user STILL cancels", 
   assert.equal(canceled, "sub_own", "must still cancel on a private account");
   assert.ok(reconciled.some((t) => t.includes("sub_own")));
 });
+
+// PayPal refund/chargeback parity with the Stripe path: a reversed PayPal
+// subscription payment must revoke class access. The sale's billing_agreement_id
+// maps to our SubscriptionMirror (stripeSubId = I-…); we cancel at PayPal (stop
+// future billing) then reconcile the grant to CANCELED with forceRevoke (no
+// period-end grace).
+test("PayPal refund revokes access via the subscription's billing agreement", async () => {
+  const calls: { canceled: string[]; reconciled: any[] } = {
+    canceled: [],
+    reconciled: [],
+  };
+  const prisma: any = {
+    subscriptionMirror: {
+      findUnique: async ({ where }: any) =>
+        where.stripeSubId === "I-SUB"
+          ? {
+              stripeSubId: "I-SUB",
+              provider: "PAYPAL",
+              userId: "u_1",
+              priceId: "p_1",
+            }
+          : null,
+    },
+    userLevel: { updateMany: async () => ({ count: 0 }) },
+  };
+  const paypal: any = {
+    getSubscription: async (id: string) => ({
+      id,
+      status: "ACTIVE",
+      plan_id: "PP-PLAN",
+      custom_id: "u_1",
+    }),
+    cancelSubscription: async (id: string) => {
+      calls.canceled.push(id);
+    },
+  };
+  const svc: any = new BillingService(
+    prisma,
+    {} as any,
+    paypal,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  svc.notify = async () => {};
+  svc.reconcilePayPalSubscription = async (
+    _sub: any,
+    tag: string,
+    opts: any,
+  ) => {
+    calls.reconciled.push({ tag, opts });
+  };
+  await svc.revokePayPalSubscriptionByAgreement("I-SUB", "refund");
+  assert.deepEqual(calls.canceled, ["I-SUB"]);
+  assert.equal(calls.reconciled.length, 1);
+  assert.equal(calls.reconciled[0].opts.forceRevoke, true);
+});
+
+test("PayPal refund for a non-PayPal / foreign agreement is ignored", async () => {
+  const calls: any[] = [];
+  const prisma: any = {
+    subscriptionMirror: { findUnique: async () => null },
+  };
+  const svc: any = new BillingService(
+    prisma,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+    {} as any,
+  );
+  svc.notify = async () => {};
+  svc.reconcilePayPalSubscription = async () => {
+    calls.push(1);
+  };
+  await svc.revokePayPalSubscriptionByAgreement("I-UNKNOWN", "refund");
+  assert.equal(calls.length, 0);
+});

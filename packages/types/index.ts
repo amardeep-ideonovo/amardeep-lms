@@ -1265,7 +1265,8 @@ export type AutomationTrigger =
   | "SUBSCRIPTION_ACTIVE"
   | "SUBSCRIPTION_CANCELED"
   | "LESSON_COMPLETED"
-  | "CERTIFICATE_ISSUED";
+  | "CERTIFICATE_ISSUED"
+  | "PAYMENT_FAILED";
 export interface AutomationDTO {
   id: string;
   name: string;

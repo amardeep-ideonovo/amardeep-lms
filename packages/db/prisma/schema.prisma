@@ -1039,6 +1039,10 @@ enum AutomationTrigger {
   SUBSCRIPTION_CANCELED
   LESSON_COMPLETED
   CERTIFICATE_ISSUED
+  // A renewal charge failed (Stripe invoice.payment_failed / PayPal
+  // PAYMENT.FAILED). Fires the member-facing dunning email. Appended at the end
+  // so the DB enum order matches this file (a single ADD VALUE appends).
+  PAYMENT_FAILED
 }
 
 // A triggered email — fired by a domain event (welcome, etc.). delayMinutes is

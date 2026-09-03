@@ -190,6 +190,66 @@ export class BillingService implements OnModuleInit {
     }
   }
 
+  // Dunning grace window (ms) after a failed renewal, before access is cut off.
+  // Configurable via BILLING_DUNNING_GRACE_DAYS; default 3 days. 0 disables the
+  // grace (immediate lockout on the first failure).
+  private dunningGraceMs(): number {
+    const raw = this.config.get<string>("BILLING_DUNNING_GRACE_DAYS");
+    const days = raw != null && raw !== "" ? Number(raw) : 3;
+    const safe = Number.isFinite(days) && days >= 0 ? days : 3;
+    return safe * 24 * 60 * 60 * 1000;
+  }
+
+  // Member-facing dunning email when a subscription enters past-due. Routes
+  // through the automation engine (PAYMENT_FAILED trigger) so it is
+  // admin-editable and seeded by default. eventKey re-fires on a genuinely new
+  // dunning episode (new grace deadline) while deduping webhook replays.
+  private async firePaymentFailedAutomation(
+    user: { id: string; email: string },
+    planLabel: string,
+    graceEndsAt: Date | null,
+    externalSubId: string,
+  ): Promise<void> {
+    try {
+      const [member, brand] = await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: user.id },
+          select: { firstName: true },
+        }),
+        this.brandTitle(),
+      ]);
+      const firstName = member?.firstName?.trim() || "there";
+      const updateUrl = `${this.appUrl()}/account`;
+      const graceText = graceEndsAt
+        ? graceEndsAt.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })
+        : "";
+      await this.automations.fire("PAYMENT_FAILED", {
+        email: user.email,
+        vars: {
+          firstName,
+          brand,
+          plan: planLabel,
+          updateUrl,
+          graceEndsAt: graceText,
+          hasGrace: graceEndsAt != null,
+        },
+        eventKey: `payfail:${externalSubId}:${
+          graceEndsAt ? graceEndsAt.getTime() : "nogr"
+        }`,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[billing] PAYMENT_FAILED automation failed for ${user.email}: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+    }
+  }
+
   // ---------- Admin notifications (emit helpers) ----------
 
   // Emit an admin notification WITHOUT ever throwing into the caller. The Stripe
@@ -1233,7 +1293,6 @@ export class BillingService implements OnModuleInit {
   ): Promise<void> {
     const user = s.user;
     const subStatusFinal = s.subStatus;
-    const grace = s.graceExpiresAt != null;
     const periodEnd = s.currentPeriodEnd;
 
     // Capture the prior mirror BEFORE the upsert so lifecycle notifications fire
@@ -1280,6 +1339,41 @@ export class BillingService implements OnModuleInit {
     });
     const existingByLevel = new Map(existing.map((ul) => [ul.levelId, ul]));
 
+    // Resolve the effective access-grace deadline:
+    //  - PayPal period-end cancel passes an explicit graceExpiresAt.
+    //  - A payment failure (PAST_DUE/UNPAID) opens a DUNNING grace: keep access
+    //    for a short window instead of cutting it off on the first failed
+    //    charge. Anchored to the FIRST failure so repeated past_due webhooks
+    //    don't slide the deadline; once it lapses the grant is no longer kept
+    //    ACTIVE (access.service also enforces expiresAt at read time).
+    let effectiveGrace: Date | null = s.graceExpiresAt;
+    if (
+      effectiveGrace == null &&
+      (subStatusFinal === "PAST_DUE" || subStatusFinal === "UNPAID")
+    ) {
+      const alreadyDunning =
+        prevMirror?.status === "PAST_DUE" || prevMirror?.status === "UNPAID";
+      if (alreadyDunning) {
+        // Keep the deadline set on the first failure; if it already lapsed,
+        // don't re-open it — leave the grant to fall to PAST_DUE (locked).
+        const priorEnd = existing
+          .filter(
+            (ul) =>
+              ul.stripeSubItemId != null &&
+              thisSubItemIds.has(ul.stripeSubItemId),
+          )
+          .map((ul) => ul.expiresAt)
+          .filter((d): d is Date => d != null)
+          .sort((a, b) => b.getTime() - a.getTime())[0];
+        effectiveGrace =
+          priorEnd && priorEnd.getTime() > Date.now() ? priorEnd : null;
+      } else {
+        const ms = this.dunningGraceMs();
+        effectiveGrace = ms > 0 ? new Date(Date.now() + ms) : null;
+      }
+    }
+    const grace = effectiveGrace != null;
+
     // Upsert desired levels.
     for (const [levelId, info] of desired) {
       const prev = existingByLevel.get(levelId);
@@ -1291,7 +1385,7 @@ export class BillingService implements OnModuleInit {
         : grace
           ? "ACTIVE"
           : s.userLevelStatus;
-      const expiresForRow = grace ? s.graceExpiresAt : periodEnd;
+      const expiresForRow = grace ? effectiveGrace : periodEnd;
       await this.prisma.userLevel.upsert({
         where: {
           userId_levelId_source: {
@@ -1376,10 +1470,12 @@ export class BillingService implements OnModuleInit {
       }
     }
 
-    // ---- Admin notifications: emit ONCE per genuine lifecycle transition ----
+    // ---- Notifications: emit ONCE per genuine lifecycle transition ----
     // prevMirror vs the new values gates against replays/re-reconciles; the
-    // unique dedupeKey is a backstop. Payment failures are emitted from the
-    // invoice branch (not here), so PAST_DUE intentionally produces no event.
+    // unique dedupeKey is a backstop. The ADMIN payment-failed notification is
+    // emitted from the invoice/PayPal-webhook branch; the MEMBER dunning email
+    // fires here on the transition INTO past-due (both providers, once per
+    // episode).
     const planLabel = levelNames.length
       ? levelNames.join(", ")
       : "subscription";
@@ -1387,6 +1483,22 @@ export class BillingService implements OnModuleInit {
     const prevCancelAtPe = prevMirror?.cancelAtPeriodEnd ?? false;
     const newCancelAtPe = s.cancelAtPeriodEnd;
     const periodKey = s.periodKey;
+
+    // Member dunning email on entry into past-due (not on every retry webhook,
+    // and not when we were already dunning). Provider-neutral: both the Stripe
+    // and PayPal reconcile paths funnel through here.
+    const enteredDunning =
+      (subStatusFinal === "PAST_DUE" || subStatusFinal === "UNPAID") &&
+      prevStatus !== "PAST_DUE" &&
+      prevStatus !== "UNPAID";
+    if (enteredDunning) {
+      await this.firePaymentFailedAutomation(
+        user,
+        planLabel,
+        effectiveGrace,
+        s.externalSubId,
+      );
+    }
 
     if (
       prevMirror == null &&
@@ -1862,7 +1974,7 @@ export class BillingService implements OnModuleInit {
   private async reconcilePayPalSubscription(
     sub: PayPalSubscription,
     sourceEventId?: string,
-    opts?: { forcePastDue?: boolean },
+    opts?: { forcePastDue?: boolean; forceRevoke?: boolean },
   ): Promise<void> {
     const userId = sub.custom_id;
     if (!userId) {
@@ -1894,6 +2006,13 @@ export class BillingService implements OnModuleInit {
       subStatus = "PAST_DUE";
       levelStatus = "PAST_DUE";
     }
+    // A refund/chargeback pulls the funds now — revoke immediately regardless of
+    // the live PayPal status (the cancel call may have raced or failed) and with
+    // no period-end grace.
+    if (opts?.forceRevoke) {
+      subStatus = "CANCELED";
+      levelStatus = "CANCELED";
+    }
 
     // next_billing_time disappears once a sub is cancelled — fall back to the
     // mirror so the grace window keeps its original end date.
@@ -1904,6 +2023,7 @@ export class BillingService implements OnModuleInit {
       ? new Date(sub.billing_info.next_billing_time)
       : (mirror?.currentPeriodEnd ?? null);
     const graceEnd =
+      !opts?.forceRevoke &&
       sub.status === "CANCELLED" &&
       mirror?.cancelAtPeriodEnd &&
       mirror.currentPeriodEnd &&
@@ -1935,6 +2055,85 @@ export class BillingService implements OnModuleInit {
         periodKey: sub.billing_info?.next_billing_time ?? "na",
       },
       sourceEventId,
+    );
+  }
+
+  // Revoke a PayPal subscription's access after a refund or chargeback, keyed
+  // by the sale's billing_agreement_id (= our SubscriptionMirror.stripeSubId for
+  // PayPal). Parity with the Stripe revokeSubscriptionByCharge path: cancel at
+  // PayPal so no further billing, then reconcile the grant to CANCELED (no
+  // period-end grace) and raise the same CRITICAL admin alert. Best-effort and
+  // never throws — a refund we can't fully process must still surface, not retry
+  // the webhook forever.
+  private async revokePayPalSubscriptionByAgreement(
+    subId: string,
+    reason: "refund" | "chargeback",
+  ): Promise<void> {
+    // Ignore sales/refunds that aren't tied to one of OUR PayPal subscriptions.
+    const mirror = await this.prisma.subscriptionMirror.findUnique({
+      where: { stripeSubId: subId },
+    });
+    if (!mirror || mirror.provider !== "PAYPAL") return;
+
+    let sub: PayPalSubscription | null = null;
+    try {
+      sub = await this.paypal.getSubscription(subId);
+    } catch (err) {
+      this.logger.warn(
+        `[paypal] ${reason}: cannot fetch sub ${subId}: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+    }
+
+    // Stop future billing if it's still live (best-effort).
+    if (sub && (sub.status === "ACTIVE" || sub.status === "SUSPENDED")) {
+      try {
+        await this.paypal.cancelSubscription(
+          subId,
+          `access revoked after ${reason}`,
+        );
+        sub = await this.paypal.getSubscription(subId).catch(() => sub);
+      } catch (err) {
+        this.logger.warn(
+          `[paypal] ${reason}: cancel of ${subId} failed (revoking access anyway): ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      }
+    }
+
+    // Revoke the grant. With a live sub, go through the normal reconcile so tag
+    // removal + mirror update happen exactly as the Stripe path does. If PayPal
+    // was unreachable, fall back to a direct local revoke keyed on the mirror so
+    // access is still pulled (tags get cleaned on the next reconcile/sweep).
+    if (sub) {
+      await this.reconcilePayPalSubscription(sub, `revoke:${reason}:${subId}`, {
+        forceRevoke: true,
+      });
+    } else {
+      await this.prisma.userLevel.updateMany({
+        where: { source: "PAYPAL", stripeSubItemId: subId, lifetime: false },
+        data: { status: "CANCELED", expiresAt: null },
+      });
+      await this.prisma.subscriptionMirror.update({
+        where: { stripeSubId: subId },
+        data: { status: "CANCELED" },
+      });
+    }
+
+    await this.notify({
+      type: "PAYMENT_FAILED",
+      severity: "CRITICAL",
+      title:
+        reason === "chargeback"
+          ? "Subscription access revoked (chargeback)"
+          : "Subscription access revoked (refund)",
+      body: `PayPal subscription ${subId} — class access revoked after a ${reason}.`,
+      dedupeKey: `pp:revoke:${reason}:${subId}`,
+    });
+    this.logger.log(
+      `[subscription] revoked PayPal access for sub=${subId} after ${reason}`,
     );
   }
 
@@ -2012,6 +2211,9 @@ export class BillingService implements OnModuleInit {
         id?: string;
         billing_agreement_id?: string;
         amount?: { total?: string; currency?: string };
+        // CUSTOMER.DISPUTE.CREATED references the sale(s), not the subscription
+        // directly; a billing_agreement_id is present only sometimes.
+        disputed_transactions?: Array<{ billing_agreement_id?: string }>;
       };
     };
     try {
@@ -2109,6 +2311,42 @@ export class BillingService implements OnModuleInit {
                 dedupeKey: `pp:paid:${event.resource?.id ?? eventId}`,
               });
             }
+          }
+          break;
+        }
+        // Payment reversed — refund (PAYMENT.SALE.REFUNDED) or chargeback
+        // (PAYMENT.SALE.REVERSED). The sale resource carries the subscription's
+        // billing_agreement_id, so revoke access like the Stripe refund path.
+        case "PAYMENT.SALE.REFUNDED":
+        case "PAYMENT.SALE.REVERSED": {
+          const subId = event.resource?.billing_agreement_id;
+          if (!subId) break;
+          await this.revokePayPalSubscriptionByAgreement(
+            subId,
+            type === "PAYMENT.SALE.REVERSED" ? "chargeback" : "refund",
+          );
+          break;
+        }
+        // A dispute was opened. The funds aren't pulled yet, but treat it like a
+        // chargeback and revoke if we can resolve the subscription; otherwise
+        // surface it for manual review instead of swallowing it silently.
+        case "CUSTOMER.DISPUTE.CREATED": {
+          const subId =
+            event.resource?.billing_agreement_id ??
+            event.resource?.disputed_transactions?.find(
+              (t) => t.billing_agreement_id,
+            )?.billing_agreement_id ??
+            null;
+          if (subId) {
+            await this.revokePayPalSubscriptionByAgreement(subId, "chargeback");
+          } else {
+            await this.notify({
+              type: "PAYMENT_FAILED",
+              severity: "CRITICAL",
+              title: "PayPal dispute opened",
+              body: `A PayPal dispute was opened (event ${eventId}) but the subscription couldn't be resolved automatically — review and revoke access manually if needed.`,
+              dedupeKey: `pp:dispute:${eventId}`,
+            });
           }
           break;
         }

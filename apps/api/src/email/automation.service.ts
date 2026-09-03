@@ -20,6 +20,13 @@ export interface AutomationFireContext {
   email: string;
   contactId?: string;
   vars: Record<string, unknown>;
+  // Optional discriminator appended to the per-(automation, recipient) dedupe
+  // key. Omit for once-per-recipient triggers (SIGNUP) — the recipient key
+  // alone then makes a re-fire a permanent no-op. Set it for RECURRING triggers
+  // (PAYMENT_FAILED) to a per-episode value (e.g. sub id + grace deadline) so a
+  // genuinely new event re-fires while webhook replays of the same event still
+  // dedupe.
+  eventKey?: string;
 }
 
 // Owns automations (event-triggered emails) — the inverse of campaigns: instead
@@ -67,7 +74,9 @@ export class AutomationService {
       // can't both enqueue a deferred row AND fire an immediate send (the
       // ScheduledEmail.dedupeKey is @unique, and the eventual EmailLog inherits
       // it). Keep this in lockstep with drainScheduledEmails() below.
-      const dedupeKey = `automation:${automation.id}:${recipientKey}`;
+      const dedupeKey = `automation:${automation.id}:${recipientKey}${
+        ctx.eventKey ? `:${ctx.eventKey}` : ""
+      }`;
       try {
         if (automation.delayMinutes > 0) {
           // Deferred: park a ScheduledEmail row that the minute cron drains once
@@ -298,36 +307,48 @@ export class AutomationService {
   // called AFTER ensureSystemTemplates() (the welcome template must exist first).
   async ensureSystemAutomations(): Promise<void> {
     try {
-      const existing = await this.prisma.automation.findFirst({
-        where: { trigger: "SIGNUP" },
-        select: { id: true },
-      });
-      if (existing) return;
-
-      const welcome = await this.prisma.emailTemplate.findUnique({
-        where: { key: "welcome" },
-        select: { id: true },
-      });
-      if (!welcome) {
-        this.logger.warn(
-          "ensureSystemAutomations: welcome template missing — skipping SIGNUP seed",
-        );
-        return;
-      }
-
-      await this.prisma.automation.create({
-        data: {
-          name: "Welcome",
-          trigger: "SIGNUP",
-          templateId: welcome.id,
-          active: true,
-        },
-      });
-      this.logger.log('Seeded system automation "Welcome" (SIGNUP)');
+      await this.ensureSystemAutomation("SIGNUP", "Welcome", "welcome");
+      await this.ensureSystemAutomation(
+        "PAYMENT_FAILED",
+        "Payment failed",
+        "payment-failed",
+      );
     } catch (err) {
       // Never let a bootstrap-time DB hiccup take down app startup.
       this.logger.warn(`ensureSystemAutomations failed: ${this.msg(err)}`);
     }
+  }
+
+  // Seed one system automation only if NONE exists for its trigger yet, so an
+  // admin who deleted/replaced it isn't overridden on the next deploy. Skips
+  // silently if its template hasn't been seeded (ordering: run
+  // ensureSystemTemplates() first).
+  private async ensureSystemAutomation(
+    trigger: AutomationTrigger,
+    name: string,
+    templateKey: string,
+  ): Promise<void> {
+    const existing = await this.prisma.automation.findFirst({
+      where: { trigger },
+      select: { id: true },
+    });
+    if (existing) return;
+
+    const template = await this.prisma.emailTemplate.findUnique({
+      where: { key: templateKey },
+      select: { id: true },
+    });
+    if (!template) {
+      this.logger.warn(
+        `ensureSystemAutomations: "${templateKey}" template missing — skipping ${trigger} seed`,
+      );
+      return;
+    }
+
+    await this.prisma.automation.create({
+      data: { name, trigger, templateId: template.id, active: true },
+    });
+    this.logger.log(`Seeded system automation "${name}" (${trigger})`);
   }
 
   // ───────────────────────── helpers ─────────────────────────

@@ -26,6 +26,7 @@ const TRIGGERS: AutomationTrigger[] = [
   "SIGNUP",
   "SUBSCRIPTION_ACTIVE",
   "SUBSCRIPTION_CANCELED",
+  "PAYMENT_FAILED",
   "LESSON_COMPLETED",
   "CERTIFICATE_ISSUED",
 ];
@@ -36,6 +37,7 @@ const TRIGGER_LABEL: Record<AutomationTrigger, string> = {
   SIGNUP: "Member signs up",
   SUBSCRIPTION_ACTIVE: "Subscription becomes active",
   SUBSCRIPTION_CANCELED: "Subscription canceled",
+  PAYMENT_FAILED: "Payment failed",
   LESSON_COMPLETED: "Lesson completed",
   CERTIFICATE_ISSUED: "Certificate issued",
 };
@@ -43,6 +45,8 @@ const TRIGGER_HINT: Record<AutomationTrigger, string> = {
   SIGNUP: "Sent right after a new member creates their account.",
   SUBSCRIPTION_ACTIVE: "Sent when a paid subscription starts or renews.",
   SUBSCRIPTION_CANCELED: "Sent when a subscription is canceled.",
+  PAYMENT_FAILED:
+    "Sent when a member's renewal payment fails (a dunning reminder).",
   LESSON_COMPLETED: "Sent when a member completes a lesson.",
   CERTIFICATE_ISSUED: "Sent when a member earns a class certificate.",
 };

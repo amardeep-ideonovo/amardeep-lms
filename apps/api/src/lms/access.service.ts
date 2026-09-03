@@ -26,8 +26,17 @@ export class AccessService {
       });
       return new Set(levels.map((l) => l.id));
     }
+    // A grant counts only while it is ACTIVE *and* not past its expiry. expiresAt
+    // is the period-end / dunning-grace deadline (billing keeps a grant ACTIVE
+    // with expiresAt set while access is on borrowed time); enforcing it at read
+    // time closes access the moment grace or the paid period lapses, without
+    // waiting for the hourly sweep to flip the row's status.
     const rows = await this.prisma.userLevel.findMany({
-      where: { userId, status: "ACTIVE" },
+      where: {
+        userId,
+        status: "ACTIVE",
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
       select: { levelId: true },
     });
     return new Set(rows.map((r) => r.levelId));
