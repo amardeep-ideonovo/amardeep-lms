@@ -89,32 +89,51 @@ Account deletion (required by both stores because the app has in-app signup) is
 built: members delete from the in-app Account screen, and the public page is
 `https://<member-web>/delete-account` — use that URL in the Play Data-safety form.
 
-## 7. OTA updates & code signing — ⚠ BACK UP THE PRIVATE KEY
+## 7. OTA updates & code signing — updates ship UNSIGNED
 
 The app ships expo-updates (OTA) so JS-only fixes go out without a store review.
-The signing **certificate** is committed at `certs/certificate.pem` and baked into
-every build via `EXPO_PUBLIC_CODE_SIGNING_CERT` (set in `eas.json` preview +
-production). The app verifies each OTA bundle's signature against it, so a
-compromised Expo/EAS account alone can't push malicious JS to installed apps.
+Publish an update with:
 
-The matching **private key** was generated at `keys/private-key.pem` and is
-**gitignored — it is NOT in the repo**. You MUST:
+```
+eas update --channel production --message "…"
+```
 
-1. **Back it up now** (password manager / secure store) AND upload it as an EAS
-   secret, e.g. `eas env:create --name EXPO_UPDATES_PRIVATE_KEY --type file \
---value ./keys/private-key.pem --visibility secret`.
-2. Publish signed OTA updates with it:
-   `eas update --channel production --private-key-path keys/private-key.pem`.
+(The operator console's **Publish OTA** lane does exactly this — it runs the
+preflight, then dispatches the `ota.yml` workflow.)
 
-**If this private key is lost after a signed binary has shipped, existing installs
-will REJECT every future OTA update** (signature mismatch) and you'd need a full
-store re-release with a fresh cert. Treat it like the Android upload keystore.
+**OTA bundles are UNSIGNED, on purpose.** EAS Update code signing requires the
+**EAS Enterprise plan** — EAS rejects a signed publish without it. Worse, a build
+that _arms_ signing (a `codeSigningCertificate` in `app.config.ts`) then rejects
+every UNSIGNED update, so it can never receive an OTA — that is what bricked the
+v6 build. So there is deliberately:
 
-To rotate or regenerate (pre-launch only, before any signed binary ships):
-`npx expo-updates codesigning:generate --key-output-directory keys \
+- **no** `codeSigningCertificate` in `app.config.ts` (and no env conditional that
+  could re-arm one — do NOT set `EXPO_PUBLIC_CODE_SIGNING_CERT`),
+- **no** committed certificate (`certs/certificate.pem` was removed),
+- **no** `--private-key-path` on publish.
+
+Security tradeoff: an unsigned channel means a compromised Expo/EAS account could
+push JS to installed apps, so account hygiene (hardware-key MFA, a scoped
+`EXPO_TOKEN`, restricted workflow dispatch) is the control. Accept this until the
+account is on Enterprise.
+
+**To enable signing later (once on EAS Enterprise):** generate a per-project cert
+and key —
+
+```
+npx expo-updates codesigning:generate --key-output-directory keys \
   --certificate-output-directory certs --certificate-validity-duration-years 10 \
-  --certificate-common-name "thewebpaanda LMS"`
+  --certificate-common-name "thewebpaanda LMS"
+npx expo-updates codesigning:configure …
+```
 
-Native changes (new dependencies, config plugins, SDK bumps) still require a new
-store build + submit — OTA only ships JS/asset changes for the SAME runtime
-version (`runtimeVersion.policy: "appVersion"`, currently 1.0.0).
+— add `codeSigningCertificate` + `{ keyid, alg }` back to the `updates` block in
+`app.config.ts`, upload the private key as an EAS secret, publish with
+`--private-key-path`, and **cut a fresh store build** (a signed binary can't be
+introduced by OTA). Back the private key up like the Android upload keystore: if
+it is lost after a signed binary ships, installs reject every future OTA and you
+need a full store re-release with a fresh cert.
+
+Native changes (new dependencies, config plugins, permission changes, SDK bumps)
+still require a new store build + submit — OTA only ships JS/asset changes for the
+SAME runtime version (`runtimeVersion.policy: "appVersion"`, currently 1.0.0).

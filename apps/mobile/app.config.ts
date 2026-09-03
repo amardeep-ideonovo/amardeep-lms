@@ -41,22 +41,16 @@ const config = (): ExpoConfig => ({
   updates: {
     url: `https://u.expo.dev/${easProjectId}`,
     fallbackToCacheTimeout: 0,
-    // Code signing: with a per-project certificate, the client verifies each OTA
-    // bundle's signature, so a compromised Expo/EAS account alone can't push
-    // malicious JS to the fleet. Generate per project via
-    //   npx expo-updates codesigning:generate --key-output-directory keys \
-    //     --certificate-output-directory certs --certificate-validity-duration-years 10 \
-    //     --certificate-common-name "<app>"
-    //   npx expo-updates codesigning:configure ...
-    // then set EXPO_PUBLIC_CODE_SIGNING_CERT to the certificate path. Left
-    // optional so a build without the cert still works (unsigned) — activate per
-    // white-label project before the next OTA wave (see SHIPPING.md).
-    ...(process.env.EXPO_PUBLIC_CODE_SIGNING_CERT
-      ? {
-          codeSigningCertificate: process.env.EXPO_PUBLIC_CODE_SIGNING_CERT,
-          codeSigningMetadata: { keyid: "main", alg: "rsa-v1_5-sha256" },
-        }
-      : {}),
+    // OTA bundles ship UNSIGNED, deliberately. EAS Update code signing requires
+    // the EAS Enterprise plan, and a cert-armed build that cannot be signed can
+    // never receive an OTA (it rejects unsigned bundles — this is what bricked
+    // build v6). So there is NO codeSigningCertificate here and no env
+    // conditional that could re-arm one. To enable signing later, once the
+    // account is on Enterprise: generate a per-project cert
+    // (expo-updates codesigning:generate/configure), add codeSigningCertificate
+    // + { keyid, alg } to this block, ship the private key as an EAS secret,
+    // publish with --private-key-path, and cut a fresh store build (see
+    // SHIPPING.md §7).
   },
   plugins: [
     [
@@ -75,6 +69,13 @@ const config = (): ExpoConfig => ({
       {
         photosPermission:
           "Allow $(PRODUCT_NAME) to access your photos so you can set a profile picture.",
+        // The app only ever picks from the photo library (avatar + support
+        // attachments) — it never opens the camera or records audio. Disable
+        // both so the build declares no unused NSCamera/NSMicrophone usage
+        // strings (iOS) or CAMERA/RECORD_AUDIO (Android); store review flags
+        // permissions the app doesn't exercise.
+        cameraPermission: false,
+        microphonePermission: false,
       },
     ],
   ],

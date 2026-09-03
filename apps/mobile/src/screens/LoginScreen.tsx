@@ -22,7 +22,12 @@ import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
 import { CtaButton } from "../components/CtaButton";
 import { SpotlightMark } from "../components/SpotlightMark";
-import { IS_LOCKED_BUILD, WEB_BASE_URL, unbindInstance } from "../config";
+import {
+  IS_LOCKED_BUILD,
+  WEB_BASE_URL,
+  legalLinks,
+  unbindInstance,
+} from "../config";
 import { useAppConfig } from "../config-provider";
 import type { AuthScreenProps } from "../navigation";
 import { formColumn } from "../responsive";
@@ -41,6 +46,7 @@ export function LoginScreen({ navigation }: Props) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const legal = legalLinks();
 
   const canSubmit =
     email.trim().length > 0 && password.length > 0 && !submitting;
@@ -185,6 +191,30 @@ export function LoginScreen({ navigation }: Props) {
               </Text>
             </TouchableOpacity>
           )}
+
+          {legal ? (
+            <Text style={[styles.linkText, styles.legalNote]}>
+              <Text
+                style={styles.linkTextStrong}
+                accessibilityRole="link"
+                onPress={() =>
+                  void Linking.openURL(legal.privacy).catch(() => {})
+                }
+              >
+                Privacy Policy
+              </Text>
+              {"   ·   "}
+              <Text
+                style={styles.linkTextStrong}
+                accessibilityRole="link"
+                onPress={() =>
+                  void Linking.openURL(legal.terms).catch(() => {})
+                }
+              >
+                Terms
+              </Text>
+            </Text>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -268,6 +298,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontFamily: fonts.regular,
     },
     linkButton: { marginTop: spacing.lg, alignItems: "center" },
+    legalNote: { marginTop: spacing.lg, textAlign: "center" },
     linkText: {
       color: "rgba(255,255,255,0.55)",
       fontSize: 13.5,

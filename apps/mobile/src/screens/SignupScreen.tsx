@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -18,6 +19,7 @@ import { PASSWORD_MIN, STR } from "@lms/types";
 
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
+import { legalLinks } from "../config";
 import { CtaButton } from "../components/CtaButton";
 import { SpotlightMark } from "../components/SpotlightMark";
 import { useAppConfig } from "../config-provider";
@@ -43,6 +45,7 @@ export function SignupScreen({ navigation }: Props) {
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const legal = legalLinks();
 
   const canSubmit =
     email.trim().length > 0 &&
@@ -223,6 +226,32 @@ export function SignupScreen({ navigation }: Props) {
               <Text style={styles.linkTextStrong}>Sign in</Text>
             </Text>
           </TouchableOpacity>
+
+          {legal ? (
+            <Text style={[styles.linkText, styles.legalNote]}>
+              By creating an account, you agree to our{" "}
+              <Text
+                style={styles.linkTextStrong}
+                accessibilityRole="link"
+                onPress={() =>
+                  void Linking.openURL(legal.terms).catch(() => {})
+                }
+              >
+                Terms
+              </Text>{" "}
+              and{" "}
+              <Text
+                style={styles.linkTextStrong}
+                accessibilityRole="link"
+                onPress={() =>
+                  void Linking.openURL(legal.privacy).catch(() => {})
+                }
+              >
+                Privacy Policy
+              </Text>
+              .
+            </Text>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -304,6 +333,11 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       marginBottom: spacing.sm,
       textAlign: "center",
       fontFamily: fonts.regular,
+    },
+    legalNote: {
+      marginTop: spacing.md,
+      textAlign: "center",
+      paddingHorizontal: spacing.lg,
     },
     linkButton: { marginTop: spacing.lg, alignItems: "center" },
     linkText: {

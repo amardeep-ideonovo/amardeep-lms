@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -27,7 +28,7 @@ import { Chip } from "../components/Chip";
 import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { useAppConfig } from "../config-provider";
-import { IS_LOCKED_BUILD, unbindInstance } from "../config";
+import { IS_LOCKED_BUILD, legalLinks, unbindInstance } from "../config";
 import { fmtDate, money } from "../format";
 import type { TabScreenProps } from "../navigation";
 import {
@@ -103,6 +104,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const subsQuery = useMySubscriptionDetails();
   const user = meQuery.data ?? null;
   const subs: SubscriptionDetailDTO[] = subsQuery.data ?? [];
+  const legal = legalLinks();
   // First load only (both halves, like the old Promise.all): once data exists
   // the cache keeps it through every revalidation.
   const loading = meQuery.isLoading || subsQuery.isLoading;
@@ -804,6 +806,32 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                 <Text style={styles.moreText}>{STR.helpdesk.open}</Text>
                 <Text style={styles.moreChevron}>›</Text>
               </TouchableOpacity>
+              {legal ? (
+                <>
+                  <TouchableOpacity
+                    style={[styles.moreRow, styles.moreRowDivider]}
+                    onPress={() =>
+                      void Linking.openURL(legal.privacy).catch(() => {})
+                    }
+                    activeOpacity={0.7}
+                    accessibilityRole="link"
+                  >
+                    <Text style={styles.moreText}>Privacy Policy</Text>
+                    <Text style={styles.moreChevron}>›</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.moreRow, styles.moreRowDivider]}
+                    onPress={() =>
+                      void Linking.openURL(legal.terms).catch(() => {})
+                    }
+                    activeOpacity={0.7}
+                    accessibilityRole="link"
+                  >
+                    <Text style={styles.moreText}>Terms of Service</Text>
+                    <Text style={styles.moreChevron}>›</Text>
+                  </TouchableOpacity>
+                </>
+              ) : null}
             </View>
 
             {/* Billing is managed on the web member dashboard — the app never
@@ -815,8 +843,8 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
               <View style={styles.card}>
                 <Text style={styles.heading}>Billing</Text>
                 <Text style={styles.note}>
-                  Manage your payment details and membership from your account
-                  settings on the web.
+                  You can update your payment details in your account settings
+                  on the web.
                 </Text>
                 {subs.some((s) => s.provider === "paypal") ? (
                   <Text style={styles.note}>
