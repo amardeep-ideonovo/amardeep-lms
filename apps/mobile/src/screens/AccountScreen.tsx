@@ -2,7 +2,6 @@ import React, { useCallback, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
-  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -128,9 +127,6 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   );
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
-
-  const [portalBusy, setPortalBusy] = useState(false);
-  const [portalError, setPortalError] = useState<string | null>(null);
 
   // Member self-service account deletion (irreversible). Two-step modal: review
   // the member's real stakes, then confirm with the account password.
@@ -361,21 +357,6 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
       );
     } finally {
       setCancelBusy(false);
-    }
-  }
-
-  async function openPortal() {
-    setPortalBusy(true);
-    setPortalError(null);
-    try {
-      const { url } = await api.portal();
-      await Linking.openURL(url);
-    } catch (e) {
-      setPortalError(
-        e instanceof Error ? e.message : "Couldn't open the billing portal.",
-      );
-    } finally {
-      setPortalBusy(false);
     }
   }
 
@@ -825,37 +806,24 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
               </TouchableOpacity>
             </View>
 
-            {/* Card management is a Stripe-portal feature. PayPal members
-                manage their payment method in their PayPal account. */}
-            {subs.some((s) => s.provider === "stripe") ? (
+            {/* Billing is managed on the web member dashboard — the app never
+                opens a payment or plan-change surface (no purchases in-app, per
+                store policy and product decision). Neutral, link-free guidance:
+                no purchase call-to-action. PayPal members also manage their
+                payment method in their PayPal account. */}
+            {subs.length > 0 ? (
               <View style={styles.card}>
-                <Text style={styles.heading}>Card details</Text>
+                <Text style={styles.heading}>Billing</Text>
                 <Text style={styles.note}>
-                  Update your card details through the secure Stripe customer
-                  portal.
+                  Manage your payment details and membership from your account
+                  settings on the web.
                 </Text>
-                {portalError ? (
-                  <Text style={styles.formError}>{portalError}</Text>
-                ) : null}
-                <TouchableOpacity
-                  style={[styles.btnPrimary, portalBusy && styles.btnDisabled]}
-                  onPress={openPortal}
-                  disabled={portalBusy}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.btnPrimaryText}>
-                    {portalBusy ? "Opening…" : "Update card details"}
+                {subs.some((s) => s.provider === "paypal") ? (
+                  <Text style={styles.note}>
+                    Your PayPal-billed subscription’s payment method is managed
+                    in your PayPal account at paypal.com.
                   </Text>
-                </TouchableOpacity>
-              </View>
-            ) : subs.some((s) => s.provider === "paypal") ? (
-              <View style={styles.card}>
-                <Text style={styles.heading}>Payment method</Text>
-                <Text style={styles.note}>
-                  Your subscription is billed through PayPal. Manage your
-                  payment method in your PayPal account at paypal.com.
-                </Text>
+                ) : null}
               </View>
             ) : null}
 

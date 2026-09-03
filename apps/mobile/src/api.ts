@@ -280,7 +280,9 @@ export const api = {
       body: { password },
     }),
 
-  // billing — read + self-cancel + Stripe portal link (NO purchasing in-app)
+  // billing — read + self-cancel only. NO purchasing or plan changes in-app and
+  // no payment/portal surface: buying and payment-method changes happen on the
+  // web member dashboard (store policy + product decision).
   levels: () => request<LevelDTO[]>("/levels"),
   mySubscriptionDetails: () =>
     request<SubscriptionDetailDTO[]>("/billing/subscription-details"),
@@ -290,7 +292,6 @@ export const api = {
       `/billing/subscriptions/${encodeURIComponent(subId)}/cancel`,
       { method: "POST" },
     ),
-  portal: () => request<{ url: string }>("/billing/portal"),
 
   courses: () => request<CourseCard[]>("/courses"),
 
