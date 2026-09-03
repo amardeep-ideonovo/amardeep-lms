@@ -37,7 +37,14 @@ function fmtDate(iso: string): string {
   });
 }
 
-// Status pill for a membership row: green active, amber paused/canceling.
+// True when a subscription's latest charge failed and it hasn't recovered.
+function isPastDue(sub: SubscriptionDetailDTO): boolean {
+  const s = (sub.status || "").toLowerCase();
+  return s === "past_due" || s === "unpaid";
+}
+
+// Status pill for a membership row: green active, amber paused/canceling, red
+// past-due (a failed payment must never read as a healthy green pill).
 function planStatus(sub: SubscriptionDetailDTO): {
   label: string;
   cls: string;
@@ -50,9 +57,10 @@ function planStatus(sub: SubscriptionDetailDTO): {
       cls: "plan-status--cancel",
     };
   if (sub.paused) return { label: "Paused", cls: "plan-status--paused" };
+  if (isPastDue(sub)) return { label: "Past due", cls: "plan-status--pastdue" };
   const s = sub.status || "active";
   return {
-    label: s.charAt(0).toUpperCase() + s.slice(1),
+    label: s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " "),
     cls: "plan-status--active",
   };
 }
@@ -949,6 +957,26 @@ function AccountInner() {
 
         <section className="account-section">
           <h2>{subs.length > 1 ? "Your plans" : "Your plan"}</h2>
+          {subs.some(isPastDue) && (
+            <div className="account-alert account-alert--pastdue" role="alert">
+              <div className="account-alert__text">
+                <strong>A recent payment didn’t go through.</strong>{" "}
+                {subs.some((s) => isPastDue(s) && s.provider === "stripe")
+                  ? "Update your payment method to keep your access."
+                  : "Update your payment method in PayPal to keep your access."}
+              </div>
+              {subs.some((s) => isPastDue(s) && s.provider === "stripe") && (
+                <Button
+                  type="button"
+                  onClick={openPortal}
+                  disabled={busy}
+                  aria-busy={busy}
+                >
+                  {busy ? "Redirecting…" : "Update payment method"}
+                </Button>
+              )}
+            </div>
+          )}
           {subs.length === 0 ? (
             <p className="empty">You don’t have a paid membership yet.</p>
           ) : (

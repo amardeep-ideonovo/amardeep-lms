@@ -60,3 +60,57 @@ test("a member with no active levels never accesses a LEVELS session", () => {
     false,
   );
 });
+
+// activeLevelIds must count a grant only while ACTIVE *and* unexpired. A failed
+// renewal keeps the grant ACTIVE with expiresAt = the dunning-grace deadline;
+// once that lapses (or a period-end passes) the grant no longer grants access,
+// enforced at read time so a late sweep can't leave a lapsed member with access.
+test("activeLevelIds excludes ACTIVE grants past their expiry", async () => {
+  const now = Date.now();
+  const rows = [
+    { levelId: "lvl_active", status: "ACTIVE", expiresAt: null },
+    {
+      levelId: "lvl_grace_ok",
+      status: "ACTIVE",
+      expiresAt: new Date(now + 3_600_000),
+    },
+    {
+      levelId: "lvl_grace_lapsed",
+      status: "ACTIVE",
+      expiresAt: new Date(now - 3_600_000),
+    },
+    { levelId: "lvl_pastdue", status: "PAST_DUE", expiresAt: null },
+  ];
+  let captured: any;
+  const prisma: any = {
+    userLevel: {
+      findMany: async ({ where }: any) => {
+        captured = where;
+        return rows
+          .filter((r) => {
+            if (where.status && r.status !== where.status) return false;
+            if (where.OR) {
+              return where.OR.some((c: any) => {
+                if ("expiresAt" in c && c.expiresAt === null)
+                  return r.expiresAt === null;
+                if (c.expiresAt && c.expiresAt.gt)
+                  return r.expiresAt != null && r.expiresAt > c.expiresAt.gt;
+                return false;
+              });
+            }
+            return true;
+          })
+          .map((r) => ({ levelId: r.levelId }));
+      },
+    },
+  };
+  const sitePreview: any = { isUnlockedPreviewUser: async () => false };
+  const withDb = new AccessService(prisma, sitePreview);
+  const active = await withDb.activeLevelIds("u_1");
+  assert.deepEqual([...active].sort(), ["lvl_active", "lvl_grace_ok"]);
+  assert.equal(captured.status, "ACTIVE");
+  assert.ok(
+    Array.isArray(captured.OR),
+    "query must scope on expiresAt, not status alone",
+  );
+});

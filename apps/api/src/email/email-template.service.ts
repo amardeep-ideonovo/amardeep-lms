@@ -206,6 +206,22 @@ export class EmailTemplateService {
         category: "system",
       });
       await this.upsertSystemTemplate({
+        key: "payment-failed",
+        name: "Payment failed (dunning)",
+        subject: "Your {{brand}} payment didn't go through",
+        mjml: PAYMENT_FAILED_MJML,
+        variables: [
+          "firstName",
+          "brand",
+          "plan",
+          "updateUrl",
+          "graceEndsAt",
+          "hasGrace",
+          "unsubscribeUrl",
+        ],
+        category: "system",
+      });
+      await this.upsertSystemTemplate({
         key: "helpdesk-reply",
         name: "Support reply",
         subject: "{{brand}} support replied to \u201c{{requestSubject}}\u201d",
@@ -481,6 +497,64 @@ const HELPDESK_REPLY_MJML = `<mjml>
       <mj-column>
         <mj-text align="center" font-size="12px" color="#a3a19c" line-height="1.6">
           You're receiving this because you contacted {{brand}} support.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>`;
+
+// Member dunning: a renewal charge failed. Transactional-style copy with a
+// clear "update payment method" CTA to the member account page. {{#if hasGrace}}
+// tells them exactly when access pauses; without a grace window it states the
+// access is paused now. Seeded as the PAYMENT_FAILED automation's template.
+const PAYMENT_FAILED_MJML = `<mjml>
+  <mj-head>
+    <mj-attributes>
+      <mj-all font-family="Helvetica, Arial, sans-serif" />
+    </mj-attributes>
+    <mj-style>
+      .cta a { color: #ffffff !important; }
+    </mj-style>
+  </mj-head>
+  <mj-body background-color="#f4f3f8">
+    <mj-section padding="32px 0 12px">
+      <mj-column>
+        <mj-text align="center" font-size="13px" letter-spacing="2px" color="#1f7a62" text-transform="uppercase" font-weight="700">
+          {{brand}}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section background-color="#ffffff" border-radius="16px" padding="8px" css-class="card">
+      <mj-column padding="24px">
+        <mj-text font-size="22px" font-weight="700" color="#221c3d" padding-bottom="12px">
+          A payment didn't go through
+        </mj-text>
+        <mj-text font-size="15px" line-height="1.7" color="#55506e" padding-bottom="16px">
+          Hi {{firstName}}, we couldn't process your latest payment for {{plan}}. This is usually an expired or declined card — updating your payment method fixes it in a minute.
+        </mj-text>
+        {{#if hasGrace}}
+        <mj-text font-size="15px" line-height="1.7" color="#55506e" padding-bottom="24px">
+          Your access stays on until <strong>{{graceEndsAt}}</strong>. Update your card before then to avoid any interruption.
+        </mj-text>
+        {{else}}
+        <mj-text font-size="15px" line-height="1.7" color="#55506e" padding-bottom="24px">
+          Your access is paused until the payment succeeds. Update your card to restore it right away.
+        </mj-text>
+        {{/if}}
+        <mj-button href="{{updateUrl}}" background-color="#2f9d8e" color="#ffffff" border-radius="10px" font-weight="600" font-size="15px" inner-padding="13px 26px" align="left" css-class="cta">
+          Update payment method
+        </mj-button>
+        <mj-text font-size="13px" line-height="1.6" color="#8b87a3" padding-top="24px">
+          If the button doesn't work, copy and paste this link into your browser:<br />
+          <a href="{{updateUrl}}" style="color:#1f7a62;">{{updateUrl}}</a>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section padding="16px 0 32px">
+      <mj-column>
+        <mj-text align="center" font-size="12px" color="#a3a19c" line-height="1.6">
+          You're receiving this because you have a membership at {{brand}}.<br />
+          <a href="{{unsubscribeUrl}}" style="color:#a3a19c; text-decoration:underline;">Unsubscribe</a> from these emails.
         </mj-text>
       </mj-column>
     </mj-section>
