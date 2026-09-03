@@ -58,6 +58,18 @@ export function isBound(): boolean {
   return API_BASE_URL !== "";
 }
 
+// Privacy Policy + Terms targets for the in-app legal links (required in-app by
+// Apple 5.1.1 / Play, since the app collects account data). The shared store app
+// points at the platform (directory) legal pages; a locked/white-label build
+// falls back to its bound member site. A function (not a const) so it reads the
+// live WEB_BASE_URL after an instance binds. Null when no base is known yet —
+// call sites then hide the links rather than open a broken URL.
+export function legalLinks(): { privacy: string; terms: string } | null {
+  const base = (DIRECTORY_URL || WEB_BASE_URL).replace(/\/$/, "");
+  if (!base) return null;
+  return { privacy: `${base}/privacy`, terms: `${base}/terms` };
+}
+
 // ---------- per-instance storage namespacing ----------
 // One shared binary can serve different instances over its lifetime; tokens and
 // cached branding must never leak across instances. The scope keeps the scheme
