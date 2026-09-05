@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { STR } from "@lms/types";
-import { getToken } from "@/lib/api";
+import { isSignedIn } from "@/lib/api";
 
 // SSR'd (the fallback is the server-painted skeleton); the gate must open in a
 // LAYOUT effect so a client-side navigation shows the page content in its very
@@ -32,7 +32,7 @@ export default function AuthGate({
   const [ready, setReady] = useState(false);
 
   useIsomorphicLayoutEffect(() => {
-    if (!getToken()) {
+    if (!isSignedIn()) {
       router.replace("/login");
       return;
     }

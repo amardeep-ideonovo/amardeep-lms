@@ -113,13 +113,47 @@ export function setAuthHintCookie(on: boolean): void {
     : `${AUTH_HINT_COOKIE}=; path=/; max-age=0; samesite=lax`;
 }
 
+// setToken stays for the admin "preview as member" session, which still holds a
+// real JWT client-side (Bearer). A REAL member no longer stores a token — the
+// API sets an httpOnly session cookie the JS can't read — so login/signup no
+// longer call this.
 export function setToken(token: string): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(TOKEN_KEY, token);
   setAuthHintCookie(true);
 }
 
-export function clearToken(): void {
+// Read a readable (non-httpOnly) cookie value on the client. null on the server.
+function readCookieValue(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const escaped = name.replace(/([.$?*|{}()[\]\\/+^])/g, "\\$1");
+  const m = document.cookie.match(new RegExp(`(?:^|; )${escaped}=([^;]*)`));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+// "A member session exists on this browser." The JWT is now an httpOnly cookie
+// JS can't read, so every auth-state gate (AuthGate, nav, redirects, query
+// `enabled`) uses THIS — the readable hint cookie the API sets beside the JWT
+// (and setToken sets for a preview session) — not getToken(). It's a UX hint
+// only: the server JWT remains the security boundary, so a stale hint just
+// yields one 401 → /login, exactly as a stale token did before.
+export function isSignedIn(): boolean {
+  return getToken() != null || readCookieValue(AUTH_HINT_COOKIE) === "1";
+}
+
+// Double-submit CSRF header for unsafe cookie-authed requests: echo the readable
+// csrf_token cookie the API set. {} when absent (no session, or a preview
+// Bearer session which is CSRF-immune).
+const CSRF_COOKIE = "csrf_token";
+export function getCsrfHeader(): Record<string, string> {
+  const t = readCookieValue(CSRF_COOKIE);
+  return t ? { "X-CSRF-Token": t } : {};
+}
+
+// Clear the LOCAL session state (preview token, me-cache, hint, instant-paint
+// snapshots). Does NOT touch the httpOnly server cookie (JS can't) — see
+// clearToken()/logout() for that.
+function clearLocalSession(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(ME_CACHE_KEY);
@@ -128,6 +162,28 @@ export function clearToken(): void {
   // Instant-paint snapshots (dashboard / certificates / class ownership) are
   // member data — never leave them behind after logout/expiry/preview-end.
   clearMemberCaches();
+}
+
+// Sync clear used by 401 handlers / preview exit. Clears local state now AND
+// fires a best-effort server logout so the httpOnly cookie is dropped too.
+export function clearToken(): void {
+  clearLocalSession();
+  void postLogout();
+}
+
+// Best-effort server logout — clears the httpOnly session/csrf/hint cookies the
+// API set. Never throws into callers.
+function postLogout(): Promise<void> {
+  return request<void>("/auth/logout", { method: "POST" }).catch(
+    () => undefined,
+  );
+}
+
+// Awaitable logout for the sign-out button: drop the server cookie BEFORE the
+// caller redirects, then clear local state.
+export async function logout(): Promise<void> {
+  await postLogout();
+  clearLocalSession();
 }
 
 // ---------- Admin site-preview session (both tokens + which is active) ----------
@@ -189,6 +245,13 @@ export function getCachedMe(): AuthUser | null {
   }
 }
 
+// Identity key for the instant-paint member caches. Was the JWT tail; now the
+// JWT is unreadable to JS, so we key on the cached member id (stable per member;
+// null until the first /auth/me resolves — the cache simply re-keys then).
+export function memberCacheId(): string | null {
+  return getCachedMe()?.id ?? null;
+}
+
 export function setCachedMe(u: AuthUser | null): void {
   if (typeof window === "undefined") return;
   try {
@@ -228,6 +291,10 @@ export const PUBLIC_TTL_SECONDS = 5;
 const request = createRequest({
   baseUrl: apiBase,
   getToken,
+  // Send/store the httpOnly member session cookie, and echo the CSRF token on
+  // unsafe methods. (Preview sessions still attach a Bearer via getToken.)
+  credentials: "include",
+  getCsrfHeader,
   fallbackMessage: (res) => res.statusText,
 });
 
@@ -264,7 +331,11 @@ export const api = {
     fd.append("file", file, "avatar.jpg");
     const res = await fetch(`${apiBase()}/auth/me/avatar`, {
       method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...getCsrfHeader(),
+      },
+      credentials: "include",
       body: fd,
     });
     if (!res.ok) {
@@ -283,12 +354,12 @@ export const api = {
   // The API bumps tokenVersion (revoking other sessions) and returns a fresh
   // token for THIS session — store it so the current session isn't logged out.
   changePassword: async (input: ChangePasswordInput) => {
-    const res = await request<{ ok: true; token: string }>(
-      "/auth/change-password",
-      { method: "POST", body: input },
-    );
-    setToken(res.token);
-    return res;
+    // The API re-issues the session cookie (rotated token) in this response, so
+    // the current web session stays signed in without any client token handling.
+    return request<{ ok: true; token: string }>("/auth/change-password", {
+      method: "POST",
+      body: input,
+    });
   },
   // Member self-service account deletion. `deleteAccountSummary` returns the
   // real stakes (subscriptions/certificates/purchases/progress) to show before
@@ -381,6 +452,7 @@ export const api = {
     const token = getToken();
     const res = await fetch(`${apiBase()}${cert.downloadUrl}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
       cache: "no-store",
     });
     if (!res.ok)
@@ -402,6 +474,7 @@ export const api = {
     const token = getToken();
     const res = await fetch(`${apiBase()}${note.downloadUrl}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
       cache: "no-store",
     });
     if (!res.ok)
@@ -525,7 +598,11 @@ export const api = {
       )}/messages/${encodeURIComponent(messageId)}/attachments`,
       {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...getCsrfHeader(),
+        },
+        credentials: "include",
         body: fd,
       },
     );

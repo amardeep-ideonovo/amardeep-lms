@@ -25,6 +25,18 @@ export type RequestConfig = {
   onUnauthorized?: (res: Response) => void;
   /** Message when the error body has none. Default: `Request failed (status)`. */
   fallbackMessage?: (res: Response) => string;
+  /**
+   * fetch credentials mode. Set to "include" so an httpOnly session cookie is
+   * sent/stored (the web member session). Omit (admin) to keep the current
+   * same-origin default — admin authenticates purely via the Bearer token.
+   */
+  credentials?: RequestCredentials;
+  /**
+   * Extra headers for UNSAFE methods (double-submit CSRF token for a cookie
+   * session). Returns {} when there's nothing to send. Only consulted for
+   * non-GET/HEAD requests. Omit (admin) → no CSRF header.
+   */
+  getCsrfHeader?: () => Record<string, string>;
 };
 
 export type RequestOptions = {
@@ -53,12 +65,22 @@ export function createRequest(cfg: RequestConfig) {
         tokenAttached = true;
       }
     }
+    // CSRF double-submit token on unsafe methods for a cookie session (no-op
+    // when there's no session cookie, e.g. admin or a public POST like login).
+    if (method !== "GET" && method !== "HEAD" && cfg.getCsrfHeader) {
+      Object.assign(headers, cfg.getCsrfHeader());
+    }
 
     const init: RequestInit & { next?: { revalidate?: number } } = {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     };
+    // Send/store the httpOnly session cookie (web). Undefined for admin, so its
+    // requests keep the same-origin default. Note: only PUBLIC endpoints pass
+    // `revalidate`, so the cache branch below still can't cache a member
+    // response — a personalized GET never sets revalidate.
+    if (cfg.credentials) init.credentials = cfg.credentials;
     if (revalidate !== undefined && !tokenAttached) {
       init.next = { revalidate };
     } else {

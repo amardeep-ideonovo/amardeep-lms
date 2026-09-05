@@ -32,7 +32,7 @@ import type {
   LiveSessionBarDTO,
   MySubscriptionDTO,
 } from "@lms/types";
-import { ApiError, api, getToken } from "@/lib/api";
+import { ApiError, api, isSignedIn } from "@/lib/api";
 import { HELPDESK_OPEN_EVENT } from "@/lib/helpdesk-bus";
 import {
   qk,
@@ -103,7 +103,7 @@ export default function HelpdeskWidget() {
   const openAnswerRef = useRef<(c: HelpdeskCategory) => void>(() => {});
   useEffect(() => {
     const onOpen = (e: Event) => {
-      if (!getToken()) return;
+      if (!isSignedIn()) return;
       const category = (e as CustomEvent<{ category?: HelpdeskCategory }>)
         .detail?.category;
       setOpen(true);
@@ -122,7 +122,7 @@ export default function HelpdeskWidget() {
 
   const config = useHelpdeskConfig();
   const me = useMe();
-  const signedIn = mounted && typeof window !== "undefined" && !!getToken();
+  const signedIn = mounted && typeof window !== "undefined" && isSignedIn();
   const live = useLiveCurrent(signedIn && open);
   // This academy's published FAQ — listed on home, and fed to the composer's
   // router so a typed question can open the matching article directly.

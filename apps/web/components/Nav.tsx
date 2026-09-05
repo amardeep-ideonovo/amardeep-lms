@@ -11,10 +11,10 @@ import type {
 } from "@lms/types";
 import {
   api,
-  clearToken,
   fetchSiteHeader,
   getCachedMe,
-  getToken,
+  isSignedIn,
+  logout as apiLogout,
   setAuthHintCookie,
   setCachedMe,
 } from "@/lib/api";
@@ -85,7 +85,7 @@ export default function Nav({
   // painted logged-out first, then the avatar/name popped in and shifted the
   // row — the "account name takes time" jitter.
   useIsomorphicLayoutEffect(() => {
-    const has = !!getToken();
+    const has = isSignedIn();
     setAuthed(has);
     setHydrated(true);
     // Sessions from before the hint cookie existed self-heal here, so their
@@ -101,7 +101,7 @@ export default function Nav({
   // header + menus on every load, and — worse — the profile effect's !authed
   // branch WIPED the me-cache each load before refetching it (so one failed
   // /auth/me left the next visit nameless).
-  const authedIsStale = () => authed !== !!getToken();
+  const authedIsStale = () => authed !== isSignedIn();
 
   // Re-resolve which header applies to this path + visitor (audience/page
   // rules) on navigation and on login/logout. The SSR'd initialHeader covers
@@ -175,8 +175,8 @@ export default function Nav({
 
   if (pathname === "/login") return null;
 
-  const logout = () => {
-    clearToken();
+  const logout = async () => {
+    await apiLogout();
     setDrawer(false);
     router.replace("/login");
   };

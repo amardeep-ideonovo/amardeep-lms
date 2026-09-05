@@ -4,9 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import {
   api,
   clearToken,
+  isSignedIn,
   getCachedMe,
   getPreviewPair,
-  getToken,
   setActivePreview,
   setCachedMe,
 } from "@/lib/api";
@@ -30,7 +30,7 @@ export default function PreviewBanner() {
       setCachedMe(u);
       return u;
     },
-    enabled: typeof window !== "undefined" && !!getToken(),
+    enabled: typeof window !== "undefined" && isSignedIn(),
     initialData: () => getCachedMe() ?? undefined,
   });
 

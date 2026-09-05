@@ -41,6 +41,7 @@ import { ControlPlaneModule } from "./control-plane/control-plane.module";
 import { ContentPackModule } from "./content-pack/content-pack.module";
 import { SitePreviewModule } from "./site-preview/site-preview.module";
 import { PreviewReadOnlyGuard } from "./site-preview/preview-read-only.guard";
+import { CsrfGuard } from "./auth/csrf.guard";
 
 @Module({
   imports: [
@@ -107,6 +108,10 @@ import { PreviewReadOnlyGuard } from "./site-preview/preview-read-only.guard";
     // data (keeps their "no relational rows" isolation invariant). Runs on
     // every request; cheap (verb allowlist + one HMAC decode only when needed).
     { provide: APP_GUARD, useClass: PreviewReadOnlyGuard },
+    // CSRF (double-submit) for the cookie-authenticated web session. No-ops for
+    // safe methods, Bearer clients (mobile/admin), and requests with no session
+    // cookie (public routes + webhooks), so it only guards real cookie sessions.
+    { provide: APP_GUARD, useClass: CsrfGuard },
     // D6: every HTTP error body carries a machine-readable `code`
     // ("UNSPECIFIED" for legacy string-only throws) — one response shape.
     { provide: APP_FILTER, useClass: HttpExceptionFilter },

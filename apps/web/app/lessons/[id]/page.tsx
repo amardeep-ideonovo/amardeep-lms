@@ -20,7 +20,7 @@ import type {
   LessonNoteDTO,
 } from "@lms/types";
 import { STR, formatBytes } from "@lms/types";
-import { ApiError, api, clearToken, getToken } from "@/lib/api";
+import { ApiError, api, clearToken, memberCacheId } from "@/lib/api";
 import { readMemberCache, writeMemberCache } from "@/lib/member-cache";
 import { fmtDuration } from "@/lib/memberData";
 import AuthGate from "@/components/AuthGate";
@@ -183,7 +183,7 @@ function LessonInner() {
   useIsomorphicLayoutEffect(() => {
     const snap = readMemberCache<LessonSnapshot>(
       lessonCacheKey(lessonId),
-      getToken(),
+      memberCacheId(),
     );
     setError(null);
     setLocked(false);
@@ -249,13 +249,17 @@ function LessonInner() {
   // nothing — writeMemberCache no-ops without a token).
   useEffect(() => {
     if (!lesson) return;
-    writeMemberCache<LessonSnapshot>(lessonCacheKey(lesson.id), getToken(), {
-      lesson,
-      siblings: siblings ?? [],
-      course,
-      completed,
-      certificates,
-    });
+    writeMemberCache<LessonSnapshot>(
+      lessonCacheKey(lesson.id),
+      memberCacheId(),
+      {
+        lesson,
+        siblings: siblings ?? [],
+        course,
+        completed,
+        certificates,
+      },
+    );
   }, [lesson, siblings, course, completed, certificates]);
 
   // Warm the ADJACENT lessons' snapshots in the background, so a prev/next click
@@ -270,7 +274,7 @@ function LessonInner() {
     const neighbourIds = [siblings[i - 1]?.id, siblings[i + 1]?.id].filter(
       (id): id is string => !!id,
     );
-    const token = getToken();
+    const token = memberCacheId();
     for (const id of neighbourIds) {
       if (readMemberCache<LessonSnapshot>(lessonCacheKey(id), token)) continue;
       api

@@ -8,7 +8,7 @@ import type {
   LessonDTO,
   LiveSessionBarDTO,
 } from "@lms/types";
-import { ApiError, api, getToken } from "@/lib/api";
+import { ApiError, api, isSignedIn, memberCacheId } from "@/lib/api";
 import { readMemberCache, writeMemberCache } from "@/lib/member-cache";
 import { fmtDuration, fmtTotalMinutes } from "@/lib/memberData";
 import CertificateClaimButton from "@/components/CertificateClaimButton";
@@ -103,7 +103,7 @@ async function fetchOwnership(slugOrId: string): Promise<Ownership> {
 // fresh progress instead of reading a stale forever-cache.
 const inflight = new Map<string, Promise<Ownership>>();
 function resolveOwnership(slugOrId: string): Promise<Ownership> {
-  if (!getToken()) return Promise.resolve(GUEST);
+  if (!isSignedIn()) return Promise.resolve(GUEST);
   let p = inflight.get(slugOrId);
   if (!p) {
     p = fetchOwnership(slugOrId);
@@ -418,7 +418,7 @@ export default function ClassMemberArea({
   useIsomorphicLayoutEffect(() => {
     const snap = readMemberCache<OwnershipSnapshot>(
       classCacheKey(slugOrId),
-      getToken(),
+      memberCacheId(),
     );
     if (!snap) return;
     seededRef.current = true;
@@ -490,12 +490,16 @@ export default function ClassMemberArea({
   // every load). Tokenless visitors write nothing (writeMemberCache no-ops).
   useEffect(() => {
     if (!resolved) return;
-    writeMemberCache<OwnershipSnapshot>(classCacheKey(slugOrId), getToken(), {
-      owned,
-      courses,
-      certificate,
-      lessons: Object.fromEntries(lessonsByCourse),
-    });
+    writeMemberCache<OwnershipSnapshot>(
+      classCacheKey(slugOrId),
+      memberCacheId(),
+      {
+        owned,
+        courses,
+        certificate,
+        lessons: Object.fromEntries(lessonsByCourse),
+      },
+    );
   }, [resolved, owned, courses, certificate, lessonsByCourse, slugOrId]);
 
   const totals = useMemo(() => {
