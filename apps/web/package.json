@@ -14,7 +14,7 @@
     "@puckeditor/core": "^0.21.2",
     "@tanstack/react-query": "^5.101.4",
     "@zoom/meetingsdk": "^6.2.0",
-    "next": "14.2.5",
+    "next": "14.2.35",
     "react": "18.2.0",
     "react-dom": "18.2.0"
   },
