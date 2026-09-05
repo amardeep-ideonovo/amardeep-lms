@@ -49,9 +49,11 @@ export function formatBytes(n: number): string {
 
 /**
  * The mobile "connect code" a member types into the shared Spotlight app to bind
- * it to this academy. On the fleet each instance is served at
- * `<code>.<platform-domain>` (e.g. `solitaire-web-solution.thewebpaanda.com`),
- * and that leading DNS label IS the connect code the control plane resolves.
+ * it to this academy. It is the leading DNS label of the member site — whether
+ * the instance is on the fleet subdomain scheme (`<code>.app.<platform-domain>`,
+ * e.g. `solitaire-web-solution.app.thewebpaanda.com`) or a custom-domain scheme
+ * (`<code>.<domain>`, e.g. `demo.thewebpaanda.com`) — and the control plane
+ * resolves that label to the instance.
  *
  * Derives it from the member website origin, which both the admin (`webUrl()`)
  * and the member web app know at runtime. Returns null for a bare/custom apex

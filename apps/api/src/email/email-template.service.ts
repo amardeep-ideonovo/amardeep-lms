@@ -349,8 +349,9 @@ export class EmailTemplateService {
 
 // Branded welcome body (MJML + Handlebars). Spark palette (cream body, ink
 // text, teal CTA with ink label) to match the web/admin/mobile design system:
-// greeting, supporting copy and a CTA button to {{url}}. Vars: firstName,
-// brand, url.
+// greeting, supporting copy, a CTA button to {{url}}, and a "get the mobile app"
+// card with the connect code (mirrors the member account page). Vars: firstName,
+// brand, url, connectCode, connectAddress (the app card hides if both are empty).
 const WELCOME_MJML = `<mjml>
   <mj-head>
     <mj-attributes>
@@ -385,6 +386,21 @@ const WELCOME_MJML = `<mjml>
         </mj-text>
       </mj-column>
     </mj-section>
+    {{#if connectAddress}}
+    <mj-section background-color="#ffffff" border-radius="16px" padding="8px" css-class="card">
+      <mj-column padding="24px">
+        <mj-text font-size="16px" font-weight="700" color="#221c3d" padding-bottom="6px">
+          Get {{brand}} on your phone
+        </mj-text>
+        <mj-text font-size="14px" line-height="1.6" color="#55506e" padding-bottom="16px">
+          Install the Spotlight app, then {{#if connectCode}}enter this code to connect:{{else}}enter this address to connect:{{/if}}
+        </mj-text>
+        <mj-text align="center" font-family="'Courier New', Courier, monospace" font-size="18px" font-weight="700" letter-spacing="1px" color="#221c3d" container-background-color="#f1eff7" padding="14px 16px">
+          {{#if connectCode}}{{connectCode}}{{else}}{{connectAddress}}{{/if}}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    {{/if}}
     <mj-section padding="16px 0 32px">
       <mj-column>
         <mj-text align="center" font-size="12px" color="#a3a19c" line-height="1.6">
