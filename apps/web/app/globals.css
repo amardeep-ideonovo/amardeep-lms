@@ -566,7 +566,12 @@ a {
 }
 .nav-logo {
   height: 32px;
+  /* Cap the width so a wide/banner logo can't push the nav links off-screen or
+     overflow the header — object-fit:contain keeps its aspect inside the box.
+     min(...,44vw) keeps it in check on narrow phones too. */
   width: auto;
+  max-width: min(200px, 44vw);
+  object-fit: contain;
   display: block;
 }
 .nav-inner--3 {
@@ -645,7 +650,10 @@ a {
 }
 .footer-logo {
   height: 34px;
+  /* Same overflow guard as .nav-logo — a wide footer logo stays inside its box. */
   width: auto;
+  max-width: min(220px, 60vw);
+  object-fit: contain;
 }
 .footer-tagline {
   margin: 0;

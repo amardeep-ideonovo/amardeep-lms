@@ -1875,6 +1875,35 @@ select:-webkit-autofill:focus {
   align-items: center;
   gap: 16px;
 }
+/* Aspect-ratio presets in the logo (adjustable) cropper. */
+.cropper-aspects {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+.crop-aspect-btn {
+  padding: 5px 12px;
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.crop-aspect-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.crop-aspect-btn--active {
+  border-color: var(--teal-text);
+  background: rgba(53, 179, 162, 0.13);
+  color: var(--teal-text);
+}
+.crop-aspect-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
 .cropper-stage {
   position: relative;
   border-radius: var(--radius);
