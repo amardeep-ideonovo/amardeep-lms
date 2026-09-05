@@ -42,13 +42,23 @@ const DEFAULT_SUBMISSION_PAGE = 200;
 const MAX_SUBMISSION_PAGE = 1000;
 const CSV_BATCH = 500; // rows per keyset hop while streaming the export
 
-// Escape one CSV cell (quote if it contains a comma/quote/newline).
-function csvCell(v: unknown): string {
-  const s = v === undefined || v === null ? "" : String(v);
+// A cell a spreadsheet would EXECUTE as a formula: it begins with = + - @, or a
+// leading TAB/CR that shifts how Excel/Sheets parse it. Submission field values
+// and emails are fully attacker-controlled (and `=x@y.com` even passes the email
+// check), so an unguarded export is a CSV-injection vector — =cmd|'/c …'!A0 for
+// DDE, =HYPERLINK/=WEBSERVICE to exfiltrate other cells. Prefixing with a single
+// quote makes the app render the value as literal text instead of running it.
+const CSV_FORMULA_LEAD = /^[=+\-@\t\r]/;
+
+// Escape one CSV cell: neutralize formula injection FIRST, then quote for
+// RFC 4180 (wrap if it contains a comma/quote/newline). Exported for unit tests.
+export function csvCell(v: unknown): string {
+  let s = v === undefined || v === null ? "" : String(v);
+  if (CSV_FORMULA_LEAD.test(s)) s = `'${s}`;
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-function csvLine(cols: unknown[]): string {
+export function csvLine(cols: unknown[]): string {
   return cols.map(csvCell).join(",") + "\r\n";
 }
 
