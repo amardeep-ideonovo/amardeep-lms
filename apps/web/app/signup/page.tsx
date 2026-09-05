@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PASSWORD_MIN, STR } from "@lms/types";
 import { Button } from "@lms/ui";
-import { api, ApiError, setToken } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import SpotlightLogo from "@/components/SpotlightLogo";
 
 export default function SignupPage() {
@@ -30,7 +30,7 @@ export default function SignupPage() {
     }
     setLoading(true);
     try {
-      const res = await api.signup({
+      await api.signup({
         email: email.trim(),
         password,
         firstName: firstName.trim(),
@@ -38,8 +38,7 @@ export default function SignupPage() {
         phone: phone.trim() || undefined,
         inviteCode: inviteCode.trim() || undefined,
       });
-      // Identical to login: store the token and drop into the app.
-      setToken(res.token);
+      // The API set the session cookie; drop straight into the app.
       router.replace("/dashboard");
     } catch (err) {
       // 409 → friendly message; 400 → surface the validator's first message;

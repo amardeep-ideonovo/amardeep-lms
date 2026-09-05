@@ -2,9 +2,11 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
+import type { Request } from "express";
 import type { AdminPermissions } from "@lms/types";
 import { PrismaService } from "../prisma/prisma.service";
 import { jwtSecret } from "../common/env.util";
+import { SESSION_COOKIE, readCookie } from "./cookie.util";
 import type {
   AuthenticatedPrincipal,
   JwtPayload,
@@ -17,7 +19,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly prisma: PrismaService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // Bearer FIRST (mobile, admin, and the admin "preview as member" session
+      // all use it — a previewing admin must stay the preview identity even if a
+      // real member session cookie is also present), then the web's httpOnly
+      // session cookie.
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        (req: Request) => readCookie(req, SESSION_COOKIE),
+      ]),
       ignoreExpiration: false,
       secretOrKey: jwtSecret(config.get<string>("JWT_SECRET")),
     });

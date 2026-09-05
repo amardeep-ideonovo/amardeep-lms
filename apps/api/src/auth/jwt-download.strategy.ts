@@ -14,6 +14,7 @@ import {
   noteDownloadScope,
   type DownloadTokenPayload,
 } from "./download-token.util";
+import { SESSION_COOKIE, readCookie } from "./cookie.util";
 
 // JWT strategy for the file-download routes. It accepts the token from the
 // Authorization header (preferred — used by the web app's authed blob download)
@@ -34,6 +35,9 @@ export class JwtDownloadStrategy extends PassportStrategy(
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         ExtractJwt.fromAuthHeaderAsBearerToken(),
+        // The web's httpOnly session cookie (a full session JWT, like the header
+        // path) — sent automatically on credentialed download fetches.
+        (req: Request) => readCookie(req, SESSION_COOKIE),
         (req: Request) =>
           typeof req?.query?.token === "string" ? req.query.token : null,
       ]),
@@ -47,11 +51,14 @@ export class JwtDownloadStrategy extends PassportStrategy(
     req: Request,
     payload: JwtPayload | DownloadTokenPayload,
   ): AuthenticatedPrincipal {
-    // The header extractor runs first, so an Authorization header means the
-    // token came from the header (a session JWT is fine there). No header means
-    // it came from ?token=, which must be a correctly-scoped download token.
-    const fromHeader = typeof req.headers?.authorization === "string";
-    if (!fromHeader) {
+    // A full session JWT is fine from the Authorization header OR the httpOnly
+    // session cookie (both are session credentials the browser/app holds). Only
+    // the ?token= query path must be a correctly-scoped, short-lived download
+    // token — that's the value that can leak via a URL.
+    const fromSession =
+      typeof req.headers?.authorization === "string" ||
+      readCookie(req, SESSION_COOKIE) != null;
+    if (!fromSession) {
       const dl = payload as DownloadTokenPayload;
       if (dl.typ !== "dl" || !this.scopeMatches(dl.scope, req)) {
         throw new UnauthorizedException("Invalid or expired download token.");

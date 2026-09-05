@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { STR } from "@lms/types";
 import { Button } from "@lms/ui";
-import { api, setToken } from "@/lib/api";
+import { api } from "@/lib/api";
 import SpotlightLogo from "@/components/SpotlightLogo";
 
 // Shown after a member deletes their own account (redirect adds ?deleted=1).
@@ -31,8 +31,7 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await api.login(email.trim(), password);
-      setToken(res.token);
+      await api.login(email.trim(), password);
       router.replace("/dashboard");
     } catch (err) {
       setError(

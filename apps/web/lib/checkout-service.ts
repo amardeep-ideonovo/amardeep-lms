@@ -13,13 +13,13 @@ import type {
   SubscribeResult,
   SubscriptionDetailDTO,
 } from "@lms/types";
-import { api, ApiError, clearToken, getToken, setToken } from "./api";
+import { api, ApiError, clearToken, getToken, isSignedIn } from "./api";
 
 export { ApiError, getToken };
 
 // Returns the signed-in member, or null when logged out / token is stale.
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  if (!getToken()) return null;
+  if (!isSignedIn()) return null;
   try {
     return await api.me();
   } catch {
@@ -32,13 +32,11 @@ export async function login(
   password: string,
 ): Promise<AuthUser> {
   const res = await api.login(email, password);
-  setToken(res.token);
   return res.user;
 }
 
 export async function signup(input: SignupInput): Promise<AuthUser> {
   const res = await api.signup(input);
-  setToken(res.token);
   return res.user;
 }
 

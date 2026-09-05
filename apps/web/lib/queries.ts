@@ -32,7 +32,13 @@ import type {
   LessonDTO,
 } from "@lms/types";
 
-import { api, getCachedMe, getToken, setCachedMe } from "./api";
+import {
+  api,
+  getCachedMe,
+  isSignedIn,
+  memberCacheId,
+  setCachedMe,
+} from "./api";
 import { readMemberCache, writeMemberCache } from "./member-cache";
 import { fetchMemberDashboard } from "./memberData";
 
@@ -82,14 +88,14 @@ export function useMemberDashboard() {
     queryKey: qk.memberDashboard,
     queryFn: async () => {
       const d = await fetchMemberDashboard();
-      writeMemberCache<DashSnapshot>(DASH_CACHE_KEY, getToken(), {
+      writeMemberCache<DashSnapshot>(DASH_CACHE_KEY, memberCacheId(), {
         classes: d.classes,
         extras: Object.fromEntries(d.extras),
       });
       return d;
     },
     initialData: () => {
-      const c = readMemberCache<DashSnapshot>(DASH_CACHE_KEY, getToken());
+      const c = readMemberCache<DashSnapshot>(DASH_CACHE_KEY, memberCacheId());
       if (!c) return undefined;
       return {
         classes: c.data.classes,
@@ -99,7 +105,7 @@ export function useMemberDashboard() {
     // Stamp the snapshot's real age so staleTime still triggers the background
     // refetch — initial data without a timestamp would count as fresh.
     initialDataUpdatedAt: () =>
-      readMemberCache<DashSnapshot>(DASH_CACHE_KEY, getToken())?.t,
+      readMemberCache<DashSnapshot>(DASH_CACHE_KEY, memberCacheId())?.t,
   });
 }
 
@@ -147,13 +153,13 @@ export function useMyCertificates() {
     queryKey: qk.myCertificates,
     queryFn: async () => {
       const list = await api.myCertificates();
-      writeMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, getToken(), list);
+      writeMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, memberCacheId(), list);
       return list;
     },
     initialData: () =>
-      readMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, getToken())?.data,
+      readMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, memberCacheId())?.data,
     initialDataUpdatedAt: () =>
-      readMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, getToken())?.t,
+      readMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, memberCacheId())?.t,
   });
 }
 
@@ -175,13 +181,13 @@ export function useCourses() {
     queryKey: qk.courses,
     queryFn: async () => {
       const list = await api.courses();
-      writeMemberCache<CourseCard[]>(COURSES_CACHE_KEY, getToken(), list);
+      writeMemberCache<CourseCard[]>(COURSES_CACHE_KEY, memberCacheId(), list);
       return list;
     },
     initialData: () =>
-      readMemberCache<CourseCard[]>(COURSES_CACHE_KEY, getToken())?.data,
+      readMemberCache<CourseCard[]>(COURSES_CACHE_KEY, memberCacheId())?.data,
     initialDataUpdatedAt: () =>
-      readMemberCache<CourseCard[]>(COURSES_CACHE_KEY, getToken())?.t,
+      readMemberCache<CourseCard[]>(COURSES_CACHE_KEY, memberCacheId())?.t,
   });
 }
 
@@ -197,17 +203,21 @@ export function useCourseLessons(courseId: string) {
       const ordered = [...list].sort((a, b) => a.order - b.order);
       writeMemberCache<LessonDTO[]>(
         courseLessonsCacheKey(courseId),
-        getToken(),
+        memberCacheId(),
         ordered,
       );
       return ordered;
     },
     initialData: () =>
-      readMemberCache<LessonDTO[]>(courseLessonsCacheKey(courseId), getToken())
-        ?.data,
+      readMemberCache<LessonDTO[]>(
+        courseLessonsCacheKey(courseId),
+        memberCacheId(),
+      )?.data,
     initialDataUpdatedAt: () =>
-      readMemberCache<LessonDTO[]>(courseLessonsCacheKey(courseId), getToken())
-        ?.t,
+      readMemberCache<LessonDTO[]>(
+        courseLessonsCacheKey(courseId),
+        memberCacheId(),
+      )?.t,
   });
 }
 
@@ -220,7 +230,7 @@ export function useHelpdeskConfig() {
   return useQuery({
     queryKey: qk.helpdeskConfig,
     queryFn: () => api.helpdeskConfig(),
-    enabled: typeof window !== "undefined" && !!getToken(),
+    enabled: typeof window !== "undefined" && isSignedIn(),
     staleTime: 15_000,
   });
 }

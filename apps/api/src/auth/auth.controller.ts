@@ -6,6 +6,7 @@ import {
   Patch,
   Post,
   Req,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -14,7 +15,8 @@ import { FileInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 // Relative on purpose — see packages/types/constants.ts (API value imports).
 import { MAX_AVATAR_UPLOAD_BYTES } from "../../../../packages/types/constants";
-import type { Request } from "express";
+import type { Request, Response } from "express";
+import { setAuthCookies, clearAuthCookies } from "./cookie.util";
 import { Throttle } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
@@ -72,8 +74,15 @@ export class AuthController {
   @Post("login")
   @HttpCode(200)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
-  memberLogin(@Body() dto: LoginDto) {
-    return this.auth.loginMember(dto.email, dto.password);
+  async memberLogin(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.loginMember(dto.email, dto.password);
+    // Web reads the httpOnly session cookie; the response body still carries
+    // `token` for the mobile app (Bearer + secure-store) and the BDD suite.
+    setAuthCookies(res, result.token);
+    return result;
   }
 
   @Post("admin/login")
@@ -90,8 +99,13 @@ export class AuthController {
   @Post("signup")
   @HttpCode(200)
   @Throttle({ default: { limit: SIGNUP_LIMIT, ttl: SIGNUP_TTL_MS } })
-  memberSignup(@Body() dto: SignupDto) {
-    return this.auth.signupMember(dto);
+  async memberSignup(
+    @Body() dto: SignupDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.signupMember(dto);
+    setAuthCookies(res, result.token);
+    return result;
   }
 
   // Member self-serve password reset, step 1. ALWAYS 200 with { ok: true } —
@@ -156,11 +170,26 @@ export class AuthController {
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
   @Post("change-password")
   @HttpCode(200)
-  changePassword(
+  async changePassword(
     @CurrentUser() principal: AuthenticatedPrincipal,
     @Body() dto: ChangePasswordDto,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.auth.changePassword(principal.sub, dto);
+    const result = await this.auth.changePassword(principal.sub, dto);
+    // A password change bumps tokenVersion, so the OLD session cookie is now
+    // stale — re-issue cookies with the rotated token so the web member stays
+    // signed in instead of 401-ing on the next request.
+    setAuthCookies(res, result.token);
+    return result;
+  }
+
+  // Member logout: clear the session/CSRF/hint cookies (JS can't delete an
+  // httpOnly cookie). No auth guard so an already-expired session can still
+  // clear its cookies; the CSRF guard still applies (the web sends the token).
+  @Post("logout")
+  @HttpCode(204)
+  logout(@Res({ passthrough: true }) res: Response) {
+    clearAuthCookies(res);
   }
 
   // Admin self-service password change (separate table from members).
