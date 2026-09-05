@@ -50,6 +50,50 @@ ufw allow OpenSSH && ufw allow 80 && ufw allow 443 && ufw --force enable
 docker --version && docker compose version   # both must print versions
 ```
 
+**Cap container log growth (do this now, before any container starts).** Every
+_production_ compose file in these repos pins per-container log rotation
+(`logging:` with `json-file` + `max-size`/`max-file`): the single-VPS
+`deploy/docker-compose.yml`, the per-tenant `deploy/instance/`, and the control
+plane's host + fleet-Caddy stacks — so instances, the control plane, and the
+fleet Caddy are bounded on their own. (The repo-root dev `docker-compose.yml`
+and the dormant `docker-compose.multihost.yml` overlay are intentionally not
+pinned — neither runs on a server, and the daemon default below covers them
+anyway.) This host-level default is the belt-and-suspenders: it bounds anything
+WITHOUT an explicit block — a one-off `docker run`, a future service someone
+forgets to annotate — so a runaway log can never fill the disk and take the
+whole box (and every tenant on it) down.
+
+```bash
+cat > /etc/docker/daemon.json <<'JSON'
+{
+  "log-driver": "json-file",
+  "log-opts": { "max-size": "10m", "max-file": "5" }
+}
+JSON
+systemctl restart docker   # do this NOW, before starting anything (§4 onward)
+```
+
+Setting this on a live box is disruptive — `systemctl restart docker` bounces
+the daemon and every running container, and the new default only applies to
+containers created AFTER the restart (existing ones keep their old, unbounded
+config until they are recreated). On a fresh server (here) nothing is running
+yet, so there is no downtime. On an already-running fleet, do it in a
+maintenance window; a rolling recreate of each stack picks it up.
+
+> **One-time recreate when the compose `logging:` blocks first ship.** Adding a
+> `logging:` block changes a service's Compose config-hash, so the FIRST
+> `up -d`/reconfigure that carries the new file recreates that container even
+> when the image tag is unchanged. For an already-running fleet that means the
+> first roll after this change recreates each instance's **postgres + redis**
+> (and the control plane's shared **db**), not just the app tier — and a
+> custom-domain attach, which also reconfigures the instance, triggers the same
+> one-time bounce. Data is safe (Postgres/Redis live on named volumes), it is
+> one-time per stack (the hash is stable afterward), and it lands inside the
+> roll's existing downtime — but it is a member-facing DB/cache restart, so roll
+> the live fleet in a maintenance window. (The control-plane `db` is spared this
+> during a `cp-swap.sh`/`build.sh` deploy — those pass `--no-deps` — so it
+> recreates only when db is deliberately brought up.)
+
 ## 2. DNS (do early — certs need it)
 
 Create these records in the domain's DNS panel, all pointing to `<VPS_IP>`:
