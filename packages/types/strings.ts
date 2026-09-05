@@ -66,6 +66,17 @@ export const STR = {
     network: "Network error. Check your connection and try again.",
     passwordsDontMatch: "Passwords don’t match.",
     permissionDenied: "You don’t have permission to view this.",
+    // Branded 404 (not-found.tsx) + error-boundary (error.tsx) copy, shared by
+    // web + admin so a fresh academy never shows a raw framework page.
+    notFoundTitle: "Page not found",
+    notFoundBody:
+      "The page you’re looking for doesn’t exist or may have moved.",
+    errorTitle: "Something went wrong",
+    errorBody:
+      "An unexpected error occurred on our end. You can try again, or head back home.",
+    backHome: "Back to home",
+    // Shown above a support-correlatable id — never the raw error message/stack.
+    referenceId: "Reference",
   },
   validation: {
     passwordMin: (n: number) => `Password must be at least ${n} characters.`,

@@ -5026,3 +5026,61 @@ select.filter-select {
 .puck-host [class*="PuckLayout_"] {
   height: 100% !important;
 }
+
+/* Branded 404 / error-boundary states (not-found.tsx, error.tsx). Centered in
+   the admin content slot; single-class selectors only. Colors come from the
+   shared token layer (identical to the member web build). */
+.error-state {
+  max-width: 480px;
+  margin: 56px auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.error-state__badge {
+  font-size: 64px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin-bottom: 14px;
+  background: var(--teal-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.error-state__icon {
+  color: var(--teal-text);
+  margin-bottom: 14px;
+}
+.error-state__title {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--text);
+}
+/* error.tsx focuses this heading on mount for a screen-reader announcement; it
+   isn't an interactive control, so no visible focus ring. */
+.error-state__title:focus {
+  outline: none;
+}
+.error-state__body {
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 42ch;
+  margin: 0 0 26px;
+}
+.error-state__actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.error-state__ref {
+  margin: 24px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.error-state__ref code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
