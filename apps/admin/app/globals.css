@@ -184,7 +184,10 @@ a {
   padding: 24px 28px 30px;
 }
 .app-content-inner {
-  max-width: 1240px;
+  /* Full-bleed: every admin page fills the light panel edge-to-edge (minus the
+     .app-content padding) at any window width, instead of capping at a fixed
+     column and leaving dead space on wide monitors. */
+  max-width: none;
 }
 /* Login renders inside the shell with the chrome hidden — let the ink band
    fill the viewport instead of the light panel. */
@@ -914,6 +917,7 @@ a {
   gap: 6px;
 }
 .menu-node-row {
+  position: relative; /* anchors the drag-and-drop drop indicator */
   display: flex;
   align-items: center;
   gap: 8px;
@@ -921,6 +925,47 @@ a {
   border: 1px solid var(--border);
   border-radius: 9px;
   background: var(--surface-2);
+}
+/* ---- drag-and-drop reordering ---- */
+.menu-tree-hint {
+  font-size: 12px;
+  margin: 0 0 10px;
+}
+.menu-node-grip {
+  flex: none;
+  cursor: grab;
+  color: var(--muted);
+  user-select: none;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  touch-action: none;
+}
+.menu-node-grip:active {
+  cursor: grabbing;
+}
+.menu-node-row--dragging {
+  opacity: 0.5;
+  border-color: var(--teal-text);
+}
+/* A teal line at the edge the dragged item will land on (top half = before,
+   bottom half = after the hovered row). */
+.menu-node-row--drop-before::before,
+.menu-node-row--drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--teal-text);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.menu-node-row--drop-before::before {
+  top: -4px;
+}
+.menu-node-row--drop-after::after {
+  bottom: -4px;
 }
 .menu-node-type {
   flex: none;
@@ -1379,6 +1424,13 @@ select:-webkit-autofill:focus {
   padding: 12px 14px;
   border-radius: 10px;
   line-height: 1.5;
+}
+/* Both dashboard banners can show at once (demo payment keys + email not
+   connected). `.alert-warning` (below) sets a 4px bottom margin that, by source
+   order, would otherwise win here and crowd the two banners together — a
+   two-class selector out-specifies it so they keep clear air between them. */
+.dash-alert.alert-warning {
+  margin-bottom: 14px;
 }
 /* The alert inherits its own text colour, which leaves an <a> inside it looking
    exactly like prose — underline it so the one action in the banner is findable. */
@@ -2220,6 +2272,10 @@ select:-webkit-autofill:focus {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 18px;
+  margin-bottom: 18px;
+}
+/* Mobile-connect strip on the dashboard — same rhythm as the panels below it. */
+.dash-connect {
   margin-bottom: 18px;
 }
 .stat-card {

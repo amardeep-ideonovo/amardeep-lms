@@ -13,7 +13,8 @@ import type {
   MemberStatsDTO,
 } from "@lms/types";
 import { STR } from "@lms/types";
-import { buttonClass } from "@lms/ui";
+import { buttonClass, MobileConnectCard } from "@lms/ui";
+import { webUrl } from "@/lib/runtime-env";
 
 // NOTE (Ink Hero): the frame's "Weekly revenue" bar chart is intentionally
 // omitted — the API has no revenue-over-time endpoint (only on-demand .xlsx
@@ -389,6 +390,15 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Mobile connect code — the code members type into the Spotlight app to
+          reach this academy. Kept on the dashboard so the admin can hand it out
+          without digging through Settings. */}
+      <MobileConnectCard
+        webUrl={webUrl()}
+        audience="admin"
+        className="dash-connect"
+      />
 
       {/* Recent members + next live session */}
       {(showMembersCard || nextSession) && (
