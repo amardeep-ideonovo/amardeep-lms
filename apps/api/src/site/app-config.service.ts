@@ -20,6 +20,7 @@ const DARK: AppThemePalette = {
   textMuted: "#a7a3bd",
   primary: "#3cc4b2",
   danger: "#ea4f4f",
+  chrome: null, // header/ink-band override; null = Auto (derive from bg/text)
 };
 const LIGHT: AppThemePalette = {
   bg: "#f4f3f8",
@@ -30,6 +31,7 @@ const LIGHT: AppThemePalette = {
   textMuted: "#8b87a3",
   primary: "#3cc4b2",
   danger: "#e04848",
+  chrome: null, // header/ink-band override; null = Auto (derive from bg/text)
 };
 const DEFAULT_APP_CONFIG: AppConfig = {
   title: "Spotlight Academy",
@@ -112,6 +114,11 @@ export class AppConfigService {
       textMuted: this.color(r.textMuted, fb.textMuted),
       primary: this.color(r.primary, fb.primary),
       danger: this.color(r.danger, fb.danger),
+      // Optional per-mode header/ink-band override. Nullable (NOT via color(),
+      // which would coerce an unset value to a fallback string) so absent/invalid
+      // collapses to null = Auto, and the mobile app re-derives it from bg/text.
+      chrome:
+        typeof r.chrome === "string" && HEX.test(r.chrome) ? r.chrome : null,
     };
   }
 
