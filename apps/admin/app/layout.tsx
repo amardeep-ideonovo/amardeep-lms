@@ -10,6 +10,7 @@ import { DialogProvider } from "@/components/DialogProvider";
 import { ToastProvider } from "@/components/ToastProvider";
 import { QueryProvider } from "@/lib/query";
 import { withBase } from "@/lib/base-path";
+import { headers } from "next/headers";
 
 // Spark UI type — Plus Jakarta Sans everywhere (display + body; owner's call
 // over the pack's Space Grotesk), exposed as a CSS var consumed by
@@ -50,11 +51,15 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Per-request CSP nonce from middleware — the /env.js bootstrap <script> below
+  // must carry it, or a strict (enforcing) CSP with 'strict-dynamic' blocks it
+  // and the admin loses its API origin.
+  const nonce = headers().get("x-nonce") ?? undefined;
   return (
     <html lang="en" className={jakarta.variable}>
       <body>
@@ -62,7 +67,7 @@ export default function RootLayout({
             window.__ENV__ (API/web origins) is set when lib/api.ts runs.
             withBase() honors NEXT_PUBLIC_ADMIN_BASE_PATH when the admin is
             served under a path prefix (e.g. /admin). */}
-        <script src={withBase("/env.js")} />
+        <script src={withBase("/env.js")} nonce={nonce} />
         {/* ToastProvider is outermost: AdminAuthProvider rolls back optimistic
             writes (the sidebar order) and needs the toast channel to say so.
             The stack is position:fixed at z-index 90 — above the dialog layer
