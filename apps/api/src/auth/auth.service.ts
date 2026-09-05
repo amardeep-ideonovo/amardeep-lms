@@ -21,6 +21,7 @@ import type {
 import type { ErrorCode } from "@lms/types";
 // Relative on purpose — see packages/types/constants.ts (API value imports).
 import { MAX_AVATAR_UPLOAD_BYTES } from "../../../../packages/types/constants";
+import { mobileConnectCode } from "../../../../packages/types/format";
 import { PrismaService } from "../prisma/prisma.service";
 import { ContactsService } from "../contacts/contacts.service";
 import { AutomationService } from "../email/automation.service";
@@ -248,10 +249,21 @@ export class AuthService {
       const siteUrl =
         this.config.get<string>("WEB_APP_URL") || "http://localhost:3002";
       const firstName = user.firstName?.trim() || "there";
+      // "Get the mobile app" block in the welcome mail. The connect code is the
+      // site's subdomain; for a custom-apex/dev origin it can't be derived, so
+      // fall back to the site host (the app's Connect screen accepts either).
+      // The template hides the block entirely when neither is available.
+      const connectCode = mobileConnectCode(siteUrl) ?? "";
+      let connectAddress = "";
+      try {
+        connectAddress = new URL(siteUrl).host;
+      } catch {
+        /* unparseable origin → both blank → the {{#if}} hides the block */
+      }
       await this.automations.fire("SIGNUP", {
         email: user.email,
         contactId: undefined,
-        vars: { firstName, brand, url: siteUrl },
+        vars: { firstName, brand, url: siteUrl, connectCode, connectAddress },
       });
     } catch (err) {
       this.logger.warn(
