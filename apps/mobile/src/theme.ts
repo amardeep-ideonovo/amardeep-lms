@@ -221,6 +221,11 @@ function safePalette(
     const v = (input as Record<string, unknown>)[k];
     if (typeof v === "string" && v.length > 0) out[k] = v;
   }
+  // The optional header/ink-band override rides OUTSIDE PALETTE_KEYS (it's
+  // nullable, not one of the 8 required colors — keeping it out of PALETTE_KEYS
+  // is what stops isCompletePalette rejecting every chrome-less cached config).
+  const c = (input as Record<string, unknown>).chrome;
+  out.chrome = typeof c === "string" && c.length > 0 ? c : null;
   return out;
 }
 
@@ -240,8 +245,14 @@ export function paletteFrom(
   // (#272144) this lands on EXACTLY #221c3d (the design's ink-900). Near-gray
   // text keeps its own (low) saturation so we never invent a hue. In dark mode
   // the whole app already sits on an ink bg, so the chrome IS the bg.
+  // An admin-set per-mode override (App Customization → "Header band") wins over
+  // the derivation for that mode; null/absent falls back to Auto (this derive).
   const chrome =
-    mode === "dark" ? p.bg : hslToHex(t.h, t.s < 0.08 ? t.s : 0.37, 0.175);
+    p.chrome && /^#[0-9a-fA-F]{6}$/.test(p.chrome)
+      ? p.chrome
+      : mode === "dark"
+        ? p.bg
+        : hslToHex(t.h, t.s < 0.08 ? t.s : 0.37, 0.175);
 
   // Ink CARDS floated on light content (live strip, active class, certificate
   // hero). For the stock palettes this is exactly #272144 (ink-800) in both

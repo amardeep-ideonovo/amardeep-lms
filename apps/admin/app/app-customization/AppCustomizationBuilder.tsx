@@ -17,7 +17,12 @@ const msg = (e: unknown, fb: string) =>
   e instanceof ApiError ? e.message : fb;
 
 // The 8 themeable colors, mirroring apps/mobile/src/theme.ts.
-const PALETTE_FIELDS: { key: keyof AppThemePalette; label: string }[] = [
+// The 8 required solid-color keys (excludes the optional/nullable `chrome`
+// override, which has its own Auto-capable control below).
+const PALETTE_FIELDS: {
+  key: Exclude<keyof AppThemePalette, "chrome">;
+  label: string;
+}[] = [
   { key: "bg", label: "Background" },
   { key: "surface", label: "Surface" },
   { key: "surfaceMuted", label: "Surface (muted)" },
@@ -92,22 +97,56 @@ export default function AppCustomizationBuilder({
     }
   }
 
-  const renderPalette = (mode: "light" | "dark") => (
-    <div className="card">
-      <h2>{mode === "light" ? "Light theme colors" : "Dark theme colors"}</h2>
-      <div className="form-row" style={{ flexWrap: "wrap" }}>
-        {PALETTE_FIELDS.map((f) => (
-          <ColorField
-            key={f.key}
-            label={f.label}
-            value={cfg[mode][f.key]}
-            disabled={ro}
-            onChange={(v) => updPalette(mode, { [f.key]: v })}
-          />
-        ))}
+  const renderPalette = (mode: "light" | "dark") => {
+    // Header band (the ink strip behind the logo). null = Auto (derived from the
+    // theme, exactly as the app computes it); a hex overrides it for this mode.
+    const chromeAuto = cfg[mode].chrome == null;
+    return (
+      <div className="card">
+        <h2>{mode === "light" ? "Light theme colors" : "Dark theme colors"}</h2>
+        <div className="form-row" style={{ flexWrap: "wrap" }}>
+          {PALETTE_FIELDS.map((f) => (
+            <ColorField
+              key={f.key}
+              label={f.label}
+              value={cfg[mode][f.key]}
+              disabled={ro}
+              onChange={(v) => updPalette(mode, { [f.key]: v })}
+            />
+          ))}
+        </div>
+        {/* Header band gets its own control (not a PALETTE_FIELDS ColorField)
+            because it supports an "Auto" state a plain ColorField can't hold. */}
+        <div className="field" style={{ marginTop: 6 }}>
+          <label className="menu-checkbox" style={{ fontWeight: 500 }}>
+            <input
+              type="checkbox"
+              checked={chromeAuto}
+              disabled={ro}
+              onChange={(e) =>
+                updPalette(mode, {
+                  chrome: e.target.checked
+                    ? null
+                    : chromeColor(cfg[mode], mode),
+                })
+              }
+            />
+            Header band — Auto (match theme)
+          </label>
+          {!chromeAuto && (
+            <div style={{ marginTop: 8 }}>
+              <ColorField
+                label="Header color"
+                value={cfg[mode].chrome ?? chromeColor(cfg[mode], mode)}
+                disabled={ro}
+                onChange={(v) => updPalette(mode, { chrome: v })}
+              />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div
@@ -413,7 +452,9 @@ function PhonePreview({
   palette: AppThemePalette;
   mode: "light" | "dark";
 }) {
-  const chrome = chromeColor(p, mode);
+  // Override wins (mirrors the app's paletteFrom); chromeColor() is the Auto
+  // fallback. Kept byte-identical to apps/mobile/src/theme.ts.
+  const chrome = p.chrome ?? chromeColor(p, mode);
   const card = (title: string, sub: string, pct: number) => (
     <div
       style={{

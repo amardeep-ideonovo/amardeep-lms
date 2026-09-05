@@ -2097,6 +2097,10 @@ export interface AppThemePalette {
   textMuted: string; // secondary text
   primary: string; // brand / buttons / active
   danger: string; // errors / destructive
+  // Optional per-mode header / ink-band ("chrome") color override. null or
+  // absent = Auto: the app derives it (bg in dark mode; a deep ink from the
+  // text hue in light mode). A #rrggbb here overrides that for this mode.
+  chrome?: string | null;
 }
 export type AppColorScheme = "light" | "dark" | "system";
 export interface AppConfig {

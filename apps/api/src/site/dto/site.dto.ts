@@ -171,6 +171,11 @@ class AppThemePaletteDto implements AppThemePalette {
   @Matches(HEX) textMuted!: string;
   @Matches(HEX) primary!: string;
   @Matches(HEX) danger!: string;
+  // Optional header/ink-band override (mirrors menuActiveColor's nullable-hex
+  // pattern): @IsOptional lets null/omitted skip @Matches, so "Auto" (null)
+  // passes while a non-hex string is still rejected. Must be declared or the
+  // global forbidNonWhitelisted pipe 400s any PUT that carries it.
+  @IsOptional() @Matches(HEX) chrome?: string | null;
 }
 class AppConfigDto implements AppConfig {
   @IsString() @MaxLength(80) title!: string;
