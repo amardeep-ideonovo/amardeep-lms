@@ -1,0 +1,264 @@
+{
+  "$schema": "internal — consumed by scripts/audit-ci.mjs",
+  "$comment": "Production (npm audit --omit=dev) HIGH advisories that are KNOWN and consciously deferred. The CI gate FAILS on any prod high NOT listed here (and on ANY prod critical, which is never allowlistable), so a NEW vulnerability blocks merge while these tracked ones do not. When you upgrade a dependency, delete its cleared entries (the gate warns about stale entries). Every entry needs a category + the reason it is deferred; impact is the advisory `title`.",
+  "reviewedOn": "2026-09-05",
+  "policy": {
+    "omitDev": true,
+    "failOn": ["high", "critical"],
+    "criticalsAllowlistable": false
+  },
+  "allow": [
+    {
+      "ghsa": "GHSA-36qx-fr4f-26g5",
+      "url": "https://github.com/advisories/GHSA-36qx-fr4f-26g5",
+      "severity": "high",
+      "packages": ["next"],
+      "category": "major-upgrade",
+      "title": "Next.js has a Middleware / Proxy bypass in Pages Router applications using i18n",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-5528-5vmv-3xc2",
+      "url": "https://github.com/advisories/GHSA-5528-5vmv-3xc2",
+      "severity": "high",
+      "packages": ["multer"],
+      "category": "major-upgrade",
+      "title": "Multer Vulnerable to Denial of Service via Uncontrolled Recursion",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-6g55-p6wh-862q",
+      "url": "https://github.com/advisories/GHSA-6g55-p6wh-862q",
+      "severity": "high",
+      "packages": ["postcss"],
+      "category": "major-upgrade",
+      "title": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-72gw-mp4g-v24j",
+      "url": "https://github.com/advisories/GHSA-72gw-mp4g-v24j",
+      "severity": "high",
+      "packages": ["multer"],
+      "category": "major-upgrade",
+      "title": "Multer vulnerable to Denial of Service via deeply nested field names",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-89xv-2m56-2m9x",
+      "url": "https://github.com/advisories/GHSA-89xv-2m56-2m9x",
+      "severity": "high",
+      "packages": ["next"],
+      "category": "major-upgrade",
+      "title": "Next.js: Server-Side Request Forgery in Server Actions on custom servers",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-8h8q-6873-q5fj",
+      "url": "https://github.com/advisories/GHSA-8h8q-6873-q5fj",
+      "severity": "high",
+      "packages": ["next"],
+      "category": "major-upgrade",
+      "title": "Next.js Vulnerable to Denial of Service with Server Components",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-c4j6-fc7j-m34r",
+      "url": "https://github.com/advisories/GHSA-c4j6-fc7j-m34r",
+      "severity": "high",
+      "packages": ["next"],
+      "category": "major-upgrade",
+      "title": "Next.js vulnerable to server-side request forgery in applications using WebSocket upgrades",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-h25m-26qc-wcjf",
+      "url": "https://github.com/advisories/GHSA-h25m-26qc-wcjf",
+      "severity": "high",
+      "packages": ["next"],
+      "category": "major-upgrade",
+      "title": "Next.js HTTP request deserialization can lead to DoS when using insecure React Server Components",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-m99w-x7hq-7vfj",
+      "url": "https://github.com/advisories/GHSA-m99w-x7hq-7vfj",
+      "severity": "high",
+      "packages": ["next"],
+      "category": "major-upgrade",
+      "title": "Next.js: Denial of Service in App Router using Server Actions",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-p9j2-gv94-2wf4",
+      "url": "https://github.com/advisories/GHSA-p9j2-gv94-2wf4",
+      "severity": "high",
+      "packages": ["next"],
+      "category": "major-upgrade",
+      "title": "Next.js: Server-Side Request Forgery in rewrites via attacker-controlled destination hostname",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-pfq8-rq6v-vf5m",
+      "url": "https://github.com/advisories/GHSA-pfq8-rq6v-vf5m",
+      "severity": "high",
+      "packages": ["html-minifier"],
+      "category": "major-upgrade",
+      "title": "kangax html-minifier REDoS vulnerability",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-q4gf-8mx6-v5v3",
+      "url": "https://github.com/advisories/GHSA-q4gf-8mx6-v5v3",
+      "severity": "high",
+      "packages": ["next"],
+      "category": "major-upgrade",
+      "title": "Next.js has a Denial of Service with Server Components",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-r28c-9q8g-f849",
+      "url": "https://github.com/advisories/GHSA-r28c-9q8g-f849",
+      "severity": "high",
+      "packages": ["postcss"],
+      "category": "major-upgrade",
+      "title": "PostCSS: Path Traversal in Previous Source Map Auto-Loading (sourceMappingURL) leads to Arbitrary .map File Disclosure",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-r5fr-rjxr-66jc",
+      "url": "https://github.com/advisories/GHSA-r5fr-rjxr-66jc",
+      "severity": "high",
+      "packages": ["lodash"],
+      "category": "major-upgrade",
+      "title": "lodash vulnerable to Code Injection via `_.template` imports key names",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-v52c-386h-88mc",
+      "url": "https://github.com/advisories/GHSA-v52c-386h-88mc",
+      "severity": "high",
+      "packages": ["multer"],
+      "category": "major-upgrade",
+      "title": "Multer vulnerable to Denial of Service via resource exhaustion",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-xf7r-hgr6-v32p",
+      "url": "https://github.com/advisories/GHSA-xf7r-hgr6-v32p",
+      "severity": "high",
+      "packages": ["multer"],
+      "category": "major-upgrade",
+      "title": "Multer vulnerable to Denial of Service via incomplete cleanup",
+      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-5p2g-fcmc-qvqq",
+      "url": "https://github.com/advisories/GHSA-5p2g-fcmc-qvqq",
+      "severity": "high",
+      "packages": ["image-size"],
+      "category": "no-fix",
+      "title": "image-size: JXL and HEIF parsers allow denial of service through infinite loops",
+      "note": "DIRECT apps/api dependency: image-size sizes USER-UPLOADED images at request time (media.service.ts), so the parser infinite-loop DoS is reachable at runtime, not only at build time. Kept ONLY because there is no patched upstream version (fixAvailable=false); mitigate by gating size/type before sizeOf."
+    },
+    {
+      "ghsa": "GHSA-w3rx-r6r6-pgpr",
+      "url": "https://github.com/advisories/GHSA-w3rx-r6r6-pgpr",
+      "severity": "high",
+      "packages": ["image-size"],
+      "category": "no-fix",
+      "title": "image-size: ICNS parser allows denial of service through an infinite loop",
+      "note": "DIRECT apps/api dependency: image-size sizes USER-UPLOADED images at request time (media.service.ts), so the parser infinite-loop DoS is reachable at runtime, not only at build time. Kept ONLY because there is no patched upstream version (fixAvailable=false); mitigate by gating size/type before sizeOf."
+    },
+    {
+      "ghsa": "GHSA-28wg-ghj8-5hjv",
+      "url": "https://github.com/advisories/GHSA-28wg-ghj8-5hjv",
+      "severity": "high",
+      "packages": ["nanoid"],
+      "category": "transitive-fixable-deferred",
+      "title": "nanoid: non-secure generators can loop indefinitely with negative size",
+      "note": "A same-major patch exists, but this transitive dep is either entangled (multiple majors resolved in the tree) or not exercised by CI, so it was deferred to a later overrides pass rather than forcing an untested bump. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-2m8v-j782-fhvr",
+      "url": "https://github.com/advisories/GHSA-2m8v-j782-fhvr",
+      "severity": "high",
+      "packages": ["socket.io-parser"],
+      "category": "transitive-fixable-deferred",
+      "title": "Socket.IO: Zero-attachment Memory Exhaustion",
+      "note": "A same-major patch exists, but this transitive dep is either entangled (multiple majors resolved in the tree) or not exercised by CI, so it was deferred to a later overrides pass rather than forcing an untested bump. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-2v37-7h3g-55p8",
+      "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8",
+      "severity": "high",
+      "packages": ["nanoid"],
+      "category": "transitive-fixable-deferred",
+      "title": "nanoid: custom generators can loop indefinitely when size is zero",
+      "note": "A same-major patch exists, but this transitive dep is either entangled (multiple majors resolved in the tree) or not exercised by CI, so it was deferred to a later overrides pass rather than forcing an untested bump. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-395f-4hp3-45gv",
+      "url": "https://github.com/advisories/GHSA-395f-4hp3-45gv",
+      "severity": "high",
+      "packages": ["shell-quote"],
+      "category": "transitive-fixable-deferred",
+      "title": "shell-quote: Quadratic-complexity Denial of Service in `parse()` (CWE-407)",
+      "note": "A same-major patch exists, but this transitive dep is either entangled (multiple majors resolved in the tree) or not exercised by CI, so it was deferred to a later overrides pass rather than forcing an untested bump. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-3jxr-9vmj-r5cp",
+      "url": "https://github.com/advisories/GHSA-3jxr-9vmj-r5cp",
+      "severity": "high",
+      "packages": ["brace-expansion"],
+      "category": "transitive-fixable-deferred",
+      "title": "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+      "note": "A same-major patch exists, but this transitive dep is either entangled (multiple majors resolved in the tree) or not exercised by CI, so it was deferred to a later overrides pass rather than forcing an untested bump. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-73wf-gq98-2v4g",
+      "url": "https://github.com/advisories/GHSA-73wf-gq98-2v4g",
+      "severity": "high",
+      "packages": ["browserslist"],
+      "category": "transitive-fixable-deferred",
+      "title": "Browserslist: Uncaught crash / prototype write via untrusted browserslist-stats.json custom stats (normalizeStats)",
+      "note": "A same-major patch exists, but this transitive dep is either entangled (multiple majors resolved in the tree) or not exercised by CI, so it was deferred to a later overrides pass rather than forcing an untested bump. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-c83g-rgw3-j3cx",
+      "url": "https://github.com/advisories/GHSA-c83g-rgw3-j3cx",
+      "severity": "high",
+      "packages": ["browserslist"],
+      "category": "transitive-fixable-deferred",
+      "title": "Browserslist: Unbounded memory growth (no cache eviction) via distinct query results, leading to eventual OOM",
+      "note": "A same-major patch exists, but this transitive dep is either entangled (multiple majors resolved in the tree) or not exercised by CI, so it was deferred to a later overrides pass rather than forcing an untested bump. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-mh99-v99m-4gvg",
+      "url": "https://github.com/advisories/GHSA-mh99-v99m-4gvg",
+      "severity": "high",
+      "packages": ["brace-expansion"],
+      "category": "transitive-fixable-deferred",
+      "title": "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+      "note": "A same-major patch exists, but this transitive dep is either entangled (multiple majors resolved in the tree) or not exercised by CI, so it was deferred to a later overrides pass rather than forcing an untested bump. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-ph9p-34f9-6g65",
+      "url": "https://github.com/advisories/GHSA-ph9p-34f9-6g65",
+      "severity": "high",
+      "packages": ["tmp"],
+      "category": "transitive-fixable-deferred",
+      "title": "tmp has Path Traversal via unsanitized prefix/postfix that enables directory escape",
+      "note": "A same-major patch exists, but this transitive dep is either entangled (multiple majors resolved in the tree) or not exercised by CI, so it was deferred to a later overrides pass rather than forcing an untested bump. Impact: see title."
+    },
+    {
+      "ghsa": "GHSA-rgw5-rvv9-x895",
+      "url": "https://github.com/advisories/GHSA-rgw5-rvv9-x895",
+      "severity": "high",
+      "packages": ["brace-expansion"],
+      "category": "transitive-fixable-deferred",
+      "title": "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+      "note": "A same-major patch exists, but this transitive dep is either entangled (multiple majors resolved in the tree) or not exercised by CI, so it was deferred to a later overrides pass rather than forcing an untested bump. Impact: see title."
+    }
+  ]
+}

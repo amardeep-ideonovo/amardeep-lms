@@ -3,7 +3,9 @@ name: Build
 # Runs alongside the BDD workflow on every PR to main. Every job here is a
 # REQUIRED check in the protect-main repo ruleset (lint included since the
 # repo-wide Prettier sweep; its ESLint step stays warning-first — see the
-# lint job comment).
+# lint job comment) — EXCEPT `audit` (Dependency audit), which runs advisory-only
+# (visible red/green status, not merge-blocking) until it is added to that
+# ruleset; see its job comment at the bottom.
 #
 # The goal is to stop "merged green, broke on deploy" — typecheck/bundle
 # regressions in admin/web/mobile that BDD's API-only check misses.
@@ -181,3 +183,23 @@ jobs:
         run: npx prisma generate --schema packages/db/prisma/schema.prisma
       - name: next build
         run: npm run -w @lms/control-plane build
+
+  # Dependency-audit gate: fails on any PRODUCTION (omit=dev) advisory at
+  # high/critical that is NOT triaged in .audit-ci-allowlist.json. Keeps NEW
+  # vulnerabilities from accruing silently while the known-deferred ones (major
+  # upgrades, no-fix-upstream, low-risk transitive DoS) stay documented, not red.
+  # See scripts/audit-ci.mjs. To make this merge-blocking, add "Dependency audit"
+  # to the protect-main required-checks ruleset.
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Audit production dependencies
+        run: npm run audit:ci
