@@ -16,3 +16,5 @@ export { createRequest } from "./request";
 export type { RequestConfig, RequestOptions } from "./request";
 export { useImageCropper } from "./use-image-cropper";
 export type { ImageCropperOptions, ImageCropper } from "./use-image-cropper";
+export { MobileConnectCard } from "./connect-code-card";
+export type { MobileConnectCardProps } from "./connect-code-card";

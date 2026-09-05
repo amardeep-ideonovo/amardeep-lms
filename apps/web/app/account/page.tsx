@@ -11,7 +11,7 @@ import type {
   SubscriptionDetailDTO,
 } from "@lms/types";
 import { PASSWORD_MIN, STR, formatMoney } from "@lms/types";
-import { Button, buttonClass } from "@lms/ui";
+import { Button, buttonClass, MobileConnectCard } from "@lms/ui";
 import { ApiError, api, clearToken } from "@/lib/api";
 import { qk, useMe, useMySubscriptions } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
@@ -430,6 +430,16 @@ function AccountInner() {
   const subs = subsQuery.data ?? [];
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Member website origin, for the "connect the mobile app" code. Resolved after
+  // mount (window.__ENV__ is set before hydration, but reading it during SSR
+  // would render nothing and mismatch on hydrate) — so the card appears once,
+  // client-side. Prefers the configured runtime origin, falls back to location.
+  const [memberWebUrl, setMemberWebUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const env = (window as unknown as { __ENV__?: { webUrl?: string } })
+      .__ENV__;
+    setMemberWebUrl(env?.webUrl || window.location.origin);
+  }, []);
   // Member self-cancel (period end). `cancelFor` drives the confirm modal.
   const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(
     null,
@@ -1049,6 +1059,14 @@ function AccountInner() {
         </section>
 
         <CertificatesSection />
+
+        {/* Take the membership to a phone — the Spotlight app connect code. */}
+        {memberWebUrl && (
+          <section className="account-section">
+            <h2>Mobile app</h2>
+            <MobileConnectCard webUrl={memberWebUrl} audience="member" />
+          </section>
+        )}
 
         {/* Card management is a Stripe-portal feature; PayPal members manage
           their payment method in their PayPal account instead. */}

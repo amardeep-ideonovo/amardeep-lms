@@ -166,6 +166,18 @@ export default function MenusPage() {
   // inline item editing
   const [editId, setEditId] = useState<string | null>(null);
 
+  // Drag-and-drop reordering of the menu tree. `dragId` is the row being
+  // dragged; `dropInfo` is the live drop target + whether the item lands before
+  // or after it (top/bottom half of the hovered row). The dragged item adopts
+  // the target's parent, so a single drag both reorders AND re-nests (drop onto
+  // a child of a dropdown to move inside it) — the ↑↓→← buttons stay for
+  // keyboard/precision use.
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropInfo, setDropInfo] = useState<{
+    id: string;
+    pos: "before" | "after";
+  } | null>(null);
+
   const canEdit = can("menus", "edit");
   const canCreate = can("menus", "create");
   const canDelete = can("menus", "delete");
@@ -506,6 +518,31 @@ export default function MenusPage() {
       }
     });
 
+  // Drag-and-drop move: place `dragId` beside `targetId` (before/after),
+  // adopting the target's parent list. Guards against dropping a node into its
+  // own subtree (which would orphan the subtree) and against a no-op self-drop.
+  const moveItem = (
+    dragItemId: string,
+    targetId: string,
+    pos: "before" | "after",
+  ) =>
+    applyStructural((tree) => {
+      if (dragItemId === targetId) return;
+      const src = locate(tree, dragItemId);
+      if (!src) return;
+      const node = src.siblings[src.index];
+      // Target sits inside the dragged item's own subtree — moving there would
+      // detach the subtree from the tree. Ignore.
+      if (locate(node.children, targetId)) return;
+      // Detach first, then re-locate the target (indices in the source list may
+      // have shifted). Not finding it here can't happen — a target inside the
+      // removed subtree was already ruled out above.
+      src.siblings.splice(src.index, 1);
+      const dst = locate(tree, targetId);
+      if (!dst) return;
+      dst.siblings.splice(pos === "after" ? dst.index + 1 : dst.index, 0, node);
+    });
+
   async function deleteItem(id: string) {
     if (
       !(await dialog.confirm({
@@ -808,104 +845,191 @@ export default function MenusPage() {
               <h2>Menu structure</h2>
               {rows.length === 0 ? (
                 <p className="muted">
-                  No items yet — add some above. Use ↑ ↓ to reorder and → ← to
-                  nest (create dropdowns).
+                  No items yet — add some above. Drag the ⠿ handle to rearrange,
+                  or use ↑ ↓ to reorder and → ← to nest (create dropdowns).
                 </p>
               ) : (
-                <div className="menu-tree">
-                  {rows.map(({ item, depth }) => (
-                    <div key={item.id} className="menu-node">
-                      <div
-                        className="menu-node-row"
-                        style={{ marginLeft: depth * 22 }}
-                      >
-                        <span className="badge badge--neutral menu-node-type">
-                          {TYPE_BADGE[item.type]}
-                        </span>
-                        <span className="menu-node-label">{item.label}</span>
-                        {item.visibility !== "ALL" && (
-                          <span className="badge badge--warn menu-node-vis">
-                            {item.visibility === "LEVEL"
-                              ? levelName.get(item.visibilityLevelId ?? "") ||
-                                "Class"
-                              : item.visibility === "GUEST"
-                                ? "Guests"
-                                : "Members"}
-                          </span>
-                        )}
-                        {canEdit && (
-                          <span className="menu-node-actions">
-                            <button
-                              className="nav-reorder-btn"
-                              title="Move up"
-                              onClick={() => moveUp(item.id)}
-                            >
-                              ↑
-                            </button>
-                            <button
-                              className="nav-reorder-btn"
-                              title="Move down"
-                              onClick={() => moveDown(item.id)}
-                            >
-                              ↓
-                            </button>
-                            <button
-                              className="nav-reorder-btn"
-                              title="Indent (nest)"
-                              onClick={() => indent(item.id)}
-                            >
-                              →
-                            </button>
-                            <button
-                              className="nav-reorder-btn"
-                              title="Outdent"
-                              onClick={() => outdent(item.id)}
-                            >
-                              ←
-                            </button>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() =>
-                                setEditId(editId === item.id ? null : item.id)
+                <>
+                  {canEdit && (
+                    <p className="muted menu-tree-hint">
+                      Drag the ⠿ handle to rearrange items; drop onto a nested
+                      item to move inside its dropdown. The ↑ ↓ → ← buttons do
+                      the same.
+                    </p>
+                  )}
+                  <div className="menu-tree">
+                    {rows.map(({ item, depth }) => {
+                      const isDragging = dragId === item.id;
+                      const drop =
+                        dropInfo && dropInfo.id === item.id && !isDragging
+                          ? dropInfo.pos
+                          : null;
+                      const rowClass =
+                        "menu-node-row" +
+                        (isDragging ? " menu-node-row--dragging" : "") +
+                        (drop === "before"
+                          ? " menu-node-row--drop-before"
+                          : "") +
+                        (drop === "after" ? " menu-node-row--drop-after" : "");
+                      return (
+                        <div key={item.id} className="menu-node">
+                          <div
+                            className={rowClass}
+                            style={{ marginLeft: depth * 22 }}
+                            onDragOver={(e) => {
+                              if (!canEdit || dragId === null || isDragging)
+                                return;
+                              // Allow the drop and pick before/after from which half
+                              // of the row the cursor is over.
+                              e.preventDefault();
+                              const rect =
+                                e.currentTarget.getBoundingClientRect();
+                              const pos =
+                                e.clientY < rect.top + rect.height / 2
+                                  ? "before"
+                                  : "after";
+                              setDropInfo((cur) =>
+                                cur && cur.id === item.id && cur.pos === pos
+                                  ? cur
+                                  : { id: item.id, pos },
+                              );
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              if (canEdit && dragId && dragId !== item.id) {
+                                const rect =
+                                  e.currentTarget.getBoundingClientRect();
+                                const pos =
+                                  e.clientY < rect.top + rect.height / 2
+                                    ? "before"
+                                    : "after";
+                                void moveItem(dragId, item.id, pos);
                               }
-                            >
-                              {editId === item.id
-                                ? STR.common.close
-                                : STR.common.edit}
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => deleteItem(item.id)}
-                            >
-                              ✕
-                            </Button>
-                          </span>
-                        )}
-                      </div>
-                      {editId === item.id && (
-                        <ItemEditor
-                          item={item}
-                          levels={levels}
-                          onSaved={(m) => {
-                            setMenu(m);
-                            setEditId(null);
-                            reloadMenus().catch((e) =>
-                              setError(
-                                e instanceof ApiError
-                                  ? e.message
-                                  : "Couldn’t reload the menus.",
-                              ),
-                            );
-                          }}
-                          onError={setError}
-                          style={{ marginLeft: depth * 22 }}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
+                              setDragId(null);
+                              setDropInfo(null);
+                            }}
+                          >
+                            {canEdit && (
+                              <span
+                                className="menu-node-grip"
+                                draggable
+                                onDragStart={(e) => {
+                                  setDragId(item.id);
+                                  e.dataTransfer.effectAllowed = "move";
+                                  // Firefox won't start a drag without data set.
+                                  try {
+                                    e.dataTransfer.setData(
+                                      "text/plain",
+                                      item.id,
+                                    );
+                                  } catch {
+                                    /* older browsers */
+                                  }
+                                }}
+                                onDragEnd={() => {
+                                  setDragId(null);
+                                  setDropInfo(null);
+                                }}
+                                title="Drag to rearrange"
+                                aria-hidden="true"
+                              >
+                                ⠿
+                              </span>
+                            )}
+                            <span className="badge badge--neutral menu-node-type">
+                              {TYPE_BADGE[item.type]}
+                            </span>
+                            <span className="menu-node-label">
+                              {item.label}
+                            </span>
+                            {item.visibility !== "ALL" && (
+                              <span className="badge badge--warn menu-node-vis">
+                                {item.visibility === "LEVEL"
+                                  ? levelName.get(
+                                      item.visibilityLevelId ?? "",
+                                    ) || "Class"
+                                  : item.visibility === "GUEST"
+                                    ? "Guests"
+                                    : "Members"}
+                              </span>
+                            )}
+                            {canEdit && (
+                              <span className="menu-node-actions">
+                                <button
+                                  className="nav-reorder-btn"
+                                  title="Move up"
+                                  onClick={() => moveUp(item.id)}
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  className="nav-reorder-btn"
+                                  title="Move down"
+                                  onClick={() => moveDown(item.id)}
+                                >
+                                  ↓
+                                </button>
+                                <button
+                                  className="nav-reorder-btn"
+                                  title="Indent (nest)"
+                                  onClick={() => indent(item.id)}
+                                >
+                                  →
+                                </button>
+                                <button
+                                  className="nav-reorder-btn"
+                                  title="Outdent"
+                                  onClick={() => outdent(item.id)}
+                                >
+                                  ←
+                                </button>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() =>
+                                    setEditId(
+                                      editId === item.id ? null : item.id,
+                                    )
+                                  }
+                                >
+                                  {editId === item.id
+                                    ? STR.common.close
+                                    : STR.common.edit}
+                                </Button>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  onClick={() => deleteItem(item.id)}
+                                >
+                                  ✕
+                                </Button>
+                              </span>
+                            )}
+                          </div>
+                          {editId === item.id && (
+                            <ItemEditor
+                              item={item}
+                              levels={levels}
+                              onSaved={(m) => {
+                                setMenu(m);
+                                setEditId(null);
+                                reloadMenus().catch((e) =>
+                                  setError(
+                                    e instanceof ApiError
+                                      ? e.message
+                                      : "Couldn’t reload the menus.",
+                                  ),
+                                );
+                              }}
+                              onError={setError}
+                              style={{ marginLeft: depth * 22 }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
           </div>
