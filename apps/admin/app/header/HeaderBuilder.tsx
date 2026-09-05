@@ -789,6 +789,7 @@ function HeaderEditor({
           <MediaPicker
             value={config.logoUrl ?? ""}
             disabled={ro}
+            adjustableCrop
             onChange={(url) => updConfig({ logoUrl: url || null })}
           />
         </div>

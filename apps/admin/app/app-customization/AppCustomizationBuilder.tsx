@@ -209,6 +209,7 @@ export default function AppCustomizationBuilder({
             <MediaPicker
               value={cfg.logoUrl ?? ""}
               disabled={ro}
+              adjustableCrop
               onChange={(url) => upd({ logoUrl: url || null })}
             />
           </div>

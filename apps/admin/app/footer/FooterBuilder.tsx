@@ -266,6 +266,7 @@ export default function FooterBuilder({
           <MediaPicker
             value={cfg.logoUrl ?? ""}
             disabled={ro}
+            adjustableCrop
             onChange={(url) => upd({ logoUrl: url || null })}
           />
         </div>
