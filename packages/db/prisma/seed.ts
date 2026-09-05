@@ -61,7 +61,13 @@
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
-import { Admin, AdminRole, Prisma, PrismaClient } from "@prisma/client";
+import {
+  Admin,
+  AdminRole,
+  HelpdeskCategory,
+  Prisma,
+  PrismaClient,
+} from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -2706,6 +2712,167 @@ async function backfillSlugs(): Promise<void> {
   }
 }
 
+// ---------- starter help articles ----------
+// A generic FAQ pack so a fresh academy's help centre isn't empty on day one:
+// the member helpdesk article surface exists (member-helpdesk migration) but
+// ships no content, so a brand-new academy shows an empty "Help articles". These
+// are a STARTING TEMPLATE, not an enforced state — the same rule the demo
+// content follows: once they land they belong to the client, and a later boot
+// must not resurrect one they deleted or revert one they edited (seeded only
+// when the table is empty, below). purgeDemoDebris()/retireStaleSeedRows() do
+// NOT touch HelpdeskArticle, so these survive a baseline boot; only the explicit
+// SEED_WIPE=1 reset clears them.
+//
+// Body is PLAIN TEXT: the member web + mobile surfaces split it into paragraphs
+// on /\n{2,}/, so paragraphs are separated by a blank line and there is no HTML
+// or markdown. Copy is deliberately brand-neutral (no academy name) since it
+// seeds every instance; a client can edit or replace any of it.
+const STARTER_ARTICLES: Array<{
+  slug: string;
+  title: string;
+  category: HelpdeskCategory;
+  keywords: string[];
+  body: string;
+}> = [
+  {
+    slug: "signing-in-and-passwords",
+    title: "Signing in and resetting your password",
+    category: "ACCOUNT",
+    keywords: [
+      "sign in",
+      "log in",
+      "login",
+      "password",
+      "reset password",
+      "forgot password",
+      "can't log in",
+      "locked out",
+    ],
+    body: `Sign in with the email address and password you used when you joined. Your email address is your username.
+
+Forgot your password? On the sign-in screen, choose “Forgot password” and we'll email you a link to set a new one. The link is single-use and expires after a short while, so always use the most recent email if you request more than one.
+
+If the reset email doesn't arrive within a few minutes, check your spam or promotions folder, and make sure you're using the same email address you signed up with.`,
+  },
+  {
+    slug: "getting-the-mobile-app",
+    title: "Getting the mobile app",
+    category: "TECHNICAL",
+    keywords: [
+      "mobile app",
+      "app",
+      "phone",
+      "install",
+      "download",
+      "connect code",
+      "spotlight app",
+      "ios",
+      "android",
+      "iphone",
+    ],
+    body: `You can use your membership on your phone with the Spotlight app. Install it free from the App Store on iPhone or Google Play on Android.
+
+Open the app and, on the Connect screen, enter your academy's connect code. You'll find the code on your account page on the web and in your welcome email. If your academy uses its own web address, enter that address instead — the app accepts either.
+
+Sign in with the same email and password you use on the website, and your classes and progress will be waiting for you.`,
+  },
+  {
+    slug: "finding-your-classes",
+    title: "Finding your classes and lessons",
+    category: "ACCESS",
+    keywords: [
+      "my classes",
+      "classes",
+      "lessons",
+      "courses",
+      "content",
+      "dashboard",
+      "where are my classes",
+      "enrolled",
+    ],
+    body: `Once you're signed in, your classes appear on your dashboard. Open a class to see the courses and lessons inside it, and pick up wherever you left off — your progress saves automatically as you go.
+
+Looking for a class you don't see? It may be part of a membership that your current plan doesn't include yet. You can review your plan on your account page, or send us a message and we'll point you in the right direction.`,
+  },
+  {
+    slug: "getting-your-certificate",
+    title: "Getting your certificate",
+    category: "CERTIFICATE",
+    keywords: [
+      "certificate",
+      "certificates",
+      "completion",
+      "download certificate",
+      "proof",
+      "pdf",
+    ],
+    body: `When you complete a class that offers a certificate, you can download it from the class page or from your certificates page.
+
+Certificates are PDF files, so you can save, print, or share them. Each one carries a unique verification link, so anyone you share it with can confirm it's genuine.
+
+Don't see a certificate you expected? Make sure you've finished every lesson in the class — a certificate is issued once the class is fully complete.`,
+  },
+  {
+    slug: "billing-and-payments",
+    title: "Managing your billing and payment method",
+    category: "BILLING",
+    keywords: [
+      "billing",
+      "payment",
+      "payment method",
+      "card",
+      "update card",
+      "invoice",
+      "receipt",
+      "subscription",
+      "cancel",
+      "refund",
+      "charge",
+    ],
+    body: `You can manage your plan and payment details from your account page, under billing. There you can update the card we have on file, view your payment history and receipts, and see your current plan.
+
+Billing is handled on the website, so if you're on the mobile app, open your account in a web browser to make changes.
+
+Have a question about a charge, a refund, or cancelling? Send us a message and we'll help sort it out.`,
+  },
+  {
+    slug: "getting-help",
+    title: "Getting help from our team",
+    category: "OTHER",
+    keywords: [
+      "contact",
+      "support",
+      "help",
+      "talk to someone",
+      "human",
+      "message the team",
+      "stuck",
+    ],
+    body: `Can't find what you're looking for? Use the help button to search common questions, or send us a message and we'll reply by email.
+
+To help us sort things out quickly, tell us what you were trying to do and include any error message you saw. The more detail you can give, the faster we can help.`,
+  },
+];
+
+// Seed the starter pack ONCE, only into an empty article table, so client
+// curation (edits, deletions, re-ordering) is never overwritten on a later boot.
+// Runs in every mode (called before main()'s baseline/one-shot early returns).
+async function seedStarterArticles(): Promise<void> {
+  if ((await prisma.helpdeskArticle.count()) > 0) return;
+  await prisma.helpdeskArticle.createMany({
+    data: STARTER_ARTICLES.map((a, i) => ({
+      slug: a.slug,
+      title: a.title,
+      body: a.body,
+      category: a.category,
+      keywords: a.keywords,
+      published: true,
+      sortOrder: i,
+    })),
+  });
+  console.log(`  Help:    seeded ${STARTER_ARTICLES.length} starter articles`);
+}
+
 async function main() {
   if (WIPE) {
     await wipeDatabase();
@@ -2718,6 +2885,11 @@ async function main() {
   // auto-slug feature, or a demo already seeded by a pre-fix image) — runs in
   // EVERY mode, including the baseline / already-seeded early returns below.
   await backfillSlugs();
+
+  // Starter help articles — before the baseline/one-shot early returns below so
+  // EVERY academy gets them, and one-shot (empty-table only) so a client's edits
+  // survive. Not demo content: purgeDemoDebris() leaves HelpdeskArticle alone.
+  await seedStarterArticles();
 
   // Real client instances stop here: first admin only, no demo content. The
   // app is fully functional empty — signup's "Free" auto-grant tolerates the
