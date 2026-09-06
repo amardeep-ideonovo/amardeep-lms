@@ -205,7 +205,7 @@ export function HelpdeskScreen({
       return latest;
     },
     onSuccess: (thread) => {
-      api.helpdeskStatEvent(thread.category, "escalation");
+      // The escalation is counted server-side in start() — not client-reported.
       queryClient.setQueryData(qk.helpdeskThread(thread.id), thread);
       void queryClient.invalidateQueries({ queryKey: qk.helpdeskConfig });
       void queryClient.invalidateQueries({

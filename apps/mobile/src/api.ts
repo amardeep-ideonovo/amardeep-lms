@@ -405,12 +405,11 @@ export const api = {
       `/helpdesk/conversations/${encodeURIComponent(id)}/read`,
       { method: "POST" },
     ),
-  // Fire-and-forget guided-phase analytics — never thrown (mirrors
+  // Fire-and-forget card-view analytics — never thrown (mirrors
   // recordPopupEvent). The route is JwtAuthGuard, so keep the default auth.
-  helpdeskStatEvent: (
-    category: HelpdeskCategory,
-    event: "cardView" | "resolvedYes" | "escalation",
-  ): void => {
+  // Escalations are counted server-side (in start()); the endpoint accepts no
+  // other event.
+  helpdeskStatEvent: (category: HelpdeskCategory, event: "cardView"): void => {
     request<{ ok: true }>("/helpdesk/stats/event", {
       method: "POST",
       body: { category, event },

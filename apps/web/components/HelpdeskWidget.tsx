@@ -72,10 +72,7 @@ const TOPIC_LABEL: Partial<Record<HelpdeskCategory, string>> = {
   ACCOUNT: STR.helpdesk.menuAccount,
 };
 
-function fireStat(
-  category: HelpdeskCategory,
-  event: "cardView" | "resolvedYes" | "escalation",
-) {
+function fireStat(category: HelpdeskCategory, event: "cardView") {
   // Fire-and-forget deflection analytics — never blocks the UI, never throws.
   void api.helpdeskStatEvent(category, event).catch(() => undefined);
 }
@@ -116,10 +113,6 @@ export default function HelpdeskWidget() {
 
   /** Topics whose cardView has been counted this visit (reset on close). */
   const viewedRef = useRef<Set<HelpdeskCategory>>(new Set());
-  /** Last topic actually opened — escalations are filed against it so the
-   *  deflection numerator and denominator share one taxonomy. */
-  const lastViewedRef = useRef<HelpdeskCategory | null>(null);
-
   const config = useHelpdeskConfig();
   const me = useMe();
   const signedIn = mounted && typeof window !== "undefined" && isSignedIn();
@@ -159,7 +152,6 @@ export default function HelpdeskWidget() {
   function openAnswer(category: HelpdeskCategory) {
     const label = TOPIC_LABEL[category] ?? STR.helpdesk.title;
     setTrail((t) => (t.includes(label) ? t : [...t, label]));
-    lastViewedRef.current = category;
     setAnswer(category);
     setView("answer");
   }
@@ -167,9 +159,6 @@ export default function HelpdeskWidget() {
 
   function openArticle(a: HelpdeskArticleDTO) {
     setTrail((t) => (t.includes(a.title) ? t : [...t, a.title]));
-    // Articles carry a category, so a read-then-escalate files against the
-    // same bucket its cardView counted under — one taxonomy, both directions.
-    lastViewedRef.current = a.category;
     countView(a.category, true);
     setArticleId(a.id);
     setView("article");
@@ -436,7 +425,6 @@ export default function HelpdeskWidget() {
                 onFiles={setFiles}
                 replyTimeNote={config.data?.replyTimeNote ?? null}
                 breadcrumbs={trail}
-                escalationCategory={lastViewedRef.current}
                 atCap={atCap}
                 onSent={(thread) => {
                   setDraft("");
@@ -1099,7 +1087,6 @@ function ComposeView({
   onFiles,
   replyTimeNote,
   breadcrumbs,
-  escalationCategory,
   atCap,
   onSent,
 }: {
@@ -1113,8 +1100,6 @@ function ComposeView({
   replyTimeNote: string | null;
   /** Topics consulted before escalating — the admin queue shows these. */
   breadcrumbs: string[];
-  /** Topic the member actually consulted, for the deflection stat. */
-  escalationCategory: HelpdeskCategory | null;
   /** Server-mirrored open-ticket cap — say so rather than failing on send. */
   atCap: boolean;
   onSent: (thread: HelpdeskThreadDTO) => void;
@@ -1138,11 +1123,8 @@ function ComposeView({
       return thread;
     },
     onSuccess: (thread) => {
-      // Attribute the escalation to the category the SERVER filed it under, so
-      // the admin's per-topic deflection numerator and denominator agree.
-      // Against the topic actually consulted when there was one, so the
-      // numerator matches the cardView denominator.
-      fireStat(escalationCategory ?? thread.category, "escalation");
+      // The escalation is counted server-side in start() (authoritative and
+      // unspoofable) — the client no longer reports it as a stat event.
       queryClient.setQueryData(qk.helpdeskThread(thread.id), thread);
       void queryClient.invalidateQueries({ queryKey: qk.helpdeskConfig });
       void queryClient.invalidateQueries({

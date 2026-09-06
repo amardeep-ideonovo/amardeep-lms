@@ -74,8 +74,15 @@ export class StatEventDto {
   @IsIn(CATEGORIES)
   category!: HelpdeskCategory;
 
-  @IsIn(["cardView", "resolvedYes", "escalation"])
-  event!: "cardView" | "resolvedYes" | "escalation";
+  // `cardView` is the ONLY client-reported event — a soft, anonymous "member
+  // viewed a self-serve answer card" signal that has no server-side equivalent
+  // and so cannot be made authoritative. Escalations are now counted
+  // server-side in HelpdeskService.start() (one increment per real conversation,
+  // unspoofable); `resolvedYes` was a legacy per-answer button no client fires
+  // any more. Both are rejected here so a member can no longer POST arbitrary
+  // increments into the ops counters.
+  @IsIn(["cardView"])
+  event!: "cardView";
 }
 
 // Once-per-resolution CSAT. The note is optional and only solicited on 👎.
