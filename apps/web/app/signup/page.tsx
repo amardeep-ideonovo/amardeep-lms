@@ -41,14 +41,16 @@ export default function SignupPage() {
       // The API set the session cookie; drop straight into the app.
       router.replace("/dashboard");
     } catch (err) {
-      // 409 → friendly message; 400 → surface the validator's first message;
-      // 403 → invite code wrong; anything else → generic.
+      // 409 → friendly message; INVALID_INVITE_CODE → invite hint; anything
+      // else → surface the API's own message. Branch on the machine-readable
+      // code, NOT a bare 403 — the CSRF guard also returns 403, and mapping
+      // every 403 to "bad invite code" masked that failure as an invite error.
       if (err instanceof ApiError) {
-        if (err.status === 409) {
+        if (err.code === "EMAIL_EXISTS" || err.status === 409) {
           setError(
             "An account with this email already exists. Try signing in instead.",
           );
-        } else if (err.status === 403) {
+        } else if (err.code === "INVALID_INVITE_CODE") {
           setError("That invite code isn't valid.");
         } else {
           setError(err.message);

@@ -17,6 +17,7 @@ import { memoryStorage } from "multer";
 import { MAX_AVATAR_UPLOAD_BYTES } from "../../../../packages/types/constants";
 import type { Request, Response } from "express";
 import { setAuthCookies, clearAuthCookies } from "./cookie.util";
+import { SkipCsrf } from "./skip-csrf.decorator";
 import { Throttle } from "@nestjs/throttler";
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
@@ -71,6 +72,10 @@ export class AuthController {
 
   // Login authenticates an existing user — it doesn't create a resource, so 200
   // (not Nest's default 201 for POST).
+  // @SkipCsrf: login PRECEDES a session — requiring a CSRF token would deadlock
+  // a browser that still holds a stale session cookie (the web, on a different
+  // host, can't read the csrf_token cookie to echo it). See CsrfGuard.
+  @SkipCsrf()
   @Post("login")
   @HttpCode(200)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
@@ -80,9 +85,11 @@ export class AuthController {
   ) {
     const result = await this.auth.loginMember(dto.email, dto.password);
     // Web reads the httpOnly session cookie; the response body still carries
-    // `token` for the mobile app (Bearer + secure-store) and the BDD suite.
-    setAuthCookies(res, result.token);
-    return result;
+    // `token` for the mobile app (Bearer + secure-store) and the BDD suite, and
+    // `csrfToken` for the web to echo on unsafe requests (it can't read the
+    // host-only csrf_token cookie cross-host).
+    const csrfToken = setAuthCookies(res, result.token);
+    return { ...result, csrfToken };
   }
 
   @Post("admin/login")
@@ -96,6 +103,7 @@ export class AuthController {
   // drop straight into the authenticated app. 409 on duplicate email, 403 on
   // invalid invite code (when SIGNUP_INVITE_CODE is set), 400 on validation.
   // No 201 because the response shape is identical to login (token + user).
+  @SkipCsrf() // creates the session — same rationale as login.
   @Post("signup")
   @HttpCode(200)
   @Throttle({ default: { limit: SIGNUP_LIMIT, ttl: SIGNUP_TTL_MS } })
@@ -104,14 +112,15 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.auth.signupMember(dto);
-    setAuthCookies(res, result.token);
-    return result;
+    const csrfToken = setAuthCookies(res, result.token);
+    return { ...result, csrfToken };
   }
 
   // Member self-serve password reset, step 1. ALWAYS 200 with { ok: true } —
   // success and unknown-email are deliberately indistinguishable so the
   // endpoint can't enumerate accounts. Tightly throttled: each hit on a real
   // account sends an email.
+  @SkipCsrf() // public pre-auth route; a stale session cookie must not block it.
   @Post("forgot-password")
   @HttpCode(200)
   @Throttle({ default: { limit: FORGOT_LIMIT, ttl: FORGOT_TTL_MS } })
@@ -123,6 +132,7 @@ export class AuthController {
   // credential; 400 on any invalid/expired/already-used token. Rate-limited
   // like login (the token is unguessable, but there's no reason to allow
   // hammering an unauthenticated password-writing route).
+  @SkipCsrf() // the emailed token is the credential; pre-auth, no session yet.
   @Post("reset-password")
   @HttpCode(200)
   @Throttle({ default: { limit: LOGIN_LIMIT, ttl: LOGIN_TTL_MS } })
@@ -178,9 +188,11 @@ export class AuthController {
     const result = await this.auth.changePassword(principal.sub, dto);
     // A password change bumps tokenVersion, so the OLD session cookie is now
     // stale — re-issue cookies with the rotated token so the web member stays
-    // signed in instead of 401-ing on the next request.
-    setAuthCookies(res, result.token);
-    return result;
+    // signed in instead of 401-ing on the next request. The csrf_token cookie
+    // rotates too, so hand the new value back for the web to store (otherwise
+    // its next unsafe request would echo a stale token and 403).
+    const csrfToken = setAuthCookies(res, result.token);
+    return { ...result, csrfToken };
   }
 
   // Member logout: clear the session/CSRF/hint cookies (JS can't delete an

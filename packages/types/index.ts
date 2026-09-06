@@ -113,6 +113,11 @@ export interface UpdateAdminProfileInput {
 export interface LoginResponse<T = AuthUser> {
   token: string;
   user: T;
+  // Double-submit CSRF token, returned so the member web app (hosted on a
+  // different host than the API) can echo it on unsafe requests — it can't read
+  // the host-only csrf_token cookie via document.cookie. Absent on the admin
+  // login (Bearer, no cookies) and older APIs, so optional.
+  csrfToken?: string;
 }
 
 // Public signup — used by /auth/signup (web + mobile signup screens).

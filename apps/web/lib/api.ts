@@ -141,12 +141,31 @@ export function isSignedIn(): boolean {
   return getToken() != null || readCookieValue(AUTH_HINT_COOKIE) === "1";
 }
 
-// Double-submit CSRF header for unsafe cookie-authed requests: echo the readable
-// csrf_token cookie the API set. {} when absent (no session, or a preview
-// Bearer session which is CSRF-immune).
-const CSRF_COOKIE = "csrf_token";
+// Double-submit CSRF token for unsafe cookie-authed requests. The API sets the
+// authoritative csrf_token as a host-only cookie on the API host; the web runs
+// on a DIFFERENT host (fleet: <sub>.app.<domain> vs <sub>-api.app.<domain>) and
+// can't read it via document.cookie. So login/signup/change-password hand the
+// token back in the response body and we stash it HERE, echoing it as
+// X-CSRF-Token. The browser still sends the cookie to the API automatically, so
+// the server's double-submit check (header === cookie) still matches. {} when
+// absent (logged out, SSR, or a preview Bearer session — CSRF-immune anyway).
+const CSRF_KEY = "lms_csrf";
+export function rememberCsrfToken(token: string | undefined): void {
+  if (typeof window === "undefined" || !token) return;
+  try {
+    window.localStorage.setItem(CSRF_KEY, token);
+  } catch {
+    /* private mode / quota — non-fatal */
+  }
+}
 export function getCsrfHeader(): Record<string, string> {
-  const t = readCookieValue(CSRF_COOKIE);
+  if (typeof window === "undefined") return {};
+  let t: string | null = null;
+  try {
+    t = window.localStorage.getItem(CSRF_KEY);
+  } catch {
+    /* private mode — non-fatal */
+  }
   return t ? { "X-CSRF-Token": t } : {};
 }
 
@@ -158,6 +177,11 @@ function clearLocalSession(): void {
   window.localStorage.removeItem(TOKEN_KEY);
   window.localStorage.removeItem(ME_CACHE_KEY);
   window.localStorage.removeItem(PREVIEW_PAIR_KEY);
+  try {
+    window.localStorage.removeItem(CSRF_KEY);
+  } catch {
+    /* private mode — non-fatal */
+  }
   setAuthHintCookie(false);
   // Instant-paint snapshots (dashboard / certificates / class ownership) are
   // member data — never leave them behind after logout/expiry/preview-end.
@@ -298,21 +322,40 @@ const request = createRequest({
   fallbackMessage: (res) => res.statusText,
 });
 
+// After the API establishes a member session, mirror the bits the web needs but
+// CANNOT read from the API-host cookies: stash the CSRF token to echo on later
+// unsafe requests, and set the readable web-host hint cookie so isSignedIn() /
+// AuthGate / Nav / SSR recognize the session (the API's lms_authed cookie is
+// host-only on the API host, invisible here — without this the member is
+// bounced straight back to /login after a successful sign-in). Seed the me-cache
+// too so the account chip paints instantly instead of flashing logged-out.
+function onMemberSession(res: LoginResponse<AuthUser>): void {
+  rememberCsrfToken(res.csrfToken);
+  setAuthHintCookie(true);
+  setCachedMe(res.user);
+}
+
 // ---------- Endpoints (mirror packages/types ROUTES) ----------
 export const api = {
   // auth
-  login: (email: string, password: string) =>
-    request<LoginResponse<AuthUser>>("/auth/login", {
+  login: async (email: string, password: string) => {
+    const res = await request<LoginResponse<AuthUser>>("/auth/login", {
       method: "POST",
       body: { email, password },
       auth: false,
-    }),
-  signup: (input: SignupInput) =>
-    request<LoginResponse<AuthUser>>("/auth/signup", {
+    });
+    onMemberSession(res);
+    return res;
+  },
+  signup: async (input: SignupInput) => {
+    const res = await request<LoginResponse<AuthUser>>("/auth/signup", {
       method: "POST",
       body: input,
       auth: false,
-    }),
+    });
+    onMemberSession(res);
+    return res;
+  },
   me: () => request<AuthUser>("/auth/me"),
   // Admin site-preview: exchange the short-lived handoff (from the admin
   // dashboard) for the two read-only preview session tokens. Tokenless — no
@@ -356,10 +399,18 @@ export const api = {
   changePassword: async (input: ChangePasswordInput) => {
     // The API re-issues the session cookie (rotated token) in this response, so
     // the current web session stays signed in without any client token handling.
-    return request<{ ok: true; token: string }>("/auth/change-password", {
+    const res = await request<{
+      ok: true;
+      token: string;
+      csrfToken?: string;
+    }>("/auth/change-password", {
       method: "POST",
       body: input,
     });
+    // The csrf_token cookie rotated with the session — refresh our echo copy or
+    // the next unsafe request would 403 on a stale token.
+    rememberCsrfToken(res.csrfToken);
+    return res;
   },
   // Member self-service account deletion. `deleteAccountSummary` returns the
   // real stakes (subscriptions/certificates/purchases/progress) to show before
