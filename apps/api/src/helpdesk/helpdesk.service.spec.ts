@@ -491,3 +491,67 @@ test("a flipped rating moves the tally on the original rating day", async () => 
     ratedDown: { set: 2 },
   });
 });
+
+// --- stats integrity: escalations are server-authoritative -------------------
+
+test("start() counts the escalation server-side under the conversation category", async () => {
+  const writes: Array<Record<string, unknown>> = [];
+  const tx = {
+    helpdeskConversation: { create: async () => ({ id: "c1" }) },
+    helpdeskMessage: { create: async () => ({}) },
+    helpdeskTicket: { create: async () => ({}) },
+    helpdeskDayStat: {
+      upsert: async (args: Record<string, unknown>) => {
+        writes.push({ table: "dayStat", ...args });
+        return {};
+      },
+    },
+  };
+  const svc = makeService({
+    helpdeskSettings: {
+      findUnique: async () => ({ enabled: true, maxOpenPerMember: 3 }),
+    },
+    helpdeskConversation: { count: async () => 0 },
+    userLevel: { findMany: async () => [] },
+    $transaction: async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+  });
+  patchThreadRead(svc);
+
+  await svc.start(member, { issue: "charged twice", category: "BILLING" });
+
+  // Exactly one escalation increment, filed under the ticket's own category —
+  // no client stat is trusted for this count any more.
+  const stats = writes.filter((w) => w.table === "dayStat");
+  assert.equal(stats.length, 1);
+  const stat = stats[0] as {
+    where: { day_category: { category: string } };
+    create: Record<string, unknown>;
+    update: Record<string, unknown>;
+  };
+  assert.equal(stat.where.day_category.category, "BILLING");
+  assert.equal((stat.create as { escalations: number }).escalations, 1);
+  assert.deepEqual(stat.update, { escalations: { increment: 1 } });
+});
+
+test("recordStat increments only cardViews for the given category", async () => {
+  const writes: Array<Record<string, unknown>> = [];
+  const svc = makeService({
+    helpdeskDayStat: {
+      upsert: async (args: Record<string, unknown>) => {
+        writes.push({ table: "dayStat", ...args });
+        return {};
+      },
+    },
+  });
+
+  await svc.recordStat({ category: "TECHNICAL", event: "cardView" });
+
+  const stat = writes[0] as {
+    where: { day_category: { category: string } };
+    create: Record<string, unknown>;
+    update: Record<string, unknown>;
+  };
+  assert.equal(stat.where.day_category.category, "TECHNICAL");
+  assert.equal((stat.create as { cardViews: number }).cardViews, 1);
+  assert.deepEqual(stat.update, { cardViews: { increment: 1 } });
+});
