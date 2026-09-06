@@ -261,6 +261,9 @@ export function useImageCropper(opts: ImageCropperOptions) {
     stage,
     url,
     error,
+    /** Source image's natural aspect (w/h), once loaded — null before. Lets an
+        adjustable cropper offer an "Original" (no-crop) framing. */
+    naturalAspect: dims ? dims.w / dims.h : null,
     /** True once the image is loaded and croppable. */
     ready: !!dims && !error,
     scale,

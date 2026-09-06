@@ -39,6 +39,7 @@ export default function MediaPicker({
   accept,
   kind = "image",
   aspect,
+  adjustableCrop = false,
   disabled,
 }: {
   value: string;
@@ -50,6 +51,11 @@ export default function MediaPicker({
   // is sent — so the crop matches how the image renders on the member site.
   // Omit to upload the original untouched (logos, cert art, generic Puck image).
   aspect?: number;
+  // Logo mode: open the cropper on Upload with SELECTABLE aspect (defaults to
+  // "Original" = no crop, just a resize) instead of a locked ratio. Independent
+  // of `aspect`; use for logos where the shape isn't fixed but the admin still
+  // wants to crop/downscale before saving.
+  adjustableCrop?: boolean;
   // Read-only mode (e.g. an admin without edit permission): no gallery modal,
   // no upload, no remove, no URL edits — the preview still shows.
   disabled?: boolean;
@@ -89,9 +95,14 @@ export default function MediaPicker({
   async function onFile(files: FileList | null) {
     const f = files?.[0];
     if (!f) return;
-    // Image fields with a target ratio open the cropper first; everything else
-    // (video, GIF/SVG, or ratio-less pickers) uploads the original directly.
-    if (kind === "image" && aspect != null && isCroppable(f)) {
+    // Image fields with a target ratio — or logo fields in adjustable-crop mode
+    // — open the cropper first; everything else (video, GIF/SVG, or a ratio-less
+    // picker with no crop) uploads the original directly.
+    if (
+      kind === "image" &&
+      (aspect != null || adjustableCrop) &&
+      isCroppable(f)
+    ) {
       setErr(null);
       setCropFile(f);
       if (fileRef.current) fileRef.current.value = "";
@@ -200,10 +211,11 @@ export default function MediaPicker({
         />
       )}
       {err && !cropFile && <p className="error">{err}</p>}
-      {cropFile && aspect != null && (
+      {cropFile && (aspect != null || adjustableCrop) && (
         <MediaCropper
           file={cropFile}
-          aspect={aspect}
+          aspect={aspect ?? 1}
+          adjustable={aspect == null && adjustableCrop}
           busy={uploading}
           error={err}
           onCancel={() => {

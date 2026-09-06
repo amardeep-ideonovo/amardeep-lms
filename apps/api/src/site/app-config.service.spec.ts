@@ -10,6 +10,8 @@ import { AppConfigService } from "./app-config.service";
 // carries the theme reversion to already-provisioned fleet instances without
 // clobbering client branding (the mirror of the original Spark rollout).
 
+// The sanitized read() output carries `chrome: null` (the optional per-mode
+// header-band override, unset = Auto) alongside the 8 solid colors.
 const INK_HERO_LIGHT = {
   bg: "#f4f3f8",
   surface: "#ffffff",
@@ -19,6 +21,7 @@ const INK_HERO_LIGHT = {
   textMuted: "#8b87a3",
   primary: "#3cc4b2",
   danger: "#e04848",
+  chrome: null,
 };
 const INK_HERO_DARK = {
   bg: "#221c3d",
@@ -29,6 +32,7 @@ const INK_HERO_DARK = {
   textMuted: "#a7a3bd",
   primary: "#3cc4b2",
   danger: "#ea4f4f",
+  chrome: null,
 };
 const SPARK_LIGHT = {
   bg: "#f5f2ec",
@@ -84,8 +88,8 @@ test("a customized palette is served exactly as stored (no translation)", async 
     dark: { ...SPARK_DARK },
   });
   const cfg = await svc.read();
-  // The touched palette survives verbatim…
-  assert.deepEqual(cfg.light, customLight);
+  // The touched palette survives verbatim (plus the sanitizer's chrome: null)…
+  assert.deepEqual(cfg.light, { ...customLight, chrome: null });
   // …while the untouched sibling palette still reverts independently.
   assert.deepEqual(cfg.dark, INK_HERO_DARK);
 });

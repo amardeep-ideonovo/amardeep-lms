@@ -70,3 +70,42 @@ test("paletteFrom ignores non-string color values (never yields undefined)", () 
   assert.equal(colors.primary, DEFAULT_APP_CONFIG.light.primary);
   assert.equal(colors.text, DEFAULT_APP_CONFIG.light.text);
 });
+
+test("paletteFrom: a valid chrome override wins in both modes", () => {
+  assert.equal(
+    paletteFrom(
+      { ...DEFAULT_APP_CONFIG.light, chrome: "#123456" } as never,
+      "light",
+    ).chrome,
+    "#123456",
+  );
+  assert.equal(
+    paletteFrom(
+      { ...DEFAULT_APP_CONFIG.dark, chrome: "#abcdef" } as never,
+      "dark",
+    ).chrome,
+    "#abcdef",
+  );
+});
+
+test("paletteFrom: null/absent/invalid chrome falls back to Auto (derived)", () => {
+  // Light: stock text (#272144) derives EXACTLY the ink-900 band #221c3d.
+  assert.equal(
+    paletteFrom({ ...DEFAULT_APP_CONFIG.light, chrome: null } as never, "light")
+      .chrome,
+    "#221c3d",
+  );
+  // Dark: Auto = the background color.
+  assert.equal(
+    paletteFrom(DEFAULT_APP_CONFIG.dark, "dark").chrome,
+    DEFAULT_APP_CONFIG.dark.bg,
+  );
+  // A non-hex override is ignored → derived.
+  assert.equal(
+    paletteFrom(
+      { ...DEFAULT_APP_CONFIG.dark, chrome: "not-a-color" } as never,
+      "dark",
+    ).chrome,
+    DEFAULT_APP_CONFIG.dark.bg,
+  );
+});
