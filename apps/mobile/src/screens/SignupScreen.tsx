@@ -1,6 +1,6 @@
 // Create account — Ink Hero: same ink canvas + floating light card + teal
 // gradient CTA as the sign-in screen.
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -45,7 +45,23 @@ export function SignupScreen({ navigation }: Props) {
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Show the invite field only when the API's closed-beta gate is on. Default
+  // hidden (open signup is the norm); reveal once the public config confirms it.
+  const [inviteRequired, setInviteRequired] = useState(false);
   const legal = legalLinks();
+
+  useEffect(() => {
+    let alive = true;
+    api
+      .signupConfig()
+      .then((c) => alive && setInviteRequired(c.inviteRequired))
+      .catch(() => {
+        /* config unreachable → leave the field hidden */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const canSubmit =
     email.trim().length > 0 &&
@@ -192,16 +208,18 @@ export function SignupScreen({ navigation }: Props) {
               onChangeText={setPhone}
               editable={!submitting}
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Invite code (if you have one)"
-              placeholderTextColor={colors.textMuted}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              value={inviteCode}
-              onChangeText={setInviteCode}
-              editable={!submitting}
-            />
+            {inviteRequired && (
+              <TextInput
+                style={styles.input}
+                placeholder="Invite code"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                value={inviteCode}
+                onChangeText={setInviteCode}
+                editable={!submitting}
+              />
+            )}
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 

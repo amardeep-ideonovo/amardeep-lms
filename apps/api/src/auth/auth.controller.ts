@@ -116,6 +116,14 @@ export class AuthController {
     return { ...result, csrfToken };
   }
 
+  // Public: does self-signup require an invite code right now? Lets the web and
+  // mobile signup screens hide the invite field when the closed-beta gate is
+  // off (the default). Env-derived, so it's a plain read — no auth, no body.
+  @Get("signup-config")
+  signupConfig(): { inviteRequired: boolean } {
+    return { inviteRequired: this.auth.signupRequiresInvite() };
+  }
+
   // Member self-serve password reset, step 1. ALWAYS 200 with { ok: true } —
   // success and unknown-email are deliberately indistinguishable so the
   // endpoint can't enumerate accounts. Tightly throttled: each hit on a real

@@ -120,6 +120,13 @@ export interface LoginResponse<T = AuthUser> {
   csrfToken?: string;
 }
 
+// Public signup gate state (GET /auth/signup-config). Drives whether the web /
+// mobile signup screens render the invite-code field: it's shown only when the
+// closed-beta gate is on (SIGNUP_INVITE_CODE set on the API).
+export interface SignupConfigDTO {
+  inviteRequired: boolean;
+}
+
 // Public signup — used by /auth/signup (web + mobile signup screens).
 // `inviteCode` is required only if SIGNUP_INVITE_CODE is set on the API.
 export interface SignupInput {
@@ -2479,6 +2486,7 @@ export const ROUTES = {
   // auth
   memberLogin: "POST /auth/login", // body {email,password} -> LoginResponse<AuthUser>
   memberSignup: "POST /auth/signup", // body SignupInput -> LoginResponse<AuthUser>
+  signupConfig: "GET /auth/signup-config", // -> SignupConfigDTO (is the invite gate on?)
   adminLogin: "POST /auth/admin/login", // -> LoginResponse<AuthAdmin>
   me: "GET /auth/me",
   updateMe: "PATCH /auth/me", // body UpdateProfileInput -> AuthUser (member self-service)

@@ -50,6 +50,7 @@ import type {
   FooterSubscribeResult,
   ChangePasswordInput,
   ResetPasswordInput,
+  SignupConfigDTO,
   SignupInput,
   UpdateProfileInput,
   HelpdeskConfigDTO,
@@ -356,6 +357,10 @@ export const api = {
     onMemberSession(res);
     return res;
   },
+  // Public: whether the signup screen should render the invite-code field
+  // (only when the closed-beta gate is on). Tokenless.
+  signupConfig: () =>
+    request<SignupConfigDTO>("/auth/signup-config", { auth: false }),
   me: () => request<AuthUser>("/auth/me"),
   // Admin site-preview: exchange the short-lived handoff (from the admin
   // dashboard) for the two read-only preview session tokens. Tokenless — no
