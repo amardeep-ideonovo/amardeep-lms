@@ -63,9 +63,9 @@ export default function ClassesPage() {
   const [error, setError] = useState<string | null>(null);
   // Names the class whose archive/delete is mid-flight so its row menu locks.
   const [rowBusy, setRowBusy] = useState<string | null>(null);
-  // Published/Draft chip-bar filter for the management table.
+  // Published/Draft/Archived chip-bar filter for the management table.
   const [statusFilter, setStatusFilter] = useState<
-    "all" | "published" | "draft"
+    "all" | "published" | "draft" | "archived"
   >("all");
   // Free-text search (name or slug), composed with the status chips.
   const [search, setSearch] = useState("");
@@ -453,6 +453,15 @@ export default function ClassesPage() {
           published: current?.published ?? false,
         },
       });
+      // Spell out the resulting state — unarchiving clears the flag but leaves
+      // the class a Draft (it does NOT auto-republish), which otherwise reads
+      // as "nothing happened".
+      toast(
+        archived
+          ? "Class unarchived — it’s now a draft. Publish it to make it live again."
+          : "Class archived — hidden from members. Existing members keep their access.",
+        { tone: "success" },
+      );
     } catch {
       // Failure already rolled back + toasted in onError; the heal below still
       // runs so the server's answer wins either way.
@@ -547,8 +556,12 @@ export default function ClassesPage() {
       </div>
     );
 
-  const publishedLevels = levels.filter((l) => l.published);
-  const draftLevels = levels.filter((l) => !l.published);
+  // Archived is its own bucket, NOT a draft: an archived class is unpublished
+  // but intentionally retired (member access/certs preserved), so it must not
+  // hide among genuine drafts. Published/Draft exclude archived accordingly.
+  const archivedLevels = levels.filter((l) => !!l.archivedAt);
+  const publishedLevels = levels.filter((l) => l.published && !l.archivedAt);
+  const draftLevels = levels.filter((l) => !l.published && !l.archivedAt);
   const q = search.trim().toLowerCase();
   const matchesSearch = (l: LevelDTO) =>
     !q ||
@@ -559,7 +572,9 @@ export default function ClassesPage() {
       ? publishedLevels
       : statusFilter === "draft"
         ? draftLevels
-        : levels;
+        : statusFilter === "archived"
+          ? archivedLevels
+          : levels;
   const visible = statusFiltered.filter(matchesSearch);
 
   // Course/lesson counts per class, from the real course list (levelIds).
@@ -1035,6 +1050,21 @@ export default function ClassesPage() {
         >
           Draft · {draftLevels.length}
         </button>
+        {/* Only surfaces once something is archived, so academies that never
+            archive don't carry an always-empty tab. */}
+        {archivedLevels.length > 0 && (
+          <button
+            type="button"
+            className={
+              statusFilter === "archived"
+                ? "chipbar-chip chipbar-chip--on"
+                : "chipbar-chip"
+            }
+            onClick={() => setStatusFilter("archived")}
+          >
+            Archived · {archivedLevels.length}
+          </button>
+        )}
         <div className="filter-spacer" />
         <div className="filter-search">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -1158,13 +1188,19 @@ export default function ClassesPage() {
                   </span>
                   <span
                     className={
-                      lvl.published
-                        ? "dot-status dot-status--ok"
-                        : "dot-status dot-status--warn"
+                      lvl.archivedAt
+                        ? "dot-status dot-status--muted"
+                        : lvl.published
+                          ? "dot-status dot-status--ok"
+                          : "dot-status dot-status--warn"
                     }
                   >
                     <span className="dot" />
-                    {lvl.published ? "Published" : "Draft"}
+                    {lvl.archivedAt
+                      ? "Archived"
+                      : lvl.published
+                        ? "Published"
+                        : "Draft"}
                   </span>
                   <span style={{ textAlign: "right" }}>
                     <RowMenu
