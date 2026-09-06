@@ -212,6 +212,7 @@ export class HelpdeskService {
     const breadcrumb = await this.buildBreadcrumb(p.sub, dto.breadcrumbs ?? []);
     const authorName = displayName(p);
 
+    const statDay = startOfUtcDay(new Date());
     const conv = await this.prisma.$transaction(async (tx) => {
       const c = await tx.helpdeskConversation.create({
         data: {
@@ -244,6 +245,17 @@ export class HelpdeskService {
       });
       await tx.helpdeskTicket.create({
         data: { conversationId: c.id, category, priority },
+      });
+      // Count the escalation server-side, atomically with the conversation it
+      // describes — one increment per real ticket, filed under the category the
+      // ticket carries. This is the authoritative, unspoofable replacement for
+      // the old client-reported `escalation` stat (a member can no longer POST
+      // fake escalations, and none go uncounted). Anonymous per [day, category],
+      // like every other HelpdeskDayStat counter.
+      await tx.helpdeskDayStat.upsert({
+        where: { day_category: { day: statDay, category } },
+        create: { day: statDay, category, escalations: 1 },
+        update: { escalations: { increment: 1 } },
       });
       return c;
     });
@@ -480,24 +492,15 @@ export class HelpdeskService {
     return this.threadForMember(userId, id);
   }
 
+  // The only client-reported stat: a soft, anonymous card-view counter (see
+  // StatEventDto). Escalations are counted authoritatively in start(); the
+  // `resolvedYes` column is retained for historical reads but no longer written.
   async recordStat(dto: StatEventDto): Promise<{ ok: true }> {
     const day = startOfUtcDay(new Date());
-    const update: Prisma.HelpdeskDayStatUpdateInput =
-      dto.event === "cardView"
-        ? { cardViews: { increment: 1 } }
-        : dto.event === "resolvedYes"
-          ? { resolvedYes: { increment: 1 } }
-          : { escalations: { increment: 1 } };
     await this.prisma.helpdeskDayStat.upsert({
       where: { day_category: { day, category: dto.category } },
-      create: {
-        day,
-        category: dto.category,
-        cardViews: dto.event === "cardView" ? 1 : 0,
-        resolvedYes: dto.event === "resolvedYes" ? 1 : 0,
-        escalations: dto.event === "escalation" ? 1 : 0,
-      },
-      update,
+      create: { day, category: dto.category, cardViews: 1 },
+      update: { cardViews: { increment: 1 } },
     });
     return { ok: true };
   }

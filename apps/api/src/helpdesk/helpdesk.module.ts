@@ -6,6 +6,7 @@ import { HelpdeskController } from "./helpdesk.controller";
 import { HelpdeskAdminController } from "./helpdesk-admin.controller";
 import { HelpdeskService } from "./helpdesk.service";
 import { HelpdeskRetentionService } from "./helpdesk-retention.service";
+import { HelpdeskThrottlerGuard } from "./helpdesk.throttler.guard";
 import { AppConfigService } from "../site/app-config.service";
 
 // PrismaService and NotificationsService are @Global, so no imports are needed.
@@ -24,7 +25,14 @@ import { AppConfigService } from "../site/app-config.service";
   // AppConfigService (brand title for the reply email) is a stateless reader
   // over the global PrismaService; SiteModule doesn't export it, so provide a
   // local instance — same pattern as AuthModule. EmailService comes from the
-  // @Global EmailModule.
-  providers: [HelpdeskService, HelpdeskRetentionService, AppConfigService],
+  // @Global EmailModule. HelpdeskThrottlerGuard is provided here so Nest can
+  // resolve its ThrottlerGuard deps (from the global ThrottlerModule) when the
+  // controller attaches it per-route — same registration LiveModule uses.
+  providers: [
+    HelpdeskService,
+    HelpdeskRetentionService,
+    HelpdeskThrottlerGuard,
+    AppConfigService,
+  ],
 })
 export class HelpdeskModule {}

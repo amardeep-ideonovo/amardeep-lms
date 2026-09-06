@@ -632,10 +632,9 @@ export const api = {
       `/helpdesk/conversations/${encodeURIComponent(id)}/rate`,
       { method: "POST", body: input },
     ),
-  helpdeskStatEvent: (
-    category: HelpdeskCategory,
-    event: "cardView" | "resolvedYes" | "escalation",
-  ) =>
+  // Soft, anonymous card-view analytics only. Escalations are counted
+  // server-side (in start()); the endpoint no longer accepts any other event.
+  helpdeskStatEvent: (category: HelpdeskCategory, event: "cardView") =>
     request<{ ok: true }>("/helpdesk/stats/event", {
       method: "POST",
       body: { category, event },

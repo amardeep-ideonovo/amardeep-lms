@@ -12,8 +12,10 @@ import {
 import { FilesInterceptor } from "@nestjs/platform-express";
 import { memoryStorage } from "multer";
 import { JwtService } from "@nestjs/jwt";
+import { Throttle } from "@nestjs/throttler";
 import type { Response } from "express";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { HelpdeskThrottlerGuard } from "./helpdesk.throttler.guard";
 import { JwtDownloadGuard } from "../auth/guards/jwt-download.guard";
 import {
   DOWNLOAD_TOKEN_TTL_SECONDS,
@@ -34,6 +36,9 @@ import { helpdeskFilePath } from "./helpdesk-files.util";
 import {
   MAX_ATTACHMENTS_PER_MESSAGE,
   MAX_ATTACHMENT_BYTES,
+  HELPDESK_WRITE_THROTTLE,
+  HELPDESK_UPLOAD_THROTTLE,
+  HELPDESK_STAT_THROTTLE,
 } from "./helpdesk.config";
 
 // The member-facing helpdesk. Every lookup is scoped to the signed-in member
@@ -70,7 +75,8 @@ export class HelpdeskController {
     return this.helpdesk.myUnreadCount(p.sub);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, HelpdeskThrottlerGuard)
+  @Throttle({ default: HELPDESK_WRITE_THROTTLE })
   @Post("conversations")
   start(
     @CurrentUser() p: AuthenticatedPrincipal,
@@ -85,7 +91,8 @@ export class HelpdeskController {
     return this.helpdesk.threadForMember(p.sub, id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, HelpdeskThrottlerGuard)
+  @Throttle({ default: HELPDESK_WRITE_THROTTLE })
   @Post("conversations/:id/messages")
   reply(
     @CurrentUser() p: AuthenticatedPrincipal,
@@ -102,14 +109,16 @@ export class HelpdeskController {
   }
 
   // The member closes their own request. Reversible — a later reply reopens.
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, HelpdeskThrottlerGuard)
+  @Throttle({ default: HELPDESK_WRITE_THROTTLE })
   @Post("conversations/:id/resolve")
   resolve(@CurrentUser() p: AuthenticatedPrincipal, @Param("id") id: string) {
     return this.helpdesk.resolveAsMember(p.sub, id);
   }
 
   // Once-per-resolution CSAT.
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, HelpdeskThrottlerGuard)
+  @Throttle({ default: HELPDESK_WRITE_THROTTLE })
   @Post("conversations/:id/rate")
   rate(
     @CurrentUser() p: AuthenticatedPrincipal,
@@ -121,7 +130,8 @@ export class HelpdeskController {
 
   // Attach up to 3 images to a member message the caller just posted. The image
   // is re-encoded server-side (strips EXIF/GPS, rejects non-images).
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, HelpdeskThrottlerGuard)
+  @Throttle({ default: HELPDESK_UPLOAD_THROTTLE })
   @Post("conversations/:id/messages/:messageId/attachments")
   @UseInterceptors(
     FilesInterceptor("files", MAX_ATTACHMENTS_PER_MESSAGE, {
@@ -145,6 +155,11 @@ export class HelpdeskController {
 
   // Mint a short-lived, resource-scoped download token (owner only — an admin
   // uses the permission-gated /admin route). The image never rides a public URL.
+  // NOT per-member throttled: this is a READ fan-out — the widget mints one
+  // token per attachment thumbnail when a thread opens, so a long thread bursts
+  // many at once. It only signs a token for a resource the caller already owns;
+  // the global per-IP guard is the right ceiling (a tight write bucket here
+  // would 429 the thumbnails of a member's own long thread).
   @UseGuards(JwtAuthGuard)
   @Get("attachments/:id/download-url")
   async attachmentDownloadUrl(
@@ -184,9 +199,11 @@ export class HelpdeskController {
     res.download(helpdeskFilePath(att.fileKey), att.originalName);
   }
 
-  // Fire-and-forget deflection counter (guided-phase analytics). Body-only, no
-  // member identifier is stored.
-  @UseGuards(JwtAuthGuard)
+  // Fire-and-forget card-view counter (guided-phase analytics). Body-only, no
+  // member identifier is stored. Per-member throttled so it can't be scripted
+  // into inflating the anonymous ops counters (see StatEventDto).
+  @UseGuards(JwtAuthGuard, HelpdeskThrottlerGuard)
+  @Throttle({ default: HELPDESK_STAT_THROTTLE })
   @Post("stats/event")
   stat(@Body() dto: StatEventDto) {
     return this.helpdesk.recordStat(dto);
