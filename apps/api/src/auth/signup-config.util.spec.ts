@@ -27,7 +27,10 @@ test("gate OFF when the value is empty or whitespace-only", () => {
 
 test("gate ON when set to a non-empty value", () => {
   assert.equal(signupRequiresInvite({ SIGNUP_INVITE_CODE: "beta2026" }), true);
-  assert.equal(requiredInviteCode({ SIGNUP_INVITE_CODE: "beta2026" }), "beta2026");
+  assert.equal(
+    requiredInviteCode({ SIGNUP_INVITE_CODE: "beta2026" }),
+    "beta2026",
+  );
 });
 
 test("the required code is trimmed (matches signupMember's dto.inviteCode.trim())", () => {
@@ -35,5 +38,8 @@ test("the required code is trimmed (matches signupMember's dto.inviteCode.trim()
     requiredInviteCode({ SIGNUP_INVITE_CODE: "  beta2026 " }),
     "beta2026",
   );
-  assert.equal(signupRequiresInvite({ SIGNUP_INVITE_CODE: "  beta2026 " }), true);
+  assert.equal(
+    signupRequiresInvite({ SIGNUP_INVITE_CODE: "  beta2026 " }),
+    true,
+  );
 });

@@ -67,7 +67,11 @@ export class CsrfGuard implements CanActivate {
     const cookieToken = readCookie(req, CSRF_COOKIE);
     const headerRaw = req.headers?.["x-csrf-token"];
     const headerToken = Array.isArray(headerRaw) ? headerRaw[0] : headerRaw;
-    if (!cookieToken || !headerToken || !tokensMatch(cookieToken, headerToken)) {
+    if (
+      !cookieToken ||
+      !headerToken ||
+      !tokensMatch(cookieToken, headerToken)
+    ) {
       throw new ForbiddenException("Invalid or missing CSRF token");
     }
     return true;
