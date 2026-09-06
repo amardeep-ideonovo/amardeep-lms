@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PASSWORD_MIN, STR } from "@lms/types";
@@ -19,6 +19,23 @@ export default function SignupPage() {
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // The invite field only makes sense when the API's closed-beta gate is on.
+  // Default hidden (open signup is the norm) so the common case never flashes a
+  // stray field; reveal it once the public config says an invite is required.
+  const [inviteRequired, setInviteRequired] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    api
+      .signupConfig()
+      .then((c) => alive && setInviteRequired(c.inviteRequired))
+      .catch(() => {
+        /* config unreachable → leave the field hidden */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -41,14 +58,16 @@ export default function SignupPage() {
       // The API set the session cookie; drop straight into the app.
       router.replace("/dashboard");
     } catch (err) {
-      // 409 → friendly message; 400 → surface the validator's first message;
-      // 403 → invite code wrong; anything else → generic.
+      // 409 → friendly message; INVALID_INVITE_CODE → invite hint; anything
+      // else → surface the API's own message. Branch on the machine-readable
+      // code, NOT a bare 403 — the CSRF guard also returns 403, and mapping
+      // every 403 to "bad invite code" masked that failure as an invite error.
       if (err instanceof ApiError) {
-        if (err.status === 409) {
+        if (err.code === "EMAIL_EXISTS" || err.status === 409) {
           setError(
             "An account with this email already exists. Try signing in instead.",
           );
-        } else if (err.status === 403) {
+        } else if (err.code === "INVALID_INVITE_CODE") {
           setError("That invite code isn't valid.");
         } else {
           setError(err.message);
@@ -160,14 +179,17 @@ export default function SignupPage() {
               />
             </div>
 
-            <div className="field">
-              <label htmlFor="inviteCode">Invite code (if you have one)</label>
-              <input
-                id="inviteCode"
-                value={inviteCode}
-                onChange={(e) => setInviteCode(e.target.value)}
-              />
-            </div>
+            {inviteRequired && (
+              <div className="field">
+                <label htmlFor="inviteCode">Invite code</label>
+                <input
+                  id="inviteCode"
+                  required
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                />
+              </div>
+            )}
 
             <Button
               type="submit"

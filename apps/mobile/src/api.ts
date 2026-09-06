@@ -35,6 +35,7 @@ import type {
   PostDetailDTO,
   PostListItem,
   ResolvedMenu,
+  SignupConfigDTO,
   SignupInput,
   SubscriptionDetailDTO,
   UpdateProfileInput,
@@ -189,6 +190,11 @@ export const api = {
       body: input,
       auth: false,
     }),
+
+  // Public: whether the signup screen should render the invite-code field
+  // (only when the closed-beta gate is on). Tokenless.
+  signupConfig: () =>
+    request<SignupConfigDTO>("/auth/signup-config", { auth: false }),
 
   // app customization (public — drives the app's branding/theme; fetched at launch)
   appConfig: () => request<AppConfig>("/app/config", { auth: false }),

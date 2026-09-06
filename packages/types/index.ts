@@ -113,6 +113,18 @@ export interface UpdateAdminProfileInput {
 export interface LoginResponse<T = AuthUser> {
   token: string;
   user: T;
+  // Double-submit CSRF token, returned so the member web app (hosted on a
+  // different host than the API) can echo it on unsafe requests — it can't read
+  // the host-only csrf_token cookie via document.cookie. Absent on the admin
+  // login (Bearer, no cookies) and older APIs, so optional.
+  csrfToken?: string;
+}
+
+// Public signup gate state (GET /auth/signup-config). Drives whether the web /
+// mobile signup screens render the invite-code field: it's shown only when the
+// closed-beta gate is on (SIGNUP_INVITE_CODE set on the API).
+export interface SignupConfigDTO {
+  inviteRequired: boolean;
 }
 
 // Public signup — used by /auth/signup (web + mobile signup screens).
@@ -2474,6 +2486,7 @@ export const ROUTES = {
   // auth
   memberLogin: "POST /auth/login", // body {email,password} -> LoginResponse<AuthUser>
   memberSignup: "POST /auth/signup", // body SignupInput -> LoginResponse<AuthUser>
+  signupConfig: "GET /auth/signup-config", // -> SignupConfigDTO (is the invite gate on?)
   adminLogin: "POST /auth/admin/login", // -> LoginResponse<AuthAdmin>
   me: "GET /auth/me",
   updateMe: "PATCH /auth/me", // body UpdateProfileInput -> AuthUser (member self-service)
