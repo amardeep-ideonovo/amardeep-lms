@@ -6,11 +6,16 @@ import { PrismaService } from "../prisma/prisma.service";
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const SCHEMES: AppColorScheme[] = ["light", "dark", "system"];
 
-// The platform policy pages every academy links to until its owner sets its own
-// (the "default to the platform pages" half of the per-academy legal-links
-// ticket). Kept in ONE place so a platform-domain move is a one-line change.
-// thewebpaanda.com is the live platform host.
-const PLATFORM_LEGAL_BASE = "https://www.thewebpaanda.com";
+// Default legal links = the academy's OWN member-facing pages, seeded as
+// editable CMS pages for every academy (seedLegalPages in seed.ts) and served
+// from the web /:slug catch-all. Same-origin relative on purpose: on the web
+// they resolve to the academy's own /privacy|/terms; in the app, legalLinks()
+// joins them to the bound academy site once connected, and falls back to the
+// platform (DIRECTORY_URL) pages BEFORE an academy is bound. An academy overrides
+// either link in App Customization; the store-listing/pre-connect platform page
+// is set operator-side, not here.
+const LEGAL_PRIVACY_PATH = "/privacy";
+const LEGAL_TERMS_PATH = "/terms";
 
 // Defaults mirror the member WEBSITE's "Ink Hero" theme (light content with
 // ink #221c3d navy chrome and a teal #3cc4b2 accent), so web, app, and admin
@@ -46,8 +51,8 @@ const DEFAULT_APP_CONFIG: AppConfig = {
   logoUrl: null,
   iconUrl: null,
   splashUrl: null,
-  privacyUrl: `${PLATFORM_LEGAL_BASE}/privacy`,
-  termsUrl: `${PLATFORM_LEGAL_BASE}/terms`,
+  privacyUrl: LEGAL_PRIVACY_PATH,
+  termsUrl: LEGAL_TERMS_PATH,
   colorScheme: "light",
   light: LIGHT,
   dark: DARK,
@@ -116,17 +121,18 @@ export class AppConfigService {
     }
   }
   // STORAGE form of a legal link: a validated CUSTOM override, else null. Unset/
-  // blank/invalid AND a value equal to the current platform default all normalize
-  // to null — storing the default is the same as "unset", so the row never PINS
-  // the platform literal (a later PLATFORM_LEGAL_BASE move re-defaults on read),
-  // and the admin's "blank = the platform page" contract holds. read()/write()
-  // re-apply the default via withLegalDefaults so every SERVED config has a link.
+  // blank/invalid AND a value equal to the current default all normalize to null
+  // — storing the default is the same as "unset", so the row never PINS a literal
+  // (a later default change then re-applies on read) and the admin's "blank = the
+  // default page" contract holds. read()/write() re-apply the default via
+  // withLegalDefaults so every SERVED config has a link.
   private legalUrl(v: unknown, dflt: string | null | undefined): string | null {
     const u = this.urlOrNull(v, 2000);
     return u && u !== dflt ? u : null;
   }
-  // Resolve the nullable stored legal links to the platform default for the
-  // config as SERVED to clients, so every member surface always links a policy.
+  // Resolve the nullable stored legal links to the default (the academy's own
+  // /privacy|/terms pages) for the config as SERVED, so every member surface
+  // always links a policy.
   private withLegalDefaults(cfg: AppConfig): AppConfig {
     return {
       ...cfg,
