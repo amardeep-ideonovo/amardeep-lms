@@ -2876,6 +2876,129 @@ async function seedStarterArticles(): Promise<void> {
   console.log(`  Help:    seeded ${STARTER_ARTICLES.length} starter articles`);
 }
 
+// Default member-facing legal pages (Privacy / Terms / Refund), seeded as
+// EDITABLE CMS Page rows for EVERY academy so each academy links its OWN policy
+// (the member-appropriate answer for the app stores) rather than the operator's
+// B2B pages. Rendered by the web /:slug catch-all and the mobile Page screen, and
+// editable in the admin Pages editor. These are STARTER TEMPLATES: each opens with
+// a visible "review before you rely on this" note and carries [...] placeholders
+// the academy fills in (and ideally has reviewed). Seeded PUBLISHED so the
+// AppConfig default links (/privacy, /terms) resolve immediately.
+const LEGAL_TEMPLATE_NOTE =
+  "<p><strong>Starter template — review before you rely on this.</strong> " +
+  "This is a default policy to get you started. Replace the […] placeholders " +
+  "with your details and have it reviewed for your business before launch. Edit " +
+  "this page any time under Pages in your admin.</p>";
+
+function legalDoc(
+  heading: string,
+  bodyHtml: string,
+  description: string,
+): Prisma.InputJsonValue {
+  return {
+    root: { props: { seoTitle: heading, description } },
+    content: [
+      {
+        type: "Heading",
+        props: { id: "legal-h", text: heading, level: "1", align: "left" },
+      },
+      {
+        type: "RichText",
+        props: {
+          id: "legal-body",
+          html: LEGAL_TEMPLATE_NOTE + bodyHtml,
+          align: "left",
+        },
+      },
+    ],
+    zones: {},
+  };
+}
+
+const LEGAL_PAGES: Array<{
+  id: string;
+  slug: string;
+  title: string;
+  doc: Prisma.InputJsonValue;
+}> = [
+  {
+    id: "legal-privacy",
+    slug: "privacy",
+    title: "Privacy Policy",
+    doc: legalDoc(
+      "Privacy Policy",
+      `<h2>Who we are</h2><p>This Privacy Policy explains how [Your Academy Name] ("we", "us") handles your personal information when you use our website and mobile app to take our classes. Questions? Contact us at [your-support-email].</p>
+<h2>Information we collect</h2><ul><li><strong>Account details</strong> — your name, email address, optional phone number, and a password (stored only as a secure hash).</li><li><strong>Payment information</strong> — handled by our payment provider. We receive your purchase or subscription status and receipts; we do not store your full card details.</li><li><strong>Learning activity</strong> — the classes you access, lessons you complete, and certificates you earn.</li><li><strong>Support messages</strong> — anything you send us for help.</li><li><strong>Usage and device data</strong> — basic logs such as IP address, device and browser type, and timestamps, used to run and secure the service.</li></ul>
+<h2>How we use your information</h2><ul><li>to provide your classes and manage your account and access;</li><li>to process payments and send receipts, renewal reminders, and account notices;</li><li>to respond to your support requests;</li><li>to keep the service secure and prevent abuse;</li><li>to meet our legal and accounting obligations.</li></ul><p>We do not sell your personal information and we do not use it for third-party advertising.</p>
+<h2>How we share information</h2><p>We share personal information only with the providers that help us run the service — our hosting provider, our payment provider, and our email provider — under agreements that limit their use of it, and with authorities where the law requires. [Add any other providers you use.]</p>
+<h2>Data retention</h2><p>We keep your information while your account is active and for as long afterwards as the law requires (for example, financial records). You can delete your account at any time from your Account page; see our <a href="/delete-account">account deletion page</a>.</p>
+<h2>Cookies</h2><p>We use only essential cookies that keep you signed in. We do not use advertising or cross-site tracking cookies.</p>
+<h2>Your choices and rights</h2><p>You can access and update your details from your Account page, delete your account at any time, and opt out of non-essential emails. For any other request, contact [your-support-email]. Depending on where you live, you may have additional rights under local law.</p>
+<h2>Children</h2><p>[If your classes are intended for adults, say so here. If you enroll minors, describe how you obtain parental consent.]</p>
+<h2>Changes to this policy</h2><p>We may update this policy from time to time. We will post the updated version here and, for significant changes, let you know.</p>
+<h2>Contact</h2><p>Questions about your privacy? Email us at [your-support-email].</p>`,
+      "How we collect and use your personal information.",
+    ),
+  },
+  {
+    id: "legal-terms",
+    slug: "terms",
+    title: "Terms of Service",
+    doc: legalDoc(
+      "Terms of Service",
+      `<h2>Agreement</h2><p>These Terms govern your use of [Your Academy Name]'s website, mobile app, and classes. By creating an account or using the service, you agree to these Terms. If you do not agree, please do not use the service. Questions? Contact [your-support-email].</p>
+<h2>Your account</h2><p>You must provide accurate information, keep your password secure, and are responsible for activity on your account. Accounts are for a single person and may not be shared.</p>
+<h2>Access and payment</h2><p>Some classes are free and others require a membership or purchase. Paid plans are billed through our payment provider at the price shown at checkout. For subscriptions, you authorize us to charge the recurring fee until you cancel. Taxes may apply.</p>
+<h2>Cancellation</h2><p>You can cancel a subscription at any time from your Account page; access continues until the end of the current billing period. Refunds, where offered, are described in our <a href="/refund">Refund Policy</a>.</p>
+<h2>Acceptable use</h2><ul><li>Do not share, resell, record, or redistribute our class content.</li><li>Do not use the service unlawfully or attempt to disrupt or scrape it.</li><li>Do not upload content you do not have the right to share.</li></ul>
+<h2>Content and intellectual property</h2><p>Our classes and materials are owned by us or our licensors and are provided to you for your own personal learning only. Anything you submit remains yours; you grant us the permission needed to host and display it as part of the service.</p>
+<h2>Disclaimers and liability</h2><p>The service is provided "as is". To the fullest extent permitted by law, we are not liable for indirect or incidental damages. [Have your specific disclaimers reviewed for your jurisdiction.]</p>
+<h2>Termination</h2><p>We may suspend or close an account that breaches these Terms.</p>
+<h2>Changes</h2><p>We may update these Terms. We will post the updated version here; continued use after a change means you accept it.</p>
+<h2>Contact</h2><p>Email us at [your-support-email].</p>`,
+      "The rules for using our classes and service.",
+    ),
+  },
+  {
+    id: "legal-refund",
+    slug: "refund",
+    title: "Refund Policy",
+    doc: legalDoc(
+      "Refund Policy",
+      `<h2>Overview</h2><p>This Refund Policy explains when and how you can get a refund for purchases from [Your Academy Name]. [Customize the specifics below to match what you offer.]</p>
+<h2>Refund window</h2><p>You may request a refund within [7] days of your purchase, provided you have not [substantially accessed or completed the content]. [Adjust this window and its conditions to your policy.]</p>
+<h2>How to request a refund</h2><p>Email us at [your-support-email] from the address on your account, with your name and the purchase you want refunded. We will respond within [a few business days].</p>
+<h2>Subscriptions</h2><p>You can cancel a subscription at any time from your Account page and keep access until the end of the current billing period. The current period is not refunded unless the law requires it. [State whether you refund a renewal charged in error.]</p>
+<h2>Non-refundable items</h2><p>[List anything you do not refund — for example one-off downloads already accessed, or completed certificates.]</p>
+<h2>Contact</h2><p>Questions about a refund? Email [your-support-email].</p>`,
+      "When and how you can request a refund.",
+    ),
+  },
+];
+
+// Seed the default legal pages for EVERY academy (called before main()'s
+// baseline/one-shot early returns). Idempotent via the unique slug: an academy's
+// edits survive re-seeds, and a legal page that was deleted is restored (a member
+// surface must never be left with no policy). ids use a `legal-` prefix — NOT
+// `seed-page-` — so purgeDemoDebris() never removes them.
+async function seedLegalPages(adminId: string): Promise<void> {
+  const now = new Date();
+  const res = await prisma.page.createMany({
+    data: LEGAL_PAGES.map((p) => ({
+      id: p.id,
+      slug: p.slug,
+      title: p.title,
+      data: p.doc,
+      status: "PUBLISHED" as const,
+      publishedAt: now,
+      authorId: adminId,
+    })),
+    skipDuplicates: true,
+  });
+  if (res.count > 0)
+    console.log(`  Legal:   seeded ${res.count} default legal pages`);
+}
+
 async function main() {
   if (WIPE) {
     await wipeDatabase();
@@ -2893,6 +3016,11 @@ async function main() {
   // EVERY academy gets them, and one-shot (empty-table only) so a client's edits
   // survive. Not demo content: purgeDemoDebris() leaves HelpdeskArticle alone.
   await seedStarterArticles();
+
+  // Default legal pages (Privacy/Terms/Refund) — same always-runs, one-shot-per-
+  // slug placement as the starter articles, so EVERY academy ships with editable
+  // policy pages that the AppConfig default links (/privacy, /terms) resolve to.
+  await seedLegalPages(admin.id);
 
   // Real client instances stop here: first admin only, no demo content. The
   // app is fully functional empty — signup's "Free" auto-grant tolerates the

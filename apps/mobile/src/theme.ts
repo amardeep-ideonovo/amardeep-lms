@@ -390,11 +390,12 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   logoUrl: null,
   iconUrl: null,
   splashUrl: null,
-  // Mirror the API DEFAULT_APP_CONFIG (app-config.service PLATFORM_LEGAL_BASE):
-  // the platform policy pages, so even an offline/first-paint or locked build
-  // shows a working policy link before the real config loads.
-  privacyUrl: "https://www.thewebpaanda.com/privacy",
-  termsUrl: "https://www.thewebpaanda.com/terms",
+  // Mirror the API DEFAULT_APP_CONFIG: the academy's own /privacy|/terms pages.
+  // legalLinks() joins these to the bound academy site once connected, and (when
+  // unbound, e.g. first paint on the shared build) falls back to the platform
+  // DIRECTORY_URL pages — so a working policy link always resolves.
+  privacyUrl: "/privacy",
+  termsUrl: "/terms",
   colorScheme: "light",
   light: APP_LIGHT,
   dark: APP_DARK,
