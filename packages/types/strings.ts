@@ -36,6 +36,12 @@ export const STR = {
     search: "Search",
     yes: "Yes",
   },
+  legal: {
+    privacy: "Privacy Policy",
+    terms: "Terms of Service",
+    // Rendered on signup with Terms + Privacy as inline links after this lead-in.
+    consentLead: "By creating your account, you agree to our",
+  },
   labels: {
     audience: "Audience",
     class: "Class",

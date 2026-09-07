@@ -2524,6 +2524,9 @@ async function seedAppConfig() {
     logoUrl: null,
     iconUrl: null,
     splashUrl: null,
+    // privacyUrl/termsUrl deliberately unset: the API serves the platform policy
+    // pages by default (app-config.service withLegalDefaults) and an academy only
+    // stores a value when it overrides — so a platform-domain move stays one line.
     colorScheme: "light",
     light: {
       bg: "#f4f3f8",

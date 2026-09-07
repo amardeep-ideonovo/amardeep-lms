@@ -213,6 +213,35 @@ export default function AppCustomizationBuilder({
               onChange={(url) => upd({ logoUrl: url || null })}
             />
           </div>
+          {/* Legal links shown on the member web footer + signup and the mobile
+              Account screen. Pre-filled with the platform policy pages; enter your
+              own to override, or clear to fall back to the platform page. */}
+          <div className="field">
+            <label>
+              Privacy Policy URL{" "}
+              <span className="muted">(defaults to the platform page)</span>
+            </label>
+            <input
+              value={cfg.privacyUrl ?? ""}
+              disabled={ro}
+              maxLength={2000}
+              placeholder="https://…/privacy"
+              onChange={(e) => upd({ privacyUrl: e.target.value || null })}
+            />
+          </div>
+          <div className="field">
+            <label>
+              Terms of Service URL{" "}
+              <span className="muted">(defaults to the platform page)</span>
+            </label>
+            <input
+              value={cfg.termsUrl ?? ""}
+              disabled={ro}
+              maxLength={2000}
+              placeholder="https://…/terms"
+              onChange={(e) => upd({ termsUrl: e.target.value || null })}
+            />
+          </div>
         </div>
 
         {/* appearance / mode */}

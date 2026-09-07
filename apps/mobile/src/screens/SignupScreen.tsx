@@ -45,7 +45,7 @@ export function SignupScreen({ navigation }: Props) {
   const [inviteCode, setInviteCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const legal = legalLinks();
+  const legal = legalLinks(config);
 
   const canSubmit =
     email.trim().length > 0 &&

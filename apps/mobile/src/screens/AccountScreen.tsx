@@ -104,7 +104,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const subsQuery = useMySubscriptionDetails();
   const user = meQuery.data ?? null;
   const subs: SubscriptionDetailDTO[] = subsQuery.data ?? [];
-  const legal = legalLinks();
+  const legal = legalLinks(config);
   // First load only (both halves, like the old Promise.all): once data exists
   // the cache keeps it through every revalidation.
   const loading = meQuery.isLoading || subsQuery.isLoading;

@@ -128,3 +128,57 @@ test("a missing row serves the Ink Hero navy defaults", async () => {
   assert.deepEqual(cfg.light, INK_HERO_LIGHT);
   assert.deepEqual(cfg.dark, INK_HERO_DARK);
 });
+
+test("legal links default to the platform policy pages when unset", async () => {
+  const svc = makeService({ title: "Spotlight Academy", colorScheme: "light" });
+  const cfg = await svc.read();
+  assert.equal(cfg.privacyUrl, "https://www.thewebpaanda.com/privacy");
+  assert.equal(cfg.termsUrl, "https://www.thewebpaanda.com/terms");
+});
+
+test("a custom academy legal URL is preserved; a relative path is allowed", async () => {
+  const svc = makeService({
+    privacyUrl: "https://acme.edu/privacy",
+    termsUrl: "/legal/terms",
+  });
+  const cfg = await svc.read();
+  assert.equal(cfg.privacyUrl, "https://acme.edu/privacy");
+  assert.equal(cfg.termsUrl, "/legal/terms");
+});
+
+test("an unsafe legal URL falls back to the platform default (no js:/protocol-relative)", async () => {
+  const svc = makeService({
+    privacyUrl: "javascript:alert(1)",
+    termsUrl: "//evil.example.com/terms",
+  });
+  const cfg = await svc.read();
+  // Rejected by urlOrNull -> platform default, so a hand-edited row can never
+  // push a javascript:/data: URI to Linking.openURL (mobile) or an <a href>.
+  assert.equal(cfg.privacyUrl, "https://www.thewebpaanda.com/privacy");
+  assert.equal(cfg.termsUrl, "https://www.thewebpaanda.com/terms");
+});
+
+test("saving the pre-filled default STORES null (never pins the literal); a custom URL is stored, both are still SERVED", async () => {
+  let persisted: any = null;
+  const prisma = {
+    appConfig: {
+      findUnique: () => Promise.resolve(null),
+      upsert: (a: any) => {
+        persisted = a.update.config;
+        return Promise.resolve({ id: "singleton", config: a.update.config });
+      },
+    },
+  };
+  const svc = new AppConfigService(prisma as any);
+  const served = await svc.write({
+    privacyUrl: "https://www.thewebpaanda.com/privacy", // == platform default
+    termsUrl: "https://acme.edu/terms", // a genuine override
+  } as any);
+  // Storage: the default normalizes to null (so a later domain move re-defaults
+  // on read), the custom override persists verbatim.
+  assert.equal(persisted.privacyUrl, null);
+  assert.equal(persisted.termsUrl, "https://acme.edu/terms");
+  // Served: every surface still gets a link — default resolved, override kept.
+  assert.equal(served.privacyUrl, "https://www.thewebpaanda.com/privacy");
+  assert.equal(served.termsUrl, "https://acme.edu/terms");
+});

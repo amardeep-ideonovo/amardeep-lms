@@ -750,6 +750,19 @@ a {
   gap: 18px;
   flex-wrap: wrap;
 }
+/* Minimal legal-only footer: rendered when the configured footer is disabled
+   (the default for a real academy) so every non-login page still links a policy.
+   Compact and centered — no full-footer chrome or internal separator line. */
+.site-footer--legal-only {
+  padding: 16px 24px;
+  margin-top: 48px;
+}
+.site-footer--legal-only .site-footer-bottom {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  justify-content: center;
+}
 @media (max-width: 720px) {
   .site-footer-inner {
     grid-template-columns: 1fr;

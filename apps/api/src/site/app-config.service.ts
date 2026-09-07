@@ -6,6 +6,12 @@ import { PrismaService } from "../prisma/prisma.service";
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const SCHEMES: AppColorScheme[] = ["light", "dark", "system"];
 
+// The platform policy pages every academy links to until its owner sets its own
+// (the "default to the platform pages" half of the per-academy legal-links
+// ticket). Kept in ONE place so a platform-domain move is a one-line change.
+// thewebpaanda.com is the live platform host.
+const PLATFORM_LEGAL_BASE = "https://www.thewebpaanda.com";
+
 // Defaults mirror the member WEBSITE's "Ink Hero" theme (light content with
 // ink #221c3d navy chrome and a teal #3cc4b2 accent), so web, app, and admin
 // preview agree out of the box. DARK is the all-ink variant for admins who
@@ -40,6 +46,8 @@ const DEFAULT_APP_CONFIG: AppConfig = {
   logoUrl: null,
   iconUrl: null,
   splashUrl: null,
+  privacyUrl: `${PLATFORM_LEGAL_BASE}/privacy`,
+  termsUrl: `${PLATFORM_LEGAL_BASE}/terms`,
   colorScheme: "light",
   light: LIGHT,
   dark: DARK,
@@ -91,6 +99,41 @@ export class AppConfigService {
   private strOrNull(v: unknown, max: number): string | null {
     return typeof v === "string" && v ? v.slice(0, max) : null;
   }
+  // Like strOrNull but only accepts a SAFE link target: a same-origin-relative
+  // path ("/privacy") or an explicit http(s) absolute URL. Rejects javascript:,
+  // data:, protocol-relative ("//host"), and any other scheme — these values are
+  // rendered as an <a href> on web AND passed to Linking.openURL on mobile, so a
+  // hand-edited row carrying a javascript:/data: URI must not survive sanitize().
+  private urlOrNull(v: unknown, max: number): string | null {
+    if (typeof v !== "string" || !v) return null;
+    const s = v.trim().slice(0, max);
+    if (/^\/(?!\/)/.test(s)) return s; // "/privacy" — but not "//evil.com"
+    try {
+      const proto = new URL(s).protocol;
+      return proto === "http:" || proto === "https:" ? s : null;
+    } catch {
+      return null;
+    }
+  }
+  // STORAGE form of a legal link: a validated CUSTOM override, else null. Unset/
+  // blank/invalid AND a value equal to the current platform default all normalize
+  // to null — storing the default is the same as "unset", so the row never PINS
+  // the platform literal (a later PLATFORM_LEGAL_BASE move re-defaults on read),
+  // and the admin's "blank = the platform page" contract holds. read()/write()
+  // re-apply the default via withLegalDefaults so every SERVED config has a link.
+  private legalUrl(v: unknown, dflt: string | null | undefined): string | null {
+    const u = this.urlOrNull(v, 2000);
+    return u && u !== dflt ? u : null;
+  }
+  // Resolve the nullable stored legal links to the platform default for the
+  // config as SERVED to clients, so every member surface always links a policy.
+  private withLegalDefaults(cfg: AppConfig): AppConfig {
+    return {
+      ...cfg,
+      privacyUrl: cfg.privacyUrl ?? DEFAULT_APP_CONFIG.privacyUrl,
+      termsUrl: cfg.termsUrl ?? DEFAULT_APP_CONFIG.termsUrl,
+    };
+  }
   // True when every key of a stored palette equals the legacy stock verbatim
   // (case-insensitive) — i.e. the palette was materialized from the old
   // defaults and never customized.
@@ -136,6 +179,10 @@ export class AppConfigService {
       logoUrl: this.strOrNull(r.logoUrl, 2000),
       iconUrl: this.strOrNull(r.iconUrl, 2000),
       splashUrl: this.strOrNull(r.splashUrl, 2000),
+      // Nullable in storage (see legalUrl): only a real custom override persists;
+      // the platform default is re-applied when the config is SERVED, not pinned.
+      privacyUrl: this.legalUrl(r.privacyUrl, DEFAULT_APP_CONFIG.privacyUrl),
+      termsUrl: this.legalUrl(r.termsUrl, DEFAULT_APP_CONFIG.termsUrl),
       colorScheme: scheme,
       light: this.palette(
         this.isLegacyStock(r.light, LEGACY_LIGHT) ? LIGHT : r.light,
@@ -153,7 +200,7 @@ export class AppConfigService {
     const row = await this.prisma.appConfig.findUnique({
       where: { id: "singleton" },
     });
-    return this.sanitize(row?.config);
+    return this.withLegalDefaults(this.sanitize(row?.config));
   }
 
   async write(cfg: AppConfig): Promise<AppConfig> {
@@ -166,6 +213,7 @@ export class AppConfigService {
       },
       update: { config: clean as unknown as Prisma.InputJsonValue },
     });
-    return clean;
+    // Persist the nullable `clean`; serve it with the platform default applied.
+    return this.withLegalDefaults(clean);
   }
 }
