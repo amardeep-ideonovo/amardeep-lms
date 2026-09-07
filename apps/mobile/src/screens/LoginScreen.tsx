@@ -46,7 +46,7 @@ export function LoginScreen({ navigation }: Props) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const legal = legalLinks();
+  const legal = legalLinks(config);
 
   const canSubmit =
     email.trim().length > 0 && password.length > 0 && !submitting;

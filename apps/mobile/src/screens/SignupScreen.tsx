@@ -48,7 +48,7 @@ export function SignupScreen({ navigation }: Props) {
   // Show the invite field only when the API's closed-beta gate is on. Default
   // hidden (open signup is the norm); reveal once the public config confirms it.
   const [inviteRequired, setInviteRequired] = useState(false);
-  const legal = legalLinks();
+  const legal = legalLinks(config);
 
   useEffect(() => {
     let alive = true;

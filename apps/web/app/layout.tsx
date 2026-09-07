@@ -142,7 +142,14 @@ export default async function RootLayout({
               authedHint={authedHint}
             />
             <main className="container">{children}</main>
-            <Footer config={footer} brandTitle={appConfig?.title ?? null} />
+            <Footer
+              config={footer}
+              brandTitle={appConfig?.title ?? null}
+              legal={{
+                privacyUrl: appConfig?.privacyUrl ?? null,
+                termsUrl: appConfig?.termsUrl ?? null,
+              }}
+            />
           </ToastProvider>
         </QueryProvider>
       </body>

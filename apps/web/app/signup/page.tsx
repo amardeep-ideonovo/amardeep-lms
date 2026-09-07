@@ -5,11 +5,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PASSWORD_MIN, STR } from "@lms/types";
 import { Button } from "@lms/ui";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, fetchAppConfig } from "@/lib/api";
 import SpotlightLogo from "@/components/SpotlightLogo";
 
 export default function SignupPage() {
   const router = useRouter();
+  // Per-academy policy links for the consent line. Fetched client-side (this is
+  // a client component); the API force-defaults these to the platform pages, so
+  // once resolved both are always present. Until then the line stays hidden —
+  // the site footer already carries the same links on this page.
+  const [legal, setLegal] = useState<{ privacy: string; terms: string } | null>(
+    null,
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -32,6 +39,19 @@ export default function SignupPage() {
       .catch(() => {
         /* config unreachable → leave the field hidden */
       });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    fetchAppConfig()
+      .then((c) => {
+        if (alive && c?.privacyUrl && c?.termsUrl)
+          setLegal({ privacy: c.privacyUrl, terms: c.termsUrl });
+      })
+      .catch(() => {});
     return () => {
       alive = false;
     };
@@ -200,6 +220,30 @@ export default function SignupPage() {
             >
               {loading ? "Creating account…" : "Create account"}
             </Button>
+
+            {legal && (
+              <p className="sub signup-consent">
+                {STR.legal.consentLead}{" "}
+                <a
+                  href={legal.terms}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link"
+                >
+                  {STR.legal.terms}
+                </a>{" "}
+                and{" "}
+                <a
+                  href={legal.privacy}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link"
+                >
+                  {STR.legal.privacy}
+                </a>
+                .
+              </p>
+            )}
           </form>
         </div>
       </div>

@@ -184,6 +184,11 @@ class AppConfigDto implements AppConfig {
   @IsOptional() @IsString() @MaxLength(2000) logoUrl?: string | null;
   @IsOptional() @IsString() @MaxLength(2000) iconUrl?: string | null;
   @IsOptional() @IsString() @MaxLength(2000) splashUrl?: string | null;
+  // Per-academy legal links. String-shape only here (like every other URL field
+  // above — never @IsUrl, which rejects relative paths); the http(s)/relative
+  // safety check + platform-default fallback live in app-config.service urlOrNull.
+  @IsOptional() @IsString() @MaxLength(2000) privacyUrl?: string | null;
+  @IsOptional() @IsString() @MaxLength(2000) termsUrl?: string | null;
   @IsIn(["light", "dark", "system"]) colorScheme!: AppColorScheme;
   @ValidateNested() @Type(() => AppThemePaletteDto) light!: AppThemePaletteDto;
   @ValidateNested() @Type(() => AppThemePaletteDto) dark!: AppThemePaletteDto;

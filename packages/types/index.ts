@@ -2122,6 +2122,10 @@ export interface AppConfig {
   logoUrl?: string | null; // in-app logo image; null -> title text
   iconUrl?: string | null; // reference only (see note) — not applied at runtime
   splashUrl?: string | null; // reference only (see note) — not applied at runtime
+  // Per-academy legal links (member web footer + signup, mobile Account screen).
+  // Absent/blank -> the platform policy pages (see app-config.service DEFAULT).
+  privacyUrl?: string | null;
+  termsUrl?: string | null;
   colorScheme: AppColorScheme; // which palette the app uses (system follows device)
   light: AppThemePalette;
   dark: AppThemePalette;

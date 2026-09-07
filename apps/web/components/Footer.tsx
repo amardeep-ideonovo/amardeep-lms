@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import type { FooterConfig, ResolvedMenu } from "@lms/types";
+import { STR } from "@lms/types";
 import { api, fetchFooter, footerSubscribe } from "@/lib/api";
 import { MenuLink, flattenChildren, isExternal } from "./MenuLink";
 
@@ -13,11 +14,18 @@ import { MenuLink, flattenChildren, isExternal } from "./MenuLink";
 export default function Footer({
   config,
   brandTitle,
+  legal,
 }: {
   config?: FooterConfig | null;
   // Cross-platform brand name (AppConfig.title) — same source as the nav and
   // the apps. Falls back to "LMS" when unset, so all surfaces stay aligned.
   brandTitle?: string | null;
+  // Per-academy legal links (AppConfig.privacyUrl/termsUrl — force-defaulted by
+  // the API to the platform pages). Always shown in the bottom bar so every page
+  // that renders the footer links a policy, independent of the admin's
+  // bottomLinks. (When the footer is disabled the footer renders nothing — the
+  // signup consent line + the mobile app carry the links on their own surfaces.)
+  legal?: { privacyUrl?: string | null; termsUrl?: string | null };
 }) {
   const pathname = usePathname();
   const [menu, setMenu] = useState<ResolvedMenu | null>(null);
@@ -55,7 +63,49 @@ export default function Footer({
   }, [pathname, menuId, enabled]);
 
   if (pathname === "/login") return null;
-  if (!f || !enabled) return null;
+
+  const privacyUrl = legal?.privacyUrl || null;
+  const termsUrl = legal?.termsUrl || null;
+
+  // One renderer for every bottom-bar link (policy links + admin bottomLinks):
+  // an external target opens in a new tab, an in-app path uses the router.
+  const bottomLink = (url: string, label: string, key: string) =>
+    isExternal(url) ? (
+      <a
+        key={key}
+        href={url}
+        className="footer-link"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {label}
+      </a>
+    ) : (
+      <Link key={key} href={url} className="footer-link">
+        {label}
+      </Link>
+    );
+
+  const policyLinks =
+    privacyUrl || termsUrl ? (
+      <span className="site-footer-bottom-links">
+        {privacyUrl &&
+          bottomLink(privacyUrl, STR.legal.privacy, "legal-privacy")}
+        {termsUrl && bottomLink(termsUrl, STR.legal.terms, "legal-terms")}
+      </span>
+    ) : null;
+
+  // The decorative footer (logo/menu/email) is gated on `enabled` — OFF by
+  // default for a real academy. But the policy links must appear on every
+  // non-login page ("every member surface links a policy"), so when the footer
+  // is off (or unconfigured) we still render a MINIMAL legal-only bar.
+  if (!f || !enabled) {
+    return policyLinks ? (
+      <footer className="site-footer site-footer--legal-only">
+        <div className="site-footer-bottom">{policyLinks}</div>
+      </footer>
+    ) : null;
+  }
 
   const year = new Date().getFullYear();
   const copyright = f.copyright.replace(/\{year\}/g, String(year));
@@ -113,25 +163,12 @@ export default function Footer({
 
       <div className="site-footer-bottom">
         <span>{copyright}</span>
-        {f.bottomLinks.length > 0 && (
+        {(privacyUrl || termsUrl || f.bottomLinks.length > 0) && (
           <span className="site-footer-bottom-links">
-            {f.bottomLinks.map((l) =>
-              isExternal(l.url) ? (
-                <a
-                  key={l.id}
-                  href={l.url}
-                  className="footer-link"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {l.label}
-                </a>
-              ) : (
-                <Link key={l.id} href={l.url} className="footer-link">
-                  {l.label}
-                </Link>
-              ),
-            )}
+            {privacyUrl &&
+              bottomLink(privacyUrl, STR.legal.privacy, "legal-privacy")}
+            {termsUrl && bottomLink(termsUrl, STR.legal.terms, "legal-terms")}
+            {f.bottomLinks.map((l) => bottomLink(l.url, l.label, l.id))}
           </span>
         )}
       </div>
