@@ -22,6 +22,7 @@ import type { ErrorCode } from "@lms/types";
 // Relative on purpose — see packages/types/constants.ts (API value imports).
 import { MAX_AVATAR_UPLOAD_BYTES } from "../../../../packages/types/constants";
 import { mobileConnectCode } from "../../../../packages/types/format";
+import * as SignupGate from "./signup-config.util";
 import { PrismaService } from "../prisma/prisma.service";
 import { ContactsService } from "../contacts/contacts.service";
 import { AutomationService } from "../email/automation.service";
@@ -162,6 +163,13 @@ export class AuthService {
     };
   }
 
+  // Whether self-signup currently requires an invite code — drives the web /
+  // mobile signup screens' decision to show or hide the invite field. Delegates
+  // to the pure helper so it shares one source with the gate in signupMember.
+  signupRequiresInvite(): boolean {
+    return SignupGate.signupRequiresInvite();
+  }
+
   /**
    * Create a new member account. Mirrors loginMember's response shape so the
    * signup flow can drop straight into the authenticated app without a second
@@ -170,7 +178,7 @@ export class AuthService {
    */
   async signupMember(dto: SignupDto): Promise<LoginResponse<AuthUser>> {
     // Invite-code gate (closed beta). Skipped when env var is unset.
-    const requiredInvite = process.env.SIGNUP_INVITE_CODE?.trim();
+    const requiredInvite = SignupGate.requiredInviteCode();
     if (requiredInvite && dto.inviteCode?.trim() !== requiredInvite) {
       throw new ForbiddenException({
         code: "INVALID_INVITE_CODE" satisfies ErrorCode,

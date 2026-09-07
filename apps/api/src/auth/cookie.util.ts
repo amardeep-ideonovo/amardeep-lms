@@ -63,14 +63,22 @@ function baseOptions() {
 }
 
 // Issue all three auth cookies. `token` is the freshly-signed member JWT.
-export function setAuthCookies(res: Response, token: string): void {
+// Returns the freshly-minted CSRF token so the caller can ALSO hand it back in
+// the response body: the member web app runs on a DIFFERENT host than the API
+// (fleet: <sub>.app.<domain> vs <sub>-api.app.<domain>), so it can never read
+// this host-only csrf_token cookie via document.cookie. The web echoes the
+// body value on unsafe requests instead; the browser still sends this cookie to
+// the API automatically, so the double-submit check still matches. (Widening
+// the cookie's Domain to a shared parent is NOT an option — the only common
+// ancestor of the web and API hosts, app.<domain>, is shared by every tenant,
+// so it would leak sessions across academies.)
+export function setAuthCookies(res: Response, token: string): string {
   const opts = baseOptions();
+  const csrfToken = randomBytes(32).toString("hex");
   res.cookie(SESSION_COOKIE, token, { ...opts, httpOnly: true });
-  res.cookie(CSRF_COOKIE, randomBytes(32).toString("hex"), {
-    ...opts,
-    httpOnly: false,
-  });
+  res.cookie(CSRF_COOKIE, csrfToken, { ...opts, httpOnly: false });
   res.cookie(HINT_COOKIE, "1", { ...opts, httpOnly: false });
+  return csrfToken;
 }
 
 // Clear all three (logout / account deletion). Clearing must use matching

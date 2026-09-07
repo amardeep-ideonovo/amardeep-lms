@@ -51,7 +51,7 @@ function fakeRes() {
 
 test("setAuthCookies makes the session httpOnly and the hint/csrf readable", () => {
   const { res, set } = fakeRes();
-  setAuthCookies(res, "the.jwt.token");
+  const returned = setAuthCookies(res, "the.jwt.token");
 
   const session = set.find((c) => c.name === SESSION_COOKIE);
   const csrf = set.find((c) => c.name === CSRF_COOKIE);
@@ -59,6 +59,9 @@ test("setAuthCookies makes the session httpOnly and the hint/csrf readable", () 
 
   assert.ok(session && csrf && hint, "all three cookies are set");
   assert.equal(session!.value, "the.jwt.token");
+  // The return value is the csrf token (handed back so the controller can echo
+  // it in the response body for the cross-host web app to store and re-submit).
+  assert.equal(returned, csrf!.value, "returns the csrf token it set");
   assert.equal(session!.opts.httpOnly, true, "session JWT is httpOnly");
   assert.equal(csrf!.opts.httpOnly, false, "csrf token must be JS-readable");
   assert.equal(hint!.opts.httpOnly, false, "hint must be JS-readable");
