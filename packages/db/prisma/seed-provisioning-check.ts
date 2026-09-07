@@ -263,11 +263,25 @@ async function main() {
         course: await db.course.count(),
         user: await db.user.count(),
         post: await db.post.count(),
-        page: await db.page.count(),
         appConfig: await db.appConfig.count(),
       })) {
         assert.equal(count, 0, `real client must boot empty (${name})`);
       }
+      // Legal pages are the ONE deliberate exception to "boots empty": EVERY
+      // academy is seeded with editable Privacy/Terms/Refund pages so its member
+      // surfaces (web footer/signup, mobile) always link a policy. (seedLegalPages)
+      const legalPages = await db.page.findMany({ orderBy: { slug: "asc" } });
+      assert.deepEqual(
+        legalPages.map((p) => p.slug),
+        ["privacy", "refund", "terms"],
+        "a real client boots with exactly the 3 seeded legal pages",
+      );
+      assert.ok(
+        legalPages.every(
+          (p) => p.status === "PUBLISHED" && p.id.startsWith("legal-"),
+        ),
+        "seeded legal pages must be published and carry the purge-safe legal- id prefix",
+      );
       // The seed must never install payment credentials. Setting rows survive
       // SEED_WIPE and purgeDemoDebris by design, and the demo block runs only on
       // an instance's first boot — so a credential seeded here would be
@@ -395,8 +409,26 @@ async function main() {
         "the demo member (a public repo password) must not survive conversion",
       );
       const pages = await db.page.findMany();
-      assert.equal(pages.length, 1, "client-authored content must survive");
-      assert.equal(pages[0].slug, "client-made-page");
+      // The client's own page survives the purge; so do the 3 seeded legal pages
+      // (legal-* ids, not seed-page-*). Only the demo pages (seed-page-*) are
+      // purged — the point of this scenario.
+      assert.ok(
+        pages.some((p) => p.slug === "client-made-page"),
+        "client-authored content must survive",
+      );
+      assert.deepEqual(
+        pages
+          .filter((p) => p.slug !== "client-made-page")
+          .map((p) => p.slug)
+          .sort(),
+        ["privacy", "refund", "terms"],
+        "only the seeded legal pages survive alongside the client's page",
+      );
+      assert.equal(
+        pages.filter((p) => p.id.startsWith("seed-page-")).length,
+        0,
+        "demo pages (seed-page-*) must be purged",
+      );
       const admins = await db.admin.findMany();
       assert.equal(admins.length, 1, "the owner admin must survive");
       assert.ok(await bcrypt.compare(OWNER.password, admins[0].passwordHash));
