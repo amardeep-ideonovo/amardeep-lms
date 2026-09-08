@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ApiError, api, setToken } from "@/lib/api";
 import { useAppBrand } from "@/lib/queries";
 import { STR } from "@lms/types";
-import { Button } from "@lms/ui";
+import { BrandMark, Button } from "@lms/ui";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,18 +51,7 @@ export default function LoginPage() {
       <form className="card login-card" onSubmit={onSubmit}>
         <div className="page-header">
           <div className="login-brand">
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 1.7C12.93 7.35 16.65 11.07 22.3 12C16.65 12.93 12.93 16.65 12 22.3C11.07 16.65 7.35 12.93 1.7 12C7.35 11.07 11.07 7.35 12 1.7Z"
-                fill="#34c9a2"
-              />
-            </svg>
+            <BrandMark size={24} />
             <h1 style={{ margin: 0 }}>{brand ?? "Admin"}</h1>
           </div>
           <p className="subtitle">Sign in to continue</p>

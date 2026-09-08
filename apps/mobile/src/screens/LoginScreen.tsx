@@ -3,7 +3,6 @@
 // accent.
 import React, { useState } from "react";
 import {
-  Image,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -20,8 +19,8 @@ import { STR } from "@lms/types";
 
 import { api, ApiError } from "../api";
 import { useAuth } from "../auth";
+import { AuthBrand } from "../components/AuthBrand";
 import { CtaButton } from "../components/CtaButton";
-import { SpotlightMark } from "../components/SpotlightMark";
 import {
   IS_LOCKED_BUILD,
   WEB_BASE_URL,
@@ -40,8 +39,8 @@ type Props = AuthScreenProps<"Login">;
 export function LoginScreen({ navigation }: Props) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
-  const { config } = useAppConfig();
   const { signIn } = useAuth();
+  const { config } = useAppConfig();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -84,24 +83,7 @@ export function LoginScreen({ navigation }: Props) {
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.brandBlock}>
-            {config.logoUrl ? (
-              <Image
-                source={{ uri: config.logoUrl }}
-                style={styles.logo}
-                resizeMode="contain"
-                accessibilityLabel={config.title}
-              />
-            ) : (
-              <View style={styles.brandRow}>
-                <SpotlightMark size={26} />
-                <Text style={styles.brand}>{config.title}</Text>
-              </View>
-            )}
-            {config.tagline ? (
-              <Text style={styles.tagline}>{config.tagline}</Text>
-            ) : null}
-          </View>
+          <AuthBrand size={26} />
 
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Welcome back</Text>
@@ -231,26 +213,6 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.lg,
       ...formColumn,
-    },
-    brandBlock: { alignItems: "center", marginBottom: spacing.lg },
-    brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-    brand: {
-      color: colors.heroText,
-      fontSize: 26,
-      fontFamily: fonts.bold,
-      textAlign: "center",
-    },
-    logo: {
-      height: 56,
-      width: 220,
-      alignSelf: "center",
-    },
-    tagline: {
-      color: "rgba(255,255,255,0.55)",
-      fontSize: 13,
-      textAlign: "center",
-      marginTop: spacing.sm,
-      fontFamily: fonts.regular,
     },
     card: {
       backgroundColor: colors.surface,

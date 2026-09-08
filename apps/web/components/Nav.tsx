@@ -19,7 +19,7 @@ import {
   setCachedMe,
 } from "@/lib/api";
 import { MenuLink, flattenChildren, isExternal } from "./MenuLink";
-import SpotlightLogo from "./SpotlightLogo";
+import { BrandMark } from "@lms/ui";
 
 // Nav is SSR'd; useLayoutEffect is a no-op on the server that React warns
 // about, so alias it (same pattern as ClassMemberArea).
@@ -214,7 +214,7 @@ export default function Nav({
     </Link>
   ) : (
     <Link href="/dashboard" className="nav-brand">
-      <SpotlightLogo size={26} />
+      <BrandMark size={26} />
       <span>{brandTitle?.trim() || "Spotlight Academy"}</span>
     </Link>
   );
