@@ -3,6 +3,12 @@
 // @lms/puck. Web/admin only: mobile is React Native and shares code through
 // @lms/types instead (ApiError, formatters, constants, strings).
 
+export {
+  BrandMark,
+  SPARK_PATH,
+  BRAND_MARK_COLOR,
+  BRAND_TEAL,
+} from "./brand-mark";
 export { Button, buttonClass } from "./button";
 export type {
   ButtonProps,

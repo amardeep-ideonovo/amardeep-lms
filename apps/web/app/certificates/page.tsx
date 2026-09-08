@@ -14,7 +14,7 @@ import { STR } from "@lms/types";
 import { openHelpdeskAnswer } from "@/lib/helpdesk-bus";
 import { useMemberDashboard, useMyCertificates } from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
-import SpotlightLogo from "@/components/SpotlightLogo";
+import { BrandMark } from "@lms/ui";
 
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, {
@@ -79,7 +79,7 @@ function CertCard({ cert }: { cert: MyCertificateDTO }) {
     <article className="ik-cert-card">
       <div className="ik-cert-head">
         <div className="ik-cert-brand">
-          <SpotlightLogo size={18} />
+          <BrandMark size={18} />
           <span className="ik-cert-label">Certificate of completion</span>
         </div>
         <div className="ik-cert-name">{cert.className}</div>

@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { headers } from "next/headers";
+import { SPARK_PATH, BRAND_MARK_COLOR } from "@lms/ui/brand-mark";
 import { SITE_NAME, getSiteName } from "@/lib/seo";
 
 // Default social-share image. Auto-applied to every route that doesn't set its
@@ -34,12 +35,10 @@ export default async function OpengraphImage() {
         letterSpacing: -1,
       }}
     >
-      {/* Spark mark above the wordmark, as in the brand lockup */}
+      {/* Brand mark above the wordmark. Satori can't mount the BrandMark
+          component, so it inlines the shared SPARK_PATH + color from @lms/ui. */}
       <svg width="76" height="76" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M12 1.7C12.93 7.35 16.65 11.07 22.3 12C16.65 12.93 12.93 16.65 12 22.3C11.07 16.65 7.35 12.93 1.7 12C7.35 11.07 11.07 7.35 12 1.7Z"
-          fill="#34c9a2"
-        />
+        <path d={SPARK_PATH} fill={BRAND_MARK_COLOR} />
       </svg>
       <div style={{ display: "flex", marginTop: 28 }}>{siteName}</div>
       <div

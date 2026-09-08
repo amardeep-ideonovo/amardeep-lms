@@ -8,7 +8,7 @@ import { Image, StyleSheet, Text, View } from "react-native";
 import { useAppConfig } from "../config-provider";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
-import { SpotlightMark } from "./SpotlightMark";
+import { BrandMark } from "./BrandMark";
 
 export function BrandHeaderTitle({ onChrome }: { onChrome?: boolean }) {
   const { config } = useAppConfig();
@@ -22,7 +22,7 @@ export function BrandHeaderTitle({ onChrome }: { onChrome?: boolean }) {
     />
   ) : (
     <View style={styles.row}>
-      <SpotlightMark size={20} />
+      <BrandMark size={20} />
       <Text
         style={[styles.title, onChrome && styles.titleOnChrome]}
         numberOfLines={1}

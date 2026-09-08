@@ -4,9 +4,8 @@ import { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { STR } from "@lms/types";
-import { Button } from "@lms/ui";
+import { BrandMark, Button } from "@lms/ui";
 import { api } from "@/lib/api";
-import SpotlightLogo from "@/components/SpotlightLogo";
 
 // Shown after a member deletes their own account (redirect adds ?deleted=1).
 // Reads search params → must sit inside a <Suspense> boundary.
@@ -46,7 +45,7 @@ export default function LoginPage() {
     <div className="dark-page ik-auth">
       {/* Ink band (this page renders no nav) + overlapping white form card. */}
       <div className="ik-auth-band" aria-hidden="true">
-        <SpotlightLogo size={26} />
+        <BrandMark size={26} />
       </div>
       <div className="dp-wrap">
         <div className="form-card">

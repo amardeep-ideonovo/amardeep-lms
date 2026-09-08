@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import type { AdminSection } from "@lms/types";
+import { BrandMark } from "@lms/ui";
 import { getToken, api } from "@/lib/api";
 import { useAppBrand } from "@/lib/queries";
 import { useAdminAuth } from "./AdminAuthProvider";
@@ -786,14 +787,8 @@ export default function Sidebar() {
       />
       <aside className={drawerOpen ? "sidebar sidebar--open" : "sidebar"}>
         <div className="sidebar-brand sidebar-brand--row">
-          {/* Spark mark: teal four-point spark (Spark brand pack) */}
           <span className="brand-mark" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 1.7C12.93 7.35 16.65 11.07 22.3 12C16.65 12.93 12.93 16.65 12 22.3C11.07 16.65 7.35 12.93 1.7 12C7.35 11.07 11.07 7.35 12 1.7Z"
-                fill="#34c9a2"
-              />
-            </svg>
+            <BrandMark size={22} />
           </span>
           <span className="brand-name" title={brand ?? undefined}>
             {brand ?? "Admin"}

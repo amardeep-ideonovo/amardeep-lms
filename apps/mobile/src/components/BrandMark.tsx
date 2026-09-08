@@ -1,13 +1,14 @@
-// Brand glyph for the ink band (pure RN — no SVG dependency): the Spark
-// four-point star approximated as a rotated-square diamond with a smaller
-// companion spark at its top-right, both in the primary color. Only shown when
-// the admin hasn't uploaded a logo (the logo image replaces the brand mark).
+// Brand glyph for the ink band (pure RN — no SVG dependency): the four-point
+// star approximated as a rotated-square diamond with a smaller companion spark
+// at its top-right, both in the primary color. Only shown when the admin hasn't
+// uploaded a logo (the logo image replaces the brand mark). The DOM apps have
+// their own shared mark in @lms/ui/brand-mark.
 import React from "react";
 import { View } from "react-native";
 
 import { useScopedTheme } from "./PageScope";
 
-export function SpotlightMark({ size = 20 }: { size?: number }) {
+export function BrandMark({ size = 20 }: { size?: number }) {
   const { colors } = useScopedTheme();
   return (
     <View style={{ width: size, height: size }}>

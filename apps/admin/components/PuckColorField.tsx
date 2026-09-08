@@ -1,5 +1,7 @@
 "use client";
 
+import { BRAND_TEAL } from "@lms/ui";
+
 // Clearable color input for Puck custom fields (the Design group's color
 // props). Unlike ColorField (swatch-only, always a value), design colors are
 // OPTIONAL — empty means "theme default" — so this pairs the native picker
@@ -15,7 +17,7 @@ export default function PuckColorField({
   onChange: (v: string) => void;
 }) {
   const v = (value || "").trim();
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v) ? v : "#3cc4b2";
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v) ? v : BRAND_TEAL;
   return (
     <div style={{ display: "grid", gap: 4 }}>
       {label ? (

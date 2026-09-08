@@ -4,9 +4,8 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PASSWORD_MIN, STR } from "@lms/types";
-import { Button } from "@lms/ui";
+import { BrandMark, Button } from "@lms/ui";
 import { api, ApiError, fetchAppConfig } from "@/lib/api";
-import SpotlightLogo from "@/components/SpotlightLogo";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -109,7 +108,7 @@ export default function SignupPage() {
       {/* Ink band + overlapping white form card (nav renders on this page,
           but the band keeps the auth pair visually consistent with /login). */}
       <div className="ik-auth-band" aria-hidden="true">
-        <SpotlightLogo size={26} />
+        <BrandMark size={26} />
       </div>
       <div className="dp-wrap">
         <div className="form-card">
