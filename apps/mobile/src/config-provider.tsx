@@ -19,7 +19,11 @@ import {
   IS_LOCKED_BUILD,
   scopedKey,
 } from "./config";
-import { DEFAULT_APP_CONFIG, isCompleteAppConfig, pickBrandTitle } from "./theme";
+import {
+  DEFAULT_APP_CONFIG,
+  isCompleteAppConfig,
+  pickBrandTitle,
+} from "./theme";
 
 // Namespaced per instance (see config.ts) so a shared binary never paints one
 // instance with another instance's cached branding. The key BASE is shared

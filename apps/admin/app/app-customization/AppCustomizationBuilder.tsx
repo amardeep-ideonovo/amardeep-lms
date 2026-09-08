@@ -770,7 +770,12 @@ const PhonePreview = memo(function PhonePreview({
             />
           ) : (
             <span
-              style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
+                minWidth: 0,
+              }}
             >
               <PreviewMark size={20} color={p.primary} />
               <span
@@ -892,9 +897,7 @@ const PhoneAuthPreview = memo(function PhoneAuthPreview({
               }}
             >
               <PreviewMark size={26} color={p.primary} />
-              <span
-                style={{ color: onChrome, fontSize: 24, fontWeight: 800 }}
-              >
+              <span style={{ color: onChrome, fontSize: 24, fontWeight: 800 }}>
                 {cfg.title || "Your app"}
               </span>
             </span>

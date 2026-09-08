@@ -173,11 +173,20 @@ test("pickBrandTitle falls back to the bound academy name when title is the defa
 
 test("pickBrandTitle deep fallback: operator brand on shared, neutral on white-label", () => {
   // Shared app (no custom title, no bound name) → our product brand.
-  assert.equal(pickBrandTitle(DEFAULT_APP_CONFIG.title, null, SHARED_FB), SHARED_FB);
+  assert.equal(
+    pickBrandTitle(DEFAULT_APP_CONFIG.title, null, SHARED_FB),
+    SHARED_FB,
+  );
   assert.equal(pickBrandTitle(null, null, SHARED_FB), SHARED_FB);
   // White-label / locked build → neutral, NEVER the operator brand.
-  assert.equal(pickBrandTitle(DEFAULT_APP_CONFIG.title, null, WL_FB), "Academy");
-  assert.notEqual(pickBrandTitle(DEFAULT_APP_CONFIG.title, null, WL_FB), DEFAULT_APP_CONFIG.title);
+  assert.equal(
+    pickBrandTitle(DEFAULT_APP_CONFIG.title, null, WL_FB),
+    "Academy",
+  );
+  assert.notEqual(
+    pickBrandTitle(DEFAULT_APP_CONFIG.title, null, WL_FB),
+    DEFAULT_APP_CONFIG.title,
+  );
 });
 
 test("onChrome stays light on a dark Header band (default/derived)", () => {
