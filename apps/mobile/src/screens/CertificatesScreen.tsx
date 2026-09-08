@@ -187,13 +187,13 @@ export function CertificatesScreen({
                 <Ionicons
                   name="share-outline"
                   size={13}
-                  color={colors.heroText}
+                  color={colors.onChrome}
                 />
               }
               // Ink surface: keep the label + hairline light (Button ghost
               // defaults to colors.text / colors.border, which are dark on the
               // light app theme and vanish on this ink card in dark mode).
-              textStyle={{ color: colors.heroText, fontSize: 11.5 }}
+              textStyle={{ color: colors.onChrome, fontSize: 11.5 }}
               borderColor="rgba(255,255,255,0.25)"
               label="Share"
               disabled={busyCertId === hero.id}
@@ -207,7 +207,7 @@ export function CertificatesScreen({
             <Ionicons
               name="ribbon-outline"
               size={20}
-              color={colors.primaryOnDark}
+              color={colors.onChromeAccent}
             />
           </View>
           <Text style={styles.emptyTitle}>No certificates yet</Text>
@@ -235,7 +235,7 @@ export function CertificatesScreen({
             <Ionicons
               name="ribbon-outline"
               size={17}
-              color={colors.primaryOnDark}
+              color={colors.onChromeAccent}
             />
           </View>
           <View style={styles.certRowInfo}>
@@ -367,26 +367,26 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       shadowRadius: 10,
     },
     heroEyebrow: {
-      color: "rgba(255,255,255,0.6)",
+      color: colors.onChromeSoft,
       fontSize: 9.5,
       fontFamily: fonts.bold,
       letterSpacing: 1.4,
       flexShrink: 1,
     },
     heroName: {
-      color: colors.heroText,
+      color: colors.onChrome,
       fontSize: 18,
       fontFamily: fonts.bold,
       marginTop: 14,
     },
     heroMeta: {
-      color: "rgba(255,255,255,0.55)",
+      color: colors.onChromeSoft,
       fontSize: 11.5,
       fontFamily: fonts.regular,
       marginTop: 4,
     },
     heroSerial: {
-      color: "rgba(255,255,255,0.45)",
+      color: colors.onChromeSoft,
       fontSize: 10.5,
       fontFamily: fonts.medium,
       marginTop: 2,
@@ -510,12 +510,12 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       marginBottom: 4,
     },
     emptyTitle: {
-      color: colors.heroText,
+      color: colors.onChrome,
       fontSize: 15,
       fontFamily: fonts.bold,
     },
     emptyBody: {
-      color: "rgba(255,255,255,0.55)",
+      color: colors.onChromeSoft,
       fontSize: 12,
       lineHeight: 17.5,
       textAlign: "center",

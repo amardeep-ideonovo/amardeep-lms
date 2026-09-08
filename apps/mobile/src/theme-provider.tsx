@@ -20,9 +20,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         : "dark" // default to dark when the system preference is unknown
       : config.colorScheme;
 
+  // Key the theme on the ACTIVE palette VALUES + mode, not the whole config
+  // object. A logo/title/tagline/legal edit produces a new config ref but leaves
+  // colors untouched — memoizing on the palette signature keeps those non-color
+  // edits from rebuilding every screen's StyleSheet (a visible full re-render).
+  const palette = config[mode];
+  const paletteKey = JSON.stringify(palette);
   const theme = useMemo<Theme>(
-    () => ({ mode, colors: paletteFrom(config[mode], mode), spacing, fonts }),
-    [config, mode],
+    () => ({ mode, colors: paletteFrom(palette, mode), spacing, fonts }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [paletteKey, mode],
   );
 
   return (

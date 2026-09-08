@@ -73,8 +73,10 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* The whole screen sits on ink chrome — light status icons. */}
-      <StatusBar style="light" />
+      {/* The whole screen sits on the chrome band; the band is admin-overridable
+          so the status-bar icons follow its luminance (dark icons on a light
+          band, light on a dark one). onChrome is white on a dark band. */}
+      <StatusBar style={colors.onChrome === "#ffffff" ? "light" : "dark"} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -262,9 +264,10 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     linkButton: { marginTop: spacing.lg, alignItems: "center" },
     legalNote: { marginTop: spacing.lg, textAlign: "center" },
     linkText: {
-      color: "rgba(255,255,255,0.55)",
+      // On the chrome canvas — derive from the (overridable) band color.
+      color: colors.onChromeSoft,
       fontSize: 13.5,
       fontFamily: fonts.regular,
     },
-    linkTextStrong: { color: colors.primaryOnDark, fontFamily: fonts.bold },
+    linkTextStrong: { color: colors.onChromeAccent, fontFamily: fonts.bold },
   });

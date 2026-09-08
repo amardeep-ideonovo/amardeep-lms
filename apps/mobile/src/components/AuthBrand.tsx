@@ -6,7 +6,7 @@
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
-import { useAppConfig } from "../config-provider";
+import { resolveBrandTitle, useAppConfig } from "../config-provider";
 import { spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
@@ -15,6 +15,9 @@ import { BrandMark } from "./BrandMark";
 export function AuthBrand({ size = 24 }: { size?: number }) {
   const { config } = useAppConfig();
   const styles = useStyles(makeStyles);
+  // The academy's real name (custom title, else the bound academy's name from
+  // the connect code, else a neutral generic) — never the operator's default.
+  const brand = resolveBrandTitle(config);
   return (
     <View style={styles.brandBlock}>
       {config.logoUrl ? (
@@ -22,12 +25,12 @@ export function AuthBrand({ size = 24 }: { size?: number }) {
           source={{ uri: config.logoUrl }}
           style={styles.logo}
           resizeMode="contain"
-          accessibilityLabel={config.title}
+          accessibilityLabel={brand}
         />
       ) : (
         <View style={styles.brandRow}>
           <BrandMark size={size} />
-          <Text style={[styles.brand, { fontSize: size }]}>{config.title}</Text>
+          <Text style={[styles.brand, { fontSize: size }]}>{brand}</Text>
         </View>
       )}
       {config.tagline ? (
@@ -42,7 +45,9 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     brandBlock: { alignItems: "center", marginBottom: spacing.lg },
     brandRow: { flexDirection: "row", alignItems: "center", gap: 10 },
     brand: {
-      color: colors.heroText,
+      // On the auth chrome canvas — derive from the (overridable) band color so
+      // the title stays legible even on a light Header band.
+      color: colors.onChrome,
       fontFamily: fonts.bold,
       textAlign: "center",
     },
@@ -52,7 +57,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       alignSelf: "center",
     },
     tagline: {
-      color: "rgba(255,255,255,0.55)",
+      color: colors.onChromeSoft,
       fontSize: 13,
       textAlign: "center",
       marginTop: spacing.sm,

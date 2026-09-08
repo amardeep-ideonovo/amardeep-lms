@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import {
   type ColorFormat,
   formatColor,
@@ -14,7 +14,12 @@ import {
 // format, onChange ALWAYS receives a strict #rrggbb (the API validates colors
 // strictly). Shared by the Header, Footer, Certificate + App-Customization
 // builders.
-export default function ColorField({
+// Memoized (see default export): the App-Customization builder renders ~16 of
+// these off one `cfg` object, so without memo every keystroke / color-swatch
+// drag on ONE field re-rendered all sixteen (plus the live preview). Each field
+// owns its own draft state and depends only on value/label/disabled, so memo
+// skips the fifteen that didn't change — part of the "not smooth" jank fix.
+function ColorField({
   label,
   value,
   onChange,
@@ -82,3 +87,5 @@ export default function ColorField({
     </div>
   );
 }
+
+export default memo(ColorField);

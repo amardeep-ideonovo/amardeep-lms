@@ -401,7 +401,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     },
     letterBox: { alignItems: "center", justifyContent: "center" },
     letter: {
-      color: "rgba(255,255,255,0.6)",
+      color: colors.onChromeSoft,
       fontSize: 20,
       fontFamily: fonts.extrabold,
     },
@@ -412,20 +412,20 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     },
     activeInfo: { flex: 1 },
     activeEyebrow: {
-      color: "rgba(255,255,255,0.5)",
+      color: colors.onChromeSoft,
       fontSize: 10.5,
       fontFamily: fonts.semibold,
       letterSpacing: 0.8,
     },
     activeName: {
-      color: colors.heroText,
+      color: colors.onChrome,
       fontSize: 16,
       fontFamily: fonts.semibold,
       marginTop: 3,
       lineHeight: 21,
     },
     activePct: {
-      color: colors.primaryOnDark,
+      color: colors.onChromeAccent,
       fontSize: 12,
       fontFamily: fonts.bold,
     },

@@ -5,7 +5,7 @@
 import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
-import { useAppConfig } from "../config-provider";
+import { resolveBrandTitle, useAppConfig } from "../config-provider";
 import type { Theme } from "../theme";
 import { useStyles } from "../theme-provider";
 import { BrandMark } from "./BrandMark";
@@ -13,12 +13,13 @@ import { BrandMark } from "./BrandMark";
 export function BrandHeaderTitle({ onChrome }: { onChrome?: boolean }) {
   const { config } = useAppConfig();
   const styles = useStyles(makeStyles);
+  const brand = resolveBrandTitle(config);
   return config.logoUrl ? (
     <Image
       source={{ uri: config.logoUrl }}
       style={styles.logo}
       resizeMode="contain"
-      accessibilityLabel={config.title}
+      accessibilityLabel={brand}
     />
   ) : (
     <View style={styles.row}>
@@ -27,7 +28,7 @@ export function BrandHeaderTitle({ onChrome }: { onChrome?: boolean }) {
         style={[styles.title, onChrome && styles.titleOnChrome]}
         numberOfLines={1}
       >
-        {config.title}
+        {brand}
       </Text>
     </View>
   );
@@ -44,5 +45,5 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       // Wide enough for the full brand; iOS truncated it at the larger font.
       maxWidth: 240,
     },
-    titleOnChrome: { color: colors.heroText },
+    titleOnChrome: { color: colors.onChrome },
   });

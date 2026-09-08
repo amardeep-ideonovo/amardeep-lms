@@ -10,7 +10,10 @@ import {
   View,
 } from "react-native";
 
+import type { AppConfig } from "@lms/types";
+
 import { DIRECTORY_URL, bindInstance, type InstanceBinding } from "../config";
+import { seedConfigCache } from "../config-provider";
 import { formColumn } from "../responsive";
 import { DEFAULT_APP_CONFIG, paletteFrom, fonts, spacing } from "../theme";
 
@@ -68,9 +71,20 @@ export function ConnectScreen({
       clearTimeout(t);
     }
     if (!res.ok) throw new Error("That server doesn't look like an academy.");
-    const cfg = (await res.json()) as { title?: string };
-    const bound: InstanceBinding = { ...b, name: cfg.title ?? b.name };
+    const cfg = (await res.json()) as AppConfig;
+    // Prefer the control-plane resolver's academy name (b.name) as the durable
+    // binding identity: the instance's own /app/config title defaults to the
+    // generic product brand for an un-customized academy, so `cfg.title ?? b.name`
+    // used to overwrite the REAL academy name with "Spotlight Academy". Keeping
+    // b.name means boundName() can brand the login/header with the academy's true
+    // name until an admin sets a custom title. The manual server-URL path has no
+    // b.name, so cfg.title fills in there.
+    const bound: InstanceBinding = { ...b, name: b.name || cfg.title };
     await bindInstance(bound, source);
+    // Pre-seed the branding cache for the just-bound instance so the very first
+    // paint of Login/Home is already themed (no default-brand flash on a cold
+    // cache / slow network). Best-effort; ConfigProvider re-fetches regardless.
+    void seedConfigCache(cfg);
     onConnected(bound);
   };
 
