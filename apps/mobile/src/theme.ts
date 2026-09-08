@@ -433,6 +433,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   tagline: null,
   description: null,
   logoUrl: null,
+  showTitleWithLogo: true,
   iconUrl: null,
   splashUrl: null,
   // Mirror the API DEFAULT_APP_CONFIG: the academy's own /privacy|/terms pages.
