@@ -409,16 +409,20 @@ export function fontFamily(weight?: string | number): string {
 // The API always serves a non-empty title — defaulting an un-customized academy
 // to the product default (DEFAULT_APP_CONFIG.title) — so that value is treated
 // as the "unset" sentinel: a real custom title wins; else the bound academy's
-// own name (from the connect code, passed in); else a neutral generic. Pure so
-// it's unit-testable; config-provider.resolveBrandTitle wires in boundName().
+// own name (from the connect code, passed in); else the caller's `fallback`.
+// `fallback` is the operator product name on the SHARED app ("our branding")
+// but a neutral generic on a white-label/locked build (so a client's own app
+// never shows the operator brand). Pure so it's unit-testable;
+// config-provider.resolveBrandTitle wires in boundName() + the build's fallback.
 export function pickBrandTitle(
   title: string | null | undefined,
   boundName: string | null | undefined,
+  fallback: string,
 ): string {
   const t = title?.trim();
   if (t && t !== DEFAULT_APP_CONFIG.title) return t;
-  // title is unset/blank/the sentinel — never fall back to the sentinel itself.
-  return boundName?.trim() || "Academy";
+  // title is unset/blank/the sentinel — never resolve to the sentinel itself.
+  return boundName?.trim() || fallback;
 }
 
 // Default config used for the very first paint and when offline. Mirrors the API

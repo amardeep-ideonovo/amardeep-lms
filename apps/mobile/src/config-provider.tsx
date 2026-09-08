@@ -13,7 +13,12 @@ import Constants from "expo-constants";
 import type { AppConfig } from "@lms/types";
 
 import { api } from "./api";
-import { APP_CONFIG_CACHE_BASE, boundName, scopedKey } from "./config";
+import {
+  APP_CONFIG_CACHE_BASE,
+  boundName,
+  IS_LOCKED_BUILD,
+  scopedKey,
+} from "./config";
 import { DEFAULT_APP_CONFIG, isCompleteAppConfig, pickBrandTitle } from "./theme";
 
 // Namespaced per instance (see config.ts) so a shared binary never paints one
@@ -152,7 +157,11 @@ export async function seedConfigCache(cfg: AppConfig): Promise<void> {
 // code, boundName()); otherwise a neutral generic. The default title is the
 // "unset" sentinel — compared against DEFAULT_APP_CONFIG.title.
 export function resolveBrandTitle(config: AppConfig): string {
-  return pickBrandTitle(config.title, boundName());
+  // Shared app = our product, so its honest deep default IS the operator brand;
+  // a white-label / locked build is a client's own app and must NEVER show the
+  // operator brand, so it degrades to a neutral generic instead.
+  const fallback = IS_LOCKED_BUILD ? "Academy" : DEFAULT_APP_CONFIG.title;
+  return pickBrandTitle(config.title, boundName(), fallback);
 }
 
 // How long a first launch (no cache yet) may hold the splash gate waiting for

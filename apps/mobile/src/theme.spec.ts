@@ -147,29 +147,37 @@ test("onChrome flips to dark ink on a light Header band and stays AA-legible", (
   );
 });
 
-// The member login/header brand must never leak the operator's product default
-// onto an un-customized academy: a real custom title wins; otherwise the bound
-// academy's own name (from the connect code); otherwise a neutral generic.
+// The member login/header brand: a real custom title wins; otherwise the bound
+// academy's own name (from the connect code); otherwise the caller's fallback
+// (the operator product on the shared app, a neutral generic on white-label).
+const SHARED_FB = DEFAULT_APP_CONFIG.title; // shared app: "our branding"
+const WL_FB = "Academy"; // white-label / locked build: neutral, no operator leak
+
 test("pickBrandTitle prefers a real custom title", () => {
-  assert.equal(pickBrandTitle("Acme Music School", "Acme (CP)"), "Acme Music School");
-  assert.equal(pickBrandTitle("  Acme  ", null), "Acme"); // trimmed
+  assert.equal(
+    pickBrandTitle("Acme Music School", "Acme (CP)", SHARED_FB),
+    "Acme Music School",
+  );
+  assert.equal(pickBrandTitle("  Acme  ", null, WL_FB), "Acme"); // trimmed
 });
 
 test("pickBrandTitle falls back to the bound academy name when title is the default sentinel", () => {
   assert.equal(
-    pickBrandTitle(DEFAULT_APP_CONFIG.title, "Acme Music School"),
+    pickBrandTitle(DEFAULT_APP_CONFIG.title, "Acme Music School", SHARED_FB),
     "Acme Music School",
   );
-  // Blank/absent title also falls through to the bound name.
-  assert.equal(pickBrandTitle("", "Acme"), "Acme");
-  assert.equal(pickBrandTitle(null, "Acme"), "Acme");
+  // Blank/absent title also falls through to the bound name (not the fallback).
+  assert.equal(pickBrandTitle("", "Acme", SHARED_FB), "Acme");
+  assert.equal(pickBrandTitle(null, "Acme", WL_FB), "Acme");
 });
 
-test("pickBrandTitle degrades to a neutral generic, never the operator default", () => {
-  // Un-customized (sentinel) title AND no bound name (locked/white-label build).
-  assert.equal(pickBrandTitle(DEFAULT_APP_CONFIG.title, null), "Academy");
-  assert.equal(pickBrandTitle(null, null), "Academy");
-  assert.notEqual(pickBrandTitle(DEFAULT_APP_CONFIG.title, null), DEFAULT_APP_CONFIG.title);
+test("pickBrandTitle deep fallback: operator brand on shared, neutral on white-label", () => {
+  // Shared app (no custom title, no bound name) → our product brand.
+  assert.equal(pickBrandTitle(DEFAULT_APP_CONFIG.title, null, SHARED_FB), SHARED_FB);
+  assert.equal(pickBrandTitle(null, null, SHARED_FB), SHARED_FB);
+  // White-label / locked build → neutral, NEVER the operator brand.
+  assert.equal(pickBrandTitle(DEFAULT_APP_CONFIG.title, null, WL_FB), "Academy");
+  assert.notEqual(pickBrandTitle(DEFAULT_APP_CONFIG.title, null, WL_FB), DEFAULT_APP_CONFIG.title);
 });
 
 test("onChrome stays light on a dark Header band (default/derived)", () => {
