@@ -182,3 +182,26 @@ test("saving the pre-filled default STORES null (never pins it); a custom URL is
   assert.equal(served.privacyUrl, "/privacy");
   assert.equal(served.termsUrl, "https://acme.edu/terms");
 });
+
+test("showTitleWithLogo defaults to true and only an explicit false persists", async () => {
+  // Absent -> true (show the title beside the logo by default).
+  const dflt = await makeService({
+    title: "Acme",
+    colorScheme: "light",
+  }).read();
+  assert.equal(dflt.showTitleWithLogo, true);
+  // Explicit false is preserved (logo-only mode).
+  const off = await makeService({
+    title: "Acme",
+    colorScheme: "light",
+    showTitleWithLogo: false,
+  }).read();
+  assert.equal(off.showTitleWithLogo, false);
+  // Explicit true stays true.
+  const on = await makeService({
+    title: "Acme",
+    colorScheme: "light",
+    showTitleWithLogo: true,
+  }).read();
+  assert.equal(on.showTitleWithLogo, true);
+});

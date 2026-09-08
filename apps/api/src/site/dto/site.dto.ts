@@ -182,6 +182,7 @@ class AppConfigDto implements AppConfig {
   @IsOptional() @IsString() @MaxLength(200) tagline?: string | null;
   @IsOptional() @IsString() @MaxLength(600) description?: string | null;
   @IsOptional() @IsString() @MaxLength(2000) logoUrl?: string | null;
+  @IsOptional() @IsBoolean() showTitleWithLogo?: boolean;
   @IsOptional() @IsString() @MaxLength(2000) iconUrl?: string | null;
   @IsOptional() @IsString() @MaxLength(2000) splashUrl?: string | null;
   // Per-academy legal links. String-shape only here (like every other URL field

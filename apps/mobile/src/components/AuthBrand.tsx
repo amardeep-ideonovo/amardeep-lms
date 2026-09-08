@@ -18,15 +18,27 @@ export function AuthBrand({ size = 24 }: { size?: number }) {
   // The academy's real name (custom title, else the bound academy's name from
   // the connect code, else a neutral generic) — never the operator's default.
   const brand = resolveBrandTitle(config);
+  // Show the title alongside the logo (default), unless the admin turned it off
+  // for a logo that already includes the brand name.
+  const showTitle = config.showTitleWithLogo !== false;
   return (
     <View style={styles.brandBlock}>
       {config.logoUrl ? (
-        <Image
-          source={{ uri: config.logoUrl }}
-          style={styles.logo}
-          resizeMode="contain"
-          accessibilityLabel={brand}
-        />
+        <>
+          <Image
+            source={{ uri: config.logoUrl }}
+            style={showTitle ? styles.logoWithTitle : styles.logo}
+            resizeMode="contain"
+            accessibilityLabel={brand}
+          />
+          {showTitle ? (
+            <Text
+              style={[styles.brand, styles.brandBelowLogo, { fontSize: size }]}
+            >
+              {brand}
+            </Text>
+          ) : null}
+        </>
       ) : (
         <View style={styles.brandRow}>
           <BrandMark size={size} />
@@ -56,6 +68,13 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       width: 220,
       alignSelf: "center",
     },
+    // Slightly smaller when the title sits beneath it, so the lockup stays tidy.
+    logoWithTitle: {
+      height: 48,
+      width: 200,
+      alignSelf: "center",
+    },
+    brandBelowLogo: { marginTop: spacing.sm },
     tagline: {
       color: colors.onChromeSoft,
       fontSize: 13,

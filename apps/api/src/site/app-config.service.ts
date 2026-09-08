@@ -49,6 +49,7 @@ const DEFAULT_APP_CONFIG: AppConfig = {
   tagline: null,
   description: null,
   logoUrl: null,
+  showTitleWithLogo: true,
   iconUrl: null,
   splashUrl: null,
   privacyUrl: LEGAL_PRIVACY_PATH,
@@ -183,6 +184,8 @@ export class AppConfigService {
       tagline: this.strOrNull(r.tagline, 200),
       description: this.strOrNull(r.description, 600),
       logoUrl: this.strOrNull(r.logoUrl, 2000),
+      // Default true: only an explicit `false` hides the title beside the logo.
+      showTitleWithLogo: r.showTitleWithLogo !== false,
       iconUrl: this.strOrNull(r.iconUrl, 2000),
       splashUrl: this.strOrNull(r.splashUrl, 2000),
       // Nullable in storage (see legalUrl): only a real custom override persists;

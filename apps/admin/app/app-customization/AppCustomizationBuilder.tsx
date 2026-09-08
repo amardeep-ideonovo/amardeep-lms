@@ -210,7 +210,10 @@ export default function AppCustomizationBuilder({
           </div>
           <div className="field">
             <label>
-              Logo <span className="muted">(blank = the title text)</span>
+              Logo{" "}
+              <span className="muted">
+                (shown with the app title in the header &amp; login)
+              </span>
             </label>
             <MediaPicker
               value={cfg.logoUrl ?? ""}
@@ -218,6 +221,22 @@ export default function AppCustomizationBuilder({
               adjustableCrop
               onChange={(url) => upd({ logoUrl: url || null })}
             />
+            {/* The logo and the app title show TOGETHER by default. Uncheck to
+                show only the logo — for a logo that already includes the name. */}
+            {cfg.logoUrl ? (
+              <label
+                className="menu-checkbox"
+                style={{ fontWeight: 500, marginTop: 8, display: "block" }}
+              >
+                <input
+                  type="checkbox"
+                  checked={cfg.showTitleWithLogo !== false}
+                  disabled={ro}
+                  onChange={(e) => upd({ showTitleWithLogo: e.target.checked })}
+                />{" "}
+                Show the app title next to the logo
+              </label>
+            ) : null}
           </div>
           {/* Legal links shown on the member web footer + signup and the mobile
               Account screen. Pre-filled with the platform policy pages; enter your
@@ -674,6 +693,7 @@ const PhonePreview = memo(function PhonePreview({
   // app computes them (chromeTokens mirrors theme.ts paletteFrom) — so a light
   // "Header band" override shows legible (dark) header text in the preview too.
   const { chrome, onChrome, onChromeFaint } = chromeTokens(p, mode);
+  const showTitle = cfg.showTitleWithLogo !== false;
   const card = (title: string, sub: string, pct: number) => (
     <div
       style={{
@@ -761,7 +781,8 @@ const PhonePreview = memo(function PhonePreview({
             gap: 9,
           }}
         >
-          {cfg.logoUrl ? (
+          {cfg.logoUrl && !showTitle ? (
+            // Logo only (admin opted out of the title).
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={cfg.logoUrl}
@@ -769,6 +790,7 @@ const PhonePreview = memo(function PhonePreview({
               style={{ height: 26, width: 120, objectFit: "contain" }}
             />
           ) : (
+            // Logo (as a compact mark) or the brand glyph, PLUS the title.
             <span
               style={{
                 display: "flex",
@@ -777,7 +799,16 @@ const PhonePreview = memo(function PhonePreview({
                 minWidth: 0,
               }}
             >
-              <PreviewMark size={20} color={p.primary} />
+              {cfg.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={cfg.logoUrl}
+                  alt=""
+                  style={{ height: 24, width: 84, objectFit: "contain" }}
+                />
+              ) : (
+                <PreviewMark size={20} color={p.primary} />
+              )}
               <span
                 style={{
                   color: onChrome,
@@ -853,6 +884,7 @@ const PhoneAuthPreview = memo(function PhoneAuthPreview({
     p,
     mode,
   );
+  const showTitle = cfg.showTitleWithLogo !== false;
   const input = (placeholder: string) => (
     <div
       style={{
@@ -882,12 +914,30 @@ const PhoneAuthPreview = memo(function PhoneAuthPreview({
         {/* brand lockup */}
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           {cfg.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={cfg.logoUrl}
-              alt=""
-              style={{ height: 52, maxWidth: 200, objectFit: "contain" }}
-            />
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={cfg.logoUrl}
+                alt=""
+                style={{
+                  height: showTitle ? 44 : 52,
+                  maxWidth: showTitle ? 180 : 200,
+                  objectFit: "contain",
+                }}
+              />
+              {showTitle ? (
+                <div
+                  style={{
+                    color: onChrome,
+                    fontSize: 22,
+                    fontWeight: 800,
+                    marginTop: 8,
+                  }}
+                >
+                  {cfg.title || "Your app"}
+                </div>
+              ) : null}
+            </>
           ) : (
             <span
               style={{

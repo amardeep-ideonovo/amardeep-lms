@@ -14,22 +14,42 @@ export function BrandHeaderTitle({ onChrome }: { onChrome?: boolean }) {
   const { config } = useAppConfig();
   const styles = useStyles(makeStyles);
   const brand = resolveBrandTitle(config);
-  return config.logoUrl ? (
-    <Image
-      source={{ uri: config.logoUrl }}
-      style={styles.logo}
-      resizeMode="contain"
-      accessibilityLabel={brand}
-    />
-  ) : (
+  // Show the title next to the logo (default), unless the admin turned it off.
+  const showTitle = config.showTitleWithLogo !== false;
+  const titleEl = (
+    <Text
+      style={[styles.title, onChrome && styles.titleOnChrome]}
+      numberOfLines={1}
+    >
+      {brand}
+    </Text>
+  );
+  if (config.logoUrl) {
+    // Logo + title: the logo shrinks to a mark beside the name. Logo only: the
+    // logo takes the full brand slot (admin opted out of the title).
+    return showTitle ? (
+      <View style={styles.row}>
+        <Image
+          source={{ uri: config.logoUrl }}
+          style={styles.logoSmall}
+          resizeMode="contain"
+          accessibilityLabel={brand}
+        />
+        {titleEl}
+      </View>
+    ) : (
+      <Image
+        source={{ uri: config.logoUrl }}
+        style={styles.logo}
+        resizeMode="contain"
+        accessibilityLabel={brand}
+      />
+    );
+  }
+  return (
     <View style={styles.row}>
       <BrandMark size={20} />
-      <Text
-        style={[styles.title, onChrome && styles.titleOnChrome]}
-        numberOfLines={1}
-      >
-        {brand}
-      </Text>
+      {titleEl}
     </View>
   );
 }
@@ -38,6 +58,8 @@ const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
     row: { flexDirection: "row", alignItems: "center", gap: 9 },
     logo: { height: 26, width: 120 },
+    // Compact mark when shown beside the title in the header row.
+    logoSmall: { height: 24, width: 84 },
     title: {
       color: colors.text,
       fontSize: 13.5,

@@ -2119,7 +2119,11 @@ export interface AppConfig {
   title: string; // app/brand name shown in-app
   tagline?: string | null; // short line under the logo (login)
   description?: string | null; // longer blurb (login/account)
-  logoUrl?: string | null; // in-app logo image; null -> title text
+  logoUrl?: string | null; // in-app logo image (shown with the title, see below)
+  // When a logo IS set: show the app title alongside it (true, the default) or
+  // hide the title so only the logo shows (false — for logos that already
+  // include the brand name). No effect when logoUrl is null. Absent -> true.
+  showTitleWithLogo?: boolean;
   iconUrl?: string | null; // reference only (see note) — not applied at runtime
   splashUrl?: string | null; // reference only (see note) — not applied at runtime
   // Per-academy legal links (member web footer + signup, mobile Account screen).
