@@ -21,7 +21,7 @@ const easProjectId =
   process.env.INSTANCE_EAS_PROJECT_ID ?? "0f8efe5e-4424-495d-b4f3-2fe852ff9e90";
 
 const config = (): ExpoConfig => ({
-  name: process.env.INSTANCE_APP_NAME ?? "thewebpaanda Learning",
+  name: process.env.INSTANCE_APP_NAME ?? "Spotlight Academy",
   // slug + owner + eas.projectId identify the ONE shared EAS project — do NOT
   // rebrand them (they're internal, never shown in a store).
   slug: process.env.INSTANCE_SLUG ?? "lms-mobile",
