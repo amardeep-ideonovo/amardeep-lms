@@ -21,7 +21,7 @@ const easProjectId =
   process.env.INSTANCE_EAS_PROJECT_ID ?? "0f8efe5e-4424-495d-b4f3-2fe852ff9e90";
 
 const config = (): ExpoConfig => ({
-  name: process.env.INSTANCE_APP_NAME ?? "thewebpaanda Learning",
+  name: process.env.INSTANCE_APP_NAME ?? "Spotlight Academy",
   // slug + owner + eas.projectId identify the ONE shared EAS project — do NOT
   // rebrand them (they're internal, never shown in a store).
   slug: process.env.INSTANCE_SLUG ?? "lms-mobile",
@@ -107,9 +107,16 @@ const config = (): ExpoConfig => ({
     // Its own env — do NOT fall back to the iOS bundle id: iOS identifiers
     // allow characters (e.g. hyphens) that are illegal in an Android package.
     package: process.env.INSTANCE_ANDROID_PACKAGE ?? "com.thewebpaanda.lms",
+    // Legacy (pre-API-26) launcher icon: a pre-padded mark-on-black square so
+    // the round mask can't clip the S. (Full-bleed app-icon.png is for iOS/store.)
+    icon: "./assets/android-icon.png",
+    // API 26+ adaptive icon. The S mark lives in the FOREGROUND with safe-zone
+    // padding baked in (artwork sits within the inner ~50% diameter — well
+    // inside the 66dp safe zone of the 108dp canvas), composited over solid
+    // black. Must NOT be a full-bleed foreground or the circular mask crops it.
     adaptiveIcon: {
       foregroundImage: "./assets/adaptive-icon.png",
-      backgroundColor: "#101014",
+      backgroundColor: "#000000",
     },
   },
   web: {
