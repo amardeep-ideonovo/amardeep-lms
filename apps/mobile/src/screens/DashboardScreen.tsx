@@ -141,7 +141,9 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
   if (!classes) {
     return (
       <View style={styles.skeletonScreen}>
-        {isFocused ? <StatusBar style="light" /> : null}
+        {isFocused ? (
+          <StatusBar style={colors.onChrome === "#ffffff" ? "light" : "dark"} />
+        ) : null}
         <View style={[styles.band, { paddingTop: insets.top + 6 }]}>
           <View style={styles.bandInner}>
             <Skeleton
@@ -227,7 +229,9 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
   return (
     <>
       {/* The band is ink in both modes — light status icons while focused. */}
-      {isFocused ? <StatusBar style="light" /> : null}
+      {isFocused ? (
+        <StatusBar style={colors.onChrome === "#ffffff" ? "light" : "dark"} />
+      ) : null}
       <PopupHost context={{ type: "dashboard" }} />
       <ScrollView
         style={styles.screen}
@@ -237,7 +241,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
             refreshing={refreshing}
             onRefresh={onRefresh}
             // iOS spinner shows over the ink bounce cover — on-dark tint.
-            tintColor={colors.heroText}
+            tintColor={colors.onChrome}
             colors={[colors.primary]}
           />
         }
@@ -525,18 +529,18 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       justifyContent: "center",
     },
     avatarInitials: {
-      color: colors.heroText,
+      color: colors.onChrome,
       fontSize: 11,
       fontFamily: fonts.bold,
     },
     greeting: {
-      color: colors.heroText,
+      color: colors.onChrome,
       fontSize: 22,
       fontFamily: fonts.semibold,
       marginTop: 18,
     },
     streak: {
-      color: "rgba(255,255,255,0.55)",
+      color: colors.onChromeSoft,
       fontSize: 12,
       lineHeight: 18.5,
       marginTop: 5,

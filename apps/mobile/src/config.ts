@@ -178,8 +178,22 @@ export function bindingEpoch(): number {
   return bindingGeneration;
 }
 
+// The active binding, retained in memory so branding can fall back to the REAL
+// academy name (from the control-plane connect resolver, InstanceBinding.name)
+// when the academy hasn't set a custom App-Customization title. Set on every
+// bind, cleared on unbind — never leaks one academy's name into another.
+let currentBinding: InstanceBinding | null = null;
+
+// The bound academy's display name (control-plane resolver's inst.name), or null
+// on a locked/white-label build, a manual server-URL connect, or when unbound.
+// Trimmed; empty → null so callers can `boundName() || fallback`.
+export function boundName(): string | null {
+  return currentBinding?.name?.trim() || null;
+}
+
 function applyBinding(b: InstanceBinding): void {
   bindingGeneration++;
+  currentBinding = b;
   API_BASE_URL = b.apiUrl.replace(/\/$/, "");
   WEB_ACCOUNT_URL = accountUrlFrom(b.webUrl);
   WEB_BASE_URL = originOf(b.webUrl);
@@ -248,8 +262,10 @@ export function setUnbindListener(fn: (() => void) | null): void {
 export async function unbindInstance(): Promise<void> {
   // The binding is changing — invalidate every in-memory per-instance cache
   // before anything else, so nothing can serve the outgoing instance's token
-  // once this returns (see bindingEpoch above).
+  // once this returns (see bindingEpoch above). Drop the retained binding name
+  // FIRST so no surface can render the outgoing academy's name after unbind.
   bindingGeneration++;
+  currentBinding = null;
   // Clear the current instance's auth token FIRST, while API_BASE_URL still
   // resolves the scoped key — otherwise "Switch academy" would leave the
   // previous member's session token at rest in the Keychain and silently

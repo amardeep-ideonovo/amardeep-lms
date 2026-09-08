@@ -14,7 +14,10 @@ export type ThemePalette = AppThemePalette & {
   locked: string;
   onPrimary: string;
   // brand-derived
-  chrome: string; // ink band chrome (Home hero, auth band) — always deep
+  chrome: string; // ink band chrome (Home hero, auth band) — admin-overridable
+  onChrome: string; // fg legible ON the chrome band (dark ink on a light band)
+  onChromeSoft: string; // muted fg on the chrome band (sub-text, quiet links)
+  onChromeAccent: string; // brand accent legible on the chrome band (links/seals)
   inkCard: string; // ink cards floated on light surfaces (live strip, certs)
   ctaStart: string; // teal CTA gradient (design --teal-grad)
   ctaEnd: string;
@@ -273,11 +276,33 @@ export function paletteFrom(
     ? "#7ce4d2"
     : hslToHex(h, Math.max(s, 0.4), 0.69);
 
+  // Foreground tokens legible ON the chrome band. `chrome` is admin-overridable
+  // (App Customization → "Header band") and CAN be light, so these are DERIVED
+  // from it — unlike heroText/heroTextSoft, which stay fixed-light for photo and
+  // scrim surfaces that are dark regardless of the band color. onColor() flips
+  // to dark ink on a light band and white on a dark band; the admin live preview
+  // mirrors this exactly (AppCustomizationBuilder).
+  const chromeIsLight = luminance(chrome) > 0.45;
+  const onChrome = onColor(chrome);
+  const onChromeSoft = chromeIsLight
+    ? "rgba(16,24,40,0.62)"
+    : "rgba(255,255,255,0.6)";
+  // Brand accent (tappable links, ribbon seals) on the band: the on-dark accent
+  // when the band is dark; on a light band, darken the primary until it meets AA
+  // against the band so it never washes out. NOT primaryOnDark (that token is
+  // also used on permanently-dark ink/scrim surfaces and must stay light).
+  const onChromeAccent = chromeIsLight
+    ? darkenUntilAA(p.primary, chrome)
+    : primaryOnDark;
+
   return {
     ...p,
     locked: LOCKED[mode],
     onPrimary: onColor(p.primary),
     chrome,
+    onChrome,
+    onChromeSoft,
+    onChromeAccent,
     inkCard,
     ctaStart,
     ctaEnd,
@@ -378,6 +403,22 @@ export function fontFamily(weight?: string | number): string {
   if (w >= 600) return fonts.semibold;
   if (w >= 500) return fonts.medium;
   return fonts.regular;
+}
+
+// Resolve the brand NAME to show on member surfaces (login, header, account).
+// The API always serves a non-empty title — defaulting an un-customized academy
+// to the product default (DEFAULT_APP_CONFIG.title) — so that value is treated
+// as the "unset" sentinel: a real custom title wins; else the bound academy's
+// own name (from the connect code, passed in); else a neutral generic. Pure so
+// it's unit-testable; config-provider.resolveBrandTitle wires in boundName().
+export function pickBrandTitle(
+  title: string | null | undefined,
+  boundName: string | null | undefined,
+): string {
+  const t = title?.trim();
+  if (t && t !== DEFAULT_APP_CONFIG.title) return t;
+  // title is unset/blank/the sentinel — never fall back to the sentinel itself.
+  return boundName?.trim() || "Academy";
 }
 
 // Default config used for the very first paint and when offline. Mirrors the API

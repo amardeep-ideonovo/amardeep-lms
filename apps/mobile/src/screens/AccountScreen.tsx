@@ -27,7 +27,7 @@ import { Button } from "../components/Button";
 import { Chip } from "../components/Chip";
 import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
-import { useAppConfig } from "../config-provider";
+import { resolveBrandTitle, useAppConfig } from "../config-provider";
 import { IS_LOCKED_BUILD, legalLinks, unbindInstance } from "../config";
 import { fmtDate, money } from "../format";
 import type { TabScreenProps } from "../navigation";
@@ -89,6 +89,7 @@ type DetailsMode = "view" | "edit" | "password";
 export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const styles = useStyles(makeStyles);
   const { config } = useAppConfig();
+  const brand = resolveBrandTitle(config);
   const { signOut } = useAuth();
   const queryClient = useQueryClient();
 
@@ -461,10 +462,10 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
               source={{ uri: config.logoUrl }}
               style={styles.logo}
               resizeMode="contain"
-              accessibilityLabel={config.title}
+              accessibilityLabel={brand}
             />
           ) : (
-            <Text style={styles.brandTitle}>{config.title}</Text>
+            <Text style={styles.brandTitle}>{brand}</Text>
           )}
           {config.description ? (
             <Text style={styles.brandDesc}>{config.description}</Text>

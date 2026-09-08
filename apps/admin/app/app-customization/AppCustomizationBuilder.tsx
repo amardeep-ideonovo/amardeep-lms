@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import type {
   AppColorScheme,
   AppConfig,
@@ -44,6 +44,12 @@ export default function AppCustomizationBuilder({
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [previewMode, setPreviewMode] = useState<"light" | "dark">("dark");
+  // Which app surface the live phone preview shows. "signin" mirrors the member
+  // Login screen (the surface admins most want to theme); "dashboard" is the
+  // Home mock. Both are styled from the same draft palette + derivations.
+  const [previewSurface, setPreviewSurface] = useState<"dashboard" | "signin">(
+    "signin",
+  );
   // null = unknown (still loading, no control plane, or unreachable) — the
   // icon/splash card FAILS OPEN on unknown and only locks on a definitive
   // "SHARED, nothing requested" answer.
@@ -198,7 +204,7 @@ export default function AppCustomizationBuilder({
             <textarea
               value={cfg.description ?? ""}
               disabled={ro}
-              placeholder="A longer blurb shown on the login / account screen"
+              placeholder="A longer blurb shown on the member Account screen"
               onChange={(e) => upd({ description: e.target.value || null })}
             />
           </div>
@@ -381,14 +387,46 @@ export default function AppCustomizationBuilder({
       </div>
 
       {/* ---------- live phone preview ---------- */}
-      <div
-        style={{ flex: "0 0 auto", position: "sticky", top: 16 }}
-        aria-hidden="true"
-      >
+      <div style={{ flex: "0 0 auto", position: "sticky", top: 16 }}>
         <div className="hb-preview-label" style={{ marginBottom: 8 }}>
           Live preview
         </div>
-        <PhonePreview cfg={cfg} palette={cfg[previewMode]} mode={previewMode} />
+        {/* Surface toggle: Sign in (the member login) vs Dashboard (Home). Both
+            render from the same draft palette, so the admin can theme the login
+            page — the surface most sensitive to the Header band color. */}
+        <div className="row-actions" style={{ marginBottom: 10 }}>
+          <Button
+            type="button"
+            size="sm"
+            variant={previewSurface === "signin" ? "primary" : "secondary"}
+            onClick={() => setPreviewSurface("signin")}
+          >
+            Sign in
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={previewSurface === "dashboard" ? "primary" : "secondary"}
+            onClick={() => setPreviewSurface("dashboard")}
+          >
+            Dashboard
+          </Button>
+        </div>
+        <div aria-hidden="true">
+          {previewSurface === "signin" ? (
+            <PhoneAuthPreview
+              cfg={cfg}
+              palette={cfg[previewMode]}
+              mode={previewMode}
+            />
+          ) : (
+            <PhonePreview
+              cfg={cfg}
+              palette={cfg[previewMode]}
+              mode={previewMode}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -469,10 +507,161 @@ function onColor(hex: string): string {
   return lum > 0.45 ? "#101828" : "#ffffff";
 }
 
+// WCAG relative luminance — used to compare gradient stops and gate the
+// on-chrome derivations. Mirrors theme.ts luminance().
+function luminance01(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+function contrastRatio(a: string, b: string): number {
+  const la = luminance01(a);
+  const lb = luminance01(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+// Mirrors theme.ts darkenUntilAA — darken a brand accent until it meets AA on bg.
+function darkenUntilAA(hex: string, bg: string): string {
+  const { h, s, l } = hexToHsl(hex);
+  for (let li = l; li >= 0; li -= 0.02) {
+    const c = hslToHex(h, s, li);
+    if (contrastRatio(c, bg) >= 4.5) return c;
+  }
+  return hslToHex(h, s, 0);
+}
+// Mirrors theme.ts primaryOnDark.
+function primaryOnDark(primary: string): string {
+  if (primary.toLowerCase() === "#3cc4b2") return "#7ce4d2";
+  const { h, s } = hexToHsl(primary);
+  return hslToHex(h, Math.max(s, 0.4), 0.69);
+}
+// Mirrors theme.ts onCta: the CTA label picks against the LIGHTER gradient stop
+// (worst case for white), so a light brand accent gets dark ink, not white.
+function ctaLabel(primary: string): string {
+  if (primary.toLowerCase() === "#3cc4b2") return "#ffffff";
+  const { h, s, l } = hexToHsl(primary);
+  const start = hslToHex(h, Math.max(s, 0.35), Math.min(0.62, l + 0.06));
+  const end = hslToHex(h, Math.max(s, 0.35), Math.max(0.18, l - 0.11));
+  return onColor(luminance01(start) >= luminance01(end) ? start : end);
+}
+// Resolve the header band + its DERIVED foreground tokens exactly as the app
+// does (apps/mobile/src/theme.ts paletteFrom): the band is admin-overridable
+// and can be light, so text/links on it must derive from it — keep byte-identical.
+function chromeTokens(p: AppThemePalette, mode: "light" | "dark") {
+  const chrome =
+    p.chrome && /^#[0-9a-fA-F]{6}$/.test(p.chrome)
+      ? p.chrome
+      : chromeColor(p, mode);
+  const isLight = luminance01(chrome) > 0.45;
+  return {
+    chrome,
+    onChrome: onColor(chrome),
+    onChromeSoft: isLight ? "rgba(16,24,40,0.62)" : "rgba(255,255,255,0.6)",
+    onChromeFaint: isLight ? "rgba(16,24,40,0.12)" : "rgba(255,255,255,0.16)",
+    onChromeAccent: isLight
+      ? darkenUntilAA(p.primary, chrome)
+      : primaryOnDark(p.primary),
+  };
+}
+
+// Brand glyph mirroring the app's BrandMark (apps/mobile/src/components/
+// BrandMark.tsx): a rotated-square diamond + a smaller spark, both in `color`.
+// Shown in the no-logo branch so the preview matches the app's header exactly.
+function PreviewMark({ size = 20, color }: { size?: number; color: string }) {
+  return (
+    <span
+      style={{
+        position: "relative",
+        display: "inline-block",
+        width: size,
+        height: size,
+        flex: "0 0 auto",
+      }}
+    >
+      <span
+        style={{
+          position: "absolute",
+          left: size * 0.14,
+          top: size * 0.22,
+          width: size * 0.46,
+          height: size * 0.46,
+          borderRadius: size * 0.09,
+          background: color,
+          transform: "rotate(45deg)",
+        }}
+      />
+      <span
+        style={{
+          position: "absolute",
+          left: size * 0.64,
+          top: size * 0.06,
+          width: size * 0.24,
+          height: size * 0.24,
+          borderRadius: size * 0.05,
+          background: color,
+          opacity: 0.85,
+          transform: "rotate(45deg)",
+        }}
+      />
+    </span>
+  );
+}
+
+// The phone bezel + notch, shared by the dashboard and sign-in previews.
+function PhoneFrame({
+  bg,
+  children,
+}: {
+  bg: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        width: 290,
+        borderRadius: 38,
+        padding: 12,
+        // P3b: bezel was #0b0b0d — one off ink-950 (#0b0b0e); now the token.
+        background: "var(--ink-950)",
+        border: "1px solid var(--border)",
+        boxShadow: "0 24px 60px rgba(0,0,0,.45)",
+      }}
+    >
+      <div
+        style={{
+          borderRadius: 28,
+          overflow: "hidden",
+          background: bg,
+          height: 580,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {/* notch */}
+        <div
+          style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}
+        >
+          <div
+            style={{
+              width: 110,
+              height: 22,
+              borderRadius: 12,
+              background: "var(--ink-950)", // P3b: was #0b0b0d (off by one)
+            }}
+          />
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // A phone-frame mock of the app's dashboard, styled entirely from the draft
 // palette so it updates on every keystroke (same mechanism as the footer
 // builder — local state → inline styles, no round-trip).
-function PhonePreview({
+const PhonePreview = memo(function PhonePreview({
   cfg,
   palette: p,
   mode,
@@ -481,9 +670,10 @@ function PhonePreview({
   palette: AppThemePalette;
   mode: "light" | "dark";
 }) {
-  // Override wins (mirrors the app's paletteFrom); chromeColor() is the Auto
-  // fallback. Kept byte-identical to apps/mobile/src/theme.ts.
-  const chrome = p.chrome ?? chromeColor(p, mode);
+  // Header band + the DERIVED on-chrome foreground/accent tokens, exactly as the
+  // app computes them (chromeTokens mirrors theme.ts paletteFrom) — so a light
+  // "Header band" override shows legible (dark) header text in the preview too.
+  const { chrome, onChrome, onChromeFaint } = chromeTokens(p, mode);
   const card = (title: string, sub: string, pct: number) => (
     <div
       style={{
@@ -559,14 +749,16 @@ function PhonePreview({
           />
         </div>
 
-        {/* app header — ink band chrome, matching the app's Home band */}
+        {/* app header — ink band chrome, matching the app's Home band
+            (BrandHeaderTitle: fixed 120×26 logo box, else the brand glyph +
+            semibold 13.5 title, in the derived on-chrome color). */}
         <div
           style={{
             background: chrome,
             padding: "12px 16px",
             display: "flex",
             alignItems: "center",
-            gap: 10,
+            gap: 9,
           }}
         >
           {cfg.logoUrl ? (
@@ -574,11 +766,26 @@ function PhonePreview({
             <img
               src={cfg.logoUrl}
               alt=""
-              style={{ height: 24, maxWidth: 130, objectFit: "contain" }}
+              style={{ height: 26, width: 120, objectFit: "contain" }}
             />
           ) : (
-            <span style={{ color: "#ffffff", fontSize: 17, fontWeight: 800 }}>
-              {cfg.title || "Your app"}
+            <span
+              style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}
+            >
+              <PreviewMark size={20} color={p.primary} />
+              <span
+                style={{
+                  color: onChrome,
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  maxWidth: 240,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {cfg.title || "Your app"}
+              </span>
             </span>
           )}
           <span
@@ -587,7 +794,7 @@ function PhonePreview({
               width: 22,
               height: 22,
               borderRadius: 999,
-              background: "rgba(255,255,255,.16)",
+              background: onChromeFaint,
             }}
           />
         </div>
@@ -607,7 +814,7 @@ function PhonePreview({
             style={{
               width: "100%",
               background: ctaGradient(p.primary),
-              color: onColor(p.primary),
+              color: ctaLabel(p.primary),
               border: "none",
               borderRadius: 10,
               padding: "11px 0",
@@ -621,4 +828,148 @@ function PhonePreview({
       </div>
     </div>
   );
-}
+});
+
+// A phone-frame mock of the member SIGN-IN screen (LoginScreen + AuthBrand), so
+// admins can theme the login page — the surface most sensitive to the Header
+// band color. Full chrome canvas, centered brand lockup, a floating surface card
+// with two inputs + the CTA-gradient button, and the on-chrome link rows. Every
+// color comes from the same derivations as the dashboard preview / the app.
+const PhoneAuthPreview = memo(function PhoneAuthPreview({
+  cfg,
+  palette: p,
+  mode,
+}: {
+  cfg: AppConfig;
+  palette: AppThemePalette;
+  mode: "light" | "dark";
+}) {
+  const { chrome, onChrome, onChromeSoft, onChromeAccent } = chromeTokens(
+    p,
+    mode,
+  );
+  const input = (placeholder: string) => (
+    <div
+      style={{
+        background: p.bg,
+        border: `1px solid ${p.border}`,
+        borderRadius: 10,
+        padding: "11px 12px",
+        marginBottom: 10,
+        color: p.textMuted,
+        fontSize: 13,
+      }}
+    >
+      {placeholder}
+    </div>
+  );
+  return (
+    <PhoneFrame bg={chrome}>
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          padding: 20,
+        }}
+      >
+        {/* brand lockup */}
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          {cfg.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={cfg.logoUrl}
+              alt=""
+              style={{ height: 52, maxWidth: 200, objectFit: "contain" }}
+            />
+          ) : (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <PreviewMark size={26} color={p.primary} />
+              <span
+                style={{ color: onChrome, fontSize: 24, fontWeight: 800 }}
+              >
+                {cfg.title || "Your app"}
+              </span>
+            </span>
+          )}
+          {cfg.tagline ? (
+            <div style={{ color: onChromeSoft, fontSize: 12.5, marginTop: 8 }}>
+              {cfg.tagline}
+            </div>
+          ) : null}
+        </div>
+
+        {/* floating form card */}
+        <div style={{ background: p.surface, borderRadius: 18, padding: 18 }}>
+          <div style={{ color: p.text, fontSize: 16, fontWeight: 700 }}>
+            Welcome back
+          </div>
+          <div
+            style={{
+              color: p.textMuted,
+              fontSize: 12,
+              marginTop: 2,
+              marginBottom: 14,
+            }}
+          >
+            Sign in to your membership
+          </div>
+          {input("Email")}
+          {input("Password")}
+          <button
+            type="button"
+            disabled
+            style={{
+              width: "100%",
+              background: ctaGradient(p.primary),
+              color: ctaLabel(p.primary),
+              border: "none",
+              borderRadius: 10,
+              padding: "11px 0",
+              fontSize: 14,
+              fontWeight: 700,
+              marginTop: 4,
+            }}
+          >
+            Sign in
+          </button>
+        </div>
+
+        {/* on-chrome link rows */}
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: 18,
+            color: onChromeSoft,
+            fontSize: 12.5,
+          }}
+        >
+          Forgot your password?{" "}
+          <span style={{ color: onChromeAccent, fontWeight: 700 }}>
+            Reset it
+          </span>
+        </div>
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: 12,
+            color: onChromeSoft,
+            fontSize: 12.5,
+          }}
+        >
+          New here?{" "}
+          <span style={{ color: onChromeAccent, fontWeight: 700 }}>
+            Create an account
+          </span>
+        </div>
+      </div>
+    </PhoneFrame>
+  );
+});

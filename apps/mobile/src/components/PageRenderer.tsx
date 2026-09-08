@@ -112,7 +112,7 @@ function bandText(colors: ThemePalette, bg?: string): string | undefined {
   switch (bg) {
     case "dark":
       // On-dark band text token (was a slate #f8fafc leftover).
-      return colors.heroText;
+      return colors.onChrome;
     case "brand":
       return colors.onPrimary;
     default:

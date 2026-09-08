@@ -13,8 +13,8 @@ import Constants from "expo-constants";
 import type { AppConfig } from "@lms/types";
 
 import { api } from "./api";
-import { APP_CONFIG_CACHE_BASE, scopedKey } from "./config";
-import { DEFAULT_APP_CONFIG, isCompleteAppConfig } from "./theme";
+import { APP_CONFIG_CACHE_BASE, boundName, scopedKey } from "./config";
+import { DEFAULT_APP_CONFIG, isCompleteAppConfig, pickBrandTitle } from "./theme";
 
 // Namespaced per instance (see config.ts) so a shared binary never paints one
 // instance with another instance's cached branding. The key BASE is shared
@@ -133,6 +133,28 @@ async function writeCache(config: AppConfig): Promise<void> {
   }
 }
 
+// Pre-seed the branding cache for the JUST-BOUND instance (called from
+// ConnectScreen with the /app/config it already fetched to validate the code).
+// Runs AFTER bindInstance, so configKey() resolves to the new instance's scope.
+// The next launch — and ConfigProvider's own first readCache — then paint the
+// real branding instantly instead of flashing the default. Best-effort and
+// gated on a complete palette (same guard readCache applies), so a partial
+// payload can never poison the cache.
+export async function seedConfigCache(cfg: AppConfig): Promise<void> {
+  if (isCompleteAppConfig(cfg)) await writeCache(stripVersionFields(cfg));
+}
+
+// The brand name to render on member surfaces (login, header, account). An
+// academy that hasn't set a custom title serves the generic product default
+// ("Spotlight Academy") from GET /app/config, which would otherwise leak the
+// operator brand onto every un-customized academy. So: a real custom title
+// wins; otherwise fall back to the bound academy's true name (from the connect
+// code, boundName()); otherwise a neutral generic. The default title is the
+// "unset" sentinel — compared against DEFAULT_APP_CONFIG.title.
+export function resolveBrandTitle(config: AppConfig): string {
+  return pickBrandTitle(config.title, boundName());
+}
+
 // How long a first launch (no cache yet) may hold the splash gate waiting for
 // the config fetch. A black-holing network (captive portal, dead VPN) never
 // errors, so without this cap the app would spin until the OS socket timeout.
@@ -148,27 +170,44 @@ const POLL_MS = 30_000;
 // settled, or GATE_CAP_MS. The fetch always continues in the background and
 // re-themes reactively when it lands; a failure keeps cached/default branding.
 export function ConfigProvider({ children }: { children: React.ReactNode }) {
+  // `config` holds ONLY branding (version-handshake fields stripped): those
+  // change on every response, so keeping them out means the theme rebuilds only
+  // when branding actually changes — no guaranteed re-theme on every launch.
   const [config, setConfig] = useState<AppConfig>(DEFAULT_APP_CONFIG);
+  const [compat, setCompat] = useState<VersionCompat>(() =>
+    compatOf(DEFAULT_APP_CONFIG),
+  );
   const [loading, setLoading] = useState(true);
-  // Ref mirror of the current config so refresh() can compare without being
-  // re-created (and re-arming the poll effect) on every config change.
+  // Ref mirrors so applyFresh can compare without being re-created (and
+  // re-arming the poll effect) on every state change.
   const configRef = useRef(config);
   configRef.current = config;
+  const compatRef = useRef(compat);
+  compatRef.current = compat;
 
-  // Fetch + apply-if-changed + recache. Silent on failure (offline keeps the
-  // last-known config). The equality guard keeps poll ticks from re-rendering
-  // the whole themed tree when nothing changed.
+  // Apply a freshly fetched config: theme from the stripped branding, track the
+  // version handshake in `compat` separately, and re-set only what changed — so
+  // a poll tick (or a launch) with identical branding never re-renders the
+  // themed tree. Silent on failure (offline keeps the last-known config).
+  const applyFresh = useCallback((fresh: AppConfig) => {
+    const branding = stripVersionFields(fresh);
+    if (JSON.stringify(branding) !== JSON.stringify(configRef.current)) {
+      setConfig(branding);
+      void writeCache(branding); // already stripped
+    }
+    const nextCompat = compatOf(fresh);
+    if (JSON.stringify(nextCompat) !== JSON.stringify(compatRef.current)) {
+      setCompat(nextCompat);
+    }
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
-      const fresh = await api.appConfig();
-      if (JSON.stringify(fresh) !== JSON.stringify(configRef.current)) {
-        setConfig(fresh);
-        void writeCache(stripVersionFields(fresh));
-      }
+      applyFresh(await api.appConfig());
     } catch {
       // offline / API down — keep the current config
     }
-  }, []);
+  }, [applyFresh]);
 
   useEffect(() => {
     let alive = true;
@@ -178,15 +217,12 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       const cached = await readCache();
       if (alive && cached) {
-        setConfig(cached);
+        setConfig(cached); // cache is already stripped of version fields
         setLoading(false); // don't hold first paint for the network round-trip
       }
       try {
         const fresh = await api.appConfig();
-        if (alive) {
-          setConfig(fresh);
-          void writeCache(stripVersionFields(fresh));
-        }
+        if (alive) applyFresh(fresh);
       } catch {
         // offline / API down — keep the cached or default config
       } finally {
@@ -198,7 +234,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       alive = false;
       clearTimeout(cap);
     };
-  }, []);
+  }, [applyFresh]);
 
   // Live updates: refetch when the app returns to the foreground, and poll
   // every POLL_MS while it stays active. Backgrounded apps poll nothing.
@@ -229,8 +265,8 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   }, [refresh]);
 
   const value = useMemo<ConfigState>(
-    () => ({ config, loading, compat: compatOf(config) }),
-    [config, loading],
+    () => ({ config, loading, compat }),
+    [config, loading, compat],
   );
   return (
     <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>

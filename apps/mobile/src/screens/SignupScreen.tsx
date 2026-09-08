@@ -115,7 +115,7 @@ export function SignupScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style="light" />
+      <StatusBar style={colors.onChrome === "#ffffff" ? "light" : "dark"} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -321,9 +321,10 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     },
     linkButton: { marginTop: spacing.lg, alignItems: "center" },
     linkText: {
-      color: "rgba(255,255,255,0.55)",
+      // On the chrome canvas — derive from the (overridable) band color.
+      color: colors.onChromeSoft,
       fontSize: 13.5,
       fontFamily: fonts.regular,
     },
-    linkTextStrong: { color: colors.primaryOnDark, fontFamily: fonts.bold },
+    linkTextStrong: { color: colors.onChromeAccent, fontFamily: fonts.bold },
   });

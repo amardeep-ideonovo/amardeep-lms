@@ -5,6 +5,7 @@ import {
   isCompletePalette,
   isCompleteAppConfig,
   paletteFrom,
+  pickBrandTitle,
   DEFAULT_APP_CONFIG,
 } from "./theme";
 
@@ -108,4 +109,74 @@ test("paletteFrom: null/absent/invalid chrome falls back to Auto (derived)", () 
     ).chrome,
     DEFAULT_APP_CONFIG.dark.bg,
   );
+});
+
+// Regression guard for the "header text disappears on a light Header band"
+// bug: the on-chrome foreground must be DERIVED from the (admin-overridable)
+// chrome color, flipping to dark ink on a light band and white on a dark band,
+// so text/links on the header band stay legible for ANY chrome choice.
+function relLuminance(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+function contrast(a: string, b: string): number {
+  const la = relLuminance(a);
+  const lb = relLuminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+test("onChrome flips to dark ink on a light Header band and stays AA-legible", () => {
+  const light = paletteFrom(
+    { ...DEFAULT_APP_CONFIG.light, chrome: "#f4f4f6" } as never,
+    "light",
+  );
+  assert.equal(light.chrome, "#f4f4f6");
+  assert.equal(light.onChrome, "#101828"); // dark ink, not white
+  assert.ok(
+    contrast(light.onChrome, light.chrome) >= 4.5,
+    "onChrome must meet WCAG AA against a light chrome band",
+  );
+  // The on-band brand accent must also darken so it doesn't wash out.
+  assert.ok(
+    contrast(light.onChromeAccent, light.chrome) >= 4.5,
+    "onChromeAccent must meet WCAG AA against a light chrome band",
+  );
+});
+
+// The member login/header brand must never leak the operator's product default
+// onto an un-customized academy: a real custom title wins; otherwise the bound
+// academy's own name (from the connect code); otherwise a neutral generic.
+test("pickBrandTitle prefers a real custom title", () => {
+  assert.equal(pickBrandTitle("Acme Music School", "Acme (CP)"), "Acme Music School");
+  assert.equal(pickBrandTitle("  Acme  ", null), "Acme"); // trimmed
+});
+
+test("pickBrandTitle falls back to the bound academy name when title is the default sentinel", () => {
+  assert.equal(
+    pickBrandTitle(DEFAULT_APP_CONFIG.title, "Acme Music School"),
+    "Acme Music School",
+  );
+  // Blank/absent title also falls through to the bound name.
+  assert.equal(pickBrandTitle("", "Acme"), "Acme");
+  assert.equal(pickBrandTitle(null, "Acme"), "Acme");
+});
+
+test("pickBrandTitle degrades to a neutral generic, never the operator default", () => {
+  // Un-customized (sentinel) title AND no bound name (locked/white-label build).
+  assert.equal(pickBrandTitle(DEFAULT_APP_CONFIG.title, null), "Academy");
+  assert.equal(pickBrandTitle(null, null), "Academy");
+  assert.notEqual(pickBrandTitle(DEFAULT_APP_CONFIG.title, null), DEFAULT_APP_CONFIG.title);
+});
+
+test("onChrome stays light on a dark Header band (default/derived)", () => {
+  const light = paletteFrom(DEFAULT_APP_CONFIG.light, "light"); // chrome derives to #221c3d
+  assert.equal(light.onChrome, "#ffffff");
+  assert.ok(contrast(light.onChrome, light.chrome) >= 4.5);
+  const dark = paletteFrom(DEFAULT_APP_CONFIG.dark, "dark");
+  assert.equal(dark.onChrome, "#ffffff");
+  assert.ok(contrast(dark.onChrome, dark.chrome) >= 4.5);
 });
