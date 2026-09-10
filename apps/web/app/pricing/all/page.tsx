@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { LevelDTO, PriceDTO, SubscriptionDetailDTO } from "@lms/types";
+import type {
+  ClassTileDTO,
+  LevelDTO,
+  PriceDTO,
+  SubscriptionDetailDTO,
+} from "@lms/types";
 import { STR, formatMoney } from "@lms/types";
 import { ApiError, api, clearToken } from "@/lib/api";
 import AuthGate from "@/components/AuthGate";
@@ -19,21 +24,24 @@ function AllPlansInner() {
   const router = useRouter();
   const [levels, setLevels] = useState<LevelDTO[] | null>(null);
   const [subs, setSubs] = useState<SubscriptionDetailDTO[]>([]);
+  const [myClasses, setMyClasses] = useState<ClassTileDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
     async function load() {
       try {
-        const [l, s] = await Promise.all([
+        const [l, s, mc] = await Promise.all([
           api.levels(),
           api
             .mySubscriptionDetails()
             .catch(() => [] as SubscriptionDetailDTO[]),
+          api.myClasses().catch(() => [] as ClassTileDTO[]),
         ]);
         if (!mounted) return;
         setLevels(l);
         setSubs(s);
+        setMyClasses(mc);
         setError(null);
       } catch (err) {
         if (!mounted) return;
@@ -60,11 +68,19 @@ function AllPlansInner() {
   }, [router]);
 
   const subByLevel = new Map(subs.map((s) => [s.levelId, s]));
+  // A member "owns" a class through ANY active entitlement — a paid subscription
+  // OR an admin grant / free / lifetime enrollment. my-classes' `owned` flag is
+  // the API's access.activeLevelIds (UserLevel ACTIVE), the single source of
+  // truth; subscriptions alone miss admin grants, which would then wrongly show
+  // as purchasable here (name + price + a /checkout link).
+  const ownedIds = new Set(myClasses.filter((c) => c.owned).map((c) => c.id));
   // Every PAID level is a purchasable plan; FREE levels aren't listed.
   const planLevels = (levels || []).filter((l) => l.type === "PAID");
-  // Group by enrollment: the member's current plans first, then the rest.
+  // Current = an active paid subscription (price + manage). Available = classes
+  // the member holds NO access to by any means, so an already-held class (bought
+  // or admin-granted) is never offered for purchase.
   const currentPlans = planLevels.filter((l) => subByLevel.has(l.id));
-  const otherPlans = planLevels.filter((l) => !subByLevel.has(l.id));
+  const otherPlans = planLevels.filter((l) => !ownedIds.has(l.id));
 
   function renderPlan(level: LevelDTO) {
     const sub = subByLevel.get(level.id);
