@@ -770,8 +770,9 @@ const PhonePreview = memo(function PhonePreview({
         </div>
 
         {/* app header — ink band chrome, matching the app's Home band
-            (BrandHeaderTitle: fixed 120×26 logo box, else the brand glyph +
-            semibold 13.5 title, in the derived on-chrome color). */}
+            (BrandHeaderTitle: the logo is sized by its real aspect ratio at a
+            fixed height and rounded into an app-icon chip, else the brand glyph
+            + semibold 13.5 title, in the derived on-chrome color). */}
         <div
           style={{
             background: chrome,
@@ -787,7 +788,14 @@ const PhonePreview = memo(function PhonePreview({
             <img
               src={cfg.logoUrl}
               alt=""
-              style={{ height: 26, width: 120, objectFit: "contain" }}
+              style={{
+                height: 34,
+                width: "auto",
+                maxWidth: 200,
+                objectFit: "contain",
+                borderRadius: 7,
+                display: "block",
+              }}
             />
           ) : (
             // Logo (as a compact mark) or the brand glyph, PLUS the title.
@@ -804,7 +812,14 @@ const PhonePreview = memo(function PhonePreview({
                 <img
                   src={cfg.logoUrl}
                   alt=""
-                  style={{ height: 24, width: 84, objectFit: "contain" }}
+                  style={{
+                    height: 28,
+                    width: "auto",
+                    maxWidth: 108,
+                    objectFit: "contain",
+                    borderRadius: 7,
+                    display: "block",
+                  }}
                 />
               ) : (
                 <PreviewMark size={20} color={p.primary} />

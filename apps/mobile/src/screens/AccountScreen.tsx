@@ -467,9 +467,6 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
           ) : (
             <Text style={styles.brandTitle}>{brand}</Text>
           )}
-          {config.description ? (
-            <Text style={styles.brandDesc}>{config.description}</Text>
-          ) : null}
         </View>
 
         {loading || !user ? (
@@ -1230,7 +1227,9 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       gap: spacing.sm,
       marginTop: spacing.sm,
     },
-    grow: { flex: 1 },
+    // alignSelf stretch so two buttons in a row match height even when one
+    // wraps to a second line (e.g. "Edit" beside "Change password").
+    grow: { flex: 1, alignSelf: "stretch" },
     avatarBlock: {
       flexDirection: "row",
       alignItems: "center",
