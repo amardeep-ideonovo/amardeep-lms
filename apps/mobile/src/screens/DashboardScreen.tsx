@@ -475,14 +475,9 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
             style={styles.browseAll}
             activeOpacity={0.7}
             accessibilityRole="button"
-            onPress={() =>
-              navigation.navigate("CourseList", {
-                title: "All courses",
-                all: true,
-              })
-            }
+            onPress={() => navigation.navigate("Classes")}
           >
-            <Text style={styles.browseAllText}>Browse all courses ›</Text>
+            <Text style={styles.browseAllText}>Browse all classes ›</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
