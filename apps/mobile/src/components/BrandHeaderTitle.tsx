@@ -60,8 +60,10 @@ export function BrandHeaderTitle({ onChrome }: { onChrome?: boolean }) {
     // Logo + title: the logo is a compact, aspect-correct mark beside the name
     // (a square logo becomes a tidy square chip, not a mark lost in a wide box).
     // Logo only: it fills the brand slot (admin opted out of the title).
-    const h = showTitle ? 28 : 32;
-    const maxW = showTitle ? 108 : 176;
+    // Logo only gets a bigger fixed height and a wider cap so it reads as the
+    // full brand mark (a square logo fills that height; a wide wordmark spans).
+    const h = showTitle ? 28 : 34;
+    const maxW = showTitle ? 108 : 200;
     return (
       <View style={showTitle ? styles.row : undefined}>
         <Image

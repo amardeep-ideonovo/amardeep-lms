@@ -113,6 +113,10 @@ const styles = StyleSheet.create({
   inline: { alignSelf: "flex-start" },
   block: { alignSelf: "stretch" },
   body: {
+    // Fill the pressable's height so a button stretched to match a taller
+    // sibling in a row keeps its surface (bg/border) full-height, not a short
+    // box floating at the top. No effect on a content-height button.
+    flexGrow: 1,
     paddingVertical: 13,
     paddingHorizontal: 18,
     alignItems: "center",

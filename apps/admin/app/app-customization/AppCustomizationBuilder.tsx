@@ -789,9 +789,9 @@ const PhonePreview = memo(function PhonePreview({
               src={cfg.logoUrl}
               alt=""
               style={{
-                height: 32,
+                height: 34,
                 width: "auto",
-                maxWidth: 176,
+                maxWidth: 200,
                 objectFit: "contain",
                 borderRadius: 7,
                 display: "block",
