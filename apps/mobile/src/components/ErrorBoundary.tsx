@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 8,
-    backgroundColor: "#34c9a2", // spark teal
+    backgroundColor: "#34c9a2", // brand teal
     borderRadius: 999,
     paddingVertical: 12,
     paddingHorizontal: 26,

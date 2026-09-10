@@ -360,7 +360,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       alignItems: "center",
       justifyContent: "center",
       // colors.primary so the seal glow tracks the brand accent (the old
-      // #35b3a2 literal was the pre-Spark teal).
+      // #35b3a2 literal was the legacy teal).
       shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.4,
