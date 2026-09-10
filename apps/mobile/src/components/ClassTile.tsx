@@ -99,6 +99,11 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
     name: {
       color: colors.text,
       fontSize: 16,
+      lineHeight: 20,
+      // Always reserve two lines so a 1-line title ("Cooking") and a 2-line
+      // title ("Strength and Conditioning") produce identical tile heights
+      // across a row — the grid never has a short tile next to a tall one.
+      minHeight: 40,
       fontWeight: "700",
       fontFamily: fonts.bold,
     },
