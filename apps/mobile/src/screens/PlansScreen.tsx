@@ -14,6 +14,7 @@ import type { LevelDTO } from "@lms/types";
 
 import {
   useLevels,
+  useMyClasses,
   useMySubscriptionDetails,
   useRefreshOnFocus,
 } from "../queries";
@@ -33,13 +34,21 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
   // here — the hook resolves [] on a billing hiccup instead of erroring).
   const levelsQuery = useLevels();
   const subsQuery = useMySubscriptionDetails();
+  // my-classes carries the authoritative per-class `owned` flag — the API's
+  // access.activeLevelIds (a UserLevel row that is ACTIVE and unexpired), which
+  // covers EVERY way a member holds a class: a paid subscription AND an admin
+  // grant / free / lifetime enrollment. Subscriptions alone miss admin grants,
+  // so we use this to keep an already-held class out of "Available plans".
+  const myClassesQuery = useMyClasses();
   const levels = levelsQuery.data ?? null;
   const subs = subsQuery.data ?? [];
+  const myClasses = myClassesQuery.data ?? null;
 
-  // Refetch on focus so a plan bought/canceled elsewhere shows up on return.
+  // Refetch on focus so a plan bought/canceled/granted elsewhere shows up.
   useRefreshOnFocus(() => {
     void levelsQuery.refetch();
     void subsQuery.refetch();
+    void myClassesQuery.refetch();
   });
 
   // Same error surface as before the cache: a levels failure shows the error
@@ -59,7 +68,7 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
       />
     );
 
-  if (!levels || subsQuery.isLoading) {
+  if (!levels || !myClasses || subsQuery.isLoading) {
     return (
       <View style={styles.skeletonWrap}>
         <Skeleton height={96} radius={14} />
@@ -69,11 +78,17 @@ export function PlansScreen({ navigation }: ScreenProps<"Plans">) {
     );
   }
 
-  // Same split as the web: PAID levels only; "current" = an active sub exists.
+  // PAID levels only. "current" = a live paid subscription (shown with price +
+  // manage). "available" = classes the member holds NO active access to by ANY
+  // means — a paid sub OR an admin grant / free / lifetime enrollment — so a
+  // class the member already has is never offered as purchasable. A subscribed
+  // class is owned too, so ownedIds excludes it from `available`; a granted-but-
+  // unsubscribed class shows in neither section (it's already on the dashboard).
   const paid = levels.filter((l) => l.type === "PAID");
-  const currentIds = new Set(subs.map((s) => s.levelId));
-  const current = paid.filter((l) => currentIds.has(l.id));
-  const available = paid.filter((l) => !currentIds.has(l.id));
+  const ownedIds = new Set(myClasses.filter((c) => c.owned).map((c) => c.id));
+  const subIds = new Set(subs.map((s) => s.levelId));
+  const current = paid.filter((l) => subIds.has(l.id));
+  const available = paid.filter((l) => !ownedIds.has(l.id));
 
   const openLanding = (l: LevelDTO) =>
     navigation.navigate("Class", { slugOrId: l.slug ?? l.id, title: l.name });
