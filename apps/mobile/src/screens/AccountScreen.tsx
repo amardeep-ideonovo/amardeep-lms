@@ -844,13 +844,13 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
               <View style={styles.card}>
                 <Text style={styles.heading}>Billing</Text>
                 <Text style={styles.note}>
-                  You can update your payment details in your account settings
-                  on the web.
+                  Membership billing and payment details are handled through
+                  your academy account.
                 </Text>
                 {subs.some((s) => s.provider === "paypal") ? (
                   <Text style={styles.note}>
                     Your PayPal-billed subscription’s payment method is managed
-                    in your PayPal account at paypal.com.
+                    in your PayPal account.
                   </Text>
                 ) : null}
               </View>
