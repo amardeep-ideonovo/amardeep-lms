@@ -69,7 +69,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       justifyContent: "center",
       // CTA glow (iOS; Android elevation is skipped — it needs an opaque
       // bg and the gradient wrapper has none). colors.primary so the glow
-      // tracks the brand accent (the old #35b3a2 literal was the pre-Spark
+      // tracks the brand accent (the old #35b3a2 literal was the legacy
       // teal and stayed teal on recolored instances).
       shadowColor: colors.primary,
       shadowOffset: { width: 0, height: 8 },

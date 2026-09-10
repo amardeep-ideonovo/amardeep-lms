@@ -58,7 +58,7 @@ const config = (): ExpoConfig => ({
       {
         image: "./assets/splash.png",
         resizeMode: "contain",
-        // Spark ink — matches the splash art's own field so the contain
+        // Splash ink — matches the splash art's own field so the contain
         // letterboxing (and its rounded corners) blend invisibly.
         backgroundColor: "#101014",
       },

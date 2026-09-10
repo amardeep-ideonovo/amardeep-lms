@@ -376,7 +376,7 @@ export const spacing = {
   xl: 32,
 };
 
-// Plus Jakarta Sans everywhere (Spark; owner's call over the pack's Space
+// Plus Jakarta Sans everywhere (owner's call over the pack's Space
 // Grotesk — matches the member website), loaded via expo-font in App.tsx.
 // RN doesn't synthesize custom-font weights, so each weight is its own family
 // — use fontFamily(weight) or theme.fonts.* instead of bare fontWeight. The
