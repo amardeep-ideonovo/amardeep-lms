@@ -260,7 +260,7 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
                 <LockedPanel
                   title="Not included in your membership"
                   message="Your current membership doesn't include this class."
-                  note="You can manage your plan from your account on the web."
+                  note="You can manage your plan from your account settings."
                   ctaLabel={cls.trailerUrl ? "Watch the trailer" : undefined}
                   onPress={cls.trailerUrl ? scrollToTrailer : undefined}
                 />
