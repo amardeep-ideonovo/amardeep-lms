@@ -89,6 +89,12 @@ Account deletion (required by both stores because the app has in-app signup) is
 built: members delete from the in-app Account screen, and the public page is
 `https://<member-web>/delete-account` — use that URL in the Play Data-safety form.
 
+In-app legal links: the pre-connect connect-code screen links the **platform's
+member-facing** Privacy Policy (`<directory>/app/privacy` — the same URL both store
+listings carry), because that screen talks to the platform, not to an academy.
+Once connected, Login / Signup / Account link the **academy's own** `/privacy` and
+`/terms` (every academy is seeded with editable pages; AppConfig may override).
+
 ## 7. OTA updates & code signing — updates ship UNSIGNED
 
 The app ships expo-updates (OTA) so JS-only fixes go out without a store review.

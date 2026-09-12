@@ -15,6 +15,13 @@
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
+import {
+  resolveLegalLinks,
+  resolvePlatformPrivacyUrl,
+  type LegalOverride,
+  type LegalTargets,
+} from "./legal-links";
+
 // `|| null` (not `?? null`): an empty EXPO_PUBLIC_API_URL must mean "shared
 // build", not a locked build hard-wired to an empty API base.
 const BAKED_API_URL = process.env.EXPO_PUBLIC_API_URL || null;
@@ -58,37 +65,23 @@ export function isBound(): boolean {
   return API_BASE_URL !== "";
 }
 
-// Resolve a stored legal URL to something Linking.openURL can open: an absolute
-// http(s) URL is used as-is; a "/path" is joined to the bound member site; a
-// relative path with no bound site (or anything else) is unusable -> null.
-function resolveLegal(u: string | null | undefined): string | null {
-  if (!u) return null;
-  if (/^https?:\/\//i.test(u)) return u;
-  const base = WEB_BASE_URL.replace(/\/$/, "");
-  return u.startsWith("/") && base ? `${base}${u}` : null;
+// Privacy Policy + Terms targets for the in-app legal links (required in-app by
+// Apple 5.1.1 / Play, since the app collects account data). Precedence: the
+// connected academy's AppConfig.privacyUrl/termsUrl (passed in) wins; otherwise
+// the academy's own seeded /privacy and /terms on its bound member site. A
+// function (not a const) so it reads the live WEB_BASE_URL after an instance
+// binds. Null when no member site is bound — call sites then hide the links
+// rather than open a broken URL. Rules live in legal-links.ts (pure, tested).
+export function legalLinks(override?: LegalOverride): LegalTargets | null {
+  return resolveLegalLinks(WEB_BASE_URL, override);
 }
 
-// Privacy Policy + Terms targets for the in-app legal links (required in-app by
-// Apple 5.1.1 / Play, since the app collects account data). Precedence:
-// per-academy AppConfig.privacyUrl/termsUrl (passed in) wins; otherwise the
-// shared store app points at the platform (directory) legal pages and a
-// locked/white-label build falls back to its bound member site. A function (not
-// a const) so it reads the live WEB_BASE_URL after an instance binds. Null when
-// nothing usable is known — call sites then hide the links rather than open a
-// broken URL.
-export function legalLinks(override?: {
-  privacyUrl?: string | null;
-  termsUrl?: string | null;
-}): { privacy: string; terms: string } | null {
-  const base = (DIRECTORY_URL || WEB_BASE_URL).replace(/\/$/, "");
-  const derived = base
-    ? { privacy: `${base}/privacy`, terms: `${base}/terms` }
-    : null;
-  const privacy =
-    resolveLegal(override?.privacyUrl) ?? derived?.privacy ?? null;
-  const terms = resolveLegal(override?.termsUrl) ?? derived?.terms ?? null;
-  if (!privacy || !terms) return null;
-  return { privacy, terms };
+// The platform's MEMBER-facing Privacy Policy for the shared app's pre-connect
+// screen (the connect code + device IP go to the directory, not to an academy).
+// Null on locked / white-label builds, which have no directory and never show
+// that screen.
+export function platformPrivacyUrl(): string | null {
+  return resolvePlatformPrivacyUrl(DIRECTORY_URL);
 }
 
 // ---------- per-instance storage namespacing ----------
