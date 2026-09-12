@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   StyleSheet,
@@ -10,9 +11,14 @@ import {
   View,
 } from "react-native";
 
-import type { AppConfig } from "@lms/types";
+import { STR, type AppConfig } from "@lms/types";
 
-import { DIRECTORY_URL, bindInstance, type InstanceBinding } from "../config";
+import {
+  DIRECTORY_URL,
+  bindInstance,
+  platformPrivacyUrl,
+  type InstanceBinding,
+} from "../config";
 import { seedConfigCache } from "../config-provider";
 import { formColumn } from "../responsive";
 import { DEFAULT_APP_CONFIG, paletteFrom, fonts, spacing } from "../theme";
@@ -47,6 +53,11 @@ export function ConnectScreen({
   // the hop tells the member it's still moving.
   const [step, setStep] = useState<null | "resolving" | "verifying">(null);
   const [error, setError] = useState<string | null>(null);
+  // This screen is the PLATFORM's surface, not any academy's: the connect code
+  // (and the device's IP) go to the directory. So the notice offered here is the
+  // platform's member-facing Privacy Policy — the same URL as the store listings.
+  // The academy's own Privacy/Terms take over on Login/Signup/Account once bound.
+  const privacyUrl = useMemo(() => platformPrivacyUrl(), []);
 
   // Validate a binding by fetching the instance's public branding config —
   // proves the URL is a live LMS API before we commit to it. Timed out so a
@@ -254,6 +265,16 @@ export function ConnectScreen({
             </Text>
           </Pressable>
         )}
+
+        {privacyUrl && (
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => void Linking.openURL(privacyUrl).catch(() => {})}
+            style={styles.legalButton}
+          >
+            <Text style={styles.legalText}>{STR.legal.privacy}</Text>
+          </Pressable>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -320,5 +341,12 @@ const makeStyles = (colors: Colors) =>
       color: colors.textMuted,
       fontSize: 14,
       fontFamily: fonts.regular,
+    },
+    legalButton: { marginTop: spacing.md, alignItems: "center" },
+    legalText: {
+      color: colors.textMuted,
+      fontSize: 12.5,
+      fontFamily: fonts.regular,
+      textDecorationLine: "underline",
     },
   });
