@@ -22,6 +22,11 @@ const nextConfig = {
   reactStrictMode: true,
   // Don't advertise the framework/version.
   poweredByHeader: false,
+  // Image Optimization API disabled. Nothing in this repo renders next/image,
+  // so this is behaviour-neutral — and it closes the /_next/image endpoint that
+  // GHSA-2xp9-vwfh-vxw4 (RCE via libheif when AVIF is optimized) reaches; Next
+  // 14.2.x has no patched release (first fix 15.5.24). Revisit on the Next major.
+  images: { unoptimized: true },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
