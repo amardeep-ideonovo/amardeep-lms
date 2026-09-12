@@ -26,25 +26,25 @@ The app **code** is submission-ready. All store-compliance code work shipped in
 transactions in-app), and #220 (in-app legal links, camera/mic permissions
 dropped, OTA unsigned, SHIPPING §7 corrected).
 
-| Area | State | Evidence |
-|---|---|---|
-| Bundle id / package | `com.thewebpaanda.lms` (both stores) — **permanent after first upload** | `app.config.ts` |
-| App name | `Spotlight Academy` (set 2026-09-08) — changeable later; see listing pack §11 positioning note | `app.config.ts` |
-| Version / channel | 1.0.0, runtime policy `appVersion`, remote version source, `autoIncrement` on production, Android AAB | `eas.json` |
-| Android build lane | **Proven** — 10 finished production builds (latest: build 10, `3e2c624`, 2026-09-05) | `eas build:list` |
-| iOS build lane | **Never built** — blocked only on an Apple Developer account (credentials) | `eas build:list` |
-| In-app legal links | Account "More" card + Login footer + Signup consent line → `https://thewebpaanda.com/privacy` + `/terms` (both live, HTTP 200) | `src/config.ts` `legalLinks()` |
-| Account deletion | In-app (Account → Delete account, above Sign out) + API + public web page | `AccountScreen.tsx`, `apps/api/src/account/`, `apps/web/app/delete-account/` |
-| Purchases | **None in-app, no external purchase links, no prices.** Only money-adjacent surface: "Receipt ↗" for *paid* invoices | #198 + #219 |
-| Permissions | Photo library only (avatar). No camera, no mic, no location, no push | `app.config.ts` image-picker plugin |
-| Tracking / analytics | None at all (no SDKs) → no ATT prompt, clean data-safety forms | `package.json` |
-| Sign in with Apple | **Not required** — email/password only, no social login | `LoginScreen.tsx` |
-| Export compliance | Pre-answered (`usesNonExemptEncryption: false`) | `app.config.ts` |
-| SDK gates | Expo SDK 56 / targetSdk 36 / Xcode 26 image — satisfies both stores' 2026 requirements | SHIPPING.md §0 |
-| Tablets | Universal iPhone+iPad, Android tablet rotation → **iPad 13" screenshots required** | SHIPPING.md §3b |
-| Crash safety | Top-level `ErrorBoundary` (a render crash during review = auto-reject) | `src/components/ErrorBoundary.tsx` |
-| Force-update lever | `MIN_APP_VERSION` env per instance → in-app "Update required" gate | §8.4 below |
-| Reviewer path | Connect code **`demo`** resolves live → Demo Instance (verified 2026-09-07) | `https://thewebpaanda.com/api/app/resolve?code=demo` |
+| Area                 | State                                                                                                                          | Evidence                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| Bundle id / package  | `com.thewebpaanda.lms` (both stores) — **permanent after first upload**                                                        | `app.config.ts`                                                              |
+| App name             | `Spotlight Academy` (set 2026-09-08) — changeable later; see listing pack §11 positioning note                                 | `app.config.ts`                                                              |
+| Version / channel    | 1.0.0, runtime policy `appVersion`, remote version source, `autoIncrement` on production, Android AAB                          | `eas.json`                                                                   |
+| Android build lane   | **Proven** — 10 finished production builds (latest: build 10, `3e2c624`, 2026-09-05)                                           | `eas build:list`                                                             |
+| iOS build lane       | **Never built** — blocked only on an Apple Developer account (credentials)                                                     | `eas build:list`                                                             |
+| In-app legal links   | Account "More" card + Login footer + Signup consent line → `https://thewebpaanda.com/privacy` + `/terms` (both live, HTTP 200) | `src/config.ts` `legalLinks()`                                               |
+| Account deletion     | In-app (Account → Delete account, above Sign out) + API + public web page                                                      | `AccountScreen.tsx`, `apps/api/src/account/`, `apps/web/app/delete-account/` |
+| Purchases            | **None in-app, no external purchase links, no prices.** Only money-adjacent surface: "Receipt ↗" for _paid_ invoices           | #198 + #219                                                                  |
+| Permissions          | Photo library only (avatar). No camera, no mic, no location, no push                                                           | `app.config.ts` image-picker plugin                                          |
+| Tracking / analytics | None at all (no SDKs) → no ATT prompt, clean data-safety forms                                                                 | `package.json`                                                               |
+| Sign in with Apple   | **Not required** — email/password only, no social login                                                                        | `LoginScreen.tsx`                                                            |
+| Export compliance    | Pre-answered (`usesNonExemptEncryption: false`)                                                                                | `app.config.ts`                                                              |
+| SDK gates            | Expo SDK 56 / targetSdk 36 / Xcode 26 image — satisfies both stores' 2026 requirements                                         | SHIPPING.md §0                                                               |
+| Tablets              | Universal iPhone+iPad, Android tablet rotation → **iPad 13" screenshots required**                                             | SHIPPING.md §3b                                                              |
+| Crash safety         | Top-level `ErrorBoundary` (a render crash during review = auto-reject)                                                         | `src/components/ErrorBoundary.tsx`                                           |
+| Force-update lever   | `MIN_APP_VERSION` env per instance → in-app "Update required" gate                                                             | §8.4 below                                                                   |
+| Reviewer path        | Connect code **`demo`** resolves live → Demo Instance (verified 2026-09-07)                                                    | `https://thewebpaanda.com/api/app/resolve?code=demo`                         |
 
 **What is missing** (everything below is this runbook's subject):
 
@@ -85,7 +85,7 @@ Start all three in parallel on day 1.
 - Individual enrollment works as a fallback but publicly lists a personal name
   as the seller and is awkward to migrate later.
 - After approval, in App Store Connect accept the free-app agreement
-  (the *Paid* Applications agreement / banking / tax forms are **not** needed —
+  (the _Paid_ Applications agreement / banking / tax forms are **not** needed —
   the app is free with no IAP).
 - Note the **Team ID** (Membership page) — it goes into `eas.json`.
 
@@ -102,7 +102,7 @@ Start all three in parallel on day 1.
 ### 1.4 Expo/EAS account hygiene (do now, costs nothing)
 
 OTA updates ship **unsigned** (EAS code signing is Enterprise-gated — see
-SHIPPING.md §7), so the Expo account *is* the update-channel security boundary:
+SHIPPING.md §7), so the Expo account _is_ the update-channel security boundary:
 
 - Enable **2FA** on the `amardeeplms` Expo account (hardware key if possible).
 - Keep `EXPO_TOKEN` scoped and only in GitHub repo secrets (already the case);
@@ -125,6 +125,7 @@ SHIPPING.md §7), so the Expo account *is* the update-channel security boundary:
    credentials** — it registers the bundle id `com.thewebpaanda.lms` on the
    developer portal and creates/stores the distribution certificate +
    provisioning profile. (Nothing to back up locally; credentials live in EAS.)
+
 2. **App record:** App Store Connect → My Apps → **＋ New App** → iOS, name
    (see listing pack), primary language English, bundle id
    `com.thewebpaanda.lms`, SKU e.g. `lms-shared-001`. Copy the app's numeric
@@ -172,11 +173,11 @@ Replace, same filenames, before the store build. **Art carries the Spotlight
 Academy identity** (Option A, listing pack §11) — it's the icon and pre-connect
 splash every member sees, so it's the platform brand, not a thewebpaanda mark.
 
-| File | Spec | Current state |
-|---|---|---|
-| `apps/mobile/assets/icon.png` | 1024×1024, **opaque** (iOS flattens/rejects alpha) | placeholder art, correct size |
-| `apps/mobile/assets/adaptive-icon.png` | 432×432 foreground, keep art inside the central ~66% safe circle | placeholder art, correct size |
-| `apps/mobile/assets/splash.png` | tall portrait ≈1284×2778, key art centered (resizeMode `contain`, bg `#101014`) | placeholder, **under-spec at 720×1560** |
+| File                                   | Spec                                                                            | Current state                           |
+| -------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------- |
+| `apps/mobile/assets/icon.png`          | 1024×1024, **opaque** (iOS flattens/rejects alpha)                              | placeholder art, correct size           |
+| `apps/mobile/assets/adaptive-icon.png` | 432×432 foreground, keep art inside the central ~66% safe circle                | placeholder art, correct size           |
+| `apps/mobile/assets/splash.png`        | tall portrait ≈1284×2778, key art centered (resizeMode `contain`, bg `#101014`) | placeholder, **under-spec at 720×1560** |
 
 Console-only uploads (not in the binary): Play **512×512** hi-res icon +
 **1024×500 feature graphic** (see listing pack).
@@ -187,12 +188,12 @@ Art changes are **native** — they ship only via a new `eas build`, never OTA.
 
 Required sets:
 
-| Store | Set | Size |
-|---|---|---|
-| Apple | iPhone 6.9" (or 6.7") | 1320×2868 (1290×2796) |
-| Apple | **iPad 13"** (required — `supportsTablet: true`) | 2064×2752 |
-| Play | Phone (min 2 shots) | 1080×2400 works |
-| Play | 7" tablet + 10" tablet (for tablet surfacing) | native emulator sizes |
+| Store | Set                                              | Size                  |
+| ----- | ------------------------------------------------ | --------------------- |
+| Apple | iPhone 6.9" (or 6.7")                            | 1320×2868 (1290×2796) |
+| Apple | **iPad 13"** (required — `supportsTablet: true`) | 2064×2752             |
+| Play  | Phone (min 2 shots)                              | 1080×2400 works       |
+| Play  | 7" tablet + 10" tablet (for tablet surfacing)    | native emulator sizes |
 
 Recipe: sign the **reviewer account** (§5) into the demo academy on the
 "iPhone 17 Pro Max" + "iPad Pro 13-inch" simulators and a Pixel phone/tablet
@@ -314,13 +315,13 @@ npx eas-cli submit --profile production --platform android # → Play internal t
 
 ## 7. If review pushes back
 
-| Guideline | Symptom | Response |
-|---|---|---|
-| Apple 2.1 (completeness) | "App is blank / can't proceed" | Reviewer creds broken or demo content thin — re-verify §5, reply with exact steps + a screen recording |
-| Apple 3.1.1 (payments) | "App accesses paid content without IAP" | Point to 3.1.3: content is acquired outside the app by members of multiplatform academies; the app sells nothing, shows no prices, links to no checkout |
-| Apple 4.2.6 / 4.3 | "Template/spam app" | §4.2 position: single official platform app by the platform operator; runtime tenant config, not a re-skin |
-| Apple 5.1.1 | Privacy-policy issues | The URL must describe member data handling (§4.3) — this is why the lawyer pass is a gate |
-| Play "app access" | "Couldn't review restricted features" | The App-access instructions/creds are stale — fix, re-verify, resubmit |
+| Guideline                | Symptom                                 | Response                                                                                                                                                |
+| ------------------------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Apple 2.1 (completeness) | "App is blank / can't proceed"          | Reviewer creds broken or demo content thin — re-verify §5, reply with exact steps + a screen recording                                                  |
+| Apple 3.1.1 (payments)   | "App accesses paid content without IAP" | Point to 3.1.3: content is acquired outside the app by members of multiplatform academies; the app sells nothing, shows no prices, links to no checkout |
+| Apple 4.2.6 / 4.3        | "Template/spam app"                     | §4.2 position: single official platform app by the platform operator; runtime tenant config, not a re-skin                                              |
+| Apple 5.1.1              | Privacy-policy issues                   | The URL must describe member data handling (§4.3) — this is why the lawyer pass is a gate                                                               |
+| Play "app access"        | "Couldn't review restricted features"   | The App-access instructions/creds are stale — fix, re-verify, resubmit                                                                                  |
 
 Rejections are conversations: fix or clarify in Resolution Center / reply,
 resubmit — same-day turnarounds are common.
@@ -358,6 +359,7 @@ resubmit — same-day turnarounds are common.
 Submit only when every box ticks. Status as of **2026-09-07**:
 
 **Code (all ✅ — verified this audit)**
+
 - [x] No purchase UI/links/prices; billing portal removed
 - [x] In-app legal links (Account + Login + Signup) → live URLs
 - [x] In-app account deletion + public delete-account page
@@ -366,23 +368,27 @@ Submit only when every box ticks. Status as of **2026-09-07**:
 - [x] ErrorBoundary; iPad layout; version handshake
 
 **Owner / accounts**
+
 - [ ] D-U-N-S number issued
 - [ ] Apple Developer (org) active; Team ID known
 - [ ] Play Console (org) verified
 - [ ] Expo account 2FA enabled
 
 **Content**
+
 - [ ] Final app name confirmed (listing pack §1)
 - [ ] Real icon / adaptive-icon / splash committed (specs §3.1)
 - [ ] Screenshots captured (all 4–5 sets, §3.2)
 - [ ] Listing copy + questionnaire answers signed off (listing pack)
 
 **Legal (owner + lawyer)**
+
 - [ ] `/privacy` + `/terms` lawyer-approved, amber placeholders removed
 - [ ] Privacy policy covers the app's member data handling (§4.3)
 - [ ] EU trader declaration info ready (address/email/phone for listings)
 
 **Ops**
+
 - [ ] `eas.json` submit profile filled; Play service-account JSON in place
 - [ ] Reviewer account live + content-rich; creds in both consoles (§5)
 - [ ] Seeded `member@example.com` on demo rotated
@@ -392,20 +398,21 @@ Submit only when every box ticks. Status as of **2026-09-07**:
 
 ## 10. Timeline + costs
 
-| Item | Cost | Lead time |
-|---|---|---|
-| D-U-N-S | free | ~5–10 business days |
-| Apple Developer (org) | $99/yr | 1 day – 2 weeks after D-U-N-S |
-| Play Console (org) | $25 once | days |
-| Art + screenshots + copy sign-off | owner time | 1–2 days, parallel |
-| Lawyer pass on legal pages | varies | parallel — start day 1 |
-| First iOS build + TestFlight pass | — | 1 day once Apple active |
-| Apple review | — | 24–48 h typical |
-| Play new-app review | — | 1–7 days |
+| Item                              | Cost       | Lead time                     |
+| --------------------------------- | ---------- | ----------------------------- |
+| D-U-N-S                           | free       | ~5–10 business days           |
+| Apple Developer (org)             | $99/yr     | 1 day – 2 weeks after D-U-N-S |
+| Play Console (org)                | $25 once   | days                          |
+| Art + screenshots + copy sign-off | owner time | 1–2 days, parallel            |
+| Lawyer pass on legal pages        | varies     | parallel — start day 1        |
+| First iOS build + TestFlight pass | —          | 1 day once Apple active       |
+| Apple review                      | —          | 24–48 h typical               |
+| Play new-app review               | —          | 1–7 days                      |
 
 **Realistic wall-clock from zero: 2–4 weeks, dominated by D-U-N-S + enrollment
-+ legal.** Everything code-side is done today; the moment the accounts exist,
-§2→§6 is about two working days.
+
+- legal.** Everything code-side is done today; the moment the accounts exist,
+  §2→§6 is about two working days.
 
 ---
 

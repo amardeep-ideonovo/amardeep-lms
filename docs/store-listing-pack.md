@@ -6,32 +6,32 @@ App Store Connect / Play Console. Character limits are noted where they bite;
 all drafts below fit them. Placeholders you must fill are `<LIKE_THIS>`.
 
 **Voice rule for every field:** never mention prices, purchasing, upgrading,
-or "buy on the website" — the app is a companion for *existing members*
+or "buy on the website" — the app is a companion for _existing members_
 (runbook §4.1).
 
 ---
 
 ## 1. Identity (decide once)
 
-| Field | Value | Notes |
-|---|---|---|
-| App Store listing name | **Spotlight Academy - LMS** | Plain "Spotlight Academy" was **already taken** on the App Store (2026-09-12), so the owner used this variant. Changeable anytime before submission — dropping "LMS" for e.g. "Spotlight Academy Learning" reads better if reconsidered. |
-| On-device app name | **Spotlight Academy** | `app.config.ts` `name` — the label under the icon. Does NOT need to be storewide-unique, so it stays the clean brand even though the store listing adds "- LMS". No code change needed. |
-| Bundle id / package | `com.thewebpaanda.lms` | **Permanent after first upload.** Already configured. |
-| Category | Education (both stores) | No secondary category needed. |
-| Price | Free, no in-app purchases | Never toggle to paid. |
-| Availability | All countries (or owner's choice) | No export/crypto concerns (`usesNonExemptEncryption: false`). |
+| Field                  | Value                             | Notes                                                                                                                                                                                                                                    |
+| ---------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App Store listing name | **Spotlight Academy - LMS**       | Plain "Spotlight Academy" was **already taken** on the App Store (2026-09-12), so the owner used this variant. Changeable anytime before submission — dropping "LMS" for e.g. "Spotlight Academy Learning" reads better if reconsidered. |
+| On-device app name     | **Spotlight Academy**             | `app.config.ts` `name` — the label under the icon. Does NOT need to be storewide-unique, so it stays the clean brand even though the store listing adds "- LMS". No code change needed.                                                  |
+| Bundle id / package    | `com.thewebpaanda.lms`            | **Permanent after first upload.** Already configured.                                                                                                                                                                                    |
+| Category               | Education (both stores)           | No secondary category needed.                                                                                                                                                                                                            |
+| Price                  | Free, no in-app purchases         | Never toggle to paid.                                                                                                                                                                                                                    |
+| Availability           | All countries (or owner's choice) | No export/crypto concerns (`usesNonExemptEncryption: false`).                                                                                                                                                                            |
 
 ## 2. Contact + URLs (both consoles)
 
-| Field | Value | Notes |
-|---|---|---|
-| Privacy policy URL | `https://thewebpaanda.com/privacy` | Live (200). Must pass the lawyer/member-facing gate (runbook §4.3) before submission. |
-| Support URL (Apple) | `https://thewebpaanda.com` | ⚠ `/contact` is currently 404 on the platform site — use the homepage, or ship a contact page first. |
-| Marketing URL (optional) | `https://thewebpaanda.com` | |
-| Developer email (Play, public) | `support@thewebpaanda.com` | Mailbox exists (Zoho). |
-| Developer website (Play) | `https://thewebpaanda.com` | |
-| EU trader declaration (both) | Declare **trader**; publish business name, address, email, phone | DSA requirement for EU visibility — owner supplies the address/phone; expect a verification step. |
+| Field                          | Value                                                            | Notes                                                                                                |
+| ------------------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Privacy policy URL             | `https://thewebpaanda.com/privacy`                               | Live (200). Must pass the lawyer/member-facing gate (runbook §4.3) before submission.                |
+| Support URL (Apple)            | `https://thewebpaanda.com`                                       | ⚠ `/contact` is currently 404 on the platform site — use the homepage, or ship a contact page first. |
+| Marketing URL (optional)       | `https://thewebpaanda.com`                                       |                                                                                                      |
+| Developer email (Play, public) | `support@thewebpaanda.com`                                       | Mailbox exists (Zoho).                                                                               |
+| Developer website (Play)       | `https://thewebpaanda.com`                                       |                                                                                                      |
+| EU trader declaration (both)   | Declare **trader**; publish business name, address, email, phone | DSA requirement for EU visibility — owner supplies the address/phone; expect a verification step.    |
 
 ---
 
@@ -109,14 +109,14 @@ location, no contacts access, no payment collection**; the session token lives
 in the device keychain (SecureStore) and never leaves the device except to the
 member's own academy API over HTTPS.
 
-| Data | When collected | Purpose | Optional? | Deletable? |
-|---|---|---|---|---|
-| Name | signup | account | required | yes — in-app account deletion purges the account |
-| Email address | signup / login | account + auth | required | yes |
-| Password | signup / login | auth (stored hashed server-side) | required | yes |
-| Profile photo | user-initiated avatar upload | profile | **optional** | yes |
-| Support messages | helpdesk | customer support | optional | yes (operational records like email logs are retained as disclosed in the policy) |
-| Lesson progress | using courses | app functionality | inherent | yes |
+| Data             | When collected               | Purpose                          | Optional?    | Deletable?                                                                        |
+| ---------------- | ---------------------------- | -------------------------------- | ------------ | --------------------------------------------------------------------------------- |
+| Name             | signup                       | account                          | required     | yes — in-app account deletion purges the account                                  |
+| Email address    | signup / login               | account + auth                   | required     | yes                                                                               |
+| Password         | signup / login               | auth (stored hashed server-side) | required     | yes                                                                               |
+| Profile photo    | user-initiated avatar upload | profile                          | **optional** | yes                                                                               |
+| Support messages | helpdesk                     | customer support                 | optional     | yes (operational records like email logs are retained as disclosed in the policy) |
+| Lesson progress  | using courses                | app functionality                | inherent     | yes                                                                               |
 
 ## 7. Apple — App Privacy (exact selections)
 
@@ -124,14 +124,15 @@ Collect data? **Yes.** Everything below: **Linked to the user's identity**,
 purpose **App Functionality**, used for tracking **No**. Every category not
 listed: **not collected**.
 
-| Category | Type |
-|---|---|
-| Contact Info | Name; Email Address |
+| Category     | Type                                                                      |
+| ------------ | ------------------------------------------------------------------------- |
+| Contact Info | Name; Email Address                                                       |
 | User Content | Photos or Videos (optional avatar); Other User Content (support messages) |
-| Identifiers | User ID (account id) |
-| Usage Data | Product Interaction (lesson progress) |
+| Identifiers  | User ID (account id)                                                      |
+| Usage Data   | Product Interaction (lesson progress)                                     |
 
 Also in App Store Connect:
+
 - **Age rating questionnaire:** all content descriptors None; no gambling; no
   unrestricted web access (the only WebView shows academy-authored lesson
   embeds, it is not a browser) → lands at **4+**.
@@ -147,18 +148,19 @@ Also in App Store Connect:
   Deletion URL: `https://demo.thewebpaanda.com/delete-account` (live; a
   platform-level page is optional polish — runbook §4.3).
 
-| Play category | Type | Collected / Shared | Optional? | Purpose |
-|---|---|---|---|---|
-| Personal info | Name | Collected, not shared | Required | Account management |
-| Personal info | Email address | Collected, not shared | Required | Account management |
-| Photos and videos | Photos | Collected, not shared | **Optional** | App functionality |
-| Messages | Other in-app messages | Collected, not shared | Optional | App functionality (support) |
-| App activity | App interactions | Collected, not shared | — | App functionality |
+| Play category     | Type                  | Collected / Shared    | Optional?    | Purpose                     |
+| ----------------- | --------------------- | --------------------- | ------------ | --------------------------- |
+| Personal info     | Name                  | Collected, not shared | Required     | Account management          |
+| Personal info     | Email address         | Collected, not shared | Required     | Account management          |
+| Photos and videos | Photos                | Collected, not shared | **Optional** | App functionality           |
+| Messages          | Other in-app messages | Collected, not shared | Optional     | App functionality (support) |
+| App activity      | App interactions      | Collected, not shared | —            | App functionality           |
 
 Everything else (location, financial, health, contacts, device IDs, crash
 data): **not collected** — the app ships zero analytics/crash SDKs.
 
 Other Play "App content" declarations:
+
 - **Ads:** No ads.
 - **App access:** "All or some functionality is restricted" → add the
   instructions + credentials from §9 (used by review **and** the pre-launch
@@ -197,16 +199,17 @@ instructions + credentials. Create the account first (runbook §5).
 ## 10. Screenshot shot-list (same 6, every device set)
 
 Capture with the reviewer account on the demo academy (runbook §3.2 has sizes
-+ simulator recipe). Suggested captions if caption overlays are wanted:
 
-| # | Screen | Caption |
-|---|---|---|
-| 1 | My Classes (dashboard, content-rich) | All your classes in one place |
-| 2 | Class detail (hero + lesson list) | Structured courses and lessons |
-| 3 | Video lesson playing | Learn anywhere |
-| 4 | Certificates | Earn certificates as you complete classes |
-| 5 | Helpdesk home | Help built in |
-| 6 | Connect screen | One app — enter your academy's code |
+- simulator recipe). Suggested captions if caption overlays are wanted:
+
+| #   | Screen                               | Caption                                   |
+| --- | ------------------------------------ | ----------------------------------------- |
+| 1   | My Classes (dashboard, content-rich) | All your classes in one place             |
+| 2   | Class detail (hero + lesson list)    | Structured courses and lessons            |
+| 3   | Video lesson playing                 | Learn anywhere                            |
+| 4   | Certificates                         | Earn certificates as you complete classes |
+| 5   | Helpdesk home                        | Help built in                             |
+| 6   | Connect screen                       | One app — enter your academy's code       |
 
 **Play feature graphic** (1024×500, console upload): flat brand tile — ink
 `#101014` background, teal accent, app name + "Your academy, in your pocket".
