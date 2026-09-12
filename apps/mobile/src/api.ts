@@ -464,6 +464,20 @@ export const api = {
     }
     return JSON.parse(result.body) as HelpdeskThreadDTO;
   },
+
+  // ---------- push notifications ----------
+  // Register this device's Expo push token against the bound academy. Authed
+  // (bearer) by default; hits the live API_BASE_URL so it targets the right
+  // tenant. Server ignores non-Expo tokens rather than erroring.
+  registerPushToken: (token: string, platform: string, appVersion?: string) =>
+    request<{ ok: true }>("/push/register", {
+      method: "POST",
+      body: { token, platform, appVersion },
+    }),
+
+  // De-register the token (sign-out / academy switch). 204 -> undefined.
+  unregisterPushToken: (token: string) =>
+    request<void>("/push/register", { method: "DELETE", body: { token } }),
 };
 
 // Build the (access-checked) download URL for a lesson note. The file is

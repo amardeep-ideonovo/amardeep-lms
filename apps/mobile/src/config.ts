@@ -252,7 +252,26 @@ export function setUnbindListener(fn: (() => void) | null): void {
   unbindListener = fn;
 }
 
+// Push de-registration hook. src/push.ts registers its cleanup here (config.ts
+// can't import the RN api module without a cycle). Invoked at the very top of
+// unbindInstance — while the bearer token + API_BASE_URL still resolve — so the
+// outgoing academy's device token is dropped and can't leak into the next one.
+let pushCleanup: (() => Promise<void>) | null = null;
+export function setPushCleanup(fn: (() => Promise<void>) | null): void {
+  pushCleanup = fn;
+}
+
 export async function unbindInstance(): Promise<void> {
+  // De-register this device's push token from the OUTGOING academy FIRST, while
+  // its scoped token + API_BASE_URL still resolve. Best-effort: a switch must
+  // never hang on (or fail because of) the network.
+  if (pushCleanup) {
+    try {
+      await pushCleanup();
+    } catch {
+      // ignore — proceed with the unbind regardless
+    }
+  }
   // The binding is changing — invalidate every in-memory per-instance cache
   // before anything else, so nothing can serve the outgoing instance's token
   // once this returns (see bindingEpoch above). Drop the retained binding name

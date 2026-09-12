@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Image,
   KeyboardAvoidingView,
@@ -7,6 +7,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -23,6 +24,7 @@ import { PASSWORD_MIN, STR } from "@lms/types";
 
 import { api } from "../api";
 import { useAuth } from "../auth";
+import { disablePush, enablePush, pushEnabledState } from "../push";
 import { Button } from "../components/Button";
 import { Chip } from "../components/Chip";
 import { ErrorState } from "../components/Screen";
@@ -123,6 +125,27 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwOk, setPwOk] = useState(false);
+
+  // Push notifications toggle. Reflects the OS permission on load; turning it on
+  // prompts (if needed) + registers this device, turning it off de-registers.
+  const [pushOn, setPushOn] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  useEffect(() => {
+    void pushEnabledState().then(setPushOn);
+  }, []);
+  const onTogglePush = useCallback(async (next: boolean) => {
+    setPushBusy(true);
+    try {
+      if (next) {
+        setPushOn(await enablePush());
+      } else {
+        await disablePush();
+        setPushOn(false);
+      }
+    } finally {
+      setPushBusy(false);
+    }
+  }, []);
 
   // Member self-cancel (period end). `cancelFor` drives the confirm modal.
   const [cancelFor, setCancelFor] = useState<SubscriptionDetailDTO | null>(
@@ -773,6 +796,27 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
               </View>
             </View>
 
+            {/* Push notifications: a single master toggle for P0 (per-category
+                preferences are a later phase). Priming happens on enable, not at
+                launch — mirrors the just-in-time photo permission above. */}
+            <View style={styles.card}>
+              <Text style={styles.heading}>Notifications</Text>
+              <View style={styles.moreRow}>
+                <View style={styles.pushLabel}>
+                  <Text style={styles.moreText}>Push notifications</Text>
+                  <Text style={styles.pushHint}>
+                    Replies from support and updates about your membership.
+                  </Text>
+                </View>
+                <Switch
+                  value={pushOn}
+                  onValueChange={(next) => void onTogglePush(next)}
+                  disabled={pushBusy}
+                  accessibilityLabel="Push notifications"
+                />
+              </View>
+            </View>
+
             {/* Certificates live on their own Ink Hero screen now; Blog moved
                 out of the tab bar, so both stay reachable from here. */}
             <View style={styles.card}>
@@ -1330,6 +1374,17 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     moreChevron: {
       color: colors.textMuted,
       fontSize: 18,
+      fontFamily: fonts.regular,
+    },
+    pushLabel: {
+      flex: 1,
+      paddingRight: spacing.md,
+    },
+    pushHint: {
+      color: colors.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+      marginTop: 2,
       fontFamily: fonts.regular,
     },
     note: {

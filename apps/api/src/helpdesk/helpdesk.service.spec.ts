@@ -34,12 +34,14 @@ function makeService(
   } as never;
   const appConfig = { read: async () => ({ title: "Spotlight" }) } as never;
   const config = { get: () => "https://members.example.com" } as never;
+  const push = { dispatch: async () => {} } as never;
   return new HelpdeskService(
     prismaOverrides as never,
     notifications,
     email,
     appConfig,
     config,
+    push,
   );
 }
 

@@ -78,6 +78,12 @@ const config = (): ExpoConfig => ({
         microphonePermission: false,
       },
     ],
+    // Push notifications: adds the iOS aps-environment entitlement + Android
+    // notification config. NATIVE change — ships only via a fresh eas build,
+    // never OTA. `color` tints the Android status-bar icon; a dedicated
+    // monochrome `icon` asset is a follow-up (Android falls back to the app
+    // icon until then).
+    ["expo-notifications", { color: "#101014" }],
   ],
   assetBundlePatterns: ["**/*"],
   ios: {
