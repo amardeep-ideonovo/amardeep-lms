@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import * as Notifications from "expo-notifications";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import type { LinkingOptions } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -24,6 +25,10 @@ import { ConfigProvider, useAppConfig } from "./src/config-provider";
 import { InstanceGate } from "./src/instance-gate";
 import { QueryProvider, QueryAuthReset } from "./src/query";
 import { navigationRef } from "./src/nav-ref";
+import { openAppHref } from "./src/links";
+// Side effects: sets the foreground notification handler + the unbind push
+// cleanup hook at module load. Must be imported before the first notification.
+import "./src/push";
 import { unlockTabletOrientation } from "./src/responsive";
 import { ThemeProvider, useTheme } from "./src/theme-provider";
 import { ErrorBoundary } from "./src/components/ErrorBoundary";
@@ -418,10 +423,86 @@ function RootNavigator() {
   return token == null ? <AuthNavigator /> : <AppNavigator />;
 }
 
+// A notification tapped while the app was killed/logged-out is parked here and
+// replayed once the member is authed and the navigator is ready (the AppNavigator
+// screens only exist when token != null — the documented cold-start limit).
+let pendingDeepLink: string | null = null;
+// getLastNotificationResponseAsync() returns the SAME cold-start tap forever, and
+// InstanceGate remounts this tree on every academy switch — so read it once per
+// JS process, or a stale tap replays into the next tenant.
+let coldStartTapHandled = false;
+
+// The href in a notification payload is untrusted. Only accept relative in-app
+// paths (e.g. "help/123", "account/payments"); reject any scheme or absolute /
+// protocol-relative URL so a push can't drive an open-redirect through
+// openAppHref (which opens foreign URLs in the external browser).
+function isSafeInternalHref(href: string): boolean {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return false; // scheme: http:, mailto:, lms:
+  if (href.startsWith("//")) return false; // protocol-relative
+  return true;
+}
+
+function hrefFromResponse(
+  resp: Notifications.NotificationResponse | null,
+): string | null {
+  const data = resp?.notification.request.content.data as
+    { href?: unknown } | undefined;
+  const href = typeof data?.href === "string" ? data.href : "";
+  return href && isSafeInternalHref(href) ? href : null;
+}
+
+function routeOrQueue(href: string, authed: boolean): void {
+  if (authed && navigationRef.isReady()) openAppHref(href);
+  else pendingDeepLink = href;
+}
+
 // Reads the active theme to build the navigation theme + status bar style. Lives
 // under ThemeProvider so it re-renders when the admin config / device theme changes.
 function ThemedApp() {
   const { mode, colors } = useTheme();
+  const { token } = useAuth();
+  // Keep the latest auth token readable from the (mount-once) tap listener
+  // without re-subscribing it on every token change.
+  const tokenRef = useRef(token);
+  useEffect(() => {
+    tokenRef.current = token;
+  }, [token]);
+
+  // Notification taps: route immediately when authed + ready, else queue for the
+  // drain effect below. Also picks up a tap that cold-started the app — but only
+  // once per process, so it can't replay into a later academy after a switch.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(
+      (resp) => {
+        const href = hrefFromResponse(resp);
+        if (href) routeOrQueue(href, tokenRef.current != null);
+      },
+    );
+    if (!coldStartTapHandled) {
+      coldStartTapHandled = true;
+      void Notifications.getLastNotificationResponseAsync().then((resp) => {
+        const href = hrefFromResponse(resp);
+        if (href) routeOrQueue(href, tokenRef.current != null);
+      });
+    }
+    return () => {
+      sub.remove();
+      // Academy switch remounts this tree — drop any queued tap so it can't
+      // drain into the next tenant.
+      pendingDeepLink = null;
+    };
+  }, []);
+
+  // Drain a queued deep link once the member is authed (the AppNavigator's
+  // screens now exist). The NavigationContainer is always mounted, so isReady()
+  // is true here.
+  useEffect(() => {
+    if (token && pendingDeepLink && navigationRef.isReady()) {
+      const href = pendingDeepLink;
+      pendingDeepLink = null;
+      openAppHref(href);
+    }
+  }, [token]);
   // Linking prefixes read the live WEB_BASE_URL — resolved by the instance
   // gate before this tree mounts (and this tree remounts per instance).
   const linking = useMemo(buildLinking, []);

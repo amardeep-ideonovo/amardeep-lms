@@ -31,6 +31,7 @@ model User {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   emailOptOut      Boolean  @default(false) // set by the email unsubscribe webhook
+  pushOptOut       Boolean  @default(false) // master switch: suppress all member push; mirrors emailOptOut
   tokenVersion     Int      @default(0) // bumped on password change/reset; invalidates live JWTs (see JwtStrategy)
   // Synthetic per-instance "preview member": lets an admin view the member site
   // without an account. Read-only (blocked by PreviewReadOnlyGuard), holds NO
@@ -46,6 +47,7 @@ model User {
   progress              LessonProgress[]
   certificates          Certificate[]
   helpdeskConversations HelpdeskConversation[]
+  deviceTokens          DeviceToken[]
 }
 
 enum AdminRole {
@@ -1792,4 +1794,39 @@ model HelpdeskSettings {
   maxOpenPerMember Int      @default(3)
   retentionDays    Int      @default(365) // terminal convos older than N are purged; 0 = keep forever
   updatedAt        DateTime @updatedAt
+}
+
+// ---------- Push notifications ----------
+
+// One row per (member, device). The mobile app registers its Expo push token
+// after login (POST /push/register) and de-registers on sign-out / academy
+// switch. Tokens live in each instance's own DB, so the DB is the tenant
+// boundary — no instanceId column. Pruned (disabled=true) when Expo reports the
+// token is no longer valid (DeviceNotRegistered).
+model DeviceToken {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expoPushToken String   @unique // ExponentPushToken[...] minted by the native build
+  platform      String // "ios" | "android"
+  appVersion    String? // reported at registration; helps triage delivery issues
+  disabled      Boolean  @default(false) // set true when Expo reports the token invalid
+  createdAt     DateTime @default(now())
+  lastSeenAt    DateTime @updatedAt // refreshed on every re-register
+
+  @@index([userId])
+}
+
+// Idempotency ledger for member push. A stable per-event dedupeKey (reusing each
+// emit-site's existing key: helpdesk seq / dunning eventKey / sub externalSubId)
+// makes a webhook replay or double-fire a no-op. Kept separate from
+// ScheduledEmail so the shared key namespaces can't collide with its @unique.
+model PushLog {
+  id        String   @id @default(cuid())
+  userId    String
+  category  String // "helpdesk-reply" | "payment-failed" | "subscription-active"
+  dedupeKey String   @unique
+  sentAt    DateTime @default(now())
+
+  @@index([userId])
 }
