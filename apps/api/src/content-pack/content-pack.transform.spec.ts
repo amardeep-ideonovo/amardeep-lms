@@ -7,9 +7,12 @@ import {
   rewriteRowOrigin,
   normalizeRowForImport,
   scrubFooterAudience,
+  scrubLegalUrls,
   serializePack,
   deserializePack,
+  isLegalPage,
   isSafeRelPath,
+  withoutLegalPages,
   PACK_FORMAT,
   PACK_FORMAT_VERSION,
 } from "./content-pack.transform";
@@ -17,6 +20,52 @@ import type { ContentPack } from "./content-pack.types";
 
 const DEMO = "https://api.demo.thewebpaanda.com";
 const TARGET = "https://acme-api.app.thewebpaanda.com";
+
+// ---------- per-academy legal pages stay out of the pack ----------
+
+test("isLegalPage matches the seeded templates by id prefix or reserved slug", () => {
+  assert.equal(isLegalPage({ id: "legal-privacy", slug: "privacy" }), true);
+  assert.equal(isLegalPage({ id: "legal-terms", slug: "terms" }), true);
+  assert.equal(isLegalPage({ id: "legal-refund", slug: "refund" }), true);
+  // an academy-authored page on a reserved slug is still that academy's policy
+  assert.equal(isLegalPage({ id: "ckq1abc", slug: "privacy" }), true);
+  assert.equal(isLegalPage({ id: "seed-page-about", slug: "about" }), false);
+  assert.equal(isLegalPage({}), false);
+});
+
+test("withoutLegalPages keeps the demo pages and drops the legal ones", () => {
+  const pages = [
+    { id: "seed-page-about", slug: "about" },
+    { id: "legal-privacy", slug: "privacy" },
+    { id: "seed-page-contact", slug: "contact" },
+    { id: "legal-terms", slug: "terms" },
+    { id: "legal-refund", slug: "refund" },
+  ];
+  assert.deepEqual(
+    withoutLegalPages(pages).map((p) => p.id),
+    ["seed-page-about", "seed-page-contact"],
+  );
+  assert.equal(pages.length, 5, "input is not mutated");
+});
+
+test("scrubLegalUrls drops only the legal link overrides", () => {
+  const cfg = {
+    title: "Demo",
+    privacyUrl: "https://demo.test/privacy",
+    termsUrl: "/terms",
+    logoUrl: `${TARGET}/media/logo.png`,
+  };
+  assert.deepEqual(scrubLegalUrls(cfg), {
+    title: "Demo",
+    logoUrl: `${TARGET}/media/logo.png`,
+  });
+  assert.equal(cfg.privacyUrl, "https://demo.test/privacy", "input untouched");
+  assert.deepEqual(scrubLegalUrls({ title: "Demo" }), { title: "Demo" });
+  assert.equal(scrubLegalUrls(null), null);
+  assert.equal(scrubLegalUrls("x"), "x");
+  const arr = [1];
+  assert.equal(scrubLegalUrls(arr), arr);
+});
 
 test("normalizeOrigin trims and strips trailing slashes", () => {
   assert.equal(normalizeOrigin("  https://x.test/  "), "https://x.test");

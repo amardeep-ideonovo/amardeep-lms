@@ -46,7 +46,9 @@ export interface PackManifest {
 // Row sets, stored as plain JSON (Prisma scalars; Date columns become ISO
 // strings). `levels` and `posts` additionally carry `categories: {id}[]` for
 // their implicit many-to-many, reconnected on import. `footer`/`appConfig` are
-// singletons and may be absent.
+// singletons and may be absent. `pages` never carries an academy's legal pages
+// (privacy/terms/refund, `legal-*` ids): the seed gives every academy its own
+// editable templates and a pack lands ON TOP of them (withoutLegalPages).
 export interface PackContent {
   levelCategories: PackRow[];
   certificateTemplates: PackRow[];

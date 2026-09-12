@@ -2980,7 +2980,9 @@ const LEGAL_PAGES: Array<{
 // baseline/one-shot early returns). Idempotent via the unique slug: an academy's
 // edits survive re-seeds, and a legal page that was deleted is restored (a member
 // surface must never be left with no policy). ids use a `legal-` prefix — NOT
-// `seed-page-` — so purgeDemoDebris() never removes them.
+// `seed-page-` — so purgeDemoDebris() never removes them. Content packs never
+// carry these pages and the pack import never counts them as content (apps/api
+// content-pack.transform withoutLegalPages): the demo catalog lands ON TOP.
 async function seedLegalPages(adminId: string): Promise<void> {
   const now = new Date();
   const res = await prisma.page.createMany({
