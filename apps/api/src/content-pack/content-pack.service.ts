@@ -18,7 +18,10 @@ import {
   normalizeRowForImport,
   rewriteRowOrigin,
   scrubFooterAudience,
+  scrubLegalUrls,
   serializePack,
+  withoutLegalPages,
+  LEGAL_PAGE_ID_PREFIX,
   PACK_FORMAT,
   PACK_FORMAT_VERSION,
 } from "./content-pack.transform";
@@ -193,7 +196,9 @@ export class ContentPackService {
       postCategories,
       tags,
       posts,
-      pages,
+      // The demo academy's own Privacy/Terms/Refund pages stay home: every
+      // target already has its seeded templates (see withoutLegalPages).
+      pages: withoutLegalPages(pages),
       forms,
       popups,
       headers,
@@ -315,7 +320,12 @@ export class ContentPackService {
     const counts = await Promise.all([
       this.prisma.level.count(),
       this.prisma.course.count(),
-      this.prisma.page.count(),
+      // Every academy boots with its 3 editable legal template pages (legal-*
+      // ids, seeded before the control plane can push a pack) — those are the
+      // academy's own identity, not content, and the pack lands on top of them.
+      this.prisma.page.count({
+        where: { NOT: { id: { startsWith: LEGAL_PAGE_ID_PREFIX } } },
+      }),
       this.prisma.post.count(),
       this.prisma.menu.count(),
       this.prisma.mediaAsset.count(),
@@ -459,7 +469,17 @@ export class ContentPackService {
       delete p.tags;
     });
 
-    const pages = norm("page", content.pages);
+    // Legal pages are never written from a pack: the target keeps the editable
+    // templates it was seeded with (same ids — writing them would collide).
+    // Export already omits them; this also lands a pack published before that.
+    const packPages = withoutLegalPages(content.pages);
+    if (packPages.length !== content.pages.length) {
+      this.log.log(
+        `skipping ${content.pages.length - packPages.length} legal page(s) ` +
+          `carried by the pack — the academy keeps its own`,
+      );
+    }
+    const pages = norm("page", packPages);
     const forms = norm("form", content.forms);
     const popups = norm("popup", content.popups);
     const headers = norm("header", content.headers);
@@ -479,6 +499,7 @@ export class ContentPackService {
           ownerAdminId,
         )
       : null;
+    if (appConfig) appConfig.config = scrubLegalUrls(appConfig.config);
 
     await this.prisma.$transaction(
       async (tx) => {

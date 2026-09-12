@@ -149,6 +149,51 @@ export function scrubFooterAudience(config: unknown): unknown {
   return config;
 }
 
+// ---------- per-academy legal pages ----------
+
+// The seed gives EVERY academy editable Privacy / Terms / Refund pages (ids
+// `legal-*`, slugs privacy/terms/refund — seedLegalPages in packages/db) so its
+// member surfaces always link its OWN policy. They are per-academy identity, not
+// sample content, and a pack lands ON TOP of them — so a pack must stay clear of
+// them in both directions: never ship the demo academy's copies (they would
+// collide with the target's freshly seeded rows, and carry the demo's filled-in
+// policy into every academy), and never count the seeded templates as "content"
+// when deciding whether an academy is still empty enough to seed.
+export const LEGAL_PAGE_ID_PREFIX = "legal-";
+export const LEGAL_PAGE_SLUGS: ReadonlySet<string> = new Set([
+  "privacy",
+  "terms",
+  "refund",
+]);
+
+export function isLegalPage(row: PackRow): boolean {
+  return (
+    (typeof row.id === "string" && row.id.startsWith(LEGAL_PAGE_ID_PREFIX)) ||
+    (typeof row.slug === "string" && LEGAL_PAGE_SLUGS.has(row.slug))
+  );
+}
+
+// Pack pages minus the legal ones — applied on export (so a pack never carries
+// them) AND on import (so a pack published before this rule still lands).
+export function withoutLegalPages(pages: PackRow[]): PackRow[] {
+  return pages.filter((p) => !isLegalPage(p));
+}
+
+// AppConfig.privacyUrl / termsUrl default to the academy's own /privacy and
+// /terms; only an override is stored. The demo's override must not redirect
+// every seeded academy's legal links to the demo's policy, so drop both and let
+// the target's defaults apply. Everything else in the config (branding, theme,
+// the rewritten logo URL) is kept.
+export function scrubLegalUrls(config: unknown): unknown {
+  if (!config || typeof config !== "object" || Array.isArray(config)) {
+    return config;
+  }
+  const c = { ...(config as Record<string, unknown>) };
+  delete c.privacyUrl;
+  delete c.termsUrl;
+  return c;
+}
+
 // ---------- archive (de)serialization ----------
 
 export function serializePack(pack: ContentPack): Buffer {
