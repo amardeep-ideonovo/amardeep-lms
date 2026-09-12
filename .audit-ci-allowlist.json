@@ -1,7 +1,7 @@
 {
   "$schema": "internal — consumed by scripts/audit-ci.mjs",
   "$comment": "Production (npm audit --omit=dev) HIGH advisories that are KNOWN and consciously deferred. The CI gate FAILS on any prod high NOT listed here (and on ANY prod critical, which is never allowlistable), so a NEW vulnerability blocks merge while these tracked ones do not. When you upgrade a dependency, delete its cleared entries (the gate warns about stale entries). Every entry needs a category + the reason it is deferred; impact is the advisory `title`.",
-  "reviewedOn": "2026-09-05",
+  "reviewedOn": "2026-09-12",
   "policy": {
     "omitDev": true,
     "failOn": ["high", "critical"],
@@ -18,30 +18,12 @@
       "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
     },
     {
-      "ghsa": "GHSA-5528-5vmv-3xc2",
-      "url": "https://github.com/advisories/GHSA-5528-5vmv-3xc2",
-      "severity": "high",
-      "packages": ["multer"],
-      "category": "major-upgrade",
-      "title": "Multer Vulnerable to Denial of Service via Uncontrolled Recursion",
-      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
-    },
-    {
       "ghsa": "GHSA-6g55-p6wh-862q",
       "url": "https://github.com/advisories/GHSA-6g55-p6wh-862q",
       "severity": "high",
       "packages": ["postcss"],
       "category": "major-upgrade",
       "title": "PostCSS: Arbitrary file read and information disclosure via attacker-controlled sourceMappingURL in CSS comments",
-      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
-    },
-    {
-      "ghsa": "GHSA-72gw-mp4g-v24j",
-      "url": "https://github.com/advisories/GHSA-72gw-mp4g-v24j",
-      "severity": "high",
-      "packages": ["multer"],
-      "category": "major-upgrade",
-      "title": "Multer vulnerable to Denial of Service via deeply nested field names",
       "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
     },
     {
@@ -132,24 +114,6 @@
       "packages": ["lodash"],
       "category": "major-upgrade",
       "title": "lodash vulnerable to Code Injection via `_.template` imports key names",
-      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
-    },
-    {
-      "ghsa": "GHSA-v52c-386h-88mc",
-      "url": "https://github.com/advisories/GHSA-v52c-386h-88mc",
-      "severity": "high",
-      "packages": ["multer"],
-      "category": "major-upgrade",
-      "title": "Multer vulnerable to Denial of Service via resource exhaustion",
-      "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
-    },
-    {
-      "ghsa": "GHSA-xf7r-hgr6-v32p",
-      "url": "https://github.com/advisories/GHSA-xf7r-hgr6-v32p",
-      "severity": "high",
-      "packages": ["multer"],
-      "category": "major-upgrade",
-      "title": "Multer vulnerable to Denial of Service via incomplete cleanup",
       "note": "Fix requires a BREAKING major upgrade, tracked separately (Next 16 + React 19 [see react19-upgrade memory]; NestJS 11; MJML 5; lodash/multer/html-minifier majors). Out of scope for a patch pass. Impact: see title."
     },
     {
