@@ -105,7 +105,10 @@ const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 // Bottom-tab icon (Ionicons, bundled with Expo) + the Ink Hero active marker:
-// an 18×3 underline pill under the focused icon (design tab-bar spec).
+// an 18×3 underline pill under the focused icon (design tab-bar spec). The
+// active tint (icon + label) is the AA-safe brand accent (colors.primarySoft,
+// set on the navigator), and the pill uses the raw brand primary for a touch
+// more vibrancy — so the bar re-tints per academy instead of a static ink.
 function TabIcon({
   name,
   color,
@@ -115,13 +118,14 @@ function TabIcon({
   color: string;
   focused: boolean;
 }) {
+  const { colors } = useTheme();
   return (
     <View style={styles.tabIconWrap}>
       <Ionicons name={name} size={21} color={color} />
       <View
         style={[
           styles.tabPill,
-          { backgroundColor: focused ? color : "transparent" },
+          { backgroundColor: focused ? colors.primary : "transparent" },
         ]}
       />
     </View>
@@ -154,12 +158,15 @@ function MainTabs() {
         headerTitleAlign: "center",
         headerShadowVisible: false,
         headerTitleStyle: { fontFamily: fonts.semibold, fontSize: 17 },
-        // Light surface bar, soft top hairline, ink active / muted inactive.
+        // Light surface bar, soft top hairline, brand-tinted active / muted
+        // inactive. The active tint is primarySoft (the AA-darkened brand accent
+        // that stays legible on the light bar), so the tab bar tracks the
+        // academy's palette instead of a fixed ink color.
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.borderSoft,
         },
-        tabBarActiveTintColor: colors.text,
+        tabBarActiveTintColor: colors.primarySoft,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 11 },
       }}
