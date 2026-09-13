@@ -14,8 +14,19 @@ const BAD = "ExponentPushToken[bad]";
 // Minimal prisma double: each test overrides only the delegates it exercises.
 function makePrisma(over: Record<string, unknown> = {}): any {
   return {
-    user: { findUnique: async () => ({ pushOptOut: false }) },
-    pushLog: { create: async () => ({}) },
+    user: {
+      findUnique: async () => ({ pushOptOut: false }),
+      findMany: async () => [] as { id: string }[],
+    },
+    pushLog: {
+      create: async () => ({}),
+      createMany: async () => ({ count: 0 }),
+    },
+    pushOutbox: {
+      create: async () => ({}),
+      findMany: async () => [] as unknown[],
+      updateMany: async () => ({ count: 1 }),
+    },
     deviceToken: {
       findMany: async () => [] as { expoPushToken: string }[],
       updateMany: async () => ({ count: 0 }),
@@ -210,6 +221,137 @@ test("non-billing categories (e.g. certificate-ready) are NOT steering-stripped"
   });
   assert.equal(sent.length, 1);
   assert.equal(sent[0].body, body, "cert copy must pass through verbatim");
+});
+
+test("dispatchToLevels enqueues one PushOutbox row (resolve at drain)", async () => {
+  let created: any = null;
+  const prisma = makePrisma({
+    pushOutbox: {
+      ...makePrisma().pushOutbox,
+      create: async (a: any) => {
+        created = a;
+        return {};
+      },
+    },
+  });
+  const svc = new PushService(prisma);
+  await svc.dispatchToLevels(["L1", "L2"], {
+    category: "new-course",
+    body: "New course",
+    href: "courses/c1",
+    dedupePrefix: "new-course:c1",
+  });
+  assert.equal(created.data.dedupePrefix, "new-course:c1");
+  assert.deepEqual(created.data.levelIds, ["L1", "L2"]);
+  assert.equal(created.data.broadcast, false);
+});
+
+test("dispatchToLevels swallows a duplicate enqueue (unique dedupePrefix)", async () => {
+  const prisma = makePrisma({
+    pushOutbox: {
+      ...makePrisma().pushOutbox,
+      create: async () => {
+        throw new Error("Unique constraint failed");
+      },
+    },
+  });
+  const svc = new PushService(prisma);
+  await svc.dispatchToLevels(["L1"], {
+    category: "new-course",
+    body: "b",
+    href: "courses/c1",
+    dedupePrefix: "dup",
+  });
+  assert.ok(true, "must not throw into the emit-site");
+});
+
+test("drainPushOutbox claims a row, resolves the audience, and delivers", async () => {
+  const claimed: string[] = [];
+  let logged: string[] = [];
+  const prisma = makePrisma({
+    pushOutbox: {
+      ...makePrisma().pushOutbox,
+      findMany: async () => [
+        {
+          id: "o1",
+          category: "new-course",
+          title: null,
+          body: "New course",
+          href: "courses/c1",
+          levelIds: ["L1"],
+          broadcast: false,
+          dedupePrefix: "new-course:c1",
+        },
+      ],
+      updateMany: async ({ where, data }: any) => {
+        if (data.status === "SENT") claimed.push(where.id);
+        return { count: 1 };
+      },
+    },
+    user: {
+      ...makePrisma().user,
+      findMany: async () => [{ id: "u1" }, { id: "u2" }],
+    },
+    pushLog: {
+      ...makePrisma().pushLog,
+      createMany: async ({ data }: any) => {
+        logged = data.map((d: any) => d.userId);
+        return { count: data.length };
+      },
+    },
+    deviceToken: {
+      ...makePrisma().deviceToken,
+      findMany: async () => [{ expoPushToken: GOOD }],
+    },
+  });
+  const svc = new PushService(prisma);
+  const sent = stubExpo(svc, (chunk) => chunk.map(() => ({ status: "ok" })));
+  await svc.drainPushOutbox();
+  assert.deepEqual(claimed, ["o1"], "row claimed PENDING->SENT");
+  assert.deepEqual(logged, ["u1", "u2"], "one PushLog row per recipient");
+  assert.equal(sent.length, 1, "delivered to the cohort's tokens");
+  assert.equal(sent[0].data.href, "courses/c1");
+});
+
+test("drainPushOutbox: a non-broadcast row with no levels notifies nobody", async () => {
+  let userQueried = false;
+  const prisma = makePrisma({
+    pushOutbox: {
+      ...makePrisma().pushOutbox,
+      findMany: async () => [
+        {
+          id: "o2",
+          category: "new-course",
+          title: null,
+          body: "b",
+          href: "courses/c2",
+          levelIds: [],
+          broadcast: false,
+          dedupePrefix: "new-course:c2",
+        },
+      ],
+    },
+    user: {
+      ...makePrisma().user,
+      findMany: async () => {
+        userQueried = true;
+        return [];
+      },
+    },
+    deviceToken: {
+      ...makePrisma().deviceToken,
+      findMany: async () => [{ expoPushToken: GOOD }],
+    },
+  });
+  const svc = new PushService(prisma);
+  const sent = stubExpo(svc, () => []);
+  await svc.drainPushOutbox();
+  assert.equal(
+    userQueried,
+    false,
+    "empty non-broadcast short-circuits before the audience query",
+  );
+  assert.equal(sent.length, 0);
 });
 
 test("register ignores a non-Expo token", async () => {

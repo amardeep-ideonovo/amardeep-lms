@@ -1,4 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
+import type { Prisma } from "@prisma/client";
 import {
   Expo,
   type ExpoPushMessage,
@@ -7,14 +9,15 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import type { RegisterDeviceTokenDto } from "./dto/register-device-token.dto";
 
-// The member push categories P0 ships. Kept as a local union (the API consumes
+// The member push categories. Kept as a local union (the API consumes
 // @lms/types as TYPES only and cannot import runtime values from it).
 export type PushCategory =
   | "helpdesk-reply"
   | "payment-failed"
   | "subscription-active"
   | "certificate-issued"
-  | "certificate-ready";
+  | "certificate-ready"
+  | "new-course";
 
 export interface PushDispatchInput {
   userId: string;
@@ -26,6 +29,28 @@ export interface PushDispatchInput {
   /** Stable per-event key so a webhook replay / double-fire is a no-op. */
   dedupeKey: string;
   /** Notification title; defaults to the per-academy brand. */
+  title?: string;
+}
+
+// A fan-out send to everyone entitled to a set of Classes (Levels), enqueued to
+// the PushOutbox and delivered by the drain cron.
+export interface PushFanoutInput {
+  category: PushCategory;
+  body: string;
+  href: string;
+  /** Per-event key; the per-recipient PushLog key is `<dedupePrefix>:<userId>`. */
+  dedupePrefix: string;
+  title?: string;
+  /** true => all members with >=1 active grant (open-course / all-members). */
+  broadcast?: boolean;
+}
+
+// A device push token belongs to a live member (FK), and the batch send resolves
+// the notification body once for the whole cohort.
+interface DeliverPayload {
+  category: PushCategory;
+  body: string;
+  href: string;
   title?: string;
 }
 
@@ -133,45 +158,209 @@ export class PushService {
         return; // duplicate dedupeKey — already sent
       }
 
-      const tokens = await this.prisma.deviceToken.findMany({
-        where: { userId: input.userId, disabled: false },
-        select: { expoPushToken: true },
+      await this.deliverToUsers([input.userId], {
+        category: input.category,
+        body: input.body,
+        href: input.href,
+        title: input.title,
       });
-      if (tokens.length === 0) return;
-
-      const title = (input.title ?? (await this.brandTitle())).trim();
-      const body = BILLING_CATEGORIES.has(input.category)
-        ? stripSteering(input.body)
-        : input.body;
-
-      const messages: ExpoPushMessage[] = tokens
-        .filter((t) => Expo.isExpoPushToken(t.expoPushToken))
-        .map((t) => ({
-          to: t.expoPushToken,
-          title,
-          body,
-          data: { href: input.href, category: input.category },
-          sound: "default",
-          priority: "high",
-        }));
-      if (messages.length === 0) return;
-
-      for (const chunk of this.expo.chunkPushNotifications(messages)) {
-        try {
-          const tickets = await this.expo.sendPushNotificationsAsync(chunk);
-          await this.pruneInvalidTokens(chunk, tickets);
-        } catch (err) {
-          this.logger.warn(
-            `[push] send chunk failed: ${err instanceof Error ? err.message : err}`,
-          );
-        }
-      }
     } catch (err) {
       this.logger.warn(
         `[push] dispatch ${input.category} failed for ${input.userId}: ${
           err instanceof Error ? err.message : err
         }`,
       );
+    }
+  }
+
+  // ---------- Fan-out (content / live) ----------
+
+  // Enqueue a fan-out to everyone entitled to `levelIds` (best-effort). Returns
+  // immediately — the minute-cron drain resolves the audience and sends, so the
+  // admin publish / cron tick never blocks on ~500 recipients. Idempotent on
+  // dedupePrefix: a re-enqueue of the same event is a no-op.
+  async dispatchToLevels(
+    levelIds: string[],
+    input: PushFanoutInput,
+  ): Promise<void> {
+    try {
+      await this.prisma.pushOutbox.create({
+        data: {
+          category: input.category,
+          title: input.title ?? null,
+          body: input.body,
+          href: input.href,
+          levelIds,
+          broadcast: input.broadcast ?? false,
+          dedupePrefix: input.dedupePrefix,
+        },
+      });
+    } catch {
+      // Duplicate dedupePrefix (already enqueued) or a transient DB error —
+      // best-effort, never throw into the emit-site.
+    }
+  }
+
+  // Members entitled to ANY of `levelIds` (or, when broadcast, any member with
+  // >=1 active grant), excluding preview members and push opt-outs. Mirrors the
+  // access predicate (status ACTIVE AND not-expired) — a grant stays ACTIVE with
+  // an expiresAt during dunning grace, so status alone would over-include.
+  // Querying User (not UserLevel) dedupes to one id per member. Keyset-paged.
+  private async resolveEntitledMembers(
+    levelIds: string[],
+    broadcast: boolean,
+  ): Promise<string[]> {
+    // A non-broadcast fan-out with no levels targets nobody (never everybody).
+    if (!broadcast && levelIds.length === 0) return [];
+    const now = new Date();
+    const grant: Prisma.UserLevelWhereInput = broadcast
+      ? {
+          status: "ACTIVE",
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        }
+      : {
+          levelId: { in: levelIds },
+          status: "ACTIVE",
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        };
+    const where: Prisma.UserWhereInput = {
+      isPreview: false,
+      pushOptOut: false,
+      levels: { some: grant },
+    };
+    const ids: string[] = [];
+    let cursor: string | undefined;
+    for (;;) {
+      const page = await this.prisma.user.findMany({
+        where,
+        select: { id: true },
+        orderBy: { id: "asc" },
+        take: 1000,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      });
+      if (page.length === 0) break;
+      for (const u of page) ids.push(u.id);
+      if (page.length < 1000) break;
+      cursor = page[page.length - 1].id;
+    }
+    return ids;
+  }
+
+  // Drain the fan-out outbox once a minute. Coexists with the email drains
+  // (ScheduleModule is app-wide). Each row is CLAIMED with a guarded updateMany
+  // (PENDING -> SENT) so an overlapping tick / second instance can't double-send;
+  // only the worker that matched (count===1) proceeds. Marked SENT before the
+  // send (like the email drain) because per-recipient PushLog rows are the
+  // idempotency ledger and push is a best-effort supplement to the email.
+  private draining = false;
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async drainPushOutbox(): Promise<void> {
+    if (this.draining) return;
+    this.draining = true;
+    try {
+      const now = new Date();
+      const due = await this.prisma.pushOutbox.findMany({
+        where: { status: "PENDING", sendAt: { lte: now } },
+        orderBy: { sendAt: "asc" },
+        take: 50,
+      });
+      for (const row of due) {
+        const claim = await this.prisma.pushOutbox.updateMany({
+          where: { id: row.id, status: "PENDING" },
+          data: {
+            status: "SENT",
+            sentAt: new Date(),
+            attempts: { increment: 1 },
+          },
+        });
+        if (claim.count !== 1) continue; // lost the race
+        try {
+          const userIds = await this.resolveEntitledMembers(
+            row.levelIds,
+            row.broadcast,
+          );
+          if (userIds.length === 0) continue;
+          // Per-recipient idempotency ledger — a re-drain skips already-logged
+          // members. skipDuplicates makes the whole batch a no-op on replay.
+          await this.prisma.pushLog.createMany({
+            data: userIds.map((userId) => ({
+              userId,
+              category: row.category,
+              dedupeKey: `${row.dedupePrefix}:${userId}`,
+            })),
+            skipDuplicates: true,
+          });
+          await this.deliverToUsers(userIds, {
+            category: row.category as PushCategory,
+            body: row.body,
+            href: row.href,
+            title: row.title ?? undefined,
+          });
+        } catch (err) {
+          await this.prisma.pushOutbox.updateMany({
+            where: { id: row.id },
+            data: {
+              status: "FAILED",
+              error: String(err instanceof Error ? err.message : err).slice(
+                0,
+                500,
+              ),
+            },
+          });
+        }
+      }
+    } catch (err) {
+      this.logger.warn(
+        `[push] outbox drain failed: ${err instanceof Error ? err.message : err}`,
+      );
+    } finally {
+      this.draining = false;
+    }
+  }
+
+  // ---------- Delivery (shared by 1:1 dispatch and fan-out drain) ----------
+
+  // Load every non-disabled token for the cohort, build one chunked Expo send,
+  // and prune tokens Expo rejects. Body is anti-steering-stripped for billing
+  // categories; the title defaults to the per-academy brand (resolved once).
+  private async deliverToUsers(
+    userIds: string[],
+    payload: DeliverPayload,
+  ): Promise<void> {
+    if (userIds.length === 0) return;
+    const tokens = await this.prisma.deviceToken.findMany({
+      where: { userId: { in: userIds }, disabled: false },
+      select: { expoPushToken: true },
+    });
+    if (tokens.length === 0) return;
+
+    const title = (payload.title ?? (await this.brandTitle())).trim();
+    const body = BILLING_CATEGORIES.has(payload.category)
+      ? stripSteering(payload.body)
+      : payload.body;
+
+    const messages: ExpoPushMessage[] = tokens
+      .filter((t) => Expo.isExpoPushToken(t.expoPushToken))
+      .map((t) => ({
+        to: t.expoPushToken,
+        title,
+        body,
+        data: { href: payload.href, category: payload.category },
+        sound: "default",
+        priority: "high",
+      }));
+    if (messages.length === 0) return;
+
+    for (const chunk of this.expo.chunkPushNotifications(messages)) {
+      try {
+        const tickets = await this.expo.sendPushNotificationsAsync(chunk);
+        await this.pruneInvalidTokens(chunk, tickets);
+      } catch (err) {
+        this.logger.warn(
+          `[push] send chunk failed: ${err instanceof Error ? err.message : err}`,
+        );
+      }
     }
   }
 

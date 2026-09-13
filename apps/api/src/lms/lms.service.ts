@@ -248,6 +248,22 @@ export class LmsService {
       where: { id: course.id },
       include: LmsService.COURSE_CARD_INCLUDE,
     });
+    // A genuine draft->published transition makes this course visible to members
+    // of its Class(es) for the first time — fan a push out to them (best-effort).
+    // `existing.published` is the pre-update state (findUnique include returns all
+    // scalars), so re-saving an already-published course never re-notifies. Skip
+    // archived courses. Audience = holders of the FINAL level links (fresh), not
+    // dto.levelIds (which is optional on update). Empty levels => nobody (an
+    // unassigned course does not blast every member).
+    if (!existing.published && fresh.published && !fresh.archivedAt) {
+      const levelIds = fresh.courseLevels.map((cl) => cl.levelId);
+      void this.push.dispatchToLevels(levelIds, {
+        category: "new-course",
+        body: `New course added: "${fresh.title}".`,
+        href: `courses/${fresh.id}`,
+        dedupePrefix: `new-course:${fresh.id}`,
+      });
+    }
     return this.toCourseCard(fresh, null);
   }
 
