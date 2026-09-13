@@ -35,6 +35,7 @@ import {
   classAccent,
 } from "../class-colors";
 import { BrandHeaderTitle } from "../components/BrandHeaderTitle";
+import { HERO_OVERLAP } from "../components/HeroScaffold";
 import { ClassTile } from "../components/ClassTile";
 import { CtaButton } from "../components/CtaButton";
 import { LiveSessionBar } from "../components/LiveSessionBar";
@@ -506,7 +507,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       backgroundColor: colors.chrome,
       paddingBottom: 58,
     },
-    bandInner: { paddingHorizontal: 18, ...contentColumn },
+    bandInner: { paddingHorizontal: spacing.md, ...contentColumn },
     brandRow: { flexDirection: "row", alignItems: "center", gap: 9 },
     brandSpacer: { flex: 1 },
     avatar: {
@@ -550,10 +551,10 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontFamily: fonts.semibold,
     },
 
-    // Content column overlapping the band (phone gutter 16, overlap -46).
+    // Content column overlapping the band (phone gutter 16, shared HERO_OVERLAP).
     overlapWrap: {
-      paddingHorizontal: 16,
-      marginTop: -46,
+      paddingHorizontal: spacing.md,
+      marginTop: -HERO_OVERLAP,
       gap: spacing.md,
       ...contentColumn,
     },
