@@ -27,6 +27,11 @@ function makePrisma(over: Record<string, unknown> = {}): any {
       findMany: async () => [] as unknown[],
       updateMany: async () => ({ count: 1 }),
     },
+    pushReceipt: {
+      findMany: async () => [] as unknown[],
+      createMany: async () => ({ count: 0 }),
+      updateMany: async () => ({ count: 0 }),
+    },
     deviceToken: {
       findMany: async () => [] as { expoPushToken: string }[],
       updateMany: async () => ({ count: 0 }),
@@ -393,6 +398,80 @@ test("dispatchToLevelsCoalesced buckets same-window adds to one key", async () =
   created.length = 0;
   await svc.dispatchToLevelsCoalesced(["L1"], input, W, 4 * W + 100);
   assert.equal(created[0].dedupePrefix, "new-lesson:c1:4");
+});
+
+test("deliver records a PushReceipt for each accepted (ok) ticket", async () => {
+  const receipts: any[] = [];
+  const prisma = makePrisma({
+    deviceToken: {
+      ...makePrisma().deviceToken,
+      findMany: async () => [{ expoPushToken: GOOD }],
+    },
+    pushReceipt: {
+      ...makePrisma().pushReceipt,
+      createMany: async ({ data }: any) => {
+        receipts.push(...data);
+        return { count: data.length };
+      },
+    },
+  });
+  const svc = new PushService(prisma);
+  stubExpo(svc, (chunk) => chunk.map(() => ({ status: "ok", id: "rcpt1" })));
+  await svc.dispatch({
+    userId: "u1",
+    category: "helpdesk-reply",
+    body: "hi",
+    href: "help/1",
+    dedupeKey: "kR",
+  });
+  assert.equal(receipts.length, 1);
+  assert.equal(receipts[0].receiptId, "rcpt1");
+  assert.equal(receipts[0].expoPushToken, GOOD);
+  assert.ok(receipts[0].checkAfter instanceof Date);
+});
+
+test("drainPushReceipts disables DeviceNotRegistered tokens; leaves not-ready ones PENDING", async () => {
+  const disabled: string[] = [];
+  let resolvedIds: string[] = [];
+  const prisma = makePrisma({
+    pushReceipt: {
+      ...makePrisma().pushReceipt,
+      findMany: async () => [
+        { receiptId: "r1", expoPushToken: GOOD }, // Expo won't return this one
+        { receiptId: "r2", expoPushToken: BAD }, // DeviceNotRegistered
+      ],
+      updateMany: async ({ where }: any) => {
+        if (where.receiptId?.in) resolvedIds = where.receiptId.in;
+        return { count: 1 };
+      },
+    },
+    deviceToken: {
+      ...makePrisma().deviceToken,
+      updateMany: async ({ where }: any) => {
+        disabled.push(...where.expoPushToken.in);
+        return { count: where.expoPushToken.in.length };
+      },
+    },
+  });
+  const svc = new PushService(prisma);
+  (svc as any).expo = {
+    chunkPushNotificationReceiptIds: (ids: string[]) => [ids],
+    getPushNotificationReceiptsAsync: async () => ({
+      // r1 absent => "not ready"; only r2 comes back, as an error.
+      r2: { status: "error", details: { error: "DeviceNotRegistered" } },
+    }),
+  };
+  await svc.drainPushReceipts();
+  assert.deepEqual(
+    disabled,
+    [BAD],
+    "only the DeviceNotRegistered token is disabled",
+  );
+  assert.deepEqual(
+    resolvedIds,
+    ["r2"],
+    "only the returned receipt is marked DONE (r1 stays PENDING)",
+  );
 });
 
 test("register ignores a non-Expo token", async () => {
