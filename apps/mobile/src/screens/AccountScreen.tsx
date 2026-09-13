@@ -41,6 +41,7 @@ import {
   qk,
   useMe,
   useMySubscriptionDetails,
+  useNotificationsUnread,
   useRefreshOnFocus,
 } from "../queries";
 import { contentColumn, formColumn } from "../responsive";
@@ -108,6 +109,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   // the `me` read is fatal.
   const meQuery = useMe();
   const subsQuery = useMySubscriptionDetails();
+  const unread = useNotificationsUnread().data?.count ?? 0;
   const user = meQuery.data ?? null;
   const subs: SubscriptionDetailDTO[] = subsQuery.data ?? [];
   const legal = legalLinks(config);
@@ -839,6 +841,22 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                 <Text style={styles.heading}>More</Text>
                 <TouchableOpacity
                   style={styles.moreRow}
+                  onPress={() => navigation.navigate("Notifications")}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.moreText}>Notifications</Text>
+                  <View style={styles.moreRight}>
+                    {unread > 0 ? (
+                      <Text style={styles.moreBadge}>
+                        {unread > 99 ? "99+" : unread}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.moreChevron}>›</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.moreRow, styles.moreRowDivider]}
                   onPress={() => navigation.navigate("Certificates")}
                   activeOpacity={0.7}
                   accessibilityRole="button"
@@ -1480,6 +1498,24 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       color: colors.textMuted,
       fontSize: 18,
       fontFamily: fonts.regular,
+    },
+    moreRight: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    moreBadge: {
+      minWidth: 20,
+      textAlign: "center",
+      color: "#fff",
+      backgroundColor: colors.primary,
+      fontSize: 12,
+      fontWeight: "700",
+      fontFamily: fonts.semibold,
+      borderRadius: 10,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+      overflow: "hidden",
     },
     pushLabel: {
       flex: 1,

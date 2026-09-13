@@ -45,6 +45,9 @@ export const qk = {
   helpdeskArticles: ["helpdeskArticles"] as const,
   helpdeskConversations: ["helpdeskConversations"] as const,
   helpdeskThread: (id: string) => ["helpdeskThread", id] as const,
+  // In-app notification inbox.
+  notifications: ["notifications"] as const,
+  notificationsUnread: ["notificationsUnread"] as const,
 };
 
 // ---------- read hooks ----------
@@ -264,5 +267,25 @@ export function useHelpdeskThread(id: string | null) {
     queryFn: () => api.helpdeskThread(id as string),
     enabled: !!id,
     refetchInterval: id ? 10_000 : false,
+  });
+}
+
+// In-app notification inbox feed (first page). Revalidates on mount/focus like
+// the other member reads.
+export function useNotifications() {
+  return useQuery({
+    queryKey: qk.notifications,
+    queryFn: () => api.notifications(),
+  });
+}
+
+// Unread count for the Profile-tab badge. Polled so the badge stays live while
+// the app is open (a push may arrive; the drain runs every minute); the shared
+// cache dedupes this across the tab bar and the inbox screen.
+export function useNotificationsUnread() {
+  return useQuery({
+    queryKey: qk.notificationsUnread,
+    queryFn: api.notificationsUnreadCount,
+    refetchInterval: 60_000,
   });
 }

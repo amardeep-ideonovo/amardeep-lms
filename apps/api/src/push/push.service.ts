@@ -7,6 +7,7 @@ import {
   type ExpoPushTicket,
 } from "expo-server-sdk";
 import { PrismaService } from "../prisma/prisma.service";
+import { MemberNotificationsService } from "../notifications/member-notifications.service";
 import type { RegisterDeviceTokenDto } from "./dto/register-device-token.dto";
 
 // The member push categories. Kept as a local union (the API consumes
@@ -18,7 +19,9 @@ export type PushCategory =
   | "certificate-issued"
   | "certificate-ready"
   | "new-course"
-  | "new-lesson";
+  | "new-lesson"
+  | "live-starting-soon"
+  | "live-now";
 
 export interface PushDispatchInput {
   userId: string;
@@ -51,6 +54,17 @@ export interface PushFanoutInput {
 // Default tumbling window for coalesced fan-outs (new-lesson): bursts of adds to
 // one course inside the same window collapse to a single delayed push.
 export const COALESCE_WINDOW_MS = 15 * 60 * 1000;
+
+// Expo recommends waiting ~15 min before fetching a delivery receipt, then a
+// PENDING receipt Expo never returns is reaped after this age (a missing id
+// means "not ready", so we only reap by age — see drainPushReceipts).
+const RECEIPT_CHECK_DELAY_MS = 15 * 60 * 1000;
+const RECEIPT_GIVE_UP_MS = 48 * 60 * 60 * 1000;
+
+// A fan-out row that keeps failing (e.g. the inbox write) is retried this many
+// times before it is parked as FAILED, so a permanently-bad row can't retry
+// forever.
+const MAX_OUTBOX_ATTEMPTS = 5;
 
 // A device push token belongs to a live member (FK), and the batch send resolves
 // the notification body once for the whole cohort.
@@ -95,7 +109,10 @@ export class PushService {
     useFcmV1: true,
   });
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly memberNotifications: MemberNotificationsService,
+  ) {}
 
   // ---------- Registration (member-facing) ----------
 
@@ -147,12 +164,29 @@ export class PushService {
         where: { id: input.userId },
         select: { pushOptOut: true },
       });
-      if (!user || user.pushOptOut) return;
+      if (!user) return;
 
-      // Idempotency: the unique dedupeKey collapses concurrent webhook replays —
-      // the first create wins, any duplicate throws P2002 and we bail. (Mirrors
-      // the email engine's "record then send"; push is a best-effort supplement
-      // to the transactional email, so record-before-send is acceptable.)
+      const title = (input.title ?? (await this.brandTitle())).trim();
+      const body = BILLING_CATEGORIES.has(input.category)
+        ? stripSteering(input.body)
+        : input.body;
+
+      // Durable inbox row FIRST — recorded even when the member opted out of OS
+      // push or has no device, so the in-app inbox + badge are independent of
+      // push delivery. Idempotent on dedupeKey.
+      await this.memberNotifications.record({
+        userId: input.userId,
+        category: input.category,
+        title,
+        body,
+        href: input.href,
+        dedupeKey: input.dedupeKey,
+      });
+
+      if (user.pushOptOut) return; // inbox recorded; skip the OS push
+
+      // Push idempotency: the unique dedupeKey collapses concurrent webhook
+      // replays — the first create wins, any duplicate throws P2002 and we bail.
       try {
         await this.prisma.pushLog.create({
           data: {
@@ -167,9 +201,9 @@ export class PushService {
 
       await this.deliverToUsers([input.userId], {
         category: input.category,
-        body: input.body,
+        body,
         href: input.href,
-        title: input.title,
+        title,
       });
     } catch (err) {
       this.logger.warn(
@@ -190,6 +224,19 @@ export class PushService {
     levelIds: string[],
     input: PushFanoutInput,
   ): Promise<void> {
+    // Fire-and-forget for content emit-sites (the boolean is for callers that
+    // gate on a confirmed enqueue, e.g. the live cron's marker).
+    await this.enqueueFanout(levelIds, input);
+  }
+
+  // Enqueue one fan-out row. Returns true when the row is present after the call
+  // — created now OR already there (a unique-violation on dedupePrefix is an
+  // idempotent success) — and false only on a transient error the caller may
+  // retry. Never throws.
+  async enqueueFanout(
+    levelIds: string[],
+    input: PushFanoutInput,
+  ): Promise<boolean> {
     try {
       await this.prisma.pushOutbox.create({
         data: {
@@ -203,9 +250,17 @@ export class PushService {
           sendAt: input.sendAt,
         },
       });
-    } catch {
-      // Duplicate dedupePrefix (already enqueued) or a transient DB error —
-      // best-effort, never throw into the emit-site.
+      return true;
+    } catch (err) {
+      // P2002 = already enqueued (dedupePrefix unique) => idempotent success.
+      const code = (err as { code?: unknown } | null)?.code;
+      if (code === "P2002") return true;
+      this.logger.warn(
+        `[push] fan-out enqueue failed (${input.dedupePrefix}): ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+      return false;
     }
   }
 
@@ -243,7 +298,7 @@ export class PushService {
   private async resolveEntitledMembers(
     levelIds: string[],
     broadcast: boolean,
-  ): Promise<string[]> {
+  ): Promise<{ id: string; pushOptOut: boolean }[]> {
     // A non-broadcast fan-out with no levels targets nobody (never everybody).
     if (!broadcast && levelIds.length === 0) return [];
     const now = new Date();
@@ -257,29 +312,31 @@ export class PushService {
           status: "ACTIVE",
           OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         };
+    // NOTE: pushOptOut is NOT filtered here — opted-out members still get the
+    // durable inbox row; the caller sends OS push only to the !pushOptOut subset.
     const base: Prisma.UserWhereInput = {
       isPreview: false,
-      pushOptOut: false,
       levels: { some: grant },
     };
-    const ids: string[] = [];
+    const members: { id: string; pushOptOut: boolean }[] = [];
     let cursor: string | undefined;
     for (;;) {
       // Pure keyset (id > cursor), NOT cursor+skip:1 — a value comparison that
-      // stays correct even if the boundary member is deleted / opts out / expires
-      // between pages (cursor+skip would then OFFSET past a real recipient).
+      // stays correct even if the boundary member is deleted / expires between
+      // pages (cursor+skip would then OFFSET past a real recipient).
       const page = await this.prisma.user.findMany({
         where: cursor ? { AND: [base, { id: { gt: cursor } }] } : base,
-        select: { id: true },
+        select: { id: true, pushOptOut: true },
         orderBy: { id: "asc" },
         take: 1000,
       });
       if (page.length === 0) break;
-      for (const u of page) ids.push(u.id);
+      for (const u of page)
+        members.push({ id: u.id, pushOptOut: u.pushOptOut });
       if (page.length < 1000) break;
       cursor = page[page.length - 1].id;
     }
-    return ids;
+    return members;
   }
 
   // Drain the fan-out outbox once a minute. Coexists with the email drains
@@ -302,47 +359,77 @@ export class PushService {
         take: 50,
       });
       for (const row of due) {
-        const claim = await this.prisma.pushOutbox.updateMany({
-          where: { id: row.id, status: "PENDING" },
-          data: {
-            status: "SENT",
-            sentAt: new Date(),
-            attempts: { increment: 1 },
-          },
-        });
-        if (claim.count !== 1) continue; // lost the race
         try {
-          const userIds = await this.resolveEntitledMembers(
+          const members = await this.resolveEntitledMembers(
             row.levelIds,
             row.broadcast,
           );
-          if (userIds.length === 0) continue;
+          // Durable inbox row for EVERY entitled member (incl. push opt-outs)
+          // FIRST — before claiming the row SENT — so a failure here leaves the
+          // row PENDING to retry rather than losing the inbox (fan-out content /
+          // live have no email fallback). recordMany is idempotent
+          // (createMany + skipDuplicates) so a re-drain / concurrent worker is
+          // safe; it THROWS on a real DB error so we fall to the retry catch.
+          if (members.length > 0) {
+            await this.memberNotifications.recordMany(
+              members.map((m) => m.id),
+              {
+                category: row.category,
+                title: row.title ?? (await this.brandTitle()),
+                body: row.body,
+                href: row.href,
+                dedupePrefix: row.dedupePrefix,
+              },
+            );
+          }
+          // Claim SENT only AFTER the inbox is durable. Atomic gate: only the
+          // worker that flips PENDING->SENT sends OS push, so concurrent workers
+          // (which may each have written the idempotent inbox) never double-push.
+          const claim = await this.prisma.pushOutbox.updateMany({
+            where: { id: row.id, status: "PENDING" },
+            data: {
+              status: "SENT",
+              sentAt: new Date(),
+              attempts: { increment: 1 },
+            },
+          });
+          if (claim.count !== 1) continue; // another worker already sent it
+          // OS push only to the consenting subset.
+          const pushIds = members.filter((m) => !m.pushOptOut).map((m) => m.id);
+          if (pushIds.length === 0) continue;
           // Per-recipient idempotency ledger — a re-drain skips already-logged
           // members. skipDuplicates makes the whole batch a no-op on replay.
           await this.prisma.pushLog.createMany({
-            data: userIds.map((userId) => ({
+            data: pushIds.map((userId) => ({
               userId,
               category: row.category,
               dedupeKey: `${row.dedupePrefix}:${userId}`,
             })),
             skipDuplicates: true,
           });
-          await this.deliverToUsers(userIds, {
+          await this.deliverToUsers(pushIds, {
             category: row.category as PushCategory,
             body: row.body,
             href: row.href,
             title: row.title ?? undefined,
           });
         } catch (err) {
+          // A failure here is almost always the pre-claim inbox write (a
+          // post-claim push failure no-ops the PENDING guard below, since the
+          // row is already SENT). Leave the row PENDING to retry next tick — all
+          // its writes are idempotent — capping attempts so a permanently-bad
+          // row eventually stops as FAILED.
+          const error = String(err instanceof Error ? err.message : err).slice(
+            0,
+            500,
+          );
+          const attempts = row.attempts + 1;
           await this.prisma.pushOutbox.updateMany({
-            where: { id: row.id },
-            data: {
-              status: "FAILED",
-              error: String(err instanceof Error ? err.message : err).slice(
-                0,
-                500,
-              ),
-            },
+            where: { id: row.id, status: "PENDING" },
+            data:
+              attempts >= MAX_OUTBOX_ATTEMPTS
+                ? { status: "FAILED", attempts, error }
+                : { attempts, error },
           });
         }
       }
@@ -392,11 +479,118 @@ export class PushService {
       try {
         const tickets = await this.expo.sendPushNotificationsAsync(chunk);
         await this.pruneInvalidTokens(chunk, tickets);
+        await this.recordReceipts(chunk, tickets);
       } catch (err) {
         this.logger.warn(
           `[push] send chunk failed: ${err instanceof Error ? err.message : err}`,
         );
       }
+    }
+  }
+
+  // Persist each accepted ("ok") ticket so its delivery RECEIPT can be polled
+  // later — that is where DeviceNotRegistered usually surfaces (the immediate
+  // ticket rarely carries it). Errored tickets are handled synchronously by
+  // pruneInvalidTokens and carry no id.
+  private async recordReceipts(
+    chunk: ExpoPushMessage[],
+    tickets: ExpoPushTicket[],
+  ): Promise<void> {
+    const checkAfter = new Date(Date.now() + RECEIPT_CHECK_DELAY_MS);
+    const rows: {
+      receiptId: string;
+      expoPushToken: string;
+      checkAfter: Date;
+    }[] = [];
+    tickets.forEach((ticket, i) => {
+      if (ticket.status === "ok" && ticket.id) {
+        const to = chunk[i]?.to;
+        const token = Array.isArray(to) ? to[0] : to;
+        if (typeof token === "string") {
+          rows.push({ receiptId: ticket.id, expoPushToken: token, checkAfter });
+        }
+      }
+    });
+    if (rows.length > 0) {
+      await this.prisma.pushReceipt.createMany({
+        data: rows,
+        skipDuplicates: true,
+      });
+    }
+  }
+
+  // Poll due delivery receipts once a minute and disable tokens Expo reports as
+  // DeviceNotRegistered (the deferred half of token hygiene; the immediate half
+  // is pruneInvalidTokens). A receipt id ABSENT from Expo's response = "not
+  // ready" → left PENDING and retried; genuinely stuck rows are reaped by age.
+  private receiptDraining = false;
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async drainPushReceipts(): Promise<void> {
+    if (this.receiptDraining) return;
+    this.receiptDraining = true;
+    try {
+      const now = new Date();
+      const due = await this.prisma.pushReceipt.findMany({
+        where: { status: "PENDING", checkAfter: { lte: now } },
+        take: 1000,
+      });
+      if (due.length > 0) {
+        const byId = new Map(due.map((r) => [r.receiptId, r]));
+        const resolved: string[] = [];
+        const toDisable = new Set<string>();
+        for (const idChunk of this.expo.chunkPushNotificationReceiptIds(
+          due.map((r) => r.receiptId),
+        )) {
+          let receipts;
+          try {
+            receipts =
+              await this.expo.getPushNotificationReceiptsAsync(idChunk);
+          } catch (err) {
+            this.logger.warn(
+              `[push] receipt fetch failed: ${err instanceof Error ? err.message : err}`,
+            );
+            continue; // leave these PENDING — retry next tick
+          }
+          for (const [receiptId, receipt] of Object.entries(receipts)) {
+            resolved.push(receiptId); // present in the response => resolved
+            if (
+              receipt.status === "error" &&
+              receipt.details?.error === "DeviceNotRegistered"
+            ) {
+              const row = byId.get(receiptId);
+              if (row) toDisable.add(row.expoPushToken);
+            }
+          }
+        }
+        if (toDisable.size > 0) {
+          await this.prisma.deviceToken.updateMany({
+            where: { expoPushToken: { in: [...toDisable] } },
+            data: { disabled: true },
+          });
+        }
+        if (resolved.length > 0) {
+          await this.prisma.pushReceipt.updateMany({
+            where: { receiptId: { in: resolved } },
+            data: { status: "DONE" },
+          });
+        }
+      }
+      // Reap receipts Expo never returned (would otherwise stay PENDING forever
+      // and grow the due-query). Age-based only — a missing id is "not ready".
+      await this.prisma.pushReceipt.updateMany({
+        where: {
+          status: "PENDING",
+          createdAt: { lt: new Date(now.getTime() - RECEIPT_GIVE_UP_MS) },
+        },
+        data: { status: "DONE" },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[push] receipt drain failed: ${err instanceof Error ? err.message : err}`,
+      );
+    } finally {
+      this.receiptDraining = false;
     }
   }
 

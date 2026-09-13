@@ -48,6 +48,7 @@ model User {
   certificates          Certificate[]
   helpdeskConversations HelpdeskConversation[]
   deviceTokens          DeviceToken[]
+  notifications         MemberNotification[]
 }
 
 enum AdminRole {
@@ -1418,7 +1419,8 @@ model LiveSession {
   joinLeadMin Int      @default(10) // credentials/join unlock this many minutes before startsAt
   timezone    String? // IANA zone the admin authored in; DISPLAY ONLY, never in gating math
 
-  reminderSentAt DateTime? // pre-wire for the deferred reminder cron; unused in phase 1
+  reminderSentAt DateTime? // stamped when the "starting soon" push fired (dedupe)
+  liveNowSentAt  DateTime? // stamped when the "live now" push fired (independent dedupe)
 
   createdById String?
   createdBy   Admin?   @relation("AdminLiveSessions", fields: [createdById], references: [id], onDelete: SetNull)
@@ -1862,4 +1864,41 @@ model PushOutbox {
   error        String?
 
   @@index([status, sendAt])
+}
+
+// One row per delivered Expo ticket, polled ~15 min later for the delivery
+// RECEIPT. A DeviceNotRegistered receipt (which the immediate send ticket often
+// does NOT carry) disables the token. A receipt id absent from Expo's response
+// means "not ready yet", never "gone" — such rows stay PENDING and are retried,
+// then reaped by age so the poll query stays bounded.
+model PushReceipt {
+  id            String   @id @default(cuid())
+  receiptId     String   @unique // the Expo ticket id
+  expoPushToken String // the token this ticket targeted (to prune on error)
+  status        String   @default("PENDING") // PENDING | DONE
+  checkAfter    DateTime // don't poll before ~15 min after send
+  createdAt     DateTime @default(now())
+
+  @@index([status, checkAfter])
+}
+
+// Durable in-app notification inbox — one row PER MEMBER (readAt column, not the
+// admin join table, since each row is owned by exactly one member). Every push
+// also writes an inbox row, even for members who opted out of OS push or have no
+// device, so the inbox is a reliable record independent of push delivery and is
+// the authoritative source for the app's unread badge. Pruned by age.
+model MemberNotification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  String // same taxonomy as PushCategory
+  title     String
+  body      String
+  href      String // relative in-app deep-link path (feeds openAppHref)
+  dedupeKey String    @unique // per-recipient; mirrors the push key so one event = one row
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt]) // unread anti-join + feed
+  @@index([userId, createdAt])
 }
