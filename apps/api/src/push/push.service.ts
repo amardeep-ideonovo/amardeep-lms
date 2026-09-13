@@ -18,7 +18,9 @@ export type PushCategory =
   | "certificate-issued"
   | "certificate-ready"
   | "new-course"
-  | "new-lesson";
+  | "new-lesson"
+  | "live-starting-soon"
+  | "live-now";
 
 export interface PushDispatchInput {
   userId: string;

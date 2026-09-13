@@ -1418,7 +1418,8 @@ model LiveSession {
   joinLeadMin Int      @default(10) // credentials/join unlock this many minutes before startsAt
   timezone    String? // IANA zone the admin authored in; DISPLAY ONLY, never in gating math
 
-  reminderSentAt DateTime? // pre-wire for the deferred reminder cron; unused in phase 1
+  reminderSentAt DateTime? // stamped when the "starting soon" push fired (dedupe)
+  liveNowSentAt  DateTime? // stamped when the "live now" push fired (independent dedupe)
 
   createdById String?
   createdBy   Admin?   @relation("AdminLiveSessions", fields: [createdById], references: [id], onDelete: SetNull)
