@@ -51,7 +51,7 @@ import {
   useLesson,
 } from "../queries";
 import { contentColumn, formColumn, useContentLayout } from "../responsive";
-import { spacing } from "../theme";
+import { elevatedShadow, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
 
@@ -707,7 +707,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   );
 }
 
-const makeStyles = ({ colors, fonts }: Theme) =>
+const makeStyles = ({ colors, fonts, mode }: Theme) =>
   StyleSheet.create({
     scroll: { flex: 1, backgroundColor: colors.bg },
     scrollContent: { paddingBottom: 0 },
@@ -729,6 +729,12 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     },
     // ---- hero band content ----
     crumbs: {
+      // Clear the floating HeroBackButton (a 38px puck at insets.top + 6) so the
+      // top-anchored breadcrumb never sits under the back chevron. Photo heroes
+      // (Class/Course) bottom-anchor their title and don't need this. Both the
+      // button and content top track insets.top, so this constant delta (~8px
+      // gap below the 38px puck) holds at every safe-area inset.
+      marginTop: spacing.xl + 4,
       color: "rgba(255,255,255,0.5)",
       fontSize: 11.5,
       fontFamily: fonts.regular,
@@ -761,7 +767,18 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       marginTop: 3,
     },
     // ---- media ----
-    media: { marginBottom: spacing.md },
+    // Opaque surface card + elevation so the contained player reads as a distinct
+    // card floating above the navy ink band instead of melting into it (the band
+    // and the video letterbox are both inkCard). The padding frames the embed and
+    // the radius stays concentric with the inner video (24 = 16 + 8 padding); the
+    // inner `video` keeps its own inkCard letterbox.
+    media: {
+      marginBottom: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: 24,
+      padding: spacing.sm,
+      ...elevatedShadow(mode),
+    },
     video: {
       width: "100%",
       aspectRatio: 16 / 9,
