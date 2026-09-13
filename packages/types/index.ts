@@ -1740,6 +1740,26 @@ export interface AdminNotificationListDTO {
   unreadCount: number; // requesting admin's unread total across the whole feed (not just this page)
 }
 
+// ---------- Member in-app notification inbox ----------
+
+export interface MemberNotificationDTO {
+  id: string;
+  category: string; // push taxonomy: "helpdesk-reply" | "new-course" | "live-now" | ...
+  title: string;
+  body: string;
+  href: string; // relative in-app deep-link path (feeds openAppHref)
+  read: boolean;
+  createdAt: string; // ISO
+}
+
+export interface MemberNotificationListDTO {
+  items: MemberNotificationDTO[];
+  total: number;
+  page: number;
+  pageSize: number;
+  unreadCount: number; // member's unread total across the whole feed
+}
+
 // ---------- Admin support tickets (instance-side mirror) ----------
 // The client admin's view of the support conversation. The instance holds only
 // admin-visible messages: the MAIN lane, plus the OPS lane once the client has
@@ -2615,6 +2635,12 @@ export const ROUTES = {
   adminNotificationsUnreadCount: "GET /admin/notifications/unread-count", // -> { count: number }
   adminMarkNotificationRead: "POST /admin/notifications/:id/read", // -> { ok: true }
   adminMarkAllNotificationsRead: "POST /admin/notifications/read-all", // -> { ok: true }
+
+  // member: in-app notification inbox (per-member read state)
+  memberListNotifications: "GET /notifications", // ?page&pageSize -> MemberNotificationListDTO
+  memberNotificationsUnreadCount: "GET /notifications/unread-count", // -> { count: number }
+  memberMarkNotificationRead: "POST /notifications/:id/read", // -> { ok: true }
+  memberMarkAllNotificationsRead: "POST /notifications/read-all", // -> { ok: true }
 
   // admin: support tickets (instance-side mirror; admin-visible messages only)
   adminListSupportTickets: "GET /admin/support/tickets", // -> { items: SupportTicketListItemDTO[] }
