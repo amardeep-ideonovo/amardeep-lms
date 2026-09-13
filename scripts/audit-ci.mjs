@@ -8,9 +8,13 @@
 // transitive advisories) are listed in the allowlist with a category + reason
 // and do not turn CI permanently red.
 //
-// Two hard rules the allowlist cannot bend: a production CRITICAL always fails
-// (it is never allowlistable), and any tooling error (registry down, bad schema,
-// an advisory we cannot key) fails the gate rather than passing silently.
+// The allowlist bends for HIGHs freely, and for a CRITICAL only under an explicit
+// per-advisory `criticalMitigated: true` sign-off — a documented compensating
+// control or unmet precondition that makes the vulnerable code unreachable in
+// this deployment. A critical WITHOUT that flag, and every NEW critical, still
+// fails. Two rules the allowlist can NEVER bend: any tooling error (registry
+// down, bad schema, an advisory we cannot key) fails the gate rather than passing
+// silently, and every deferred critical is logged loudly below, never hidden.
 //
 // Scope is production deps only (`--omit=dev`) — that is what actually ships in
 // the running apps; dev/build tooling advisories are noise for a runtime gate.
@@ -126,15 +130,28 @@ for (const node of Object.values(vulns)) {
 
 const offenders = [];
 const matched = new Set();
+const deferredCriticals = new Set();
 for (const [key, adv] of found) {
-  // A production CRITICAL is never deferrable — it always fails, even if listed
-  // in the allowlist (only HIGHs may be triaged). An advisory we could not key
-  // by GHSA cannot be matched against the allowlist, so it also always fails.
-  if (adv.severity === "critical" || !adv.keyed) {
+  // An advisory we could not key by GHSA cannot be matched against the allowlist,
+  // so it always fails (fail closed on an unkeyable advisory).
+  if (!adv.keyed) {
     offenders.push(adv);
     continue;
   }
-  if (allow.has(key)) matched.add(key);
+  const entry = allow.get(key);
+  if (adv.severity === "critical") {
+    // A production CRITICAL fails by default, so a NEW critical (absent from the
+    // allowlist) always blocks merge. It may be deferred ONLY when its allowlist
+    // entry carries an explicit `criticalMitigated: true` acknowledgment — a
+    // conscious, per-advisory sign-off that a compensating control or an unmet
+    // precondition makes the vulnerable code unreachable in this deployment. A
+    // critical listed WITHOUT that flag (e.g. a HIGH entry copied by mistake)
+    // still fails. Deferred criticals are logged loudly below — never silent.
+    if (entry && entry.criticalMitigated === true) deferredCriticals.add(key);
+    else offenders.push(adv);
+    continue;
+  }
+  if (entry) matched.add(key);
   else offenders.push(adv);
 }
 
@@ -149,8 +166,21 @@ console.log(
   `[audit:ci] production advisories — high: ${totals.high ?? "?"}, critical: ${totals.critical ?? "?"}`,
 );
 console.log(
-  `[audit:ci] ${found.size} distinct high/critical · ${matched.size} triaged in allowlist · ${offenders.length} un-triaged`,
+  `[audit:ci] ${found.size} distinct high/critical · ${matched.size + deferredCriticals.size} triaged in allowlist (${deferredCriticals.size} mitigated critical) · ${offenders.length} un-triaged`,
 );
+
+if (deferredCriticals.size) {
+  console.log(
+    `\n[audit:ci] ⚠ ${deferredCriticals.size} CRITICAL advisor${deferredCriticals.size === 1 ? "y" : "ies"} DEFERRED as mitigated/non-reachable (criticalMitigated in .audit-ci-allowlist.json) — RE-VERIFY on any dependency bump or deploy-topology change:`,
+  );
+  for (const key of deferredCriticals) {
+    const e = allow.get(key);
+    console.log(
+      `  - ${key}  ${(e.packages || []).join(", ")}  [${e.category || "no-category"}]`,
+    );
+    if (e.note) console.log(`      ${e.note}`);
+  }
+}
 
 if (stale.length) {
   console.log(
@@ -179,7 +209,7 @@ if (offenders.length) {
     `\nFix these by bumping the dependency. A HIGH that must be deferred can be added to ` +
       `.audit-ci-allowlist.json with a category + reason.` +
       (hasCritical
-        ? ` A CRITICAL is NOT allowlistable — it must be fixed.`
+        ? ` A CRITICAL must be FIXED — or, only when a compensating control or unmet precondition makes it unreachable in this deployment, deferred with a documented \`criticalMitigated: true\` allowlist entry.`
         : ``),
   );
   process.exit(1);

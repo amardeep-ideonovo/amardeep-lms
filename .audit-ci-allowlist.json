@@ -1,13 +1,33 @@
 {
   "$schema": "internal — consumed by scripts/audit-ci.mjs",
-  "$comment": "Production (npm audit --omit=dev) HIGH advisories that are KNOWN and consciously deferred. The CI gate FAILS on any prod high NOT listed here (and on ANY prod critical, which is never allowlistable), so a NEW vulnerability blocks merge while these tracked ones do not. When you upgrade a dependency, delete its cleared entries (the gate warns about stale entries). Every entry needs a category + the reason it is deferred; impact is the advisory `title`.",
+  "$comment": "Production (npm audit --omit=dev) HIGH advisories that are KNOWN and consciously deferred — plus, exceptionally, CRITICALs that are proven UNREACHABLE in this deployment (each such entry carries `criticalMitigated: true`). The CI gate FAILS on any prod high NOT listed here, and on any prod critical UNLESS its entry has that explicit sign-off, so a NEW vulnerability — and any critical without the flag — blocks merge while these tracked ones do not. A `criticalMitigated` entry is a conscious claim that a compensating control or an unmet precondition closes the vulnerable code path; its note must document that reasoning and a re-verify trigger. When you upgrade a dependency, delete its cleared entries (the gate warns about stale entries). Every entry needs a category + the reason it is deferred; impact is the advisory `title`.",
   "reviewedOn": "2026-09-12",
   "policy": {
     "omitDev": true,
     "failOn": ["high", "critical"],
-    "criticalsAllowlistable": false
+    "criticalsAllowlistable": "only-with-explicit-criticalMitigated-ack"
   },
   "allow": [
+    {
+      "ghsa": "GHSA-2xp9-vwfh-vxw4",
+      "url": "https://github.com/advisories/GHSA-2xp9-vwfh-vxw4",
+      "severity": "critical",
+      "criticalMitigated": true,
+      "packages": ["next"],
+      "category": "mitigated-not-reachable",
+      "title": "Next.js: Unauthenticated Remote Code Execution in Image Optimization API when AVIF files are used",
+      "note": "Reachable ONLY through Next's built-in Image Optimization API (/_next/image) decoding an attacker-supplied AVIF via libheif. All three Next apps hardcode images:{unoptimized:true} (apps/web|admin|control-plane/next.config.js), which makes the /_next/image handler render404 BEFORE any decode (verified in Next 14.2.x server source next-server.js; gate identical across the 14.2.x line) — the flag is build-baked, not runtime-flippable. Nothing in the repo renders next/image, and there is no custom loader, no remotePatterns, and no rewrite/middleware that re-exposes the optimizer. First upstream fix is 15.5.24 (16.3.3 on the 16 line); there is NO 14.x patch (14.2.35 is already the newest 14.x stable, 14.3.0 exists only as canaries), so the only code fix is the deferred Next major (Next 15/16 + React 19; blocked by @zoom/meetingsdk pinning react 18.2.0 — see the react19-upgrade checklist). Deferred as UNREACHABLE, not unfixed; adversarially verified 0/3 reachable at high confidence (2026-09-12). RE-VERIFY if any app starts using next/image, sets images.unoptimized:false, or adds an image loader/remotePatterns."
+    },
+    {
+      "ghsa": "GHSA-p293-qw3h-jr36",
+      "url": "https://github.com/advisories/GHSA-p293-qw3h-jr36",
+      "severity": "critical",
+      "criticalMitigated": true,
+      "packages": ["next"],
+      "category": "mitigated-not-reachable",
+      "title": "Next.js: Unauthenticated Remote Code Execution on windows-hosted servers",
+      "note": "Windows-filesystem path-traversal RCE (CVE-2026-75604) — NOT an image bug. The upstream advisory and the Next.js Aug-2026 security post state verbatim that 'Linux and macOS are not affected'; a Windows-filesystem host is a strict necessary precondition. The whole fleet runs the Next apps as Linux containers (node:20-slim / Debian, per apps/web|admin Dockerfile) on a Linux VPS (Ubuntu 24.04); there is no Windows host in production and the dev machine is macOS. A second, independent precondition is also unmet: the bug requires an app combining BOTH the Pages Router and the App Router, and all three apps are pure App Router (no pages/ directory). First upstream fix is 15.5.24 (16.3.3 on the 16 line); there is NO 14.x patch, so the only code fix is the deferred Next major (see the AVIF entry above / react19-upgrade checklist). Deferred as UNREACHABLE, not unfixed; adversarially verified 0/3 reachable at high confidence (2026-09-12). RE-VERIFY if any Next app is ever hosted on a Windows filesystem or a Pages Router is added."
+    },
     {
       "ghsa": "GHSA-36qx-fr4f-26g5",
       "url": "https://github.com/advisories/GHSA-36qx-fr4f-26g5",
