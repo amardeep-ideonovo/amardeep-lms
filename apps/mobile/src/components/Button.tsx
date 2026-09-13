@@ -21,6 +21,7 @@ export function Button({
   label,
   onPress,
   variant = "secondary",
+  size = "md",
   icon,
   disabled = false,
   busy = false,
@@ -35,6 +36,8 @@ export function Button({
   label: string;
   onPress: () => void;
   variant?: ButtonVariant;
+  /** "sm" = compact (shorter padding + smaller label); "md" = default. */
+  size?: "sm" | "md";
   icon?: React.ReactNode;
   disabled?: boolean;
   busy?: boolean;
@@ -99,13 +102,27 @@ export function Button({
       accessibilityState={{ disabled: disabled || busy, busy }}
       hitSlop={8}
     >
-      <View style={[styles.body, surface, { borderRadius: radius }]}>
+      <View
+        style={[
+          styles.body,
+          size === "sm" && styles.bodySm,
+          surface,
+          { borderRadius: radius },
+        ]}
+      >
         {busy ? (
           <ActivityIndicator color={labelColor} />
         ) : (
           <View style={styles.row}>
             {icon}
-            <Text style={[styles.label, { color: labelColor }, textStyle]}>
+            <Text
+              style={[
+                styles.label,
+                size === "sm" && styles.labelSm,
+                { color: labelColor },
+                textStyle,
+              ]}
+            >
               {label}
             </Text>
           </View>
@@ -128,6 +145,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  // Compact size — lighter footprint for secondary surfaces (e.g. the account
+  // "Your details" actions) without the full CTA height.
+  bodySm: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -135,5 +158,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: { fontSize: 15, fontFamily: fonts.semibold },
+  labelSm: { fontSize: 14 },
   disabled: { opacity: 0.55 },
 });

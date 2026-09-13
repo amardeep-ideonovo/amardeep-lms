@@ -558,36 +558,44 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       <Text style={styles.detailLabel}>{STR.labels.email}</Text>
                       <Text style={styles.detailValue}>{user.email}</Text>
                     </View>
-                    <View style={styles.btnStack}>
+                    <View style={styles.detailsActions}>
                       <Button
                         variant="primary"
                         block
+                        size="sm"
                         onPress={startEdit}
                         label={STR.common.edit}
                       />
                       <Button
-                        variant="primary"
+                        variant="secondary"
                         block
+                        size="sm"
                         onPress={startPwEdit}
                         label="Change password"
                       />
-                      {/* The optimistic remove clears `avatarUrl` at once, so keep
-                          the button mounted for the in-flight window so its
-                          "Removing…" state still reads. */}
-                      {user.avatarUrl || avatarBusy === "remove" ? (
-                        <Button
-                          variant="danger"
-                          block
-                          onPress={removeAvatar}
-                          disabled={!!avatarBusy}
-                          label={
-                            avatarBusy === "remove"
-                              ? "Removing…"
-                              : "Remove photo"
-                          }
-                        />
-                      ) : null}
                     </View>
+                    {/* The optimistic remove clears `avatarUrl` at once, so keep
+                        the control mounted for the in-flight window so its
+                        "Removing…" state still reads. A light danger text link,
+                        not a full red bar. */}
+                    {user.avatarUrl || avatarBusy === "remove" ? (
+                      <TouchableOpacity
+                        onPress={removeAvatar}
+                        disabled={!!avatarBusy}
+                        activeOpacity={0.7}
+                        accessibilityRole="button"
+                        style={[
+                          styles.removePhoto,
+                          !!avatarBusy && styles.btnDisabled,
+                        ]}
+                      >
+                        <Text style={styles.removePhotoText}>
+                          {avatarBusy === "remove"
+                            ? "Removing…"
+                            : "Remove photo"}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
                     {avatarError ? (
                       <Text style={styles.formError}>{avatarError}</Text>
                     ) : null}
@@ -784,19 +792,25 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                     );
                   })
                 )}
-                <View style={styles.btnStack}>
-                  <Button
-                    variant="primary"
-                    block
+                <View style={styles.planLinks}>
+                  <TouchableOpacity
+                    style={styles.moreRow}
                     onPress={() => navigation.navigate("Plans")}
-                    label="View all plans"
-                  />
-                  <Button
-                    variant="primary"
-                    block
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.moreText}>View all plans</Text>
+                    <Text style={styles.moreChevron}>›</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.moreRow, styles.moreRowDivider]}
                     onPress={() => navigation.navigate("Payments")}
-                    label="Payment history"
-                  />
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.moreText}>Payment history</Text>
+                    <Text style={styles.moreChevron}>›</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -1228,11 +1242,6 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       marginTop: 2,
       fontFamily: fonts.regular,
     },
-    // Full-width stacked action buttons (uniform size across the profile).
-    btnStack: {
-      gap: spacing.sm,
-      marginTop: spacing.sm,
-    },
     // Tappable avatar (edit photo) + camera badge.
     avatarPress: { position: "relative" },
     avatarBadge: {
@@ -1366,6 +1375,28 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     // alignSelf stretch so two buttons in a row match height even when one
     // wraps to a second line (e.g. "Edit" beside "Change password").
     grow: { flex: 1, alignSelf: "stretch" },
+    // Full-width, compact stacked actions — even by construction (identical
+    // width + single line), lighter than the default CTA height.
+    detailsActions: { gap: spacing.sm, marginTop: spacing.sm },
+    // "Remove photo" as a quiet danger text link under the row, not a red slab.
+    removePhoto: {
+      alignSelf: "flex-start",
+      paddingVertical: spacing.xs,
+      marginTop: spacing.sm,
+    },
+    removePhotoText: {
+      color: colors.danger,
+      fontSize: 14,
+      fontWeight: "600",
+      fontFamily: fonts.semibold,
+    },
+    // Plan-card navigation as chevron list rows (reuses moreRow), separated from
+    // the plan meta by a top hairline.
+    planLinks: {
+      marginTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderSoft,
+    },
     avatarBlock: {
       flexDirection: "row",
       alignItems: "center",
