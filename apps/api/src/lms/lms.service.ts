@@ -412,6 +412,7 @@ export class LmsService {
   ): Promise<LessonDTO> {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
+      include: { courseLevels: { select: { levelId: true } } },
     });
     if (!course) throw new NotFoundException("Course not found");
     const { videoUrl, audioUrl } = this.resolveMedia(
@@ -430,6 +431,21 @@ export class LmsService {
         order: dto.order ?? 0,
       },
     });
+    // New content for the course's Class members — but ONLY once the course is
+    // live (a lesson added to a draft/archived course isn't member-visible yet;
+    // the new-course push covers first publish). COALESCED: a burst of lesson
+    // adds to one course collapses to a single "New lessons added" push per
+    // window, so a bulk upload doesn't fire one push per lesson. Empty levels =>
+    // nobody. Best-effort — never block the admin's create on push.
+    if (course.published && !course.archivedAt) {
+      const levelIds = course.courseLevels.map((cl) => cl.levelId);
+      void this.push.dispatchToLevelsCoalesced(levelIds, {
+        category: "new-lesson",
+        body: `New lessons added to "${course.title}".`,
+        href: `courses/${courseId}`,
+        keyBase: `new-lesson:${courseId}`,
+      });
+    }
     return {
       id: lesson.id,
       courseId: lesson.courseId,

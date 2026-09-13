@@ -354,6 +354,47 @@ test("drainPushOutbox: a non-broadcast row with no levels notifies nobody", asyn
   assert.equal(sent.length, 0);
 });
 
+test("dispatchToLevelsCoalesced buckets same-window adds to one key", async () => {
+  const created: any[] = [];
+  const prisma = makePrisma({
+    pushOutbox: {
+      ...makePrisma().pushOutbox,
+      create: async (a: any) => {
+        created.push(a.data);
+        return {};
+      },
+    },
+  });
+  const svc = new PushService(prisma);
+  const W = 15 * 60 * 1000;
+  const t0 = 3 * W + 1000; // inside bucket 3
+  const input = {
+    category: "new-lesson" as const,
+    body: "New lessons added",
+    href: "courses/c1",
+    keyBase: "new-lesson:c1",
+  };
+  await svc.dispatchToLevelsCoalesced(["L1"], input, W, t0);
+  await svc.dispatchToLevelsCoalesced(["L1"], input, W, t0 + 5000); // same bucket
+  assert.equal(created.length, 2, "both attempt a create");
+  assert.equal(
+    created[0].dedupePrefix,
+    created[1].dedupePrefix,
+    "same window => same key (the 2nd is swallowed by the unique constraint)",
+  );
+  assert.equal(created[0].dedupePrefix, "new-lesson:c1:3");
+  assert.deepEqual(
+    created[0].sendAt,
+    new Date(4 * W),
+    "sendAt parked at the bucket end",
+  );
+
+  // Next window => a fresh key (a new coalesced push).
+  created.length = 0;
+  await svc.dispatchToLevelsCoalesced(["L1"], input, W, 4 * W + 100);
+  assert.equal(created[0].dedupePrefix, "new-lesson:c1:4");
+});
+
 test("register ignores a non-Expo token", async () => {
   let upserted = false;
   const prisma = makePrisma({

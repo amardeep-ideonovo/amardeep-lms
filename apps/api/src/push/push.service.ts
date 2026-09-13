@@ -17,7 +17,8 @@ export type PushCategory =
   | "subscription-active"
   | "certificate-issued"
   | "certificate-ready"
-  | "new-course";
+  | "new-course"
+  | "new-lesson";
 
 export interface PushDispatchInput {
   userId: string;
@@ -43,7 +44,13 @@ export interface PushFanoutInput {
   title?: string;
   /** true => all members with >=1 active grant (open-course / all-members). */
   broadcast?: boolean;
+  /** When to send; defaults to now. Used to coalesce bursts (see below). */
+  sendAt?: Date;
 }
+
+// Default tumbling window for coalesced fan-outs (new-lesson): bursts of adds to
+// one course inside the same window collapse to a single delayed push.
+export const COALESCE_WINDOW_MS = 15 * 60 * 1000;
 
 // A device push token belongs to a live member (FK), and the batch send resolves
 // the notification body once for the whole cohort.
@@ -193,12 +200,39 @@ export class PushService {
           levelIds,
           broadcast: input.broadcast ?? false,
           dedupePrefix: input.dedupePrefix,
+          sendAt: input.sendAt,
         },
       });
     } catch {
       // Duplicate dedupePrefix (already enqueued) or a transient DB error —
       // best-effort, never throw into the emit-site.
     }
+  }
+
+  // Coalesced fan-out: bursts of the same event to one entity inside a tumbling
+  // window collapse to ONE delayed push. Keys the row `<keyBase>:<bucket>` and
+  // parks its sendAt at the bucket end, so the first add creates the row and
+  // every later add in the window hits the unique key (a no-op — the body is
+  // count-agnostic, e.g. "New lessons added to X"). Prevents a bulk lesson
+  // upload from firing one push per lesson. `now` is injectable for tests.
+  async dispatchToLevelsCoalesced(
+    levelIds: string[],
+    input: Omit<PushFanoutInput, "dedupePrefix" | "sendAt"> & {
+      keyBase: string;
+    },
+    windowMs: number = COALESCE_WINDOW_MS,
+    now: number = Date.now(),
+  ): Promise<void> {
+    const bucket = Math.floor(now / windowMs);
+    await this.dispatchToLevels(levelIds, {
+      category: input.category,
+      body: input.body,
+      href: input.href,
+      title: input.title,
+      broadcast: input.broadcast,
+      dedupePrefix: `${input.keyBase}:${bucket}`,
+      sendAt: new Date((bucket + 1) * windowMs),
+    });
   }
 
   // Members entitled to ANY of `levelIds` (or, when broadcast, any member with
