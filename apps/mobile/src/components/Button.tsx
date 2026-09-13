@@ -15,7 +15,7 @@ import { fonts, onColor } from "../theme";
 import { useScopedTheme } from "./PageScope";
 import { Press } from "./Press";
 
-export type ButtonVariant = "secondary" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
 export function Button({
   label,
@@ -63,20 +63,26 @@ export function Button({
   const surface: ViewStyle =
     variant === "danger"
       ? { backgroundColor: colors.danger }
-      : variant === "ghost"
-        ? {
-            backgroundColor: "transparent",
-            borderWidth: 1,
-            borderColor: borderColor ?? colors.border,
-          }
-        : {
-            backgroundColor: colors.surfaceMuted,
-            borderWidth: 1,
-            borderColor: borderColor ?? colors.borderSoft,
-          };
+      : variant === "primary"
+        ? { backgroundColor: colors.primary }
+        : variant === "ghost"
+          ? {
+              backgroundColor: "transparent",
+              borderWidth: 1,
+              borderColor: borderColor ?? colors.border,
+            }
+          : {
+              backgroundColor: colors.surfaceMuted,
+              borderWidth: 1,
+              borderColor: borderColor ?? colors.borderSoft,
+            };
 
   const labelColor =
-    variant === "danger" ? onColor(colors.danger) : colors.text;
+    variant === "danger"
+      ? onColor(colors.danger)
+      : variant === "primary"
+        ? colors.onPrimary
+        : colors.text;
 
   return (
     <Press
