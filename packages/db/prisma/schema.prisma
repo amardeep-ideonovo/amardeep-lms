@@ -233,6 +233,11 @@ model Course {
   // published with zero lessons (enforced in the service). Defaults to draft;
   // the add-published migration backfills existing courses-with-lessons to true.
   published     Boolean   @default(false)
+  // Stamped each time the course transitions draft->published (re-published after
+  // an unpublish gets a fresh value). Lets the new-course push dedupe per publish
+  // event so a genuine re-release re-notifies, without a bare course-id key
+  // permanently tombstoning it. Null = never published.
+  publishedAt   DateTime?
   createdById   String? // Admin who created this course (audit; null = pre-dates the field or the admin was deleted)
   createdAt     DateTime  @default(now())
   archivedAt    DateTime? // soft-archive: hidden from members (vs hard delete)
@@ -1829,4 +1834,32 @@ model PushLog {
   sentAt    DateTime @default(now())
 
   @@index([userId])
+}
+
+// Fan-out outbox: a content/live event enqueues ONE row here; the minute-cron
+// drain resolves the entitled audience and sends, keeping the admin publish (or
+// cron tick) off the ~500-recipient send path. The audience is resolved at DRAIN
+// time from levelIds/broadcast, so a member who gains access between enqueue and
+// drain is still reached. Enqueue is idempotent on dedupePrefix; per-recipient
+// idempotency lives in PushLog (`<dedupePrefix>:<userId>`) so a re-drain can't
+// double-send. Modeled on ScheduledEmail (the email deferred-drain).
+model PushOutbox {
+  id           String    @id @default(cuid())
+  category     String
+  title        String? // null => resolve the per-academy brand at send time
+  body         String
+  href         String
+  // Members holding an ACTIVE grant to ANY of these levels. broadcast=true +
+  // empty levelIds => all members with >=1 active grant (open-course / all).
+  levelIds     String[]  @default([])
+  broadcast    Boolean   @default(false)
+  dedupePrefix String    @unique // per-event; per-recipient key = `<dedupePrefix>:<userId>`
+  status       String    @default("PENDING") // PENDING | SENT | FAILED
+  sendAt       DateTime  @default(now())
+  attempts     Int       @default(0)
+  createdAt    DateTime  @default(now())
+  sentAt       DateTime?
+  error        String?
+
+  @@index([status, sendAt])
 }

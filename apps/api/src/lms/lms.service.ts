@@ -205,6 +205,18 @@ export class LmsService {
         "Add at least one lesson before publishing this course.",
       );
     }
+    // An archived course must be unarchived (back to draft/visible) before it can
+    // be published — publishing while archived would make it member-visible only
+    // after a later unarchive, which bypasses the new-course transition/push.
+    if (dto.published === true && existing.archivedAt) {
+      throw new BadRequestException(
+        "Unarchive this course before publishing it.",
+      );
+    }
+
+    // A genuine draft->published transition (stamp publishedAt so the new-course
+    // push dedupes per publish event; a re-publish after an unpublish re-notifies).
+    const becamePublished = dto.published === true && !existing.published;
 
     // Backfill a URL slug for courses created before slugs existed; keep an
     // existing slug stable across title edits so bookmarked URLs don't break.
@@ -226,6 +238,7 @@ export class LmsService {
           coverImageUrl: dto.coverImageUrl ?? undefined,
           order: dto.order ?? undefined,
           published: dto.published ?? undefined,
+          publishedAt: becamePublished ? new Date() : undefined,
         },
       });
       // Replace level assignments wholesale when provided.
@@ -248,6 +261,25 @@ export class LmsService {
       where: { id: course.id },
       include: LmsService.COURSE_CARD_INCLUDE,
     });
+    // A genuine draft->published transition makes this course visible to members
+    // of its Class(es) for the first time — fan a push out to them (best-effort).
+    // `existing.published` is the pre-update state (findUnique include returns all
+    // scalars), so re-saving an already-published course never re-notifies. Skip
+    // archived courses. Audience = holders of the FINAL level links (fresh), not
+    // dto.levelIds (which is optional on update). Empty levels => nobody (an
+    // unassigned course does not blast every member).
+    if (becamePublished && fresh.published && !fresh.archivedAt) {
+      const levelIds = fresh.courseLevels.map((cl) => cl.levelId);
+      void this.push.dispatchToLevels(levelIds, {
+        category: "new-course",
+        body: `New course added: "${fresh.title}".`,
+        href: `courses/${fresh.id}`,
+        // Per publish event, not per course: a re-publish (new publishedAt)
+        // re-notifies, while a concurrent double-fire of the SAME publish
+        // collapses on the identical timestamp.
+        dedupePrefix: `new-course:${fresh.id}:${fresh.publishedAt?.getTime() ?? 0}`,
+      });
+    }
     return this.toCourseCard(fresh, null);
   }
 
@@ -380,6 +412,7 @@ export class LmsService {
   ): Promise<LessonDTO> {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
+      include: { courseLevels: { select: { levelId: true } } },
     });
     if (!course) throw new NotFoundException("Course not found");
     const { videoUrl, audioUrl } = this.resolveMedia(
@@ -398,6 +431,21 @@ export class LmsService {
         order: dto.order ?? 0,
       },
     });
+    // New content for the course's Class members — but ONLY once the course is
+    // live (a lesson added to a draft/archived course isn't member-visible yet;
+    // the new-course push covers first publish). COALESCED: a burst of lesson
+    // adds to one course collapses to a single "New lessons added" push per
+    // window, so a bulk upload doesn't fire one push per lesson. Empty levels =>
+    // nobody. Best-effort — never block the admin's create on push.
+    if (course.published && !course.archivedAt) {
+      const levelIds = course.courseLevels.map((cl) => cl.levelId);
+      void this.push.dispatchToLevelsCoalesced(levelIds, {
+        category: "new-lesson",
+        body: `New lessons added to "${course.title}".`,
+        href: `courses/${courseId}`,
+        keyBase: `new-lesson:${courseId}`,
+      });
+    }
     return {
       id: lesson.id,
       courseId: lesson.courseId,

@@ -239,6 +239,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   get pushLog() {
     return this.client.pushLog;
   }
+  get pushOutbox() {
+    return this.client.pushOutbox;
+  }
 
   get $transaction() {
     return this.client.$transaction.bind(this.client);
