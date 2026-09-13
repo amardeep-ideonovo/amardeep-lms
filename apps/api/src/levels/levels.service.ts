@@ -8,9 +8,9 @@ import {
 import type {
   CheckoutLevelDTO,
   ClassExtrasDTO,
+  ClassCourseDTO,
   ClassPublicDTO,
   ClassTileDTO,
-  CourseCard,
   LevelCategoryDTO,
   LevelDTO,
   MemberDashboardDTO,
@@ -539,13 +539,39 @@ export class LevelsService {
         include: {
           courseLevels: { select: { levelId: true } },
           _count: { select: { lessons: true } },
+          // Lightweight lesson rows for the class-page accordion (no body/notes).
+          lessons: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              title: true,
+              thumbnailUrl: true,
+              durationSeconds: true,
+              order: true,
+            },
+          },
         },
       }),
       this.access.completedCountByCourse(userId),
       this.access.startedCountByCourse(userId),
     ]);
 
-    const courseCards: CourseCard[] = courses.map((c) => ({
+    // This member's per-lesson state for the class's lessons, in ONE query
+    // (completed = completedAt set; started = a progress row exists) — mirrors
+    // listCourseLessons, scoped to the lessons already in hand.
+    const lessonIds = courses.flatMap((c) => c.lessons.map((l) => l.id));
+    const progressRows = lessonIds.length
+      ? await this.prisma.lessonProgress.findMany({
+          where: { userId, lessonId: { in: lessonIds } },
+          select: { lessonId: true, completedAt: true },
+        })
+      : [];
+    const doneLessonIds = new Set(
+      progressRows.filter((p) => p.completedAt != null).map((p) => p.lessonId),
+    );
+    const startedLessonIds = new Set(progressRows.map((p) => p.lessonId));
+
+    const courseCards: ClassCourseDTO[] = courses.map((c) => ({
       id: c.id,
       title: c.title,
       description: toRichHtml(c.description),
@@ -556,6 +582,15 @@ export class LevelsService {
       lessonCount: c._count.lessons,
       completedCount: completedByCourse.get(c.id) ?? 0,
       startedCount: startedByCourse.get(c.id) ?? 0,
+      lessons: c.lessons.map((l) => ({
+        id: l.id,
+        title: l.title,
+        thumbnailUrl: l.thumbnailUrl,
+        durationSeconds: l.durationSeconds,
+        order: l.order,
+        completed: doneLessonIds.has(l.id),
+        started: startedLessonIds.has(l.id),
+      })),
     }));
 
     // Class-page certificate state (omitted while no template resolves). The
