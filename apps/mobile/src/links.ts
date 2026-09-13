@@ -21,6 +21,7 @@ const RESERVED = new Set([
   "checkout",
   "help",
   "live",
+  "notifications",
   "login",
   "signup",
   "forms",
@@ -110,6 +111,9 @@ function openPath(pathname: string, browserFallback: string): void {
       // inside the window (server-gated) — never link to credentials directly.
       if (second) nav.navigate("LiveSession", { sessionId: second });
       else nav.navigate("Main", { screen: "Live" });
+      return;
+    case "notifications":
+      nav.navigate("Notifications");
       return;
     case "pricing":
       // The plans LIST is native now; actual checkout stays on the web.

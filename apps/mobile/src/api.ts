@@ -27,6 +27,7 @@ import type {
   LiveJoinCredentialsDTO,
   LiveSessionBarDTO,
   LoginResponse,
+  MemberNotificationListDTO,
   MyClassCoursesDTO,
   PagePublicDTO,
   PopupContext,
@@ -478,6 +479,20 @@ export const api = {
   // De-register the token (sign-out / academy switch). 204 -> undefined.
   unregisterPushToken: (token: string) =>
     request<void>("/push/register", { method: "DELETE", body: { token } }),
+
+  // ---------- member notification inbox ----------
+  notifications: (page?: number) =>
+    request<MemberNotificationListDTO>(
+      `/notifications${page ? `?page=${page}` : ""}`,
+    ),
+  notificationsUnreadCount: () =>
+    request<{ count: number }>("/notifications/unread-count"),
+  markNotificationRead: (id: string) =>
+    request<{ ok: true }>(`/notifications/${encodeURIComponent(id)}/read`, {
+      method: "POST",
+    }),
+  markAllNotificationsRead: () =>
+    request<{ ok: true }>("/notifications/read-all", { method: "POST" }),
 };
 
 // Build the (access-checked) download URL for a lesson note. The file is

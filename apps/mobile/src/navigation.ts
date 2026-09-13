@@ -88,6 +88,7 @@ export type RootStackParamList = {
   Lesson: { lessonId: string; title?: string; seed?: LessonSeed };
   LiveSession: { sessionId: string; title?: string };
   Certificates: undefined;
+  Notifications: undefined;
   Payments: undefined;
   Plans: undefined;
   /** `compose` asks home to open the message-the-team box (an answer screen's
