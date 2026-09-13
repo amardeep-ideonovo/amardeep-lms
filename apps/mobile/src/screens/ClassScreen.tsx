@@ -1,41 +1,56 @@
-// Class landing page — native mirror of the web's /classes/[slug]
-// (hero + skills + trailer + owned course list). DELIBERATELY diverges from
-// the web for non-owners: no "Get Class", no prices, no checkout handoff —
-// store rules (Apple 3.1.1 / Google Play payments) forbid steering members to
-// a web purchase, so unowned classes get the LockedPanel instead (same
-// pattern as LessonScreen).
-import React, { useEffect, useRef } from "react";
+// Class landing page — native mirror of the web's /classes/[slug]: full-bleed
+// photo hero (breadcrumb + category + title + meta + progress ring), a course
+// accordion (mint head + inline lesson rows), a compact navy progress card, and
+// the skills grid. DELIBERATELY diverges from the web for non-owners: no "Get
+// Class", no prices, no checkout handoff — store rules (Apple 3.1.1 / Google
+// Play payments) forbid steering members to a web purchase, so unowned classes
+// get the LockedPanel instead (same pattern as LessonScreen).
+import React, { useRef } from "react";
 import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { WebView } from "react-native-webview";
-import { LinearGradient } from "expo-linear-gradient";
-import type { ClassCertificateStatusDTO, CourseCard } from "@lms/types";
+import type {
+  ClassCertificateStatusDTO,
+  ClassCourseDTO,
+  ClassCourseLessonDTO,
+} from "@lms/types";
 
 import { useClassPage, useMyClassCourses } from "../queries";
 import { fmtTotalDuration, vimeoEmbed, stripHtml } from "../format";
-import { CourseRow } from "../components/CourseRow";
 import { ErrorState } from "../components/Screen";
 import { LockedPanel } from "../components/LockedPanel";
 import { PopupHost } from "../components/PopupHost";
-import { Badge, Chip } from "../components/Chip";
+import { Chip } from "../components/Chip";
 import { Skeleton } from "../components/Skeleton";
 import { VideoPlayerView } from "../components/VideoPlayerView";
 import CertificateClaim from "../components/CertificateClaim";
+import { ProgressRing } from "../components/ProgressRing";
+import { Press } from "../components/Press";
+import { HeroScaffold, HERO_OVERLAP } from "../components/HeroScaffold";
+import { HeroBackButton } from "../components/HeroBackButton";
+import { LessonRow } from "../components/LessonRow";
+import type { LessonRowState } from "../components/LessonRow";
 import { courseSeed } from "../navigation";
 import type { ScreenProps } from "../navigation";
 import { contentColumn, useContentLayout } from "../responsive";
-import { letterGradient } from "../theme";
 import type { Theme } from "../theme";
-import { useStyles } from "../theme-provider";
+import { useStyles, useTheme } from "../theme-provider";
 
 type Ownership = {
   owned: boolean;
-  courses: CourseCard[];
+  courses: ClassCourseDTO[];
   certificate?: ClassCertificateStatusDTO | null;
 };
 
+// "10:20" — per-lesson duration clock.
+function fmtClock(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
   const styles = useStyles(makeStyles);
-  // isWide flips the stacked class hero to a side-by-side card (tablets).
+  const { colors } = useTheme();
   const { contentWidth, isWide } = useContentLayout();
   // `seed` is the class card the member tapped (see navigation.ts): name +
   // artwork only. Ownership, prices and courses are never seeded — they decide
@@ -56,57 +71,47 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
   const scrollRef = useRef<ScrollView>(null);
   const trailerY = useRef(0);
 
-  // Set the header title once the class name is known.
-  useEffect(() => {
-    if (pageQuery.data) navigation.setOptions({ title: pageQuery.data.name });
-  }, [pageQuery.data, navigation]);
+  const goBack = () => navigation.goBack();
 
   if (pageQuery.isError && !cls)
     return (
-      <ErrorState
-        message="Class not found."
-        onRetry={() => pageQuery.refetch()}
-      />
+      <>
+        <HeroBackButton onPress={goBack} tone="onLight" />
+        <ErrorState
+          message="Class not found."
+          onRetry={() => pageQuery.refetch()}
+        />
+      </>
     );
 
+  // First paint: carry the tapped card's cover + title through the hero so it's
+  // continuous, and hold skeletons for the ownership-dependent body.
   if (!cls || !ownership) {
     return (
-      // Scrollable: the seeded hero uses the real hero's tall 5:7 frame, which
-      // on its own is most of the viewport.
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.skeletonWrap}
-      >
-        {seed ? (
-          // Carry the tapped card's cover + title straight through, so the
-          // hero is continuous instead of flashing an empty block. Everything
-          // ownership-dependent (buy card, badge, course list) stays a
-          // skeleton until the server answers.
-          <View style={[styles.seedHero, isWide && styles.seedHeroWide]}>
-            {seed.imageUrl ? (
-              <Image
-                source={{ uri: seed.imageUrl }}
-                style={StyleSheet.absoluteFill}
-                resizeMode="cover"
-              />
-            ) : null}
-            <LinearGradient
-              colors={["transparent", "rgba(8,8,10,0.9)"]}
-              style={styles.heroImageScrim}
-            />
-            <View style={styles.heroImageContent}>
+      <>
+        <HeroBackButton onPress={goBack} />
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <HeroScaffold
+            variant="photo"
+            imageUrl={seed?.imageUrl}
+            gradientSeed={slugOrId}
+            overlapReserve={66}
+          >
+            {seed?.name ? (
               <Text style={styles.heroTitle}>{seed.name}</Text>
-            </View>
+            ) : (
+              <Skeleton height={26} width="60%" radius={8} />
+            )}
+          </HeroScaffold>
+          <View style={styles.body}>
+            <Skeleton height={120} radius={16} />
+            <Skeleton height={120} radius={16} />
           </View>
-        ) : (
-          <Skeleton height={300} radius={20} />
-        )}
-        <Skeleton height={22} width="55%" />
-        <View style={styles.skeletonRow}>
-          <Skeleton height={160} width="48%" radius={14} />
-          <Skeleton height={160} width="48%" radius={14} />
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </>
     );
   }
 
@@ -120,25 +125,65 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
         { done: 0, total: 0 },
       )
     : null;
+  const pct =
+    progress && progress.total > 0
+      ? Math.round((progress.done / progress.total) * 100)
+      : 0;
   const duration = fmtTotalDuration(cls.totalDurationSeconds);
   const meta = [
     `${cls.lessonCount} lesson${cls.lessonCount === 1 ? "" : "s"}`,
-    duration,
+    duration ? `${duration} of video` : null,
   ]
     .filter(Boolean)
     .join(" · ");
   const trailer = cls.trailerUrl ? vimeoEmbed(cls.trailerUrl) : null;
   const trailerHeight = ((contentWidth - 32) * 9) / 16;
 
-  // No prices and no checkout handoff on this screen: steering members to buy
-  // outside the app violates Google Play payments policy and Apple 3.1.1
-  // (outside the US) — the LockedPanel pattern, same as LessonScreen. The
-  // only CTA a non-owner gets is the in-app trailer.
+  // The next lesson to resume across the class's courses (first incomplete),
+  // for the "Your progress" card's Continue button. Falls back to the first
+  // course when lesson rows aren't loaded yet.
+  const allLessons = courses.flatMap((c) =>
+    (c.lessons ?? []).map((l) => ({ lesson: l, courseId: c.id })),
+  );
+  const nextLesson =
+    allLessons.find((x) => !x.lesson.completed) ?? allLessons[0] ?? null;
+  const onContinue = () => {
+    if (nextLesson) {
+      const l = nextLesson.lesson;
+      navigation.navigate("Lesson", {
+        lessonId: l.id,
+        title: l.title,
+        seed: {
+          title: l.title,
+          thumbnailUrl: l.thumbnailUrl,
+          durationSeconds: l.durationSeconds,
+        },
+      });
+    } else if (courses[0]) {
+      navigation.navigate("Course", {
+        courseId: courses[0].id,
+        title: courses[0].title,
+        seed: courseSeed(courses[0]),
+      });
+    }
+  };
+
   const scrollToTrailer = () =>
     scrollRef.current?.scrollTo({ y: trailerY.current, animated: true });
 
-  // Owners see skills BELOW their course library; guests see them up top
-  // (marketing order) — mirrors the web class page.
+  const lessonState = (
+    l: ClassCourseLessonDTO,
+    i: number,
+    firstIncomplete: number,
+  ): LessonRowState =>
+    l.completed
+      ? "completed"
+      : i === firstIncomplete
+        ? l.started
+          ? "resume"
+          : "start"
+        : "todo";
+
   const skillsSection =
     cls.skills.length > 0 ? (
       <View style={styles.section}>
@@ -174,89 +219,205 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
   return (
     <>
       <PopupHost context={{ type: "classes" }} />
+      <HeroBackButton onPress={goBack} />
       <ScrollView
         ref={scrollRef}
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={styles.scrollContent}
       >
-        <View style={[styles.classHero, isWide && styles.classHeroWide]}>
-          {/* Image-prominent cover (~70%): the class image stays clear; only a
-              soft bottom scrim carries the overlaid category + title. */}
-          <View style={[styles.heroImage, isWide && styles.heroImageWide]}>
-            {cls.imageUrl ? (
-              <Image
-                source={{ uri: cls.imageUrl }}
-                style={StyleSheet.absoluteFill}
-                resizeMode="cover"
+        <HeroScaffold
+          variant="photo"
+          imageUrl={cls.imageUrl}
+          gradientSeed={cls.id}
+          overlapReserve={66}
+        >
+          <Text style={styles.crumbs} numberOfLines={1}>
+            My Classes <Text style={styles.crumbOn}>{`  ›  ${cls.name}`}</Text>
+          </Text>
+          {cls.categories.length > 0 ? (
+            <View style={styles.heroChips}>
+              {cls.categories.map((c) => (
+                <Chip key={c.id} label={c.name} onHero />
+              ))}
+            </View>
+          ) : null}
+          <View style={styles.heroRow}>
+            <View style={styles.heroGrow}>
+              <Text style={styles.heroTitle}>{cls.name}</Text>
+              {meta ? <Text style={styles.heroMeta}>{meta}</Text> : null}
+            </View>
+            {owned && progress && progress.total > 0 ? (
+              <ProgressRing
+                size={64}
+                stroke={7}
+                pct={pct}
+                color={colors.primary}
+                trackColor="rgba(255,255,255,0.15)"
+                label={`${pct}%`}
+                labelColor={colors.heroText}
+                labelSize={15}
               />
-            ) : (
-              <LinearGradient
-                colors={letterGradient(cls.id)}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0.8, y: 1 }}
-                style={StyleSheet.absoluteFill}
-              />
-            )}
-            <LinearGradient
-              colors={["transparent", "rgba(8,8,10,0.9)"]}
-              style={styles.heroImageScrim}
-            />
-            <View style={styles.heroImageContent}>
-              {cls.categories.length > 0 ? (
-                <View style={styles.heroChips}>
-                  {cls.categories.map((c) => (
-                    <Chip key={c.id} label={c.name} onHero />
-                  ))}
+            ) : null}
+          </View>
+        </HeroScaffold>
+
+        <View style={styles.body}>
+          {owned ? (
+            <>
+              {ownership.certificate &&
+              (ownership.certificate.eligible ||
+                ownership.certificate.claimed) ? (
+                <CertificateClaim status={ownership.certificate} />
+              ) : null}
+
+              {courses.length === 0 ? (
+                <Text style={styles.empty}>No courses in this class yet.</Text>
+              ) : (
+                courses.map((c, i) => {
+                  const cLessons = c.lessons ?? [];
+                  const firstIncomplete = cLessons.findIndex(
+                    (l) => !l.completed,
+                  );
+                  const allDone =
+                    c.lessonCount > 0 && c.completedCount >= c.lessonCount;
+                  const started =
+                    (c.startedCount ?? 0) > 0 || c.completedCount > 0;
+                  const status = allDone
+                    ? "Completed"
+                    : started
+                      ? "In progress"
+                      : "Not started";
+                  const cDuration = fmtTotalDuration(
+                    cLessons.reduce((a, l) => a + (l.durationSeconds ?? 0), 0),
+                  );
+                  const cMeta = [
+                    `${c.lessonCount} lesson${c.lessonCount === 1 ? "" : "s"}`,
+                    cDuration,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
+                  const openCourse = () =>
+                    navigation.navigate("Course", {
+                      courseId: c.id,
+                      title: c.title,
+                      seed: courseSeed(c),
+                    });
+                  return (
+                    <View key={c.id} style={styles.course}>
+                      <View style={styles.chead}>
+                        <View style={styles.ctop}>
+                          <Text style={styles.cnum}>Course {i + 1}</Text>
+                          <Text
+                            style={[
+                              styles.cpill,
+                              status === "Not started" && styles.cpillMuted,
+                            ]}
+                          >
+                            {status}
+                          </Text>
+                          <Text style={styles.cgo}>›</Text>
+                        </View>
+                        <Press
+                          style={styles.cbtm}
+                          onPress={openCourse}
+                          accessibilityRole="button"
+                        >
+                          {c.thumbnailUrl ? (
+                            <Image
+                              source={{ uri: c.thumbnailUrl }}
+                              style={styles.cthumb}
+                            />
+                          ) : (
+                            <View style={[styles.cthumb, styles.cthumbEmpty]} />
+                          )}
+                          <View style={styles.cmain}>
+                            <Text style={styles.cname} numberOfLines={2}>
+                              {c.title}
+                            </Text>
+                            <Text style={styles.cmeta}>{cMeta}</Text>
+                          </View>
+                        </Press>
+                      </View>
+                      {cLessons.length > 0 ? (
+                        <View style={styles.lessons}>
+                          {cLessons.map((l, li) => (
+                            <LessonRow
+                              key={l.id}
+                              first={li === 0}
+                              lessonNumber={li + 1}
+                              title={l.title}
+                              durationLabel={
+                                l.durationSeconds
+                                  ? fmtClock(l.durationSeconds)
+                                  : null
+                              }
+                              thumbnailUrl={l.thumbnailUrl}
+                              state={lessonState(l, li, firstIncomplete)}
+                              onPress={() =>
+                                navigation.navigate("Lesson", {
+                                  lessonId: l.id,
+                                  title: l.title,
+                                  seed: {
+                                    title: l.title,
+                                    thumbnailUrl: l.thumbnailUrl,
+                                    durationSeconds: l.durationSeconds,
+                                  },
+                                })
+                              }
+                            />
+                          ))}
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })
+              )}
+
+              {progress && progress.total > 0 ? (
+                <View style={styles.progress}>
+                  <View style={styles.progressTop}>
+                    <ProgressRing
+                      size={60}
+                      stroke={7}
+                      pct={pct}
+                      color={colors.primary}
+                      trackColor="rgba(255,255,255,0.14)"
+                      label={`${pct}%`}
+                      labelColor="#ffffff"
+                      labelSize={14}
+                    />
+                    <View style={styles.progressInfo}>
+                      <Text style={styles.progressTitle}>Your progress</Text>
+                      <Text style={styles.progressText}>
+                        {progress.done} of {progress.total} lessons complete.
+                      </Text>
+                    </View>
+                  </View>
+                  <Press
+                    style={styles.progressBtn}
+                    onPress={onContinue}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.progressBtnText}>
+                      {progress.done > 0 ? "Continue" : "Start learning"}
+                    </Text>
+                  </Press>
                 </View>
               ) : null}
-              <Text style={styles.heroTitle}>{cls.name}</Text>
-            </View>
-          </View>
 
-          {/* Details panel (~30%) below the image; beside it when wide. */}
-          <View style={[styles.heroContent, isWide && styles.heroContentWide]}>
-            {owned ? (
-              <View style={styles.ownedBadge}>
-                <Badge label="You own this class" />
-              </View>
-            ) : null}
-            {owned &&
-            ownership.certificate &&
-            (ownership.certificate.eligible ||
-              ownership.certificate.claimed) ? (
-              <CertificateClaim status={ownership.certificate} />
-            ) : null}
-            {cls.description ? (
-              <Text style={styles.heroDesc} numberOfLines={4}>
-                {stripHtml(cls.description)}
-              </Text>
-            ) : null}
-            {meta ? <Text style={styles.heroMeta}>{meta}</Text> : null}
-            {owned && progress && progress.total > 0 ? (
-              <View style={styles.heroProgress}>
-                <View style={styles.heroProgressLabels}>
-                  <Text style={styles.heroProgressLabel}>
-                    {Math.round((progress.done / progress.total) * 100)}%
-                    complete
-                  </Text>
-                  <Text style={styles.heroProgressLabel}>
-                    {progress.done} / {progress.total} lessons
+              {skillsSection}
+            </>
+          ) : (
+            <>
+              {cls.description ? (
+                <View style={styles.card}>
+                  <Text style={styles.eyebrow}>About</Text>
+                  <Text style={styles.aboutText}>
+                    {stripHtml(cls.description)}
                   </Text>
                 </View>
-                <View style={styles.heroTrack}>
-                  <View
-                    style={[
-                      styles.heroFill,
-                      {
-                        width: `${Math.round((progress.done / progress.total) * 100)}%`,
-                      },
-                    ]}
-                  />
-                </View>
-              </View>
-            ) : null}
-            {!owned ? (
-              <View style={styles.lockedWrap}>
+              ) : null}
+              <View style={styles.card}>
                 <LockedPanel
                   title="Not included in your membership"
                   message="Your current membership doesn't include this class."
@@ -265,183 +426,216 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
                   onPress={cls.trailerUrl ? scrollToTrailer : undefined}
                 />
               </View>
-            ) : null}
-          </View>
-        </View>
-
-        {owned ? (
-          <>
-            <View style={styles.section}>
-              <Text style={styles.eyebrow}>Your library</Text>
-              <Text style={styles.sectionTitle}>Your Courses</Text>
-              <Text style={styles.sectionSub}>
-                Continue where you left off.
-              </Text>
-              <View style={styles.courseList}>
-                {courses.length === 0 ? (
-                  <Text style={styles.empty}>
-                    No courses in this class yet.
-                  </Text>
-                ) : (
-                  courses.map((c) => (
-                    <CourseRow
-                      key={c.id}
-                      course={c}
-                      onPress={() =>
-                        navigation.navigate("Course", {
-                          courseId: c.id,
-                          title: c.title,
-                          seed: courseSeed(c),
-                        })
-                      }
-                    />
-                  ))
-                )}
-              </View>
-            </View>
-            {skillsSection}
-          </>
-        ) : (
-          <>
-            {skillsSection}
-            {trailer || cls.trailerUrl ? (
-              <View
-                style={styles.section}
-                onLayout={(e) => {
-                  trailerY.current = e.nativeEvent.layout.y;
-                }}
-              >
-                <Text style={styles.eyebrow}>Preview</Text>
-                <Text style={styles.sectionTitle}>Class Trailer</Text>
-                <Text style={styles.sectionSub}>A two-minute look inside.</Text>
-                <View style={[styles.trailer, { height: trailerHeight }]}>
-                  {trailer ? (
-                    <WebView
-                      style={StyleSheet.absoluteFill}
-                      source={{ uri: trailer }}
-                      allowsFullscreenVideo
-                      allowsInlineMediaPlayback
-                      javaScriptEnabled
-                      domStorageEnabled
-                    />
-                  ) : (
-                    <VideoPlayerView
-                      style={StyleSheet.absoluteFill}
-                      uri={cls.trailerUrl as string}
-                    />
-                  )}
+              {skillsSection}
+              {trailer || cls.trailerUrl ? (
+                <View
+                  style={styles.section}
+                  onLayout={(e) => {
+                    trailerY.current = e.nativeEvent.layout.y;
+                  }}
+                >
+                  <Text style={styles.eyebrow}>Preview</Text>
+                  <Text style={styles.sectionTitle}>Class Trailer</Text>
+                  <View style={[styles.trailer, { height: trailerHeight }]}>
+                    {trailer ? (
+                      <WebView
+                        style={StyleSheet.absoluteFill}
+                        source={{ uri: trailer }}
+                        allowsFullscreenVideo
+                        allowsInlineMediaPlayback
+                        javaScriptEnabled
+                        domStorageEnabled
+                      />
+                    ) : (
+                      <VideoPlayerView
+                        style={StyleSheet.absoluteFill}
+                        uri={cls.trailerUrl as string}
+                      />
+                    )}
+                  </View>
                 </View>
-              </View>
-            ) : null}
-          </>
-        )}
+              ) : null}
+            </>
+          )}
 
-        <View style={styles.bottomSpacer} />
+          <View style={styles.bottomSpacer} />
+        </View>
       </ScrollView>
     </>
   );
 }
 
-const makeStyles = ({ colors, spacing, fonts }: Theme) =>
+const makeStyles = ({ colors, spacing: sp, fonts }: Theme) =>
   StyleSheet.create({
     scroll: { flex: 1, backgroundColor: colors.bg },
-    content: { padding: spacing.md, gap: spacing.lg, ...contentColumn },
-    // Used as a scroll content container (flex/background live on styles.scroll).
-    skeletonWrap: { padding: spacing.md, gap: spacing.md, ...contentColumn },
-    skeletonRow: { flexDirection: "row", justifyContent: "space-between" },
-    // Same frame as the real hero image so the seeded cover doesn't jump when
-    // the fetched class replaces it.
-    seedHero: {
-      width: "100%",
-      aspectRatio: 5 / 7,
-      borderRadius: 20,
-      overflow: "hidden",
-      justifyContent: "flex-end",
-      backgroundColor: colors.surfaceMuted,
+    scrollContent: { paddingBottom: 0 },
+    body: {
+      paddingHorizontal: sp.md,
+      marginTop: -HERO_OVERLAP,
+      gap: sp.md,
+      ...contentColumn,
     },
-    // Matches heroImageWide so the seeded cover sits where the real hero's
-    // image lands once the fetch resolves.
-    seedHeroWide: { width: "45%" },
-    ownedBadge: { flexDirection: "row" },
-    // Image-prominent class hero: a clear cover on top with the category + title
-    // overlaid at its base (per request, ~70% image), then a details panel below.
-    classHero: {
-      borderRadius: 20,
-      overflow: "hidden",
-      borderWidth: 1,
-      borderColor: colors.borderSoft,
-      backgroundColor: colors.surface,
-    },
-    // Wide layout: cover on the left, details beside it — a stacked 5:7 cover
-    // at tablet width would be most of the viewport tall.
-    classHeroWide: { flexDirection: "row", alignItems: "stretch" },
-    heroImage: {
-      width: "100%",
-      aspectRatio: 5 / 7,
-      justifyContent: "flex-end",
-      backgroundColor: colors.surfaceMuted,
-    },
-    heroImageWide: { width: "45%" },
-    heroImageScrim: {
-      position: "absolute",
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: "48%",
-    },
-    heroImageContent: { padding: spacing.md, gap: spacing.sm },
-    heroChips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-    heroTitle: {
-      color: colors.heroText,
-      fontSize: 26,
-      fontWeight: "800",
-      fontFamily: fonts.display,
-      lineHeight: 32,
-    },
-    heroContent: { padding: spacing.md, gap: spacing.sm },
-    heroContentWide: { flex: 1, justifyContent: "center", padding: spacing.lg },
-    heroProgress: { gap: 6, marginTop: spacing.xs },
-    heroProgressLabels: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-    },
-    heroProgressLabel: {
-      color: colors.textMuted,
+    // ---- hero content ----
+    crumbs: {
+      color: "rgba(255,255,255,0.55)",
       fontSize: 12,
-      fontWeight: "600",
-      fontFamily: fonts.semibold,
-    },
-    heroTrack: {
-      height: 6,
-      borderRadius: 999,
-      backgroundColor: colors.surfaceMuted,
-      overflow: "hidden",
-    },
-    heroFill: {
-      height: "100%",
-      backgroundColor: colors.primary,
-      borderRadius: 999,
-    },
-    heroDesc: {
-      color: colors.text,
-      fontSize: 15,
-      lineHeight: 22,
       fontFamily: fonts.regular,
     },
+    crumbOn: { color: "rgba(255,255,255,0.82)" },
+    heroChips: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: sp.xs,
+      marginTop: sp.sm,
+    },
+    heroRow: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      justifyContent: "space-between",
+      gap: sp.md,
+      marginTop: sp.sm + 2,
+    },
+    heroGrow: { flex: 1 },
+    heroTitle: {
+      color: colors.heroText,
+      fontSize: 28,
+      fontWeight: "800",
+      lineHeight: 33,
+      fontFamily: fonts.display,
+    },
     heroMeta: {
+      color: "rgba(255,255,255,0.6)",
+      fontSize: 13.5,
+      marginTop: 8,
+      fontFamily: fonts.medium,
+    },
+    // ---- course accordion ----
+    course: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      overflow: "hidden",
+    },
+    chead: {
+      padding: sp.md,
+      gap: sp.sm + 3,
+      backgroundColor: colors.successBg,
+    },
+    ctop: { flexDirection: "row", alignItems: "center", gap: sp.sm },
+    cnum: {
+      fontSize: 11,
+      fontWeight: "800",
+      color: "#ffffff",
+      backgroundColor: colors.inkCard,
+      overflow: "hidden",
+      borderRadius: 999,
+      paddingVertical: 4,
+      paddingHorizontal: 11,
+      fontFamily: fonts.extrabold,
+    },
+    cpill: {
+      marginLeft: "auto",
+      fontSize: 11,
+      fontWeight: "700",
+      color: colors.text,
+      backgroundColor: colors.surface,
+      overflow: "hidden",
+      borderRadius: 999,
+      paddingVertical: 5,
+      paddingHorizontal: 12,
+      fontFamily: fonts.bold,
+    },
+    cpillMuted: { color: colors.textMuted },
+    cgo: { color: "rgba(39,33,68,0.42)", fontSize: 20 },
+    cbtm: { flexDirection: "row", alignItems: "center", gap: sp.sm + 4 },
+    cthumb: {
+      width: 54,
+      height: 42,
+      borderRadius: 9,
+      backgroundColor: colors.surfaceMuted,
+    },
+    cthumbEmpty: {},
+    cmain: { flex: 1, minWidth: 0 },
+    cname: {
+      color: colors.text,
+      fontSize: 15,
+      fontWeight: "700",
+      lineHeight: 20,
+      fontFamily: fonts.bold,
+    },
+    cmeta: {
+      color: colors.primarySoft,
+      fontSize: 12,
+      marginTop: 3,
+      fontFamily: fonts.regular,
+    },
+    lessons: { paddingHorizontal: sp.md, paddingBottom: sp.sm },
+    empty: {
       color: colors.textMuted,
+      fontSize: 14,
+      fontFamily: fonts.regular,
+    },
+    // ---- compact navy progress card ----
+    progress: {
+      backgroundColor: colors.inkCard,
+      borderRadius: 16,
+      padding: sp.md,
+    },
+    progressTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: sp.md,
+    },
+    progressInfo: { flex: 1, minWidth: 0 },
+    progressTitle: {
+      color: "#ffffff",
+      fontSize: 15,
+      fontWeight: "700",
+      fontFamily: fonts.bold,
+    },
+    progressText: {
+      color: "rgba(255,255,255,0.56)",
+      fontSize: 12.5,
+      lineHeight: 18,
+      marginTop: 3,
+      fontFamily: fonts.regular,
+    },
+    progressBtn: {
+      alignSelf: "stretch",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.25)",
+      borderRadius: 10,
+      paddingVertical: 12,
+      marginTop: sp.md,
+    },
+    progressBtnText: {
+      color: "#ffffff",
       fontSize: 13,
       fontWeight: "600",
       fontFamily: fonts.semibold,
     },
-    section: { gap: spacing.xs },
+    // ---- guest / shared ----
+    card: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: sp.md,
+    },
+    aboutText: {
+      color: colors.text,
+      fontSize: 15,
+      lineHeight: 23,
+      marginTop: sp.xs,
+      fontFamily: fonts.regular,
+    },
+    // ---- sections (skills, trailer) ----
+    section: { gap: sp.xs },
     eyebrow: {
       color: colors.primarySoft,
       fontSize: 12,
       fontWeight: "700",
       fontFamily: fonts.bold,
       textTransform: "uppercase",
-      letterSpacing: 1.6,
+      letterSpacing: 1.4,
     },
     sectionTitle: {
       color: colors.text,
@@ -449,17 +643,11 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       fontWeight: "800",
       fontFamily: fonts.display,
     },
-    sectionSub: {
-      color: colors.textMuted,
-      fontSize: 14,
-      marginBottom: spacing.xs,
-      fontFamily: fonts.regular,
-    },
     skillsGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
-      gap: spacing.sm,
-      marginTop: spacing.xs,
+      gap: sp.sm,
+      marginTop: sp.xs,
     },
     skillCard: {
       width: "48%",
@@ -467,14 +655,11 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       borderRadius: 14,
       overflow: "hidden",
       backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.borderSoft,
       justifyContent: "space-between",
     },
-    // 2-up cards turn into slabs on the wide column — go 3-up there.
     skillCardWide: { width: "31%" },
     skillNum: {
-      margin: spacing.sm,
+      margin: sp.sm,
       width: 26,
       height: 26,
       borderRadius: 999,
@@ -489,7 +674,7 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       fontFamily: fonts.extrabold,
     },
     skillTitleWrap: {
-      padding: spacing.sm,
+      padding: sp.sm,
       backgroundColor: colors.overlayMid,
     },
     skillTitle: {
@@ -498,19 +683,11 @@ const makeStyles = ({ colors, spacing, fonts }: Theme) =>
       fontWeight: "700",
       fontFamily: fonts.bold,
     },
-    courseList: { gap: spacing.sm, marginTop: spacing.xs },
-    empty: { color: colors.textMuted, fontSize: 14, fontFamily: fonts.regular },
-    // Non-owner panel on the hero, where the buy card used to sit (store
-    // rules: no prices, no checkout — see the comment at scrollToTrailer).
-    lockedWrap: {
-      marginTop: spacing.sm,
-      alignSelf: "stretch",
-    },
     trailer: {
       borderRadius: 14,
       overflow: "hidden",
       backgroundColor: "#000",
-      marginTop: spacing.xs,
+      marginTop: sp.xs,
     },
-    bottomSpacer: { height: spacing.lg },
+    bottomSpacer: { height: sp.lg },
   });

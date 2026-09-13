@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
   AuthUser,
@@ -29,7 +30,10 @@ import { Button } from "../components/Button";
 import { Chip } from "../components/Chip";
 import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
-import { resolveBrandTitle, useAppConfig } from "../config-provider";
+import { HeroScaffold, HERO_OVERLAP } from "../components/HeroScaffold";
+import { BrandHeaderTitle } from "../components/BrandHeaderTitle";
+import { Press } from "../components/Press";
+import { useAppConfig } from "../config-provider";
 import { IS_LOCKED_BUILD, legalLinks, unbindInstance } from "../config";
 import { fmtDate, money } from "../format";
 import type { TabScreenProps } from "../navigation";
@@ -92,7 +96,6 @@ type DetailsMode = "view" | "edit" | "password";
 export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const styles = useStyles(makeStyles);
   const { config } = useAppConfig();
-  const brand = resolveBrandTitle(config);
   const { signOut } = useAuth();
   const queryClient = useQueryClient();
 
@@ -478,469 +481,469 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
     >
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.brandHeader}>
-          {config.logoUrl ? (
-            <Image
-              source={{ uri: config.logoUrl }}
-              style={styles.logo}
-              resizeMode="contain"
-              accessibilityLabel={brand}
-            />
-          ) : (
-            <Text style={styles.brandTitle}>{brand}</Text>
-          )}
-        </View>
-
-        {loading || !user ? (
-          <>
-            <Skeleton height={160} radius={14} style={styles.skeleton} />
-            <Skeleton height={120} radius={14} style={styles.skeleton} />
-            <Skeleton height={110} radius={14} style={styles.skeleton} />
-          </>
-        ) : (
-          <>
-            <View style={styles.card}>
-              <Text style={styles.heading}>Your details</Text>
-              {pwOk && mode === "view" ? (
-                <View style={styles.successBanner}>
-                  <Text style={styles.successText}>
-                    Your password has been updated.
-                  </Text>
-                </View>
-              ) : null}
-
-              {mode === "view" ? (
-                <>
+        {/* Chrome-band profile hero: brand row + avatar + name/email + plan chip. */}
+        <HeroScaffold variant="chrome" overlapReserve={62}>
+          <View style={styles.brandRow}>
+            <BrandHeaderTitle onChrome />
+          </View>
+          {user ? (
+            <View style={styles.profileRow}>
+              {/* Tap the avatar to add/change the photo (no separate button). */}
+              <Press
+                onPress={pickAvatar}
+                disabled={!!avatarBusy}
+                style={[styles.avatarPress, avatarBusy && { opacity: 0.6 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Change profile photo"
+              >
+                {user.avatarUrl ? (
+                  <Image
+                    source={{ uri: user.avatarUrl }}
+                    style={styles.profileAvatar}
+                  />
+                ) : (
                   <View
-                    style={[styles.avatarBlock, avatarBusy && { opacity: 0.6 }]}
+                    style={[styles.profileAvatar, styles.profileAvatarFallback]}
                   >
-                    {user.avatarUrl ? (
-                      <Image
-                        source={{ uri: user.avatarUrl }}
-                        style={styles.avatarImg}
-                      />
-                    ) : (
-                      <View style={styles.avatarFallback}>
-                        <Text style={styles.avatarInitials}>
-                          {initialsOf(user)}
-                        </Text>
-                      </View>
-                    )}
-                    <View style={styles.avatarActions}>
+                    <Text style={styles.profileInitials}>
+                      {initialsOf(user)}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.avatarBadge}>
+                  <Ionicons name="camera" size={13} color="#ffffff" />
+                </View>
+              </Press>
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName} numberOfLines={1}>
+                  {fullName}
+                </Text>
+                <Text style={styles.profileEmail} numberOfLines={1}>
+                  {user.email}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+        </HeroScaffold>
+
+        <View style={styles.body}>
+          {loading || !user ? (
+            <>
+              <Skeleton height={160} radius={14} style={styles.skeleton} />
+              <Skeleton height={120} radius={14} style={styles.skeleton} />
+              <Skeleton height={110} radius={14} style={styles.skeleton} />
+            </>
+          ) : (
+            <>
+              <View style={styles.card}>
+                <Text style={styles.heading}>Your details</Text>
+                {pwOk && mode === "view" ? (
+                  <View style={styles.successBanner}>
+                    <Text style={styles.successText}>
+                      Your password has been updated.
+                    </Text>
+                  </View>
+                ) : null}
+
+                {mode === "view" ? (
+                  <>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Name</Text>
+                      <Text style={styles.detailValue}>{fullName}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>{STR.labels.email}</Text>
+                      <Text style={styles.detailValue}>{user.email}</Text>
+                    </View>
+                    <View style={styles.btnStack}>
                       <Button
-                        variant="secondary"
-                        style={styles.grow}
-                        onPress={pickAvatar}
-                        disabled={!!avatarBusy}
-                        label={
-                          avatarBusy === "pick"
-                            ? "Uploading…"
-                            : user.avatarUrl
-                              ? "Change photo"
-                              : "Add photo"
-                        }
+                        variant="primary"
+                        block
+                        onPress={startEdit}
+                        label={STR.common.edit}
                       />
-                      {/* The optimistic remove clears `avatarUrl` immediately,
-                          which would yank this button out from under the tap —
-                          keep it mounted for the in-flight window so its
+                      <Button
+                        variant="primary"
+                        block
+                        onPress={startPwEdit}
+                        label="Change password"
+                      />
+                      {/* The optimistic remove clears `avatarUrl` at once, so keep
+                          the button mounted for the in-flight window so its
                           "Removing…" state still reads. */}
                       {user.avatarUrl || avatarBusy === "remove" ? (
                         <Button
-                          variant="secondary"
-                          style={styles.grow}
+                          variant="danger"
+                          block
                           onPress={removeAvatar}
                           disabled={!!avatarBusy}
                           label={
                             avatarBusy === "remove"
                               ? "Removing…"
-                              : STR.common.remove
+                              : "Remove photo"
                           }
                         />
                       ) : null}
                     </View>
-                  </View>
-                  {avatarError ? (
-                    <Text style={styles.formError}>{avatarError}</Text>
-                  ) : null}
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Name</Text>
-                    <Text style={styles.detailValue}>{fullName}</Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>{STR.labels.email}</Text>
-                    <Text style={styles.detailValue}>{user.email}</Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>
-                      {STR.labels.username}
+                    {avatarError ? (
+                      <Text style={styles.formError}>{avatarError}</Text>
+                    ) : null}
+                  </>
+                ) : mode === "edit" ? (
+                  <>
+                    {editError ? (
+                      <Text style={styles.formError}>{editError}</Text>
+                    ) : null}
+                    <Text style={styles.inputLabel}>
+                      {STR.labels.firstName}
                     </Text>
-                    <Text style={styles.detailValue}>{user.username}</Text>
-                  </View>
-                  <View style={styles.actionsRow}>
-                    <Button
-                      variant="secondary"
-                      style={styles.grow}
-                      onPress={startEdit}
-                      label={STR.common.edit}
+                    <TextInput
+                      style={styles.input}
+                      value={form.firstName}
+                      onChangeText={(v) =>
+                        setForm((f) => ({ ...f, firstName: v }))
+                      }
+                      maxLength={80}
+                      editable={!saving}
                     />
-                    <Button
-                      variant="secondary"
-                      style={styles.grow}
-                      onPress={startPwEdit}
-                      label="Change password"
+                    <Text style={styles.inputLabel}>{STR.labels.lastName}</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={form.lastName}
+                      onChangeText={(v) =>
+                        setForm((f) => ({ ...f, lastName: v }))
+                      }
+                      maxLength={80}
+                      editable={!saving}
                     />
-                  </View>
-                </>
-              ) : mode === "edit" ? (
-                <>
-                  {editError ? (
-                    <Text style={styles.formError}>{editError}</Text>
-                  ) : null}
-                  <Text style={styles.inputLabel}>{STR.labels.firstName}</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={form.firstName}
-                    onChangeText={(v) =>
-                      setForm((f) => ({ ...f, firstName: v }))
-                    }
-                    maxLength={80}
-                    editable={!saving}
-                  />
-                  <Text style={styles.inputLabel}>{STR.labels.lastName}</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={form.lastName}
-                    onChangeText={(v) =>
-                      setForm((f) => ({ ...f, lastName: v }))
-                    }
-                    maxLength={80}
-                    editable={!saving}
-                  />
-                  <Text style={styles.inputLabel}>{STR.labels.username}</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={form.username}
-                    onChangeText={(v) =>
-                      setForm((f) => ({ ...f, username: v }))
-                    }
-                    maxLength={30}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!saving}
-                  />
-                  <Text style={styles.inputLabel}>{STR.labels.email}</Text>
-                  <View style={styles.readonlyBox}>
-                    <Text style={styles.readonlyText}>{user.email}</Text>
-                  </View>
-                  <Text style={styles.hint}>
-                    Email can't be changed here — contact support if you need it
-                    updated.
-                  </Text>
-                  <View style={styles.actionsRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.btnPrimary,
-                        styles.grow,
-                        saving && styles.btnDisabled,
-                      ]}
-                      onPress={saveProfile}
-                      disabled={saving}
-                      activeOpacity={0.8}
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.btnPrimaryText}>
-                        {saving ? STR.common.saving : "Save changes"}
-                      </Text>
-                    </TouchableOpacity>
-                    <Button
-                      variant="secondary"
-                      style={styles.grow}
-                      onPress={() => setMode("view")}
-                      disabled={saving}
-                      label={STR.common.cancel}
+                    <Text style={styles.inputLabel}>{STR.labels.username}</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={form.username}
+                      onChangeText={(v) =>
+                        setForm((f) => ({ ...f, username: v }))
+                      }
+                      maxLength={30}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      editable={!saving}
                     />
-                  </View>
-                </>
-              ) : (
-                <>
-                  {pwError ? (
-                    <Text style={styles.formError}>{pwError}</Text>
-                  ) : null}
-                  <Text style={styles.inputLabel}>Current password</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={pwForm.current}
-                    onChangeText={(v) =>
-                      setPwForm((f) => ({ ...f, current: v }))
-                    }
-                    secureTextEntry
-                    maxLength={72}
-                    autoCapitalize="none"
-                    editable={!pwSaving}
-                  />
-                  <Text style={styles.inputLabel}>
-                    {STR.labels.newPassword}
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    value={pwForm.next}
-                    onChangeText={(v) => setPwForm((f) => ({ ...f, next: v }))}
-                    secureTextEntry
-                    maxLength={72}
-                    autoCapitalize="none"
-                    editable={!pwSaving}
-                  />
-                  <Text style={styles.inputLabel}>
-                    {STR.labels.confirmNewPassword}
-                  </Text>
-                  <TextInput
-                    style={styles.input}
-                    value={pwForm.confirm}
-                    onChangeText={(v) =>
-                      setPwForm((f) => ({ ...f, confirm: v }))
-                    }
-                    secureTextEntry
-                    maxLength={72}
-                    autoCapitalize="none"
-                    editable={!pwSaving}
-                  />
-                  <Text style={styles.hint}>
-                    At least {PASSWORD_MIN.member} characters. Use one you don't
-                    use elsewhere.
-                  </Text>
-                  <View style={styles.actionsRow}>
-                    <TouchableOpacity
-                      style={[
-                        styles.btnPrimary,
-                        styles.grow,
-                        pwSaving && styles.btnDisabled,
-                      ]}
-                      onPress={savePassword}
-                      disabled={pwSaving}
-                      activeOpacity={0.8}
-                      accessibilityRole="button"
-                    >
-                      <Text style={styles.btnPrimaryText}>
-                        {pwSaving ? STR.common.saving : "Update password"}
-                      </Text>
-                    </TouchableOpacity>
-                    <Button
-                      variant="secondary"
-                      style={styles.grow}
-                      onPress={() => setMode("view")}
-                      disabled={pwSaving}
-                      label={STR.common.cancel}
-                    />
-                  </View>
-                </>
-              )}
-            </View>
-
-            <View style={styles.card}>
-              <Text style={styles.heading}>
-                {subs.length > 1 ? "Your plans" : "Your plan"}
-              </Text>
-              {subs.length === 0 ? (
-                <Text style={styles.empty}>
-                  You don't have a paid membership yet.
-                </Text>
-              ) : (
-                subs.map((sub, i) => {
-                  const status = planStatus(sub);
-                  const canCancel =
-                    !sub.cancelAtPeriodEnd &&
-                    !sub.paused &&
-                    sub.installmentsTotal == null;
-                  return (
-                    <View
-                      key={sub.stripeSubId}
-                      style={[styles.planRow, i > 0 && styles.planRowDivider]}
-                    >
-                      <View style={styles.planTop}>
-                        <Text style={styles.planName}>{sub.levelName}</Text>
-                        <Chip label={status.label} tone={status.tone} />
-                      </View>
-                      <Text style={styles.planMeta}>{planMeta(sub)}</Text>
-                      {canCancel ? (
-                        <TouchableOpacity
-                          onPress={() => {
-                            setCancelError(null);
-                            setCancelFor(sub);
-                          }}
-                          activeOpacity={0.7}
-                          accessibilityRole="button"
-                        >
-                          <Text style={styles.cancelLink}>
-                            {STR.common.cancel}
-                          </Text>
-                        </TouchableOpacity>
-                      ) : null}
+                    <Text style={styles.inputLabel}>{STR.labels.email}</Text>
+                    <View style={styles.readonlyBox}>
+                      <Text style={styles.readonlyText}>{user.email}</Text>
                     </View>
-                  );
-                })
-              )}
-              <View style={styles.actionsRow}>
-                <Button
-                  variant="secondary"
-                  style={styles.grow}
-                  onPress={() => navigation.navigate("Plans")}
-                  label="View all plans"
-                />
-                <Button
-                  variant="secondary"
-                  style={styles.grow}
-                  onPress={() => navigation.navigate("Payments")}
-                  label="Payment history"
-                />
-              </View>
-            </View>
-
-            {/* Push notifications: a single master toggle for P0 (per-category
-                preferences are a later phase). Priming happens on enable, not at
-                launch — mirrors the just-in-time photo permission above. */}
-            <View style={styles.card}>
-              <Text style={styles.heading}>Notifications</Text>
-              <View style={styles.moreRow}>
-                <View style={styles.pushLabel}>
-                  <Text style={styles.moreText}>Push notifications</Text>
-                  <Text style={styles.pushHint}>
-                    Replies from support and updates about your membership.
-                  </Text>
-                </View>
-                <Switch
-                  value={pushOn}
-                  onValueChange={(next) => void onTogglePush(next)}
-                  disabled={pushBusy}
-                  accessibilityLabel="Push notifications"
-                />
-              </View>
-            </View>
-
-            {/* Certificates live on their own Ink Hero screen now; Blog moved
-                out of the tab bar, so both stay reachable from here. */}
-            <View style={styles.card}>
-              <Text style={styles.heading}>More</Text>
-              <TouchableOpacity
-                style={styles.moreRow}
-                onPress={() => navigation.navigate("Notifications")}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-              >
-                <Text style={styles.moreText}>Notifications</Text>
-                <View style={styles.moreRight}>
-                  {unread > 0 ? (
-                    <Text style={styles.moreBadge}>
-                      {unread > 99 ? "99+" : unread}
+                    <Text style={styles.hint}>
+                      Email can't be changed here — contact support if you need
+                      it updated.
                     </Text>
-                  ) : null}
-                  <Text style={styles.moreChevron}>›</Text>
-                </View>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.moreRow, styles.moreRowDivider]}
-                onPress={() => navigation.navigate("Certificates")}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-              >
-                <Text style={styles.moreText}>My certificates</Text>
-                <Text style={styles.moreChevron}>›</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.moreRow, styles.moreRowDivider]}
-                onPress={() => navigation.navigate("Blog")}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-              >
-                <Text style={styles.moreText}>Blog</Text>
-                <Text style={styles.moreChevron}>›</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.moreRow, styles.moreRowDivider]}
-                onPress={() => navigation.navigate("HelpdeskHome")}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-              >
-                <Text style={styles.moreText}>{STR.helpdesk.open}</Text>
-                <Text style={styles.moreChevron}>›</Text>
-              </TouchableOpacity>
-              {legal ? (
-                <>
-                  <TouchableOpacity
-                    style={[styles.moreRow, styles.moreRowDivider]}
-                    onPress={() =>
-                      void Linking.openURL(legal.privacy).catch(() => {})
-                    }
-                    activeOpacity={0.7}
-                    accessibilityRole="link"
-                  >
-                    <Text style={styles.moreText}>Privacy Policy</Text>
-                    <Text style={styles.moreChevron}>›</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.moreRow, styles.moreRowDivider]}
-                    onPress={() =>
-                      void Linking.openURL(legal.terms).catch(() => {})
-                    }
-                    activeOpacity={0.7}
-                    accessibilityRole="link"
-                  >
-                    <Text style={styles.moreText}>Terms of Service</Text>
-                    <Text style={styles.moreChevron}>›</Text>
-                  </TouchableOpacity>
-                </>
-              ) : null}
-            </View>
+                    <View style={styles.actionsRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.btnPrimary,
+                          styles.grow,
+                          saving && styles.btnDisabled,
+                        ]}
+                        onPress={saveProfile}
+                        disabled={saving}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                      >
+                        <Text style={styles.btnPrimaryText}>
+                          {saving ? STR.common.saving : "Save changes"}
+                        </Text>
+                      </TouchableOpacity>
+                      <Button
+                        variant="secondary"
+                        style={styles.grow}
+                        onPress={() => setMode("view")}
+                        disabled={saving}
+                        label={STR.common.cancel}
+                      />
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    {pwError ? (
+                      <Text style={styles.formError}>{pwError}</Text>
+                    ) : null}
+                    <Text style={styles.inputLabel}>Current password</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={pwForm.current}
+                      onChangeText={(v) =>
+                        setPwForm((f) => ({ ...f, current: v }))
+                      }
+                      secureTextEntry
+                      maxLength={72}
+                      autoCapitalize="none"
+                      editable={!pwSaving}
+                    />
+                    <Text style={styles.inputLabel}>
+                      {STR.labels.newPassword}
+                    </Text>
+                    <TextInput
+                      style={styles.input}
+                      value={pwForm.next}
+                      onChangeText={(v) =>
+                        setPwForm((f) => ({ ...f, next: v }))
+                      }
+                      secureTextEntry
+                      maxLength={72}
+                      autoCapitalize="none"
+                      editable={!pwSaving}
+                    />
+                    <Text style={styles.inputLabel}>
+                      {STR.labels.confirmNewPassword}
+                    </Text>
+                    <TextInput
+                      style={styles.input}
+                      value={pwForm.confirm}
+                      onChangeText={(v) =>
+                        setPwForm((f) => ({ ...f, confirm: v }))
+                      }
+                      secureTextEntry
+                      maxLength={72}
+                      autoCapitalize="none"
+                      editable={!pwSaving}
+                    />
+                    <Text style={styles.hint}>
+                      At least {PASSWORD_MIN.member} characters. Use one you
+                      don't use elsewhere.
+                    </Text>
+                    <View style={styles.actionsRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.btnPrimary,
+                          styles.grow,
+                          pwSaving && styles.btnDisabled,
+                        ]}
+                        onPress={savePassword}
+                        disabled={pwSaving}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                      >
+                        <Text style={styles.btnPrimaryText}>
+                          {pwSaving ? STR.common.saving : "Update password"}
+                        </Text>
+                      </TouchableOpacity>
+                      <Button
+                        variant="secondary"
+                        style={styles.grow}
+                        onPress={() => setMode("view")}
+                        disabled={pwSaving}
+                        label={STR.common.cancel}
+                      />
+                    </View>
+                  </>
+                )}
+              </View>
 
-            {/* Billing is managed on the web member dashboard — the app never
+              <View style={styles.card}>
+                <Text style={styles.heading}>
+                  {subs.length > 1 ? "Your plans" : "Your plan"}
+                </Text>
+                {subs.length === 0 ? (
+                  <Text style={styles.empty}>
+                    You don't have a paid membership yet.
+                  </Text>
+                ) : (
+                  subs.map((sub, i) => {
+                    const status = planStatus(sub);
+                    const canCancel =
+                      !sub.cancelAtPeriodEnd &&
+                      !sub.paused &&
+                      sub.installmentsTotal == null;
+                    return (
+                      <View
+                        key={sub.stripeSubId}
+                        style={[styles.planRow, i > 0 && styles.planRowDivider]}
+                      >
+                        <View style={styles.planTop}>
+                          <Text style={styles.planName}>{sub.levelName}</Text>
+                          <Chip label={status.label} tone={status.tone} />
+                        </View>
+                        <Text style={styles.planMeta}>{planMeta(sub)}</Text>
+                        {canCancel ? (
+                          <TouchableOpacity
+                            onPress={() => {
+                              setCancelError(null);
+                              setCancelFor(sub);
+                            }}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                          >
+                            <Text style={styles.cancelLink}>
+                              {STR.common.cancel}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : null}
+                      </View>
+                    );
+                  })
+                )}
+                <View style={styles.btnStack}>
+                  <Button
+                    variant="primary"
+                    block
+                    onPress={() => navigation.navigate("Plans")}
+                    label="View all plans"
+                  />
+                  <Button
+                    variant="primary"
+                    block
+                    onPress={() => navigation.navigate("Payments")}
+                    label="Payment history"
+                  />
+                </View>
+              </View>
+
+              {/* Push notifications: a single master toggle for P0 (per-category
+                  preferences are a later phase). Priming happens on enable, not
+                  at launch — mirrors the just-in-time photo permission above. */}
+              <View style={styles.card}>
+                <Text style={styles.heading}>Notifications</Text>
+                <View style={styles.moreRow}>
+                  <View style={styles.pushLabel}>
+                    <Text style={styles.moreText}>Push notifications</Text>
+                    <Text style={styles.pushHint}>
+                      Replies from support and updates about your membership.
+                    </Text>
+                  </View>
+                  <Switch
+                    value={pushOn}
+                    onValueChange={(next) => void onTogglePush(next)}
+                    disabled={pushBusy}
+                    accessibilityLabel="Push notifications"
+                  />
+                </View>
+              </View>
+
+              {/* Certificates live on their own Ink Hero screen now; Blog moved
+                out of the tab bar, so both stay reachable from here. */}
+              <View style={styles.card}>
+                <Text style={styles.heading}>More</Text>
+                <TouchableOpacity
+                  style={styles.moreRow}
+                  onPress={() => navigation.navigate("Notifications")}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.moreText}>Notifications</Text>
+                  <View style={styles.moreRight}>
+                    {unread > 0 ? (
+                      <Text style={styles.moreBadge}>
+                        {unread > 99 ? "99+" : unread}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.moreChevron}>›</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.moreRow, styles.moreRowDivider]}
+                  onPress={() => navigation.navigate("Certificates")}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.moreText}>My certificates</Text>
+                  <Text style={styles.moreChevron}>›</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.moreRow, styles.moreRowDivider]}
+                  onPress={() => navigation.navigate("Blog")}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.moreText}>Blog</Text>
+                  <Text style={styles.moreChevron}>›</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.moreRow, styles.moreRowDivider]}
+                  onPress={() => navigation.navigate("HelpdeskHome")}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.moreText}>{STR.helpdesk.open}</Text>
+                  <Text style={styles.moreChevron}>›</Text>
+                </TouchableOpacity>
+                {legal ? (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.moreRow, styles.moreRowDivider]}
+                      onPress={() =>
+                        void Linking.openURL(legal.privacy).catch(() => {})
+                      }
+                      activeOpacity={0.7}
+                      accessibilityRole="link"
+                    >
+                      <Text style={styles.moreText}>Privacy Policy</Text>
+                      <Text style={styles.moreChevron}>›</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.moreRow, styles.moreRowDivider]}
+                      onPress={() =>
+                        void Linking.openURL(legal.terms).catch(() => {})
+                      }
+                      activeOpacity={0.7}
+                      accessibilityRole="link"
+                    >
+                      <Text style={styles.moreText}>Terms of Service</Text>
+                      <Text style={styles.moreChevron}>›</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : null}
+              </View>
+
+              {/* Billing is managed on the web member dashboard — the app never
                 opens a payment or plan-change surface (no purchases in-app, per
                 store policy and product decision). Neutral, link-free guidance:
                 no purchase call-to-action. PayPal members also manage their
                 payment method in their PayPal account. */}
-            {subs.length > 0 ? (
-              <View style={styles.card}>
-                <Text style={styles.heading}>Billing</Text>
-                <Text style={styles.note}>
-                  Membership billing and payment details are handled through
-                  your academy account.
-                </Text>
-                {subs.some((s) => s.provider === "paypal") ? (
+              {subs.length > 0 ? (
+                <View style={styles.card}>
+                  <Text style={styles.heading}>Billing</Text>
                   <Text style={styles.note}>
-                    Your PayPal-billed subscription’s payment method is managed
-                    in your PayPal account.
+                    Membership billing and payment details are handled through
+                    your academy account.
                   </Text>
-                ) : null}
-              </View>
-            ) : null}
+                  {subs.some((s) => s.provider === "paypal") ? (
+                    <Text style={styles.note}>
+                      Your PayPal-billed subscription’s payment method is
+                      managed in your PayPal account.
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
 
-            {/* Account deletion lives directly above Sign out, where store
+              {/* Account deletion lives directly above Sign out, where store
                 reviewers expect it. Opens a two-step confirm modal. */}
-            <View style={styles.card}>
-              <Text style={styles.heading}>Delete account</Text>
-              <Text style={styles.note}>
-                Permanently delete your account and all your data. This can't be
-                undone.
-              </Text>
-              <Button
-                variant="danger"
-                block
-                onPress={openDelete}
-                label="Delete account"
-              />
-            </View>
-          </>
-        )}
+              <View style={styles.card}>
+                <Text style={styles.heading}>Delete account</Text>
+                <Text style={styles.note}>
+                  Permanently delete your account and all your data. This can't
+                  be undone.
+                </Text>
+                <Button
+                  variant="danger"
+                  block
+                  onPress={openDelete}
+                  label="Delete account"
+                />
+              </View>
+            </>
+          )}
 
-        <TouchableOpacity
-          style={styles.signOut}
-          onPress={signOut}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-        >
-          <Text style={styles.signOutText}>Sign out</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.signOut}
+            onPress={signOut}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+          >
+            <Text style={styles.signOutText}>Sign out</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       <Modal
@@ -1169,10 +1172,81 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
 const makeStyles = ({ colors, fonts }: Theme) =>
   StyleSheet.create({
     flex: { flex: 1, backgroundColor: colors.bg },
-    content: {
-      padding: spacing.md,
+    scrollContent: { paddingBottom: 0 },
+    // Cards pull up so the first one overlaps the bottom of the chrome band.
+    body: {
+      paddingHorizontal: spacing.md,
       paddingBottom: spacing.lg,
+      marginTop: -HERO_OVERLAP,
       ...contentColumn,
+    },
+    // ---- chrome profile hero ----
+    brandRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    brandLogo: { height: 30, width: 120 },
+    brandName: {
+      color: colors.onChrome,
+      fontSize: 17,
+      fontWeight: "800",
+      fontFamily: fonts.extrabold,
+    },
+    profileRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    profileAvatar: {
+      width: 68,
+      height: 68,
+      borderRadius: 34,
+      backgroundColor: colors.surfaceMuted,
+    },
+    profileAvatarFallback: {
+      backgroundColor: colors.primary,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    profileInitials: {
+      color: colors.onPrimary,
+      fontSize: 24,
+      fontFamily: fonts.bold,
+    },
+    profileInfo: { flex: 1, minWidth: 0 },
+    profileName: {
+      color: colors.onChrome,
+      fontSize: 21,
+      fontWeight: "800",
+      fontFamily: fonts.extrabold,
+    },
+    profileEmail: {
+      color: colors.onChromeSoft,
+      fontSize: 13,
+      marginTop: 2,
+      fontFamily: fonts.regular,
+    },
+    // Full-width stacked action buttons (uniform size across the profile).
+    btnStack: {
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    // Tappable avatar (edit photo) + camera badge.
+    avatarPress: { position: "relative" },
+    avatarBadge: {
+      position: "absolute",
+      right: -1,
+      bottom: -1,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      borderWidth: 2,
+      borderColor: colors.chrome,
+      alignItems: "center",
+      justifyContent: "center",
     },
     brandHeader: {
       alignItems: "center",
