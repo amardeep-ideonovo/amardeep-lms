@@ -221,7 +221,8 @@ function MainTabs() {
         name="Profile"
         component={AccountScreen}
         options={{
-          // Plain title — the screen body carries the brand block itself.
+          // The screen renders its own full-bleed chrome profile hero.
+          headerShown: false,
           title: "Profile",
           tabBarIcon: ({ color, focused }) => (
             <TabIcon
