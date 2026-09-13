@@ -517,11 +517,14 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       keep the Remove button mounted for the in-flight window so its
                       "Removing…" state still reads. */}
                     <View
-                      style={[styles.photoRow, avatarBusy && { opacity: 0.6 }]}
+                      style={[
+                        styles.photoStack,
+                        avatarBusy && { opacity: 0.6 },
+                      ]}
                     >
                       <Button
                         variant="secondary"
-                        style={styles.grow}
+                        block
                         onPress={pickAvatar}
                         disabled={!!avatarBusy}
                         label={
@@ -535,7 +538,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       {user.avatarUrl || avatarBusy === "remove" ? (
                         <Button
                           variant="secondary"
-                          style={styles.grow}
+                          block
                           onPress={removeAvatar}
                           disabled={!!avatarBusy}
                           label={
@@ -557,22 +560,16 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       <Text style={styles.detailLabel}>{STR.labels.email}</Text>
                       <Text style={styles.detailValue}>{user.email}</Text>
                     </View>
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>
-                        {STR.labels.username}
-                      </Text>
-                      <Text style={styles.detailValue}>{user.username}</Text>
-                    </View>
-                    <View style={styles.actionsRow}>
+                    <View style={styles.btnStack}>
                       <Button
                         variant="secondary"
-                        style={styles.grow}
+                        block
                         onPress={startEdit}
                         label={STR.common.edit}
                       />
                       <Button
                         variant="secondary"
-                        style={styles.grow}
+                        block
                         onPress={startPwEdit}
                         label="Change password"
                       />
@@ -770,16 +767,16 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                     );
                   })
                 )}
-                <View style={styles.actionsRow}>
+                <View style={styles.btnStack}>
                   <Button
                     variant="secondary"
-                    style={styles.grow}
+                    block
                     onPress={() => navigation.navigate("Plans")}
                     label="View all plans"
                   />
                   <Button
                     variant="secondary"
-                    style={styles.grow}
+                    block
                     onPress={() => navigation.navigate("Payments")}
                     label="Payment history"
                   />
@@ -1190,10 +1187,14 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       paddingHorizontal: 11,
       fontFamily: fonts.bold,
     },
-    photoRow: {
-      flexDirection: "row",
+    // Full-width stacked action buttons (uniform size across the profile).
+    photoStack: {
       gap: spacing.sm,
       marginBottom: spacing.md,
+    },
+    btnStack: {
+      gap: spacing.sm,
+      marginTop: spacing.sm,
     },
     brandHeader: {
       alignItems: "center",
