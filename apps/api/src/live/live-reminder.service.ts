@@ -14,12 +14,13 @@ type ReminderSession = {
 };
 
 // Fires the two live-session member pushes off a minute cron:
-//   - live-starting-soon  at startsAt - joinLeadMin (dedupe: reminderSentAt)
-//   - live-now            at startsAt                (dedupe: liveNowSentAt)
-// Each fire is guarded by an atomic marker claim (updateMany where marker IS NULL),
-// so an overlapping tick / second instance can't double-send. The push itself
-// goes through the PushOutbox fan-out (dispatchToLevels), deep-linking the in-app
-// join bar — NEVER credentials, which the live service releases only in-window.
+//   - live-starting-soon  at startsAt - joinLeadMin (marker: reminderSentAt)
+//   - live-now            at startsAt                (marker: liveNowSentAt)
+// The push is ENQUEUED first (PushService.enqueueFanout -> PushOutbox), and the
+// marker is stamped only on a confirmed enqueue (see fireOnce) so a transient
+// failure retries next tick. The unique dedupePrefix — not the marker — is the
+// real dedupe: concurrent ticks/instances collapse to one outbox row => one
+// push. Deep-links the in-app join bar, NEVER credentials (released in-window).
 @Injectable()
 export class LiveReminderService {
   private readonly logger = new Logger(LiveReminderService.name);
@@ -57,16 +58,16 @@ export class LiveReminderService {
         startsAt: { gt: now },
       },
       include: { targets: { select: { levelId: true } } },
+      orderBy: { startsAt: "asc" }, // imminent first; take bounds a large backlog
+      take: 500,
     });
     for (const s of candidates) {
+      // No advance reminder when there's no lead time — "live now" fires at
+      // start, so a zero-lead session gets exactly one push (not none, not two).
+      if (s.joinLeadMin <= 0) continue;
       const leadMs = s.joinLeadMin * 60_000;
-      if (now.getTime() < s.startsAt.getTime() - leadMs) continue; // not yet
-      const claim = await this.prisma.liveSession.updateMany({
-        where: { id: s.id, reminderSentAt: null },
-        data: { reminderSentAt: now },
-      });
-      if (claim.count !== 1) continue; // lost the race
-      await this.enqueue(s, "starting-soon");
+      if (now.getTime() < s.startsAt.getTime() - leadMs) continue; // window not open
+      await this.fireOnce(s, "starting-soon", now);
     }
   }
 
@@ -81,20 +82,23 @@ export class LiveReminderService {
         endsAt: { gt: now },
       },
       include: { targets: { select: { levelId: true } } },
+      orderBy: { startsAt: "asc" },
+      take: 500,
     });
     for (const s of candidates) {
-      const claim = await this.prisma.liveSession.updateMany({
-        where: { id: s.id, liveNowSentAt: null },
-        data: { liveNowSentAt: now },
-      });
-      if (claim.count !== 1) continue;
-      await this.enqueue(s, "now");
+      await this.fireOnce(s, "now", now);
     }
   }
 
-  private async enqueue(
+  // Enqueue FIRST, then stamp the marker ONLY on a confirmed enqueue. A transient
+  // enqueue failure (or a crash before the stamp) leaves the marker null so the
+  // next tick retries — and the unique dedupePrefix makes that retry idempotent
+  // (one outbox row => one push), which is also what keeps concurrent instances
+  // safe without the marker being the race gate.
+  private async fireOnce(
     s: ReminderSession,
     kind: "starting-soon" | "now",
+    now: Date,
   ): Promise<void> {
     const broadcast = s.audience === "ALL_ACTIVE";
     // LEVELS with no targets fails closed (invisible to all) — matching access
@@ -106,12 +110,19 @@ export class LiveReminderService {
       kind === "starting-soon"
         ? `"${s.title}" starts soon — tap to join.`
         : `"${s.title}" is live now — tap to join.`;
-    await this.push.dispatchToLevels(levelIds, {
+    const ok = await this.push.enqueueFanout(levelIds, {
       category,
       body,
       href: `live/${s.id}`,
       dedupePrefix: `${category}:${s.id}`,
       broadcast,
+    });
+    if (!ok) return; // leave the marker null — next tick retries
+    const marker =
+      kind === "starting-soon" ? "reminderSentAt" : "liveNowSentAt";
+    await this.prisma.liveSession.updateMany({
+      where: { id: s.id, [marker]: null },
+      data: { [marker]: now },
     });
   }
 }

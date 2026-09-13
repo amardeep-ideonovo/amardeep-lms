@@ -20,6 +20,7 @@ function svcWith(opts: {
   startingSoon?: Session[];
   liveNow?: Session[];
   claimCount?: number;
+  enqueueOk?: boolean;
 }) {
   const sent: { levelIds: string[]; input: any }[] = [];
   const claims: any[] = [];
@@ -37,8 +38,9 @@ function svcWith(opts: {
     },
   };
   const push: any = {
-    dispatchToLevels: async (levelIds: string[], input: any) => {
+    enqueueFanout: async (levelIds: string[], input: any) => {
       sent.push({ levelIds, input });
+      return opts.enqueueOk ?? true;
     },
   };
   return { svc: new LiveReminderService(prisma, push), sent, claims };
@@ -109,8 +111,8 @@ test("fires live-now for a started, ongoing ALL_ACTIVE session (broadcast)", asy
   assert.equal(sent[0].input.href, "live/s3");
 });
 
-test("skips a fire when the marker claim loses the race", async () => {
-  const { svc, sent } = svcWith({
+test("leaves the marker unstamped when the enqueue fails (retries next tick)", async () => {
+  const { svc, sent, claims } = svcWith({
     startingSoon: [
       {
         id: "s4",
@@ -121,7 +123,29 @@ test("skips a fire when the marker claim loses the race", async () => {
         targets: [{ levelId: "L1" }],
       },
     ],
-    claimCount: 0, // another worker already claimed it
+    enqueueOk: false, // transient enqueue failure
+  });
+  await svc.tick();
+  assert.equal(sent.length, 1, "enqueue was attempted");
+  assert.equal(
+    claims.length,
+    0,
+    "marker NOT stamped on a failed enqueue — the next tick retries",
+  );
+});
+
+test("no starting-soon reminder when joinLeadMin is 0 (live-now covers start)", async () => {
+  const { svc, sent } = svcWith({
+    startingSoon: [
+      {
+        id: "s5",
+        title: "T",
+        audience: "LEVELS",
+        startsAt: new Date(Date.now() + 5 * 60_000),
+        joinLeadMin: 0,
+        targets: [{ levelId: "L1" }],
+      },
+    ],
   });
   await svc.tick();
   assert.equal(sent.length, 0);

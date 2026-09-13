@@ -198,6 +198,19 @@ export class PushService {
     levelIds: string[],
     input: PushFanoutInput,
   ): Promise<void> {
+    // Fire-and-forget for content emit-sites (the boolean is for callers that
+    // gate on a confirmed enqueue, e.g. the live cron's marker).
+    await this.enqueueFanout(levelIds, input);
+  }
+
+  // Enqueue one fan-out row. Returns true when the row is present after the call
+  // — created now OR already there (a unique-violation on dedupePrefix is an
+  // idempotent success) — and false only on a transient error the caller may
+  // retry. Never throws.
+  async enqueueFanout(
+    levelIds: string[],
+    input: PushFanoutInput,
+  ): Promise<boolean> {
     try {
       await this.prisma.pushOutbox.create({
         data: {
@@ -211,9 +224,17 @@ export class PushService {
           sendAt: input.sendAt,
         },
       });
-    } catch {
-      // Duplicate dedupePrefix (already enqueued) or a transient DB error —
-      // best-effort, never throw into the emit-site.
+      return true;
+    } catch (err) {
+      // P2002 = already enqueued (dedupePrefix unique) => idempotent success.
+      const code = (err as { code?: unknown } | null)?.code;
+      if (code === "P2002") return true;
+      this.logger.warn(
+        `[push] fan-out enqueue failed (${input.dedupePrefix}): ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+      return false;
     }
   }
 
