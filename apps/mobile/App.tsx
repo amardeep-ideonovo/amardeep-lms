@@ -267,7 +267,8 @@ function AppNavigator() {
       <AppStack.Screen
         name="Course"
         component={CourseScreen}
-        options={({ route }) => ({ title: route.params.title ?? "Course" })}
+        // Renders its own full-bleed photo hero + HeroBackButton (like Lesson).
+        options={{ headerShown: false }}
       />
       <AppStack.Screen
         name="Lesson"
