@@ -54,6 +54,12 @@ export interface PushFanoutInput {
 // one course inside the same window collapse to a single delayed push.
 export const COALESCE_WINDOW_MS = 15 * 60 * 1000;
 
+// Expo recommends waiting ~15 min before fetching a delivery receipt, then a
+// PENDING receipt Expo never returns is reaped after this age (a missing id
+// means "not ready", so we only reap by age — see drainPushReceipts).
+const RECEIPT_CHECK_DELAY_MS = 15 * 60 * 1000;
+const RECEIPT_GIVE_UP_MS = 48 * 60 * 60 * 1000;
+
 // A device push token belongs to a live member (FK), and the batch send resolves
 // the notification body once for the whole cohort.
 interface DeliverPayload {
@@ -394,11 +400,118 @@ export class PushService {
       try {
         const tickets = await this.expo.sendPushNotificationsAsync(chunk);
         await this.pruneInvalidTokens(chunk, tickets);
+        await this.recordReceipts(chunk, tickets);
       } catch (err) {
         this.logger.warn(
           `[push] send chunk failed: ${err instanceof Error ? err.message : err}`,
         );
       }
+    }
+  }
+
+  // Persist each accepted ("ok") ticket so its delivery RECEIPT can be polled
+  // later — that is where DeviceNotRegistered usually surfaces (the immediate
+  // ticket rarely carries it). Errored tickets are handled synchronously by
+  // pruneInvalidTokens and carry no id.
+  private async recordReceipts(
+    chunk: ExpoPushMessage[],
+    tickets: ExpoPushTicket[],
+  ): Promise<void> {
+    const checkAfter = new Date(Date.now() + RECEIPT_CHECK_DELAY_MS);
+    const rows: {
+      receiptId: string;
+      expoPushToken: string;
+      checkAfter: Date;
+    }[] = [];
+    tickets.forEach((ticket, i) => {
+      if (ticket.status === "ok" && ticket.id) {
+        const to = chunk[i]?.to;
+        const token = Array.isArray(to) ? to[0] : to;
+        if (typeof token === "string") {
+          rows.push({ receiptId: ticket.id, expoPushToken: token, checkAfter });
+        }
+      }
+    });
+    if (rows.length > 0) {
+      await this.prisma.pushReceipt.createMany({
+        data: rows,
+        skipDuplicates: true,
+      });
+    }
+  }
+
+  // Poll due delivery receipts once a minute and disable tokens Expo reports as
+  // DeviceNotRegistered (the deferred half of token hygiene; the immediate half
+  // is pruneInvalidTokens). A receipt id ABSENT from Expo's response = "not
+  // ready" → left PENDING and retried; genuinely stuck rows are reaped by age.
+  private receiptDraining = false;
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async drainPushReceipts(): Promise<void> {
+    if (this.receiptDraining) return;
+    this.receiptDraining = true;
+    try {
+      const now = new Date();
+      const due = await this.prisma.pushReceipt.findMany({
+        where: { status: "PENDING", checkAfter: { lte: now } },
+        take: 1000,
+      });
+      if (due.length > 0) {
+        const byId = new Map(due.map((r) => [r.receiptId, r]));
+        const resolved: string[] = [];
+        const toDisable = new Set<string>();
+        for (const idChunk of this.expo.chunkPushNotificationReceiptIds(
+          due.map((r) => r.receiptId),
+        )) {
+          let receipts;
+          try {
+            receipts =
+              await this.expo.getPushNotificationReceiptsAsync(idChunk);
+          } catch (err) {
+            this.logger.warn(
+              `[push] receipt fetch failed: ${err instanceof Error ? err.message : err}`,
+            );
+            continue; // leave these PENDING — retry next tick
+          }
+          for (const [receiptId, receipt] of Object.entries(receipts)) {
+            resolved.push(receiptId); // present in the response => resolved
+            if (
+              receipt.status === "error" &&
+              receipt.details?.error === "DeviceNotRegistered"
+            ) {
+              const row = byId.get(receiptId);
+              if (row) toDisable.add(row.expoPushToken);
+            }
+          }
+        }
+        if (toDisable.size > 0) {
+          await this.prisma.deviceToken.updateMany({
+            where: { expoPushToken: { in: [...toDisable] } },
+            data: { disabled: true },
+          });
+        }
+        if (resolved.length > 0) {
+          await this.prisma.pushReceipt.updateMany({
+            where: { receiptId: { in: resolved } },
+            data: { status: "DONE" },
+          });
+        }
+      }
+      // Reap receipts Expo never returned (would otherwise stay PENDING forever
+      // and grow the due-query). Age-based only — a missing id is "not ready".
+      await this.prisma.pushReceipt.updateMany({
+        where: {
+          status: "PENDING",
+          createdAt: { lt: new Date(now.getTime() - RECEIPT_GIVE_UP_MS) },
+        },
+        data: { status: "DONE" },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `[push] receipt drain failed: ${err instanceof Error ? err.message : err}`,
+      );
+    } finally {
+      this.receiptDraining = false;
     }
   }
 

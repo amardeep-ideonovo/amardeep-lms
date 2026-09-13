@@ -1864,3 +1864,19 @@ model PushOutbox {
 
   @@index([status, sendAt])
 }
+
+// One row per delivered Expo ticket, polled ~15 min later for the delivery
+// RECEIPT. A DeviceNotRegistered receipt (which the immediate send ticket often
+// does NOT carry) disables the token. A receipt id absent from Expo's response
+// means "not ready yet", never "gone" — such rows stay PENDING and are retried,
+// then reaped by age so the poll query stays bounded.
+model PushReceipt {
+  id            String   @id @default(cuid())
+  receiptId     String   @unique // the Expo ticket id
+  expoPushToken String // the token this ticket targeted (to prune on error)
+  status        String   @default("PENDING") // PENDING | DONE
+  checkAfter    DateTime // don't poll before ~15 min after send
+  createdAt     DateTime @default(now())
+
+  @@index([status, checkAfter])
+}
