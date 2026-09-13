@@ -26,6 +26,7 @@ import { InstanceGate } from "./src/instance-gate";
 import { QueryProvider, QueryAuthReset } from "./src/query";
 import { navigationRef } from "./src/nav-ref";
 import { openAppHref } from "./src/links";
+import { useNotificationsUnread } from "./src/queries";
 // Side effects: sets the foreground notification handler + the unbind push
 // cleanup hook at module load. Must be imported before the first notification.
 import "./src/push";
@@ -50,6 +51,7 @@ import { LessonScreen } from "./src/screens/LessonScreen";
 import { LiveSessionScreen } from "./src/screens/LiveSessionScreen";
 import { AccountScreen } from "./src/screens/AccountScreen";
 import { CertificatesScreen } from "./src/screens/CertificatesScreen";
+import { NotificationsScreen } from "./src/screens/NotificationsScreen";
 import { PaymentsScreen } from "./src/screens/PaymentsScreen";
 import { PlansScreen } from "./src/screens/PlansScreen";
 import { BlogListScreen } from "./src/screens/BlogListScreen";
@@ -93,6 +95,7 @@ function buildLinking(): LinkingOptions<RootStackParamList> {
         Lesson: "lessons/:lessonId",
         LiveSession: "live/:sessionId",
         Certificates: "account/certificates",
+        Notifications: "notifications",
         Blog: "blog",
         BlogPost: "blog/:slug",
         Payments: "account/payments",
@@ -154,6 +157,8 @@ function AuthNavigator() {
 // stack. The bottom safe-area inset is handled by bottom-tabs itself.
 function MainTabs() {
   const { colors } = useTheme();
+  // Unread inbox count drives the Profile-tab badge (the inbox lives under it).
+  const unread = useNotificationsUnread().data?.count ?? 0;
   return (
     <Tab.Navigator
       screenOptions={{
@@ -229,6 +234,7 @@ function MainTabs() {
           // The screen renders its own full-bleed chrome profile hero.
           headerShown: false,
           title: "Profile",
+          tabBarBadge: unread > 0 ? unread : undefined,
           tabBarIcon: ({ color, focused }) => (
             <TabIcon
               name={focused ? "person" : "person-outline"}
@@ -296,6 +302,11 @@ function AppNavigator() {
         name="Certificates"
         component={CertificatesScreen}
         options={{ title: "Certificates" }}
+      />
+      <AppStack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{ title: "Notifications" }}
       />
       <AppStack.Screen
         name="Payments"
