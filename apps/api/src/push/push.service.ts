@@ -7,6 +7,7 @@ import {
   type ExpoPushTicket,
 } from "expo-server-sdk";
 import { PrismaService } from "../prisma/prisma.service";
+import { MemberNotificationsService } from "../notifications/member-notifications.service";
 import type { RegisterDeviceTokenDto } from "./dto/register-device-token.dto";
 
 // The member push categories. Kept as a local union (the API consumes
@@ -103,7 +104,10 @@ export class PushService {
     useFcmV1: true,
   });
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly memberNotifications: MemberNotificationsService,
+  ) {}
 
   // ---------- Registration (member-facing) ----------
 
@@ -155,12 +159,29 @@ export class PushService {
         where: { id: input.userId },
         select: { pushOptOut: true },
       });
-      if (!user || user.pushOptOut) return;
+      if (!user) return;
 
-      // Idempotency: the unique dedupeKey collapses concurrent webhook replays —
-      // the first create wins, any duplicate throws P2002 and we bail. (Mirrors
-      // the email engine's "record then send"; push is a best-effort supplement
-      // to the transactional email, so record-before-send is acceptable.)
+      const title = (input.title ?? (await this.brandTitle())).trim();
+      const body = BILLING_CATEGORIES.has(input.category)
+        ? stripSteering(input.body)
+        : input.body;
+
+      // Durable inbox row FIRST — recorded even when the member opted out of OS
+      // push or has no device, so the in-app inbox + badge are independent of
+      // push delivery. Idempotent on dedupeKey.
+      await this.memberNotifications.record({
+        userId: input.userId,
+        category: input.category,
+        title,
+        body,
+        href: input.href,
+        dedupeKey: input.dedupeKey,
+      });
+
+      if (user.pushOptOut) return; // inbox recorded; skip the OS push
+
+      // Push idempotency: the unique dedupeKey collapses concurrent webhook
+      // replays — the first create wins, any duplicate throws P2002 and we bail.
       try {
         await this.prisma.pushLog.create({
           data: {
@@ -175,9 +196,9 @@ export class PushService {
 
       await this.deliverToUsers([input.userId], {
         category: input.category,
-        body: input.body,
+        body,
         href: input.href,
-        title: input.title,
+        title,
       });
     } catch (err) {
       this.logger.warn(
@@ -272,7 +293,7 @@ export class PushService {
   private async resolveEntitledMembers(
     levelIds: string[],
     broadcast: boolean,
-  ): Promise<string[]> {
+  ): Promise<{ id: string; pushOptOut: boolean }[]> {
     // A non-broadcast fan-out with no levels targets nobody (never everybody).
     if (!broadcast && levelIds.length === 0) return [];
     const now = new Date();
@@ -286,29 +307,31 @@ export class PushService {
           status: "ACTIVE",
           OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         };
+    // NOTE: pushOptOut is NOT filtered here — opted-out members still get the
+    // durable inbox row; the caller sends OS push only to the !pushOptOut subset.
     const base: Prisma.UserWhereInput = {
       isPreview: false,
-      pushOptOut: false,
       levels: { some: grant },
     };
-    const ids: string[] = [];
+    const members: { id: string; pushOptOut: boolean }[] = [];
     let cursor: string | undefined;
     for (;;) {
       // Pure keyset (id > cursor), NOT cursor+skip:1 — a value comparison that
-      // stays correct even if the boundary member is deleted / opts out / expires
-      // between pages (cursor+skip would then OFFSET past a real recipient).
+      // stays correct even if the boundary member is deleted / expires between
+      // pages (cursor+skip would then OFFSET past a real recipient).
       const page = await this.prisma.user.findMany({
         where: cursor ? { AND: [base, { id: { gt: cursor } }] } : base,
-        select: { id: true },
+        select: { id: true, pushOptOut: true },
         orderBy: { id: "asc" },
         take: 1000,
       });
       if (page.length === 0) break;
-      for (const u of page) ids.push(u.id);
+      for (const u of page)
+        members.push({ id: u.id, pushOptOut: u.pushOptOut });
       if (page.length < 1000) break;
       cursor = page[page.length - 1].id;
     }
-    return ids;
+    return members;
   }
 
   // Drain the fan-out outbox once a minute. Coexists with the email drains
@@ -341,22 +364,37 @@ export class PushService {
         });
         if (claim.count !== 1) continue; // lost the race
         try {
-          const userIds = await this.resolveEntitledMembers(
+          const members = await this.resolveEntitledMembers(
             row.levelIds,
             row.broadcast,
           );
-          if (userIds.length === 0) continue;
+          if (members.length === 0) continue;
+          // Durable inbox row for EVERY entitled member (incl. push opt-outs) so
+          // the in-app inbox/badge is complete regardless of OS push.
+          await this.memberNotifications.recordMany(
+            members.map((m) => m.id),
+            {
+              category: row.category,
+              title: row.title ?? (await this.brandTitle()),
+              body: row.body,
+              href: row.href,
+              dedupePrefix: row.dedupePrefix,
+            },
+          );
+          // OS push only to the consenting subset.
+          const pushIds = members.filter((m) => !m.pushOptOut).map((m) => m.id);
+          if (pushIds.length === 0) continue;
           // Per-recipient idempotency ledger — a re-drain skips already-logged
           // members. skipDuplicates makes the whole batch a no-op on replay.
           await this.prisma.pushLog.createMany({
-            data: userIds.map((userId) => ({
+            data: pushIds.map((userId) => ({
               userId,
               category: row.category,
               dedupeKey: `${row.dedupePrefix}:${userId}`,
             })),
             skipDuplicates: true,
           });
-          await this.deliverToUsers(userIds, {
+          await this.deliverToUsers(pushIds, {
             category: row.category as PushCategory,
             body: row.body,
             href: row.href,

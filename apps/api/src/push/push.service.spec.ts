@@ -43,6 +43,25 @@ function makePrisma(over: Record<string, unknown> = {}): any {
   };
 }
 
+// Member-inbox double: captures inbox writes; every push path records here.
+function makeMemberNotif() {
+  const records: any[] = [];
+  const recordMany: any[] = [];
+  const mn: any = {
+    record: async (input: any) => {
+      records.push(input);
+    },
+    recordMany: async (userIds: string[], base: any) => {
+      recordMany.push({ userIds, base });
+    },
+  };
+  return { mn, records, recordMany };
+}
+
+function mkService(prisma: any, mn?: any): PushService {
+  return new PushService(prisma, mn ?? makeMemberNotif().mn);
+}
+
 // Stub the Expo client so no network call is made; captures what was sent.
 function stubExpo(svc: PushService, sendImpl: (chunk: any[]) => any[]): any[] {
   const sent: any[] = [];
@@ -67,7 +86,8 @@ test("dispatch is a no-op when the member opted out of push", async () => {
       },
     },
   });
-  const svc = new PushService(prisma);
+  const { mn, records } = makeMemberNotif();
+  const svc = mkService(prisma, mn);
   const sent = stubExpo(svc, () => []);
   await svc.dispatch({
     userId: "u1",
@@ -76,11 +96,8 @@ test("dispatch is a no-op when the member opted out of push", async () => {
     href: "help/1",
     dedupeKey: "k1",
   });
-  assert.equal(
-    created,
-    false,
-    "opt-out must short-circuit before the log write",
-  );
+  assert.equal(records.length, 1, "inbox row recorded even when opted out");
+  assert.equal(created, false, "no OS push (pushLog) for an opted-out member");
   assert.equal(sent.length, 0);
 });
 
@@ -97,7 +114,7 @@ test("dispatch dedupes on the unique key (replay is a no-op)", async () => {
       },
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   const sent = stubExpo(svc, () => []);
   await svc.dispatch({
     userId: "u1",
@@ -113,7 +130,7 @@ test("dispatch is a no-op when the member has no active tokens", async () => {
   const prisma = makePrisma({
     deviceToken: { ...makePrisma().deviceToken, findMany: async () => [] },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   const sent = stubExpo(svc, () => []);
   await svc.dispatch({
     userId: "u1",
@@ -137,7 +154,7 @@ test("dispatch sends to active tokens and disables DeviceNotRegistered ones", as
       },
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   const sent = stubExpo(svc, (chunk) =>
     chunk.map((m) =>
       m.to === BAD
@@ -166,7 +183,7 @@ test("payment-failed body is stripped of any web URL (anti-steering)", async () 
       findMany: async () => [{ expoPushToken: GOOD }],
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   const sent = stubExpo(svc, (chunk) => chunk.map(() => ({ status: "ok" })));
   await svc.dispatch({
     userId: "u1",
@@ -190,7 +207,7 @@ test("subscription-active also strips steering links, incl. bare domains", async
       findMany: async () => [{ expoPushToken: GOOD }],
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   const sent = stubExpo(svc, (chunk) => chunk.map(() => ({ status: "ok" })));
   await svc.dispatch({
     userId: "u1",
@@ -214,7 +231,7 @@ test("non-billing categories (e.g. certificate-ready) are NOT steering-stripped"
       findMany: async () => [{ expoPushToken: GOOD }],
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   const sent = stubExpo(svc, (chunk) => chunk.map(() => ({ status: "ok" })));
   const body = 'Your certificate for "Design 101" is ready.';
   await svc.dispatch({
@@ -239,7 +256,7 @@ test("dispatchToLevels enqueues one PushOutbox row (resolve at drain)", async ()
       },
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   await svc.dispatchToLevels(["L1", "L2"], {
     category: "new-course",
     body: "New course",
@@ -260,7 +277,7 @@ test("dispatchToLevels swallows a duplicate enqueue (unique dedupePrefix)", asyn
       },
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   await svc.dispatchToLevels(["L1"], {
     category: "new-course",
     body: "b",
@@ -295,7 +312,10 @@ test("drainPushOutbox claims a row, resolves the audience, and delivers", async 
     },
     user: {
       ...makePrisma().user,
-      findMany: async () => [{ id: "u1" }, { id: "u2" }],
+      findMany: async () => [
+        { id: "u1", pushOptOut: false },
+        { id: "u2", pushOptOut: false },
+      ],
     },
     pushLog: {
       ...makePrisma().pushLog,
@@ -309,13 +329,73 @@ test("drainPushOutbox claims a row, resolves the audience, and delivers", async 
       findMany: async () => [{ expoPushToken: GOOD }],
     },
   });
-  const svc = new PushService(prisma);
+  const { mn, recordMany } = makeMemberNotif();
+  const svc = mkService(prisma, mn);
   const sent = stubExpo(svc, (chunk) => chunk.map(() => ({ status: "ok" })));
   await svc.drainPushOutbox();
   assert.deepEqual(claimed, ["o1"], "row claimed PENDING->SENT");
-  assert.deepEqual(logged, ["u1", "u2"], "one PushLog row per recipient");
+  assert.deepEqual(
+    recordMany[0].userIds,
+    ["u1", "u2"],
+    "inbox row for every entitled member",
+  );
+  assert.deepEqual(
+    logged,
+    ["u1", "u2"],
+    "one PushLog row per pushable recipient",
+  );
   assert.equal(sent.length, 1, "delivered to the cohort's tokens");
   assert.equal(sent[0].data.href, "courses/c1");
+});
+
+test("drainPushOutbox: inbox for all entitled, push only to consenting members", async () => {
+  let logged: string[] = [];
+  const prisma = makePrisma({
+    pushOutbox: {
+      ...makePrisma().pushOutbox,
+      findMany: async () => [
+        {
+          id: "o3",
+          category: "new-course",
+          title: null,
+          body: "New course",
+          href: "courses/c3",
+          levelIds: ["L1"],
+          broadcast: false,
+          dedupePrefix: "new-course:c3",
+        },
+      ],
+      updateMany: async () => ({ count: 1 }),
+    },
+    user: {
+      ...makePrisma().user,
+      findMany: async () => [
+        { id: "u1", pushOptOut: false },
+        { id: "u2", pushOptOut: true }, // opted out of OS push
+      ],
+    },
+    pushLog: {
+      ...makePrisma().pushLog,
+      createMany: async ({ data }: any) => {
+        logged = data.map((d: any) => d.userId);
+        return { count: data.length };
+      },
+    },
+    deviceToken: {
+      ...makePrisma().deviceToken,
+      findMany: async () => [{ expoPushToken: GOOD }],
+    },
+  });
+  const { mn, recordMany } = makeMemberNotif();
+  const svc = mkService(prisma, mn);
+  stubExpo(svc, (chunk) => chunk.map(() => ({ status: "ok" })));
+  await svc.drainPushOutbox();
+  assert.deepEqual(
+    recordMany[0].userIds,
+    ["u1", "u2"],
+    "inbox row for BOTH members (incl. the opt-out)",
+  );
+  assert.deepEqual(logged, ["u1"], "OS push only to the consenting member");
 });
 
 test("drainPushOutbox: a non-broadcast row with no levels notifies nobody", async () => {
@@ -348,7 +428,7 @@ test("drainPushOutbox: a non-broadcast row with no levels notifies nobody", asyn
       findMany: async () => [{ expoPushToken: GOOD }],
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   const sent = stubExpo(svc, () => []);
   await svc.drainPushOutbox();
   assert.equal(
@@ -370,7 +450,7 @@ test("dispatchToLevelsCoalesced buckets same-window adds to one key", async () =
       },
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   const W = 15 * 60 * 1000;
   const t0 = 3 * W + 1000; // inside bucket 3
   const input = {
@@ -415,7 +495,7 @@ test("deliver records a PushReceipt for each accepted (ok) ticket", async () => 
       },
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   stubExpo(svc, (chunk) => chunk.map(() => ({ status: "ok", id: "rcpt1" })));
   await svc.dispatch({
     userId: "u1",
@@ -453,7 +533,7 @@ test("drainPushReceipts disables DeviceNotRegistered tokens; leaves not-ready on
       },
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   (svc as any).expo = {
     chunkPushNotificationReceiptIds: (ids: string[]) => [ids],
     getPushNotificationReceiptsAsync: async () => ({
@@ -485,7 +565,7 @@ test("register ignores a non-Expo token", async () => {
       },
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   const res = await svc.register("u1", {
     token: "not-a-token",
     platform: "ios",
@@ -505,7 +585,7 @@ test("register upserts a valid Expo token scoped to the member", async () => {
       },
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   await svc.register("u1", {
     token: GOOD,
     platform: "android",
@@ -532,7 +612,7 @@ test("unregister deletes only the caller's own token", async () => {
       },
     },
   });
-  const svc = new PushService(prisma);
+  const svc = mkService(prisma);
   await svc.unregister("u1", GOOD);
   assert.deepEqual(where, { expoPushToken: GOOD, userId: "u1" });
 });
