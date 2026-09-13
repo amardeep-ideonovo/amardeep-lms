@@ -10,7 +10,11 @@ import type { RegisterDeviceTokenDto } from "./dto/register-device-token.dto";
 // The member push categories P0 ships. Kept as a local union (the API consumes
 // @lms/types as TYPES only and cannot import runtime values from it).
 export type PushCategory =
-  "helpdesk-reply" | "payment-failed" | "subscription-active";
+  | "helpdesk-reply"
+  | "payment-failed"
+  | "subscription-active"
+  | "certificate-issued"
+  | "certificate-ready";
 
 export interface PushDispatchInput {
   userId: string;

@@ -6,7 +6,15 @@ import { LmsService } from "./lms.service";
 // Course delete/archive behaviour.
 
 function make(prisma: any): LmsService {
-  return new LmsService(prisma, {} as any, {} as any, {} as any);
+  return new LmsService(
+    prisma,
+    {} as any,
+    {} as any,
+    {} as any,
+    {
+      dispatch: async () => {},
+    } as any,
+  );
 }
 
 test("deleteCourse() hard-deletes the course", async () => {

@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { NotificationsModule } from "../notifications/notifications.module";
+import { PushModule } from "../push/push.module";
 import { AppConfigService } from "../site/app-config.service";
 import { CertificateTemplatesService } from "./certificate-templates.service";
 import { CertificateTemplatesController } from "./certificate-templates.controller";
@@ -19,6 +20,7 @@ import { jwtSecret } from "../common/env.util";
 @Module({
   imports: [
     NotificationsModule,
+    PushModule, // member push for certificate-issued
     // JwtService (same secret as auth) to mint short-lived cert-download tokens.
     JwtModule.registerAsync({
       inject: [ConfigService],
