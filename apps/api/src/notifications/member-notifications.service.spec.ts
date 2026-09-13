@@ -120,6 +120,24 @@ test("list maps read state from readAt and returns unreadCount", async () => {
   assert.equal(res.items[1].read, true);
 });
 
+test("list clamps non-numeric page/pageSize instead of passing NaN to Prisma", async () => {
+  let args: any = null;
+  const svc = new MemberNotificationsService(
+    makePrisma({
+      findMany: async (a: any) => {
+        args = a;
+        return [];
+      },
+    }),
+  );
+  // Simulates ?page=abc&pageSize=x from the controller (Number("abc") === NaN).
+  const res = await svc.list({ userId: "u1", page: NaN, pageSize: NaN });
+  assert.equal(res.page, 1);
+  assert.equal(res.pageSize, 20);
+  assert.equal(args.skip, 0, "skip must be a real integer, never NaN");
+  assert.equal(args.take, 20);
+});
+
 test("markRead is scoped to the member and 404s a missing row", async () => {
   let where: any = null;
   const svc = new MemberNotificationsService(

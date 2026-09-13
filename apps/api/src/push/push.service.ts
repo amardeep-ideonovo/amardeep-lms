@@ -61,6 +61,11 @@ export const COALESCE_WINDOW_MS = 15 * 60 * 1000;
 const RECEIPT_CHECK_DELAY_MS = 15 * 60 * 1000;
 const RECEIPT_GIVE_UP_MS = 48 * 60 * 60 * 1000;
 
+// A fan-out row that keeps failing (e.g. the inbox write) is retried this many
+// times before it is parked as FAILED, so a permanently-bad row can't retry
+// forever.
+const MAX_OUTBOX_ATTEMPTS = 5;
+
 // A device push token belongs to a live member (FK), and the batch send resolves
 // the notification body once for the whole cohort.
 interface DeliverPayload {
@@ -354,33 +359,41 @@ export class PushService {
         take: 50,
       });
       for (const row of due) {
-        const claim = await this.prisma.pushOutbox.updateMany({
-          where: { id: row.id, status: "PENDING" },
-          data: {
-            status: "SENT",
-            sentAt: new Date(),
-            attempts: { increment: 1 },
-          },
-        });
-        if (claim.count !== 1) continue; // lost the race
         try {
           const members = await this.resolveEntitledMembers(
             row.levelIds,
             row.broadcast,
           );
-          if (members.length === 0) continue;
-          // Durable inbox row for EVERY entitled member (incl. push opt-outs) so
-          // the in-app inbox/badge is complete regardless of OS push.
-          await this.memberNotifications.recordMany(
-            members.map((m) => m.id),
-            {
-              category: row.category,
-              title: row.title ?? (await this.brandTitle()),
-              body: row.body,
-              href: row.href,
-              dedupePrefix: row.dedupePrefix,
+          // Durable inbox row for EVERY entitled member (incl. push opt-outs)
+          // FIRST — before claiming the row SENT — so a failure here leaves the
+          // row PENDING to retry rather than losing the inbox (fan-out content /
+          // live have no email fallback). recordMany is idempotent
+          // (createMany + skipDuplicates) so a re-drain / concurrent worker is
+          // safe; it THROWS on a real DB error so we fall to the retry catch.
+          if (members.length > 0) {
+            await this.memberNotifications.recordMany(
+              members.map((m) => m.id),
+              {
+                category: row.category,
+                title: row.title ?? (await this.brandTitle()),
+                body: row.body,
+                href: row.href,
+                dedupePrefix: row.dedupePrefix,
+              },
+            );
+          }
+          // Claim SENT only AFTER the inbox is durable. Atomic gate: only the
+          // worker that flips PENDING->SENT sends OS push, so concurrent workers
+          // (which may each have written the idempotent inbox) never double-push.
+          const claim = await this.prisma.pushOutbox.updateMany({
+            where: { id: row.id, status: "PENDING" },
+            data: {
+              status: "SENT",
+              sentAt: new Date(),
+              attempts: { increment: 1 },
             },
-          );
+          });
+          if (claim.count !== 1) continue; // another worker already sent it
           // OS push only to the consenting subset.
           const pushIds = members.filter((m) => !m.pushOptOut).map((m) => m.id);
           if (pushIds.length === 0) continue;
@@ -401,15 +414,22 @@ export class PushService {
             title: row.title ?? undefined,
           });
         } catch (err) {
+          // A failure here is almost always the pre-claim inbox write (a
+          // post-claim push failure no-ops the PENDING guard below, since the
+          // row is already SENT). Leave the row PENDING to retry next tick — all
+          // its writes are idempotent — capping attempts so a permanently-bad
+          // row eventually stops as FAILED.
+          const error = String(err instanceof Error ? err.message : err).slice(
+            0,
+            500,
+          );
+          const attempts = row.attempts + 1;
           await this.prisma.pushOutbox.updateMany({
-            where: { id: row.id },
-            data: {
-              status: "FAILED",
-              error: String(err instanceof Error ? err.message : err).slice(
-                0,
-                500,
-              ),
-            },
+            where: { id: row.id, status: "PENDING" },
+            data:
+              attempts >= MAX_OUTBOX_ATTEMPTS
+                ? { status: "FAILED", attempts, error }
+                : { attempts, error },
           });
         }
       }

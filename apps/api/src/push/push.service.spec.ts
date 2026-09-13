@@ -398,6 +398,66 @@ test("drainPushOutbox: inbox for all entitled, push only to consenting members",
   assert.deepEqual(logged, ["u1"], "OS push only to the consenting member");
 });
 
+test("drainPushOutbox: an inbox-write failure retries (no SENT, no push)", async () => {
+  const updates: any[] = [];
+  const prisma = makePrisma({
+    pushOutbox: {
+      ...makePrisma().pushOutbox,
+      findMany: async () => [
+        {
+          id: "o9",
+          category: "new-course",
+          title: null,
+          body: "New course",
+          href: "courses/c9",
+          levelIds: ["L1"],
+          broadcast: false,
+          dedupePrefix: "new-course:c9",
+          attempts: 0,
+        },
+      ],
+      updateMany: async (a: any) => {
+        updates.push(a.data);
+        return { count: 1 };
+      },
+    },
+    user: {
+      ...makePrisma().user,
+      findMany: async () => [{ id: "u1", pushOptOut: false }],
+    },
+    deviceToken: {
+      ...makePrisma().deviceToken,
+      findMany: async () => [{ expoPushToken: GOOD }],
+    },
+  });
+  // Inbox write fails (transient).
+  const mn = {
+    record: async () => {},
+    recordMany: async () => {
+      throw new Error("db timeout");
+    },
+  };
+  const svc = mkService(prisma, mn);
+  const sent = stubExpo(svc, (chunk) => chunk.map(() => ({ status: "ok" })));
+  await svc.drainPushOutbox();
+  assert.equal(
+    sent.length,
+    0,
+    "no OS push when the durable inbox write failed",
+  );
+  assert.equal(
+    updates.length,
+    1,
+    "one outbox update (the retry), not a SENT claim",
+  );
+  assert.notEqual(
+    updates[0].status,
+    "SENT",
+    "row left retryable, not marked SENT",
+  );
+  assert.equal(updates[0].attempts, 1, "attempts incremented for the retry");
+});
+
 test("drainPushOutbox: a non-broadcast row with no levels notifies nobody", async () => {
   let userQueried = false;
   const prisma = makePrisma({

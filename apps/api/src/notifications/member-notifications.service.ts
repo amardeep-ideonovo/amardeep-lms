@@ -55,7 +55,9 @@ export class MemberNotificationsService {
   }
 
   // Write inbox rows for many recipients at once (fan-out). createMany +
-  // skipDuplicates makes a re-drain a no-op.
+  // skipDuplicates makes a re-drain a no-op. Unlike record(), this THROWS on a
+  // DB error — the fan-out drain relies on that to retry (its content/live
+  // categories have no email fallback, so the inbox must be durable).
   async recordMany(
     userIds: string[],
     base: Omit<RecordMemberNotificationInput, "userId" | "dedupeKey"> & {
@@ -63,25 +65,17 @@ export class MemberNotificationsService {
     },
   ): Promise<void> {
     if (userIds.length === 0) return;
-    try {
-      await this.prisma.memberNotification.createMany({
-        data: userIds.map((userId) => ({
-          userId,
-          category: base.category,
-          title: base.title,
-          body: base.body,
-          href: base.href,
-          dedupeKey: `${base.dedupePrefix}:${userId}`,
-        })),
-        skipDuplicates: true,
-      });
-    } catch (err) {
-      this.logger.warn(
-        `[member-notif] recordMany failed (${base.dedupePrefix}): ${
-          err instanceof Error ? err.message : err
-        }`,
-      );
-    }
+    await this.prisma.memberNotification.createMany({
+      data: userIds.map((userId) => ({
+        userId,
+        category: base.category,
+        title: base.title,
+        body: base.body,
+        href: base.href,
+        dedupeKey: `${base.dedupePrefix}:${userId}`,
+      })),
+      skipDuplicates: true,
+    });
   }
 
   // Paginated feed for one member, newest first, with the member's global unread
@@ -91,8 +85,16 @@ export class MemberNotificationsService {
     page?: number;
     pageSize?: number;
   }): Promise<MemberNotificationListDTO> {
-    const page = Math.max(1, opts.page ?? 1);
-    const pageSize = Math.min(50, Math.max(1, opts.pageSize ?? 20));
+    // Coerce-and-clamp with finite guards: a non-numeric/fractional ?page or
+    // ?pageSize would otherwise reach Prisma as skip/take NaN and 500.
+    const rawPage = Number(opts.page);
+    const rawSize = Number(opts.pageSize);
+    const page = Number.isFinite(rawPage)
+      ? Math.max(1, Math.floor(rawPage))
+      : 1;
+    const pageSize = Number.isFinite(rawSize)
+      ? Math.min(50, Math.max(1, Math.floor(rawSize)))
+      : 20;
     const [rows, total, unreadCount] = await this.prisma.$transaction([
       this.prisma.memberNotification.findMany({
         where: { userId: opts.userId },
