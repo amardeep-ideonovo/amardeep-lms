@@ -5,11 +5,14 @@ import { LmsService } from "./lms.service";
 import { LmsController } from "./lms.controller";
 import { AccessService } from "./access.service";
 import { CertificatesModule } from "../certificates/certificates.module";
+import { PushModule } from "../push/push.module";
 import { jwtSecret } from "../common/env.util";
 
 @Module({
   imports: [
     CertificatesModule, // lesson views surface certificate state
+    PushModule, // member push for certificate-ready
+
     // JwtService (same secret as auth) to mint short-lived note-download tokens.
     JwtModule.registerAsync({
       inject: [ConfigService],

@@ -191,6 +191,27 @@ test("subscription-active also strips steering links, incl. bare domains", async
   );
 });
 
+test("non-billing categories (e.g. certificate-ready) are NOT steering-stripped", async () => {
+  const prisma = makePrisma({
+    deviceToken: {
+      ...makePrisma().deviceToken,
+      findMany: async () => [{ expoPushToken: GOOD }],
+    },
+  });
+  const svc = new PushService(prisma);
+  const sent = stubExpo(svc, (chunk) => chunk.map(() => ({ status: "ok" })));
+  const body = 'Your certificate for "Design 101" is ready.';
+  await svc.dispatch({
+    userId: "u1",
+    category: "certificate-ready",
+    body,
+    href: "lessons/l1",
+    dedupeKey: "k6",
+  });
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].body, body, "cert copy must pass through verbatim");
+});
+
 test("register ignores a non-Expo token", async () => {
   let upserted = false;
   const prisma = makePrisma({

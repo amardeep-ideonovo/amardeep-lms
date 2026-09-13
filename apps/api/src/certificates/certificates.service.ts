@@ -19,6 +19,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { AutomationService } from "../email/automation.service";
 import { AppConfigService } from "../site/app-config.service";
+import { PushService } from "../push/push.service";
 import type { AuthenticatedPrincipal } from "../auth/jwt-payload.interface";
 import { MEDIA_ROOT, MEDIA_ROUTE } from "../media/media.config";
 import { CERT_FILES_DIR, newSerial } from "./certificates.config";
@@ -56,6 +57,7 @@ export class CertificatesService {
     private readonly notifications: NotificationsService,
     private readonly automations: AutomationService,
     private readonly appConfig: AppConfigService,
+    private readonly push: PushService,
   ) {}
 
   // ---------- completion math ----------
@@ -361,6 +363,15 @@ export class CertificatesService {
             dedupeKey: `certificate:${userId}:${level.id}`,
           })
           .catch(() => undefined);
+        // Member push (best-effort; separate per-(member,class) dedupeKey from
+        // the admin notif above). Deep-links to the completed class.
+        void this.push.dispatch({
+          userId,
+          category: "certificate-issued",
+          body: `You earned your "${level.name}" certificate.`,
+          href: `classes/${level.id}`,
+          dedupeKey: `push:cert-issued:${userId}:${level.id}`,
+        });
         // Member-facing automation hook (best-effort): fires the
         // CERTIFICATE_ISSUED trigger so an admin-created automation can email
         // the member their certificate. Nothing is seeded for this trigger, so

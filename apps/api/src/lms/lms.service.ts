@@ -22,6 +22,7 @@ import type { AuthenticatedPrincipal } from "../auth/jwt-payload.interface";
 import { LESSON_NOTES_DIR } from "./upload.config";
 import { CertificatesService } from "../certificates/certificates.service";
 import { AutomationService } from "../email/automation.service";
+import { PushService } from "../push/push.service";
 import {
   CreateCourseDto,
   CreateLessonDto,
@@ -39,6 +40,7 @@ export class LmsService {
     private readonly access: AccessService,
     private readonly certificates: CertificatesService,
     private readonly automations: AutomationService,
+    private readonly push: PushService,
   ) {}
 
   // ---------- Courses ----------
@@ -618,6 +620,21 @@ export class LmsService {
       assigned,
       activeLevels,
     );
+    // Completing the final lesson can make a class certificate claimable. Nudge
+    // the member (best-effort). Stable per-(member,class) dedupeKey keeps a
+    // re-POST / uncomplete→recomplete from re-nudging; deep-links to the final
+    // lesson where the "Get certificate" affordance appears.
+    for (const c of certificates) {
+      if (c.eligible && !c.claimed) {
+        void this.push.dispatch({
+          userId,
+          category: "certificate-ready",
+          body: `You've completed "${c.levelName}" — your certificate is ready to claim.`,
+          href: `lessons/${lessonId}`,
+          dedupeKey: `push:cert-ready:${userId}:${c.levelId}`,
+        });
+      }
+    }
     return { ok: true, ...(certificates.length ? { certificates } : {}) };
   }
 
