@@ -499,9 +499,6 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                 <Text style={styles.profileEmail} numberOfLines={1}>
                   {user.email}
                 </Text>
-                <Text style={styles.profileChip}>
-                  {subs.length > 0 ? "Member" : "Free member"}
-                </Text>
               </View>
             </View>
           ) : null}
@@ -1168,19 +1165,6 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontSize: 13,
       marginTop: 2,
       fontFamily: fonts.regular,
-    },
-    profileChip: {
-      alignSelf: "flex-start",
-      marginTop: 8,
-      color: colors.onChrome,
-      backgroundColor: "rgba(255,255,255,0.18)",
-      fontSize: 11,
-      fontWeight: "700",
-      overflow: "hidden",
-      borderRadius: 999,
-      paddingVertical: 4,
-      paddingHorizontal: 11,
-      fontFamily: fonts.bold,
     },
     // Full-width stacked action buttons (uniform size across the profile).
     btnStack: {
