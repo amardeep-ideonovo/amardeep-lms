@@ -275,22 +275,26 @@ export function CourseScreen({ route, navigation }: ScreenProps<"Course">) {
 
           {/* ---- "Your progress" navy card ---- */}
           <View style={styles.progress}>
-            <ProgressRing
-              size={82}
-              stroke={8}
-              pct={pct}
-              color={colors.primary}
-              trackColor="rgba(255,255,255,0.14)"
-              label={`${pct}%`}
-              labelColor="#ffffff"
-              labelSize={18}
-            />
-            <Text style={styles.progressTitle}>Your progress</Text>
-            <Text style={styles.progressText}>
-              {allDone
-                ? `All ${total} lessons complete — nicely done.`
-                : `${completed} of ${total} lessons complete.`}
-            </Text>
+            <View style={styles.progressTop}>
+              <ProgressRing
+                size={60}
+                stroke={7}
+                pct={pct}
+                color={colors.primary}
+                trackColor="rgba(255,255,255,0.14)"
+                label={`${pct}%`}
+                labelColor="#ffffff"
+                labelSize={14}
+              />
+              <View style={styles.progressInfo}>
+                <Text style={styles.progressTitle}>Your progress</Text>
+                <Text style={styles.progressText}>
+                  {allDone
+                    ? `All ${total} lessons complete — nicely done.`
+                    : `${completed} of ${total} lessons complete.`}
+                </Text>
+              </View>
+            </View>
             <Press
               style={styles.progressBtn}
               accessibilityRole="button"
@@ -398,26 +402,30 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     },
     statusPillMuted: { color: colors.textMuted },
     lessonList: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-    // ---- progress card ----
+    // ---- progress card (compact: ring beside the copy) ----
     progress: {
       backgroundColor: colors.inkCard,
       borderRadius: 16,
-      padding: spacing.lg,
-      alignItems: "flex-start",
+      padding: spacing.md,
       marginBottom: spacing.md,
     },
+    progressTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+    },
+    progressInfo: { flex: 1, minWidth: 0 },
     progressTitle: {
       color: "#ffffff",
       fontSize: 15,
       fontWeight: "700",
       fontFamily: fonts.bold,
-      marginTop: spacing.md,
     },
     progressText: {
       color: "rgba(255,255,255,0.56)",
       fontSize: 12.5,
-      lineHeight: 19,
-      marginTop: 6,
+      lineHeight: 18,
+      marginTop: 3,
       fontFamily: fonts.regular,
     },
     progressBtn: {
