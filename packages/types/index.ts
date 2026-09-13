@@ -674,12 +674,33 @@ export interface MemberDashboardDTO {
   extras: Record<string, ClassExtrasDTO>;
 }
 
+// A lightweight lesson row for the class page's per-course accordion — enough to
+// render "Lesson N · title · duration" with the member's state, and NOTHING more
+// (no content body, notes or video URL): the member opens GET /lessons/:id for
+// those. Keeps my-courses one request instead of a class->courses->lessons fan-out.
+export interface ClassCourseLessonDTO {
+  id: string;
+  title: string;
+  thumbnailUrl: string | null;
+  durationSeconds: number | null;
+  order: number;
+  completed: boolean; // this member has completed it
+  started: boolean; // this member has opened it at least once
+}
+
+// A class-page course = the CourseCard plus its lightweight lesson rows. Extends
+// CourseCard so every existing reader (mobile + web) still type-checks; only the
+// value gains a `lessons` array.
+export interface ClassCourseDTO extends CourseCard {
+  lessons: ClassCourseLessonDTO[];
+}
+
 // GET /levels/:slugOrId/my-courses (member, auth). A class's courses — returned
 // ONLY when the member owns the class (active membership); otherwise owned:false
 // and an empty list, so the public class page shows just its marketing + CTA.
 export interface MyClassCoursesDTO {
   owned: boolean;
-  courses: CourseCard[];
+  courses: ClassCourseDTO[];
   // Certificate state for this class (owned requests only; null when the class
   // has no certificate template assigned — certificates are opt-in per class).
   // Drives the class page's certificate card vs. the "Your progress" card.
