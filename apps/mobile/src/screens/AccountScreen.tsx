@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
   AuthUser,
@@ -29,6 +30,7 @@ import { ErrorState } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
 import { HeroScaffold, HERO_OVERLAP } from "../components/HeroScaffold";
 import { BrandHeaderTitle } from "../components/BrandHeaderTitle";
+import { Press } from "../components/Press";
 import { useAppConfig } from "../config-provider";
 import { IS_LOCKED_BUILD, legalLinks, unbindInstance } from "../config";
 import { fmtDate, money } from "../format";
@@ -464,18 +466,32 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
           </View>
           {user ? (
             <View style={styles.profileRow}>
-              {user.avatarUrl ? (
-                <Image
-                  source={{ uri: user.avatarUrl }}
-                  style={styles.profileAvatar}
-                />
-              ) : (
-                <View
-                  style={[styles.profileAvatar, styles.profileAvatarFallback]}
-                >
-                  <Text style={styles.profileInitials}>{initialsOf(user)}</Text>
+              {/* Tap the avatar to add/change the photo (no separate button). */}
+              <Press
+                onPress={pickAvatar}
+                disabled={!!avatarBusy}
+                style={[styles.avatarPress, avatarBusy && { opacity: 0.6 }]}
+                accessibilityRole="button"
+                accessibilityLabel="Change profile photo"
+              >
+                {user.avatarUrl ? (
+                  <Image
+                    source={{ uri: user.avatarUrl }}
+                    style={styles.profileAvatar}
+                  />
+                ) : (
+                  <View
+                    style={[styles.profileAvatar, styles.profileAvatarFallback]}
+                  >
+                    <Text style={styles.profileInitials}>
+                      {initialsOf(user)}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.avatarBadge}>
+                  <Ionicons name="camera" size={13} color="#ffffff" />
                 </View>
-              )}
+              </Press>
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName} numberOfLines={1}>
                   {fullName}
@@ -512,46 +528,6 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
 
                 {mode === "view" ? (
                   <>
-                    {/* The avatar itself shows in the profile hero; these controls
-                      edit it. The optimistic remove clears `avatarUrl` at once, so
-                      keep the Remove button mounted for the in-flight window so its
-                      "Removing…" state still reads. */}
-                    <View
-                      style={[
-                        styles.photoStack,
-                        avatarBusy && { opacity: 0.6 },
-                      ]}
-                    >
-                      <Button
-                        variant="secondary"
-                        block
-                        onPress={pickAvatar}
-                        disabled={!!avatarBusy}
-                        label={
-                          avatarBusy === "pick"
-                            ? "Uploading…"
-                            : user.avatarUrl
-                              ? "Change photo"
-                              : "Add photo"
-                        }
-                      />
-                      {user.avatarUrl || avatarBusy === "remove" ? (
-                        <Button
-                          variant="secondary"
-                          block
-                          onPress={removeAvatar}
-                          disabled={!!avatarBusy}
-                          label={
-                            avatarBusy === "remove"
-                              ? "Removing…"
-                              : STR.common.remove
-                          }
-                        />
-                      ) : null}
-                    </View>
-                    {avatarError ? (
-                      <Text style={styles.formError}>{avatarError}</Text>
-                    ) : null}
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Name</Text>
                       <Text style={styles.detailValue}>{fullName}</Text>
@@ -562,18 +538,37 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                     </View>
                     <View style={styles.btnStack}>
                       <Button
-                        variant="secondary"
+                        variant="primary"
                         block
                         onPress={startEdit}
                         label={STR.common.edit}
                       />
                       <Button
-                        variant="secondary"
+                        variant="primary"
                         block
                         onPress={startPwEdit}
                         label="Change password"
                       />
+                      {/* The optimistic remove clears `avatarUrl` at once, so keep
+                          the button mounted for the in-flight window so its
+                          "Removing…" state still reads. */}
+                      {user.avatarUrl || avatarBusy === "remove" ? (
+                        <Button
+                          variant="danger"
+                          block
+                          onPress={removeAvatar}
+                          disabled={!!avatarBusy}
+                          label={
+                            avatarBusy === "remove"
+                              ? "Removing…"
+                              : "Remove photo"
+                          }
+                        />
+                      ) : null}
                     </View>
+                    {avatarError ? (
+                      <Text style={styles.formError}>{avatarError}</Text>
+                    ) : null}
                   </>
                 ) : mode === "edit" ? (
                   <>
@@ -769,13 +764,13 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                 )}
                 <View style={styles.btnStack}>
                   <Button
-                    variant="secondary"
+                    variant="primary"
                     block
                     onPress={() => navigation.navigate("Plans")}
                     label="View all plans"
                   />
                   <Button
-                    variant="secondary"
+                    variant="primary"
                     block
                     onPress={() => navigation.navigate("Payments")}
                     label="Payment history"
@@ -1188,13 +1183,24 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontFamily: fonts.bold,
     },
     // Full-width stacked action buttons (uniform size across the profile).
-    photoStack: {
-      gap: spacing.sm,
-      marginBottom: spacing.md,
-    },
     btnStack: {
       gap: spacing.sm,
       marginTop: spacing.sm,
+    },
+    // Tappable avatar (edit photo) + camera badge.
+    avatarPress: { position: "relative" },
+    avatarBadge: {
+      position: "absolute",
+      right: -1,
+      bottom: -1,
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      borderWidth: 2,
+      borderColor: colors.chrome,
+      alignItems: "center",
+      justifyContent: "center",
     },
     brandHeader: {
       alignItems: "center",
