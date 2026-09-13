@@ -25,6 +25,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { EmailService } from "../email/email.service";
 import { AppConfigService } from "../site/app-config.service";
+import { PushService } from "../push/push.service";
 import { ConfigService } from "@nestjs/config";
 import {
   AdminListQueryDto,
@@ -94,6 +95,7 @@ export class HelpdeskService {
     private readonly email: EmailService,
     private readonly appConfig: AppConfigService,
     private readonly env: ConfigService,
+    private readonly push: PushService,
   ) {}
 
   private async resolveSettings(): Promise<ResolvedSettings> {
@@ -665,6 +667,16 @@ export class HelpdeskService {
         conv.messageCount + 1,
         body,
       );
+      // Member push (best-effort). Same first-unread gate + dedupeKey as the
+      // email, so a burst of admin replies is one push and a retried request
+      // can't double-send. Deep-links straight to the thread.
+      void this.push.dispatch({
+        userId: conv.userId,
+        category: "helpdesk-reply",
+        body: `New reply to "${conv.subject}"`,
+        href: `help/${id}`,
+        dedupeKey: `push:helpdesk-reply:${id}:${conv.messageCount + 1}`,
+      });
     }
     return this.adminThread(id);
   }

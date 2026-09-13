@@ -232,6 +232,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.helpdeskSettings;
   }
 
+  // Push notifications: member device tokens + the send idempotency ledger.
+  get deviceToken() {
+    return this.client.deviceToken;
+  }
+  get pushLog() {
+    return this.client.pushLog;
+  }
+
   get $transaction() {
     return this.client.$transaction.bind(this.client);
   }

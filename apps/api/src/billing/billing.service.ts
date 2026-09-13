@@ -31,6 +31,7 @@ import {
   type RecordNotificationInput,
 } from "../notifications/notifications.service";
 import { AutomationService } from "../email/automation.service";
+import { PushService } from "../push/push.service";
 
 // Maps Stripe subscription.status -> our SubStatus / UserLevelStatus.
 function mapSubStatus(status: Stripe.Subscription.Status): {
@@ -120,6 +121,7 @@ export class BillingService implements OnModuleInit {
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
     private readonly automations: AutomationService,
+    private readonly push: PushService,
   ) {}
 
   // PayPal "cancel at period end" keeps the grant ACTIVE with an expiresAt
@@ -167,6 +169,7 @@ export class BillingService implements OnModuleInit {
     trigger: "SUBSCRIPTION_ACTIVE" | "SUBSCRIPTION_CANCELED",
     user: { id: string; email: string },
     planLabel: string,
+    externalSubId: string,
   ): Promise<void> {
     try {
       const [member, brand] = await Promise.all([
@@ -181,6 +184,19 @@ export class BillingService implements OnModuleInit {
         email: user.email,
         vars: { firstName, brand, plan: planLabel },
       });
+      // Member push — P0 only welcomes on genuine first activation. The caller's
+      // `prevMirror == null` gate already scopes this once per subscription;
+      // externalSubId keys the push dedupe so a re-reconcile can't double-send.
+      if (trigger === "SUBSCRIPTION_ACTIVE") {
+        void this.push.dispatch({
+          userId: user.id,
+          category: "subscription-active",
+          title: brand,
+          body: `Your access to ${planLabel} is now active. Tap to start learning.`,
+          href: "account",
+          dedupeKey: `push:sub:active:${externalSubId}`,
+        });
+      }
     } catch (err) {
       this.logger.warn(
         `[billing] ${trigger} automation failed for ${user.email}: ${
@@ -209,6 +225,7 @@ export class BillingService implements OnModuleInit {
     planLabel: string,
     graceEndsAt: Date | null,
     externalSubId: string,
+    periodKey: string | number,
   ): Promise<void> {
     try {
       const [member, brand] = await Promise.all([
@@ -240,6 +257,24 @@ export class BillingService implements OnModuleInit {
         eventKey: `payfail:${externalSubId}:${
           graceEndsAt ? graceEndsAt.getTime() : "nogr"
         }`,
+      });
+      // Member push — store-compliant: state the problem + grace date, no price,
+      // no web-checkout CTA (stripSteering enforces this). Reuses the per-episode
+      // key so a webhook replay / new grace deadline dedupes/re-fires correctly.
+      void this.push.dispatch({
+        userId: user.id,
+        category: "payment-failed",
+        title: brand,
+        body: graceEndsAt
+          ? `We couldn't process your payment for ${planLabel}. Your access continues until ${graceText}.`
+          : `We couldn't process your payment for ${planLabel}.`,
+        href: "account/payments",
+        // Key on the billing PERIOD, not the call-time grace deadline: two
+        // concurrent first-failure webhooks (invoice.payment_failed +
+        // subscription.updated) compute graceEndsAt milliseconds apart, which
+        // would defeat the unique-key dedupe and double-send. periodKey is stable
+        // across the concurrent pair yet distinct for a genuine later episode.
+        dedupeKey: `push:payfail:${externalSubId}:${periodKey}`,
       });
     } catch (err) {
       this.logger.warn(
@@ -1497,6 +1532,7 @@ export class BillingService implements OnModuleInit {
         planLabel,
         effectiveGrace,
         s.externalSubId,
+        periodKey,
       );
     }
 
@@ -1519,6 +1555,7 @@ export class BillingService implements OnModuleInit {
         "SUBSCRIPTION_ACTIVE",
         user,
         planLabel,
+        s.externalSubId,
       );
     }
     if (prevStatus !== "PAUSED" && subStatusFinal === "PAUSED") {
@@ -1564,6 +1601,7 @@ export class BillingService implements OnModuleInit {
         "SUBSCRIPTION_CANCELED",
         user,
         planLabel,
+        s.externalSubId,
       );
     }
     if (!prevCancelAtPe && newCancelAtPe && subStatusFinal !== "CANCELED") {

@@ -80,7 +80,12 @@ eas submit --profile production --platform android
 ## 6. App privacy questionnaire
 
 Both stores ask about data collection. This app collects: account **email + name**
-(login/signup) and **lesson progress**; **no tracking, no ads**. The auth token is
+(login/signup), **lesson progress**, and — once push notifications are enabled — a
+**device push token** (a device identifier, sent to the academy's own server to
+deliver notifications; not shared with third parties, not used for tracking/ads).
+The app also requests the **notification permission**. Declare the push token as a
+collected identifier on both stores' data-safety / App Privacy forms, and add the
+notifications permission. Otherwise **no tracking, no ads**. The auth token is
 stored in the device keychain (SecureStore). Declare accordingly. Export compliance
 is pre-answered via `app.json` (`ios.config.usesNonExemptEncryption: false` — HTTPS
 only, no custom crypto).

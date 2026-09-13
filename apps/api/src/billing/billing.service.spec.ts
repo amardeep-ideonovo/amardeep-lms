@@ -40,6 +40,7 @@ function make(
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
   );
   const reconciled: string[] = [];
   svc.reconcileSubscription = async (_sub: any, tag: string) => {
@@ -273,6 +274,7 @@ test("PayPal refund revokes access via the subscription's billing agreement", as
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
   );
   svc.notify = async () => {};
   svc.reconcilePayPalSubscription = async (
@@ -295,6 +297,7 @@ test("PayPal refund for a non-PayPal / foreign agreement is ignored", async () =
   };
   const svc: any = new BillingService(
     prisma,
+    {} as any,
     {} as any,
     {} as any,
     {} as any,

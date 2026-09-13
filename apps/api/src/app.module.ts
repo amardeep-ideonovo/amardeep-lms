@@ -36,6 +36,7 @@ import { ProjectsModule } from "./projects/projects.module";
 import { LiveModule } from "./live/live.module";
 import { SupportModule } from "./support/support.module";
 import { HelpdeskModule } from "./helpdesk/helpdesk.module";
+import { PushModule } from "./push/push.module";
 import { HealthModule } from "./health/health.module";
 import { ControlPlaneModule } from "./control-plane/control-plane.module";
 import { ContentPackModule } from "./content-pack/content-pack.module";
@@ -98,6 +99,7 @@ import { CsrfGuard } from "./auth/csrf.guard";
     LiveModule,
     SupportModule,
     HelpdeskModule,
+    PushModule,
     ContentPackModule,
     SitePreviewModule,
   ],

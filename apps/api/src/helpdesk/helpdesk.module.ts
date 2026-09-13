@@ -8,6 +8,7 @@ import { HelpdeskService } from "./helpdesk.service";
 import { HelpdeskRetentionService } from "./helpdesk-retention.service";
 import { HelpdeskThrottlerGuard } from "./helpdesk.throttler.guard";
 import { AppConfigService } from "../site/app-config.service";
+import { PushModule } from "../push/push.module";
 
 // PrismaService and NotificationsService are @Global, so no imports are needed.
 @Module({
@@ -20,6 +21,8 @@ import { AppConfigService } from "../site/app-config.service";
         secret: jwtSecret(config.get<string>("JWT_SECRET")),
       }),
     }),
+    // Member push for the "a human replied" notification.
+    PushModule,
   ],
   controllers: [HelpdeskController, HelpdeskAdminController],
   // AppConfigService (brand title for the reply email) is a stateless reader
