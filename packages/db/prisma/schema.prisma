@@ -233,6 +233,11 @@ model Course {
   // published with zero lessons (enforced in the service). Defaults to draft;
   // the add-published migration backfills existing courses-with-lessons to true.
   published     Boolean   @default(false)
+  // Stamped each time the course transitions draft->published (re-published after
+  // an unpublish gets a fresh value). Lets the new-course push dedupe per publish
+  // event so a genuine re-release re-notifies, without a bare course-id key
+  // permanently tombstoning it. Null = never published.
+  publishedAt   DateTime?
   createdById   String? // Admin who created this course (audit; null = pre-dates the field or the admin was deleted)
   createdAt     DateTime  @default(now())
   archivedAt    DateTime? // soft-archive: hidden from members (vs hard delete)

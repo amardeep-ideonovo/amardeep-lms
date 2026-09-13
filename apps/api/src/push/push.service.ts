@@ -223,7 +223,7 @@ export class PushService {
           status: "ACTIVE",
           OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
         };
-    const where: Prisma.UserWhereInput = {
+    const base: Prisma.UserWhereInput = {
       isPreview: false,
       pushOptOut: false,
       levels: { some: grant },
@@ -231,12 +231,14 @@ export class PushService {
     const ids: string[] = [];
     let cursor: string | undefined;
     for (;;) {
+      // Pure keyset (id > cursor), NOT cursor+skip:1 — a value comparison that
+      // stays correct even if the boundary member is deleted / opts out / expires
+      // between pages (cursor+skip would then OFFSET past a real recipient).
       const page = await this.prisma.user.findMany({
-        where,
+        where: cursor ? { AND: [base, { id: { gt: cursor } }] } : base,
         select: { id: true },
         orderBy: { id: "asc" },
         take: 1000,
-        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       });
       if (page.length === 0) break;
       for (const u of page) ids.push(u.id);

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { LmsService } from "./lms.service";
 
 // Course delete/archive behaviour.
@@ -38,6 +38,28 @@ test("deleteCourse() 404s for a missing course", async () => {
     course: { findUnique: async () => null },
   });
   await assert.rejects(() => svc.deleteCourse("nope"), NotFoundException);
+});
+
+test("updateCourse() refuses to publish an archived course", async () => {
+  // Guards the archive->publish-while-archived->unarchive hole: an archived
+  // course must be unarchived (back to draft) before it can be published, so the
+  // new-course transition/push fires on the real publish.
+  const svc = make({
+    course: {
+      findUnique: async () => ({
+        id: "C1",
+        title: "C1",
+        slug: "c1",
+        published: false,
+        archivedAt: new Date(),
+        _count: { lessons: 3 },
+      }),
+    },
+  });
+  await assert.rejects(
+    () => svc.updateCourse("C1", { published: true } as never),
+    BadRequestException,
+  );
 });
 
 test("archiveCourse() sets archivedAt instead of hard-deleting", async () => {

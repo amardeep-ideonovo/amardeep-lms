@@ -205,6 +205,18 @@ export class LmsService {
         "Add at least one lesson before publishing this course.",
       );
     }
+    // An archived course must be unarchived (back to draft/visible) before it can
+    // be published — publishing while archived would make it member-visible only
+    // after a later unarchive, which bypasses the new-course transition/push.
+    if (dto.published === true && existing.archivedAt) {
+      throw new BadRequestException(
+        "Unarchive this course before publishing it.",
+      );
+    }
+
+    // A genuine draft->published transition (stamp publishedAt so the new-course
+    // push dedupes per publish event; a re-publish after an unpublish re-notifies).
+    const becamePublished = dto.published === true && !existing.published;
 
     // Backfill a URL slug for courses created before slugs existed; keep an
     // existing slug stable across title edits so bookmarked URLs don't break.
@@ -226,6 +238,7 @@ export class LmsService {
           coverImageUrl: dto.coverImageUrl ?? undefined,
           order: dto.order ?? undefined,
           published: dto.published ?? undefined,
+          publishedAt: becamePublished ? new Date() : undefined,
         },
       });
       // Replace level assignments wholesale when provided.
@@ -255,13 +268,16 @@ export class LmsService {
     // archived courses. Audience = holders of the FINAL level links (fresh), not
     // dto.levelIds (which is optional on update). Empty levels => nobody (an
     // unassigned course does not blast every member).
-    if (!existing.published && fresh.published && !fresh.archivedAt) {
+    if (becamePublished && fresh.published && !fresh.archivedAt) {
       const levelIds = fresh.courseLevels.map((cl) => cl.levelId);
       void this.push.dispatchToLevels(levelIds, {
         category: "new-course",
         body: `New course added: "${fresh.title}".`,
         href: `courses/${fresh.id}`,
-        dedupePrefix: `new-course:${fresh.id}`,
+        // Per publish event, not per course: a re-publish (new publishedAt)
+        // re-notifies, while a concurrent double-fire of the SAME publish
+        // collapses on the identical timestamp.
+        dedupePrefix: `new-course:${fresh.id}:${fresh.publishedAt?.getTime() ?? 0}`,
       });
     }
     return this.toCourseCard(fresh, null);
