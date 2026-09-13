@@ -451,57 +451,59 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
 
         <View style={styles.body}>
           {/* ---- media block (contained, overlaps the band) ---- */}
-          {audioUrl ? (
-            <View>
-              {lesson.thumbnailUrl ? (
-                <Image
-                  style={styles.video}
-                  source={{ uri: lesson.thumbnailUrl }}
-                  resizeMode="cover"
+          <View style={styles.media}>
+            {audioUrl ? (
+              <View>
+                {lesson.thumbnailUrl ? (
+                  <Image
+                    style={styles.video}
+                    source={{ uri: lesson.thumbnailUrl }}
+                    resizeMode="cover"
+                  />
+                ) : null}
+                <AudioPlayerView
+                  uri={audioUrl}
+                  style={lesson.thumbnailUrl ? styles.audioBelow : undefined}
                 />
-              ) : null}
-              <AudioPlayerView
-                uri={audioUrl}
-                style={lesson.thumbnailUrl ? styles.audioBelow : undefined}
+              </View>
+            ) : vimeo ? (
+              <WebView
+                style={styles.video}
+                source={{ uri: vimeo }}
+                allowsFullscreenVideo
+                allowsInlineMediaPlayback
+                javaScriptEnabled
+                domStorageEnabled
               />
-            </View>
-          ) : vimeo ? (
-            <WebView
-              style={styles.video}
-              source={{ uri: vimeo }}
-              allowsFullscreenVideo
-              allowsInlineMediaPlayback
-              javaScriptEnabled
-              domStorageEnabled
-            />
-          ) : youtube ? (
-            // YouTube's embed rejects a WebView that loads the embed URL directly
-            // (no page origin) with "Error 153". Wrapping the iframe in an HTML
-            // doc served under a youtube-nocookie baseUrl gives it the same-origin
-            // context the embed requires. (Vimeo, above, has no such requirement.)
-            <WebView
-              style={styles.video}
-              originWhitelist={["*"]}
-              source={{
-                html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></head><body style="margin:0;background:#000;overflow:hidden"><iframe src="${youtube}" width="100%" height="100%" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></body></html>`,
-                baseUrl: "https://www.youtube-nocookie.com",
-              }}
-              allowsFullscreenVideo
-              allowsInlineMediaPlayback
-              javaScriptEnabled
-              domStorageEnabled
-            />
-          ) : videoUri ? (
-            <VideoPlayerView style={styles.video} uri={videoUri} />
-          ) : lesson.thumbnailUrl ? (
-            <Image
-              style={styles.video}
-              source={{ uri: lesson.thumbnailUrl }}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.video} />
-          )}
+            ) : youtube ? (
+              // YouTube's embed rejects a WebView that loads the embed URL directly
+              // (no page origin) with "Error 153". Wrapping the iframe in an HTML
+              // doc served under a youtube-nocookie baseUrl gives it the same-origin
+              // context the embed requires. (Vimeo, above, has no such requirement.)
+              <WebView
+                style={styles.video}
+                originWhitelist={["*"]}
+                source={{
+                  html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></head><body style="margin:0;background:#000;overflow:hidden"><iframe src="${youtube}" width="100%" height="100%" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></body></html>`,
+                  baseUrl: "https://www.youtube-nocookie.com",
+                }}
+                allowsFullscreenVideo
+                allowsInlineMediaPlayback
+                javaScriptEnabled
+                domStorageEnabled
+              />
+            ) : videoUri ? (
+              <VideoPlayerView style={styles.video} uri={videoUri} />
+            ) : lesson.thumbnailUrl ? (
+              <Image
+                style={styles.video}
+                source={{ uri: lesson.thumbnailUrl }}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.video} />
+            )}
+          </View>
 
           {/* ---- actions card: status + meta + mark complete + certificate ---- */}
           <View style={styles.card}>
@@ -615,7 +617,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
               <HtmlView
                 html={lesson.content}
                 contentWidth={contentWidth - spacing.md * 4}
-                baseStyle={styles.body}
+                baseStyle={styles.descText}
               />
             </View>
           ) : null}
@@ -710,12 +712,20 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     scroll: { flex: 1, backgroundColor: colors.bg },
     scrollContent: { paddingBottom: 0 },
     // Body pulls up so the video card overlaps the bottom of the ink band; caps
-    // to the reading column on tablets.
+    // to the reading column on tablets. Vertical rhythm comes from each child's
+    // marginBottom (not `gap`) to match the rest of the app's screens.
     body: {
       paddingHorizontal: spacing.md,
       marginTop: -HERO_OVERLAP,
-      gap: spacing.md,
       ...contentColumn,
+    },
+    // Description rich-text base style (a TEXT style — must NOT be the `body`
+    // container above, whose negative marginTop would pull the copy up).
+    descText: {
+      color: colors.text,
+      fontSize: 15,
+      lineHeight: 23,
+      fontFamily: fonts.regular,
     },
     // ---- hero band content ----
     crumbs: {
@@ -751,6 +761,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       marginTop: 3,
     },
     // ---- media ----
+    media: { marginBottom: spacing.md },
     video: {
       width: "100%",
       aspectRatio: 16 / 9,
@@ -764,6 +775,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       backgroundColor: colors.surface,
       borderRadius: 16,
       padding: spacing.md,
+      marginBottom: spacing.md,
     },
     cardTitle: {
       color: colors.text,
@@ -867,7 +879,11 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     },
     lockedWrap: { ...formColumn },
     // ---- prev / next ----
-    navRow: { flexDirection: "row", gap: spacing.sm },
+    navRow: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
     navBtn: {
       flex: 1,
       alignItems: "center",
@@ -913,6 +929,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       borderRadius: 14,
       paddingVertical: 14,
       paddingHorizontal: spacing.md,
+      marginBottom: spacing.md,
     },
     upNextThumb: {
       width: 56,
