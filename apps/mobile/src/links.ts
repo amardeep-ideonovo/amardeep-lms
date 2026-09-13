@@ -20,6 +20,7 @@ const RESERVED = new Set([
   "pricing",
   "checkout",
   "help",
+  "live",
   "login",
   "signup",
   "forms",
@@ -103,6 +104,12 @@ function openPath(pathname: string, browserFallback: string): void {
     case "help":
       if (second) nav.navigate("HelpdeskThread", { conversationId: second });
       else nav.navigate("HelpdeskHome");
+      return;
+    case "live":
+      // The session screen shows the in-app join bar and pulls credentials only
+      // inside the window (server-gated) — never link to credentials directly.
+      if (second) nav.navigate("LiveSession", { sessionId: second });
+      else nav.navigate("Main", { screen: "Live" });
       return;
     case "pricing":
       // The plans LIST is native now; actual checkout stays on the web.
