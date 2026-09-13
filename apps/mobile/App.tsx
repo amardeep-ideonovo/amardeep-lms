@@ -272,7 +272,10 @@ function AppNavigator() {
       <AppStack.Screen
         name="Lesson"
         component={LessonScreen}
-        options={({ route }) => ({ title: route.params.title ?? "Lesson" })}
+        // The lesson renders its own full-bleed ink hero band + floating back
+        // button (HeroBackButton), so it drops the native header. The swipe-back
+        // gesture stays enabled by default.
+        options={{ headerShown: false }}
       />
       <AppStack.Screen
         name="LiveSession"
