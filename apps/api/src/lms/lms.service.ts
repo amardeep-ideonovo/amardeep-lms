@@ -337,7 +337,11 @@ export class LmsService {
       include: {
         courseLevels: { select: { levelId: true } },
         lessons: {
-          orderBy: { order: "asc" },
+          // Total order (matches certificates' terminal-lesson logic + the
+          // course list): `order` alone left equal-order lessons — e.g. several
+          // created at order 0 before append-to-end existed — free to reshuffle
+          // between reads. createdAt (then id) makes the sequence deterministic.
+          orderBy: [{ order: "asc" }, { createdAt: "asc" }, { id: "asc" }],
           include: { notes: { orderBy: { order: "asc" } } },
         },
       },
@@ -419,6 +423,16 @@ export class LmsService {
       dto.videoUrl,
       dto.audioUrl,
     );
+    // New lessons append to the END of the course. The admin never sends an
+    // order, so the old `dto.order ?? 0` dropped every new lesson at order 0 —
+    // i.e. at the top/middle of an existing course, and let a course pile up
+    // several lessons all sharing order 0 (which then sorted arbitrarily). An
+    // explicit dto.order still wins, for API callers and content imports.
+    const maxOrder = await this.prisma.lesson.aggregate({
+      where: { courseId },
+      _max: { order: true },
+    });
+    const nextOrder = dto.order ?? (maxOrder._max.order ?? -1) + 1;
     const lesson = await this.prisma.lesson.create({
       data: {
         courseId,
@@ -428,7 +442,7 @@ export class LmsService {
         videoUrl: videoUrl ?? null,
         audioUrl: audioUrl ?? null,
         durationSeconds: dto.durationSeconds ?? null,
-        order: dto.order ?? 0,
+        order: nextOrder,
       },
     });
     // New content for the course's Class members — but ONLY once the course is
@@ -551,6 +565,61 @@ export class LmsService {
     await this.prisma.lesson.delete({ where: { id } });
     this.unlinkNoteFiles(existing.notes.map((n) => n.filename));
     return { ok: true };
+  }
+
+  /**
+   * Admin: persist a new lesson order for a course. `orderedLessonIds` is the
+   * course's lesson ids in the desired sequence; each lesson's `order` is
+   * rewritten to its index, so the result is a gap-free 0..N-1. That also
+   * clears any legacy equal-order ambiguity for this course. Mirrors
+   * reorderFields (projects/lists). Returns the fresh admin lesson list.
+   */
+  async reorderLessons(
+    courseId: string,
+    orderedLessonIds: string[],
+  ): Promise<LessonDTO[]> {
+    // Accept a slug or a raw id, mirroring listCourseLessons/createLesson.
+    const course = await this.prisma.course.findFirst({
+      where: { OR: [{ slug: courseId }, { id: courseId }] },
+      select: { id: true },
+    });
+    if (!course) throw new NotFoundException("Course not found");
+
+    const lessons = await this.prisma.lesson.findMany({
+      where: { courseId: course.id },
+      select: { id: true },
+    });
+    const known = new Set(lessons.map((l) => l.id));
+    // Every id must belong to THIS course — one course's reorder can never
+    // renumber another's lessons.
+    for (const id of orderedLessonIds) {
+      if (!known.has(id)) {
+        throw new BadRequestException(`Unknown lesson id: ${id}`);
+      }
+    }
+    // Enforce a complete, duplicate-free permutation so the result is genuinely
+    // gap-free 0..N-1. The admin UI always sends the full list; this guards a
+    // stale/partial/direct API caller from reintroducing duplicate order values
+    // (there is no @@unique(courseId, order), so a bad payload would persist).
+    if (
+      orderedLessonIds.length !== lessons.length ||
+      new Set(orderedLessonIds).size !== orderedLessonIds.length
+    ) {
+      throw new BadRequestException(
+        "Reorder must list every lesson of the course exactly once.",
+      );
+    }
+    await this.prisma.$transaction(
+      orderedLessonIds.map((id, index) =>
+        this.prisma.lesson.update({
+          where: { id },
+          data: { order: index },
+        }),
+      ),
+    );
+    // userId undefined => the admin view (full rows incl. content), so the
+    // client can commit the authoritative order without a second fetch.
+    return this.listCourseLessons(course.id);
   }
 
   /**

@@ -124,6 +124,7 @@ import type {
   CreateListFieldInput,
   UpdateListFieldInput,
   ReorderListFieldsInput,
+  ReorderLessonsInput,
   UpdateListItemValuesInput,
   CreateListItemCommentInput,
   ChatWorkflowDTO,
@@ -763,6 +764,10 @@ export const api = {
     request<LessonDTO[]>("GET", `/courses/${courseId}/lessons`),
   createLesson: (courseId: string, input: CreateLessonInput) =>
     request<LessonDTO>("POST", `/courses/${courseId}/lessons`, input),
+  reorderLessons: (courseId: string, orderedLessonIds: string[]) =>
+    request<LessonDTO[]>("POST", `/courses/${courseId}/lessons/reorder`, {
+      orderedLessonIds,
+    } satisfies ReorderLessonsInput),
   updateLesson: (id: string, input: UpdateLessonInput) =>
     request<LessonDTO>("PATCH", `/lessons/${id}`, input),
   deleteLesson: (id: string) => request<void>("DELETE", `/lessons/${id}`),

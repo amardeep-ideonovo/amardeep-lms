@@ -214,7 +214,10 @@ export class LevelsService {
         featuredCourse: {
           include: {
             lessons: {
-              orderBy: { order: "asc" },
+              // Total order — same tiebreaker as the admin list + certificates,
+              // so a member never sees a different lesson sequence than the one
+              // the admin arranged (matters for courses with equal `order`).
+              orderBy: [{ order: "asc" }, { createdAt: "asc" }, { id: "asc" }],
               select: {
                 title: true,
                 durationSeconds: true,
@@ -449,7 +452,11 @@ export class LevelsService {
       const [lessons, progress] = await Promise.all([
         this.prisma.lesson.findMany({
           where: { courseId: { in: targetIds } },
-          orderBy: { order: "asc" },
+          // Total order — same tiebreaker as the class page + certificates. The
+          // resume/"Continue" pointer picks the first incomplete lesson from
+          // this list, so an equal-`order` reshuffle here would make the
+          // dashboard point at a different "next lesson" than the class page.
+          orderBy: [{ order: "asc" }, { createdAt: "asc" }, { id: "asc" }],
           select: {
             id: true,
             courseId: true,
@@ -541,7 +548,8 @@ export class LevelsService {
           _count: { select: { lessons: true } },
           // Lightweight lesson rows for the class-page accordion (no body/notes).
           lessons: {
-            orderBy: { order: "asc" },
+            // Total order — matches the admin list + certificates (see above).
+            orderBy: [{ order: "asc" }, { createdAt: "asc" }, { id: "asc" }],
             select: {
               id: true,
               title: true,

@@ -867,6 +867,12 @@ export interface CreateLessonInput {
 }
 export type UpdateLessonInput = Partial<CreateLessonInput>;
 
+// Drag-reorder a course's lessons: the full list of the course's lesson ids in
+// the desired order. The server rewrites each lesson's `order` to its index.
+export interface ReorderLessonsInput {
+  orderedLessonIds: string[];
+}
+
 // ---------- Blog ----------
 // Public marketing/news content. PUBLISHED posts are readable without login;
 // DRAFTs are admin-only. Content is sanitized HTML (rich text).
@@ -2664,7 +2670,8 @@ export const ROUTES = {
   deleteCourse: "DELETE /courses/:id", // cascades lessons/levels/notes
   uploadCourseImage: "POST /courses/upload", // multipart {file} -> {url}; for thumbnail or cover
   listCourseLessons: "GET /courses/:id/lessons",
-  createLesson: "POST /courses/:id/lessons", // body CreateLessonInput
+  createLesson: "POST /courses/:id/lessons", // body CreateLessonInput; appends to end
+  reorderLessons: "POST /courses/:id/lessons/reorder", // admin; body ReorderLessonsInput -> LessonDTO[]
   updateLesson: "PATCH /lessons/:id", // body UpdateLessonInput
   deleteLesson: "DELETE /lessons/:id",
   uploadLessonImage: "POST /lessons/upload", // multipart {file} -> {url}; lesson thumbnail

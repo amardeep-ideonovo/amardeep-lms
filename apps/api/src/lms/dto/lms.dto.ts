@@ -123,6 +123,15 @@ export class RecordProgressDto {
   positionSeconds!: number;
 }
 
+// Persist a new lesson sequence for a course: the full list of that course's
+// lesson ids in the desired order (server rewrites each lesson's `order` to its
+// index). Mirrors ReorderListFieldsDto (projects/lists).
+export class ReorderLessonsDto {
+  @IsArray()
+  @IsString({ each: true })
+  orderedLessonIds!: string[];
+}
+
 export class UpdateLessonDto {
   @IsOptional()
   @IsString()

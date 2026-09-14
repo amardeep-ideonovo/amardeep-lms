@@ -1,6 +1,13 @@
 "use client";
 
-import { ChangeEvent, Fragment, FormEvent, useEffect, useState } from "react";
+import {
+  ChangeEvent,
+  DragEvent,
+  Fragment,
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
 import type {
   CourseCard,
   CreateCourseInput,
@@ -659,6 +666,17 @@ function CourseLessons({
   const [noteFiles, setNoteFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // Drag-and-drop reordering. `dragId` is the row being dragged; `dropInfo` is
+  // the live target row + whether the drop lands before/after it (top/bottom
+  // half of the hovered row). Mirrors the Navigation menu-tree pattern.
+  const { can } = useAdminAuth();
+  const canReorder = can("courses", "edit");
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropInfo, setDropInfo] = useState<{
+    id: string;
+    pos: "before" | "after";
+  } | null>(null);
+
   async function load() {
     setLoading(true);
     setError(null);
@@ -725,6 +743,42 @@ function CourseLessons({
     }
   }
 
+  // Persist a drag from `dragLessonId` to before/after `targetId`. Optimistic:
+  // the list is renumbered locally and committed immediately, then the server's
+  // authoritative order replaces it; on failure it reverts to the prior list.
+  async function reorder(
+    dragLessonId: string,
+    targetId: string,
+    pos: "before" | "after",
+  ) {
+    if (dragLessonId === targetId) return;
+    const cur = lessons.slice().sort((a, b) => a.order - b.order);
+    const from = cur.findIndex((l) => l.id === dragLessonId);
+    if (from === -1) return;
+    const [moved] = cur.splice(from, 1);
+    const targetIdx = cur.findIndex((l) => l.id === targetId);
+    if (targetIdx === -1) return;
+    cur.splice(pos === "before" ? targetIdx : targetIdx + 1, 0, moved);
+    // Renumber to a gap-free 0..N-1 so the client sort stays consistent with
+    // what the server is about to write.
+    const next = cur.map((l, i) => ({ ...l, order: i }));
+    const prev = lessons;
+    setLessons(next); // optimistic
+    setError(null);
+    try {
+      const fresh = await api.reorderLessons(
+        courseId,
+        next.map((l) => l.id),
+      );
+      setLessons(fresh); // server wins
+    } catch (err) {
+      setLessons(prev); // revert
+      setError(
+        err instanceof ApiError ? err.message : "Failed to reorder lessons",
+      );
+    }
+  }
+
   return (
     <div
       style={{
@@ -741,14 +795,67 @@ function CourseLessons({
       ) : lessons.length === 0 ? (
         <p className="muted">No lessons yet.</p>
       ) : (
-        <div className="lesson-list">
-          {lessons
-            .slice()
-            .sort((a, b) => a.order - b.order)
-            .map((l, i) => (
-              <LessonRow key={l.id} index={i} lesson={l} onChanged={load} />
-            ))}
-        </div>
+        <>
+          {canReorder && lessons.length > 1 && (
+            <p className="muted lesson-list-hint">
+              Drag the ⠿ handle to reorder lessons. New lessons are added at the
+              end.
+            </p>
+          )}
+          <div className="lesson-list">
+            {lessons
+              .slice()
+              .sort((a, b) => a.order - b.order)
+              .map((l, i) => (
+                <LessonRow
+                  key={l.id}
+                  index={i}
+                  lesson={l}
+                  onChanged={load}
+                  canReorder={canReorder}
+                  dragging={dragId === l.id}
+                  dropPos={
+                    dropInfo && dropInfo.id === l.id && dragId !== l.id
+                      ? dropInfo.pos
+                      : null
+                  }
+                  onDragStart={() => setDragId(l.id)}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setDropInfo(null);
+                  }}
+                  onDragOver={(e) => {
+                    if (!canReorder || dragId === null || dragId === l.id)
+                      return;
+                    e.preventDefault();
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const pos =
+                      e.clientY < rect.top + rect.height / 2
+                        ? "before"
+                        : "after";
+                    setDropInfo((c) =>
+                      c && c.id === l.id && c.pos === pos
+                        ? c
+                        : { id: l.id, pos },
+                    );
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (canReorder && dragId && dragId !== l.id) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const pos =
+                        e.clientY < rect.top + rect.height / 2
+                          ? "before"
+                          : "after";
+                      void reorder(dragId, l.id, pos);
+                    }
+                    setDragId(null);
+                    setDropInfo(null);
+                  }}
+                />
+              ))}
+          </div>
+        </>
       )}
 
       {/* The add-lesson flow opens in a modal (same as Add new course). */}
@@ -915,10 +1022,24 @@ function LessonRow({
   index,
   lesson,
   onChanged,
+  canReorder,
+  dragging,
+  dropPos,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDrop,
 }: {
   index: number;
   lesson: LessonDTO;
   onChanged: () => void | Promise<void>;
+  canReorder: boolean;
+  dragging: boolean;
+  dropPos: "before" | "after" | null;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onDragOver: (e: DragEvent<HTMLDivElement>) => void;
+  onDrop: (e: DragEvent<HTMLDivElement>) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(lesson.title);
@@ -1042,9 +1163,40 @@ function LessonRow({
     }
   }
 
+  const rowClass =
+    "lesson-item" +
+    (dragging ? " lesson-item--dragging" : "") +
+    (dropPos === "before" ? " lesson-item--drop-before" : "") +
+    (dropPos === "after" ? " lesson-item--drop-after" : "");
+
   return (
-    <div className="lesson-item">
+    <div
+      className={rowClass}
+      onDragOver={canReorder ? onDragOver : undefined}
+      onDrop={canReorder ? onDrop : undefined}
+    >
       <div className="lesson-item__head">
+        {canReorder && (
+          <span
+            className="lesson-item__grip"
+            draggable
+            onDragStart={(e) => {
+              onDragStart();
+              e.dataTransfer.effectAllowed = "move";
+              // Firefox won't start a drag without data set.
+              try {
+                e.dataTransfer.setData("text/plain", lesson.id);
+              } catch {
+                /* older browsers */
+              }
+            }}
+            onDragEnd={onDragEnd}
+            title="Drag to reorder"
+            aria-hidden="true"
+          >
+            ⠿
+          </span>
+        )}
         <span className="lesson-item__num">{index + 1}</span>
         {lesson.thumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

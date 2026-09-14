@@ -34,6 +34,7 @@ import {
   CreateCourseDto,
   CreateLessonDto,
   RecordProgressDto,
+  ReorderLessonsDto,
   UpdateCourseDto,
   UpdateLessonDto,
   UpdateLessonNoteDto,
@@ -201,6 +202,16 @@ export class LmsController {
   @Post("courses/:id/lessons")
   createLesson(@Param("id") id: string, @Body() dto: CreateLessonDto) {
     return this.lms.createLesson(id, dto);
+  }
+
+  // Persist a drag-reordered lesson sequence. `edit` (not `create`): it mutates
+  // existing lessons' order, matching updateLesson. Distinct path from the
+  // create route above (`/lessons` vs `/lessons/reorder`), so no collision.
+  @UseGuards(PermissionsGuard)
+  @RequirePermission("courses", "edit")
+  @Post("courses/:id/lessons/reorder")
+  reorderLessons(@Param("id") id: string, @Body() dto: ReorderLessonsDto) {
+    return this.lms.reorderLessons(id, dto.orderedLessonIds);
   }
 
   // Upload a lesson thumbnail. Saved under the public /images/lesson tree.
