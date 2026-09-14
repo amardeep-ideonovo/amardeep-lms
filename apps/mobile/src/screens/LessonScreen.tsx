@@ -8,10 +8,10 @@ import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  Linking,
   Platform,
   RefreshControl,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -24,7 +24,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import type { LessonDTO, LessonNoteDTO } from "@lms/types";
 
-import { api, ApiError, getToken, noteDownloadUrl } from "../api";
+import { api, ApiError, getToken } from "../api";
 import { API_BASE_URL, scopedKey } from "../config";
 import { Loading, ErrorState, Centered } from "../components/Screen";
 import { Skeleton } from "../components/Skeleton";
@@ -204,7 +204,9 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
   // Download a note to the device. On Android we fetch the file (access-checked
   // endpoint; auth via the Authorization header) and save it to a user-chosen
   // folder via the Storage Access Framework — the folder is remembered so it's
-  // only asked once. On other platforms we fall back to opening the URL.
+  // only asked once. On iOS we download the file the same way and hand it to the
+  // native share sheet, whose "Save to Files" is the direct way to keep it
+  // (a plain URL open would just bounce out to Safari).
   async function saveNote(note: LessonNoteDTO) {
     setNoteError(null);
     setSavedMsg(null);
@@ -214,10 +216,32 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
 
     if (Platform.OS !== "android") {
       try {
-        await Linking.openURL(await noteDownloadUrl(note));
+        const token = await getToken();
+        // Name the cached copy after the note so the share sheet + the file
+        // saved into Files read "Sample Notes.pdf", not the internal id. A
+        // slash would fork the cache path, so neutralise it.
+        const safeName =
+          note.originalName.replace(/[/\\]/g, "_") || `note-${note.id}`;
+        // Download to the app cache (auth via header; non-2xx throws), then
+        // present the share sheet so the member can save it into Files.
+        const tmp = new File(Paths.cache, safeName);
+        try {
+          if (tmp.exists) tmp.delete();
+        } catch {
+          // best-effort: a stale cache copy shouldn't block the download
+        }
+        await File.downloadFileAsync(
+          `${API_BASE_URL}${note.downloadUrl}`,
+          tmp,
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            idempotent: true,
+          },
+        );
+        await Share.share({ url: tmp.uri });
       } catch (e) {
         setNoteError(
-          e instanceof Error ? e.message : "Could not open the file.",
+          e instanceof Error ? e.message : "Could not download the file.",
         );
       } finally {
         setSavingNoteId(null);

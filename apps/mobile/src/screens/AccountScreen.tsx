@@ -79,8 +79,6 @@ function planMeta(sub: SubscriptionDetailDTO): string {
   return meta;
 }
 
-const USERNAME_RE = /^[a-zA-Z0-9_]{3,30}$/;
-
 // Avatar fallback initials from the member's name, else username/email.
 function initialsOf(u: AuthUser): string {
   const src =
@@ -122,7 +120,6 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
-    username: "",
   });
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
@@ -259,7 +256,6 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
     setForm({
       firstName: user.firstName ?? "",
       lastName: user.lastName ?? "",
-      username: user.username,
     });
     setEditError(null);
     setPwOk(false);
@@ -310,19 +306,14 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
   async function saveProfile() {
     const firstName = form.firstName.trim();
     const lastName = form.lastName.trim();
-    const username = form.username.trim();
     if (!firstName || !lastName) {
       setEditError("First and last name are required.");
-      return;
-    }
-    if (!USERNAME_RE.test(username)) {
-      setEditError("3–30 characters: letters, numbers, or underscore.");
       return;
     }
     setSaving(true);
     setEditError(null);
     try {
-      const updated = await api.updateMe({ firstName, lastName, username });
+      const updated = await api.updateMe({ firstName, lastName });
       // Server truth straight into the shared `me` entry (Home reads it too).
       queryClient.setQueryData(qk.me, updated);
       setMode("view");
@@ -627,18 +618,6 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                       maxLength={80}
                       editable={!saving}
                     />
-                    <Text style={styles.inputLabel}>{STR.labels.username}</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={form.username}
-                      onChangeText={(v) =>
-                        setForm((f) => ({ ...f, username: v }))
-                      }
-                      maxLength={30}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      editable={!saving}
-                    />
                     <Text style={styles.inputLabel}>{STR.labels.email}</Text>
                     <View style={styles.readonlyBox}>
                       <Text style={styles.readonlyText}>{user.email}</Text>
@@ -823,7 +802,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                   <View style={styles.pushLabel}>
                     <Text style={styles.moreText}>Push notifications</Text>
                     <Text style={styles.pushHint}>
-                      Replies from support and updates about your membership.
+                      Replies from support and account updates.
                     </Text>
                   </View>
                   <Switch
