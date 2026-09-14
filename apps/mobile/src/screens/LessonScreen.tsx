@@ -327,7 +327,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
         >
-          <HeroScaffold variant="ink" overlapReserve={68}>
+          <HeroScaffold variant="chrome" overlapReserve={68}>
             <Text style={styles.crumbs} numberOfLines={1}>
               Dashboard
             </Text>
@@ -461,7 +461,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <HeroScaffold variant="ink" overlapReserve={68}>
+        <HeroScaffold variant="chrome" overlapReserve={68}>
           <Text style={styles.crumbs} numberOfLines={1}>
             {crumbs}
           </Text>
@@ -508,7 +508,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
                 style={styles.video}
                 originWhitelist={["*"]}
                 source={{
-                  html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></head><body style="margin:0;background:#000;overflow:hidden"><iframe src="${youtube}" width="100%" height="100%" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></body></html>`,
+                  html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><style>html,body{height:100%;margin:0;background:#000;overflow:hidden}iframe{display:block;border:0;width:100%;height:100%}</style></head><body><iframe src="${youtube}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></body></html>`,
                   baseUrl: "https://www.youtube-nocookie.com",
                 }}
                 allowsFullscreenVideo
@@ -759,7 +759,7 @@ const makeStyles = ({ colors, fonts, mode }: Theme) =>
       // button and content top track insets.top, so this constant delta (~8px
       // gap below the 38px puck) holds at every safe-area inset.
       marginTop: spacing.xl + 4,
-      color: "rgba(255,255,255,0.5)",
+      color: colors.onChromeSoft,
       fontSize: 11.5,
       fontFamily: fonts.regular,
     },
@@ -772,15 +772,17 @@ const makeStyles = ({ colors, fonts, mode }: Theme) =>
     },
     heroTitle: {
       flex: 1,
-      color: colors.heroText,
+      color: colors.onChrome,
       fontSize: 23,
       fontWeight: "800",
       lineHeight: 29,
       fontFamily: fonts.display,
     },
     heroPill: {
-      color: "rgba(255,255,255,0.78)",
-      backgroundColor: "rgba(255,255,255,0.1)",
+      // Filled ink chip + fixed light text so "Lesson N of M" stays legible on
+      // any brand chrome band (light OR dark), unlike the old white-on-veil.
+      color: colors.heroText,
+      backgroundColor: colors.inkCard,
       fontSize: 11,
       fontWeight: "600",
       fontFamily: fonts.semibold,

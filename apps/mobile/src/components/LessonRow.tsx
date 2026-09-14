@@ -2,8 +2,8 @@
 // a trailing state control and a highlight for the current lesson. One row for
 // the Class accordion, the Course "Lessons" panel, and the Lesson sidebar.
 //
-//   state "resume"    -> current, started      -> RESUME pill + teal-tint highlight
-//   state "start"     -> current, not started  -> START pill  + teal-tint highlight
+//   state "resume"    -> current, started      -> RESUME pill + neutral highlight
+//   state "start"     -> current, not started  -> START pill  (no row highlight)
 //   state "completed" -> done                  -> teal check circle
 //   state "todo"      -> not reached yet        -> muted play circle
 import React from "react";
@@ -37,7 +37,9 @@ export function LessonRow({
 }) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
-  const current = state === "resume" || state === "start";
+  // Only a STARTED-not-finished lesson gets the highlight; a not-started "start"
+  // row (incl. the very first lesson when nothing's begun) is not highlighted.
+  const current = state === "resume";
 
   return (
     <Press
@@ -108,7 +110,9 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       borderTopColor: colors.borderSoft,
     },
     rowCurrent: {
-      backgroundColor: colors.successBg, // teal-tint wash for the current lesson
+      // Subtle neutral wash — lighter/distinct from the mint (successBg) course
+      // head; the teal left border carries the "current" affordance.
+      backgroundColor: colors.surfaceMuted,
       borderLeftWidth: 3,
       borderLeftColor: colors.primary,
       borderRadius: 8,

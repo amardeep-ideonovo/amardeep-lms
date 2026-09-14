@@ -6,7 +6,7 @@ import { StyleSheet, Text, View } from "react-native";
 import type { Theme } from "../theme";
 import { useScopedStyles, useScopedTheme } from "./PageScope";
 
-type Tone = "default" | "success" | "warning" | "danger";
+type Tone = "default" | "success" | "warning" | "danger" | "brand";
 
 export function Chip({
   label,
@@ -27,7 +27,9 @@ export function Chip({
         ? { backgroundColor: colors.warningBg, borderColor: "transparent" }
         : tone === "danger"
           ? { backgroundColor: colors.dangerBg, borderColor: "transparent" }
-          : null;
+          : tone === "brand"
+            ? { backgroundColor: colors.primary, borderColor: "transparent" }
+            : null;
   const text =
     tone === "success"
       ? { color: colors.success }
@@ -35,9 +37,11 @@ export function Chip({
         ? { color: colors.warning }
         : tone === "danger"
           ? { color: colors.danger }
-          : onHero
-            ? { color: colors.heroTextSoft }
-            : null;
+          : tone === "brand"
+            ? { color: colors.onPrimary }
+            : onHero
+              ? { color: colors.heroTextSoft }
+              : null;
   return (
     <View style={[styles.chip, box]}>
       <Text style={[styles.chipText, text]} numberOfLines={1}>
