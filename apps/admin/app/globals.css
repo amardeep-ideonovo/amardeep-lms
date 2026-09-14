@@ -2051,10 +2051,52 @@ select:-webkit-autofill:focus {
   gap: 10px;
 }
 .lesson-item {
+  position: relative; /* anchors the drag-and-drop drop indicator */
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
   background: #fff;
+}
+/* ---- drag-and-drop reordering ---- */
+.lesson-list-hint {
+  font-size: 12px;
+  margin: 0 0 10px;
+}
+.lesson-item__grip {
+  flex: none;
+  cursor: grab;
+  color: var(--muted);
+  user-select: none;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
+  touch-action: none;
+}
+.lesson-item__grip:active {
+  cursor: grabbing;
+}
+.lesson-item--dragging {
+  opacity: 0.5;
+  border-color: var(--teal-text);
+}
+/* A teal line at the edge the dragged lesson will land on. Drawn INSIDE the box
+   (top/bottom: 0) because .lesson-item clips overflow. */
+.lesson-item--drop-before::before,
+.lesson-item--drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--teal-text);
+  pointer-events: none;
+  z-index: 1;
+}
+.lesson-item--drop-before::before {
+  top: 0;
+}
+.lesson-item--drop-after::after {
+  bottom: 0;
 }
 .lesson-item__head {
   display: flex;
