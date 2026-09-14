@@ -2166,6 +2166,11 @@ export interface AppConfig {
   title: string; // app/brand name shown in-app
   tagline?: string | null; // short line under the logo (login)
   description?: string | null; // longer blurb (login/account)
+  // Member Dashboard/Home subtitle (the "learning tagline") under the greeting.
+  // Plain text; null/absent -> the render layer (mobile + web) falls back to
+  // DEFAULT_DASHBOARD_TAGLINE below. Stored/served nullable; the API never
+  // resolves the default itself.
+  dashboardTagline?: string | null;
   logoUrl?: string | null; // in-app logo image (shown with the title, see below)
   // When a logo IS set: show the app title alongside it (true, the default) or
   // hide the title so only the logo shows (false — for logos that already
@@ -2185,6 +2190,13 @@ export interface AppConfig {
   apiVersion?: string | null; // the running API's version stamp (e.g. "2026.07.03-abc1234")
   minAppVersion?: string | null; // oldest app version this API supports
 }
+// Built-in fallback for AppConfig.dashboardTagline — the member Dashboard
+// subtitle shown when an academy hasn't set its own. Single source of truth for
+// the mobile DashboardScreen and the web dashboard band, which both render
+// `cfg.dashboardTagline?.trim() || DEFAULT_DASHBOARD_TAGLINE`. The API stores/
+// serves null when unset; only the render layer applies this default. Em dash
+// is U+2014 — keep byte-identical everywhere.
+export const DEFAULT_DASHBOARD_TAGLINE = "Keep learning — a little every day.";
 export interface UpdateAppConfigInput {
   appConfig: AppConfig;
 }

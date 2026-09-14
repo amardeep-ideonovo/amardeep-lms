@@ -14,7 +14,12 @@ import {
   greetingFor,
   overallPct,
 } from "@/lib/memberData";
-import { useMe, useMemberDashboard, useMyCertificates } from "@/lib/queries";
+import {
+  useAppConfig,
+  useMe,
+  useMemberDashboard,
+  useMyCertificates,
+} from "@/lib/queries";
 import AuthGate from "@/components/AuthGate";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
 import { useImageLoaded } from "@/lib/use-image-loaded";
@@ -198,6 +203,9 @@ function DashboardInner() {
   // Best-effort count for the overview card: undefined (still loading / failed)
   // renders as 0, exactly as the old catch-to-[] did.
   const certsQuery = useMyCertificates();
+  // Admin-set member-dashboard subtitle (branding). null/blank -> the dynamic
+  // fallback line below. Called before the early return (rules of hooks).
+  const appConfig = useAppConfig().data ?? null;
   // Member identity for the personalized greeting. Seeded from the localStorage
   // cache so the name paints immediately (no flash), then refreshed by /auth/me
   // (the useMe queryFn also keeps that cache current for the next visit).
@@ -284,11 +292,12 @@ function DashboardInner() {
                 {name ? `, ${name}` : ""}
               </h1>
               <p className="ik-band-sub">
-                {enrolled.length > 0
-                  ? `You are ${journeyPct}% through your learning journey — keep the streak going.`
-                  : classes.length > 0
-                    ? "Explore the classes below to get started."
-                    : "No classes are available yet."}
+                {appConfig?.dashboardTagline?.trim() ||
+                  (enrolled.length > 0
+                    ? `You are ${journeyPct}% through your learning journey — keep the streak going.`
+                    : classes.length > 0
+                      ? "Explore the classes below to get started."
+                      : "No classes are available yet.")}
               </p>
             </div>
             {resumeHref && resumeLabel && (
