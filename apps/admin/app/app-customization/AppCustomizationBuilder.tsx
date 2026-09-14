@@ -10,7 +10,7 @@ import type {
 import { ApiError, api } from "@/lib/api";
 import ColorField from "@/components/ColorField";
 import MediaPicker from "@/components/MediaPicker";
-import { STR } from "@lms/types";
+import { DEFAULT_DASHBOARD_TAGLINE, STR } from "@lms/types";
 import { Button } from "@lms/ui";
 
 const msg = (e: unknown, fb: string) =>
@@ -196,6 +196,24 @@ export default function AppCustomizationBuilder({
               placeholder="A short line shown under the logo"
               onChange={(e) => upd({ tagline: e.target.value || null })}
             />
+          </div>
+          <div className="field">
+            <label>
+              Dashboard tagline <span className="muted">(optional)</span>
+            </label>
+            <input
+              value={cfg.dashboardTagline ?? ""}
+              disabled={ro}
+              maxLength={140}
+              placeholder={DEFAULT_DASHBOARD_TAGLINE}
+              onChange={(e) =>
+                upd({ dashboardTagline: e.target.value || null })
+              }
+            />
+            <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+              Shown under the greeting on the member Home screen. Blank = the
+              default.
+            </p>
           </div>
           <div className="field">
             <label>
@@ -852,11 +870,12 @@ const PhonePreview = memo(function PhonePreview({
 
         {/* body */}
         <div style={{ padding: 16, overflow: "hidden", flex: 1 }}>
-          {cfg.tagline ? (
-            <div style={{ color: p.textMuted, fontSize: 12, marginBottom: 12 }}>
-              {cfg.tagline}
-            </div>
-          ) : null}
+          {/* Dashboard subtitle — mirrors the member Home screen, which always
+              shows this line, falling back to the built-in default when the
+              admin leaves dashboardTagline blank. */}
+          <div style={{ color: p.textMuted, fontSize: 12, marginBottom: 12 }}>
+            {cfg.dashboardTagline?.trim() || DEFAULT_DASHBOARD_TAGLINE}
+          </div>
           {card("Getting Started", "3 lessons · 60% complete", 60)}
           {card("Advanced Track", "8 lessons · 25% complete", 25)}
           <button

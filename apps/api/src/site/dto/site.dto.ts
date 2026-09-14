@@ -181,6 +181,10 @@ class AppConfigDto implements AppConfig {
   @IsString() @MaxLength(80) title!: string;
   @IsOptional() @IsString() @MaxLength(200) tagline?: string | null;
   @IsOptional() @IsString() @MaxLength(600) description?: string | null;
+  // Member Dashboard subtitle. String-shape only (nullable to clear); the trim +
+  // whitespace->null + hard cap live in app-config.service (trimmedOrNull). Must
+  // be declared or the global forbidNonWhitelisted pipe 400s any PUT carrying it.
+  @IsOptional() @IsString() @MaxLength(140) dashboardTagline?: string | null;
   @IsOptional() @IsString() @MaxLength(2000) logoUrl?: string | null;
   @IsOptional() @IsBoolean() showTitleWithLogo?: boolean;
   @IsOptional() @IsString() @MaxLength(2000) iconUrl?: string | null;

@@ -432,6 +432,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   title: "Spotlight Academy",
   tagline: null,
   description: null,
+  dashboardTagline: null,
   logoUrl: null,
   showTitleWithLogo: true,
   iconUrl: null,

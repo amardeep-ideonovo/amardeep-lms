@@ -48,6 +48,7 @@ const DEFAULT_APP_CONFIG: AppConfig = {
   title: "Spotlight Academy",
   tagline: null,
   description: null,
+  dashboardTagline: null,
   logoUrl: null,
   showTitleWithLogo: true,
   iconUrl: null,
@@ -104,6 +105,14 @@ export class AppConfigService {
   }
   private strOrNull(v: unknown, max: number): string | null {
     return typeof v === "string" && v ? v.slice(0, max) : null;
+  }
+  // Like strOrNull but trims first and treats an all-whitespace value as unset —
+  // used for the member Dashboard subtitle: a blank admin field stores null so
+  // the render layer falls back to DEFAULT_DASHBOARD_TAGLINE.
+  private trimmedOrNull(v: unknown, max: number): string | null {
+    if (typeof v !== "string") return null;
+    const s = v.trim();
+    return s ? s.slice(0, max) : null;
   }
   // Like strOrNull but only accepts a SAFE link target: a same-origin-relative
   // path ("/privacy") or an explicit http(s) absolute URL. Rejects javascript:,
@@ -183,6 +192,7 @@ export class AppConfigService {
         DEFAULT_APP_CONFIG.title,
       tagline: this.strOrNull(r.tagline, 200),
       description: this.strOrNull(r.description, 600),
+      dashboardTagline: this.trimmedOrNull(r.dashboardTagline, 140),
       logoUrl: this.strOrNull(r.logoUrl, 2000),
       // Default true: only an explicit `false` hides the title beside the logo.
       showTitleWithLogo: r.showTitleWithLogo !== false,

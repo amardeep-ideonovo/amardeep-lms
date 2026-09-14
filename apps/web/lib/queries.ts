@@ -34,6 +34,7 @@ import type {
 
 import {
   api,
+  fetchAppConfig,
   getCachedMe,
   isSignedIn,
   memberCacheId,
@@ -48,6 +49,7 @@ export const qk = {
   mySubscriptions: ["mySubscriptions"] as const,
   myInvoices: ["myInvoices"] as const,
   myCertificates: ["myCertificates"] as const,
+  appConfig: ["appConfig"] as const,
   // Parameterized keys: the stable "courseLessons" prefix lets a broad
   // invalidate (all courses) match by prefix; the id scopes a single course.
   courses: ["courses"] as const,
@@ -160,6 +162,14 @@ export function useMyCertificates() {
       readMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, memberCacheId())?.data,
     initialDataUpdatedAt: () =>
       readMemberCache<CertsSnapshot>(CERTS_CACHE_KEY, memberCacheId())?.t,
+  });
+}
+
+// Public AppConfig (branding + the admin-set dashboard tagline). Null-tolerant.
+export function useAppConfig() {
+  return useQuery({
+    queryKey: qk.appConfig,
+    queryFn: () => fetchAppConfig(),
   });
 }
 

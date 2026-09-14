@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
 import type { AuthUser, ClassTileDTO } from "@lms/types";
-import { STR } from "@lms/types";
+import { DEFAULT_DASHBOARD_TAGLINE, STR } from "@lms/types";
 
 import {
   useMyClasses,
@@ -54,6 +54,7 @@ import {
 import { letterGradient, spacing } from "../theme";
 import type { Theme } from "../theme";
 import { useStyles, useTheme } from "../theme-provider";
+import { useAppConfig } from "../config-provider";
 
 // Member's display first name for the greeting: profile first name, else
 // username, else the email local-part. Empty when we have no identity yet.
@@ -73,11 +74,6 @@ function daypart(): string {
   return "Good evening";
 }
 
-// Permanent, static learning tagline under the greeting — deliberately NOT tied
-// to progress (the old dynamic streak line is gone), so it reads the same in
-// every state and on every platform. Keep in sync with the web dashboard.
-const LEARNING_TAGLINE = "Keep learning — a little every day.";
-
 const pctOf = (p: ClassTileDTO["progress"]): number | null =>
   p && p.total > 0 ? Math.round((p.completed / p.total) * 100) : null;
 
@@ -95,6 +91,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
   const { contentWidth, isWide } = useContentLayout();
+  const { config } = useAppConfig();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
 
@@ -267,7 +264,9 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
                 <Text style={[styles.greeting, isWide && styles.greetingWide]}>
                   {name ? `${daypart()}, ${name}` : daypart()}
                 </Text>
-                <Text style={styles.tagline}>{LEARNING_TAGLINE}</Text>
+                <Text style={styles.tagline}>
+                  {config.dashboardTagline?.trim() || DEFAULT_DASHBOARD_TAGLINE}
+                </Text>
               </View>
 
               {featured ? (
