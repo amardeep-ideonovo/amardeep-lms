@@ -73,6 +73,11 @@ function daypart(): string {
   return "Good evening";
 }
 
+// Permanent, static learning tagline under the greeting — deliberately NOT tied
+// to progress (the old dynamic streak line is gone), so it reads the same in
+// every state and on every platform. Keep in sync with the web dashboard.
+const LEARNING_TAGLINE = "Keep learning — a little every day.";
+
 const pctOf = (p: ClassTileDTO["progress"]): number | null =>
   p && p.total > 0 ? Math.round((p.completed / p.total) * 100) : null;
 
@@ -145,7 +150,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
         {isFocused ? (
           <StatusBar style={colors.onChrome === "#ffffff" ? "light" : "dark"} />
         ) : null}
-        <View style={[styles.band, { paddingTop: insets.top + 6 }]}>
+        <View style={[styles.band, { paddingTop: insets.top + 10 }]}>
           <View style={styles.bandInner}>
             <Skeleton
               height={30}
@@ -243,7 +248,7 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
         <View style={styles.bounceCover} />
 
         {/* ---------- ink chrome band ---------- */}
-        <View style={[styles.band, { paddingTop: insets.top + 6 }]}>
+        <View style={[styles.band, { paddingTop: insets.top + 10 }]}>
           <View style={styles.bandInner}>
             <View style={styles.brandRow}>
               <BrandHeaderTitle onChrome />
@@ -258,9 +263,12 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
             </View>
 
             <View style={isWide && styles.greetingRowWide}>
-              <Text style={[styles.greeting, isWide && styles.greetingWide]}>
-                {name ? `${daypart()}, ${name}` : daypart()}
-              </Text>
+              <View style={isWide && styles.greetingColWide}>
+                <Text style={[styles.greeting, isWide && styles.greetingWide]}>
+                  {name ? `${daypart()}, ${name}` : daypart()}
+                </Text>
+                <Text style={styles.tagline}>{LEARNING_TAGLINE}</Text>
+              </View>
 
               {featured ? (
                 <CtaButton
@@ -497,7 +505,7 @@ const makeStyles = ({ colors, fonts }: Theme) =>
     // same column as the page body (tablets).
     band: {
       backgroundColor: colors.chrome,
-      paddingBottom: 58,
+      paddingBottom: 68,
     },
     bandInner: { paddingHorizontal: spacing.md, ...contentColumn },
     brandRow: { flexDirection: "row", alignItems: "center", gap: 9 },
@@ -525,18 +533,30 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       color: colors.onChrome,
       fontSize: 22,
       fontFamily: fonts.semibold,
-      marginTop: 18,
+      marginTop: 22,
     },
-    // Tablet/wide: greeting on the left, a content-width Resume CTA on the right
-    // (phones keep the plain column + full-width CTA).
+    // Permanent learning tagline under the greeting (muted on-chrome). Restores
+    // the subtitle slot the dynamic streak line vacated — now static so it reads
+    // the same in every state and on every platform.
+    tagline: {
+      color: colors.onChromeSoft,
+      fontSize: 12,
+      lineHeight: 18.5,
+      marginTop: 5,
+      fontFamily: fonts.regular,
+    },
+    // Tablet/wide: a greeting + tagline column on the left, a content-width
+    // Resume CTA on the right (phones keep the plain column + full-width CTA).
     greetingRowWide: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
       gap: spacing.md,
-      marginTop: 18,
+      marginTop: 22,
     },
-    greetingWide: { marginTop: 0, flexShrink: 1 },
+    // The left column shrinks in the wide row so the CTA keeps its width.
+    greetingColWide: { flexShrink: 1 },
+    greetingWide: { marginTop: 0 },
     resume: { marginTop: 15 },
     resumeWide: { marginTop: 0 },
     // The ▶ sits on the teal CTA gradient and uses onCta (white on the stock

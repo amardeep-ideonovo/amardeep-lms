@@ -237,7 +237,7 @@ export function ClassScreen({ route, navigation }: ScreenProps<"Class">) {
           {cls.categories.length > 0 ? (
             <View style={styles.heroChips}>
               {cls.categories.map((c) => (
-                <Chip key={c.id} label={c.name} onHero />
+                <Chip key={c.id} label={c.name} tone="brand" />
               ))}
             </View>
           ) : null}

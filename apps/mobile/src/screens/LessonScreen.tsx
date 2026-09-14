@@ -508,7 +508,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
                 style={styles.video}
                 originWhitelist={["*"]}
                 source={{
-                  html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"></head><body style="margin:0;background:#000;overflow:hidden"><iframe src="${youtube}" width="100%" height="100%" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></body></html>`,
+                  html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><style>html,body{height:100%;margin:0;background:#000;overflow:hidden}iframe{display:block;border:0;width:100%;height:100%}</style></head><body><iframe src="${youtube}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></body></html>`,
                   baseUrl: "https://www.youtube-nocookie.com",
                 }}
                 allowsFullscreenVideo
