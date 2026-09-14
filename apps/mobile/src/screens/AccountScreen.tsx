@@ -802,7 +802,7 @@ export function AccountScreen({ navigation }: TabScreenProps<"Profile">) {
                   <View style={styles.pushLabel}>
                     <Text style={styles.moreText}>Push notifications</Text>
                     <Text style={styles.pushHint}>
-                      Replies from support and updates about your membership.
+                      Replies from support and account updates.
                     </Text>
                   </View>
                   <Switch
