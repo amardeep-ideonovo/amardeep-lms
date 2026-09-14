@@ -244,8 +244,15 @@ export function MyClassesScreen({ navigation }: TabScreenProps<"Classes">) {
                   </Press>
                 );
               })}
+            </>
+          ) : null}
 
-              {/* ---------- certificate row ---------- */}
+          {/* ---------- certification (own section, not a course) ---------- */}
+          {courses.length > 0 ? (
+            <>
+              <View style={styles.sectionRow}>
+                <Text style={styles.sectionTitle}>Certification</Text>
+              </View>
               <Press
                 style={[
                   styles.courseRow,

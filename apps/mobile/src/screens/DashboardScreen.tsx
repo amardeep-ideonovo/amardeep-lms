@@ -89,7 +89,7 @@ function initialsOf(u: AuthUser): string {
 export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
   const styles = useStyles(makeStyles);
   const { colors } = useTheme();
-  const { contentWidth } = useContentLayout();
+  const { contentWidth, isWide } = useContentLayout();
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
 
@@ -209,15 +209,6 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
       seed: classSeed(c),
     });
 
-  const streakLine =
-    owned.length > 0
-      ? totals.total > 0
-        ? `You are ${overall}% through your learning journey — keep the streak going.`
-        : `You're enrolled in ${owned.length} class${owned.length === 1 ? "" : "es"} — dive in below.`
-      : classes.length > 0
-        ? "Explore the classes below to get started."
-        : "No classes are available yet.";
-
   const overviewMeta = [
     `${owned.length} active class${owned.length === 1 ? "" : "es"}`,
     certs && certs.length > 0
@@ -266,19 +257,20 @@ export function DashboardScreen({ navigation }: TabScreenProps<"Home">) {
               ) : null}
             </View>
 
-            <Text style={styles.greeting}>
-              {name ? `${daypart()}, ${name}` : daypart()}
-            </Text>
-            <Text style={styles.streak}>{streakLine}</Text>
+            <View style={isWide && styles.greetingRowWide}>
+              <Text style={[styles.greeting, isWide && styles.greetingWide]}>
+                {name ? `${daypart()}, ${name}` : daypart()}
+              </Text>
 
-            {featured ? (
-              <CtaButton
-                style={styles.resume}
-                icon={<Text style={styles.resumeGlyph}>▶</Text>}
-                label={`${featuredComplete ? "Review" : "Resume"}: ${featured.name}`}
-                onPress={() => openClass(featured)}
-              />
-            ) : null}
+              {featured ? (
+                <CtaButton
+                  style={[styles.resume, isWide && styles.resumeWide]}
+                  icon={<Text style={styles.resumeGlyph}>▶</Text>}
+                  label={`${featuredComplete ? "Review" : "Resume"}: ${featured.name}`}
+                  onPress={() => openClass(featured)}
+                />
+              ) : null}
+            </View>
           </View>
         </View>
 
@@ -535,14 +527,18 @@ const makeStyles = ({ colors, fonts }: Theme) =>
       fontFamily: fonts.semibold,
       marginTop: 18,
     },
-    streak: {
-      color: colors.onChromeSoft,
-      fontSize: 12,
-      lineHeight: 18.5,
-      marginTop: 5,
-      fontFamily: fonts.regular,
+    // Tablet/wide: greeting on the left, a content-width Resume CTA on the right
+    // (phones keep the plain column + full-width CTA).
+    greetingRowWide: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.md,
+      marginTop: 18,
     },
+    greetingWide: { marginTop: 0, flexShrink: 1 },
     resume: { marginTop: 15 },
+    resumeWide: { marginTop: 0 },
     // The ▶ sits on the teal CTA gradient and uses onCta (white on the stock
     // Ink Hero teal), matching the label beside it.
     resumeGlyph: {

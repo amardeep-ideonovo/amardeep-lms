@@ -327,7 +327,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
         >
-          <HeroScaffold variant="ink" overlapReserve={68}>
+          <HeroScaffold variant="chrome" overlapReserve={68}>
             <Text style={styles.crumbs} numberOfLines={1}>
               Dashboard
             </Text>
@@ -461,7 +461,7 @@ export function LessonScreen({ route, navigation }: ScreenProps<"Lesson">) {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <HeroScaffold variant="ink" overlapReserve={68}>
+        <HeroScaffold variant="chrome" overlapReserve={68}>
           <Text style={styles.crumbs} numberOfLines={1}>
             {crumbs}
           </Text>
@@ -759,7 +759,7 @@ const makeStyles = ({ colors, fonts, mode }: Theme) =>
       // button and content top track insets.top, so this constant delta (~8px
       // gap below the 38px puck) holds at every safe-area inset.
       marginTop: spacing.xl + 4,
-      color: "rgba(255,255,255,0.5)",
+      color: colors.onChromeSoft,
       fontSize: 11.5,
       fontFamily: fonts.regular,
     },
@@ -772,15 +772,17 @@ const makeStyles = ({ colors, fonts, mode }: Theme) =>
     },
     heroTitle: {
       flex: 1,
-      color: colors.heroText,
+      color: colors.onChrome,
       fontSize: 23,
       fontWeight: "800",
       lineHeight: 29,
       fontFamily: fonts.display,
     },
     heroPill: {
-      color: "rgba(255,255,255,0.78)",
-      backgroundColor: "rgba(255,255,255,0.1)",
+      // Filled ink chip + fixed light text so "Lesson N of M" stays legible on
+      // any brand chrome band (light OR dark), unlike the old white-on-veil.
+      color: colors.heroText,
+      backgroundColor: colors.inkCard,
       fontSize: 11,
       fontWeight: "600",
       fontFamily: fonts.semibold,
