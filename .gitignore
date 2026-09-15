@@ -31,6 +31,10 @@ apps/mobile/ios/
 
 # mobile store credentials (never commit)
 apps/mobile/play-service-account.json
+# Firebase per-app config for Android push (FCM) — each white-label app has its
+# own; supplied per build (INSTANCE_GOOGLE_SERVICES_JSON / EAS file secret).
+apps/mobile/google-services.json
+apps/mobile/GoogleService-Info.plist
 # expo-updates OTA code-signing PRIVATE key (the certificate in certs/ IS
 # committed; the private key signs updates and must never be in git — back it
 # up to an EAS secret / secure store)
