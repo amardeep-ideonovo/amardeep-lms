@@ -43,6 +43,22 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Android 8+ requires a notification CHANNEL for a delivered push to surface as
+// a heads-up (peek) banner with sound; without a high-importance channel it
+// lands silently in the tray — which reads as "no notification". Create one
+// "default" channel at module load (App.tsx imports this file early), and the
+// server tags every push with channelId:"default" to route into it. No-op on
+// iOS. Best-effort: a channel failure must never break module load.
+if (Platform.OS === "android") {
+  void Notifications.setNotificationChannelAsync("default", {
+    name: "Notifications",
+    importance: Notifications.AndroidImportance.HIGH,
+    sound: "default",
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: "#101014",
+  }).catch(() => {});
+}
+
 // De-register the outgoing academy's token when the app unbinds an instance
 // (Switch academy / delete-account). Wired here so importing this module is all
 // it takes; config.ts calls it at the top of unbindInstance, while the token +
