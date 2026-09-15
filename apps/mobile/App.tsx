@@ -1,5 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  AppState,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Notifications from "expo-notifications";
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import type { LinkingOptions } from "@react-navigation/native";
@@ -26,7 +33,7 @@ import { InstanceGate } from "./src/instance-gate";
 import { QueryProvider, QueryAuthReset } from "./src/query";
 import { navigationRef } from "./src/nav-ref";
 import { openAppHref } from "./src/links";
-import { useNotificationsUnread } from "./src/queries";
+import { qk, useNotificationsUnread } from "./src/queries";
 // Side effects: sets the foreground notification handler + the unbind push
 // cleanup hook at module load. Must be imported before the first notification.
 import "./src/push";
@@ -485,6 +492,7 @@ function routeOrQueue(href: string, authed: boolean): void {
 function ThemedApp() {
   const { mode, colors } = useTheme();
   const { token } = useAuth();
+  const queryClient = useQueryClient();
   // Keep the latest auth token readable from the (mount-once) tap listener
   // without re-subscribing it on every token change.
   const tokenRef = useRef(token);
@@ -516,6 +524,29 @@ function ThemedApp() {
       pendingDeepLink = null;
     };
   }, []);
+
+  // Keep the in-app inbox + Profile-tab unread badge live instead of waiting on
+  // the 60s poll: refetch the moment a push is delivered while the app is in the
+  // foreground, and again whenever the app returns to the foreground. A push
+  // delivered while backgrounded/killed only lands in the OS tray, so the tap
+  // (which brings the app to "active") or the member's next app-open is when the
+  // inbox should catch up. queryClient from the provider is stable, so this
+  // subscribes once.
+  useEffect(() => {
+    const invalidateInbox = () => {
+      void queryClient.invalidateQueries({ queryKey: qk.notifications });
+      void queryClient.invalidateQueries({ queryKey: qk.notificationsUnread });
+    };
+    const received =
+      Notifications.addNotificationReceivedListener(invalidateInbox);
+    const appState = AppState.addEventListener("change", (state) => {
+      if (state === "active") invalidateInbox();
+    });
+    return () => {
+      received.remove();
+      appState.remove();
+    };
+  }, [queryClient]);
 
   // Drain a queued deep link once the member is authed (the AppNavigator's
   // screens now exist). The NavigationContainer is always mounted, so isReady()

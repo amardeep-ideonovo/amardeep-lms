@@ -539,6 +539,12 @@ export class PushService {
         const byId = new Map(due.map((r) => [r.receiptId, r]));
         const resolved: string[] = [];
         const toDisable = new Set<string>();
+        // Delivery receipts that errored for any reason OTHER than
+        // DeviceNotRegistered — a bad APNs/FCM credential, MessageTooBig,
+        // MessageRateExceeded — are where an iOS/Android push MISCONFIG actually
+        // surfaces (the immediate ticket is usually "ok"). They used to be marked
+        // DONE silently; aggregate + WARN so the cause is visible in the logs.
+        const receiptErrors = new Map<string, number>();
         for (const idChunk of this.expo.chunkPushNotificationReceiptIds(
           due.map((r) => r.receiptId),
         )) {
@@ -554,14 +560,21 @@ export class PushService {
           }
           for (const [receiptId, receipt] of Object.entries(receipts)) {
             resolved.push(receiptId); // present in the response => resolved
-            if (
-              receipt.status === "error" &&
-              receipt.details?.error === "DeviceNotRegistered"
-            ) {
+            if (receipt.status !== "error") continue;
+            if (receipt.details?.error === "DeviceNotRegistered") {
               const row = byId.get(receiptId);
               if (row) toDisable.add(row.expoPushToken);
+              continue;
             }
+            const key = receipt.details?.error ?? receipt.message ?? "unknown";
+            receiptErrors.set(key, (receiptErrors.get(key) ?? 0) + 1);
           }
+        }
+        if (receiptErrors.size > 0) {
+          const summary = [...receiptErrors.entries()]
+            .map(([code, n]) => `${code}×${n}`)
+            .join(", ");
+          this.logger.warn(`[push] Expo delivery receipts errored: ${summary}`);
         }
         if (toDisable.size > 0) {
           await this.prisma.deviceToken.updateMany({
@@ -595,21 +608,33 @@ export class PushService {
   }
 
   // Disable tokens Expo reports as no longer registered, so fan-out stays honest.
+  // Every OTHER ticket error (a bad APNs/FCM credential, an invalid payload, a
+  // rate limit) used to be dropped silently here — the reason a misconfigured
+  // push key showed "nothing delivered" with zero server signal. Aggregate and
+  // WARN those so the failure is diagnosable from the logs.
   private async pruneInvalidTokens(
     chunk: ExpoPushMessage[],
     tickets: ExpoPushTicket[],
   ): Promise<void> {
     const toDisable: string[] = [];
+    const otherErrors = new Map<string, number>();
     tickets.forEach((ticket, i) => {
-      if (
-        ticket.status === "error" &&
-        ticket.details?.error === "DeviceNotRegistered"
-      ) {
+      if (ticket.status !== "error") return;
+      if (ticket.details?.error === "DeviceNotRegistered") {
         const to = chunk[i]?.to;
         const token = Array.isArray(to) ? to[0] : to;
         if (typeof token === "string") toDisable.push(token);
+        return;
       }
+      const key = ticket.details?.error ?? ticket.message ?? "unknown";
+      otherErrors.set(key, (otherErrors.get(key) ?? 0) + 1);
     });
+    if (otherErrors.size > 0) {
+      const summary = [...otherErrors.entries()]
+        .map(([code, n]) => `${code}×${n}`)
+        .join(", ");
+      this.logger.warn(`[push] Expo rejected send tickets: ${summary}`);
+    }
     if (toDisable.length > 0) {
       await this.prisma.deviceToken.updateMany({
         where: { expoPushToken: { in: toDisable } },
