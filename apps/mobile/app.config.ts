@@ -113,6 +113,16 @@ const config = (): ExpoConfig => ({
     // Its own env — do NOT fall back to the iOS bundle id: iOS identifiers
     // allow characters (e.g. hyphens) that are illegal in an Android package.
     package: process.env.INSTANCE_ANDROID_PACKAGE ?? "com.thewebpaanda.lms",
+    // Firebase config for Android push (FCM). REQUIRED for a delivered push to
+    // surface on Android: without it getExpoPushTokenAsync throws and the device
+    // silently never registers (the iOS path needs no equivalent — APNs uses the
+    // aps-environment entitlement). Per-app (each white-label has its own
+    // Firebase project), so it's supplied per build via INSTANCE_GOOGLE_SERVICES_JSON
+    // (an EAS file env var / the fleet build pipeline), else a local file. The
+    // file is gitignored; an `eas build --platform android` fails fast if it's
+    // missing (correct — you can't do Android push without it). iOS ignores this.
+    googleServicesFile:
+      process.env.INSTANCE_GOOGLE_SERVICES_JSON ?? "./google-services.json",
     // Legacy (pre-API-26) launcher icon: a pre-padded mark-on-black square so
     // the round mask can't clip the S. (Full-bleed app-icon.png is for iOS/store.)
     icon: "./assets/android-icon.png",
