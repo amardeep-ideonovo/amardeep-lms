@@ -472,6 +472,10 @@ export class PushService {
         data: { href: payload.href, category: payload.category },
         sound: "default",
         priority: "high",
+        // Route into the high-importance "default" channel the app creates on
+        // Android (src/push.ts) so the push surfaces as a heads-up banner, not a
+        // silent tray entry. Ignored by iOS.
+        channelId: "default",
       }));
     if (messages.length === 0) return;
 
